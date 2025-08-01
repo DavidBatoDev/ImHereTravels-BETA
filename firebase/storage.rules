@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Users can upload and read their own profile pictures
+    match /users/{userId}/profile/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Public tour images (read-only for users)
+    match /tours/{tourId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && isAdmin();
+    }
+    
+    // Booking documents and images
+    match /bookings/{bookingId}/{allPaths=**} {
+      allow read, write: if request.auth != null && 
+                         (request.auth.uid == getBookingUserId(bookingId) || 
+                          isAdmin());
+    }
+    
+    // Helper functions
+    function isAdmin() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function getBookingUserId(bookingId) {
+      return firestore.get(/databases/(default)/documents/bookings/$(bookingId)).data.userId;
+    }
+  }
+}
