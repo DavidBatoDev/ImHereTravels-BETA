@@ -74,7 +74,7 @@ const firebaseConfig = {
   storageBucket: "your-project.appspot.com",
   messagingSenderId: "your-sender-id",
   appId: "your-app-id",
-  measurementId: "your-measurement-id"
+  measurementId: "your-measurement-id",
 };
 ```
 
@@ -138,11 +138,13 @@ The Firestore security rules ensure:
 ### Common Issues
 
 1. **Google Sign-in not working**:
+
    - Check authorized domains in Google Cloud Console
    - Verify OAuth consent screen is configured
    - Ensure Google provider is enabled in Firebase Console
 
 2. **Firestore permission denied**:
+
    - Verify security rules are deployed
    - Check user authentication status
    - Ensure user document exists

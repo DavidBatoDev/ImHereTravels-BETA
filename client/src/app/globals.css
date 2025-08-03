@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    
+    /* Primary Brand Colors */
+    --primary: 0 75% 53%; /* Crimson Red #EF3340 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 263 84% 39%; /* Creative Midnight #1C1F2A */
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Brand Color Palette */
+    --crimson-red: 0 75% 53%;
+    --light-red: 0 78% 67%;
+    --creative-midnight: 210 40% 17%;
+    --black: 0 0% 0%;
+    --grey: 0 0% 59%;
+    --white: 0 0% 100%;
+    --light-grey: 210 19% 90%;
+    
+    /* Secondary Brand Colors */
+    --royal-purple: 263 55% 55%;
+    --light-purple: 270 46% 70%;
+    --spring-green: 155 100% 39%;
+    --light-green: 66 100% 71%;
+    --vivid-orange: 17 100% 50%;
+    --light-orange: 24 100% 65%;
+    --sunglow-yellow: 45 100% 50%;
+    --light-yellow: 47 100% 68%;
+    
+    /* System Colors */
+    --muted: 210 19% 90%;
+    --muted-foreground: 0 0% 59%;
+    --accent: 210 19% 90%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 75% 53%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 19% 90%;
+    --input: 210 19% 90%;
+    --ring: 0 75% 53%;
+    --radius: 0.5rem;
+
+    /* Sidebar Colors */
+    --sidebar-background: 210 40% 17%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 75% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 263 55% 55%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 59%;
+    --sidebar-ring: 0 75% 53%;
+  }
+
+  .dark {
+    --background: 210 40% 17%;
+    --foreground: 0 0% 100%;
+    --card: 210 40% 17%;
+    --card-foreground: 0 0% 100%;
+    --popover: 210 40% 17%;
+    --popover-foreground: 0 0% 100%;
+    
+    /* Primary Brand Colors - Dark Mode */
+    --primary: 0 78% 67%; /* Light Red for better contrast */
+    --primary-foreground: 210 40% 17%;
+    --secondary: 263 55% 55%; /* Royal Purple */
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Adjusted for dark mode */
+    --crimson-red: 0 78% 67%;
+    --light-red: 0 75% 53%;
+    --creative-midnight: 0 0% 100%;
+    --black: 0 0% 100%;
+    --grey: 0 0% 70%;
+    --white: 210 40% 17%;
+    --light-grey: 0 0% 20%;
+    
+    /* Secondary Brand Colors - Dark Mode */
+    --royal-purple: 270 46% 70%;
+    --light-purple: 263 55% 55%;
+    --spring-green: 155 100% 50%;
+    --light-green: 66 100% 60%;
+    --vivid-orange: 17 100% 60%;
+    --light-orange: 24 100% 55%;
+    --sunglow-yellow: 45 100% 60%;
+    --light-yellow: 47 100% 58%;
+    
+    /* System Colors - Dark Mode */
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 0 0% 20%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 78% 67%;
+    --destructive-foreground: 210 40% 17%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 78% 67%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-dm-sans), system-ui, sans-serif;
+  }
+}
