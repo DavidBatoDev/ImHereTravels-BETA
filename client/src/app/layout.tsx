@@ -4,23 +4,24 @@ import "./globals.css";
 
 // Configure DM Sans for body text and CTAs
 const dmSans = DM_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-dm-sans',
-  display: 'swap',
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+  display: "swap",
 });
 
 // Configure Work Sans as better HK Grotesk alternative (more similar geometric style)
 const workSans = Work_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-hk-grotesk',
-  display: 'swap',
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-hk-grotesk",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "I'm Here Travels",
-  description: "Connect people with places and create lifelong impact together for the community.",
+  description:
+    "Connect people with places and create lifelong impact together for the community.",
 };
 
 export default function RootLayout({
@@ -30,9 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${dmSans.variable} ${workSans.variable}`}>
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
