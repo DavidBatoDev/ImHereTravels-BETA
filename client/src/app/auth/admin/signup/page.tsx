@@ -13,23 +13,33 @@ import {
   Upload,
   Eye,
   EyeOff,
+  Loader2,
+  Calendar,
+  MessageSquare,
+  BarChart3,
 } from "lucide-react";
+import { useAuthStore } from "@/lib/auth-store";
+import { toast } from "@/hooks/use-toast";
 
 export default function AdminSignupPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
-    role: "agent",
+    role: "agent" as "agent" | "admin",
     password: "",
     confirmPassword: "",
     avatar: null as File | null,
     agreeTerms: false,
   });
+
+  const { signUp, clearError } = useAuthStore();
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({
@@ -127,11 +137,38 @@ export default function AdminSignupPage() {
     setErrors({});
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validateStep3()) {
-      // TODO: Implement signup logic
-      console.log("Signup data:", formData);
+      setIsSubmitting(true);
+      clearError();
+
+      try {
+        await signUp(formData.email, formData.password, {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          role: formData.role,
+        });
+
+        // If successful, show success state
+        console.log("Signup successful!");
+        setIsSuccess(true);
+
+        // Show success toast
+        toast({
+          title: "Account Created Successfully!",
+          description: "Your account has been created and is pending approval.",
+        });
+
+        // Redirect to dashboard after showing success message
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 3000);
+      } catch (error) {
+        console.error("Signup failed:", error);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -223,21 +260,32 @@ export default function AdminSignupPage() {
                   <>
                     <div>
                       <label className="block text-black font-dm-sans text-sm mb-2">
-                        Role
+                        Select Your Role
                       </label>
-                      <select
-                        value={formData.role}
-                        onChange={(e) =>
-                          handleInputChange("role", e.target.value)
-                        }
-                        className={`w-full px-4 py-3 bg-light-grey border rounded-lg text-black font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
-                          errors.role ? "border-red-500" : "border-grey"
-                        }`}
-                        required
-                      >
-                        <option value="agent">Agent</option>
-                        <option value="admin">Administrator</option>
-                      </select>
+                      <div className="flex border border-grey rounded-lg overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => handleInputChange("role", "agent")}
+                          className={`flex-1 px-4 py-3 font-dm-sans text-sm font-medium transition-all ${
+                            formData.role === "agent"
+                              ? "bg-crimson-red text-white"
+                              : "bg-light-grey text-grey hover:bg-grey hover:text-black"
+                          }`}
+                        >
+                          Agent
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleInputChange("role", "admin")}
+                          className={`flex-1 px-4 py-3 font-dm-sans text-sm font-medium transition-all ${
+                            formData.role === "admin"
+                              ? "bg-crimson-red text-white"
+                              : "bg-light-grey text-grey hover:bg-grey hover:text-black"
+                          }`}
+                        >
+                          Administrator
+                        </button>
+                      </div>
                       {errors.role && (
                         <p className="text-red-500 text-xs mt-1">
                           {errors.role}
@@ -495,6 +543,20 @@ export default function AdminSignupPage() {
                         </p>
                       )}
 
+                      {/* Error messages are now handled by toast notifications */}
+
+                      {isSuccess && (
+                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <Check className="w-5 h-5 text-green-600" />
+                            <p className="text-green-600 text-sm font-medium">
+                              Account created successfully! Redirecting to
+                              dashboard...
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="p-4 bg-light-grey rounded-lg border border-grey">
                         <div className="flex items-start space-x-3">
                           <Shield className="w-5 h-5 text-grey mt-0.5" />
@@ -522,10 +584,20 @@ export default function AdminSignupPage() {
                       </button>
                       <button
                         type="submit"
-                        disabled={!formData.agreeTerms}
+                        disabled={
+                          !formData.agreeTerms || isSubmitting || isSuccess
+                        }
                         className="flex-1 bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
                       >
-                        Create Admin Account
+                        {isSubmitting
+                          ? "Creating Account..."
+                          : isSuccess
+                          ? "Account Created!"
+                          : `Create ${
+                              formData.role === "admin"
+                                ? "Administrator"
+                                : "Agent"
+                            } Account`}
                       </button>
                     </div>
                   </>
@@ -550,48 +622,88 @@ export default function AdminSignupPage() {
         </div>
       </div>
 
-      {/* Right side - Admin Features */}
-      <div className="flex-1 bg-gradient-to-br from-crimson-red via-crimson-red to-light-red flex items-end p-8">
-        <div className="text-white max-w-lg">
+      {/* Right side - Dynamic Features based on Role */}
+      <div className="flex-1 relative flex items-end p-8">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/images/sunrise.jpg')" }}
+        />
+        {/* Red Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/80 via-crimson-red/70 to-light-red/60" />
+        {/* Content */}
+        <div className="relative z-10 text-white max-w-lg">
           <h2 className="font-hk-grotesk text-2xl font-medium mb-4">
-            Administrative Access
+            {formData.role === "admin"
+              ? "Administrative Access"
+              : "Agent Access"}
           </h2>
           <div className="space-y-4 font-dm-sans text-sm">
-            <div className="flex items-center space-x-3">
-              <FileText className="w-5 h-5" />
-              <span>Manage bookings and reservations</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Users className="w-5 h-5" />
-              <span>User management and analytics</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <FileText className="w-5 h-5" />
-              <span>Content and itinerary management</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Settings className="w-5 h-5" />
-              <span>System configuration and settings</span>
-            </div>
+            {formData.role === "admin" ? (
+              <>
+                <div className="flex items-center space-x-3">
+                  <FileText className="w-5 h-5" />
+                  <span>Manage bookings and reservations</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Users className="w-5 h-5" />
+                  <span>User management and analytics</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <FileText className="w-5 h-5" />
+                  <span>Content and itinerary management</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Settings className="w-5 h-5" />
+                  <span>System configuration and settings</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center space-x-3">
+                  <FileText className="w-5 h-5" />
+                  <span>Manage bookings and reservations</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Calendar className="w-5 h-5" />
+                  <span>View booking schedules</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <MessageSquare className="w-5 h-5" />
+                  <span>Customer communication</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <BarChart3 className="w-5 h-5" />
+                  <span>Basic reporting access</span>
+                </div>
+              </>
+            )}
           </div>
+        </div>
+      </div>
 
-          <div className="mt-8 p-4 bg-white/10 rounded-lg">
-            <h3 className="font-hk-grotesk text-lg font-medium mb-2">
-              Role Permissions
-            </h3>
-            <div className="space-y-2 font-dm-sans text-xs">
-              <div>
-                <span className="font-medium">Administrator:</span> Full system
-                access
+      {/* Loading Modal */}
+      {isSubmitting && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-sm w-full mx-4">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="w-16 h-16 bg-crimson-red/20 rounded-full flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-crimson-red animate-spin" />
               </div>
-              <div>
-                <span className="font-medium">Agent:</span> Limited booking
-                management
+              <div className="text-center">
+                <h3 className="text-black font-hk-grotesk text-lg font-medium mb-2">
+                  Creating Your Account
+                </h3>
+                <p className="text-grey font-dm-sans text-sm">
+                  Please wait while we set up your{" "}
+                  {formData.role === "admin" ? "administrator" : "agent"}{" "}
+                  account...
+                </p>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
