@@ -6,9 +6,19 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
+  sendEmailVerification,
   updateProfile,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { auth, db } from "./firebase";
 import type { User as UserType } from "@/types/users";
 import { parseFirebaseError } from "./auth-errors";
@@ -26,11 +36,21 @@ interface AuthState {
   // Actions
   initializeAuth: () => void;
   signIn: (email: string, password: string) => Promise<void>;
+  signInAndGetUser: (email: string, password: string) => Promise<User>;
+  signInForSignup: (email: string, password: string) => Promise<User>;
   signUp: (
     email: string,
     password: string,
     userData: { firstName: string; lastName: string; role: "admin" | "agent" }
-  ) => Promise<void>;
+  ) => Promise<User>;
+  sendEmailVerification: (user: User) => Promise<void>;
+  checkEmailVerification: (user: User) => Promise<boolean>;
+  checkExistingAccount: (email: string) => Promise<{
+    exists: boolean;
+    user?: UserType;
+    isVerified?: boolean | null;
+    hasAgreed?: boolean;
+  }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateUserProfile: (data: Partial<UserType>) => Promise<void>;
@@ -147,10 +167,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           email: userData.email,
           role: userData.role,
           isApproved: userData.isApproved,
+          hasAgreedToTerms: userData.hasAgreedToTerms,
         });
 
+        // Check if user has agreed to terms (completed signup process)
+        if (!userData.hasAgreedToTerms) {
+          console.log("⚠️ Auth Store: User has not agreed to terms");
+          set({
+            user: null,
+            userProfile: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: "Please complete your signup process",
+          });
+
+          // Show error toast
+          toast({
+            title: "Signup Process Incomplete",
+            description:
+              "You must complete the signup process for your account. Please check your email for verification and complete your profile setup.",
+            variant: "destructive",
+          });
+
+          // Sign out the user to prevent access
+          await signOut(auth);
+          return;
+        }
         // Check if user is approved
-        if (!userData.isApproved) {
+        else if (!userData.isApproved) {
           console.log("⚠️ Auth Store: User not approved");
           set({
             user,
@@ -225,6 +269,117 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  // Sign in and return user object
+  signInAndGetUser: async (email: string, password: string) => {
+    console.log("🔐 Auth Store: Starting signInAndGetUser process...");
+    set({ isLoading: true, error: null });
+
+    try {
+      console.log(
+        "🔐 Auth Store: Calling Firebase signInWithEmailAndPassword..."
+      );
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+      console.log("✅ Auth Store: Firebase signIn completed", {
+        userId: user.uid,
+      });
+
+      // Check if user has completed signup process
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data() as UserType;
+
+        // Check if user has agreed to terms (completed signup process)
+        if (!userData.hasAgreedToTerms) {
+          console.log("⚠️ Auth Store: User has not agreed to terms");
+          set({
+            user: null,
+            userProfile: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: "Please complete your signup process",
+          });
+
+          // Show error toast
+          toast({
+            title: "Signup Process Incomplete",
+            description:
+              "You must complete the signup process for your account. Please check your email for verification and complete your profile setup.",
+            variant: "destructive",
+          });
+
+          // Sign out the user to prevent access
+          await signOut(auth);
+          throw new Error("Please complete your signup process");
+        }
+      }
+
+      set({
+        isLoading: false,
+        error: null,
+      });
+
+      return user;
+    } catch (error: any) {
+      // Parse Firebase error and show user-friendly message
+      const authError = parseFirebaseError(error);
+      const errorMessage = authError.userFriendlyMessage;
+
+      set({
+        isLoading: false,
+        error: errorMessage,
+      });
+
+      // Re-throw the error so the component can handle it
+      throw error;
+    }
+  },
+
+  // Sign in for signup flow (doesn't check terms agreement)
+  signInForSignup: async (email: string, password: string) => {
+    console.log("🔐 Auth Store: Starting signInForSignup process...");
+    set({ isLoading: true, error: null });
+
+    try {
+      console.log(
+        "🔐 Auth Store: Calling Firebase signInWithEmailAndPassword..."
+      );
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+      console.log("✅ Auth Store: Firebase signIn completed", {
+        userId: user.uid,
+      });
+
+      set({
+        isLoading: false,
+        error: null,
+      });
+
+      return user;
+    } catch (error: any) {
+      // Parse Firebase error and show user-friendly message
+      const authError = parseFirebaseError(error);
+      const errorMessage = authError.userFriendlyMessage;
+
+      set({
+        isLoading: false,
+        error: errorMessage,
+      });
+
+      // Re-throw the error so the component can handle it
+      throw error;
+    }
+  },
+
+  // Sign up with email and password
   // Sign up with email and password
   signUp: async (
     email: string,
@@ -241,17 +396,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       );
       const user = userCredential.user;
 
-      // Create user profile in Firestore
+      // Create user profile in Firestore with minimal data initially
       const userProfile: UserType = {
         id: user.uid,
         email: user.email!,
         role: userData.role,
         profile: {
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          avatar: `https://api.dicebear.com/8.x/pixel-art/svg?seed=${userData.firstName}${userData.lastName}`,
+          firstName: "", // Will be filled in step 3
+          lastName: "", // Will be filled in step 3
+          avatar: `https://api.dicebear.com/8.x/pixel-art/svg?seed=${email}`, // Temporary avatar
           timezone: "Asia/Manila",
         },
+        hasAgreedToTerms: false,
         permissions: {
           canManageBookings:
             userData.role === "admin" || userData.role === "agent",
@@ -283,11 +439,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       await setDoc(doc(db, "users", user.uid), userProfile);
 
-      // Update Firebase Auth display name
-      await updateProfile(user, {
-        displayName: `${userData.firstName} ${userData.lastName}`.trim(),
-      });
-
       set({
         user,
         userProfile,
@@ -296,11 +447,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null,
       });
 
-      // Show success toast
-      toast({
-        title: "Account Created!",
-        description: `Welcome ${userData.firstName}! Your account has been created successfully.`,
-      });
+      return user;
     } catch (error: any) {
       // Parse Firebase error and show user-friendly message
       const authError = parseFirebaseError(error);
@@ -316,6 +463,127 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         title: "Account Creation Failed",
         description: errorMessage,
         variant: "destructive",
+      });
+
+      // Re-throw the error so the component can handle it
+      throw error;
+    }
+  },
+
+  // Send email verification
+  sendEmailVerification: async (user: User) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      await sendEmailVerification(user);
+      set({
+        isLoading: false,
+        error: null,
+      });
+
+      // Show success toast
+      toast({
+        title: "Verification Email Sent!",
+        description: "Please check your email and click the verification link.",
+      });
+    } catch (error: any) {
+      console.error("Error sending email verification:", error);
+
+      // Handle specific Firebase errors
+      let errorMessage =
+        "Failed to send verification email. Please try again later.";
+
+      if (error.code === "auth/too-many-requests") {
+        errorMessage =
+          "Too many verification requests. Please wait a few minutes before trying again.";
+      } else if (error.code === "auth/user-not-found") {
+        errorMessage = "User not found. Please try signing up again.";
+      } else if (error.code === "auth/invalid-user") {
+        errorMessage = "Invalid user. Please try signing up again.";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage =
+          "Network error. Please check your connection and try again.";
+      }
+
+      set({
+        isLoading: false,
+        error: errorMessage,
+      });
+
+      // Show error toast
+      toast({
+        title: "Email Verification Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+
+      // Re-throw the error so the component can handle it
+      throw error;
+    }
+  },
+
+  // Check email verification status
+  checkEmailVerification: async (user: User) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      // Reload the user to get the latest verification status
+      await user.reload();
+      const isVerified = user.emailVerified;
+
+      set({
+        isLoading: false,
+        error: null,
+      });
+
+      return isVerified;
+    } catch (error: any) {
+      // Parse Firebase error and show user-friendly message
+      const authError = parseFirebaseError(error);
+      const errorMessage = authError.userFriendlyMessage;
+
+      set({
+        isLoading: false,
+        error: errorMessage,
+      });
+
+      // Re-throw the error so the component can handle it
+      throw error;
+    }
+  },
+
+  // Check if account exists and get its status
+  checkExistingAccount: async (email: string) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      // Query users collection by email field
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", email));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        const userData = userDoc.data() as UserType;
+        return {
+          exists: true,
+          user: userData,
+          isVerified: null, // We'll check this when user provides password
+          hasAgreed: userData.hasAgreedToTerms || false,
+        };
+      } else {
+        return {
+          exists: false,
+        };
+      }
+    } catch (error: any) {
+      // Parse Firebase error and show user-friendly message
+      const authError = parseFirebaseError(error);
+      const errorMessage = authError.userFriendlyMessage;
+
+      set({
+        isLoading: false,
+        error: errorMessage,
       });
 
       // Re-throw the error so the component can handle it

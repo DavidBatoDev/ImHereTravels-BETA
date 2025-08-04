@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuthStore } from "@/lib/auth-store";
 import {
   Card,
   CardContent,
@@ -32,8 +33,12 @@ import {
   Save,
   RefreshCw,
 } from "lucide-react";
+import UserManagement from "./UserManagement";
 
 export default function SettingsCenter() {
+  const { userProfile } = useAuthStore();
+  const canManageUsers = userProfile?.permissions?.canManageUsers;
+
   const [paymentTerms, setPaymentTerms] = useState({
     p1: 1,
     p2: 2,
@@ -93,10 +98,12 @@ export default function SettingsCenter() {
             <CreditCard className="mr-2 h-4 w-4" />
             Payment Configuration
           </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center">
-            <Users className="mr-2 h-4 w-4" />
-            User Management
-          </TabsTrigger>
+          {canManageUsers && (
+            <TabsTrigger value="users" className="flex items-center">
+              <Users className="mr-2 h-4 w-4" />
+              User Management
+            </TabsTrigger>
+          )}
           <TabsTrigger value="email" className="flex items-center">
             <Mail className="mr-2 h-4 w-4" />
             Email Settings
@@ -214,86 +221,11 @@ export default function SettingsCenter() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="users" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Roles & Permissions</CardTitle>
-              <CardDescription>
-                Manage user roles and access permissions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <h3 className="font-medium">Admin</h3>
-                    <p className="text-sm text-gray-500">Full system access</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">2 users</span>
-                    <Button variant="outline" size="sm">
-                      Edit
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <h3 className="font-medium">Agent</h3>
-                    <p className="text-sm text-gray-500">
-                      Limited booking management
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">5 users</span>
-                    <Button variant="outline" size="sm">
-                      Edit
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Add New User</CardTitle>
-              <CardDescription>Create a new user account</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" placeholder="Enter first name" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" placeholder="Enter last name" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter email address"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Role</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="agent">Agent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button>Add User</Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {canManageUsers && (
+          <TabsContent value="users" className="space-y-6">
+            <UserManagement />
+          </TabsContent>
+        )}
 
         <TabsContent value="email" className="space-y-6">
           <Card>

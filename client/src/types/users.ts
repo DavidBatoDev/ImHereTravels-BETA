@@ -14,6 +14,7 @@ export interface User {
   security: UserSecurity;
   metadata: UserMetadata;
   isApproved: boolean;
+  hasAgreedToTerms: boolean;
 }
 
 // ============================================================================

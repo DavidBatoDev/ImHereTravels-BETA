@@ -17,7 +17,11 @@ import {
   Calendar,
   MessageSquare,
   BarChart3,
+  Edit,
 } from "lucide-react";
+import { doc, updateDoc } from "firebase/firestore";
+import { updateProfile } from "firebase/auth";
+import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/lib/auth-store";
 import { toast } from "@/hooks/use-toast";
 
@@ -28,6 +32,13 @@ export default function AdminSignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [emailVerificationSent, setEmailVerificationSent] = useState(false);
+  const [userCredential, setUserCredential] = useState<any>(null);
+  const [step1State, setStep1State] = useState<
+    "email" | "password" | "existing-password"
+  >("email");
+  const [existingAccount, setExistingAccount] = useState<any>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -39,7 +50,15 @@ export default function AdminSignupPage() {
     agreeTerms: false,
   });
 
-  const { signUp, clearError } = useAuthStore();
+  const {
+    signUp,
+    sendEmailVerification,
+    checkEmailVerification,
+    checkExistingAccount,
+    signInAndGetUser,
+    signInForSignup,
+    clearError,
+  } = useAuthStore();
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({
@@ -56,17 +75,24 @@ export default function AdminSignupPage() {
     }));
   };
 
-  const validateStep1 = () => {
+  const validateEmail = () => {
     const newErrors: Record<string, string> = {};
-
-    if (!formData.role) {
-      newErrors.role = "Please select a role";
-    }
 
     if (!formData.email) {
       newErrors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Please enter a valid email address";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validatePassword = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.role) {
+      newErrors.role = "Please select a role";
     }
 
     if (!formData.password) {
@@ -75,9 +101,12 @@ export default function AdminSignupPage() {
       newErrors.password = "Password must be at least 8 characters";
     }
 
-    if (!formData.confirmPassword) {
+    if (step1State === "password" && !formData.confirmPassword) {
       newErrors.confirmPassword = "Please confirm your password";
-    } else if (formData.password !== formData.confirmPassword) {
+    } else if (
+      step1State === "password" &&
+      formData.password !== formData.confirmPassword
+    ) {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
@@ -86,6 +115,11 @@ export default function AdminSignupPage() {
   };
 
   const validateStep2 = () => {
+    // Step 2 is email verification - no validation needed
+    return true;
+  };
+
+  const validateStep3 = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.firstName.trim()) {
@@ -96,13 +130,6 @@ export default function AdminSignupPage() {
       newErrors.lastName = "Last name is required";
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const validateStep3 = () => {
-    const newErrors: Record<string, string> = {};
-
     if (!formData.agreeTerms) {
       newErrors.agreeTerms = "You must agree to the terms and conditions";
     }
@@ -111,30 +138,220 @@ export default function AdminSignupPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const nextStep = () => {
+  const handleEmailContinue = async () => {
+    if (!validateEmail()) return;
+
+    setIsSubmitting(true);
+    clearError();
+
+    try {
+      const accountCheck = await checkExistingAccount(formData.email);
+
+      if (accountCheck.exists) {
+        if (accountCheck.hasAgreed) {
+          console.log(
+            "accountCheck for account already exists and terms agreed",
+            accountCheck
+          );
+          // Account exists and terms agreed - throw error
+          toast({
+            title: "Account Already Exists",
+            description: "An account already exists with this email address.",
+            variant: "destructive",
+          });
+          setErrors({
+            email: "An account already exists with this email address.",
+          });
+        } else {
+          // Account exists but terms not agreed - ask for password
+          console.log(
+            "accountCheck for account already exists and terms not agreed",
+            accountCheck
+          );
+          setExistingAccount(accountCheck.user);
+          setStep1State("existing-password");
+          setFormData((prev) => ({
+            ...prev,
+            firstName: accountCheck.user?.profile?.firstName || "",
+            lastName: accountCheck.user?.profile?.lastName || "",
+            role: accountCheck.user?.role || "agent",
+          }));
+        }
+      } else {
+        console.log("accountCheck for account does not exist");
+        // Account doesn't exist - show password fields for new account
+        setStep1State("password");
+      }
+    } catch (error) {
+      console.error("Error checking existing account:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePasswordContinue = async () => {
+    if (!validatePassword()) return;
+
+    setIsSubmitting(true);
+    clearError();
+
+    try {
+      if (existingAccount) {
+        // Existing account - try to sign in (use signup-specific method)
+        const user = await signInForSignup(formData.email, formData.password);
+
+        // Check email verification status from Firebase Auth
+        const isEmailVerified = user.emailVerified;
+
+        if (isEmailVerified && !existingAccount.hasAgreed) {
+          // Email verified but terms not agreed - go directly to step 3
+          setUserCredential(user);
+          setCurrentStep(3);
+          toast({
+            title: "Email Already Verified",
+            description:
+              "Your email is verified. Please complete your profile setup.",
+          });
+        } else if (!isEmailVerified) {
+          // Email not verified - go to step 2
+          setUserCredential(user);
+          setCurrentStep(2);
+        }
+      } else {
+        // New account - create account
+        const user = await signUp(formData.email, formData.password, {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          role: formData.role,
+        });
+
+        // Send email verification
+        await sendEmailVerification(user);
+        setEmailVerificationSent(true);
+        setUserCredential(user);
+        setCurrentStep(2);
+      }
+    } catch (error) {
+      console.error("Password verification failed:", error);
+      setErrors({
+        password: "Invalid password. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const nextStep = async () => {
+    console.log("nextStep called, currentStep:", currentStep);
     let isValid = false;
 
     switch (currentStep) {
       case 1:
-        isValid = validateStep1();
+        if (step1State === "email") {
+          await handleEmailContinue();
+        } else if (
+          step1State === "password" ||
+          step1State === "existing-password"
+        ) {
+          await handlePasswordContinue();
+        }
         break;
       case 2:
-        isValid = validateStep2();
+        console.log("Case 2: Email verification check");
+        console.log("userCredential value:", userCredential);
+        // Check if email is verified before proceeding
+        if (userCredential) {
+          console.log("userCredential exists:", userCredential);
+          setIsSubmitting(true);
+          try {
+            console.log("Calling checkEmailVerification...");
+            const isVerified = await checkEmailVerification(userCredential);
+
+            if (isVerified) {
+              // Email verified - go to step 3
+              setCurrentStep(3);
+              setErrors({});
+              toast({
+                title: "Email Verified!",
+                description: "Your email has been verified successfully.",
+              });
+            } else {
+              setErrors({
+                verification:
+                  "Please verify your email before continuing. Check your inbox and click the verification link.",
+              });
+              toast({
+                title: "Email Not Verified",
+                description: "Please verify your email before continuing.",
+                variant: "destructive",
+              });
+            }
+          } catch (error) {
+            console.error("Error checking email verification:", error);
+            setErrors({
+              verification:
+                "Unable to check email verification status. Please try again.",
+            });
+          } finally {
+            setIsSubmitting(false);
+          }
+        }
         break;
       case 3:
         isValid = validateStep3();
+        if (isValid) {
+          // Final submission
+          handleSubmit(new Event("submit") as any);
+        }
         break;
-    }
-
-    if (isValid) {
-      setCurrentStep((prev) => Math.min(prev + 1, 3));
-      setErrors({});
     }
   };
 
   const prevStep = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
     setErrors({});
+  };
+
+  const handleResendVerification = async () => {
+    if (resendCooldown > 0) {
+      toast({
+        title: "Please Wait",
+        description: `Please wait ${resendCooldown} seconds before requesting another verification email.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!userCredential) {
+      toast({
+        title: "Error",
+        description: "No user found. Please try signing up again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await sendEmailVerification(userCredential);
+
+      // Set cooldown for 60 seconds
+      setResendCooldown(60);
+      const cooldownInterval = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            clearInterval(cooldownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (error) {
+      console.error("Error resending verification email:", error);
+      // Error handling is done in the auth store
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -144,28 +361,48 @@ export default function AdminSignupPage() {
       clearError();
 
       try {
-        await signUp(formData.email, formData.password, {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          role: formData.role,
-        });
+        // Update user profile with final data
+        if (userCredential) {
+          // Update the user profile in Firestore with the final data
+          const userRef = doc(db, "users", userCredential.uid);
+          await updateDoc(userRef, {
+            "profile.firstName": formData.firstName,
+            "profile.lastName": formData.lastName,
+            "profile.avatar": formData.avatar
+              ? `https://api.dicebear.com/8.x/pixel-art/svg?seed=${formData.firstName}${formData.lastName}`
+              : `https://api.dicebear.com/8.x/pixel-art/svg?seed=${formData.firstName}${formData.lastName}`,
+            hasAgreedToTerms: true,
+            metadata: {
+              updatedAt: new Date() as any,
+            },
+          });
 
-        // If successful, show success state
-        console.log("Signup successful!");
-        setIsSuccess(true);
+          // Update Firebase Auth display name
+          await updateProfile(userCredential, {
+            displayName: `${formData.firstName} ${formData.lastName}`.trim(),
+          });
 
-        // Show success toast
-        toast({
-          title: "Account Created Successfully!",
-          description: "Your account has been created and is pending approval.",
-        });
+          setIsSuccess(true);
 
-        // Redirect to dashboard after showing success message
-        setTimeout(() => {
-          window.location.href = "/dashboard";
-        }, 3000);
+          // Show success toast
+          toast({
+            title: "Account Setup Complete!",
+            description:
+              "Your account has been created and is pending approval.",
+          });
+
+          // Redirect to dashboard after showing success message
+          setTimeout(() => {
+            window.location.href = "/dashboard";
+          }, 3000);
+        }
       } catch (error) {
-        console.error("Signup failed:", error);
+        console.error("Profile update failed:", error);
+        toast({
+          title: "Profile Update Failed",
+          description: "Failed to update your profile. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         setIsSubmitting(false);
       }
@@ -210,13 +447,13 @@ export default function AdminSignupPage() {
               </div>
               <h1 className="text-black font-hk-grotesk text-3xl font-medium mb-2">
                 {currentStep === 1 && "Account Setup"}
-                {currentStep === 2 && "Personal Information"}
-                {currentStep === 3 && "Terms & Submit"}
+                {currentStep === 2 && "Email Verification"}
+                {currentStep === 3 && "Profile Setup"}
               </h1>
               <p className="text-grey font-dm-sans text-base">
                 {currentStep === 1 && "Set up your account credentials"}
-                {currentStep === 2 && "Tell us about yourself"}
-                {currentStep === 3 && "Review and complete registration"}
+                {currentStep === 2 && "Verify your email address"}
+                {currentStep === 3 && "Complete your profile"}
               </p>
             </div>
 
@@ -255,60 +492,45 @@ export default function AdminSignupPage() {
             {/* Fixed Height Container for Form Content */}
             <div className="min-h-[400px] flex flex-col justify-center">
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Step 1: Role, Email, Password */}
+                {/* Step 1: Email Check and Password Setup */}
                 {currentStep === 1 && (
                   <>
-                    <div>
-                      <label className="block text-black font-dm-sans text-sm mb-2">
-                        Select Your Role
-                      </label>
-                      <div className="flex border border-grey rounded-lg overflow-hidden">
-                        <button
-                          type="button"
-                          onClick={() => handleInputChange("role", "agent")}
-                          className={`flex-1 px-4 py-3 font-dm-sans text-sm font-medium transition-all ${
-                            formData.role === "agent"
-                              ? "bg-crimson-red text-white"
-                              : "bg-light-grey text-grey hover:bg-grey hover:text-black"
-                          }`}
-                        >
-                          Agent
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleInputChange("role", "admin")}
-                          className={`flex-1 px-4 py-3 font-dm-sans text-sm font-medium transition-all ${
-                            formData.role === "admin"
-                              ? "bg-crimson-red text-white"
-                              : "bg-light-grey text-grey hover:bg-grey hover:text-black"
-                          }`}
-                        >
-                          Administrator
-                        </button>
-                      </div>
-                      {errors.role && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {errors.role}
-                        </p>
-                      )}
-                    </div>
-
+                    {/* Email Input - Always shown */}
                     <div>
                       <label className="block text-black font-dm-sans text-sm mb-2">
                         Email Address
                       </label>
-                      <input
-                        type="email"
-                        placeholder="admin@imheretravels.com"
-                        value={formData.email}
-                        onChange={(e) =>
-                          handleInputChange("email", e.target.value)
-                        }
-                        className={`w-full px-4 py-3 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
-                          errors.email ? "border-red-500" : "border-grey"
-                        }`}
-                        required
-                      />
+                      <div className="relative">
+                        <input
+                          type="email"
+                          placeholder="admin@imheretravels.com"
+                          value={formData.email}
+                          onChange={(e) =>
+                            handleInputChange("email", e.target.value)
+                          }
+                          disabled={step1State !== "email"}
+                          className={`w-full px-4 py-3 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
+                            errors.email ? "border-red-500" : "border-grey"
+                          } ${step1State !== "email" ? "opacity-50" : ""}`}
+                          required
+                        />
+                        {step1State !== "email" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStep1State("email");
+                              setErrors({});
+                              // Clear password inputs when going back to email
+                              handleInputChange("password", "");
+                              handleInputChange("confirmPassword", "");
+                            }}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-grey hover:text-crimson-red transition-colors"
+                            title="Edit email"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
                       {errors.email && (
                         <p className="text-red-500 text-xs mt-1">
                           {errors.email}
@@ -316,94 +538,267 @@ export default function AdminSignupPage() {
                       )}
                     </div>
 
-                    <div>
-                      <label className="block text-black font-dm-sans text-sm mb-2">
-                        Password
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          value={formData.password}
-                          onChange={(e) =>
-                            handleInputChange("password", e.target.value)
-                          }
-                          className={`w-full px-4 py-3 pr-12 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
-                            errors.password ? "border-red-500" : "border-grey"
-                          }`}
-                          required
-                        />
+                    {/* Continue Button - Only shown in email state */}
+                    {step1State === "email" && (
+                      <button
+                        type="button"
+                        onClick={handleEmailContinue}
+                        disabled={isSubmitting}
+                        className="w-full bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
+                      >
+                        {isSubmitting ? "Checking..." : "Continue"}
+                      </button>
+                    )}
+
+                    {/* Password Fields - Only shown in password states */}
+                    {(step1State === "password" ||
+                      step1State === "existing-password") && (
+                      <>
+                        {/* Role Selection - Only for new accounts */}
+                        {step1State === "password" && (
+                          <div>
+                            <label className="block text-black font-dm-sans text-sm mb-2">
+                              Select Your Role
+                            </label>
+                            <div className="flex border border-grey rounded-lg overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleInputChange("role", "agent")
+                                }
+                                className={`flex-1 px-4 py-3 font-dm-sans text-sm font-medium transition-all ${
+                                  formData.role === "agent"
+                                    ? "bg-crimson-red text-white"
+                                    : "bg-light-grey text-grey hover:bg-grey hover:text-black"
+                                }`}
+                              >
+                                Agent
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleInputChange("role", "admin")
+                                }
+                                className={`flex-1 px-4 py-3 font-dm-sans text-sm font-medium transition-all ${
+                                  formData.role === "admin"
+                                    ? "bg-crimson-red text-white"
+                                    : "bg-light-grey text-grey hover:bg-grey hover:text-black"
+                                }`}
+                              >
+                                Administrator
+                              </button>
+                            </div>
+                            {errors.role && (
+                              <p className="text-red-500 text-xs mt-1">
+                                {errors.role}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Password Input */}
+                        <div>
+                          <label className="block text-black font-dm-sans text-sm mb-2">
+                            {existingAccount
+                              ? "Enter your password"
+                              : "Create a password"}
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showPassword ? "text" : "password"}
+                              placeholder={
+                                existingAccount
+                                  ? "Enter your existing password"
+                                  : "Create a strong password"
+                              }
+                              value={formData.password}
+                              onChange={(e) =>
+                                handleInputChange("password", e.target.value)
+                              }
+                              className={`w-full px-4 py-3 pr-12 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
+                                errors.password
+                                  ? "border-red-500"
+                                  : "border-grey"
+                              }`}
+                              required
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-grey hover:text-black transition-colors"
+                            >
+                              {showPassword ? (
+                                <EyeOff className="w-5 h-5" />
+                              ) : (
+                                <Eye className="w-5 h-5" />
+                              )}
+                            </button>
+                          </div>
+                          {errors.password && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.password}
+                            </p>
+                          )}
+                          {!existingAccount && (
+                            <p className="text-grey text-xs mt-1">
+                              Password must be at least 6 characters long
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Confirm Password - Only for new accounts */}
+                        {step1State === "password" && (
+                          <div>
+                            <label className="block text-black font-dm-sans text-sm mb-2">
+                              Confirm Password
+                            </label>
+                            <div className="relative">
+                              <input
+                                type={showConfirmPassword ? "text" : "password"}
+                                placeholder="Confirm your password"
+                                value={formData.confirmPassword}
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    "confirmPassword",
+                                    e.target.value
+                                  )
+                                }
+                                className={`w-full px-4 py-3 pr-12 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
+                                  errors.confirmPassword
+                                    ? "border-red-500"
+                                    : "border-grey"
+                                }`}
+                                required
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setShowConfirmPassword(!showConfirmPassword)
+                                }
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-grey hover:text-black transition-colors"
+                              >
+                                {showConfirmPassword ? (
+                                  <EyeOff className="w-5 h-5" />
+                                ) : (
+                                  <Eye className="w-5 h-5" />
+                                )}
+                              </button>
+                            </div>
+                            {errors.confirmPassword && (
+                              <p className="text-red-500 text-xs mt-1">
+                                {errors.confirmPassword}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Action Button */}
                         <button
                           type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-grey hover:text-black transition-colors"
+                          onClick={handlePasswordContinue}
+                          disabled={isSubmitting}
+                          className="w-full bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
                         >
-                          {showPassword ? (
-                            <EyeOff className="w-5 h-5" />
-                          ) : (
-                            <Eye className="w-5 h-5" />
-                          )}
+                          {isSubmitting
+                            ? "Processing..."
+                            : step1State === "password"
+                            ? "Create Account"
+                            : "Next"}
                         </button>
-                      </div>
-                      {errors.password && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {errors.password}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-black font-dm-sans text-sm mb-2">
-                        Confirm Password
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showConfirmPassword ? "text" : "password"}
-                          placeholder="Confirm your password"
-                          value={formData.confirmPassword}
-                          onChange={(e) =>
-                            handleInputChange("confirmPassword", e.target.value)
-                          }
-                          className={`w-full px-4 py-3 pr-12 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
-                            errors.confirmPassword
-                              ? "border-red-500"
-                              : "border-grey"
-                          }`}
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowConfirmPassword(!showConfirmPassword)
-                          }
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-grey hover:text-black transition-colors"
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff className="w-5 h-5" />
-                          ) : (
-                            <Eye className="w-5 h-5" />
-                          )}
-                        </button>
-                      </div>
-                      {errors.confirmPassword && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {errors.confirmPassword}
-                        </p>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={nextStep}
-                      className="w-full bg-crimson-red hover:bg-light-red text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
-                    >
-                      Next Step
-                    </button>
+                      </>
+                    )}
                   </>
                 )}
 
-                {/* Step 2: Personal Information */}
+                {/* Step 2: Email Verification */}
                 {currentStep === 2 && (
+                  <>
+                    <div className="text-center space-y-6">
+                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                        <Check className="w-8 h-8 text-green-600" />
+                      </div>
+
+                      <div>
+                        <h3 className="text-black font-hk-grotesk text-xl font-medium mb-2">
+                          Verification Email Sent!
+                        </h3>
+                        <p className="text-grey font-dm-sans text-sm mb-4">
+                          We've sent a verification email to{" "}
+                          <span className="font-medium text-black">
+                            {formData.email}
+                          </span>
+                        </p>
+                        <p className="text-grey font-dm-sans text-sm">
+                          Please check your inbox and click the verification
+                          link to continue.
+                        </p>
+                      </div>
+
+                      {errors.verification && (
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                          <div className="flex items-start space-x-3">
+                            <MessageSquare className="w-5 h-5 text-red-600 mt-0.5" />
+                            <div className="text-red-600 font-dm-sans text-xs">
+                              <p className="font-medium mb-1">
+                                Email Not Verified
+                              </p>
+                              <p>{errors.verification}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="p-4 bg-light-grey rounded-lg border border-grey">
+                        <div className="flex items-start space-x-3">
+                          <MessageSquare className="w-5 h-5 text-grey mt-0.5" />
+                          <div className="text-grey font-dm-sans text-xs">
+                            <p className="font-medium mb-1">
+                              Didn't receive the email?
+                            </p>
+                            <p>
+                              Check your spam folder or click the button below
+                              to resend the verification email.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleResendVerification}
+                        disabled={isSubmitting || resendCooldown > 0}
+                        className="w-full bg-light-grey hover:bg-grey text-black font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {resendCooldown > 0
+                          ? `Resend in ${resendCooldown}s`
+                          : "Resend Verification Email"}
+                      </button>
+                    </div>
+
+                    <div className="flex space-x-3">
+                      <button
+                        type="button"
+                        onClick={prevStep}
+                        className="flex-1 bg-light-grey hover:bg-grey text-black font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        type="button"
+                        onClick={nextStep}
+                        disabled={isSubmitting}
+                        className="flex-1 bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
+                      >
+                        {isSubmitting
+                          ? "Checking Verification..."
+                          : "Check Verification & Continue"}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* Step 3: Profile Setup and Terms */}
+                {currentStep === 3 && (
                   <>
                     {/* Avatar Upload - Circular */}
                     <div className="flex justify-center mb-6">
@@ -435,7 +830,7 @@ export default function AdminSignupPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4 mb-6">
                       <div>
                         <label className="block text-black font-dm-sans text-sm mb-2">
                           First Name
@@ -482,28 +877,6 @@ export default function AdminSignupPage() {
                       </div>
                     </div>
 
-                    <div className="flex space-x-3">
-                      <button
-                        type="button"
-                        onClick={prevStep}
-                        className="flex-1 bg-light-grey hover:bg-grey text-black font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        type="button"
-                        onClick={nextStep}
-                        className="flex-1 bg-crimson-red hover:bg-light-red text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
-                      >
-                        Next Step
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {/* Step 3: Terms and Submit */}
-                {currentStep === 3 && (
-                  <>
                     <div className="space-y-4">
                       <div className="flex items-start space-x-3">
                         <input
