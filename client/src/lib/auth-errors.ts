@@ -49,7 +49,7 @@ export const getAuthErrorMessage = (errorCode: string): string => {
   return errorMap[errorCode] || errorMap["auth/unknown"];
 };
 
-export const parseFirebaseError = (error: any): AuthError => {
+export const parseFirebaseError = (error: Error): AuthError => {
   const code = error?.code || "auth/unknown";
   const message = error?.message || "An unexpected error occurred";
   const userFriendlyMessage = getAuthErrorMessage(code);

@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import {
   Calendar,
   DollarSign,
-  Users,
   TrendingUp,
   Clock,
   AlertTriangle,
@@ -65,7 +64,7 @@ export default function DashboardOverview() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">
-            Welcome back! Here's what's happening today.
+            Welcome back! Here&apos;s what&apos;s happening today.
           </p>
         </div>
         <div className="flex space-x-2">

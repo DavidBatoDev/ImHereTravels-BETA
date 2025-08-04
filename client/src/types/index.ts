@@ -42,8 +42,8 @@ export interface DashboardStats {
   totalRevenue: number;
   pendingPayments: number;
   activeTours: number;
-  recentBookings: any[];
-  upcomingPayments: any[];
+  recentBookings: unknown[];
+  upcomingPayments: unknown[];
 }
 
 export interface ChartData {

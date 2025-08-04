@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
-import { useAuthStore } from "@/lib/auth-store";
 import AuthGuard from "@/components/auth/AuthGuard";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 

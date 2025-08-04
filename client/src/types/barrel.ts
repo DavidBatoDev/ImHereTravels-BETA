@@ -45,8 +45,8 @@ export type DashboardStats = {
   totalRevenue: number;
   pendingPayments: number;
   activeTours: number;
-  recentBookings: any[];
-  upcomingPayments: any[];
+  recentBookings: unknown[];
+  upcomingPayments: unknown[];
 };
 
 export type ChartData = {

@@ -18,6 +18,8 @@ import {
   query,
   where,
   getDocs,
+  serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import type { User as UserType } from "@/types/users";
@@ -247,9 +249,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Parse Firebase error and show user-friendly message
-      const authError = parseFirebaseError(error);
+      const authError = parseFirebaseError(error as Error);
       const errorMessage = authError.userFriendlyMessage;
 
       set({
@@ -324,9 +326,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       return user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Parse Firebase error and show user-friendly message
-      const authError = parseFirebaseError(error);
+      const authError = parseFirebaseError(error as Error);
       const errorMessage = authError.userFriendlyMessage;
 
       set({
@@ -364,9 +366,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       return user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Parse Firebase error and show user-friendly message
-      const authError = parseFirebaseError(error);
+      const authError = parseFirebaseError(error as Error);
       const errorMessage = authError.userFriendlyMessage;
 
       set({
@@ -430,8 +432,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           twoFactorEnabled: false,
         },
         metadata: {
-          createdAt: new Date() as any,
-          updatedAt: new Date() as any,
+          createdAt: serverTimestamp() as any,
+          updatedAt: serverTimestamp() as any,
           isActive: false, // New users need approval
         },
         isApproved: false,
@@ -448,9 +450,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       return user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Parse Firebase error and show user-friendly message
-      const authError = parseFirebaseError(error);
+      const authError = parseFirebaseError(error as Error);
       const errorMessage = authError.userFriendlyMessage;
 
       set({
@@ -486,21 +488,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         title: "Verification Email Sent!",
         description: "Please check your email and click the verification link.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error sending email verification:", error);
 
       // Handle specific Firebase errors
       let errorMessage =
         "Failed to send verification email. Please try again later.";
 
-      if (error.code === "auth/too-many-requests") {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === "auth/too-many-requests") {
         errorMessage =
           "Too many verification requests. Please wait a few minutes before trying again.";
-      } else if (error.code === "auth/user-not-found") {
+      } else if (firebaseError.code === "auth/user-not-found") {
         errorMessage = "User not found. Please try signing up again.";
-      } else if (error.code === "auth/invalid-user") {
+      } else if (firebaseError.code === "auth/invalid-user") {
         errorMessage = "Invalid user. Please try signing up again.";
-      } else if (error.code === "auth/network-request-failed") {
+      } else if (firebaseError.code === "auth/network-request-failed") {
         errorMessage =
           "Network error. Please check your connection and try again.";
       }
@@ -537,9 +540,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       return isVerified;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Parse Firebase error and show user-friendly message
-      const authError = parseFirebaseError(error);
+      const authError = parseFirebaseError(error as Error);
       const errorMessage = authError.userFriendlyMessage;
 
       set({
@@ -576,9 +579,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           exists: false,
         };
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Parse Firebase error and show user-friendly message
-      const authError = parseFirebaseError(error);
+      const authError = parseFirebaseError(error as Error);
       const errorMessage = authError.userFriendlyMessage;
 
       set({
@@ -616,9 +619,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         title: "Signed Out",
         description: "You have been successfully signed out.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Parse Firebase error and show user-friendly message
-      const authError = parseFirebaseError(error);
+      const authError = parseFirebaseError(error as Error);
       const errorMessage = authError.userFriendlyMessage;
 
       set({
@@ -645,10 +648,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: null,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to send password reset email";
       set({
         isLoading: false,
-        error: error.message || "Failed to send password reset email",
+        error: errorMessage,
       });
     }
   },
@@ -669,7 +676,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await updateDoc(userRef, {
         ...data,
         metadata: {
-          updatedAt: new Date() as any,
+          updatedAt: serverTimestamp() as any,
         },
       });
 
@@ -682,17 +689,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             ...data,
             metadata: {
               ...currentProfile.metadata,
-              updatedAt: new Date() as any,
+              updatedAt: serverTimestamp() as any,
             },
           },
           isLoading: false,
           error: null,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to update profile";
       set({
         isLoading: false,
-        error: error.message || "Failed to update profile",
+        error: errorMessage,
       });
     }
   },

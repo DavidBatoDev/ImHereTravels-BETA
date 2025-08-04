@@ -137,8 +137,8 @@ export interface BookingActivity {
     | "email-sent"
     | "cancelled";
   field?: string; // For updates
-  oldValue?: any;
-  newValue?: any;
+  oldValue?: unknown;
+  newValue?: unknown;
   performedBy: string; // Reference to users
   timestamp: Timestamp;
   notes?: string;

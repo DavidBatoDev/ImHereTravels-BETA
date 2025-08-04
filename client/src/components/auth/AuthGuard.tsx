@@ -97,8 +97,8 @@ export default function AuthGuard({ children, fallback }: AuthGuardProps) {
               Account Pending Approval
             </h2>
             <p className="text-gray-600 mb-6">
-              Your account is currently awaiting admin approval. You'll be able
-              to access the dashboard once an administrator approves your
+              Your account is currently awaiting admin approval. You&apos;ll be
+              able to access the dashboard once an administrator approves your
               account.
             </p>
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
@@ -107,7 +107,7 @@ export default function AuthGuard({ children, fallback }: AuthGuardProps) {
                 <br />
                 • An administrator will review your application
                 <br />
-                • You'll receive an email notification once approved
+                • You&apos;ll receive an email notification once approved
                 <br />• You can then sign in and access the dashboard
               </p>
             </div>

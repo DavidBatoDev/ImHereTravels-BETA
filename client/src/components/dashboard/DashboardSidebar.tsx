@@ -14,7 +14,6 @@ import {
   BarChart3,
   Settings,
   User,
-  Menu,
   X,
   LogOut,
   AlertTriangle,

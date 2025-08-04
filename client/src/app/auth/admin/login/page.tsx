@@ -104,7 +104,7 @@ export default function AdminLoginPage() {
               />
             </div>
             <span className="text-black font-hk-grotesk text-xl font-medium">
-              I'm Here Travels
+              I&apos;m Here Travels
             </span>
             <span className="text-grey font-dm-sans text-sm bg-light-grey px-2 py-1 rounded">
               Admin
@@ -203,7 +203,7 @@ export default function AdminLoginPage() {
                   Forgot your password?
                 </a>
                 <div className="text-grey font-dm-sans text-sm">
-                  Don't have an account?{" "}
+                  Don&apos;t have an account?{" "}
                   <a
                     href="/auth/admin/signup"
                     className="text-crimson-red hover:text-light-red font-medium transition-colors"
@@ -310,9 +310,9 @@ export default function AdminLoginPage() {
                 Account Pending Approval
               </h2>
               <p className="text-gray-600 mb-6">
-                Your account is currently awaiting admin approval. You'll be
-                able to access the dashboard once an administrator approves your
-                account.
+                Your account is currently awaiting admin approval. You&apos;ll
+                be able to access the dashboard once an administrator approves
+                your account.
               </p>
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                 <p className="text-yellow-800 text-sm">
@@ -320,7 +320,7 @@ export default function AdminLoginPage() {
                   <br />
                   • An administrator will review your application
                   <br />
-                  • You'll receive an email notification once approved
+                  • You&apos;ll receive an email notification once approved
                   <br />• You can then sign in and access the dashboard
                 </p>
               </div>

@@ -426,7 +426,7 @@ export default function AdminSignupPage() {
               />
             </div>
             <span className="text-black font-hk-grotesk text-xl font-medium">
-              I'm Here Travels
+              I&apos;m Here Travels
             </span>
             <span className="text-grey font-dm-sans text-sm bg-light-grey px-2 py-1 rounded">
               Admin
@@ -723,7 +723,7 @@ export default function AdminSignupPage() {
                           Verification Email Sent!
                         </h3>
                         <p className="text-grey font-dm-sans text-sm mb-4">
-                          We've sent a verification email to{" "}
+                          We&apos;ve sent a verification email to{" "}
                           <span className="font-medium text-black">
                             {formData.email}
                           </span>
@@ -753,7 +753,7 @@ export default function AdminSignupPage() {
                           <MessageSquare className="w-5 h-5 text-grey mt-0.5" />
                           <div className="text-grey font-dm-sans text-xs">
                             <p className="font-medium mb-1">
-                              Didn't receive the email?
+                              Didn&apos;t receive the email?
                             </p>
                             <p>
                               Check your spam folder or click the button below

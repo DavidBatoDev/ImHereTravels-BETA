@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/lib/auth-store";
@@ -35,17 +35,13 @@ import {
 } from "@/components/ui/select";
 import {
   Users,
-  UserCheck,
-  UserX,
   Shield,
   Calendar,
   MessageSquare,
   BarChart3,
-  Settings,
   CreditCard,
   Search,
   RefreshCw,
-  Save,
   MapPin,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -66,13 +62,7 @@ export default function UserManagement() {
   // Check if current user has permission to manage users
   const canManageUsers = userProfile?.permissions?.canManageUsers;
 
-  useEffect(() => {
-    if (canManageUsers) {
-      fetchUsers();
-    }
-  }, [canManageUsers]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const usersRef = collection(db, "users");
@@ -105,7 +95,13 @@ export default function UserManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userProfile?.id]);
+
+  useEffect(() => {
+    if (canManageUsers) {
+      fetchUsers();
+    }
+  }, [canManageUsers, fetchUsers]);
 
   const updateUser = async (userId: string, updates: Partial<UserType>) => {
     try {
@@ -114,7 +110,7 @@ export default function UserManagement() {
       await updateDoc(userRef, {
         ...updates,
         metadata: {
-          updatedAt: new Date() as any,
+          updatedAt: new Date() as unknown,
         },
       });
 
@@ -189,7 +185,7 @@ export default function UserManagement() {
             Access Denied
           </CardTitle>
           <CardDescription>
-            You don't have permission to manage users.
+            You don&apos;t have permission to manage users.
           </CardDescription>
         </CardHeader>
       </Card>
