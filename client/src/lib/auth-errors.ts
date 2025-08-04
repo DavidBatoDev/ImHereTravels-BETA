@@ -50,8 +50,9 @@ export const getAuthErrorMessage = (errorCode: string): string => {
 };
 
 export const parseFirebaseError = (error: Error): AuthError => {
-  const code = error?.code || "auth/unknown";
-  const message = error?.message || "An unexpected error occurred";
+  const firebaseError = error as any;
+  const code = firebaseError?.code || "auth/unknown";
+  const message = firebaseError?.message || "An unexpected error occurred";
   const userFriendlyMessage = getAuthErrorMessage(code);
 
   return {
