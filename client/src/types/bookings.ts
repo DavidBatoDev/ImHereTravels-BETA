@@ -49,8 +49,8 @@ export interface Reservation {
 
 export interface Payment {
   condition: "Invalid" | "Last Minute" | "Standard";
-  terms: "Invalid" | "Full" | "P1" | "P2" | "P3" | "P4" | "Cancelled";
-  plan: "Full" | "P1" | "P2" | "P3" | "P4";
+  terms: string; // Reference to PaymentTermConfiguration.termType
+  plan: string; // Reference to PaymentTermConfiguration.termType
   method?: "stripe" | "revolut" | "bank";
   originalCost: number;
   discountedCost?: number;
@@ -74,14 +74,10 @@ export interface PaymentSchedule {
 }
 
 export interface PaymentScheduleMap {
-  full?: PaymentSchedule;
-  P1?: PaymentSchedule;
-  P2?: PaymentSchedule;
-  P3?: PaymentSchedule;
-  P4?: PaymentSchedule;
+  [key: string]: PaymentSchedule; // Dynamic keys based on payment terms
 }
 
-export type PaymentPlan = "Full" | "P1" | "P2" | "P3" | "P4";
+export type PaymentPlan = string; // Reference to PaymentTermConfiguration.termType
 
 export interface PaymentCalculationResult {
   originalCost: number;

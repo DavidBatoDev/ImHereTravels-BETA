@@ -17,6 +17,7 @@ export * from "./reference-data";
 export * from "./contacts";
 export * from "./flight-info";
 export * from "./analytics";
+export * from "./payment-terms";
 
 // ============================================================================
 // COMMON UTILITY TYPES

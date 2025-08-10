@@ -13,7 +13,8 @@ export type CollectionName =
   | "settings"
   | "referenceData"
   | "contacts"
-  | "flightInfo";
+  | "flightInfo"
+  | "paymentTerms";
 
 // ============================================================================
 // API RESPONSE TYPES

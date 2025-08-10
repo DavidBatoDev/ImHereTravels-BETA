@@ -23,7 +23,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Settings,
-  CreditCard,
   Users,
   Shield,
   Database,
@@ -38,13 +37,6 @@ import UserManagement from "./UserManagement";
 export default function SettingsCenter() {
   const { userProfile } = useAuthStore();
   const canManageUsers = userProfile?.permissions?.canManageUsers;
-
-  const [paymentTerms, setPaymentTerms] = useState({
-    p1: 1,
-    p2: 2,
-    p3: 3,
-    p4: 4,
-  });
 
   const [emailSettings, setEmailSettings] = useState({
     smtpHost: "smtp.gmail.com",
@@ -92,12 +84,8 @@ export default function SettingsCenter() {
         </div>
       </div>
 
-      <Tabs defaultValue="payment" className="space-y-6">
+      <Tabs defaultValue={canManageUsers ? "users" : "email"} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="payment" className="flex items-center">
-            <CreditCard className="mr-2 h-4 w-4" />
-            Payment Configuration
-          </TabsTrigger>
           {canManageUsers && (
             <TabsTrigger value="users" className="flex items-center">
               <Users className="mr-2 h-4 w-4" />
@@ -117,109 +105,6 @@ export default function SettingsCenter() {
             System
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="payment" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment Terms Configuration</CardTitle>
-              <CardDescription>
-                Configure payment terms for different booking scenarios
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="p1">P1 Payment Term (months)</Label>
-                  <Input
-                    id="p1"
-                    type="number"
-                    value={paymentTerms.p1}
-                    onChange={(e) =>
-                      setPaymentTerms({
-                        ...paymentTerms,
-                        p1: parseInt(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="p2">P2 Payment Term (months)</Label>
-                  <Input
-                    id="p2"
-                    type="number"
-                    value={paymentTerms.p2}
-                    onChange={(e) =>
-                      setPaymentTerms({
-                        ...paymentTerms,
-                        p2: parseInt(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="p3">P3 Payment Term (months)</Label>
-                  <Input
-                    id="p3"
-                    type="number"
-                    value={paymentTerms.p3}
-                    onChange={(e) =>
-                      setPaymentTerms({
-                        ...paymentTerms,
-                        p3: parseInt(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="p4">P4 Payment Term (months)</Label>
-                  <Input
-                    id="p4"
-                    type="number"
-                    value={paymentTerms.p4}
-                    onChange={(e) =>
-                      setPaymentTerms({
-                        ...paymentTerms,
-                        p4: parseInt(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment Integration</CardTitle>
-              <CardDescription>
-                Configure payment gateway settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Payment Gateway</Label>
-                <Select defaultValue="stripe">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="stripe">Stripe</SelectItem>
-                    <SelectItem value="revolut">Revolut</SelectItem>
-                    <SelectItem value="paypal">PayPal</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>API Key</Label>
-                <Input type="password" placeholder="Enter API key" />
-              </div>
-              <div className="space-y-2">
-                <Label>Webhook URL</Label>
-                <Input placeholder="https://your-domain.com/webhook" />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {canManageUsers && (
           <TabsContent value="users" className="space-y-6">

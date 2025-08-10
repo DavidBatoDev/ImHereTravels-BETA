@@ -17,6 +17,7 @@ import {
   X,
   LogOut,
   AlertTriangle,
+  CreditCard,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -40,6 +41,11 @@ const navigation = [
     name: "Tour Packages",
     href: "/tours",
     icon: MapPin,
+  },
+  {
+    name: "Payment Types",
+    href: "/payment-terms",
+    icon: CreditCard,
   },
   {
     name: "Communications",
