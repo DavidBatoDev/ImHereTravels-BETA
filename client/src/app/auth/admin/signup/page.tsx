@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import {
   Shield,
@@ -18,6 +18,7 @@ import {
   MessageSquare,
   BarChart3,
   Edit,
+  RefreshCw,
 } from "lucide-react";
 import { doc, updateDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
@@ -39,6 +40,10 @@ export default function AdminSignupPage() {
   >("email");
   const [existingAccount, setExistingAccount] = useState<any>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [isPollingVerification, setIsPollingVerification] = useState(false);
+  const [pollingAttempts, setPollingAttempts] = useState(0);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const attemptsRef = useRef(0);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -59,6 +64,90 @@ export default function AdminSignupPage() {
     signInForSignup,
     clearError,
   } = useAuthStore();
+
+  // Start polling when entering step 2
+  useEffect(() => {
+    if (currentStep === 2 && userCredential && !isPollingVerification) {
+      console.log("Starting email verification polling");
+      setIsPollingVerification(true);
+      setPollingAttempts(0);
+      attemptsRef.current = 0;
+
+      const pollVerification = async () => {
+        try {
+          attemptsRef.current += 1;
+          const currentAttempt = attemptsRef.current;
+          console.log(`Polling attempt ${currentAttempt}`);
+          setPollingAttempts(currentAttempt);
+
+          const isVerified = await checkEmailVerification(userCredential);
+
+          if (isVerified) {
+            console.log("Email verified! Advancing to step 3");
+            // Email verified - stop polling and proceed to next step
+            setIsPollingVerification(false);
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+            setCurrentStep(3);
+            setErrors({});
+            toast({
+              title: "Email Verified!",
+              description: "Your email has been verified successfully.",
+            });
+            return;
+          }
+
+          // Stop polling after 100 attempts (5 minutes with 3s intervals)
+          if (currentAttempt >= 100) {
+            console.log("Polling timeout reached");
+            setIsPollingVerification(false);
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+            toast({
+              title: "Verification Timeout",
+              description:
+                "Please check your email and click the verification link, then use the resend button if needed.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error during verification polling:", error);
+          // Don't stop polling on error, just log it
+        }
+      };
+
+      // Poll immediately, then every 3 seconds
+      pollVerification();
+      pollingIntervalRef.current = setInterval(pollVerification, 3000);
+    }
+  }, [currentStep, userCredential]);
+
+  // Cleanup polling when leaving step 2 or unmounting
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        console.log("Cleaning up polling interval");
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  // Stop polling when leaving step 2
+  useEffect(() => {
+    if (currentStep !== 2 && pollingIntervalRef.current) {
+      console.log("Stopping polling - left step 2");
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+      setIsPollingVerification(false);
+      setPollingAttempts(0);
+      attemptsRef.current = 0;
+    }
+  }, [currentStep]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({
@@ -257,45 +346,11 @@ export default function AdminSignupPage() {
         }
         break;
       case 2:
-        console.log("Case 2: Email verification check");
-        console.log("userCredential value:", userCredential);
-        // Check if email is verified before proceeding
-        if (userCredential) {
-          console.log("userCredential exists:", userCredential);
-          setIsSubmitting(true);
-          try {
-            console.log("Calling checkEmailVerification...");
-            const isVerified = await checkEmailVerification(userCredential);
-
-            if (isVerified) {
-              // Email verified - go to step 3
-              setCurrentStep(3);
-              setErrors({});
-              toast({
-                title: "Email Verified!",
-                description: "Your email has been verified successfully.",
-              });
-            } else {
-              setErrors({
-                verification:
-                  "Please verify your email before continuing. Check your inbox and click the verification link.",
-              });
-              toast({
-                title: "Email Not Verified",
-                description: "Please verify your email before continuing.",
-                variant: "destructive",
-              });
-            }
-          } catch (error) {
-            console.error("Error checking email verification:", error);
-            setErrors({
-              verification:
-                "Unable to check email verification status. Please try again.",
-            });
-          } finally {
-            setIsSubmitting(false);
-          }
-        }
+        // Email verification is now handled automatically by polling
+        // This case should not be reached since the button is removed
+        console.log(
+          "Step 2 nextStep called - this should not happen with polling"
+        );
         break;
       case 3:
         isValid = validateStep3();
@@ -715,7 +770,11 @@ export default function AdminSignupPage() {
                   <>
                     <div className="text-center space-y-6">
                       <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                        <Check className="w-8 h-8 text-green-600" />
+                        {isPollingVerification ? (
+                          <RefreshCw className="w-8 h-8 text-green-600 animate-spin" />
+                        ) : (
+                          <Check className="w-8 h-8 text-green-600" />
+                        )}
                       </div>
 
                       <div>
@@ -730,7 +789,7 @@ export default function AdminSignupPage() {
                         </p>
                         <p className="text-grey font-dm-sans text-sm">
                           Please check your inbox and click the verification
-                          link to continue.
+                          link. We&apos;ll automatically continue once verified.
                         </p>
                       </div>
 
@@ -763,36 +822,70 @@ export default function AdminSignupPage() {
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={handleResendVerification}
-                        disabled={isSubmitting || resendCooldown > 0}
-                        className="w-full bg-light-grey hover:bg-grey text-black font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {resendCooldown > 0
-                          ? `Resend in ${resendCooldown}s`
-                          : "Resend Verification Email"}
-                      </button>
+                      <div className="grid grid-cols-1 gap-3">
+                        <button
+                          type="button"
+                          onClick={handleResendVerification}
+                          disabled={isSubmitting || resendCooldown > 0}
+                          className="w-full bg-light-grey hover:bg-grey text-black font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {resendCooldown > 0
+                            ? `Resend in ${resendCooldown}s`
+                            : "Resend Verification Email"}
+                        </button>
+
+                        {!isPollingVerification && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (userCredential) {
+                                setIsSubmitting(true);
+                                try {
+                                  const isVerified =
+                                    await checkEmailVerification(
+                                      userCredential
+                                    );
+                                  if (isVerified) {
+                                    setCurrentStep(3);
+                                    setErrors({});
+                                    toast({
+                                      title: "Email Verified!",
+                                      description:
+                                        "Your email has been verified successfully.",
+                                    });
+                                  } else {
+                                    toast({
+                                      title: "Not Yet Verified",
+                                      description:
+                                        "Please click the verification link in your email first.",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                } catch (error) {
+                                  toast({
+                                    title: "Check Failed",
+                                    description:
+                                      "Unable to check verification status. Please try again.",
+                                    variant: "destructive",
+                                  });
+                                } finally {
+                                  setIsSubmitting(false);
+                                }
+                              }
+                            }}
+                            disabled={isSubmitting}
+                            className="w-full bg-crimson-red hover:bg-light-red text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isSubmitting ? "Checking..." : "Check Now"}
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex space-x-3">
-                      <button
-                        type="button"
-                        onClick={prevStep}
-                        className="flex-1 bg-light-grey hover:bg-grey text-black font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        type="button"
-                        onClick={nextStep}
-                        disabled={isSubmitting}
-                        className="flex-1 bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
-                      >
-                        {isSubmitting
-                          ? "Checking Verification..."
-                          : "Check Verification & Continue"}
-                      </button>
+                    <div className="w-full bg-grey text-white font-dm-sans font-medium py-3 px-4 rounded-lg text-center opacity-50">
+                      {isPollingVerification
+                        ? "Waiting for verification..."
+                        : "Click the email link to continue"}
                     </div>
                   </>
                 )}
