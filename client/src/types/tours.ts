@@ -94,6 +94,10 @@ export interface TourPackageFormData {
     itinerary: TourItinerary[];
     requirements: string[];
   };
+  media?: {
+    coverImage?: string;
+    gallery?: string[];
+  };
   status: "active" | "draft" | "archived";
   // Note: pricingHistory is managed automatically by the system
 }

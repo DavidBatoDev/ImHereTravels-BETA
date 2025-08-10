@@ -73,7 +73,7 @@ export default function ToursList() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [tourToDelete, setTourToDelete] = useState<TourPackage | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const { toast } = useToast();
 
   // Load tours
@@ -81,11 +81,11 @@ export default function ToursList() {
     try {
       setLoading(true);
       const filters: TourFilters = {};
-      
+
       if (statusFilter !== "all") {
         filters.status = statusFilter as "active" | "draft" | "archived";
       }
-      
+
       if (searchTerm) {
         filters.search = searchTerm;
       }
@@ -114,17 +114,19 @@ export default function ToursList() {
       setIsSubmitting(true);
       // In a real app, you'd get the user ID from authentication context
       const userId = "current-user-id"; // Replace with actual user ID
-      
-      await createTour(data, userId);
-      
+
+      const tourId = await createTour(data, userId);
+
       toast({
         title: "Success",
         description: "Tour created successfully!",
       });
-      
+
       await loadTours();
       setIsFormOpen(false);
       setSelectedTour(null);
+      
+      return tourId; // Return the tour ID for blob uploads
     } catch (error) {
       console.error("Error creating tour:", error);
       toast({
@@ -140,19 +142,19 @@ export default function ToursList() {
   // Update tour
   const handleUpdateTour = async (data: TourPackageFormData) => {
     if (!selectedTour) return;
-    
+
     try {
       setIsSubmitting(true);
       // In a real app, you'd get the user ID from authentication context
       const userId = "current-user-id"; // Replace with actual user ID
-      
+
       await updateTour(selectedTour.id, data, userId);
-      
+
       toast({
         title: "Success",
         description: "Tour updated successfully!",
       });
-      
+
       await loadTours();
       setIsFormOpen(false);
       setSelectedTour(null);
@@ -172,12 +174,12 @@ export default function ToursList() {
   const handleArchiveTour = async (tour: TourPackage) => {
     try {
       await archiveTour(tour.id);
-      
+
       toast({
         title: "Success",
         description: "Tour archived successfully!",
       });
-      
+
       await loadTours();
       setIsDetailsOpen(false);
     } catch (error) {
@@ -193,15 +195,15 @@ export default function ToursList() {
   // Delete tour
   const handleDeleteTour = async () => {
     if (!tourToDelete) return;
-    
+
     try {
       await deleteTour(tourToDelete.id);
-      
+
       toast({
         title: "Success",
         description: "Tour deleted successfully!",
       });
-      
+
       await loadTours();
       setIsDeleteDialogOpen(false);
       setTourToDelete(null);
@@ -221,7 +223,7 @@ export default function ToursList() {
     if (selectedTour) {
       await handleUpdateTour(data);
     } else {
-      await handleCreateTour(data);
+      return await handleCreateTour(data); // Return tour ID for blob uploads
     }
   };
 
@@ -318,12 +320,10 @@ export default function ToursList() {
                 <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
             </Select>
-            <Button 
-              variant="outline" 
-              onClick={loadTours}
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <Button variant="outline" onClick={loadTours} disabled={loading}>
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
           </div>
@@ -334,8 +334,10 @@ export default function ToursList() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {tours.map((tour) => {
           const currentPrice = tour.pricing.discounted || tour.pricing.original;
-          const hasDiscount = tour.pricing.discounted && tour.pricing.discounted < tour.pricing.original;
-          
+          const hasDiscount =
+            tour.pricing.discounted &&
+            tour.pricing.discounted < tour.pricing.original;
+
           return (
             <Card key={tour.id} className="hover:shadow-lg transition-shadow">
               <CardHeader className="pb-3">
@@ -349,7 +351,8 @@ export default function ToursList() {
                   </div>
                   <div className="flex gap-2">
                     <Badge className={getStatusColor(tour.status)}>
-                      {tour.status.charAt(0).toUpperCase() + tour.status.slice(1)}
+                      {tour.status.charAt(0).toUpperCase() +
+                        tour.status.slice(1)}
                     </Badge>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -367,12 +370,14 @@ export default function ToursList() {
                           Edit
                         </DropdownMenuItem>
                         {tour.status !== "archived" && (
-                          <DropdownMenuItem onClick={() => handleArchiveTour(tour)}>
+                          <DropdownMenuItem
+                            onClick={() => handleArchiveTour(tour)}
+                          >
                             <Archive className="h-4 w-4 mr-2" />
                             Archive
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => confirmDelete(tour)}
                           className="text-red-600 focus:text-red-600"
                         >
@@ -412,17 +417,32 @@ export default function ToursList() {
                         </span>
                         {hasDiscount && (
                           <span className="text-sm text-gray-500 line-through">
-                            {formatPrice(tour.pricing.original, tour.pricing.currency)}
+                            {formatPrice(
+                              tour.pricing.original,
+                              tour.pricing.currency
+                            )}
                           </span>
                         )}
                       </div>
                       <p className="text-xs text-gray-500">
-                        Deposit: {formatPrice(tour.pricing.deposit, tour.pricing.currency)}
+                        Deposit:{" "}
+                        {formatPrice(
+                          tour.pricing.deposit,
+                          tour.pricing.currency
+                        )}
                       </p>
                     </div>
                     {hasDiscount && (
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                        {Math.round(((tour.pricing.original - tour.pricing.discounted!) / tour.pricing.original) * 100)}% OFF
+                      <Badge
+                        variant="secondary"
+                        className="bg-green-100 text-green-800"
+                      >
+                        {Math.round(
+                          ((tour.pricing.original - tour.pricing.discounted!) /
+                            tour.pricing.original) *
+                            100
+                        )}
+                        % OFF
                       </Badge>
                     )}
                   </div>
@@ -430,11 +450,19 @@ export default function ToursList() {
                   {/* Highlights Preview */}
                   <div>
                     <div className="flex flex-wrap gap-1">
-                      {tour.details.highlights.slice(0, 3).map((highlight, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {highlight.length > 15 ? `${highlight.slice(0, 15)}...` : highlight}
-                        </Badge>
-                      ))}
+                      {tour.details.highlights
+                        .slice(0, 3)
+                        .map((highlight, index) => (
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            className="text-xs"
+                          >
+                            {highlight.length > 15
+                              ? `${highlight.slice(0, 15)}...`
+                              : highlight}
+                          </Badge>
+                        ))}
                       {tour.details.highlights.length > 3 && (
                         <Badge variant="outline" className="text-xs">
                           +{tour.details.highlights.length - 3} more
@@ -504,8 +532,12 @@ export default function ToursList() {
                   <MapPin className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Tours</p>
-                  <p className="text-2xl font-bold text-gray-900">{tours.length}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Tours
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {tours.length}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -517,9 +549,14 @@ export default function ToursList() {
                   <Users className="h-6 w-6 text-green-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Bookings
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {tours.reduce((sum, tour) => sum + tour.metadata.bookingsCount, 0)}
+                    {tours.reduce(
+                      (sum, tour) => sum + tour.metadata.bookingsCount,
+                      0
+                    )}
                   </p>
                 </div>
               </div>
@@ -532,13 +569,18 @@ export default function ToursList() {
                   <DollarSign className="h-6 w-6 text-yellow-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Avg. Price</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Avg. Price
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">
                     $
                     {tours.length > 0
                       ? Math.round(
                           tours.reduce(
-                            (sum, tour) => sum + (tour.pricing.discounted || tour.pricing.original),
+                            (sum, tour) =>
+                              sum +
+                              (tour.pricing.discounted ||
+                                tour.pricing.original),
                             0
                           ) / tours.length
                         )
@@ -555,9 +597,11 @@ export default function ToursList() {
                   <Star className="h-6 w-6 text-purple-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Active Tours</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Active Tours
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {tours.filter(tour => tour.status === "active").length}
+                    {tours.filter((tour) => tour.status === "active").length}
                   </p>
                 </div>
               </div>
@@ -595,13 +639,16 @@ export default function ToursList() {
       />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the tour
-              "{tourToDelete?.name}" and remove all associated data.
+              This action cannot be undone. This will permanently delete the
+              tour "{tourToDelete?.name}" and remove all associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

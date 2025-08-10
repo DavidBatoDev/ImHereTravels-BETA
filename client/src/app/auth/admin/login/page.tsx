@@ -12,7 +12,7 @@ import {
   EyeOff,
   Loader2,
 } from "lucide-react";
-import { useAuthStore } from "@/lib/auth-store";
+import { useAuthStore } from "@/store/auth-store";
 import { useRouter } from "next/navigation";
 
 export default function AdminLoginPage() {

@@ -23,7 +23,7 @@ import {
 import { doc, updateDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
 import { db } from "@/lib/firebase";
-import { useAuthStore } from "@/lib/auth-store";
+import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/hooks/use-toast";
 
 export default function AdminSignupPage() {

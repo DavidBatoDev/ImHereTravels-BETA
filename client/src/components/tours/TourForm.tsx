@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -44,10 +44,17 @@ import {
   DollarSign,
   FileText,
   Star,
-  Calendar
+  Calendar,
+  Image,
+  FolderOpen
 } from "lucide-react";
 import { TourPackage, TourPackageFormData } from "@/types/tours";
 import { generateSlug, validateTourData } from "@/lib/tours-service";
+import { FileUpload, TourCoverUpload, TourGalleryUpload } from "@/components/ui/file-upload";
+import { BlobFileUpload } from "@/components/ui/blob-file-upload";
+import { uploadAllBlobsToStorage, cleanupBlobUrls } from "@/lib/blob-upload-service";
+import { useToast } from "@/hooks/use-toast";
+import { UploadResult } from "@/hooks/use-file-upload";
 
 // Form validation schema
 const tourFormSchema = z.object({
@@ -79,7 +86,7 @@ type TourFormData = z.infer<typeof tourFormSchema>;
 interface TourFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: TourPackageFormData) => Promise<void>;
+  onSubmit: (data: TourPackageFormData) => Promise<void | string>;
   tour?: TourPackage | null;
   isLoading?: boolean;
 }
@@ -92,6 +99,12 @@ export default function TourForm({
   isLoading = false,
 }: TourFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadedCover, setUploadedCover] = useState<string | null>(null);
+  const [uploadedGallery, setUploadedGallery] = useState<string[]>([]);
+  // For new tours: store actual File objects as blobs
+  const [coverBlob, setCoverBlob] = useState<File | null>(null);
+  const [galleryBlobs, setGalleryBlobs] = useState<File[]>([]);
+  const { toast } = useToast();
 
   const form = useForm<TourFormData>({
     resolver: zodResolver(tourFormSchema),
@@ -156,6 +169,13 @@ export default function TourForm({
         details: tour.details,
         status: tour.status,
       });
+      
+      // Initialize uploaded images from existing tour
+      setUploadedCover(tour.media?.coverImage || null);
+      setUploadedGallery(tour.media?.gallery || []);
+      // Clear blobs for existing tours (they use direct uploads)
+      setCoverBlob(null);
+      setGalleryBlobs([]);
     } else {
       form.reset({
         name: "",
@@ -176,6 +196,13 @@ export default function TourForm({
         },
         status: "draft",
       });
+      
+      // Reset uploaded images for new tour
+      setUploadedCover(null);
+      setUploadedGallery([]);
+      // Reset blobs for new tours
+      setCoverBlob(null);
+      setGalleryBlobs([]);
     }
   }, [tour, form]);
 
@@ -187,6 +214,130 @@ export default function TourForm({
       form.setValue("slug", slug);
     }
   }, [watchedName, form, tour]);
+
+  const handleCoverUpload = (results: UploadResult[]) => {
+    if (results.length > 0 && results[0].data?.publicUrl) {
+      setUploadedCover(results[0].data.publicUrl);
+      toast({
+        title: "Cover uploaded",
+        description: "Tour cover image uploaded successfully",
+      });
+    }
+  };
+
+  const handleGalleryUpload = (results: UploadResult[]) => {
+    const urls = results
+      .map(result => result.data?.publicUrl)
+      .filter(Boolean) as string[];
+    
+    setUploadedGallery(prev => [...prev, ...urls]);
+    toast({
+      title: "Gallery updated",
+      description: `${urls.length} image(s) uploaded successfully`,
+    });
+  };
+
+  // New blob-based handlers for new tours
+  const handleCoverBlobUpload = (files: File[]) => {
+    if (files.length > 0) {
+      const file = files[0];
+      setCoverBlob(file);
+      // Create a blob URL for preview
+      const blobUrl = URL.createObjectURL(file);
+      setUploadedCover(blobUrl);
+      toast({
+        title: "Cover selected",
+        description: "Cover image ready for upload after tour creation",
+      });
+    }
+  };
+
+  const handleGalleryBlobUpload = (files: File[]) => {
+    if (files.length > 0) {
+      setGalleryBlobs(prev => [...prev, ...files]);
+      // Create blob URLs for preview
+      const blobUrls = files.map(file => URL.createObjectURL(file));
+      setUploadedGallery(prev => [...prev, ...blobUrls]);
+      toast({
+        title: "Gallery images selected",
+        description: `${files.length} image(s) ready for upload after tour creation`,
+      });
+    }
+  };
+
+  const handleUploadError = (error: string) => {
+    toast({
+      title: "Upload error",
+      description: error,
+      variant: "destructive",
+    });
+  };
+
+  // Handle form submission
+  const handleFormSubmit = async (data: TourPackageFormData) => {
+    if (tour) {
+      await handleUpdateTour(data);
+    } else {
+      return await handleCreateTour(data);
+    }
+  };
+
+  // Create tour with blob upload handling
+  const handleCreateTour = async (data: TourPackageFormData) => {
+    try {
+      // First create the tour without images
+      const tourId = await onSubmit(data);
+      
+      // If we have blobs to upload and tour creation was successful
+      if ((coverBlob || galleryBlobs.length > 0) && tourId) {
+        toast({
+          title: "Tour created",
+          description: "Now uploading images...",
+        });
+
+        // Upload all blobs to storage
+        const uploadResults = await uploadAllBlobsToStorage(
+          coverBlob,
+          galleryBlobs,
+          typeof tourId === 'string' ? tourId : ''
+        );
+
+        if (uploadResults.allSuccessful) {
+          toast({
+            title: "Success",
+            description: "Tour created and all images uploaded successfully!",
+          });
+        } else {
+          toast({
+            title: "Partial success",
+            description: "Tour created but some images failed to upload. You can re-upload them by editing the tour.",
+            variant: "destructive",
+          });
+        }
+
+        // Cleanup blob URLs
+        const allUrls = [...uploadedGallery];
+        if (uploadedCover) allUrls.push(uploadedCover);
+        cleanupBlobUrls(allUrls);
+      } else {
+        toast({
+          title: "Success",
+          description: "Tour created successfully!",
+        });
+      }
+    } catch (error) {
+      // If tour creation fails, cleanup blob URLs
+      const allUrls = [...uploadedGallery];
+      if (uploadedCover) allUrls.push(uploadedCover);
+      cleanupBlobUrls(allUrls);
+      throw error;
+    }
+  };
+
+  // Update existing tour
+  const handleUpdateTour = async (data: TourPackageFormData) => {
+    await onSubmit(data);
+  };
 
   const handleSubmit = async (data: TourFormData) => {
     try {
@@ -207,12 +358,23 @@ export default function TourForm({
           itinerary: data.details.itinerary,
           requirements: data.details.requirements.filter(r => r.trim() !== ""),
         },
+        // Include uploaded images in media field
+        media: {
+          coverImage: uploadedCover || tour?.media?.coverImage || "",
+          gallery: uploadedGallery.length > 0 ? uploadedGallery : tour?.media?.gallery || [],
+        },
       };
 
-      await onSubmit(cleanedData);
+      await handleFormSubmit(cleanedData);
+      
       onClose();
     } catch (error) {
       console.error("Error submitting tour:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Something went wrong",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -358,6 +520,61 @@ export default function TourForm({
                     )}
                   />
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Cover Image - Primary upload section at the top */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Image className="h-5 w-5" />
+                  Cover Image
+                </CardTitle>
+                <CardDescription>
+                  Upload a high-quality cover image for this tour (recommended: 1200x800px)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {tour ? (
+                  <TourCoverUpload
+                    tourId={tour.id}
+                    onUploadComplete={handleCoverUpload}
+                    onUploadError={handleUploadError}
+                    disabled={isSubmitting}
+                  />
+                ) : (
+                  <BlobFileUpload
+                    accept="image/*"
+                    multiple={false}
+                    maxFiles={1}
+                    maxSize={5 * 1024 * 1024} // 5MB
+                    onFilesSelected={handleCoverBlobUpload}
+                    disabled={isSubmitting}
+                    selectedFiles={coverBlob ? [coverBlob] : []}
+                    onRemoveFile={() => {
+                      setCoverBlob(null);
+                      if (uploadedCover?.startsWith('blob:')) {
+                        URL.revokeObjectURL(uploadedCover);
+                      }
+                      setUploadedCover(null);
+                    }}
+                  />
+                )}
+                {uploadedCover && (
+                  <div className="mt-4 p-3 border rounded-lg bg-green-50">
+                    <p className="text-sm text-green-700 font-medium">
+                      {tour ? 'Cover image uploaded' : 'Cover image selected'}
+                    </p>
+                    <a 
+                      href={uploadedCover} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      View image
+                    </a>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -617,6 +834,76 @@ export default function TourForm({
                   <Plus className="h-4 w-4 mr-2" />
                   Add Requirement
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Gallery Images - Secondary upload section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FolderOpen className="h-5 w-5" />
+                  Gallery Images
+                </CardTitle>
+                <CardDescription>
+                  Upload multiple images to showcase your tour (up to 10 images)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {tour ? (
+                  <TourGalleryUpload
+                    tourId={tour.id}
+                    onUploadComplete={handleGalleryUpload}
+                    onUploadError={handleUploadError}
+                    disabled={isSubmitting}
+                  />
+                ) : (
+                  <BlobFileUpload
+                    accept="image/*"
+                    multiple={true}
+                    maxFiles={10}
+                    maxSize={8 * 1024 * 1024} // 8MB
+                    onFilesSelected={handleGalleryBlobUpload}
+                    disabled={isSubmitting}
+                    selectedFiles={galleryBlobs}
+                    onRemoveFile={(index) => {
+                      const removedFile = galleryBlobs[index];
+                      if (removedFile) {
+                        // Cleanup blob URL
+                        const blobUrl = uploadedGallery[index];
+                        if (blobUrl?.startsWith('blob:')) {
+                          URL.revokeObjectURL(blobUrl);
+                        }
+                      }
+                      setGalleryBlobs(prev => prev.filter((_, i) => i !== index));
+                      setUploadedGallery(prev => prev.filter((_, i) => i !== index));
+                    }}
+                  />
+                )}
+                {uploadedGallery.length > 0 && (
+                  <div className="mt-4 p-3 border rounded-lg bg-green-50">
+                    <p className="text-sm text-green-700 font-medium">
+                      {uploadedGallery.length} gallery image{uploadedGallery.length !== 1 ? 's' : ''} {tour ? 'uploaded' : 'selected'}
+                    </p>
+                    <div className="mt-2 space-y-1">
+                      {uploadedGallery.slice(0, 3).map((url, index) => (
+                        <a 
+                          key={index}
+                          href={url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="block text-xs text-blue-600 hover:underline"
+                        >
+                          Image {index + 1}
+                        </a>
+                      ))}
+                      {uploadedGallery.length > 3 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{uploadedGallery.length - 3} more image{uploadedGallery.length - 3 !== 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

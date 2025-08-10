@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useAuthStore } from "@/lib/auth-store";
+import { useAuthStore } from "@/store/auth-store";
 import type { User as UserType } from "@/types/users";
 import {
   Card,

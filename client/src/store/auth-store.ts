@@ -21,9 +21,9 @@ import {
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
-import { auth, db } from "./firebase";
+import { auth, db } from "../lib/firebase";
 import type { User as UserType } from "@/types/users";
-import { parseFirebaseError } from "./auth-errors";
+import { parseFirebaseError } from "../lib/auth-errors";
 import { toast } from "@/hooks/use-toast";
 
 interface AuthState {

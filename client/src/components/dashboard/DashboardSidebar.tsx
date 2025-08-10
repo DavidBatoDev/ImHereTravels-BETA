@@ -18,7 +18,7 @@ import {
   LogOut,
   AlertTriangle,
 } from "lucide-react";
-import { useAuthStore } from "@/lib/auth-store";
+import { useAuthStore } from "@/store/auth-store";
 
 interface DashboardSidebarProps {
   sidebarOpen: boolean;

@@ -31,8 +31,8 @@ export async function createTour(tourData: TourPackageFormData, userId: string):
     const tourPackage: Omit<TourPackage, "id"> = {
       ...tourData,
       media: {
-        coverImage: "",
-        gallery: [],
+        coverImage: tourData.media?.coverImage || "",
+        gallery: tourData.media?.gallery || [],
       },
       pricingHistory: [
         {
