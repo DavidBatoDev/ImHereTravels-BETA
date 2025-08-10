@@ -37,6 +37,7 @@ const navigation = [
     href: "/bookings",
     icon: Calendar,
   },
+  { type: "separator" },
   {
     name: "Tour Packages",
     href: "/tours",
@@ -52,6 +53,7 @@ const navigation = [
     href: "/communications",
     icon: MessageSquare,
   },
+  { type: "separator" },
   {
     name: "Reports",
     href: "/reports",
@@ -127,11 +129,15 @@ export default function DashboardSidebar({
             </Button>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => {
+            {navigation.map((item, index) => {
+              if (item.type === "separator") {
+                return <hr key={`separator-${index}`} className="my-3 border-gray-200" />;
+              }
+              
               const isActive = pathname === item.href;
               return (
                 <Link
-                  key={item.name}
+                  key={`nav-${index}-${item.name}`}
                   href={item.href}
                   className={cn(
                     "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
@@ -213,11 +219,15 @@ export default function DashboardSidebar({
             </div>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => {
+            {navigation.map((item, index) => {
+              if (item.type === "separator") {
+                return <hr key={`desktop-separator-${index}`} className="my-3 border-gray-200" />;
+              }
+              
               const isActive = pathname === item.href;
               return (
                 <Link
-                  key={item.name}
+                  key={`desktop-nav-${index}-${item.name}`}
                   href={item.href}
                   className={cn(
                     "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
