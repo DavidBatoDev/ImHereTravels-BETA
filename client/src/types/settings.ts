@@ -41,6 +41,34 @@ export interface EmailConfigSettings {
   bccAddresses: string[];
 }
 
+// ============================================================================
+// BCC GROUPS TYPES (NEW V2)
+// ============================================================================
+
+export interface BCCGroup {
+  id: string;
+  name: string;
+  description: string;
+  emails: string[];
+  defaultFor: string[]; // ['reservation', 'adventure-kit', 'payment-reminder']
+  isActive: boolean;
+  metadata: BCCGroupMetadata;
+}
+
+export interface BCCGroupMetadata {
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  createdBy?: string; // Reference to users
+}
+
+export interface BCCGroupFormData {
+  name: string;
+  description: string;
+  emails: string[];
+  defaultFor: string[];
+  isActive: boolean;
+}
+
 export interface SMTPConfig {
   host: string;
   port: string;

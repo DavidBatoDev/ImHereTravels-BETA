@@ -12,6 +12,8 @@ export interface CommunicationTemplate {
   content: string; // HTML content
   variables: string[]; // ["{{traveler_name}}", "{{tour_name}}"]
   status: "active" | "draft" | "archived";
+  // NEW V2 FIELDS
+  bccGroups: string[]; // References to bccGroups
   metadata: CommunicationMetadata;
 }
 

@@ -12,6 +12,12 @@ export * from "./users";
 export * from "./communications";
 export * from "./settings";
 
+// NEW V2 TYPES
+export * from "./reference-data";
+export * from "./contacts";
+export * from "./flight-info";
+export * from "./analytics";
+
 // ============================================================================
 // COMMON UTILITY TYPES
 // ============================================================================

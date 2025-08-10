@@ -15,6 +15,8 @@ export interface TourPackage {
   details: TourDetails;
   media: TourMedia;
   status: "active" | "draft" | "archived";
+  // NEW V2 FIELDS
+  pricingHistory: PricingHistoryEntry[];
   metadata: TourMetadata;
 }
 
@@ -27,6 +29,12 @@ export interface TourPricing {
   discounted?: number;
   deposit: number;
   currency: "USD" | "EUR" | "GBP";
+}
+
+export interface PricingHistoryEntry {
+  date: Timestamp;
+  price: number;
+  changedBy: string;
 }
 
 export interface TourDetails {
@@ -87,6 +95,7 @@ export interface TourPackageFormData {
     requirements: string[];
   };
   status: "active" | "draft" | "archived";
+  // Note: pricingHistory is managed automatically by the system
 }
 
 // ============================================================================

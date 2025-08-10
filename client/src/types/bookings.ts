@@ -15,6 +15,10 @@ export interface Booking {
   group?: GroupBooking;
   schedule: PaymentScheduleMap;
   communications: BookingCommunications;
+  // NEW V2 FIELDS
+  status: string; // Reference to referenceData/bookingStatus
+  customerType: string; // Reference to referenceData/customerType
+  customerStatus: string; // Reference to referenceData/customerStatus
   metadata: BookingMetadata;
 }
 
@@ -170,6 +174,10 @@ export interface BookingFormData {
     plan: "Full" | "P1" | "P2" | "P3" | "P4";
     enableReminders: boolean;
   };
+  // NEW V2 FIELDS
+  status?: string;
+  customerType?: string;
+  customerStatus?: string;
 }
 
 // ============================================================================

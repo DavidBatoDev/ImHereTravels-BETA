@@ -10,7 +10,10 @@ export type CollectionName =
   | "tourPackages"
   | "users"
   | "communications"
-  | "settings";
+  | "settings"
+  | "referenceData"
+  | "contacts"
+  | "flightInfo";
 
 // ============================================================================
 // API RESPONSE TYPES
