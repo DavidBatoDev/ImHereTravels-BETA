@@ -1,10 +1,10 @@
-import React, { useCallback, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { Upload, Image, X, FileText } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import React, { useCallback, useState } from "react";
+import { useDropzone } from "react-dropzone";
+import { Upload, Image, X, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 // ============================================================================
 // TYPES
@@ -29,7 +29,7 @@ export interface BlobFileUploadProps {
 export function BlobFileUpload({
   onFilesSelected,
   multiple = false,
-  accept = 'image/*',
+  accept = "image/*",
   maxSize = 10 * 1024 * 1024, // 10MB
   maxFiles = 5,
   className,
@@ -53,19 +53,23 @@ export function BlobFileUpload({
       }
     },
     onDropRejected: (rejectedFiles) => {
-      const errors = rejectedFiles.flatMap(f => f.errors.map(e => e.message));
-      setDragError(errors.join(', '));
+      const errors = rejectedFiles.flatMap((f) =>
+        f.errors.map((e) => e.message)
+      );
+      setDragError(errors.join(", "));
     },
-    accept: accept === 'image/*' 
-      ? { 'image/*': ['.jpeg', '.jpg', '.png', '.webp', '.gif'] }
-      : accept === 'document/*'
-      ? { 
-          'application/pdf': ['.pdf'],
-          'application/msword': ['.doc'],
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-          'text/plain': ['.txt'],
-        }
-      : undefined,
+    accept:
+      accept === "image/*"
+        ? { "image/*": [".jpeg", ".jpg", ".png", ".webp", ".gif"] }
+        : accept === "document/*"
+        ? {
+            "application/pdf": [".pdf"],
+            "application/msword": [".doc"],
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+              [".docx"],
+            "text/plain": [".txt"],
+          }
+        : undefined,
     maxSize,
     maxFiles: multiple ? maxFiles : 1,
     multiple,
@@ -73,15 +77,15 @@ export function BlobFileUpload({
   });
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const getFileIcon = (fileType: string) => {
-    if (fileType.startsWith('image/')) {
+    if (fileType.startsWith("image/")) {
       return <Image className="w-4 h-4" />;
     }
     return <FileText className="w-4 h-4" />;
@@ -98,14 +102,14 @@ export function BlobFileUpload({
   };
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn("space-y-4", className)}>
       {/* Upload Area */}
       <Card
         className={cn(
-          'border-2 border-dashed transition-colors cursor-pointer',
-          isDragActive && !isDragReject && 'border-blue-500 bg-blue-50',
-          isDragReject && 'border-red-500 bg-red-50',
-          disabled && 'opacity-50 cursor-not-allowed'
+          "border-2 border-dashed transition-colors cursor-pointer",
+          isDragActive && !isDragReject && "border-blue-500 bg-blue-50",
+          isDragReject && "border-red-500 bg-red-50",
+          disabled && "opacity-50 cursor-not-allowed"
         )}
       >
         <CardContent
@@ -113,15 +117,14 @@ export function BlobFileUpload({
           className="flex flex-col items-center justify-center p-8 text-center"
         >
           <input {...getInputProps()} />
-          
+
           <div className="space-y-4">
             <Upload className="w-8 h-8 text-muted-foreground" />
             <div className="space-y-2">
               <p className="text-sm font-medium">
-                {multiple 
-                  ? 'Drop files here, or click to select multiple'
-                  : 'Drop file here, or click to select'
-                }
+                {multiple
+                  ? "Drop files here, or click to select multiple"
+                  : "Drop file here, or click to select"}
               </p>
               <p className="text-xs text-muted-foreground">
                 Max size: {formatFileSize(maxSize)}
@@ -144,7 +147,7 @@ export function BlobFileUpload({
           {dragError && <div>{dragError}</div>}
           {fileRejections.map(({ file, errors }) => (
             <div key={file.name}>
-              {file.name}: {errors.map(e => e.message).join(', ')}
+              {file.name}: {errors.map((e) => e.message).join(", ")}
             </div>
           ))}
         </div>

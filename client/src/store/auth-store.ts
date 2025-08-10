@@ -23,7 +23,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import type { User as UserType } from "@/types/users";
-import { parseFirebaseError } from "../lib/auth-errors";
+import { parseFirebaseError } from "../utils/auth-errors";
 import { toast } from "@/hooks/use-toast";
 
 interface AuthState {

@@ -61,7 +61,8 @@ export default function TourDetails({
   };
 
   const currentPrice = tour.pricing.discounted || tour.pricing.original;
-  const hasDiscount = tour.pricing.discounted && tour.pricing.discounted < tour.pricing.original;
+  const hasDiscount =
+    tour.pricing.discounted && tour.pricing.discounted < tour.pricing.original;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -135,7 +136,9 @@ export default function TourDetails({
                     <Users className="h-5 w-5 text-purple-600" />
                     <div>
                       <p className="text-sm font-medium">Bookings</p>
-                      <p className="text-lg font-bold">{tour.metadata.bookingsCount}</p>
+                      <p className="text-lg font-bold">
+                        {tour.metadata.bookingsCount}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -153,21 +156,27 @@ export default function TourDetails({
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Original Price</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      Original Price
+                    </p>
                     <p className="text-lg font-bold">
                       {tour.pricing.currency} {tour.pricing.original}
                     </p>
                   </div>
                   {tour.pricing.discounted && (
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Discounted Price</p>
+                      <p className="text-sm font-medium text-gray-600">
+                        Discounted Price
+                      </p>
                       <p className="text-lg font-bold text-green-600">
                         {tour.pricing.currency} {tour.pricing.discounted}
                       </p>
                     </div>
                   )}
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Deposit Required</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      Deposit Required
+                    </p>
                     <p className="text-lg font-bold">
                       {tour.pricing.currency} {tour.pricing.deposit}
                     </p>
@@ -254,7 +263,10 @@ export default function TourDetails({
                     {tour.pricingHistory
                       .sort((a, b) => b.date.seconds - a.date.seconds)
                       .map((entry, index) => (
-                        <div key={index} className="flex justify-between items-center py-2 border-b last:border-b-0">
+                        <div
+                          key={index}
+                          className="flex justify-between items-center py-2 border-b last:border-b-0"
+                        >
                           <div>
                             <p className="font-semibold">
                               {tour.pricing.currency} {entry.price}
@@ -264,7 +276,10 @@ export default function TourDetails({
                             </p>
                           </div>
                           <p className="text-sm text-gray-600">
-                            {format(new Date(entry.date.seconds * 1000), 'MMM dd, yyyy')}
+                            {format(
+                              new Date(entry.date.seconds * 1000),
+                              "MMM dd, yyyy"
+                            )}
                           </p>
                         </div>
                       ))}
@@ -283,14 +298,24 @@ export default function TourDetails({
                   <div>
                     <p className="text-sm font-medium text-gray-600">Created</p>
                     <p className="text-sm">
-                      {format(new Date(tour.metadata.createdAt.seconds * 1000), 'PPP')}
+                      {format(
+                        new Date(tour.metadata.createdAt.seconds * 1000),
+                        "PPP"
+                      )}
                     </p>
-                    <p className="text-xs text-gray-500">by {tour.metadata.createdBy}</p>
+                    <p className="text-xs text-gray-500">
+                      by {tour.metadata.createdBy}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Last Updated</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      Last Updated
+                    </p>
                     <p className="text-sm">
-                      {format(new Date(tour.metadata.updatedAt.seconds * 1000), 'PPP')}
+                      {format(
+                        new Date(tour.metadata.updatedAt.seconds * 1000),
+                        "PPP"
+                      )}
                     </p>
                   </div>
                 </div>
@@ -303,7 +328,9 @@ export default function TourDetails({
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">URL Slug</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      URL Slug
+                    </p>
                     <p className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
                       {tour.slug}
                     </p>
@@ -319,7 +346,7 @@ export default function TourDetails({
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          
+
           <div className="flex gap-2">
             {onEdit && (
               <Button
@@ -330,7 +357,7 @@ export default function TourDetails({
                 Edit
               </Button>
             )}
-            
+
             {onArchive && tour.status !== "archived" && (
               <Button
                 variant="outline"
@@ -341,7 +368,7 @@ export default function TourDetails({
                 Archive
               </Button>
             )}
-            
+
             {onDelete && (
               <Button
                 variant="destructive"

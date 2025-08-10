@@ -1,10 +1,10 @@
-import { supabase, supabaseAdmin } from './supabase';
+import { supabase, supabaseAdmin } from "./supabase";
 import {
   generateUniqueFileName,
   validateFile,
   compressImage,
   DEFAULT_UPLOAD_OPTIONS,
-} from './file-upload-helpers';
+} from "./file-upload-helpers";
 
 // ============================================================================
 // TYPES AND INTERFACES
@@ -46,10 +46,10 @@ export interface BulkUploadResult {
 // ============================================================================
 
 const DEFAULT_BUCKETS = {
-  TOURS: 'tour-images',
-  PROFILES: 'profile-images',
-  DOCUMENTS: 'documents',
-  TEMP: 'temp-uploads',
+  TOURS: "tour-images",
+  PROFILES: "profile-images",
+  DOCUMENTS: "documents",
+  TEMP: "temp-uploads",
 } as const;
 
 // ============================================================================
@@ -59,34 +59,37 @@ const DEFAULT_BUCKETS = {
 /**
  * Create a storage bucket if it doesn't exist
  */
-export async function createBucket(bucketName: string, isPublic: boolean = true): Promise<boolean> {
+export async function createBucket(
+  bucketName: string,
+  isPublic: boolean = true
+): Promise<boolean> {
   try {
     const { data: buckets } = await supabaseAdmin.storage.listBuckets();
-    const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
-    
+    const bucketExists = buckets?.some((bucket) => bucket.name === bucketName);
+
     if (!bucketExists) {
       const { error } = await supabaseAdmin.storage.createBucket(bucketName, {
         public: isPublic,
         allowedMimeTypes: [
-          'image/jpeg',
-          'image/png',
-          'image/webp',
-          'image/gif',
-          'application/pdf',
-          'text/plain',
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/gif",
+          "application/pdf",
+          "text/plain",
         ],
         fileSizeLimit: 50 * 1024 * 1024, // 50MB
       });
-      
+
       if (error) {
-        console.error('Error creating bucket:', error);
+        console.error("Error creating bucket:", error);
         return false;
       }
     }
-    
+
     return true;
   } catch (error) {
-    console.error('Error in createBucket:', error);
+    console.error("Error in createBucket:", error);
     return false;
   }
 }
@@ -96,7 +99,7 @@ export async function createBucket(bucketName: string, isPublic: boolean = true)
  */
 export async function initializeDefaultBuckets(): Promise<void> {
   const buckets = Object.values(DEFAULT_BUCKETS);
-  
+
   for (const bucket of buckets) {
     await createBucket(bucket, true);
   }
@@ -115,7 +118,7 @@ export async function uploadFile(
 ): Promise<UploadResult> {
   try {
     const opts = { ...DEFAULT_UPLOAD_OPTIONS, ...options };
-    
+
     // Validate file
     const validationError = validateFile(file, opts);
     if (validationError) {
@@ -124,37 +127,38 @@ export async function uploadFile(
         error: validationError,
       };
     }
-    
+
     // Compress image if needed
     const processedFile = await compressImage(file, opts);
-    
+
     // Generate file path
-    const fileName = opts.fileName || generateUniqueFileName(processedFile.name);
+    const fileName =
+      opts.fileName || generateUniqueFileName(processedFile.name);
     const filePath = opts.folder ? `${opts.folder}/${fileName}` : fileName;
-    
+
     // Ensure bucket exists
     await createBucket(opts.bucket);
-    
+
     // Upload file
     const { data, error } = await supabase.storage
       .from(opts.bucket)
       .upload(filePath, processedFile, {
-        cacheControl: '3600',
+        cacheControl: "3600",
         upsert: false,
       });
-    
+
     if (error) {
       return {
         success: false,
         error: error.message,
       };
     }
-    
+
     // Get public URL
     const { data: urlData } = supabase.storage
       .from(opts.bucket)
       .getPublicUrl(filePath);
-    
+
     return {
       success: true,
       data: {
@@ -166,7 +170,7 @@ export async function uploadFile(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: error instanceof Error ? error.message : "Unknown error occurred",
     };
   }
 }
@@ -183,27 +187,28 @@ export async function uploadMultipleFiles(
   options: Partial<FileUploadOptions> = {}
 ): Promise<BulkUploadResult> {
   const results = await Promise.allSettled(
-    files.map(file => uploadFile(file, options))
+    files.map((file) => uploadFile(file, options))
   );
-  
+
   const successful: UploadResult[] = [];
   const failed: { file: File; error: string }[] = [];
-  
+
   results.forEach((result, index) => {
-    if (result.status === 'fulfilled' && result.value.success) {
+    if (result.status === "fulfilled" && result.value.success) {
       successful.push(result.value);
     } else {
-      const error = result.status === 'fulfilled' 
-        ? result.value.error || 'Upload failed'
-        : result.reason?.message || 'Upload failed';
-      
+      const error =
+        result.status === "fulfilled"
+          ? result.value.error || "Upload failed"
+          : result.reason?.message || "Upload failed";
+
       failed.push({
         file: files[index],
         error,
       });
     }
   });
-  
+
   return {
     successful,
     failed,
@@ -219,15 +224,16 @@ export async function uploadMultipleFiles(
 /**
  * Delete a file from storage
  */
-export async function deleteFile(filePath: string, bucket: string = DEFAULT_BUCKETS.TOURS): Promise<boolean> {
+export async function deleteFile(
+  filePath: string,
+  bucket: string = DEFAULT_BUCKETS.TOURS
+): Promise<boolean> {
   try {
-    const { error } = await supabase.storage
-      .from(bucket)
-      .remove([filePath]);
-    
+    const { error } = await supabase.storage.from(bucket).remove([filePath]);
+
     return !error;
   } catch (error) {
-    console.error('Error deleting file:', error);
+    console.error("Error deleting file:", error);
     return false;
   }
 }
@@ -236,30 +242,32 @@ export async function deleteFile(filePath: string, bucket: string = DEFAULT_BUCK
  * Delete multiple files
  */
 export async function deleteMultipleFiles(
-  filePaths: string[], 
+  filePaths: string[],
   bucket: string = DEFAULT_BUCKETS.TOURS
 ): Promise<{ success: string[]; failed: string[] }> {
   try {
     const { data, error } = await supabase.storage
       .from(bucket)
       .remove(filePaths);
-    
+
     if (error) {
       return {
         success: [],
         failed: filePaths,
       };
     }
-    
-    const successful = data?.map(item => item.name) || [];
-    const failed = filePaths.filter(path => !successful.includes(path.split('/').pop() || ''));
-    
+
+    const successful = data?.map((item) => item.name) || [];
+    const failed = filePaths.filter(
+      (path) => !successful.includes(path.split("/").pop() || "")
+    );
+
     return {
       success: successful,
       failed,
     };
   } catch (error) {
-    console.error('Error deleting files:', error);
+    console.error("Error deleting files:", error);
     return {
       success: [],
       failed: filePaths,
@@ -270,22 +278,25 @@ export async function deleteMultipleFiles(
 /**
  * Get file info
  */
-export async function getFileInfo(filePath: string, bucket: string = DEFAULT_BUCKETS.TOURS) {
+export async function getFileInfo(
+  filePath: string,
+  bucket: string = DEFAULT_BUCKETS.TOURS
+) {
   try {
     const { data, error } = await supabase.storage
       .from(bucket)
-      .list(filePath.split('/').slice(0, -1).join('/'), {
+      .list(filePath.split("/").slice(0, -1).join("/"), {
         limit: 1,
-        search: filePath.split('/').pop(),
+        search: filePath.split("/").pop(),
       });
-    
+
     if (error || !data || data.length === 0) {
       return null;
     }
-    
+
     return data[0];
   } catch (error) {
-    console.error('Error getting file info:', error);
+    console.error("Error getting file info:", error);
     return null;
   }
 }
@@ -303,18 +314,18 @@ export async function copyFile(
     const { data: sourceData, error: downloadError } = await supabase.storage
       .from(sourceBucket)
       .download(sourcePath);
-    
+
     if (downloadError || !sourceData) {
       return false;
     }
-    
+
     const { error: uploadError } = await supabase.storage
       .from(destinationBucket)
       .upload(destinationPath, sourceData);
-    
+
     return !uploadError;
   } catch (error) {
-    console.error('Error copying file:', error);
+    console.error("Error copying file:", error);
     return false;
   }
 }
@@ -326,7 +337,10 @@ export async function copyFile(
 /**
  * Upload tour cover image
  */
-export async function uploadTourCoverImage(file: File, tourId: string): Promise<UploadResult> {
+export async function uploadTourCoverImage(
+  file: File,
+  tourId: string
+): Promise<UploadResult> {
   return uploadFile(file, {
     bucket: DEFAULT_BUCKETS.TOURS,
     folder: `covers/${tourId}`,
@@ -344,7 +358,10 @@ export async function uploadTourCoverImage(file: File, tourId: string): Promise<
 /**
  * Upload tour gallery images
  */
-export async function uploadTourGalleryImages(files: File[], tourId: string): Promise<BulkUploadResult> {
+export async function uploadTourGalleryImages(
+  files: File[],
+  tourId: string
+): Promise<BulkUploadResult> {
   return uploadMultipleFiles(files, {
     bucket: DEFAULT_BUCKETS.TOURS,
     folder: `gallery/${tourId}`,
@@ -361,15 +378,19 @@ export async function uploadTourGalleryImages(files: File[], tourId: string): Pr
 /**
  * Upload tour documents (itinerary, terms, etc.)
  */
-export async function uploadTourDocument(file: File, tourId: string, documentType: string): Promise<UploadResult> {
+export async function uploadTourDocument(
+  file: File,
+  tourId: string,
+  documentType: string
+): Promise<UploadResult> {
   return uploadFile(file, {
     bucket: DEFAULT_BUCKETS.DOCUMENTS,
     folder: `tours/${tourId}/${documentType}`,
     allowedTypes: [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain',
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/plain",
     ],
     maxSize: 20 * 1024 * 1024, // 20MB
   });
@@ -388,4 +409,4 @@ export {
   compressImage,
   getExtensionFromMimeType,
   DEFAULT_UPLOAD_OPTIONS,
-} from './file-upload-helpers';
+} from "./file-upload-helpers";

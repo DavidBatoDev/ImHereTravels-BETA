@@ -18,34 +18,42 @@ This module provides comprehensive file upload functionality for the ImHere Trav
 ## Usage
 
 ### Basic Import (Recommended)
+
 ```typescript
-import { uploadFile, useFileUpload, validateFile } from '@/lib/file-upload';
+import { uploadFile, useFileUpload, validateFile } from "@/lib/file-upload";
 ```
 
 ### Specific Imports
+
 ```typescript
 // Service functions
-import { uploadFile, uploadTourCoverImage } from '@/lib/file-upload-service';
+import { uploadFile, uploadTourCoverImage } from "@/lib/file-upload-service";
 
 // Helper functions
-import { validateFile, compressImage, generateUniqueFileName } from '@/lib/file-upload-helpers';
+import {
+  validateFile,
+  compressImage,
+  generateUniqueFileName,
+} from "@/lib/file-upload-helpers";
 
 // React hooks
-import { useFileUpload, useTourUpload } from '@/hooks/use-file-upload';
+import { useFileUpload, useTourUpload } from "@/hooks/use-file-upload";
 
 // Blob uploads
-import { uploadCoverBlobToStorage } from '@/lib/blob-upload-service';
+import { uploadCoverBlobToStorage } from "@/lib/blob-upload-service";
 ```
 
 ## Key Features
 
 ### File Upload Service
+
 - Single and bulk file uploads
 - Tour-specific upload functions
 - Bucket management
 - File deletion and copying
 
 ### File Upload Helpers
+
 - File validation (size, type)
 - Image compression and resizing
 - Unique filename generation
@@ -53,12 +61,14 @@ import { uploadCoverBlobToStorage } from '@/lib/blob-upload-service';
 - Preview URL management
 
 ### React Hooks
+
 - `useFileUpload` - General file upload hook
 - `useTourUpload` - Tour-specific upload hook
 - `useTourCoverUpload` - Cover image upload hook
 - `useTourGalleryUpload` - Gallery upload hook
 
 ### Blob Upload Service
+
 - Blob-first upload workflow
 - Memory management with cleanup
 - Two-stage upload process

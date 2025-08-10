@@ -15,7 +15,7 @@ import {
   Timestamp,
   writeBatch,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db } from "../lib/firebase";
 import {
   TourPackage,
   TourPackageFormData,

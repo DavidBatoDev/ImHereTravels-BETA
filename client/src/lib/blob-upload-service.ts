@@ -1,5 +1,8 @@
-import { uploadTourCoverImage, uploadTourGalleryImages } from './file-upload-service';
-import type { UploadResult } from './file-upload-service';
+import {
+  uploadTourCoverImage,
+  uploadTourGalleryImages,
+} from "./file-upload-service";
+import type { UploadResult } from "./file-upload-service";
 
 // ============================================================================
 // BLOB TO STORAGE UPLOAD FUNCTIONS
@@ -9,16 +12,17 @@ import type { UploadResult } from './file-upload-service';
  * Upload cover blob to Supabase storage after tour creation
  */
 export async function uploadCoverBlobToStorage(
-  file: File, 
+  file: File,
   tourId: string
 ): Promise<UploadResult> {
   try {
     return await uploadTourCoverImage(file, tourId);
   } catch (error) {
-    console.error('Error uploading cover blob:', error);
+    console.error("Error uploading cover blob:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to upload cover image',
+      error:
+        error instanceof Error ? error.message : "Failed to upload cover image",
     };
   }
 }
@@ -27,25 +31,28 @@ export async function uploadCoverBlobToStorage(
  * Upload gallery blobs to Supabase storage after tour creation
  */
 export async function uploadGalleryBlobsToStorage(
-  files: File[], 
+  files: File[],
   tourId: string
 ): Promise<{ successful: UploadResult[]; failed: UploadResult[] }> {
   try {
     const result = await uploadTourGalleryImages(files, tourId);
     return {
       successful: result.successful,
-      failed: result.failed.map(f => ({
+      failed: result.failed.map((f) => ({
         success: false,
         error: f.error,
       })),
     };
   } catch (error) {
-    console.error('Error uploading gallery blobs:', error);
+    console.error("Error uploading gallery blobs:", error);
     return {
       successful: [],
       failed: files.map(() => ({
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to upload gallery image',
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to upload gallery image",
       })),
     };
   }
@@ -64,7 +71,10 @@ export async function uploadAllBlobsToStorage(
   allSuccessful: boolean;
 }> {
   let coverResult: UploadResult | null = null;
-  let galleryResults = { successful: [] as UploadResult[], failed: [] as UploadResult[] };
+  let galleryResults = {
+    successful: [] as UploadResult[],
+    failed: [] as UploadResult[],
+  };
 
   // Upload cover image
   if (coverBlob) {
@@ -77,8 +87,9 @@ export async function uploadAllBlobsToStorage(
   }
 
   // Check if all uploads were successful
-  const coverSuccess = !coverBlob || (coverResult?.success === true);
-  const gallerySuccess = galleryBlobs.length === 0 || galleryResults.failed.length === 0;
+  const coverSuccess = !coverBlob || coverResult?.success === true;
+  const gallerySuccess =
+    galleryBlobs.length === 0 || galleryResults.failed.length === 0;
   const allSuccessful = coverSuccess && gallerySuccess;
 
   return {
@@ -92,8 +103,8 @@ export async function uploadAllBlobsToStorage(
  * Clean up blob URLs to prevent memory leaks
  */
 export function cleanupBlobUrls(urls: string[]): void {
-  urls.forEach(url => {
-    if (url.startsWith('blob:')) {
+  urls.forEach((url) => {
+    if (url.startsWith("blob:")) {
       URL.revokeObjectURL(url);
     }
   });

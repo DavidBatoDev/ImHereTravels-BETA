@@ -58,7 +58,7 @@ import {
   updateTour,
   deleteTour,
   archiveTour,
-} from "@/lib/tours-service";
+} from "@/services/tours-service";
 import TourForm from "./TourForm";
 import TourDetails from "./TourDetails";
 
@@ -125,7 +125,7 @@ export default function ToursList() {
       await loadTours();
       setIsFormOpen(false);
       setSelectedTour(null);
-      
+
       return tourId; // Return the tour ID for blob uploads
     } catch (error) {
       console.error("Error creating tour:", error);

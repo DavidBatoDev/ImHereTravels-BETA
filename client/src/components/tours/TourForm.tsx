@@ -31,28 +31,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Plus, 
-  Minus, 
-  Save, 
-  X, 
-  MapPin, 
-  Clock, 
+import {
+  Plus,
+  Minus,
+  Save,
+  X,
+  MapPin,
+  Clock,
   DollarSign,
   FileText,
   Star,
   Calendar,
   Image,
-  FolderOpen
+  FolderOpen,
 } from "lucide-react";
 import { TourPackage, TourPackageFormData } from "@/types/tours";
-import { generateSlug, validateTourData } from "@/lib/tours-service";
-import { FileUpload, TourCoverUpload, TourGalleryUpload } from "@/components/ui/file-upload";
+import { generateSlug, validateTourData } from "@/services/tours-service";
+import {
+  FileUpload,
+  TourCoverUpload,
+  TourGalleryUpload,
+} from "@/components/ui/file-upload";
 import { BlobFileUpload } from "@/components/ui/blob-file-upload";
-import { uploadAllBlobsToStorage, cleanupBlobUrls } from "@/lib/blob-upload-service";
+import {
+  uploadAllBlobsToStorage,
+  cleanupBlobUrls,
+} from "@/lib/blob-upload-service";
 import { useToast } from "@/hooks/use-toast";
 import { UploadResult } from "@/hooks/use-file-upload";
 
@@ -71,11 +84,13 @@ const tourFormSchema = z.object({
   }),
   details: z.object({
     highlights: z.array(z.string().min(1, "Highlight cannot be empty")),
-    itinerary: z.array(z.object({
-      day: z.number(),
-      title: z.string().min(1, "Day title is required"),
-      description: z.string().min(1, "Day description is required"),
-    })),
+    itinerary: z.array(
+      z.object({
+        day: z.number(),
+        title: z.string().min(1, "Day title is required"),
+        description: z.string().min(1, "Day description is required"),
+      })
+    ),
     requirements: z.array(z.string()),
   }),
   status: z.enum(["active", "draft", "archived"]),
@@ -169,7 +184,7 @@ export default function TourForm({
         details: tour.details,
         status: tour.status,
       });
-      
+
       // Initialize uploaded images from existing tour
       setUploadedCover(tour.media?.coverImage || null);
       setUploadedGallery(tour.media?.gallery || []);
@@ -196,7 +211,7 @@ export default function TourForm({
         },
         status: "draft",
       });
-      
+
       // Reset uploaded images for new tour
       setUploadedCover(null);
       setUploadedGallery([]);
@@ -227,10 +242,10 @@ export default function TourForm({
 
   const handleGalleryUpload = (results: UploadResult[]) => {
     const urls = results
-      .map(result => result.data?.publicUrl)
+      .map((result) => result.data?.publicUrl)
       .filter(Boolean) as string[];
-    
-    setUploadedGallery(prev => [...prev, ...urls]);
+
+    setUploadedGallery((prev) => [...prev, ...urls]);
     toast({
       title: "Gallery updated",
       description: `${urls.length} image(s) uploaded successfully`,
@@ -254,10 +269,10 @@ export default function TourForm({
 
   const handleGalleryBlobUpload = (files: File[]) => {
     if (files.length > 0) {
-      setGalleryBlobs(prev => [...prev, ...files]);
+      setGalleryBlobs((prev) => [...prev, ...files]);
       // Create blob URLs for preview
-      const blobUrls = files.map(file => URL.createObjectURL(file));
-      setUploadedGallery(prev => [...prev, ...blobUrls]);
+      const blobUrls = files.map((file) => URL.createObjectURL(file));
+      setUploadedGallery((prev) => [...prev, ...blobUrls]);
       toast({
         title: "Gallery images selected",
         description: `${files.length} image(s) ready for upload after tour creation`,
@@ -287,7 +302,7 @@ export default function TourForm({
     try {
       // First create the tour without images
       const tourId = await onSubmit(data);
-      
+
       // If we have blobs to upload and tour creation was successful
       if ((coverBlob || galleryBlobs.length > 0) && tourId) {
         toast({
@@ -299,7 +314,7 @@ export default function TourForm({
         const uploadResults = await uploadAllBlobsToStorage(
           coverBlob,
           galleryBlobs,
-          typeof tourId === 'string' ? tourId : ''
+          typeof tourId === "string" ? tourId : ""
         );
 
         if (uploadResults.allSuccessful) {
@@ -310,7 +325,8 @@ export default function TourForm({
         } else {
           toast({
             title: "Partial success",
-            description: "Tour created but some images failed to upload. You can re-upload them by editing the tour.",
+            description:
+              "Tour created but some images failed to upload. You can re-upload them by editing the tour.",
             variant: "destructive",
           });
         }
@@ -342,7 +358,7 @@ export default function TourForm({
   const handleSubmit = async (data: TourFormData) => {
     try {
       setIsSubmitting(true);
-      
+
       // Validate form data
       const errors = validateTourData(data);
       if (errors.length > 0) {
@@ -354,25 +370,31 @@ export default function TourForm({
       const cleanedData: TourPackageFormData = {
         ...data,
         details: {
-          highlights: data.details.highlights.filter(h => h.trim() !== ""),
+          highlights: data.details.highlights.filter((h) => h.trim() !== ""),
           itinerary: data.details.itinerary,
-          requirements: data.details.requirements.filter(r => r.trim() !== ""),
+          requirements: data.details.requirements.filter(
+            (r) => r.trim() !== ""
+          ),
         },
         // Include uploaded images in media field
         media: {
           coverImage: uploadedCover || tour?.media?.coverImage || "",
-          gallery: uploadedGallery.length > 0 ? uploadedGallery : tour?.media?.gallery || [],
+          gallery:
+            uploadedGallery.length > 0
+              ? uploadedGallery
+              : tour?.media?.gallery || [],
         },
       };
 
       await handleFormSubmit(cleanedData);
-      
+
       onClose();
     } catch (error) {
       console.error("Error submitting tour:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Something went wrong",
+        description:
+          error instanceof Error ? error.message : "Something went wrong",
         variant: "destructive",
       });
     } finally {
@@ -388,15 +410,17 @@ export default function TourForm({
             {tour ? "Edit Tour Package" : "Create New Tour Package"}
           </DialogTitle>
           <DialogDescription>
-            {tour 
+            {tour
               ? "Update the tour package details below."
-              : "Fill in the details to create a new tour package."
-            }
+              : "Fill in the details to create a new tour package."}
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
             {/* Basic Information */}
             <Card>
               <CardHeader>
@@ -489,7 +513,9 @@ export default function TourForm({
                             type="number"
                             min="1"
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            onChange={(e) =>
+                              field.onChange(parseInt(e.target.value))
+                            }
                           />
                         </FormControl>
                         <FormMessage />
@@ -503,7 +529,10 @@ export default function TourForm({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select status" />
@@ -531,7 +560,8 @@ export default function TourForm({
                   Cover Image
                 </CardTitle>
                 <CardDescription>
-                  Upload a high-quality cover image for this tour (recommended: 1200x800px)
+                  Upload a high-quality cover image for this tour (recommended:
+                  1200x800px)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -553,7 +583,7 @@ export default function TourForm({
                     selectedFiles={coverBlob ? [coverBlob] : []}
                     onRemoveFile={() => {
                       setCoverBlob(null);
-                      if (uploadedCover?.startsWith('blob:')) {
+                      if (uploadedCover?.startsWith("blob:")) {
                         URL.revokeObjectURL(uploadedCover);
                       }
                       setUploadedCover(null);
@@ -563,11 +593,11 @@ export default function TourForm({
                 {uploadedCover && (
                   <div className="mt-4 p-3 border rounded-lg bg-green-50">
                     <p className="text-sm text-green-700 font-medium">
-                      {tour ? 'Cover image uploaded' : 'Cover image selected'}
+                      {tour ? "Cover image uploaded" : "Cover image selected"}
                     </p>
-                    <a 
-                      href={uploadedCover} 
-                      target="_blank" 
+                    <a
+                      href={uploadedCover}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-blue-600 hover:underline"
                     >
@@ -600,7 +630,9 @@ export default function TourForm({
                             min="0"
                             step="0.01"
                             {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                            onChange={(e) =>
+                              field.onChange(parseFloat(e.target.value))
+                            }
                           />
                         </FormControl>
                         <FormMessage />
@@ -620,7 +652,11 @@ export default function TourForm({
                             min="0"
                             step="0.01"
                             {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || undefined)}
+                            onChange={(e) =>
+                              field.onChange(
+                                parseFloat(e.target.value) || undefined
+                              )
+                            }
                           />
                         </FormControl>
                         <FormDescription>Optional</FormDescription>
@@ -641,7 +677,9 @@ export default function TourForm({
                             min="0"
                             step="0.01"
                             {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                            onChange={(e) =>
+                              field.onChange(parseFloat(e.target.value))
+                            }
                           />
                         </FormControl>
                         <FormMessage />
@@ -655,7 +693,10 @@ export default function TourForm({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Currency</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue />
@@ -731,7 +772,10 @@ export default function TourForm({
               </CardHeader>
               <CardContent className="space-y-4">
                 {itineraryFields.map((field, index) => (
-                  <div key={field.id} className="border rounded-lg p-4 space-y-3">
+                  <div
+                    key={field.id}
+                    className="border rounded-lg p-4 space-y-3"
+                  >
                     <div className="flex items-center justify-between">
                       <Badge variant="outline">Day {index + 1}</Badge>
                       <Button
@@ -744,7 +788,7 @@ export default function TourForm({
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
-                    
+
                     <FormField
                       control={form.control}
                       name={`details.itinerary.${index}.title`}
@@ -752,7 +796,10 @@ export default function TourForm({
                         <FormItem>
                           <FormLabel>Day Title</FormLabel>
                           <FormControl>
-                            <Input placeholder="Day activity title" {...field} />
+                            <Input
+                              placeholder="Day activity title"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -781,11 +828,13 @@ export default function TourForm({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => appendItinerary({ 
-                    day: itineraryFields.length + 1, 
-                    title: "", 
-                    description: "" 
-                  })}
+                  onClick={() =>
+                    appendItinerary({
+                      day: itineraryFields.length + 1,
+                      title: "",
+                      description: "",
+                    })
+                  }
                   className="w-full"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -870,26 +919,32 @@ export default function TourForm({
                       if (removedFile) {
                         // Cleanup blob URL
                         const blobUrl = uploadedGallery[index];
-                        if (blobUrl?.startsWith('blob:')) {
+                        if (blobUrl?.startsWith("blob:")) {
                           URL.revokeObjectURL(blobUrl);
                         }
                       }
-                      setGalleryBlobs(prev => prev.filter((_, i) => i !== index));
-                      setUploadedGallery(prev => prev.filter((_, i) => i !== index));
+                      setGalleryBlobs((prev) =>
+                        prev.filter((_, i) => i !== index)
+                      );
+                      setUploadedGallery((prev) =>
+                        prev.filter((_, i) => i !== index)
+                      );
                     }}
                   />
                 )}
                 {uploadedGallery.length > 0 && (
                   <div className="mt-4 p-3 border rounded-lg bg-green-50">
                     <p className="text-sm text-green-700 font-medium">
-                      {uploadedGallery.length} gallery image{uploadedGallery.length !== 1 ? 's' : ''} {tour ? 'uploaded' : 'selected'}
+                      {uploadedGallery.length} gallery image
+                      {uploadedGallery.length !== 1 ? "s" : ""}{" "}
+                      {tour ? "uploaded" : "selected"}
                     </p>
                     <div className="mt-2 space-y-1">
                       {uploadedGallery.slice(0, 3).map((url, index) => (
-                        <a 
+                        <a
                           key={index}
-                          href={url} 
-                          target="_blank" 
+                          href={url}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="block text-xs text-blue-600 hover:underline"
                         >
@@ -898,7 +953,8 @@ export default function TourForm({
                       ))}
                       {uploadedGallery.length > 3 && (
                         <p className="text-xs text-muted-foreground">
-                          +{uploadedGallery.length - 3} more image{uploadedGallery.length - 3 !== 1 ? 's' : ''}
+                          +{uploadedGallery.length - 3} more image
+                          {uploadedGallery.length - 3 !== 1 ? "s" : ""}
                         </p>
                       )}
                     </div>
@@ -911,13 +967,17 @@ export default function TourForm({
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={isSubmitting || isLoading}
                 className="flex items-center gap-2"
               >
                 <Save className="h-4 w-4" />
-                {isSubmitting ? "Saving..." : tour ? "Update Tour" : "Create Tour"}
+                {isSubmitting
+                  ? "Saving..."
+                  : tour
+                  ? "Update Tour"
+                  : "Create Tour"}
               </Button>
             </DialogFooter>
           </form>
