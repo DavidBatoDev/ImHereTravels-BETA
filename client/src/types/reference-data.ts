@@ -43,7 +43,7 @@ export interface ReferenceDataMetadata {
 
 export interface ReferenceDataFormData {
   type: ReferenceDataType;
-  values: Omit<ReferenceDataValue, 'id'>[];
+  values: Omit<ReferenceDataValue, "id">[];
 }
 
 export interface ReferenceDataValueFormData {

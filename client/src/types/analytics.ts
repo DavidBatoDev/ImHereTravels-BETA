@@ -48,7 +48,11 @@ export interface BookingPipelineData {
 
 export interface UrgentActionItem {
   id: string;
-  type: "payment_overdue" | "tour_preparation" | "customer_response" | "system_alert";
+  type:
+    | "payment_overdue"
+    | "tour_preparation"
+    | "customer_response"
+    | "system_alert";
   priority: "high" | "medium" | "low";
   title: string;
   description: string;
@@ -348,14 +352,14 @@ export interface ReportRequest {
   schedule?: ReportSchedule;
 }
 
-export type ReportType = 
+export type ReportType =
   | "financial"
   | "customer"
   | "tour_performance"
   | "operational"
   | "custom";
 
-export type TimePeriod = 
+export type TimePeriod =
   | "today"
   | "yesterday"
   | "this_week"

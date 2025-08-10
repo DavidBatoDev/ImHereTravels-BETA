@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -18,6 +18,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import {
   Plus,
   Search,
   Filter,
@@ -28,323 +40,581 @@ import {
   DollarSign,
   Users,
   Star,
+  Archive,
+  Trash2,
+  MoreHorizontal,
+  RefreshCw,
 } from "lucide-react";
-
-// Mock data - replace with real data from your backend
-const mockTours = [
-  {
-    id: "T001",
-    name: "Bali Adventure Tour",
-    location: "Bali, Indonesia",
-    duration: "7 days",
-    basePrice: 1200,
-    discountedPrice: 1100,
-    bookings: 15,
-    status: "Active",
-    rating: 4.8,
-    highlights: ["Temple visits", "Beach activities", "Cultural experiences"],
-  },
-  {
-    id: "T002",
-    name: "Thailand Cultural Experience",
-    location: "Bangkok & Chiang Mai, Thailand",
-    duration: "10 days",
-    basePrice: 1800,
-    discountedPrice: 1650,
-    bookings: 8,
-    status: "Active",
-    rating: 4.6,
-    highlights: ["Temple tours", "Street food", "Elephant sanctuary"],
-  },
-  {
-    id: "T003",
-    name: "Vietnam Discovery",
-    location: "Hanoi & Ho Chi Minh City, Vietnam",
-    duration: "8 days",
-    basePrice: 900,
-    discountedPrice: 900,
-    bookings: 12,
-    status: "Active",
-    rating: 4.7,
-    highlights: ["Halong Bay", "Street markets", "War history"],
-  },
-];
-
-const statuses = ["All", "Active", "Draft", "Archived"];
-const locations = [
-  "All",
-  "Bali, Indonesia",
-  "Bangkok & Chiang Mai, Thailand",
-  "Hanoi & Ho Chi Minh City, Vietnam",
-];
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { TourPackage, TourPackageFormData, TourFilters } from "@/types/tours";
+import {
+  getTours,
+  createTour,
+  updateTour,
+  deleteTour,
+  archiveTour,
+} from "@/lib/tours-service";
+import TourForm from "./TourForm";
+import TourDetails from "./TourDetails";
 
 export default function ToursList() {
+  const [tours, setTours] = useState<TourPackage[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [locationFilter, setLocationFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedTour, setSelectedTour] = useState<TourPackage | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [tourToDelete, setTourToDelete] = useState<TourPackage | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const { toast } = useToast();
 
-  const filteredTours = mockTours.filter((tour) => {
-    const matchesSearch =
-      tour.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tour.location.toLowerCase().includes(searchTerm.toLowerCase());
+  // Load tours
+  const loadTours = async () => {
+    try {
+      setLoading(true);
+      const filters: TourFilters = {};
+      
+      if (statusFilter !== "all") {
+        filters.status = statusFilter as "active" | "draft" | "archived";
+      }
+      
+      if (searchTerm) {
+        filters.search = searchTerm;
+      }
 
-    const matchesStatus =
-      statusFilter === "All" || tour.status === statusFilter;
-    const matchesLocation =
-      locationFilter === "All" || tour.location === locationFilter;
+      const { tours: fetchedTours } = await getTours(filters);
+      setTours(fetchedTours);
+    } catch (error) {
+      console.error("Error loading tours:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load tours. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return matchesSearch && matchesStatus && matchesLocation;
-  });
+  useEffect(() => {
+    loadTours();
+  }, [searchTerm, statusFilter]);
+
+  // Create tour
+  const handleCreateTour = async (data: TourPackageFormData) => {
+    try {
+      setIsSubmitting(true);
+      // In a real app, you'd get the user ID from authentication context
+      const userId = "current-user-id"; // Replace with actual user ID
+      
+      await createTour(data, userId);
+      
+      toast({
+        title: "Success",
+        description: "Tour created successfully!",
+      });
+      
+      await loadTours();
+      setIsFormOpen(false);
+      setSelectedTour(null);
+    } catch (error) {
+      console.error("Error creating tour:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create tour. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Update tour
+  const handleUpdateTour = async (data: TourPackageFormData) => {
+    if (!selectedTour) return;
+    
+    try {
+      setIsSubmitting(true);
+      // In a real app, you'd get the user ID from authentication context
+      const userId = "current-user-id"; // Replace with actual user ID
+      
+      await updateTour(selectedTour.id, data, userId);
+      
+      toast({
+        title: "Success",
+        description: "Tour updated successfully!",
+      });
+      
+      await loadTours();
+      setIsFormOpen(false);
+      setSelectedTour(null);
+    } catch (error) {
+      console.error("Error updating tour:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update tour. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Archive tour
+  const handleArchiveTour = async (tour: TourPackage) => {
+    try {
+      await archiveTour(tour.id);
+      
+      toast({
+        title: "Success",
+        description: "Tour archived successfully!",
+      });
+      
+      await loadTours();
+      setIsDetailsOpen(false);
+    } catch (error) {
+      console.error("Error archiving tour:", error);
+      toast({
+        title: "Error",
+        description: "Failed to archive tour. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Delete tour
+  const handleDeleteTour = async () => {
+    if (!tourToDelete) return;
+    
+    try {
+      await deleteTour(tourToDelete.id);
+      
+      toast({
+        title: "Success",
+        description: "Tour deleted successfully!",
+      });
+      
+      await loadTours();
+      setIsDeleteDialogOpen(false);
+      setTourToDelete(null);
+      setIsDetailsOpen(false);
+    } catch (error) {
+      console.error("Error deleting tour:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete tour. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle form submission
+  const handleFormSubmit = async (data: TourPackageFormData) => {
+    if (selectedTour) {
+      await handleUpdateTour(data);
+    } else {
+      await handleCreateTour(data);
+    }
+  };
+
+  // Open create form
+  const openCreateForm = () => {
+    setSelectedTour(null);
+    setIsFormOpen(true);
+  };
+
+  // Open edit form
+  const openEditForm = (tour: TourPackage) => {
+    setSelectedTour(tour);
+    setIsFormOpen(true);
+  };
+
+  // Open tour details
+  const openTourDetails = (tour: TourPackage) => {
+    setSelectedTour(tour);
+    setIsDetailsOpen(true);
+  };
+
+  // Confirm delete
+  const confirmDelete = (tour: TourPackage) => {
+    setTourToDelete(tour);
+    setIsDeleteDialogOpen(true);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Active":
+      case "active":
         return "bg-green-100 text-green-800";
-      case "Draft":
+      case "draft":
         return "bg-yellow-100 text-yellow-800";
-      case "Archived":
+      case "archived":
         return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
+  const formatPrice = (price: number, currency: string) => {
+    return `${currency} ${price.toLocaleString()}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <RefreshCw className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading tours...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tour Packages</h1>
-          <p className="text-gray-600">Manage tour packages and itineraries</p>
+          <h1 className="text-3xl font-bold text-gray-900">Tour Packages</h1>
+          <p className="text-gray-600 mt-2">
+            Manage your tour packages and itineraries
+          </p>
         </div>
-        <Button>
+        <Button onClick={openCreateForm} className="mt-4 md:mt-0">
           <Plus className="mr-2 h-4 w-4" />
-          New Tour Package
+          Add New Tour
         </Button>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Filter className="mr-2 h-5 w-5" />
-            Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search tours..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search tours..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="w-full md:w-48">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                {statuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Location" />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((location) => (
-                  <SelectItem key={location} value={location}>
-                    {location}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" className="w-full">
-              Clear Filters
+            <Button 
+              variant="outline" 
+              onClick={loadTours}
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Tours Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredTours.map((tour) => (
-          <Card key={tour.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{tour.name}</CardTitle>
-                  <CardDescription className="flex items-center mt-1">
-                    <MapPin className="mr-1 h-4 w-4" />
-                    {tour.location}
-                  </CardDescription>
-                </div>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                    tour.status
-                  )}`}
-                >
-                  {tour.status}
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center">
-                    <Clock className="mr-1 h-4 w-4 text-gray-400" />
-                    Duration
-                  </span>
-                  <span className="font-medium">{tour.duration}</span>
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center">
-                    <DollarSign className="mr-1 h-4 w-4 text-gray-400" />
-                    Price
-                  </span>
-                  <div className="text-right">
-                    <span className="font-medium">${tour.discountedPrice}</span>
-                    {tour.discountedPrice < tour.basePrice && (
-                      <span className="text-xs text-gray-500 line-through ml-1">
-                        ${tour.basePrice}
-                      </span>
-                    )}
+      {/* Tours List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {tours.map((tour) => {
+          const currentPrice = tour.pricing.discounted || tour.pricing.original;
+          const hasDiscount = tour.pricing.discounted && tour.pricing.discounted < tour.pricing.original;
+          
+          return (
+            <Card key={tour.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg mb-1">{tour.name}</CardTitle>
+                    <div className="flex items-center text-sm text-gray-600 mb-2">
+                      <MapPin className="h-4 w-4 mr-1" />
+                      {tour.location}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Badge className={getStatusColor(tour.status)}>
+                      {tour.status.charAt(0).toUpperCase() + tour.status.slice(1)}
+                    </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openTourDetails(tour)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEditForm(tour)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        {tour.status !== "archived" && (
+                          <DropdownMenuItem onClick={() => handleArchiveTour(tour)}>
+                            <Archive className="h-4 w-4 mr-2" />
+                            Archive
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem 
+                          onClick={() => confirmDelete(tour)}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
+                <CardDescription className="line-clamp-2">
+                  {tour.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-3">
+                  {/* Tour Details */}
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center">
+                        <Clock className="h-4 w-4 mr-1 text-gray-500" />
+                        <span>{tour.duration} days</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Users className="h-4 w-4 mr-1 text-gray-500" />
+                        <span>{tour.metadata.bookingsCount}</span>
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center">
-                    <Users className="mr-1 h-4 w-4 text-gray-400" />
-                    Bookings
-                  </span>
-                  <span className="font-medium">{tour.bookings}</span>
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center">
-                    <Star className="mr-1 h-4 w-4 text-gray-400" />
-                    Rating
-                  </span>
-                  <span className="font-medium">{tour.rating}/5</span>
-                </div>
-
-                <div className="pt-2">
-                  <p className="text-xs text-gray-500 mb-1">Highlights:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {tour.highlights.slice(0, 2).map((highlight, index) => (
-                      <span
-                        key={index}
-                        className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded"
-                      >
-                        {highlight}
-                      </span>
-                    ))}
-                    {tour.highlights.length > 2 && (
-                      <span className="text-xs text-gray-500">
-                        +{tour.highlights.length - 2} more
-                      </span>
+                  {/* Pricing */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl font-bold text-gray-900">
+                          {formatPrice(currentPrice, tour.pricing.currency)}
+                        </span>
+                        {hasDiscount && (
+                          <span className="text-sm text-gray-500 line-through">
+                            {formatPrice(tour.pricing.original, tour.pricing.currency)}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Deposit: {formatPrice(tour.pricing.deposit, tour.pricing.currency)}
+                      </p>
+                    </div>
+                    {hasDiscount && (
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        {Math.round(((tour.pricing.original - tour.pricing.discounted!) / tour.pricing.original) * 100)}% OFF
+                      </Badge>
                     )}
                   </div>
-                </div>
 
-                <div className="flex space-x-2 pt-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Eye className="mr-1 h-4 w-4" />
-                    View
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Edit className="mr-1 h-4 w-4" />
-                    Edit
-                  </Button>
+                  {/* Highlights Preview */}
+                  <div>
+                    <div className="flex flex-wrap gap-1">
+                      {tour.details.highlights.slice(0, 3).map((highlight, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {highlight.length > 15 ? `${highlight.slice(0, 15)}...` : highlight}
+                        </Badge>
+                      ))}
+                      {tour.details.highlights.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{tour.details.highlights.length - 3} more
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openTourDetails(tour)}
+                      className="flex-1"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditForm(tour)}
+                      className="flex-1"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Empty State */}
+      {tours.length === 0 && !loading && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <MapPin className="h-12 w-12 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No tours found
+            </h3>
+            <p className="text-gray-600 mb-4">
+              {searchTerm || statusFilter !== "all"
+                ? "Try adjusting your search or filters"
+                : "Get started by creating your first tour package"}
+            </p>
+            <Button onClick={openCreateForm}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add New Tour
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Summary Cards */}
+      {tours.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <MapPin className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Tours</p>
+                  <p className="text-2xl font-bold text-gray-900">{tours.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Users className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {tours.reduce((sum, tour) => sum + tour.metadata.bookingsCount, 0)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <DollarSign className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Avg. Price</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    $
+                    {tours.length > 0
+                      ? Math.round(
+                          tours.reduce(
+                            (sum, tour) => sum + (tour.pricing.discounted || tour.pricing.original),
+                            0
+                          ) / tours.length
+                        )
+                      : 0}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Star className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Active Tours</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {tours.filter(tour => tour.status === "active").length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <MapPin className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Tours</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockTours.length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Users className="h-6 w-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Total Bookings
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockTours.reduce((sum, tour) => sum + tour.bookings, 0)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <DollarSign className="h-6 w-6 text-yellow-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Avg. Price</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  $
-                  {Math.round(
-                    mockTours.reduce(
-                      (sum, tour) => sum + tour.discountedPrice,
-                      0
-                    ) / mockTours.length
-                  )}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Star className="h-6 w-6 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Avg. Rating</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {(
-                    mockTours.reduce((sum, tour) => sum + tour.rating, 0) /
-                    mockTours.length
-                  ).toFixed(1)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Tour Form Dialog */}
+      <TourForm
+        isOpen={isFormOpen}
+        onClose={() => {
+          setIsFormOpen(false);
+          setSelectedTour(null);
+        }}
+        onSubmit={handleFormSubmit}
+        tour={selectedTour}
+        isLoading={isSubmitting}
+      />
+
+      {/* Tour Details Dialog */}
+      <TourDetails
+        tour={selectedTour}
+        isOpen={isDetailsOpen}
+        onClose={() => {
+          setIsDetailsOpen(false);
+          setSelectedTour(null);
+        }}
+        onEdit={(tour) => {
+          setIsDetailsOpen(false);
+          openEditForm(tour);
+        }}
+        onArchive={handleArchiveTour}
+        onDelete={confirmDelete}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the tour
+              "{tourToDelete?.name}" and remove all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTour}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
