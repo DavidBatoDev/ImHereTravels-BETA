@@ -58,3 +58,54 @@ export interface ChartData {
     borderColor?: string;
   }[];
 }
+
+// ============================================================================
+// FILE UPLOAD TYPES
+// ============================================================================
+
+export interface UploadResult {
+  success: boolean;
+  data?: {
+    publicUrl: string;
+    path: string;
+  };
+  error?: string;
+}
+
+export interface UploadProgress {
+  loaded: number;
+  total: number;
+  percentage: number;
+}
+
+export interface FileUploadOptions {
+  bucket: string;
+  folder?: string;
+  maxSize?: number;
+  allowedTypes?: string[];
+  generateUniqueName?: boolean;
+  onProgress?: (progress: UploadProgress) => void;
+}
+
+export interface ImageConversionOptions {
+  maxWidth?: number;
+  maxHeight?: number;
+  quality?: number; // 0-1 for JPEG
+  format?: 'jpeg' | 'png' | 'webp';
+  maintainAspectRatio?: boolean;
+}
+
+export interface BlobUploadResult {
+  allSuccessful: boolean;
+  coverResult?: {
+    success: boolean;
+    url?: string;
+    error?: string;
+  };
+  galleryResults: Array<{
+    success: boolean;
+    url?: string;
+    error?: string;
+    fileName: string;
+  }>;
+}

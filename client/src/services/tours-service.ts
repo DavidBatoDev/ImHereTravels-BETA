@@ -22,18 +22,54 @@ import {
   TourFilters,
   TourSearchParams,
 } from "@/types/tours";
+import { useAuthStore } from "@/store/auth-store";
+import { deleteMultipleFiles, extractFilePathFromUrl, STORAGE_BUCKET } from "@/utils/file-upload";
 
 const TOURS_COLLECTION = "tourPackages";
 
 // ============================================================================
+// TEST FUNCTION - Add this temporarily to test database connection
+export async function testFirestoreConnection(): Promise<void> {
+  try {
+    console.log("Testing Firestore connection...");
+    console.log("Firebase config check:", {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "SET" : "NOT SET",
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? "SET" : "NOT SET",
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? "SET" : "NOT SET",
+    });
+    
+    const collectionRef = collection(db, TOURS_COLLECTION);
+    const snapshot = await getDocs(collectionRef);
+    console.log("Total documents in collection:", snapshot.size);
+    
+    snapshot.forEach((doc) => {
+      console.log("Document ID:", doc.id);
+      console.log("Document data:", doc.data());
+    });
+    
+    // Also try to get a simple count using a different approach
+    const simpleQuery = query(collectionRef);
+    const simpleSnapshot = await getDocs(simpleQuery);
+    console.log("Simple query result count:", simpleSnapshot.size);
+    
+  } catch (error) {
+    console.error("Firestore connection test failed:", error);
+  }
+}
+
 // CREATE OPERATIONS
 // ============================================================================
 
 export async function createTour(
-  tourData: TourPackageFormData,
-  userId: string
+  tourData: TourPackageFormData
 ): Promise<string> {
   try {
+    const { user } = useAuthStore.getState();
+    const currentUserId = user?.uid || "anonymous";
+    
+    console.log("Creating tour with user ID:", currentUserId);
+    console.log("User data:", user);
+    
     const now = Timestamp.now();
 
     const tourPackage: Omit<TourPackage, "id"> = {
@@ -46,13 +82,13 @@ export async function createTour(
         {
           date: now,
           price: tourData.pricing.original,
-          changedBy: userId,
+          changedBy: currentUserId,
         },
       ],
       metadata: {
         createdAt: now,
         updatedAt: now,
-        createdBy: userId,
+        createdBy: currentUserId,
         bookingsCount: 0,
       },
     };
@@ -77,24 +113,34 @@ export async function getTours(
   lastDoc?: DocumentSnapshot
 ): Promise<{ tours: TourPackage[]; lastDoc: DocumentSnapshot | null }> {
   try {
+    console.log("getTours called with filters:", filters);
+    console.log("Collection name:", TOURS_COLLECTION);
+    
+    // Start with a simple query to see if we can get any documents
     let q = query(collection(db, TOURS_COLLECTION));
 
     // Apply filters
     if (filters?.status) {
+      console.log("Applying status filter:", filters.status);
       q = query(q, where("status", "==", filters.status));
     }
 
     if (filters?.location) {
+      console.log("Applying location filter:", filters.location);
       q = query(q, where("location", "==", filters.location));
     }
 
     if (filters?.priceRange) {
+      console.log("Applying price range filter:", filters.priceRange);
       q = query(q, where("pricing.original", ">=", filters.priceRange.min));
       q = query(q, where("pricing.original", "<=", filters.priceRange.max));
     }
 
+    // Temporarily comment out sorting to see if that's the issue
     // Apply sorting
-    q = query(q, orderBy(sortBy, sortOrder));
+    // console.log("Applying sort:", sortBy, sortOrder);
+    // const sortField = sortBy === "createdAt" ? "metadata.createdAt" : sortBy;
+    // q = query(q, orderBy(sortField, sortOrder));
 
     // Apply pagination
     q = query(q, limit(pageLimit));
@@ -103,11 +149,14 @@ export async function getTours(
       q = query(q, startAfter(lastDoc));
     }
 
+    console.log("Executing Firestore query...");
     const querySnapshot = await getDocs(q);
+    console.log("Query snapshot size:", querySnapshot.size);
     const tours: TourPackage[] = [];
     let newLastDoc: DocumentSnapshot | null = null;
 
     querySnapshot.forEach((doc) => {
+      console.log("Processing document:", doc.id, doc.data());
       tours.push({ id: doc.id, ...doc.data() } as TourPackage);
       newLastDoc = doc;
     });
@@ -169,10 +218,15 @@ export async function getAllTours(): Promise<TourPackage[]> {
 
 export async function updateTour(
   id: string,
-  updates: Partial<TourPackageFormData>,
-  userId: string
+  updates: Partial<TourPackageFormData>
 ): Promise<void> {
   try {
+    const { user } = useAuthStore.getState();
+    const currentUserId = user?.uid || "anonymous";
+    
+    console.log("Updating tour with user ID:", currentUserId);
+    console.log("User data:", user);
+    
     const docRef = doc(db, TOURS_COLLECTION, id);
     const now = Timestamp.now();
 
@@ -193,7 +247,7 @@ export async function updateTour(
       const newPricingEntry = {
         date: now,
         price: updates.pricing.original,
-        changedBy: userId,
+        changedBy: currentUserId,
       };
       updateData.pricingHistory = [
         ...currentData.pricingHistory,
@@ -201,10 +255,87 @@ export async function updateTour(
       ];
     }
 
+    // Handle media updates properly
+    if (updates.media) {
+      updateData.media = {
+        coverImage: updates.media.coverImage || currentData.media?.coverImage || "",
+        gallery: updates.media.gallery || currentData.media?.gallery || [],
+      };
+    }
+
     await updateDoc(docRef, updateData);
   } catch (error) {
     console.error("Error updating tour:", error);
     throw new Error("Failed to update tour");
+  }
+}
+
+export async function updateTourMedia(
+  id: string,
+  mediaData: { coverImage?: string; gallery?: string[] }
+): Promise<void> {
+  try {
+    const docRef = doc(db, TOURS_COLLECTION, id);
+    const now = Timestamp.now();
+
+    const updateData: any = {
+      "metadata.updatedAt": now,
+    };
+
+    // Update media fields
+    if (mediaData.coverImage !== undefined) {
+      updateData["media.coverImage"] = mediaData.coverImage;
+    }
+    
+    if (mediaData.gallery !== undefined) {
+      updateData["media.gallery"] = mediaData.gallery;
+    }
+
+    await updateDoc(docRef, updateData);
+    console.log(`Updated tour ${id} with new media URLs`);
+  } catch (error) {
+    console.error("Error updating tour media:", error);
+    throw new Error("Failed to update tour media");
+  }
+}
+
+// Clean up removed gallery images from storage
+export async function cleanupRemovedGalleryImages(
+  originalGallery: string[],
+  newGallery: string[]
+): Promise<void> {
+  try {
+    // Find images that were removed (exist in original but not in new)
+    const removedImages = originalGallery.filter(url => !newGallery.includes(url));
+    
+    if (removedImages.length === 0) {
+      console.log('No gallery images to clean up');
+      return;
+    }
+    
+    console.log('Cleaning up removed gallery images:', removedImages);
+    
+    // Extract file paths from URLs
+    const filePaths = removedImages
+      .map(url => extractFilePathFromUrl(url))
+      .filter(path => path !== null) as string[];
+    
+    if (filePaths.length === 0) {
+      console.log('No valid file paths found for cleanup');
+      return;
+    }
+    
+    // Delete files from Supabase storage
+    const deleteResult = await deleteMultipleFiles(filePaths, STORAGE_BUCKET);
+    
+    if (deleteResult.success) {
+      console.log('Successfully cleaned up removed gallery images');
+    } else {
+      console.error('Failed to clean up some gallery images:', deleteResult.error);
+    }
+  } catch (error) {
+    console.error('Error during gallery cleanup:', error);
+    // Don't throw here as this is a cleanup operation and shouldn't break the main flow
   }
 }
 

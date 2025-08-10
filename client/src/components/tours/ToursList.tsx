@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -58,6 +59,7 @@ import {
   updateTour,
   deleteTour,
   archiveTour,
+  testFirestoreConnection,
 } from "@/services/tours-service";
 import TourForm from "./TourForm";
 import TourDetails from "./TourDetails";
@@ -80,6 +82,10 @@ export default function ToursList() {
   const loadTours = async () => {
     try {
       setLoading(true);
+
+      // Test Firestore connection first
+      await testFirestoreConnection();
+
       const filters: TourFilters = {};
 
       if (statusFilter !== "all") {
@@ -91,6 +97,7 @@ export default function ToursList() {
       }
 
       const { tours: fetchedTours } = await getTours(filters);
+      console.log("Fetched tours:", fetchedTours);
       setTours(fetchedTours);
     } catch (error) {
       console.error("Error loading tours:", error);
@@ -112,10 +119,8 @@ export default function ToursList() {
   const handleCreateTour = async (data: TourPackageFormData) => {
     try {
       setIsSubmitting(true);
-      // In a real app, you'd get the user ID from authentication context
-      const userId = "current-user-id"; // Replace with actual user ID
 
-      const tourId = await createTour(data, userId);
+      const tourId = await createTour(data);
 
       toast({
         title: "Success",
@@ -145,10 +150,8 @@ export default function ToursList() {
 
     try {
       setIsSubmitting(true);
-      // In a real app, you'd get the user ID from authentication context
-      const userId = "current-user-id"; // Replace with actual user ID
 
-      await updateTour(selectedTour.id, data, userId);
+      await updateTour(selectedTour.id, data);
 
       toast({
         title: "Success",
@@ -293,6 +296,94 @@ export default function ToursList() {
         </Button>
       </div>
 
+      {/* Summary Cards */}
+      {tours.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <MapPin className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Tours
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {tours.length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Users className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Bookings
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {tours.reduce(
+                      (sum, tour) => sum + tour.metadata.bookingsCount,
+                      0
+                    )}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <DollarSign className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Avg. Price
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    $
+                    {tours.length > 0
+                      ? Math.round(
+                          tours.reduce(
+                            (sum, tour) =>
+                              sum +
+                              (tour.pricing.discounted ||
+                                tour.pricing.original),
+                            0
+                          ) / tours.length
+                        )
+                      : 0}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Star className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Active Tours
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {tours.filter((tour) => tour.status === "active").length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Filters */}
       <Card>
         <CardContent className="p-6">
@@ -339,7 +430,36 @@ export default function ToursList() {
             tour.pricing.discounted < tour.pricing.original;
 
           return (
-            <Card key={tour.id} className="hover:shadow-lg transition-shadow">
+            <Card
+              key={tour.id}
+              className="hover:shadow-lg transition-shadow overflow-hidden"
+            >
+              {/* Cover Image */}
+              <div className="relative w-full h-48 bg-gray-200">
+                {tour.media?.coverImage ? (
+                  <Image
+                    src={tour.media.coverImage}
+                    alt={tour.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                    <div className="text-center text-gray-500">
+                      <MapPin className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                      <p className="text-sm">No image</p>
+                    </div>
+                  </div>
+                )}
+                {/* Status Badge Overlay */}
+                <div className="absolute top-3 right-3">
+                  <Badge className={getStatusColor(tour.status)}>
+                    {tour.status.charAt(0).toUpperCase() + tour.status.slice(1)}
+                  </Badge>
+                </div>
+              </div>
+
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -350,10 +470,6 @@ export default function ToursList() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Badge className={getStatusColor(tour.status)}>
-                      {tour.status.charAt(0).toUpperCase() +
-                        tour.status.slice(1)}
-                    </Badge>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm">
@@ -520,94 +636,6 @@ export default function ToursList() {
             </Button>
           </CardContent>
         </Card>
-      )}
-
-      {/* Summary Cards */}
-      {tours.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <MapPin className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Total Tours
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {tours.length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Users className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Total Bookings
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {tours.reduce(
-                      (sum, tour) => sum + tour.metadata.bookingsCount,
-                      0
-                    )}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <DollarSign className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Avg. Price
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    $
-                    {tours.length > 0
-                      ? Math.round(
-                          tours.reduce(
-                            (sum, tour) =>
-                              sum +
-                              (tour.pricing.discounted ||
-                                tour.pricing.original),
-                            0
-                          ) / tours.length
-                        )
-                      : 0}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Star className="h-6 w-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Active Tours
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {tours.filter((tour) => tour.status === "active").length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       )}
 
       {/* Tour Form Dialog */}
