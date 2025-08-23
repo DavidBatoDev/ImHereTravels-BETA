@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verify Your Email - ImHere Travels</title>
+    <style>
+      /* Reset and base styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f8fafc;
+        margin: 0;
+        padding: 20px;
+      }
+
+      /* Container */
+      .email-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Header */
+      .email-header {
+        background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+        color: white;
+        padding: 30px 20px;
+        text-align: center;
+      }
+
+      .email-header h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Content */
+      .email-content {
+        padding: 40px 30px;
+        background: white;
+      }
+
+      .greeting {
+        font-size: 24px;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 20px;
+      }
+
+      .description {
+        color: #374151;
+        margin-bottom: 30px;
+        font-size: 16px;
+        line-height: 1.7;
+      }
+
+      /* Button */
+      .verify-button {
+        display: inline-block;
+        padding: 18px 36px;
+        background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 12px;
+        margin: 30px 0;
+        font-weight: 700;
+        font-size: 18px;
+        box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+        transition: all 0.3s ease;
+        letter-spacing: 0.5px;
+      }
+
+      .verify-button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(220, 38, 38, 0.5);
+      }
+
+      /* Info boxes */
+      .info-box {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border: 1px solid #f59e0b;
+        border-radius: 12px;
+        padding: 24px;
+        margin: 30px 0;
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.1);
+      }
+
+      .info-box h3 {
+        color: #92400e;
+        margin: 0 0 15px 0;
+        font-size: 18px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .info-box p {
+        color: #92400e;
+        margin: 0 0 8px 0;
+        font-size: 15px;
+        line-height: 1.6;
+      }
+
+      /* Footer */
+      .email-footer {
+        text-align: center;
+        padding: 25px 20px;
+        color: #9ca3af;
+        font-size: 14px;
+        background: #f8fafc;
+        border-top: 1px solid #e5e7eb;
+      }
+
+      /* Responsive */
+      @media only screen and (max-width: 600px) {
+        .email-container {
+          margin: 10px;
+          border-radius: 8px;
+        }
+
+        .email-content {
+          padding: 30px 20px;
+        }
+
+        .email-header {
+          padding: 25px 15px;
+        }
+
+        .email-header h1 {
+          font-size: 24px;
+        }
+
+        .greeting {
+          font-size: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <!-- Header -->
+      <div class="email-header">
+        <h1>ImHere Travels</h1>
+      </div>
+
+      <!-- Content -->
+      <div class="email-content">
+        <div class="greeting">Hello {{firstName}}! 👋</div>
+
+        <div class="description">
+          You have been selected to become an administrator for ImHere Travels.
+          To complete your admin account setup and gain access to the management
+          dashboard, please verify your email address.
+        </div>
+
+        <div style="text-align: center">
+          <a href="{{verificationLink}}" class="verify-button"
+            >Verify Email & Activate Admin Account</a
+          >
+        </div>
+
+        <div class="info-box">
+          <h3>🔐 Admin Account Benefits</h3>
+          <p>• Access to comprehensive travel management dashboard</p>
+          <p>• Manage bookings, tours, and customer communications</p>
+          <p>• Generate reports and analytics</p>
+          <p>• Full system administration capabilities</p>
+        </div>
+
+        <div class="info-box">
+          <h3>⏰ Security Notice</h3>
+          <p>
+            • This verification link will expire in 24 hours for security
+            reasons
+          </p>
+          <p>
+            • If you didn't request admin access, please contact support
+            immediately
+          </p>
+          <p>• After verification, you can complete your admin profile setup</p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="email-footer">
+        <p>
+          <strong>ImHere Travels</strong> - Your Gateway to Unforgettable
+          Adventures
+        </p>
+        <p>&copy; 2024 ImHere Travels. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>
