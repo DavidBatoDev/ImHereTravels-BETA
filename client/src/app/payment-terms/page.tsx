@@ -270,7 +270,7 @@ export default function PaymentTermsPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {term.paymentType === "full_payment" && (
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Days Before Tour</p>
+                      <p className="text-sm font-medium text-muted-foreground">Days Before Full Payment</p>
                       <p className="text-lg font-semibold">
                         {term.name === 'Payment Plan P4' ? `${term.daysRequired || 0}+` : `< ${term.daysRequired || 0}`}
                       </p>
