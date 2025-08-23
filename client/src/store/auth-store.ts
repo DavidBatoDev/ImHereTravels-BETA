@@ -474,41 +474,54 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  // Send email verification
+  // Send email verification using our custom service
   sendEmailVerification: async (user: User) => {
     set({ isLoading: true, error: null });
 
     try {
-      await sendEmailVerification(user);
-      set({
-        isLoading: false,
-        error: null,
+      // Import the service dynamically to avoid circular dependencies
+      const { EmailVerificationService } = await import(
+        "../services/email-verification-service"
+      );
+
+      // Get user profile to get firstName
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists()) {
+        throw new Error("User profile not found");
+      }
+
+      const userData = userDoc.data() as UserType;
+      const firstName =
+        userData.profile?.firstName || userData.email.split("@")[0];
+
+      const result = await EmailVerificationService.sendVerificationEmail({
+        email: user.email!,
+        firstName,
+        userId: user.uid,
       });
 
-      // Show success toast
-      toast({
-        title: "Verification Email Sent!",
-        description: "Please check your email and click the verification link.",
-      });
+      if (result.success) {
+        set({
+          isLoading: false,
+          error: null,
+        });
+
+        // Show success toast
+        toast({
+          title: "Verification Email Sent!",
+          description:
+            "Please check your email and click the verification link.",
+        });
+      } else {
+        throw new Error(result.error || "Failed to send verification email");
+      }
     } catch (error: unknown) {
       console.error("Error sending email verification:", error);
 
-      // Handle specific Firebase errors
-      let errorMessage =
-        "Failed to send verification email. Please try again later.";
-
-      const firebaseError = error as { code?: string };
-      if (firebaseError.code === "auth/too-many-requests") {
-        errorMessage =
-          "Too many verification requests. Please wait a few minutes before trying again.";
-      } else if (firebaseError.code === "auth/user-not-found") {
-        errorMessage = "User not found. Please try signing up again.";
-      } else if (firebaseError.code === "auth/invalid-user") {
-        errorMessage = "Invalid user. Please try signing up again.";
-      } else if (firebaseError.code === "auth/network-request-failed") {
-        errorMessage =
-          "Network error. Please check your connection and try again.";
-      }
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to send verification email. Please try again later.";
 
       set({
         isLoading: false,

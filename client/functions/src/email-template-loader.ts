@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
 export interface EmailTemplateData {
   firstName: string;
@@ -8,27 +8,30 @@ export interface EmailTemplateData {
 }
 
 export class EmailTemplateLoader {
-  private static templatesPath = path.join(__dirname, '../emails');
+  private static templatesPath = path.join(__dirname, "../emails");
 
   /**
    * Load an HTML email template and replace variables
    */
   static loadTemplate(templateName: string, data: EmailTemplateData): string {
     try {
-      const templatePath = path.join(this.templatesPath, `${templateName}.html`);
-      let html = fs.readFileSync(templatePath, 'utf8');
+      const templatePath = path.join(
+        this.templatesPath,
+        `${templateName}.html`
+      );
+      let html = fs.readFileSync(templatePath, "utf8");
 
       // Replace template variables
-      Object.keys(data).forEach(key => {
+      Object.keys(data).forEach((key) => {
         const placeholder = `{{${key}}}`;
         const value = data[key];
-        html = html.replace(new RegExp(placeholder, 'g'), value);
+        html = html.replace(new RegExp(placeholder, "g"), value);
       });
 
       return html;
     } catch (error) {
       console.error(`Error loading email template ${templateName}:`, error);
-      
+
       // Fallback to inline template if file loading fails
       return this.getFallbackTemplate(data);
     }
@@ -83,10 +86,10 @@ export class EmailTemplateLoader {
     try {
       const files = fs.readdirSync(this.templatesPath);
       return files
-        .filter(file => file.endsWith('.html'))
-        .map(file => file.replace('.html', ''));
+        .filter((file) => file.endsWith(".html"))
+        .map((file) => file.replace(".html", ""));
     } catch (error) {
-      console.error('Error reading templates directory:', error);
+      console.error("Error reading templates directory:", error);
       return [];
     }
   }
