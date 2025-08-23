@@ -47,6 +47,7 @@ interface AuthState {
   ) => Promise<User>;
   sendEmailVerification: (user: User) => Promise<void>;
   checkEmailVerification: (user: User) => Promise<boolean>;
+  markEmailAsVerified: (userId: string) => Promise<void>;
   checkExistingAccount: (email: string) => Promise<{
     exists: boolean;
     user?: UserType;
@@ -410,6 +411,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           timezone: "Asia/Manila",
         },
         hasAgreedToTerms: false,
+        isEmailVerified: false,
         permissions: {
           canManageBookings:
             userData.role === "admin" || userData.role === "agent",
@@ -525,21 +527,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  // Check email verification status
+  // Check email verification status from database
   checkEmailVerification: async (user: User) => {
     set({ isLoading: true, error: null });
 
     try {
-      // Reload the user to get the latest verification status
-      await user.reload();
-      const isVerified = user.emailVerified;
+      // Get user profile from Firestore to check email verification status
+      const userDoc = await getDoc(doc(db, "users", user.uid));
 
-      set({
-        isLoading: false,
-        error: null,
-      });
+      if (userDoc.exists()) {
+        const userData = userDoc.data() as UserType;
+        const isVerified = userData.isEmailVerified || false;
 
-      return isVerified;
+        set({
+          isLoading: false,
+          error: null,
+        });
+
+        return isVerified;
+      } else {
+        set({
+          isLoading: false,
+          error: "User profile not found",
+        });
+        return false;
+      }
     } catch (error: unknown) {
       // Parse Firebase error and show user-friendly message
       const authError = parseFirebaseError(error as Error);
@@ -548,6 +560,51 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({
         isLoading: false,
         error: errorMessage,
+      });
+
+      // Re-throw the error so the component can handle it
+      throw error;
+    }
+  },
+
+  // Mark email as verified in database
+  markEmailAsVerified: async (userId: string) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      // Update the user document to mark email as verified
+      const userRef = doc(db, "users", userId);
+      await updateDoc(userRef, {
+        isEmailVerified: true,
+        "metadata.updatedAt": serverTimestamp(),
+      });
+
+      set({
+        isLoading: false,
+        error: null,
+      });
+
+      // Show success toast
+      toast({
+        title: "Email Verified!",
+        description: "Your email has been verified successfully.",
+      });
+    } catch (error: unknown) {
+      console.error("Error marking email as verified:", error);
+
+      const errorMessage =
+        "Failed to update email verification status. Please try again.";
+
+      set({
+        isLoading: false,
+        error: errorMessage,
+      });
+
+      // Show error toast
+      toast({
+        title: "Verification Update Failed",
+        description: errorMessage,
+        variant: "destructive",
       });
 
       // Re-throw the error so the component can handle it
@@ -571,7 +628,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return {
           exists: true,
           user: userData,
-          isVerified: null, // We'll check this when user provides password
+          isVerified: userData.isEmailVerified || false,
           hasAgreed: userData.hasAgreedToTerms || false,
         };
       } else {

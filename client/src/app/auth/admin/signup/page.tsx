@@ -20,7 +20,7 @@ import {
   Edit,
   RefreshCw,
 } from "lucide-react";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
 import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth-store";
@@ -59,6 +59,7 @@ export default function AdminSignupPage() {
     signUp,
     sendEmailVerification,
     checkEmailVerification,
+    markEmailAsVerified,
     checkExistingAccount,
     signInAndGetUser,
     signInForSignup,
@@ -90,6 +91,15 @@ export default function AdminSignupPage() {
               clearInterval(pollingIntervalRef.current);
               pollingIntervalRef.current = null;
             }
+
+            // Mark email as verified in the database
+            try {
+              await markEmailAsVerified(userCredential.uid);
+            } catch (error) {
+              console.error("Failed to mark email as verified:", error);
+              // Continue with the flow even if database update fails
+            }
+
             setCurrentStep(3);
             setErrors({});
             toast({
@@ -257,7 +267,7 @@ export default function AdminSignupPage() {
             "accountCheck for account already exists and terms not agreed",
             accountCheck
           );
-          setExistingAccount(accountCheck.user);
+          setExistingAccount(accountCheck);
           setStep1State("existing-password");
           setFormData((prev) => ({
             ...prev,
@@ -289,8 +299,8 @@ export default function AdminSignupPage() {
         // Existing account - try to sign in (use signup-specific method)
         const user = await signInForSignup(formData.email, formData.password);
 
-        // Check email verification status from Firebase Auth
-        const isEmailVerified = user.emailVerified;
+        // Check email verification status from existing account data
+        const isEmailVerified = existingAccount.isVerified || false;
 
         if (isEmailVerified && !existingAccount.hasAgreed) {
           // Email verified but terms not agreed - go directly to step 3
@@ -427,6 +437,7 @@ export default function AdminSignupPage() {
               ? `https://api.dicebear.com/8.x/pixel-art/svg?seed=${formData.firstName}${formData.lastName}`
               : `https://api.dicebear.com/8.x/pixel-art/svg?seed=${formData.firstName}${formData.lastName}`,
             hasAgreedToTerms: true,
+            isEmailVerified: true,
             metadata: {
               updatedAt: new Date() as any,
             },
@@ -846,6 +857,19 @@ export default function AdminSignupPage() {
                                       userCredential
                                     );
                                   if (isVerified) {
+                                    // Mark email as verified in the database
+                                    try {
+                                      await markEmailAsVerified(
+                                        userCredential.uid
+                                      );
+                                    } catch (error) {
+                                      console.error(
+                                        "Failed to mark email as verified:",
+                                        error
+                                      );
+                                      // Continue with the flow even if database update fails
+                                    }
+
                                     setCurrentStep(3);
                                     setErrors({});
                                     toast({

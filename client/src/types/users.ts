@@ -15,6 +15,7 @@ export interface User {
   metadata: UserMetadata;
   isApproved: boolean;
   hasAgreedToTerms: boolean;
+  isEmailVerified: boolean;
 }
 
 // ============================================================================
