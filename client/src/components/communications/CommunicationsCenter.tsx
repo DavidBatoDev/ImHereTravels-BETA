@@ -10,8 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -20,13 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,18 +34,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   Plus,
   Search,
   Filter,
-  Eye,
   Edit,
   Send,
   FileText,
@@ -56,14 +45,11 @@ import {
   AlertCircle,
   Trash2,
   Copy,
-  Code,
-  Upload,
-  Save,
-  Palette,
-  Sparkles,
-  Clock,
   MoreVertical,
+  Clock,
+  Sparkles,
 } from "lucide-react";
+import TemplateDialog from "./TemplateDialog";
 
 // Type declarations for Monaco Editor
 declare global {
@@ -554,103 +540,6 @@ const templateVariables = {
   ],
 };
 
-// Monaco Editor Component
-function MonacoEditor({
-  value,
-  onChange,
-  language = "html",
-  height = "400px",
-}) {
-  const editorRef = useRef(null);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    // Load Monaco Editor from CDN
-    if (!window.monaco) {
-      const script1 = document.createElement("script");
-      script1.src =
-        "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.min.js";
-      script1.onload = () => {
-        window.require.config({
-          paths: {
-            vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs",
-          },
-        });
-        window.require(["vs/editor/editor.main"], () => {
-          initializeEditor();
-        });
-      };
-      document.head.appendChild(script1);
-    } else {
-      initializeEditor();
-    }
-
-    return () => {
-      if (editorRef.current) {
-        editorRef.current.dispose();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (editorRef.current && value !== editorRef.current.getValue()) {
-      editorRef.current.setValue(value);
-    }
-  }, [value]);
-
-  const initializeEditor = () => {
-    if (containerRef.current && window.monaco) {
-      editorRef.current = window.monaco.editor.create(containerRef.current, {
-        value: value,
-        language: language,
-        theme: "vs-dark",
-        automaticLayout: true,
-        fontSize: 14,
-        minimap: { enabled: false },
-        scrollBeyondLastLine: false,
-        wordWrap: "on",
-        formatOnPaste: true,
-        formatOnType: true,
-      });
-
-      editorRef.current.onDidChangeModelContent(() => {
-        const newValue = editorRef.current.getValue();
-        onChange(newValue);
-      });
-    }
-  };
-
-  return <div ref={containerRef} style={{ height, width: "100%" }} />;
-}
-
-// Beautify function (simplified version)
-function beautifyHTML(html) {
-  // Simple HTML beautification
-  return html
-    .replace(/></g, ">\n<")
-    .replace(/^\s*\n/gm, "")
-    .split("\n")
-    .map((line, index, array) => {
-      const depth =
-        (line.match(/</g) || []).length - (line.match(/\//g) || []).length;
-      const indent = "    ".repeat(
-        Math.max(0, index > 0 ? getIndentLevel(array.slice(0, index)) : 0)
-      );
-      return indent + line.trim();
-    })
-    .join("\n");
-}
-
-function getIndentLevel(lines) {
-  let level = 0;
-  lines.forEach((line) => {
-    const openTags = (line.match(/<[^\/][^>]*>/g) || []).length;
-    const closeTags = (line.match(/<\/[^>]*>/g) || []).length;
-    level += openTags - closeTags;
-  });
-  return Math.max(0, level);
-}
-
 export default function CommunicationsCenter() {
   const [templates, setTemplates] = useState<CommunicationTemplate[]>([
     {
@@ -707,93 +596,13 @@ export default function CommunicationsCenter() {
     useState<CommunicationTemplate | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Form state for create/edit
-  const [formData, setFormData] = useState({
-    name: "",
-    type: "reservation" as TemplateType,
-    subject: "",
-    content: "",
-    status: "draft" as TemplateStatus,
-    variables: [] as string[],
-  });
-
-  // Editor state
-  const [editorView, setEditorView] = useState("split"); // split, code, preview
-  const [htmlContent, setHtmlContent] = useState("");
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-
-  // Calculate preview scale based on container size
-  const calculatePreviewScale = (
-    containerWidth: number,
-    emailWidth: number
-  ) => {
-    return Math.min(containerWidth / emailWidth, 1);
-  };
-
-  // Update preview scale when container size changes
-  useEffect(() => {
-    const updatePreviewScale = () => {
-      const previewContainers = document.querySelectorAll(
-        "[data-preview-container]"
-      );
-      previewContainers.forEach((container) => {
-        if (container instanceof HTMLElement) {
-          const rect = container.getBoundingClientRect();
-          const emailWidth = 400; // Standard email width
-          const scale = calculatePreviewScale(rect.width, emailWidth);
-          container.style.setProperty("--preview-scale", scale.toString());
-        }
-      });
-    };
-
-    // Initial update
-    updatePreviewScale();
-
-    // Use ResizeObserver for better performance
-    const resizeObserver = new ResizeObserver(updatePreviewScale);
-    const previewContainers = document.querySelectorAll(
-      "[data-preview-container]"
-    );
-    previewContainers.forEach((container) => {
-      if (container instanceof HTMLElement) {
-        resizeObserver.observe(container);
-      }
-    });
-
-    // Fallback for window resize
-    window.addEventListener("resize", updatePreviewScale);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", updatePreviewScale);
-    };
-  }, [htmlContent]);
-
   const handleCreateTemplate = () => {
-    setFormData({
-      name: "",
-      type: "reservation",
-      subject: "",
-      content: emailTemplates.reservation,
-      status: "draft",
-      variables: templateVariables.reservation,
-    });
-    setHtmlContent(emailTemplates.reservation);
     setSelectedTemplate(null);
     setIsCreateDialogOpen(true);
   };
 
   const handleEditTemplate = (template: CommunicationTemplate) => {
     setSelectedTemplate(template);
-    setFormData({
-      name: template.name,
-      type: template.type,
-      subject: template.subject,
-      content: template.content,
-      status: template.status,
-      variables: template.variables,
-    });
-    setHtmlContent(template.content);
     setIsEditDialogOpen(true);
   };
 
@@ -802,25 +611,10 @@ export default function CommunicationsCenter() {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleSaveTemplate = async () => {
+  const handleSaveTemplate = async (templateData: CommunicationTemplate) => {
     setIsLoading(true);
 
     try {
-      const templateData = {
-        id: selectedTemplate?.id || Date.now().toString(),
-        type: formData.type,
-        name: formData.name,
-        subject: formData.subject,
-        content: htmlContent,
-        variables: extractVariables(htmlContent),
-        status: formData.status,
-        metadata: {
-          createdAt: selectedTemplate?.metadata?.createdAt || new Date(),
-          updatedAt: new Date(),
-          usedCount: selectedTemplate?.metadata?.usedCount || 0,
-        },
-      };
-
       if (selectedTemplate) {
         // Update existing template
         setTemplates((prev) =>
@@ -855,12 +649,6 @@ export default function CommunicationsCenter() {
     }
   };
 
-  const extractVariables = (content: string): string[] => {
-    const regex = /\{\{(\w+)\}\}/g;
-    const matches = [...content.matchAll(regex)];
-    return [...new Set(matches.map((match) => "{{" + match[1] + "}}"))];
-  };
-
   const handleDuplicateTemplate = async (template: CommunicationTemplate) => {
     try {
       const duplicatedTemplate = {
@@ -879,25 +667,6 @@ export default function CommunicationsCenter() {
     } catch (error) {
       console.error("Error duplicating template:", error);
     }
-  };
-
-  const handleTemplateTypeChange = (type: TemplateType) => {
-    setFormData((prev) => ({
-      ...prev,
-      type,
-      content: emailTemplates[type],
-      variables: templateVariables[type],
-    }));
-    setHtmlContent(emailTemplates[type]);
-  };
-
-  const handleBeautifyCode = () => {
-    const beautified = beautifyHTML(htmlContent);
-    setHtmlContent(beautified);
-  };
-
-  const insertVariable = (variable: string) => {
-    setHtmlContent((prev) => prev + variable);
   };
 
   const filteredTemplates = templates.filter((template) => {
@@ -929,12 +698,6 @@ export default function CommunicationsCenter() {
 
   return (
     <div className="space-y-6">
-      {/* Load Monaco Editor CSS */}
-      <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/editor/editor.main.css"
-      />
-
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -1150,425 +913,16 @@ export default function CommunicationsCenter() {
       )}
 
       {/* Create/Edit Template Dialog */}
-      <Dialog
+      <TemplateDialog
         open={isCreateDialogOpen || isEditDialogOpen}
         onOpenChange={(open) => {
           setIsCreateDialogOpen(open);
           setIsEditDialogOpen(open);
         }}
-      >
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
-          <DialogHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle className="text-xl font-semibold">
-                  {selectedTemplate
-                    ? "Edit Email Template"
-                    : "Create New Email Template"}
-                </DialogTitle>
-                <DialogDescription className="text-sm text-gray-600 mt-1">
-                  Design your email template with our advanced editor. Use
-                  variables to personalize content.
-                </DialogDescription>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm">
-                  <Save className="mr-2 h-4 w-4" />
-                  Save
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Eye className="mr-2 h-4 w-4" />
-                  Preview
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Code className="mr-2 h-4 w-4" />
-                  View Code
-                </Button>
-              </div>
-            </div>
-          </DialogHeader>
-
-          <div className="space-y-4 max-h-[calc(90vh-200px)] overflow-auto">
-            {/* Main Layout: Editor on Left, Form on Right */}
-            <div className="grid grid-cols-10 gap-4 h-[600px]">
-              {/* Left Side - Editor (70%) */}
-              <div className="col-span-7 space-y-3">
-                {/* Editor Controls */}
-                <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant={editorView === "split" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setEditorView("split")}
-                      className="h-8 px-3"
-                    >
-                      <Code className="mr-2 h-3 w-3" />
-                      Split
-                    </Button>
-                    <Button
-                      variant={editorView === "code" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setEditorView("code")}
-                      className="h-8 px-3"
-                    >
-                      <Code className="mr-2 h-3 w-3" />
-                      Code
-                    </Button>
-                    <Button
-                      variant={editorView === "preview" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setEditorView("preview")}
-                      className="h-8 px-3"
-                    >
-                      <Eye className="mr-2 h-3 w-3" />
-                      Preview
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleBeautifyCode}
-                      className="h-8 px-3"
-                    >
-                      <Palette className="mr-2 h-3 w-3" />
-                      Format
-                    </Button>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const imageUrl = URL.createObjectURL(file);
-                          const imageTag = `<img src="${imageUrl}" alt="${file.name}" style="max-width: 100%; height: auto;">`;
-                          setHtmlContent((prev) => prev + "\n" + imageTag);
-                        }
-                      }}
-                      className="hidden"
-                      id="image-upload"
-                    />
-                    <Label htmlFor="image-upload" className="cursor-pointer">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isUploadingImage}
-                        className="h-8 px-3"
-                      >
-                        <Upload className="mr-2 h-3 w-3" />
-                        Image
-                      </Button>
-                    </Label>
-                  </div>
-                </div>
-
-                {/* Editor */}
-                <div className="border rounded-lg overflow-hidden bg-white flex-1">
-                  {editorView === "split" && (
-                    <div className="grid grid-cols-2 divide-x h-full">
-                      <div className="flex flex-col">
-                        <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b">
-                          HTML Code
-                        </div>
-                        <div className="flex-1">
-                          <MonacoEditor
-                            value={htmlContent}
-                            onChange={setHtmlContent}
-                            language="html"
-                            height="100%"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex flex-col">
-                        <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b">
-                          Live Preview
-                        </div>
-                        <div className="flex-1 p-3 overflow-auto bg-gray-50 flex items-center justify-center">
-                          <div
-                            className="w-full max-w-md mx-auto"
-                            data-preview-container
-                          >
-                            <div
-                              className="relative w-full"
-                              style={{ paddingBottom: "125%" }}
-                            >
-                              <div
-                                className="absolute inset-0 bg-white rounded shadow-sm overflow-hidden"
-                                style={{
-                                  transform: "scale(var(--preview-scale, 1))",
-                                  transformOrigin: "top left",
-                                  width: "100%",
-                                  height: "100%",
-                                }}
-                              >
-                                <div
-                                  dangerouslySetInnerHTML={{
-                                    __html: htmlContent,
-                                  }}
-                                  className="w-full h-full"
-                                  style={
-                                    {
-                                      width: "400px",
-                                      height: "500px",
-                                      maxWidth: "100%",
-                                      maxHeight: "100%",
-                                    } as React.CSSProperties
-                                  }
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {editorView === "code" && (
-                    <div className="flex flex-col h-full">
-                      <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b">
-                        HTML Code Editor
-                      </div>
-                      <div className="flex-1">
-                        <MonacoEditor
-                          value={htmlContent}
-                          onChange={setHtmlContent}
-                          language="html"
-                          height="100%"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {editorView === "preview" && (
-                    <div className="flex flex-col h-full">
-                      <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b">
-                        Live Preview
-                      </div>
-                      <div className="flex-1 p-4 overflow-auto bg-gray-50 flex items-center justify-center">
-                        <div
-                          className="w-full max-w-2xl mx-auto"
-                          data-preview-container
-                        >
-                          <div
-                            className="relative w-full"
-                            style={{ paddingBottom: "125%" }}
-                          >
-                            <div
-                              className="absolute inset-0 bg-white rounded shadow-sm overflow-hidden"
-                              style={{
-                                transform: "scale(var(--preview-scale, 1))",
-                                transformOrigin: "top left",
-                                width: "100%",
-                                height: "100%",
-                              }}
-                            >
-                              <div
-                                dangerouslySetInnerHTML={{
-                                  __html: htmlContent,
-                                }}
-                                className="w-full h-full"
-                                style={
-                                  {
-                                    width: "600px",
-                                    height: "750px",
-                                    maxWidth: "100%",
-                                    maxHeight: "100%",
-                                  } as React.CSSProperties
-                                }
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right Side - Form Fields (30%) */}
-              <div className="col-span-3 space-y-3">
-                {/* Basic Info */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
-                    Template Information
-                  </h3>
-
-                  <div>
-                    <Label
-                      htmlFor="template-name"
-                      className="text-xs font-medium"
-                    >
-                      Template Name
-                    </Label>
-                    <Input
-                      id="template-name"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          name: e.target.value,
-                        }))
-                      }
-                      placeholder="Template name"
-                      className="mt-1 h-8 text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <Label
-                      htmlFor="template-type"
-                      className="text-xs font-medium"
-                    >
-                      Template Type
-                    </Label>
-                    <Select
-                      value={formData.type}
-                      onValueChange={handleTemplateTypeChange}
-                    >
-                      <SelectTrigger className="mt-1 h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {templateTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label
-                      htmlFor="template-status"
-                      className="text-xs font-medium"
-                    >
-                      Status
-                    </Label>
-                    <Select
-                      value={formData.status}
-                      onValueChange={(value: TemplateStatus) =>
-                        setFormData((prev) => ({ ...prev, status: value }))
-                      }
-                    >
-                      <SelectTrigger className="mt-1 h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {templateStatuses.map((status) => (
-                          <SelectItem key={status.value} value={status.value}>
-                            {status.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label
-                      htmlFor="template-subject"
-                      className="text-xs font-medium"
-                    >
-                      Email Subject
-                    </Label>
-                    <Input
-                      id="template-subject"
-                      value={formData.subject}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          subject: e.target.value,
-                        }))
-                      }
-                      placeholder="Email subject"
-                      className="mt-1 h-8 text-xs"
-                    />
-                  </div>
-                </div>
-
-                {/* Template Variables */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
-                    Template Variables
-                  </h3>
-                  <div className="bg-gray-50 p-2 rounded-lg">
-                    <Label className="text-xs font-medium mb-2 block">
-                      Available Variables
-                    </Label>
-                    <div className="flex flex-wrap gap-1">
-                      {templateVariables[formData.type]?.map((variable) => (
-                        <Badge
-                          key={variable}
-                          variant="secondary"
-                          className="cursor-pointer hover:bg-blue-100 hover:text-blue-800 transition-colors text-xs px-1 py-0"
-                          onClick={() => insertVariable(variable)}
-                        >
-                          {variable}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Template Statistics */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
-                    Template Statistics
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-blue-50 p-2 rounded-lg text-center">
-                      <div className="text-sm font-bold text-blue-600">
-                        {extractVariables(htmlContent).length}
-                      </div>
-                      <div className="text-xs text-blue-800">Variables</div>
-                    </div>
-                    <div className="bg-green-50 p-2 rounded-lg text-center">
-                      <div className="text-sm font-bold text-green-600">
-                        {htmlContent.length}
-                      </div>
-                      <div className="text-xs text-green-800">Chars</div>
-                    </div>
-                    <div className="bg-purple-50 p-2 rounded-lg text-center">
-                      <div className="text-sm font-bold text-purple-600">
-                        {(htmlContent.match(/\n/g) || []).length + 1}
-                      </div>
-                      <div className="text-xs text-purple-800">Lines</div>
-                    </div>
-                    <div className="bg-orange-50 p-2 rounded-lg text-center">
-                      <div className="text-sm font-bold text-orange-600">
-                        {Math.round((htmlContent.length / 1024) * 100) / 100}
-                      </div>
-                      <div className="text-xs text-orange-800">KB</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="border-t pt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsCreateDialogOpen(false);
-                setIsEditDialogOpen(false);
-              }}
-              className="h-9"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveTemplate}
-              disabled={isLoading || !formData.name}
-              className="h-9"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {isLoading ? "Saving..." : "Save Template"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        template={selectedTemplate}
+        onSave={handleSaveTemplate}
+        isLoading={isLoading}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog
@@ -1597,3 +951,4 @@ export default function CommunicationsCenter() {
     </div>
   );
 }
+

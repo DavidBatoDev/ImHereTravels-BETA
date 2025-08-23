@@ -46,6 +46,20 @@ service cloud.firestore {
                   isAdmin(request.auth.uid);
     }
     
+    // Email Templates - Users can only access their own templates
+    match /emailTemplates/{templateId} {
+      allow read, write: if request.auth != null && 
+        (request.auth.uid == resource.data.metadata.createdBy || 
+         request.auth.token.admin == true);
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.metadata.createdBy;
+    }
+    
+    // Default rule - deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
     // Helper functions
     function isAdmin(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin';
