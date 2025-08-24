@@ -8,9 +8,12 @@ export interface TourPackage {
   id: string; // Auto-generated Firestore ID
   name: string;
   slug: string; // URL-friendly ID
+  url?: string; // Direct URL to tour page
+  tourCode: string; // Tour code (e.g., SIA, PHS, PSS)
   description: string;
   location: string;
   duration: number; // Days
+  travelDates: TravelDate[]; // Available travel dates
   pricing: TourPricing;
   details: TourDetails;
   media: TourMedia;
@@ -18,6 +21,22 @@ export interface TourPackage {
   // NEW V2 FIELDS
   pricingHistory: PricingHistoryEntry[];
   metadata: TourMetadata;
+  // ADDITIONAL FIELDS FROM TABLE
+  brochureLink?: string; // Google Drive or other brochure link
+  stripePaymentLink?: string; // Stripe payment link
+  preDeparturePack?: string; // Pre-departure pack link
+}
+
+// ============================================================================
+// TRAVEL DATES TYPES
+// ============================================================================
+
+export interface TravelDate {
+  startDate: Timestamp;
+  endDate: Timestamp;
+  isAvailable: boolean;
+  maxCapacity?: number;
+  currentBookings?: number;
 }
 
 // ============================================================================
@@ -80,9 +99,12 @@ export interface TourStatistics {
 export interface TourPackageFormData {
   name: string;
   slug: string;
+  url?: string;
+  tourCode: string;
   description: string;
   location: string;
   duration: number;
+  travelDates: TravelDate[];
   pricing: {
     original: number;
     discounted?: number;
@@ -99,7 +121,47 @@ export interface TourPackageFormData {
     gallery?: string[];
   };
   status: "active" | "draft" | "archived";
+  brochureLink?: string;
+  stripePaymentLink?: string;
+  preDeparturePack?: string;
   // Note: pricingHistory is managed automatically by the system
+}
+
+// Form data with string dates (what the form actually sends)
+export interface TourFormDataWithStringDates {
+  name: string;
+  slug: string;
+  url?: string;
+  tourCode: string;
+  description: string;
+  location: string;
+  duration: number;
+  travelDates: {
+    startDate: string;
+    endDate: string;
+    isAvailable: boolean;
+    maxCapacity?: number;
+    currentBookings?: number;
+  }[];
+  pricing: {
+    original: number;
+    discounted?: number;
+    deposit: number;
+    currency: "USD" | "EUR" | "GBP";
+  };
+  details: {
+    highlights: string[];
+    itinerary: TourItinerary[];
+    requirements: string[];
+  };
+  media?: {
+    coverImage?: string;
+    gallery?: string[];
+  };
+  status: "active" | "draft" | "archived";
+  brochureLink?: string;
+  stripePaymentLink?: string;
+  preDeparturePack?: string;
 }
 
 // ============================================================================
@@ -110,12 +172,36 @@ export type TourStatus = "active" | "draft" | "archived";
 
 export type TourDuration = "1-3 days" | "4-7 days" | "8-14 days" | "15+ days";
 
+// Tour codes from the table
+export type TourCode =
+  | "SIA" // Siargao Island Adventure
+  | "PHS" // Philippine Sunrise
+  | "PSS" // Philippines Sunset
+  | "MLB" // Maldives Bucketlist
+  | "SLW" // Sri Lanka Wander Tour
+  | "ARW" // Argentina's Wonders
+  | "BZT" // Brazil's Treasures
+  | "VNE" // Vietnam Expedition
+  | "IDD" // India Discovery Tour
+  | "IHF" // India Holi Festival Tour
+  | "TXP" // Tanzania Exploration
+  | "NZE"; // New Zealand Expedition
+
 export type TourLocation =
   | "Ecuador"
   | "Galapagos"
   | "Amazon"
   | "Andes"
   | "Coast"
+  | "Philippines"
+  | "Maldives"
+  | "Sri Lanka"
+  | "Argentina"
+  | "Brazil"
+  | "Vietnam"
+  | "India"
+  | "Tanzania"
+  | "New Zealand"
   | "Other";
 
 // ============================================================================
@@ -140,4 +226,61 @@ export interface TourSearchParams {
   sortOrder: "asc" | "desc";
   page: number;
   limit: number;
+}
+
+// ============================================================================
+// TOUR SUMMARY TYPES (FOR TABLE DISPLAY)
+// ============================================================================
+
+export interface TourSummary {
+  id: string;
+  name: string;
+  url?: string;
+  brochureLink?: string;
+  destinations: string;
+  tourCode: string;
+  duration: string;
+  travelDates: string;
+  tripDescription: string;
+  tripHighlights: string;
+  itinerarySummary: string;
+  stripePaymentLink?: string;
+  preDeparturePack?: string;
+  originalCost: number;
+  discountedCost?: number;
+  reservationFee: number;
+  currency: string;
+  status: TourStatus;
+}
+
+// ============================================================================
+// TOUR PACKAGE CREATION/UPDATE TYPES
+// ============================================================================
+
+export interface CreateTourPackageData {
+  name: string;
+  tourCode: string;
+  description: string;
+  destinations: string[];
+  duration: number;
+  travelDates: TravelDate[];
+  highlights: string[];
+  itinerary: TourItinerary[];
+  pricing: {
+    original: number;
+    discounted?: number;
+    deposit: number;
+    currency: "USD" | "EUR" | "GBP";
+  };
+  brochureLink?: string;
+  stripePaymentLink?: string;
+  preDeparturePack?: string;
+  coverImage?: string;
+  gallery?: string[];
+}
+
+export interface UpdateTourPackageData extends Partial<CreateTourPackageData> {
+  id: string;
+  updatedAt: Timestamp;
+  updatedBy: string;
 }

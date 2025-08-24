@@ -24,6 +24,13 @@ import {
   Edit,
   Archive,
   Trash2,
+  Hash,
+  Globe,
+  Link,
+  ExternalLink,
+  BookOpen,
+  CreditCard,
+  Package,
 } from "lucide-react";
 import { TourPackage } from "@/types/tours";
 import { format } from "date-fns";
@@ -66,25 +73,44 @@ export default function TourDetails({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-5xl max-h-[90vh]">
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div>
               <DialogTitle className="text-2xl">{tour.name}</DialogTitle>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="font-mono">
+                  {tour.tourCode}
+                </Badge>
+                <Badge className={getStatusColor(tour.status)}>
+                  {tour.status.charAt(0).toUpperCase() + tour.status.slice(1)}
+                </Badge>
+              </div>
               <DialogDescription className="mt-2 text-base">
                 {tour.description}
               </DialogDescription>
             </div>
-            <Badge className={getStatusColor(tour.status)}>
-              {tour.status.charAt(0).toUpperCase() + tour.status.slice(1)}
-            </Badge>
           </div>
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] pr-4">
           <div className="space-y-6">
             {/* Quick Info */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <Hash className="h-5 w-5 text-purple-600" />
+                    <div>
+                      <p className="text-sm font-medium">Tour Code</p>
+                      <p className="text-lg font-bold font-mono">
+                        {tour.tourCode}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-2">
@@ -144,6 +170,165 @@ export default function TourDetails({
                 </CardContent>
               </Card>
             </div>
+
+            {/* Travel Dates */}
+            {tour.travelDates && tour.travelDates.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Available Travel Dates
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {tour.travelDates.map((travelDate, index) => (
+                      <div
+                        key={index}
+                        className={`border rounded-lg p-4 ${
+                          travelDate.isAvailable
+                            ? "border-green-200 bg-green-50"
+                            : "border-gray-200 bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge
+                            variant={
+                              travelDate.isAvailable ? "default" : "secondary"
+                            }
+                            className={
+                              travelDate.isAvailable ? "bg-green-600" : ""
+                            }
+                          >
+                            {travelDate.isAvailable
+                              ? "Available"
+                              : "Unavailable"}
+                          </Badge>
+                          <span className="text-sm text-gray-500">
+                            Date {index + 1}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          <div>
+                            <p className="text-xs font-medium text-gray-600">
+                              Start Date
+                            </p>
+                            <p className="text-sm font-semibold">
+                              {format(
+                                new Date(travelDate.startDate.seconds * 1000),
+                                "MMM dd, yyyy"
+                              )}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-600">
+                              End Date
+                            </p>
+                            <p className="text-sm font-semibold">
+                              {format(
+                                new Date(travelDate.endDate.seconds * 1000),
+                                "MMM dd, yyyy"
+                              )}
+                            </p>
+                          </div>
+                          {travelDate.maxCapacity && (
+                            <div>
+                              <p className="text-xs font-medium text-gray-600">
+                                Max Capacity
+                              </p>
+                              <p className="text-sm">
+                                {travelDate.maxCapacity} travelers
+                              </p>
+                            </div>
+                          )}
+                          {travelDate.currentBookings !== undefined && (
+                            <div>
+                              <p className="text-xs font-medium text-gray-600">
+                                Current Bookings
+                              </p>
+                              <p className="text-sm">
+                                {travelDate.currentBookings} booked
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* External Links */}
+            {(tour.brochureLink ||
+              tour.stripePaymentLink ||
+              tour.preDeparturePack) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Link className="h-5 w-5" />
+                    External Links
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {tour.brochureLink && (
+                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
+                        <BookOpen className="h-5 w-5 text-blue-600" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">Brochure</p>
+                          <a
+                            href={tour.brochureLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                          >
+                            View Brochure
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {tour.stripePaymentLink && (
+                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
+                        <CreditCard className="h-5 w-5 text-green-600" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">Payment</p>
+                          <a
+                            href={tour.stripePaymentLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-green-600 hover:underline flex items-center gap-1"
+                          >
+                            Book Now
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {tour.preDeparturePack && (
+                      <div className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
+                        <Package className="h-5 w-5 text-purple-600" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">Pre-Departure</p>
+                          <a
+                            href={tour.preDeparturePack}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-purple-600 hover:underline flex items-center gap-1"
+                          >
+                            View Pack
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Pricing Details */}
             <Card>
@@ -320,7 +505,7 @@ export default function TourDetails({
                   </div>
                 </div>
                 <Separator />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Tour ID</p>
                     <p className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
@@ -335,6 +520,22 @@ export default function TourDetails({
                       {tour.slug}
                     </p>
                   </div>
+                  {tour.url && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">
+                        Direct URL
+                      </p>
+                      <a
+                        href={tour.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        {tour.url}
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

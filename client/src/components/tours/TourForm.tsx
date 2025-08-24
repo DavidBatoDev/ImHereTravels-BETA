@@ -1,54 +1,104 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { 
-  FileText, 
-  MapPin, 
-  Clock, 
-  DollarSign, 
-  Star, 
+import React, { useState, useEffect } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  FileText,
+  MapPin,
+  Clock,
+  DollarSign,
+  Star,
   Calendar,
-  Plus, 
-  Minus, 
-  Save, 
+  Plus,
+  Minus,
+  Save,
   Image as ImageIcon,
   FolderOpen,
   Upload,
-  X
-} from 'lucide-react';
+  X,
+} from "lucide-react";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
-import { TourPackage, TourPackageFormData } from '@/types/tours';
-import { 
-  createBlobUrl, 
-  revokeBlobUrl, 
+import {
+  TourPackage,
+  TourPackageFormData,
+  TourFormDataWithStringDates,
+  TravelDate,
+} from "@/types/tours";
+import { Timestamp } from "firebase/firestore";
+import {
+  createBlobUrl,
+  revokeBlobUrl,
   cleanupBlobUrls,
   uploadAllBlobsToStorage,
   generateImagePreview,
-  validateImageFile 
-} from '@/utils/blob-image';
-import { formatFileSize, generateSlug } from '@/utils';
-import { updateTourMedia, cleanupRemovedGalleryImages } from '@/services/tours-service';
+  validateImageFile,
+} from "@/utils/blob-image";
+import { formatFileSize, generateSlug } from "@/utils";
+import {
+  updateTourMedia,
+  cleanupRemovedGalleryImages,
+} from "@/services/tours-service";
+import { testSupabaseStorageConnection } from "@/utils/file-upload";
 
 // Form validation schema
 const tourFormSchema = z.object({
   name: z.string().min(3, "Tour name must be at least 3 characters"),
   slug: z.string().min(3, "Slug must be at least 3 characters"),
+  url: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  tourCode: z.string().min(2, "Tour code must be at least 2 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   location: z.string().min(2, "Location is required"),
   duration: z.number().min(1, "Duration must be at least 1 day"),
+  travelDates: z
+    .array(
+      z.object({
+        startDate: z.string().min(1, "Start date is required"),
+        endDate: z.string().min(1, "End date is required"),
+        isAvailable: z.boolean(),
+        maxCapacity: z.number().optional(),
+        currentBookings: z.number().optional(),
+      })
+    )
+    .min(1, "At least one travel date is required"),
   pricing: z.object({
     original: z.number().min(1, "Original price must be greater than 0"),
     discounted: z.number().optional(),
@@ -67,6 +117,21 @@ const tourFormSchema = z.object({
     requirements: z.array(z.string()),
   }),
   status: z.enum(["active", "draft", "archived"]),
+  brochureLink: z
+    .string()
+    .url("Must be a valid URL")
+    .optional()
+    .or(z.literal("")),
+  stripePaymentLink: z
+    .string()
+    .url("Must be a valid URL")
+    .optional()
+    .or(z.literal("")),
+  preDeparturePack: z
+    .string()
+    .url("Must be a valid URL")
+    .optional()
+    .or(z.literal("")),
 });
 
 type TourFormData = z.infer<typeof tourFormSchema>;
@@ -74,7 +139,7 @@ type TourFormData = z.infer<typeof tourFormSchema>;
 interface TourFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: TourPackageFormData) => Promise<void | string>;
+  onSubmit: (data: TourFormDataWithStringDates) => Promise<void | string>;
   tour?: TourPackage | null;
   isLoading?: boolean;
 }
@@ -86,8 +151,12 @@ export default function TourForm({
   tour,
   isLoading = false,
 }: TourFormProps) {
-  console.log('TourForm rendered with props:', { isOpen, tour: tour?.id, isLoading });
-  
+  console.log("TourForm rendered with props:", {
+    isOpen,
+    tour: tour?.id,
+    isLoading,
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedCover, setUploadedCover] = useState<string | null>(null);
   const [uploadedGallery, setUploadedGallery] = useState<string[]>([]);
@@ -103,9 +172,20 @@ export default function TourForm({
     defaultValues: {
       name: "",
       slug: "",
+      url: "",
+      tourCode: "",
       description: "",
       location: "",
       duration: 1,
+      travelDates: [
+        {
+          startDate: "",
+          endDate: "",
+          isAvailable: true,
+          maxCapacity: 0,
+          currentBookings: 0,
+        },
+      ],
       pricing: {
         original: 0,
         discounted: 0,
@@ -118,6 +198,9 @@ export default function TourForm({
         requirements: [""],
       },
       status: "draft",
+      brochureLink: "",
+      stripePaymentLink: "",
+      preDeparturePack: "",
     },
   });
 
@@ -148,27 +231,59 @@ export default function TourForm({
     name: "details.requirements" as any,
   });
 
+  const {
+    fields: travelDateFields,
+    append: appendTravelDate,
+    remove: removeTravelDate,
+  } = useFieldArray({
+    control: form.control,
+    name: "travelDates",
+  });
+
   // Reset form when tour prop changes
   useEffect(() => {
-    console.log('Form reset effect triggered, tour:', tour?.id || 'new tour');
-    
+    console.log("Form reset effect triggered, tour:", tour?.id || "new tour");
+
     if (tour) {
-      console.log('Resetting form with existing tour data:', {
+      console.log("Resetting form with existing tour data:", {
         name: tour.name,
         slug: tour.slug,
         status: tour.status,
-        media: tour.media
+        media: tour.media,
       });
-      
+
+      // Convert Timestamps to string dates for form
+      const travelDates = tour.travelDates?.map((td) => ({
+        startDate: td.startDate?.toDate?.()?.toISOString()?.split("T")[0] || "",
+        endDate: td.endDate?.toDate?.()?.toISOString()?.split("T")[0] || "",
+        isAvailable: td.isAvailable,
+        maxCapacity: td.maxCapacity || 0,
+        currentBookings: td.currentBookings || 0,
+      })) || [
+        {
+          startDate: "",
+          endDate: "",
+          isAvailable: true,
+          maxCapacity: 0,
+          currentBookings: 0,
+        },
+      ];
+
       form.reset({
         name: tour.name,
         slug: tour.slug,
+        url: tour.url || "",
+        tourCode: tour.tourCode || "",
         description: tour.description,
         location: tour.location,
         duration: tour.duration,
+        travelDates: travelDates,
         pricing: tour.pricing,
         details: tour.details,
         status: tour.status,
+        brochureLink: tour.brochureLink || "",
+        stripePaymentLink: tour.stripePaymentLink || "",
+        preDeparturePack: tour.preDeparturePack || "",
       });
 
       // Initialize uploaded images from existing tour
@@ -180,14 +295,25 @@ export default function TourForm({
       setCoverBlob(null);
       setGalleryBlobs([]);
     } else {
-      console.log('Resetting form for new tour');
-      
+      console.log("Resetting form for new tour");
+
       form.reset({
         name: "",
         slug: "",
+        url: "",
+        tourCode: "",
         description: "",
         location: "",
         duration: 1,
+        travelDates: [
+          {
+            startDate: "",
+            endDate: "",
+            isAvailable: true,
+            maxCapacity: 0,
+            currentBookings: 0,
+          },
+        ],
         pricing: {
           original: 0,
           discounted: 0,
@@ -200,6 +326,9 @@ export default function TourForm({
           requirements: [""],
         },
         status: "draft",
+        brochureLink: "",
+        stripePaymentLink: "",
+        preDeparturePack: "",
       });
 
       // Reset uploaded images for new tour
@@ -218,29 +347,33 @@ export default function TourForm({
   useEffect(() => {
     if (watchedName && !tour) {
       const slug = generateSlug(watchedName);
-      console.log('Auto-generating slug:', { watchedName, slug });
+      console.log("Auto-generating slug:", { watchedName, slug });
       form.setValue("slug", slug);
     }
   }, [watchedName, form, tour]);
 
   // Cover image upload handler
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('Cover upload handler triggered');
-    
+    console.log("Cover upload handler triggered");
+
     const files = e.target.files;
     if (!files || files.length === 0) {
-      console.log('No files selected for cover upload');
+      console.log("No files selected for cover upload");
       return;
     }
 
     const file = files[0];
-    console.log('Cover file selected:', { name: file.name, size: file.size, type: file.type });
-    
+    console.log("Cover file selected:", {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    });
+
     const validation = validateImageFile(file);
-    console.log('Cover file validation result:', validation);
-    
+    console.log("Cover file validation result:", validation);
+
     if (!validation.valid) {
-      console.error('Cover file validation failed:', validation.error);
+      console.error("Cover file validation failed:", validation.error);
       toast({
         title: "Invalid file",
         description: validation.error,
@@ -261,21 +394,25 @@ export default function TourForm({
   };
 
   // Gallery images upload handler
-  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    
+  const handleGalleryUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = e.target.files;
 
     const fileArray = Array.from(files);
-    
+
     const validFiles: File[] = [];
 
     for (const file of fileArray) {
       const validation = validateImageFile(file);
-      
+
       if (validation.valid) {
         validFiles.push(file);
       } else {
-        console.error(`Gallery file validation failed for ${file.name}:`, validation.error);
+        console.error(
+          `Gallery file validation failed for ${file.name}:`,
+          validation.error
+        );
         toast({
           title: "Invalid file",
           description: `${file.name}: ${validation.error}`,
@@ -287,13 +424,13 @@ export default function TourForm({
     if (validFiles.length === 0) return;
 
     // Store the blobs for both new and existing tours
-    setGalleryBlobs(prev => {
+    setGalleryBlobs((prev) => {
       const newBlobs = [...prev, ...validFiles];
-      console.log('Updated gallery blobs count:', newBlobs.length);
+      console.log("Updated gallery blobs count:", newBlobs.length);
       return newBlobs;
     });
-    const blobUrls = validFiles.map(file => createBlobUrl(file));
-    setUploadedGallery(prev => [...prev, ...blobUrls]);
+    const blobUrls = validFiles.map((file) => createBlobUrl(file));
+    setUploadedGallery((prev) => [...prev, ...blobUrls]);
 
     toast({
       title: "Gallery images selected",
@@ -303,7 +440,7 @@ export default function TourForm({
 
   // Remove cover image
   const removeCoverImage = () => {
-    if (uploadedCover?.startsWith('blob:')) {
+    if (uploadedCover?.startsWith("blob:")) {
       revokeBlobUrl(uploadedCover);
     }
     setUploadedCover(null);
@@ -313,16 +450,16 @@ export default function TourForm({
   // Remove gallery image
   const removeGalleryImage = (index: number) => {
     const imageUrl = uploadedGallery[index];
-    if (imageUrl?.startsWith('blob:')) {
+    if (imageUrl?.startsWith("blob:")) {
       revokeBlobUrl(imageUrl);
     }
-    
-    setUploadedGallery(prev => prev.filter((_, i) => i !== index));
-    setGalleryBlobs(prev => prev.filter((_, i) => i !== index));
+
+    setUploadedGallery((prev) => prev.filter((_, i) => i !== index));
+    setGalleryBlobs((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Handle form submission
-  const handleFormSubmit = async (data: TourPackageFormData) => {
+  const handleFormSubmit = async (data: TourFormDataWithStringDates) => {
     if (tour) {
       await handleUpdateTour(data);
     } else {
@@ -331,15 +468,13 @@ export default function TourForm({
   };
 
   // Create tour with blob upload handling
-  const handleCreateTour = async (data: TourPackageFormData) => {
-    
+  const handleCreateTour = async (data: TourFormDataWithStringDates) => {
     try {
       // First create the tour without images
       const tourId = await onSubmit(data);
 
       // If we have blobs to upload and tour creation was successful
       if ((coverBlob || galleryBlobs.length > 0) && tourId) {
-        
         toast({
           title: "Tour created",
           description: "Now uploading images...",
@@ -352,69 +487,90 @@ export default function TourForm({
           typeof tourId === "string" ? tourId : ""
         );
 
-
         if (uploadResults.allSuccessful) {
-
-          
           // Update the tour with real image URLs
           try {
             const mediaUpdate: { coverImage?: string; gallery?: string[] } = {};
-            
-            if (uploadResults.coverResult?.success && uploadResults.coverResult.url) {
+
+            if (
+              uploadResults.coverResult?.success &&
+              uploadResults.coverResult.url
+            ) {
               mediaUpdate.coverImage = uploadResults.coverResult.url;
             }
-            
-            if (uploadResults.galleryResults && uploadResults.galleryResults.length > 0) {
+
+            if (
+              uploadResults.galleryResults &&
+              uploadResults.galleryResults.length > 0
+            ) {
               const galleryUrls = uploadResults.galleryResults
-                .filter(result => result.success && result.url)
-                .map(result => result.url!);
-              
+                .filter((result) => result.success && result.url)
+                .map((result) => result.url!);
+
               if (galleryUrls.length > 0) {
                 mediaUpdate.gallery = galleryUrls;
               }
             }
-            
+
             // Update the tour document with real URLs
             if (Object.keys(mediaUpdate).length > 0) {
-              await updateTourMedia(typeof tourId === "string" ? tourId : "", mediaUpdate);
+              await updateTourMedia(
+                typeof tourId === "string" ? tourId : "",
+                mediaUpdate
+              );
             }
           } catch (updateError) {
-            console.error('Failed to update tour with image URLs:', updateError);
+            console.error(
+              "Failed to update tour with image URLs:",
+              updateError
+            );
           }
-          
+
           toast({
             title: "Success",
             description: "Tour created and all images uploaded successfully!",
           });
         } else {
-          console.warn('Some images failed to upload:', uploadResults);
-          
+          console.warn("Some images failed to upload:", uploadResults);
+
           // Even if some uploads failed, try to update with successful ones
           try {
             const mediaUpdate: { coverImage?: string; gallery?: string[] } = {};
-            
-            if (uploadResults.coverResult?.success && uploadResults.coverResult.url) {
+
+            if (
+              uploadResults.coverResult?.success &&
+              uploadResults.coverResult.url
+            ) {
               mediaUpdate.coverImage = uploadResults.coverResult.url;
             }
-            
-            if (uploadResults.galleryResults && uploadResults.galleryResults.length > 0) {
+
+            if (
+              uploadResults.galleryResults &&
+              uploadResults.galleryResults.length > 0
+            ) {
               const galleryUrls = uploadResults.galleryResults
-                .filter(result => result.success && result.url)
-                .map(result => result.url!);
-              
+                .filter((result) => result.success && result.url)
+                .map((result) => result.url!);
+
               if (galleryUrls.length > 0) {
                 mediaUpdate.gallery = galleryUrls;
               }
             }
-            
+
             // Update the tour document with any successful URLs
             if (Object.keys(mediaUpdate).length > 0) {
-              await updateTourMedia(typeof tourId === "string" ? tourId : "", mediaUpdate);
+              await updateTourMedia(
+                typeof tourId === "string" ? tourId : "",
+                mediaUpdate
+              );
             }
           } catch (updateError) {
-            console.error('Failed to update tour with successful image URLs:', updateError);
+            console.error(
+              "Failed to update tour with successful image URLs:",
+              updateError
+            );
           }
-          
+
           toast({
             title: "Partial success",
             description:
@@ -434,7 +590,7 @@ export default function TourForm({
         });
       }
     } catch (error) {
-      console.error('Error creating tour:', error);
+      console.error("Error creating tour:", error);
       // If tour creation fails, cleanup blob URLs
       const allUrls = [...uploadedGallery];
       if (uploadedCover) allUrls.push(uploadedCover);
@@ -444,27 +600,30 @@ export default function TourForm({
   };
 
   // Update existing tour
-  const handleUpdateTour = async (data: TourPackageFormData) => {
-    console.log('Updating existing tour with data:', data);
-    console.log('Blobs to upload:', { 
-      coverBlob: coverBlob?.name, 
-      galleryBlobsCount: galleryBlobs.length 
+  const handleUpdateTour = async (data: TourFormDataWithStringDates) => {
+    console.log("Updating existing tour with data:", data);
+    console.log("Blobs to upload:", {
+      coverBlob: coverBlob?.name,
+      galleryBlobsCount: galleryBlobs.length,
     });
-    
+
     try {
       // First update the tour with the basic data
       await onSubmit(data);
-      console.log('Tour updated successfully');
+      console.log("Tour updated successfully");
 
       // Check for gallery cleanup even if no new uploads
-      const currentGallery = uploadedGallery.filter(url => !url.startsWith('blob:'));
-      const hasGalleryChanges = currentGallery.length !== originalGallery.length || 
-                               !currentGallery.every(url => originalGallery.includes(url));
+      const currentGallery = uploadedGallery.filter(
+        (url) => !url.startsWith("blob:")
+      );
+      const hasGalleryChanges =
+        currentGallery.length !== originalGallery.length ||
+        !currentGallery.every((url) => originalGallery.includes(url));
 
       // If we have blobs to upload
       if ((coverBlob || galleryBlobs.length > 0) && tour?.id) {
-        console.log('Starting image upload process for update...');
-        
+        console.log("Starting image upload process for update...");
+
         toast({
           title: "Tour updated",
           description: "Now uploading new images...",
@@ -477,111 +636,136 @@ export default function TourForm({
           tour.id
         );
 
-        console.log('Upload results:', uploadResults);
+        console.log("Upload results:", uploadResults);
 
         if (uploadResults.allSuccessful) {
-          console.log('All uploads successful, updating tour media...');
-          
+          console.log("All uploads successful, updating tour media...");
+
           // Update the tour with real image URLs
           try {
             const mediaUpdate: { coverImage?: string; gallery?: string[] } = {};
-            
+
             // If we uploaded a new cover image, use the new URL
-            if (uploadResults.coverResult?.success && uploadResults.coverResult.url) {
+            if (
+              uploadResults.coverResult?.success &&
+              uploadResults.coverResult.url
+            ) {
               mediaUpdate.coverImage = uploadResults.coverResult.url;
               setUploadedCover(uploadResults.coverResult.url);
             }
-            
+
             // If we uploaded new gallery images, append them to existing gallery
-            if (uploadResults.galleryResults && uploadResults.galleryResults.length > 0) {
+            if (
+              uploadResults.galleryResults &&
+              uploadResults.galleryResults.length > 0
+            ) {
               const newGalleryUrls = uploadResults.galleryResults
-                .filter(result => result.success && result.url)
-                .map(result => result.url!);
-              
+                .filter((result) => result.success && result.url)
+                .map((result) => result.url!);
+
               if (newGalleryUrls.length > 0) {
                 // Combine existing gallery with new images
-                const existingGallery = uploadedGallery.filter(url => !url.startsWith('blob:'));
+                const existingGallery = uploadedGallery.filter(
+                  (url) => !url.startsWith("blob:")
+                );
                 const finalGallery = [...existingGallery, ...newGalleryUrls];
                 mediaUpdate.gallery = finalGallery;
                 setUploadedGallery(finalGallery);
-                
+
                 // Clean up removed images from storage
-                await cleanupRemovedGalleryImages(originalGallery, finalGallery);
+                await cleanupRemovedGalleryImages(
+                  originalGallery,
+                  finalGallery
+                );
               }
             } else {
               // No new uploads, but check if any existing images were removed
-              const currentGallery = uploadedGallery.filter(url => !url.startsWith('blob:'));
-              if (currentGallery.length !== originalGallery.length || 
-                  !currentGallery.every(url => originalGallery.includes(url))) {
+              const currentGallery = uploadedGallery.filter(
+                (url) => !url.startsWith("blob:")
+              );
+              if (
+                currentGallery.length !== originalGallery.length ||
+                !currentGallery.every((url) => originalGallery.includes(url))
+              ) {
                 mediaUpdate.gallery = currentGallery;
                 // Clean up removed images from storage
-                await cleanupRemovedGalleryImages(originalGallery, currentGallery);
+                await cleanupRemovedGalleryImages(
+                  originalGallery,
+                  currentGallery
+                );
               }
             }
-            
+
             // Update the tour document with real URLs
             if (Object.keys(mediaUpdate).length > 0) {
               await updateTourMedia(tour.id, mediaUpdate);
-              console.log('Tour media updated successfully:', mediaUpdate);
+              console.log("Tour media updated successfully:", mediaUpdate);
             }
           } catch (updateError) {
-            console.error('Failed to update tour with image URLs:', updateError);
+            console.error(
+              "Failed to update tour with image URLs:",
+              updateError
+            );
           }
-          
+
           toast({
             title: "Success",
             description: "Tour updated and all images uploaded successfully!",
           });
         } else {
-          console.warn('Some images failed to upload:', uploadResults);
+          console.warn("Some images failed to upload:", uploadResults);
           toast({
             title: "Partial Success",
             description: "Tour updated, but some images failed to upload.",
             variant: "destructive",
           });
         }
-        
+
         // Clear blob states after upload
         setCoverBlob(null);
         setGalleryBlobs([]);
       } else if (hasGalleryChanges && tour?.id) {
         // No new uploads but gallery has changes (removals)
-        console.log('No new uploads but gallery has changes, cleaning up removed images...');
-        
-        const currentGallery = uploadedGallery.filter(url => !url.startsWith('blob:'));
-        
+        console.log(
+          "No new uploads but gallery has changes, cleaning up removed images..."
+        );
+
+        const currentGallery = uploadedGallery.filter(
+          (url) => !url.startsWith("blob:")
+        );
+
         // Clean up removed images from storage
         await cleanupRemovedGalleryImages(originalGallery, currentGallery);
-        
+
         // Update the tour document with the new gallery
         await updateTourMedia(tour.id, { gallery: currentGallery });
-        
+
         toast({
           title: "Success",
           description: "Tour updated and removed images cleaned up!",
         });
       }
     } catch (error) {
-      console.error('Error in handleUpdateTour:', error);
+      console.error("Error in handleUpdateTour:", error);
       throw error;
     }
   };
 
   const handleSubmit = async (data: TourFormData) => {
-    console.log('Form submitted with data:', data);
-    console.log('Current state:', {
+    console.log("Form submitted with data:", data);
+    console.log("Current state:", {
       isSubmitting,
       uploadedCover,
       uploadedGalleryCount: uploadedGallery.length,
       coverBlob: coverBlob?.name,
-      galleryBlobsCount: galleryBlobs.length
+      galleryBlobsCount: galleryBlobs.length,
     });
-    
+
     try {
       setIsSubmitting(true);
 
       // Filter out empty strings from arrays
-      const cleanedData: TourPackageFormData = {
+      const cleanedData: TourFormDataWithStringDates = {
         ...data,
         details: {
           highlights: data.details.highlights.filter((h) => h.trim() !== ""),
@@ -598,25 +782,27 @@ export default function TourForm({
           gallery: (() => {
             const existingGallery = tour?.media?.gallery || [];
             const currentUploadedGallery = uploadedGallery || [];
-            
+
             // If we have uploaded gallery items, use them
             if (currentUploadedGallery.length > 0) {
               // Filter out blob URLs from uploaded gallery (they'll be handled by blob upload process)
-              const realUrls = currentUploadedGallery.filter(url => !url.startsWith('blob:'));
+              const realUrls = currentUploadedGallery.filter(
+                (url) => !url.startsWith("blob:")
+              );
               return realUrls.length > 0 ? realUrls : existingGallery;
             }
-            
+
             // Otherwise, keep existing gallery
             return existingGallery;
           })(),
         },
       };
 
-      console.log('Cleaned form data:', cleanedData);
+      console.log("Cleaned form data:", cleanedData);
 
       await handleFormSubmit(cleanedData);
 
-      console.log('Form submission completed successfully');
+      console.log("Form submission completed successfully");
       onClose();
     } catch (error) {
       console.error("Error submitting tour:", error);
@@ -628,7 +814,37 @@ export default function TourForm({
       });
     } finally {
       setIsSubmitting(false);
-      console.log('Form submission finished, isSubmitting set to false');
+      console.log("Form submission finished, isSubmitting set to false");
+    }
+  };
+
+  // Test Supabase storage connection
+  const testStorageConnection = async () => {
+    try {
+      console.log("Testing storage connection...");
+      const result = await testSupabaseStorageConnection();
+
+      if (result.success) {
+        toast({
+          title: "Storage Test Successful",
+          description: "Supabase storage is working correctly!",
+        });
+      } else {
+        toast({
+          title: "Storage Test Failed",
+          description: result.error || "Unknown error occurred",
+          variant: "destructive",
+        });
+      }
+
+      console.log("Storage test result:", result);
+    } catch (error) {
+      console.error("Error testing storage:", error);
+      toast({
+        title: "Storage Test Error",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
     }
   };
 
@@ -677,6 +893,70 @@ export default function TourForm({
 
                   <FormField
                     control={form.control}
+                    name="tourCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tour Code</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select tour code" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="SIA">
+                              SIA - Siargao Island Adventure
+                            </SelectItem>
+                            <SelectItem value="PHS">
+                              PHS - Philippine Sunrise
+                            </SelectItem>
+                            <SelectItem value="PSS">
+                              PSS - Philippines Sunset
+                            </SelectItem>
+                            <SelectItem value="MLB">
+                              MLB - Maldives Bucketlist
+                            </SelectItem>
+                            <SelectItem value="SLW">
+                              SLW - Sri Lanka Wander Tour
+                            </SelectItem>
+                            <SelectItem value="ARW">
+                              ARW - Argentina's Wonders
+                            </SelectItem>
+                            <SelectItem value="BZT">
+                              BZT - Brazil's Treasures
+                            </SelectItem>
+                            <SelectItem value="VNE">
+                              VNE - Vietnam Expedition
+                            </SelectItem>
+                            <SelectItem value="IDD">
+                              IDD - India Discovery Tour
+                            </SelectItem>
+                            <SelectItem value="IHF">
+                              IHF - India Holi Festival Tour
+                            </SelectItem>
+                            <SelectItem value="TXP">
+                              TXP - Tanzania Exploration
+                            </SelectItem>
+                            <SelectItem value="NZE">
+                              NZE - New Zealand Expedition
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Unique identifier for the tour package
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
                     name="slug"
                     render={({ field }) => (
                       <FormItem>
@@ -686,6 +966,26 @@ export default function TourForm({
                         </FormControl>
                         <FormDescription>
                           URL-friendly identifier for the tour
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Direct URL</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="https://imheretravels.com/tour-name"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Direct link to tour page (optional)
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -721,9 +1021,37 @@ export default function TourForm({
                           <MapPin className="h-4 w-4" />
                           Location
                         </FormLabel>
-                        <FormControl>
-                          <Input placeholder="Tour location" {...field} />
-                        </FormControl>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select location" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Philippines">
+                              Philippines
+                            </SelectItem>
+                            <SelectItem value="Maldives">Maldives</SelectItem>
+                            <SelectItem value="Sri Lanka">Sri Lanka</SelectItem>
+                            <SelectItem value="Argentina">Argentina</SelectItem>
+                            <SelectItem value="Brazil">Brazil</SelectItem>
+                            <SelectItem value="Vietnam">Vietnam</SelectItem>
+                            <SelectItem value="India">India</SelectItem>
+                            <SelectItem value="Tanzania">Tanzania</SelectItem>
+                            <SelectItem value="New Zealand">
+                              New Zealand
+                            </SelectItem>
+                            <SelectItem value="Ecuador">Ecuador</SelectItem>
+                            <SelectItem value="Galapagos">Galapagos</SelectItem>
+                            <SelectItem value="Amazon">Amazon</SelectItem>
+                            <SelectItem value="Andes">Andes</SelectItem>
+                            <SelectItem value="Coast">Coast</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -744,7 +1072,7 @@ export default function TourForm({
                             min="1"
                             {...field}
                             onChange={(e) =>
-                              field.onChange(parseInt(e.target.value))
+                              field.onChange(parseInt(e.target.value) || 1)
                             }
                           />
                         </FormControl>
@@ -761,7 +1089,7 @@ export default function TourForm({
                         <FormLabel>Status</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -782,6 +1110,161 @@ export default function TourForm({
               </CardContent>
             </Card>
 
+            {/* Travel Dates */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Travel Dates
+                </CardTitle>
+                <CardDescription>
+                  Add available travel dates for this tour package
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {travelDateFields.map((field, index) => (
+                  <div
+                    key={field.id}
+                    className="border rounded-lg p-4 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Travel Date {index + 1}</h4>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeTravelDate(index)}
+                        disabled={travelDateFields.length === 1}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`travelDates.${index}.startDate`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Start Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`travelDates.${index}.endDate`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>End Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`travelDates.${index}.isAvailable`}
+                        render={({ field }) => (
+                          <FormItem className="flex items-center space-x-2">
+                            <FormControl>
+                              <input
+                                type="checkbox"
+                                checked={field.value}
+                                onChange={field.onChange}
+                                className="rounded"
+                              />
+                            </FormControl>
+                            <FormLabel className="text-sm font-normal">
+                              Available for booking
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`travelDates.${index}.maxCapacity`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Max Capacity (Optional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="1"
+                                placeholder="Maximum number of travelers"
+                                {...field}
+                                onChange={(e) =>
+                                  field.onChange(
+                                    e.target.value
+                                      ? parseInt(e.target.value)
+                                      : 0
+                                  )
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`travelDates.${index}.currentBookings`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Current Bookings (Optional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="0"
+                                placeholder="Number of current bookings"
+                                {...field}
+                                onChange={(e) =>
+                                  field.onChange(
+                                    e.target.value
+                                      ? parseInt(e.target.value)
+                                      : 0
+                                  )
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    appendTravelDate({
+                      startDate: "",
+                      endDate: "",
+                      isAvailable: true,
+                      maxCapacity: 0,
+                      currentBookings: 0,
+                    })
+                  }
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Travel Date
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* Cover Image */}
             <Card>
               <CardHeader>
@@ -796,6 +1279,19 @@ export default function TourForm({
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
+                  {/* Test Storage Connection Button */}
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={testStorageConnection}
+                      className="text-xs"
+                    >
+                      Test Firebase Storage
+                    </Button>
+                  </div>
+
                   <div className="flex items-center gap-4">
                     <input
                       type="file"
@@ -808,7 +1304,7 @@ export default function TourForm({
                     <Label
                       htmlFor="cover-upload"
                       className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 ${
-                        isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                        isSubmitting ? "opacity-50 cursor-not-allowed" : ""
                       }`}
                     >
                       <Upload className="h-4 w-4" />
@@ -861,7 +1357,7 @@ export default function TourForm({
                             step="0.01"
                             {...field}
                             onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value))
+                              field.onChange(parseFloat(e.target.value) || 0)
                             }
                           />
                         </FormControl>
@@ -883,9 +1379,7 @@ export default function TourForm({
                             step="0.01"
                             {...field}
                             onChange={(e) =>
-                              field.onChange(
-                                parseFloat(e.target.value) || undefined
-                              )
+                              field.onChange(parseFloat(e.target.value) || 0)
                             }
                           />
                         </FormControl>
@@ -908,7 +1402,7 @@ export default function TourForm({
                             step="0.01"
                             {...field}
                             onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value))
+                              field.onChange(parseFloat(e.target.value) || 0)
                             }
                           />
                         </FormControl>
@@ -925,7 +1419,7 @@ export default function TourForm({
                         <FormLabel>Currency</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -943,6 +1437,81 @@ export default function TourForm({
                     )}
                   />
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* External Links */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FolderOpen className="h-5 w-5" />
+                  External Links
+                </CardTitle>
+                <CardDescription>
+                  Add links to brochures, payment pages, and pre-departure
+                  materials
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="brochureLink"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Brochure Link</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="https://drive.google.com/file/d/..."
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Link to tour brochure (Google Drive, PDF, etc.)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="stripePaymentLink"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stripe Payment Link</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="https://book.stripe.com/..."
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Stripe checkout link for tour bookings
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="preDeparturePack"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pre-Departure Pack</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="https://drive.google.com/file/d/..."
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Link to pre-departure information pack
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
 
@@ -1029,10 +1598,7 @@ export default function TourForm({
                         <FormItem>
                           <FormLabel>Day Title</FormLabel>
                           <FormControl>
-                            <Input
-                              placeholder="Enter day title"
-                              {...field}
-                            />
+                            <Input placeholder="Enter day title" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1148,7 +1714,7 @@ export default function TourForm({
                     <Label
                       htmlFor="gallery-upload"
                       className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 ${
-                        isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                        isSubmitting ? "opacity-50 cursor-not-allowed" : ""
                       }`}
                     >
                       <Upload className="h-4 w-4" />

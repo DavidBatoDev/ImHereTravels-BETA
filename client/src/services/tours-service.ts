@@ -21,11 +21,87 @@ import {
   TourPackageFormData,
   TourFilters,
   TourSearchParams,
+  TravelDate,
 } from "@/types/tours";
 import { useAuthStore } from "@/store/auth-store";
-import { deleteMultipleFiles, extractFilePathFromUrl, STORAGE_BUCKET } from "@/utils/file-upload";
+import {
+  deleteMultipleFiles,
+  extractFilePathFromUrl,
+  STORAGE_BUCKET,
+} from "@/utils/file-upload";
 
 const TOURS_COLLECTION = "tourPackages";
+
+// ============================================================================
+// FORM DATA TYPES (what the form actually sends)
+// ============================================================================
+
+interface TourFormDataWithStringDates {
+  name: string;
+  slug: string;
+  url?: string;
+  tourCode: string;
+  description: string;
+  location: string;
+  duration: number;
+  travelDates: {
+    startDate: string;
+    endDate: string;
+    isAvailable: boolean;
+    maxCapacity?: number;
+    currentBookings?: number;
+  }[];
+  pricing: {
+    original: number;
+    discounted?: number;
+    deposit: number;
+    currency: "USD" | "EUR" | "GBP";
+  };
+  details: {
+    highlights: string[];
+    itinerary: {
+      day: number;
+      title: string;
+      description: string;
+    }[];
+    requirements: string[];
+  };
+  media?: {
+    coverImage?: string;
+    gallery?: string[];
+  };
+  status: "active" | "draft" | "archived";
+  brochureLink?: string;
+  stripePaymentLink?: string;
+  preDeparturePack?: string;
+}
+
+// ============================================================================
+// DATA CONVERSION HELPERS
+// ============================================================================
+
+// Convert string dates to Firestore Timestamps for travelDates
+function convertTravelDatesToTimestamps(travelDates: any[]): TravelDate[] {
+  return travelDates.map((td) => ({
+    startDate: Timestamp.fromDate(new Date(td.startDate)),
+    endDate: Timestamp.fromDate(new Date(td.endDate)),
+    isAvailable: td.isAvailable,
+    maxCapacity: td.maxCapacity || 0,
+    currentBookings: td.currentBookings || 0,
+  }));
+}
+
+// Convert Firestore Timestamps to Date objects for display
+function convertTimestampsToDates(travelDates: TravelDate[]): any[] {
+  return travelDates.map((td) => ({
+    startDate:
+      td.startDate?.toDate?.() || new Date(td.startDate.seconds * 1000),
+    endDate: td.endDate?.toDate?.() || new Date(td.endDate.seconds * 1000),
+    isAvailable: td.isAvailable,
+    maxCapacity: td.maxCapacity,
+    currentBookings: td.currentBookings,
+  }));
+}
 
 // ============================================================================
 // TEST FUNCTION - Add this temporarily to test database connection
@@ -34,46 +110,56 @@ export async function testFirestoreConnection(): Promise<void> {
     console.log("Testing Firestore connection...");
     console.log("Firebase config check:", {
       apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "SET" : "NOT SET",
-      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? "SET" : "NOT SET",
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? "SET" : "NOT SET",
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+        ? "SET"
+        : "NOT SET",
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        ? "SET"
+        : "NOT SET",
     });
-    
+
     const collectionRef = collection(db, TOURS_COLLECTION);
     const snapshot = await getDocs(collectionRef);
     console.log("Total documents in collection:", snapshot.size);
-    
+
     snapshot.forEach((doc) => {
       console.log("Document ID:", doc.id);
       console.log("Document data:", doc.data());
     });
-    
+
     // Also try to get a simple count using a different approach
     const simpleQuery = query(collectionRef);
     const simpleSnapshot = await getDocs(simpleQuery);
     console.log("Simple query result count:", simpleSnapshot.size);
-    
   } catch (error) {
     console.error("Firestore connection test failed:", error);
   }
 }
 
+// ============================================================================
 // CREATE OPERATIONS
 // ============================================================================
 
 export async function createTour(
-  tourData: TourPackageFormData
+  tourData: TourFormDataWithStringDates
 ): Promise<string> {
   try {
     const { user } = useAuthStore.getState();
     const currentUserId = user?.uid || "anonymous";
-    
+
     console.log("Creating tour with user ID:", currentUserId);
     console.log("User data:", user);
-    
+
     const now = Timestamp.now();
+
+    // Convert travelDates from string dates to Timestamps
+    const convertedTravelDates = convertTravelDatesToTimestamps(
+      tourData.travelDates
+    );
 
     const tourPackage: Omit<TourPackage, "id"> = {
       ...tourData,
+      travelDates: convertedTravelDates,
       media: {
         coverImage: tourData.media?.coverImage || "",
         gallery: tourData.media?.gallery || [],
@@ -115,7 +201,7 @@ export async function getTours(
   try {
     console.log("getTours called with filters:", filters);
     console.log("Collection name:", TOURS_COLLECTION);
-    
+
     // Start with a simple query to see if we can get any documents
     let q = query(collection(db, TOURS_COLLECTION));
 
@@ -218,15 +304,15 @@ export async function getAllTours(): Promise<TourPackage[]> {
 
 export async function updateTour(
   id: string,
-  updates: Partial<TourPackageFormData>
+  updates: Partial<TourFormDataWithStringDates>
 ): Promise<void> {
   try {
     const { user } = useAuthStore.getState();
     const currentUserId = user?.uid || "anonymous";
-    
+
     console.log("Updating tour with user ID:", currentUserId);
     console.log("User data:", user);
-    
+
     const docRef = doc(db, TOURS_COLLECTION, id);
     const now = Timestamp.now();
 
@@ -238,6 +324,13 @@ export async function updateTour(
       ...updates,
       "metadata.updatedAt": now,
     };
+
+    // Convert travelDates if they're being updated
+    if (updates.travelDates) {
+      updateData.travelDates = convertTravelDatesToTimestamps(
+        updates.travelDates
+      );
+    }
 
     // If price changed, add to pricing history
     if (
@@ -258,7 +351,8 @@ export async function updateTour(
     // Handle media updates properly
     if (updates.media) {
       updateData.media = {
-        coverImage: updates.media.coverImage || currentData.media?.coverImage || "",
+        coverImage:
+          updates.media.coverImage || currentData.media?.coverImage || "",
         gallery: updates.media.gallery || currentData.media?.gallery || [],
       };
     }
@@ -286,7 +380,7 @@ export async function updateTourMedia(
     if (mediaData.coverImage !== undefined) {
       updateData["media.coverImage"] = mediaData.coverImage;
     }
-    
+
     if (mediaData.gallery !== undefined) {
       updateData["media.gallery"] = mediaData.gallery;
     }
@@ -306,35 +400,40 @@ export async function cleanupRemovedGalleryImages(
 ): Promise<void> {
   try {
     // Find images that were removed (exist in original but not in new)
-    const removedImages = originalGallery.filter(url => !newGallery.includes(url));
-    
+    const removedImages = originalGallery.filter(
+      (url) => !newGallery.includes(url)
+    );
+
     if (removedImages.length === 0) {
-      console.log('No gallery images to clean up');
+      console.log("No gallery images to clean up");
       return;
     }
-    
-    console.log('Cleaning up removed gallery images:', removedImages);
-    
+
+    console.log("Cleaning up removed gallery images:", removedImages);
+
     // Extract file paths from URLs
     const filePaths = removedImages
-      .map(url => extractFilePathFromUrl(url))
-      .filter(path => path !== null) as string[];
-    
+      .map((url) => extractFilePathFromUrl(url))
+      .filter((path) => path !== null) as string[];
+
     if (filePaths.length === 0) {
-      console.log('No valid file paths found for cleanup');
+      console.log("No valid file paths found for cleanup");
       return;
     }
-    
+
     // Delete files from Supabase storage
     const deleteResult = await deleteMultipleFiles(filePaths, STORAGE_BUCKET);
-    
+
     if (deleteResult.success) {
-      console.log('Successfully cleaned up removed gallery images');
+      console.log("Successfully cleaned up removed gallery images");
     } else {
-      console.error('Failed to clean up some gallery images:', deleteResult.error);
+      console.error(
+        "Failed to clean up some gallery images:",
+        deleteResult.error
+      );
     }
   } catch (error) {
-    console.error('Error during gallery cleanup:', error);
+    console.error("Error during gallery cleanup:", error);
     // Don't throw here as this is a cleanup operation and shouldn't break the main flow
   }
 }
@@ -384,17 +483,27 @@ export async function archiveTour(id: string): Promise<void> {
 // ============================================================================
 
 export async function batchUpdateTours(
-  updates: { id: string; data: Partial<TourPackageFormData> }[]
+  updates: { id: string; data: Partial<TourFormDataWithStringDates> }[]
 ): Promise<void> {
   try {
     const batch = writeBatch(db);
 
     updates.forEach(({ id, data }) => {
       const docRef = doc(db, TOURS_COLLECTION, id);
-      batch.update(docRef, {
+
+      const updateData: any = {
         ...data,
         "metadata.updatedAt": Timestamp.now(),
-      });
+      };
+
+      // Convert travelDates if they're being updated
+      if (data.travelDates) {
+        updateData.travelDates = convertTravelDatesToTimestamps(
+          data.travelDates
+        );
+      }
+
+      batch.update(docRef, updateData);
     });
 
     await batch.commit();
@@ -433,11 +542,15 @@ export function generateSlug(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export function validateTourData(data: TourPackageFormData): string[] {
+export function validateTourData(data: TourFormDataWithStringDates): string[] {
   const errors: string[] = [];
 
   if (!data.name || data.name.trim().length < 3) {
     errors.push("Tour name must be at least 3 characters long");
+  }
+
+  if (!data.tourCode || data.tourCode.trim().length < 2) {
+    errors.push("Tour code is required and must be at least 2 characters long");
   }
 
   if (!data.description || data.description.trim().length < 10) {
@@ -450,6 +563,31 @@ export function validateTourData(data: TourPackageFormData): string[] {
 
   if (!data.duration || data.duration < 1) {
     errors.push("Duration must be at least 1 day");
+  }
+
+  if (!data.travelDates || data.travelDates.length === 0) {
+    errors.push("At least one travel date is required");
+  } else {
+    // Validate each travel date
+    data.travelDates.forEach((td, index) => {
+      if (!td.startDate) {
+        errors.push(`Travel date ${index + 1}: Start date is required`);
+      }
+      if (!td.endDate) {
+        errors.push(`Travel date ${index + 1}: End date is required`);
+      }
+      if (td.startDate && td.endDate) {
+        const startDate = new Date(td.startDate);
+        const endDate = new Date(td.endDate);
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+          errors.push(`Travel date ${index + 1}: Invalid date format`);
+        } else if (startDate >= endDate) {
+          errors.push(
+            `Travel date ${index + 1}: End date must be after start date`
+          );
+        }
+      }
+    });
   }
 
   if (!data.pricing.original || data.pricing.original <= 0) {
@@ -475,5 +613,32 @@ export function validateTourData(data: TourPackageFormData): string[] {
     errors.push("At least one itinerary item is required");
   }
 
+  // Validate URL fields if they exist
+  if (data.url && !isValidUrl(data.url)) {
+    errors.push("Direct URL must be a valid URL");
+  }
+
+  if (data.brochureLink && !isValidUrl(data.brochureLink)) {
+    errors.push("Brochure link must be a valid URL");
+  }
+
+  if (data.stripePaymentLink && !isValidUrl(data.stripePaymentLink)) {
+    errors.push("Stripe payment link must be a valid URL");
+  }
+
+  if (data.preDeparturePack && !isValidUrl(data.preDeparturePack)) {
+    errors.push("Pre-departure pack link must be a valid URL");
+  }
+
   return errors;
+}
+
+// Helper function to validate URLs
+function isValidUrl(string: string): boolean {
+  try {
+    new URL(string);
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
