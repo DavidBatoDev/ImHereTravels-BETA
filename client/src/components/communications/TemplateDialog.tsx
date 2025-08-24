@@ -84,44 +84,6 @@ const emailTemplates = {
   "adventure-kit": `<!DOCTYPE html><html><head><style>body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;margin:0;padding:0;background-color:#f4f4f4}.container{max-width:600px;margin:0 auto;background-color:#ffffff}.header{background:linear-gradient(135deg,#00c9ff 0%,#92fe9d 100%);padding:40px;text-align:center}.header h1{color:#ffffff;margin:0;font-size:28px;text-shadow:2px 2px 4px rgba(0,0,0,0.1)}.content{padding:40px}.kit-item{background-color:#e7f5ff;border-left:4px solid #339af0;padding:15px;margin:15px 0;border-radius:5px}.button{display:inline-block;padding:14px 30px;background:linear-gradient(135deg,#00c9ff 0%,#92fe9d 100%);color:#ffffff;text-decoration:none;border-radius:5px;margin:20px 0;font-weight:bold}.footer{background-color:#f8f9fa;padding:20px;text-align:center;color:#6c757d;font-size:14px}</style></head><body><div class="container"><div class="header"><h1>🎒 Your Adventure Kit is Ready!</h1></div><div class="content"><h2>Hello {{traveler_name}},</h2><p>Your adventure is just around the corner! We've prepared your digital adventure kit with everything you need for your upcoming tour.</p><h3>📦 What's in Your Kit:</h3><div class="kit-item"><strong>📍 Detailed Itinerary</strong><p>Day-by-day breakdown of your adventure</p></div><div class="kit-item"><strong>📋 Packing List</strong><p>Everything you need to bring for your tour</p></div><div class="kit-item"><strong>🗺️ Maps & Guides</strong><p>Local maps and insider tips</p></div><div class="kit-item"><strong>📱 Emergency Contacts</strong><p>Important numbers and local contacts</p></div><center><a href="{{kit_download_link}}" class="button">Download Your Adventure Kit</a></center><p><strong>Tour Details:</strong></p><ul><li>Tour: {{tour_name}}</li><li>Start Date: {{tour_date}}</li><li>Meeting Point: {{meeting_point}}</li><li>Guide: {{guide_name}}</li></ul><p>Get ready for an unforgettable experience!</p><p>Happy travels,<br>The ImHereTravels Team</p></div><div class="footer"><p>© 2024 ImHereTravels | All rights reserved</p><p>Follow us on social media for travel inspiration!</p></div></div></body></html>`,
 };
 
-// Available variables for templates
-const templateVariables = {
-  reservation: [
-    "{{traveler_name}}",
-    "{{tour_name}}",
-    "{{tour_date}}",
-    "{{duration}}",
-    "{{booking_id}}",
-    "{{booking_link}}",
-    "{{amount}}",
-  ],
-  "payment-reminder": [
-    "{{traveler_name}}",
-    "{{tour_name}}",
-    "{{tour_date}}",
-    "{{booking_id}}",
-    "{{amount_due}}",
-    "{{due_date}}",
-    "{{payment_link}}",
-  ],
-  cancellation: [
-    "{{traveler_name}}",
-    "{{booking_id}}",
-    "{{tour_name}}",
-    "{{cancellation_reason}}",
-    "{{refund_details}}",
-    "{{contact_link}}",
-  ],
-  "adventure-kit": [
-    "{{traveler_name}}",
-    "{{tour_name}}",
-    "{{tour_date}}",
-    "{{meeting_point}}",
-    "{{guide_name}}",
-    "{{kit_download_link}}",
-  ],
-};
-
 // Monaco Editor Component
 function MonacoEditor({
   value,
@@ -129,12 +91,14 @@ function MonacoEditor({
   language = "html",
   height = "400px",
   zoomLevel = 1,
+  onEditorReady,
 }: {
   value: string;
   onChange: (value: string) => void;
   language?: string;
   height?: string;
   zoomLevel?: number;
+  onEditorReady?: (editor: any) => void;
 }) {
   const editorRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -240,6 +204,11 @@ function MonacoEditor({
         const newValue = editorRef.current.getValue();
         onChange(newValue);
       });
+
+      // Notify parent component that editor is ready
+      if (onEditorReady) {
+        onEditorReady(editorRef.current);
+      }
     }
   };
 
@@ -304,6 +273,7 @@ export default function TemplateDialog({
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [codeEditorZoom, setCodeEditorZoom] = useState(1);
   const [previewZoom, setPreviewZoom] = useState(1);
+  const editorRef = useRef<any>(null);
 
   useEffect(() => {
     if (template) {
@@ -323,7 +293,7 @@ export default function TemplateDialog({
         subject: "",
         content: emailTemplates.reservation,
         status: "draft",
-        variables: templateVariables.reservation,
+        variables: extractVariables(emailTemplates.reservation),
       });
       setHtmlContent(emailTemplates.reservation);
     }
@@ -404,7 +374,7 @@ export default function TemplateDialog({
       ...prev,
       type,
       content: emailTemplates[type],
-      variables: templateVariables[type],
+      variables: extractVariables(emailTemplates[type]),
     }));
     setHtmlContent(emailTemplates[type]);
   };
@@ -416,6 +386,30 @@ export default function TemplateDialog({
 
   const insertVariable = (variable: string) => {
     setHtmlContent((prev) => prev + variable);
+  };
+
+  // Navigate to variable location in code
+  const navigateToVariable = (variable: string) => {
+    if (editorRef.current) {
+      const content = editorRef.current.getValue();
+      const variableIndex = content.indexOf(variable);
+
+      if (variableIndex !== -1) {
+        // Calculate line number from character index
+        const lines = content.substring(0, variableIndex).split("\n");
+        const lineNumber = lines.length;
+
+        // Set cursor position and scroll to the line
+        editorRef.current.revealLineInCenter(lineNumber);
+        editorRef.current.setPosition({
+          lineNumber: lineNumber,
+          column: lines[lines.length - 1].length + 1,
+        });
+
+        // Focus the editor
+        editorRef.current.focus();
+      }
+    }
   };
 
   // Keyboard shortcuts for zoom (only affects code editor)
@@ -620,6 +614,9 @@ export default function TemplateDialog({
                             language="html"
                             height="100%"
                             zoomLevel={codeEditorZoom}
+                            onEditorReady={(editor) => {
+                              editorRef.current = editor;
+                            }}
                           />
                         </div>
                       </div>
@@ -679,11 +676,11 @@ export default function TemplateDialog({
                               style={{
                                 transform: `scale(calc(var(--preview-scale, 1) * ${previewZoom}))`,
                                 transformOrigin:
-                                  previewZoom < 1 ? "top center" : "top left",
+                                  previewZoom < 1 ? "top left" : "top left",
                                 width: "600px",
                                 height: "750px",
-                                maxWidth: "100%",
-                                maxHeight: "100%",
+                                // maxWidth: "100%",
+                                // maxHeight: "100%",
                                 marginBottom: `${Math.max(
                                   0,
                                   (previewZoom - 1) * 750
@@ -760,6 +757,9 @@ export default function TemplateDialog({
                           language="html"
                           height="100%"
                           zoomLevel={codeEditorZoom}
+                          onEditorReady={(editor) => {
+                            editorRef.current = editor;
+                          }}
                         />
                       </div>
                     </div>
@@ -955,15 +955,16 @@ export default function TemplateDialog({
                   </h3>
                   <div className="bg-gray-50 p-2 rounded-lg">
                     <Label className="text-xs font-medium mb-2 block">
-                      Available Variables
+                      Variables Found in Code
                     </Label>
                     <div className="flex flex-wrap gap-1">
-                      {templateVariables[formData.type]?.map((variable) => (
+                      {extractVariables(htmlContent).map((variable) => (
                         <Badge
                           key={variable}
                           variant="secondary"
                           className="cursor-pointer hover:bg-blue-100 hover:text-blue-800 transition-colors text-xs px-1 py-0"
-                          onClick={() => insertVariable(variable)}
+                          onClick={() => navigateToVariable(variable)}
+                          title={`Click to go to ${variable} in code`}
                         >
                           {variable}
                         </Badge>
