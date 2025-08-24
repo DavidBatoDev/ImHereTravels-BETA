@@ -128,11 +128,13 @@ function MonacoEditor({
   onChange,
   language = "html",
   height = "400px",
+  zoomLevel = 1,
 }: {
   value: string;
   onChange: (value: string) => void;
   language?: string;
   height?: string;
+  zoomLevel?: number;
 }) {
   const editorRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -170,19 +172,68 @@ function MonacoEditor({
     }
   }, [value]);
 
+  // Update zoom level when it changes
+  useEffect(() => {
+    if (editorRef.current) {
+      const newFontSize = Math.round(14 * zoomLevel);
+      const newLineHeight = Math.round(20 * zoomLevel);
+
+      editorRef.current.updateOptions({
+        fontSize: newFontSize,
+        lineHeight: newLineHeight,
+      });
+
+      // Trigger layout update to prevent clipping
+      setTimeout(() => {
+        if (editorRef.current) {
+          editorRef.current.layout();
+        }
+      }, 0);
+    }
+  }, [zoomLevel]);
+
+  // Handle container resize
+  useEffect(() => {
+    if (containerRef.current && editorRef.current) {
+      const resizeObserver = new ResizeObserver(() => {
+        if (editorRef.current) {
+          editorRef.current.layout();
+        }
+      });
+
+      resizeObserver.observe(containerRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+  }, [editorRef.current]);
+
   const initializeEditor = () => {
     if (containerRef.current && window.monaco) {
       editorRef.current = window.monaco.editor.create(containerRef.current, {
         value: value,
         language: language,
-        theme: "vs-dark",
+        theme: "vs",
         automaticLayout: true,
-        fontSize: 14,
+        fontSize: Math.round(14 * zoomLevel),
+        lineHeight: Math.round(20 * zoomLevel),
         minimap: { enabled: false },
         scrollBeyondLastLine: false,
         wordWrap: "on",
         formatOnPaste: true,
         formatOnType: true,
+        // Ensure proper container sizing
+        fixedOverflowWidgets: true,
+        overviewRulerBorder: false,
+        // Better scroll behavior
+        scrollbar: {
+          vertical: "visible",
+          horizontal: "visible",
+          verticalScrollbarSize: Math.round(12 * zoomLevel),
+          horizontalScrollbarSize: Math.round(12 * zoomLevel),
+          useShadows: false,
+        },
       });
 
       editorRef.current.onDidChangeModelContent(() => {
@@ -192,7 +243,17 @@ function MonacoEditor({
     }
   };
 
-  return <div ref={containerRef} style={{ height, width: "100%" }} />;
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        height,
+        width: "100%",
+        overflow: "hidden", // Let Monaco handle scrolling
+        position: "relative", // Ensure proper positioning
+      }}
+    />
+  );
 }
 
 // Beautify function
@@ -241,6 +302,8 @@ export default function TemplateDialog({
   const [editorView, setEditorView] = useState("split");
   const [htmlContent, setHtmlContent] = useState("");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [codeEditorZoom, setCodeEditorZoom] = useState(1);
+  const [previewZoom, setPreviewZoom] = useState(1);
 
   useEffect(() => {
     if (template) {
@@ -354,6 +417,32 @@ export default function TemplateDialog({
   const insertVariable = (variable: string) => {
     setHtmlContent((prev) => prev + variable);
   };
+
+  // Keyboard shortcuts for zoom (only affects code editor)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case "=":
+          case "+":
+            e.preventDefault();
+            setCodeEditorZoom((prev) => Math.min(2, prev + 0.1));
+            break;
+          case "-":
+            e.preventDefault();
+            setCodeEditorZoom((prev) => Math.max(0.5, prev - 0.1));
+            break;
+          case "0":
+            e.preventDefault();
+            setCodeEditorZoom(1);
+            break;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <>
@@ -469,40 +558,136 @@ export default function TemplateDialog({
                 </div>
 
                 {/* Editor */}
-                <div className="border rounded-lg overflow-hidden bg-white flex-1">
+                <div
+                  className="border rounded-lg overflow-hidden bg-white flex-1"
+                  style={{ minHeight: 0 }}
+                >
                   {editorView === "split" && (
-                    <div className="grid grid-cols-2 divide-x h-[500px]">
-                      <div className="flex flex-col h-full">
+                    <div className="grid grid-cols-2 divide-x h-[500px] min-h-0">
+                      <div className="flex flex-col h-full min-h-0">
                         <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b flex-shrink-0">
-                          HTML Code
+                          <div className="flex items-center justify-between">
+                            <span>HTML Code</span>
+                            <div className="flex items-center space-x-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setCodeEditorZoom((prev) =>
+                                    Math.max(0.5, prev - 0.1)
+                                  )
+                                }
+                                className="h-6 w-6 p-0 text-xs"
+                                title="Zoom Out (Ctrl/Cmd + -)"
+                              >
+                                -
+                              </Button>
+                              <span className="text-xs min-w-[3rem] text-center">
+                                {Math.round(codeEditorZoom * 100)}%
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setCodeEditorZoom((prev) =>
+                                    Math.min(2, prev + 0.1)
+                                  )
+                                }
+                                className="h-6 w-6 p-0 text-xs"
+                                title="Zoom In (Ctrl/Cmd + +)"
+                              >
+                                +
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCodeEditorZoom(1)}
+                                className="h-6 px-2 text-xs"
+                                title="Reset Zoom (Ctrl/Cmd + 0)"
+                              >
+                                Reset
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex-1 min-h-0">
+                        <div
+                          className="flex-1 min-h-0 relative overflow-hidden"
+                          style={{ minHeight: 0 }}
+                        >
                           <MonacoEditor
                             value={htmlContent}
                             onChange={setHtmlContent}
                             language="html"
                             height="100%"
+                            zoomLevel={codeEditorZoom}
                           />
                         </div>
                       </div>
-                      <div className="flex flex-col h-full">
+                      <div className="flex flex-col h-full min-h-0">
                         <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b flex-shrink-0">
-                          Live Preview
+                          <div className="flex items-center justify-between">
+                            <span>Live Preview</span>
+                            <div className="flex items-center space-x-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setPreviewZoom((prev) =>
+                                    Math.max(0.5, prev - 0.1)
+                                  )
+                                }
+                                className="h-6 w-6 p-0 text-xs"
+                                title="Zoom Out"
+                              >
+                                -
+                              </Button>
+                              <span className="text-xs min-w-[3rem] text-center">
+                                {Math.round(previewZoom * 100)}%
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setPreviewZoom((prev) =>
+                                    Math.min(2, prev + 0.1)
+                                  )
+                                }
+                                className="h-6 w-6 p-0 text-xs"
+                                title="Zoom In"
+                              >
+                                +
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPreviewZoom(1)}
+                                className="h-6 px-2 text-xs"
+                                title="Reset Zoom"
+                              >
+                                Reset
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex-1 p-3 overflow-auto bg-gray-50 min-h-0">
+                        <div className="flex-1 p-4 overflow-auto bg-gray-50 min-h-0">
                           <div
-                            className="w-full max-w-md mx-auto"
+                            className="w-full max-w-2xl mx-auto"
                             data-preview-container
                           >
                             <div
                               className="bg-white rounded shadow-sm"
                               style={{
-                                transform: "scale(var(--preview-scale, 1))",
-                                transformOrigin: "top left",
+                                transform: `scale(calc(var(--preview-scale, 1) * ${previewZoom}))`,
+                                transformOrigin:
+                                  previewZoom < 1 ? "top center" : "top left",
                                 width: "600px",
                                 height: "750px",
                                 maxWidth: "100%",
                                 maxHeight: "100%",
+                                marginBottom: `${Math.max(
+                                  0,
+                                  (previewZoom - 1) * 750
+                                )}px`,
                               }}
                             >
                               <div
@@ -519,16 +704,62 @@ export default function TemplateDialog({
                   )}
 
                   {editorView === "code" && (
-                    <div className="flex flex-col h-[500px]">
+                    <div className="flex flex-col h-[500px] min-h-0">
                       <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b flex-shrink-0">
-                        HTML Code Editor
+                        <div className="flex items-center justify-between">
+                          <span>HTML Code Editor</span>
+                          <div className="flex items-center space-x-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setCodeEditorZoom((prev) =>
+                                  Math.max(0.5, prev - 0.1)
+                                )
+                              }
+                              className="h-6 w-6 p-0 text-xs"
+                              title="Zoom Out (Ctrl/Cmd + -)"
+                            >
+                              -
+                            </Button>
+                            <span className="text-xs min-w-[3rem] text-center">
+                              {Math.round(codeEditorZoom * 100)}%
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setCodeEditorZoom((prev) =>
+                                  Math.min(2, prev + 0.1)
+                                )
+                              }
+                              className="h-6 w-6 p-0 text-xs"
+                              title="Zoom In (Ctrl/Cmd + +)"
+                            >
+                              +
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCodeEditorZoom(1)}
+                              className="h-6 px-2 text-xs"
+                              title="Reset Zoom (Ctrl/Cmd + 0)"
+                            >
+                              Reset
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1 min-h-0">
+                      <div
+                        className="flex-1 min-h-0 relative overflow-hidden"
+                        style={{ minHeight: 0 }}
+                      >
                         <MonacoEditor
                           value={htmlContent}
                           onChange={setHtmlContent}
                           language="html"
                           height="100%"
+                          zoomLevel={codeEditorZoom}
                         />
                       </div>
                     </div>
@@ -537,7 +768,49 @@ export default function TemplateDialog({
                   {editorView === "preview" && (
                     <div className="flex flex-col h-[500px]">
                       <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b flex-shrink-0">
-                        Live Preview
+                        <div className="flex items-center justify-between">
+                          <span>Live Preview</span>
+                          <div className="flex items-center space-x-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setPreviewZoom((prev) =>
+                                  Math.max(0.5, prev - 0.1)
+                                )
+                              }
+                              className="h-6 w-6 p-0 text-xs"
+                              title="Zoom Out"
+                            >
+                              -
+                            </Button>
+                            <span className="text-xs min-w-[3rem] text-center">
+                              {Math.round(previewZoom * 100)}%
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setPreviewZoom((prev) =>
+                                  Math.min(2, prev + 0.1)
+                                )
+                              }
+                              className="h-6 w-6 p-0 text-xs"
+                              title="Zoom In"
+                            >
+                              +
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setPreviewZoom(1)}
+                              className="h-6 px-2 text-xs"
+                              title="Reset Zoom"
+                            >
+                              Reset
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                       <div className="flex-1 p-4 overflow-auto bg-gray-50 min-h-0">
                         <div
@@ -547,12 +820,17 @@ export default function TemplateDialog({
                           <div
                             className="bg-white rounded shadow-sm overflow-hidden"
                             style={{
-                              transform: "scale(var(--preview-scale, 1))",
-                              transformOrigin: "top left",
+                              transform: `scale(calc(var(--preview-scale, 1) * ${previewZoom}))`,
+                              transformOrigin:
+                                previewZoom < 1 ? "top center" : "top left",
                               width: "600px",
                               height: "750px",
                               maxWidth: "100%",
                               maxHeight: "100%",
+                              marginBottom: `${Math.max(
+                                0,
+                                (previewZoom - 1) * 750
+                              )}px`,
                             }}
                           >
                             <div
