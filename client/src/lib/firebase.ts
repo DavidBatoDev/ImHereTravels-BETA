@@ -23,4 +23,10 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Helper functions for migration scripts (with different names to avoid conflicts)
+export const getDbInstance = () => db;
+export const getAuthInstance = () => auth;
+export const getStorageInstance = () => storage;
+
 // export const analytics = getAnalytics(app);
