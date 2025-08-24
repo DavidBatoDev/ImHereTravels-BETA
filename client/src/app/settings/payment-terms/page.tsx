@@ -2,20 +2,50 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Settings, ToggleLeft, ToggleRight } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Settings,
+  ToggleLeft,
+  ToggleRight,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { PaymentTermsService } from "@/services/payment-terms-service";
-import { PaymentTermConfiguration } from "@/types/payment-terms";
+import {
+  PaymentTermConfiguration,
+  PaymentPlanType,
+  PAYMENT_PLAN_TYPE_LABELS,
+} from "@/types/payment-terms";
 import { PaymentTermDialog } from "@/components/settings/PaymentTermDialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function PaymentTermsPage() {
-  const [paymentTerms, setPaymentTerms] = useState<PaymentTermConfiguration[]>([]);
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTermConfiguration[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedTerm, setSelectedTerm] = useState<PaymentTermConfiguration | null>(null);
+  const [selectedTerm, setSelectedTerm] =
+    useState<PaymentTermConfiguration | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
@@ -57,13 +87,13 @@ export default function PaymentTermsPage() {
       await loadPaymentTerms();
       toast({
         title: "Success",
-        description: "Payment term deleted successfully",
+        description: "Payment plan deleted successfully",
       });
     } catch (error) {
-      console.error("Failed to delete payment term:", error);
+      console.error("Failed to delete payment plan:", error);
       toast({
         title: "Error",
-        description: "Failed to delete payment term",
+        description: "Failed to delete payment plan",
         variant: "destructive",
       });
     }
@@ -71,17 +101,23 @@ export default function PaymentTermsPage() {
 
   const handleToggleStatus = async (termId: string, currentStatus: boolean) => {
     try {
-      await PaymentTermsService.togglePaymentTermStatus(termId, !currentStatus, "current-user"); // TODO: Replace with actual user ID
+      await PaymentTermsService.togglePaymentTermStatus(
+        termId,
+        !currentStatus,
+        "current-user"
+      ); // TODO: Replace with actual user ID
       await loadPaymentTerms();
       toast({
         title: "Success",
-        description: `Payment term ${!currentStatus ? 'activated' : 'deactivated'} successfully`,
+        description: `Payment plan ${
+          !currentStatus ? "activated" : "deactivated"
+        } successfully`,
       });
     } catch (error) {
-      console.error("Failed to update payment term status:", error);
+      console.error("Failed to update payment plan status:", error);
       toast({
         title: "Error",
-        description: "Failed to update payment term status",
+        description: "Failed to update payment plan status",
         variant: "destructive",
       });
     }
@@ -89,33 +125,75 @@ export default function PaymentTermsPage() {
 
   const getTermDisplayName = (term: PaymentTermConfiguration): string => {
     // Extract a simple display name from the full name
-    if (term.name.includes("Payment Plan")) {
-      return term.name.replace("Payment Plan ", "");
+    if (
+      term.name.includes("P1 -") ||
+      term.name.includes("P2 -") ||
+      term.name.includes("P3 -") ||
+      term.name.includes("P4 -") ||
+      term.name.includes("P5 -")
+    ) {
+      return term.name.split(" - ")[0]; // Extract P1, P2, P3, P4, P5
     }
     if (term.name === "Invalid Booking") {
       return "Invalid";
     }
-    if (term.name === "Full Payment Required") {
-      return "Full Payment";
+    if (term.name === "Full Payment Required Within 2 Days") {
+      return "2 Days";
     }
     return term.name;
   };
 
-  const formatDate = (timestamp: any): string => {
-    try {
-      if (timestamp && typeof timestamp.toDate === 'function') {
-        return timestamp.toDate().toLocaleDateString();
-      } else if (timestamp instanceof Date) {
-        return timestamp.toLocaleDateString();
-      } else if (timestamp && timestamp.seconds) {
-        // Handle Firestore timestamp with seconds/nanoseconds
-        return new Date(timestamp.seconds * 1000).toLocaleDateString();
-      }
-      return 'N/A';
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'N/A';
+  const getTermBadgeVariant = (
+    term: PaymentTermConfiguration
+  ): "default" | "secondary" | "destructive" | "outline" => {
+    switch (term.paymentPlanType) {
+      case "invalid_booking":
+        return "destructive";
+      case "full_payment_48hrs":
+        return "secondary";
+      case "custom":
+        return "outline";
+      default:
+        return "default";
     }
+  };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return "N/A";
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString();
+  };
+
+  const getPaymentPlanDescription = (
+    term: PaymentTermConfiguration
+  ): string => {
+    if (term.paymentPlanType === "invalid_booking") {
+      return `Tour date must be at least ${term.daysRequired} days after booking`;
+    }
+
+    if (term.paymentPlanType === "full_payment_48hrs") {
+      return `Full payment due within ${term.daysRequired} days (no deposit required)`;
+    }
+
+    if (
+      [
+        "p1_single_installment",
+        "p2_two_installments",
+        "p3_three_installments",
+        "p4_four_installments",
+        "custom",
+      ].includes(term.paymentPlanType)
+    ) {
+      const deposit = term.depositPercentage || 0;
+      const months = term.monthsRequired || 0;
+      return `${deposit}% deposit + ${months} monthly payments`;
+    }
+
+    if (term.paymentPlanType === "custom") {
+      return "Custom payment configuration";
+    }
+
+    return term.description;
   };
 
   const onDialogSuccess = () => {
@@ -125,110 +203,89 @@ export default function PaymentTermsPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-2 text-sm text-muted-foreground">Loading payment terms...</p>
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Payment Plans</h1>
+            <p className="text-muted-foreground">
+              Manage payment terms and installment plans for tour bookings
+            </p>
           </div>
+        </div>
+        <div className="grid gap-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-48"></div>
+                    <div className="h-3 bg-gray-200 rounded w-32"></div>
+                  </div>
+                  <div className="h-8 bg-gray-200 rounded w-20"></div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((j) => (
+                    <div key={j}>
+                      <div className="h-3 bg-gray-200 rounded w-20 mb-2"></div>
+                      <div className="h-5 bg-gray-200 rounded w-16"></div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
+    <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Payment Terms</h1>
+          <h1 className="text-3xl font-bold">Payment Plans</h1>
           <p className="text-muted-foreground">
-            Manage payment terms and conditions based on tour booking timeline
+            Manage payment terms and installment plans for tour bookings
           </p>
         </div>
-        <Button onClick={handleCreate} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Add Payment Term
+        <Button onClick={handleCreate}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Payment Plan
         </Button>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Terms</CardTitle>
-            <Settings className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{paymentTerms.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Payment term configurations
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Terms</CardTitle>
-            <ToggleRight className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {paymentTerms.filter(term => term.isActive).length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Currently active terms
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Inactive Terms</CardTitle>
-            <ToggleLeft className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {paymentTerms.filter(term => !term.isActive).length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Currently inactive terms
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Payment Terms List */}
       <div className="grid gap-4">
         {paymentTerms.map((term) => (
-          <Card key={term.id} className={`${!term.isActive ? 'opacity-60' : ''}`}>
+          <Card key={term.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div
+                    className="w-4 h-4 rounded-full"
+                    style={{ backgroundColor: term.color }}
+                  />
+                  <div>
                     <CardTitle className="text-lg">{term.name}</CardTitle>
-                    <Badge 
-                      variant="outline" 
-                      style={{ backgroundColor: `${term.color}20`, color: term.color, borderColor: term.color }}
-                    >
-                      {getTermDisplayName(term)}
-                    </Badge>
-                    <Badge variant={term.isActive ? "default" : "secondary"}>
-                      {term.isActive ? "Active" : "Inactive"}
-                    </Badge>
+                    <CardDescription className="text-sm">
+                      {getPaymentPlanDescription(term)}
+                    </CardDescription>
                   </div>
-                  <CardDescription>{term.description}</CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center space-x-2">
+                  <Badge variant={getTermBadgeVariant(term)}>
+                    {getTermDisplayName(term)}
+                  </Badge>
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="sm"
                     onClick={() => handleToggleStatus(term.id, term.isActive)}
                   >
                     {term.isActive ? (
-                      <ToggleRight className="h-4 w-4" />
+                      <ToggleRight className="h-4 w-4 text-green-600" />
                     ) : (
-                      <ToggleLeft className="h-4 w-4" />
+                      <ToggleLeft className="h-4 w-4 text-gray-400" />
                     )}
                   </Button>
                   <Button
@@ -246,9 +303,10 @@ export default function PaymentTermsPage() {
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Payment Term</AlertDialogTitle>
+                        <AlertDialogTitle>Delete Payment Plan</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to delete "{term.name}"? This action cannot be undone.
+                          Are you sure you want to delete "{term.name}"? This
+                          action cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -267,34 +325,90 @@ export default function PaymentTermsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {term.paymentType === "full_payment" && (
+                {/* Deposit Percentage */}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Deposit
+                  </p>
+                  <p className="text-lg font-semibold">
+                    {term.paymentPlanType === "invalid_booking" ||
+                    term.paymentPlanType === "full_payment_48hrs"
+                      ? "No Deposit"
+                      : `${term.depositPercentage || 0}%`}
+                  </p>
+                </div>
+
+                {/* Payment Type Specific Fields */}
+                {term.paymentPlanType === "invalid_booking" && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Days Before Tour</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Invalid Threshold
+                    </p>
                     <p className="text-lg font-semibold">
-                      {term.name === 'Payment Plan P4' ? `${term.daysRequired || 0}+` : `< ${term.daysRequired || 0}`}
+                      &lt; {term.daysRequired || 0} days
                     </p>
                   </div>
                 )}
-                {term.paymentType === "monthly_scheduled" && (
+
+                {term.paymentPlanType === "full_payment_48hrs" && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Payment Schedule</p>
-                    <p className="text-lg font-semibold">{term.monthsRequired} months</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Payment Due
+                    </p>
+                    <p className="text-lg font-semibold">
+                      Within {term.daysRequired || 0} days
+                    </p>
                   </div>
                 )}
-                {term.paymentType === "monthly_scheduled" && term.monthlyPercentages && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Monthly Breakdown</p>
-                    <p className="text-sm">{term.monthlyPercentages.join("%, ")}%</p>
-                  </div>
+
+                {[
+                  "p1_single_installment",
+                  "p2_two_installments",
+                  "p3_three_installments",
+                  "p4_four_installments",
+                  "custom",
+                ].includes(term.paymentPlanType) && (
+                  <>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Payment Schedule
+                      </p>
+                      <p className="text-lg font-semibold">
+                        {term.monthsRequired || 0} months
+                      </p>
+                    </div>
+                    {term.monthlyPercentages &&
+                      term.monthlyPercentages.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Monthly Breakdown
+                          </p>
+                          <p className="text-sm">
+                            {term.monthlyPercentages.join("%, ")}%
+                          </p>
+                        </div>
+                      )}
+                  </>
                 )}
-                {term.percentage && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Payment Percentage</p>
-                    <p className="text-lg font-semibold">{term.percentage}%</p>
-                  </div>
-                )}
+
+                {/* Legacy Percentage (if exists) */}
+                {term.percentage !== undefined &&
+                  term.percentage !== term.depositPercentage && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Legacy Percentage
+                      </p>
+                      <p className="text-lg font-semibold">
+                        {term.percentage}%
+                      </p>
+                    </div>
+                  )}
+
+                {/* Last Updated */}
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Last Updated</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Last Updated
+                  </p>
                   <p className="text-sm">
                     {formatDate(term.metadata.updatedAt)}
                   </p>
@@ -309,13 +423,13 @@ export default function PaymentTermsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Settings className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Payment Terms</h3>
+            <h3 className="text-lg font-semibold mb-2">No Payment Plans</h3>
             <p className="text-muted-foreground text-center max-w-md mb-4">
-              Get started by creating your first payment term configuration.
+              Get started by creating your first payment plan configuration.
             </p>
             <Button onClick={handleCreate}>
               <Plus className="h-4 w-4 mr-2" />
-              Create Payment Term
+              Create Payment Plan
             </Button>
           </CardContent>
         </Card>

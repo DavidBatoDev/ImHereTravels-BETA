@@ -21,6 +21,10 @@ import {
   runMigration as runMigration003,
   rollbackMigration as rollbackMigration003,
 } from "./003-final-tour-packages";
+import {
+  runMigration as runMigration004,
+  rollbackMigration as rollbackMigration004,
+} from "./004-payment-plans";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -91,6 +95,23 @@ async function main() {
       }
       break;
 
+    case "004":
+      console.log("📊 Running migration: 004-payment-plans");
+      const result004 = await runMigration004(dryRun);
+      console.log(`\n🎯 ${result004.message}`);
+      if (result004.details) {
+        console.log(
+          `📊 Details: ${result004.details.created} created, ${result004.details.skipped} skipped, ${result004.details.errors.length} errors`
+        );
+        if (result004.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result004.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "rollback":
     case "undo":
       console.log("🔄 Rolling back migration: 001-initial-tour-packages");
@@ -149,6 +170,23 @@ async function main() {
       }
       break;
 
+    case "rollback004":
+      console.log("🔄 Rolling back migration: 004-payment-plans");
+      const rollbackResult004 = await rollbackMigration004();
+      console.log(`\n🎯 ${rollbackResult004.message}`);
+      if (rollbackResult004.details) {
+        console.log(
+          `📊 Details: ${rollbackResult004.details.deleted} deleted, ${rollbackResult004.details.errors.length} errors`
+        );
+        if (rollbackResult004.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult004.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "dry-run":
     case "test":
       console.log(
@@ -189,6 +227,17 @@ async function main() {
       }
       break;
 
+    case "dry-run004":
+      console.log("🔍 Running migration in DRY RUN mode: 004-payment-plans");
+      const dryRunResult004 = await runMigration004(true);
+      console.log(`\n🎯 ${dryRunResult004.message}`);
+      if (dryRunResult004.details) {
+        console.log(
+          `📊 Details: ${dryRunResult004.details.created} would be created, ${dryRunResult004.details.skipped} would be skipped`
+        );
+      }
+      break;
+
     case "help":
     case "--help":
     case "-h":
@@ -210,12 +259,15 @@ function showHelp() {
   run, 001           Run the migration to create initial tour packages
   002                Run the migration to create additional tour packages
   003                Run the migration to create final tour packages
+  004                Run the migration to create payment plans
   rollback, undo     Rollback the migration 001 (delete created tours)
   rollback002        Rollback the migration 002 (delete created tours)
   rollback003        Rollback the migration 003 (delete created tours)
+  rollback004        Rollback the migration 004 (delete created payment plans)
   dry-run, test     Test the migration 001 without making changes
   dry-run002        Test the migration 002 without making changes
   dry-run003        Test the migration 003 without making changes
+  dry-run004        Test the migration 004 without making changes
   help               Show this help message
 
 📝 Examples:
@@ -223,12 +275,15 @@ function showHelp() {
   tsx migrations/migrate.ts 001        # Run migration 001 (initial tours)
   tsx migrations/migrate.ts 002        # Run migration 002 (additional tours)
   tsx migrations/migrate.ts 003        # Run migration 003 (final tours)
+  tsx migrations/migrate.ts 004        # Run migration 004 (payment plans)
   tsx migrations/migrate.ts dry-run    # Test migration 001 without changes
   tsx migrations/migrate.ts dry-run002 # Test migration 002 without changes
   tsx migrations/migrate.ts dry-run003 # Test migration 003 without changes
+  tsx migrations/migrate.ts dry-run004 # Test migration 004 without changes
   tsx migrations/migrate.ts rollback   # Undo migration 001
   tsx migrations/migrate.ts rollback002 # Undo migration 002
   tsx migrations/migrate.ts rollback003 # Undo migration 003
+  tsx migrations/migrate.ts rollback004 # Undo migration 004
 
 🔧 Options:
 
@@ -253,6 +308,14 @@ function showHelp() {
   - India Holi Festival Tour (IHF)
   - Tanzania Exploration (TXP)
   - New Zealand Expedition (NZE)
+
+  Migration 004 - Payment Plans:
+  - Invalid Booking (0% deposit)
+  - Full Payment Required Within 2 Days (0% deposit)
+  - P1 - Single Instalment (0% deposit, 100% in 1 payment)
+  - P2 - Two Instalments (0% deposit, 50% × 2 payments)
+  - P3 - Three Instalments (0% deposit, 33.33% × 3 payments)
+  - P4 - Four Instalments (0% deposit, 25% × 4 payments)
 
   Each tour includes:
   - Complete itinerary with day-by-day activities
