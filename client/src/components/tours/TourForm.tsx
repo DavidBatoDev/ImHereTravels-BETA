@@ -240,6 +240,11 @@ export default function TourForm({
     name: "travelDates",
   });
 
+  // Helper function to handle null values in form fields
+  const handleNullValue = (value: string | null | undefined): string => {
+    return value === null || value === undefined ? "" : value;
+  };
+
   // Reset form when tour prop changes
   useEffect(() => {
     console.log("Form reset effect triggered, tour:", tour?.id || "new tour");
@@ -257,8 +262,14 @@ export default function TourForm({
         startDate: td.startDate?.toDate?.()?.toISOString()?.split("T")[0] || "",
         endDate: td.endDate?.toDate?.()?.toISOString()?.split("T")[0] || "",
         isAvailable: td.isAvailable,
-        maxCapacity: td.maxCapacity || 0,
-        currentBookings: td.currentBookings || 0,
+        maxCapacity:
+          td.maxCapacity === null || td.maxCapacity === undefined
+            ? 0
+            : td.maxCapacity,
+        currentBookings:
+          td.currentBookings === null || td.currentBookings === undefined
+            ? 0
+            : td.currentBookings,
       })) || [
         {
           startDate: "",
@@ -270,20 +281,52 @@ export default function TourForm({
       ];
 
       form.reset({
-        name: tour.name,
-        slug: tour.slug,
-        url: tour.url || "",
-        tourCode: tour.tourCode || "",
-        description: tour.description,
-        location: tour.location,
-        duration: tour.duration,
+        name: tour.name || "",
+        slug: tour.slug || "",
+        url: handleNullValue(tour.url),
+        tourCode: handleNullValue(tour.tourCode),
+        description: tour.description || "",
+        location: tour.location || "",
+        duration: tour.duration || 1,
         travelDates: travelDates,
-        pricing: tour.pricing,
-        details: tour.details,
-        status: tour.status,
-        brochureLink: tour.brochureLink || "",
-        stripePaymentLink: tour.stripePaymentLink || "",
-        preDeparturePack: tour.preDeparturePack || "",
+        pricing: tour.pricing
+          ? {
+              original: tour.pricing.original || 0,
+              discounted:
+                tour.pricing.discounted === null ||
+                tour.pricing.discounted === undefined
+                  ? 0
+                  : tour.pricing.discounted,
+              deposit: tour.pricing.deposit || 0,
+              currency: tour.pricing.currency || "USD",
+            }
+          : {
+              original: 0,
+              discounted: 0,
+              deposit: 0,
+              currency: "USD",
+            },
+        details: tour.details
+          ? {
+              highlights: tour.details.highlights?.filter(
+                (h) => h !== null
+              ) || [""],
+              itinerary: tour.details.itinerary?.filter((i) => i !== null) || [
+                { day: 1, title: "", description: "" },
+              ],
+              requirements: tour.details.requirements?.filter(
+                (r) => r !== null
+              ) || [""],
+            }
+          : {
+              highlights: [""],
+              itinerary: [{ day: 1, title: "", description: "" }],
+              requirements: [""],
+            },
+        status: tour.status || "draft",
+        brochureLink: handleNullValue(tour.brochureLink),
+        stripePaymentLink: handleNullValue(tour.stripePaymentLink),
+        preDeparturePack: handleNullValue(tour.preDeparturePack),
       });
 
       // Initialize uploaded images from existing tour

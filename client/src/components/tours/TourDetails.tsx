@@ -438,7 +438,7 @@ export default function TourDetails({
             )}
 
             {/* Pricing History */}
-            {tour.pricingHistory.length > 1 && (
+            {/* {tour.pricingHistory.length > 1 && (
               <Card>
                 <CardHeader>
                   <CardTitle>Pricing History</CardTitle>
@@ -471,7 +471,7 @@ export default function TourDetails({
                   </div>
                 </CardContent>
               </Card>
-            )}
+            )} */}
 
             {/* Metadata */}
             <Card>

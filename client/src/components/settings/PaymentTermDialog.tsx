@@ -395,7 +395,7 @@ export function PaymentTermDialog({
             {/* Basic Information Section */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <h3 className="text-base font-semibold">Basic Information</h3>
+                <h3 className="text-base font-semibold text-primary">Basic Information</h3>
                 <div className="flex-1 border-t border-gray-200"></div>
               </div>
 
@@ -474,7 +474,7 @@ export function PaymentTermDialog({
             {/* Payment Plan Type Selection */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <h3 className="text-base font-semibold">Payment Plan Type</h3>
+                <h3 className="text-base font-semibold text-primary">Payment Plan Type</h3>
                 <div className="flex-1 border-t border-gray-200"></div>
               </div>
 
@@ -582,7 +582,7 @@ export function PaymentTermDialog({
             {/* Payment Configuration Section */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <h3 className="text-base font-semibold">
+                <h3 className="text-base font-semibold text-primary">
                   Payment Configuration
                 </h3>
                 <div className="flex-1 border-t border-gray-200"></div>

@@ -25,6 +25,10 @@ import {
   runMigration as runMigration004,
   rollbackMigration as rollbackMigration004,
 } from "./004-payment-plans";
+import {
+  runMigration as runMigration005,
+  rollbackMigration as rollbackMigration005,
+} from "./005-currency-usd-to-eur";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -112,6 +116,23 @@ async function main() {
       }
       break;
 
+    case "005":
+      console.log("📊 Running migration: 005-currency-usd-to-eur");
+      const result005 = await runMigration005(dryRun);
+      console.log(`\n🎯 ${result005.message}`);
+      if (result005.details) {
+        console.log(
+          `📊 Details: ${result005.details.updated} updated, ${result005.details.skipped} skipped, ${result005.details.errors.length} errors`
+        );
+        if (result005.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result005.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "rollback":
     case "undo":
       console.log("🔄 Rolling back migration: 001-initial-tour-packages");
@@ -187,6 +208,23 @@ async function main() {
       }
       break;
 
+    case "rollback005":
+      console.log("🔄 Rolling back migration: 005-currency-usd-to-eur");
+      const rollbackResult005 = await rollbackMigration005();
+      console.log(`\n🎯 ${rollbackResult005.message}`);
+      if (rollbackResult005.details) {
+        console.log(
+          `📊 Details: ${rollbackResult005.details.reverted} reverted, ${rollbackResult005.details.errors.length} errors`
+        );
+        if (rollbackResult005.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult005.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "dry-run":
     case "test":
       console.log(
@@ -238,6 +276,19 @@ async function main() {
       }
       break;
 
+    case "dry-run005":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 005-currency-usd-to-eur"
+      );
+      const dryRunResult005 = await runMigration005(true);
+      console.log(`\n🎯 ${dryRunResult005.message}`);
+      if (dryRunResult005.details) {
+        console.log(
+          `📊 Details: ${dryRunResult005.details.updated} would be updated, ${dryRunResult005.details.skipped} would be skipped`
+        );
+      }
+      break;
+
     case "help":
     case "--help":
     case "-h":
@@ -260,14 +311,17 @@ function showHelp() {
   002                Run the migration to create additional tour packages
   003                Run the migration to create final tour packages
   004                Run the migration to create payment plans
+  005                Run the migration to create currency conversion rates (USD to EUR)
   rollback, undo     Rollback the migration 001 (delete created tours)
   rollback002        Rollback the migration 002 (delete created tours)
   rollback003        Rollback the migration 003 (delete created tours)
   rollback004        Rollback the migration 004 (delete created payment plans)
+  rollback005        Rollback the migration 005 (delete currency conversion rates)
   dry-run, test     Test the migration 001 without making changes
   dry-run002        Test the migration 002 without making changes
   dry-run003        Test the migration 003 without making changes
   dry-run004        Test the migration 004 without making changes
+  dry-run005        Test the migration 005 without making changes
   help               Show this help message
 
 📝 Examples:
@@ -276,14 +330,17 @@ function showHelp() {
   tsx migrations/migrate.ts 002        # Run migration 002 (additional tours)
   tsx migrations/migrate.ts 003        # Run migration 003 (final tours)
   tsx migrations/migrate.ts 004        # Run migration 004 (payment plans)
+  tsx migrations/migrate.ts 005        # Run migration 005 (currency conversion)
   tsx migrations/migrate.ts dry-run    # Test migration 001 without changes
   tsx migrations/migrate.ts dry-run002 # Test migration 002 without changes
   tsx migrations/migrate.ts dry-run003 # Test migration 003 without changes
   tsx migrations/migrate.ts dry-run004 # Test migration 004 without changes
+  tsx migrations/migrate.ts dry-run005 # Test migration 005 without changes
   tsx migrations/migrate.ts rollback   # Undo migration 001
   tsx migrations/migrate.ts rollback002 # Undo migration 002
   tsx migrations/migrate.ts rollback003 # Undo migration 003
   tsx migrations/migrate.ts rollback004 # Undo migration 004
+  tsx migrations/migrate.ts rollback005 # Undo migration 005
 
 🔧 Options:
 
@@ -316,6 +373,10 @@ function showHelp() {
   - P2 - Two Instalments (0% deposit, 50% × 2 payments)
   - P3 - Three Instalments (0% deposit, 33.33% × 3 payments)
   - P4 - Four Instalments (0% deposit, 25% × 4 payments)
+
+  Migration 005 - Currency Conversion:
+  - Converts all USD prices to EUR prices
+  - Updates all currency fields in the database
 
   Each tour includes:
   - Complete itinerary with day-by-day activities
