@@ -53,6 +53,11 @@ const navigation = [
     href: "/communications",
     icon: MessageSquare,
   },
+  {
+    name: "BBC Users",
+    href: "/bbc-users",
+    icon: User,
+  },
   { type: "separator" },
   {
     name: "Reports",
@@ -131,9 +136,14 @@ export default function DashboardSidebar({
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item, index) => {
               if (item.type === "separator") {
-                return <hr key={`separator-${index}`} className="my-3 border-gray-200" />;
+                return (
+                  <hr
+                    key={`separator-${index}`}
+                    className="my-3 border-gray-200"
+                  />
+                );
               }
-              
+
               const isActive = pathname === item.href;
               return (
                 <Link
@@ -221,9 +231,14 @@ export default function DashboardSidebar({
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item, index) => {
               if (item.type === "separator") {
-                return <hr key={`desktop-separator-${index}`} className="my-3 border-gray-200" />;
+                return (
+                  <hr
+                    key={`desktop-separator-${index}`}
+                    className="my-3 border-gray-200"
+                  />
+                );
               }
-              
+
               const isActive = pathname === item.href;
               return (
                 <Link
