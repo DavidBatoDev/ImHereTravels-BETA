@@ -222,11 +222,10 @@ export async function getTours(
       q = query(q, where("pricing.original", "<=", filters.priceRange.max));
     }
 
-    // Temporarily comment out sorting to see if that's the issue
     // Apply sorting
-    // console.log("Applying sort:", sortBy, sortOrder);
-    // const sortField = sortBy === "createdAt" ? "metadata.createdAt" : sortBy;
-    // q = query(q, orderBy(sortField, sortOrder));
+    console.log("Applying sort:", sortBy, sortOrder);
+    const sortField = sortBy === "createdAt" ? "metadata.createdAt" : sortBy;
+    q = query(q, orderBy(sortField, sortOrder));
 
     // Apply pagination
     q = query(q, limit(pageLimit));

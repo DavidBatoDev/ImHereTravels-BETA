@@ -52,7 +52,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TourPackage, TourPackageFormData, TourFilters } from "@/types/tours";
+import {
+  TourPackage,
+  TourFormDataWithStringDates,
+  TourFilters,
+} from "@/types/tours";
 import {
   getTours,
   createTour,
@@ -96,8 +100,18 @@ export default function ToursList() {
         filters.search = searchTerm;
       }
 
-      const { tours: fetchedTours } = await getTours(filters);
+      const { tours: fetchedTours } = await getTours(
+        filters,
+        "createdAt",
+        "desc",
+        50
+      );
       console.log("Fetched tours:", fetchedTours);
+      console.log("Total tours fetched:", fetchedTours.length);
+      console.log(
+        "Tour codes:",
+        fetchedTours.map((t) => t.tourCode)
+      );
       setTours(fetchedTours);
     } catch (error) {
       console.error("Error loading tours:", error);
@@ -116,7 +130,7 @@ export default function ToursList() {
   }, [searchTerm, statusFilter]);
 
   // Create tour
-  const handleCreateTour = async (data: TourPackageFormData) => {
+  const handleCreateTour = async (data: TourFormDataWithStringDates) => {
     try {
       setIsSubmitting(true);
 
@@ -145,7 +159,7 @@ export default function ToursList() {
   };
 
   // Update tour
-  const handleUpdateTour = async (data: TourPackageFormData) => {
+  const handleUpdateTour = async (data: TourFormDataWithStringDates) => {
     if (!selectedTour) return;
 
     try {
@@ -222,7 +236,7 @@ export default function ToursList() {
   };
 
   // Handle form submission
-  const handleFormSubmit = async (data: TourPackageFormData) => {
+  const handleFormSubmit = async (data: TourFormDataWithStringDates) => {
     if (selectedTour) {
       await handleUpdateTour(data);
     } else {
