@@ -1101,13 +1101,20 @@ export class EmailTemplateService {
   static extractTemplateVariables(template: string): string[] {
     const variables = new Set<string>();
 
+    // JavaScript keywords and common loop counters to exclude
+    const excludedKeywords = [
+      "true", "false", "null", "undefined", "let", "const", "var",
+      "i", "j", "k", "index", "idx", "counter", "count", "n", "num",
+      "length", "item", "element", "key", "value", "prop", "property"
+    ];
+
     // Extract variables from <?= variable ?> syntax
     const variableRegex = /<\?\s*=\s*([^?]+)\s*\?>/g;
     let match;
     while ((match = variableRegex.exec(template)) !== null) {
       const varName = match[1].trim();
       // Handle simple variable names (not complex expressions)
-      if (/^\w+$/.test(varName)) {
+      if (/^\w+$/.test(varName) && !excludedKeywords.includes(varName)) {
         variables.add(varName);
       }
     }

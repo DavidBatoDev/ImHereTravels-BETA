@@ -470,13 +470,40 @@ export default function TemplateDialog({
   const extractAllTemplateVariables = (content: string) => {
     const variables = new Set<string>();
 
+    // JavaScript keywords and common loop counters to exclude
+    const excludedKeywords = [
+      "true",
+      "false",
+      "null",
+      "undefined",
+      "let",
+      "const",
+      "var",
+      "i",
+      "j",
+      "k",
+      "index",
+      "idx",
+      "counter",
+      "count",
+      "n",
+      "num",
+      "length",
+      "item",
+      "element",
+      "key",
+      "value",
+      "prop",
+      "property",
+    ];
+
     // Extract from <?= variable ?> syntax
     const variableRegex = /<\?\s*=\s*([^?]+)\s*\?>/g;
     let match;
     while ((match = variableRegex.exec(content)) !== null) {
       const varName = match[1].trim();
       // Handle simple variable names (not complex expressions)
-      if (/^\w+$/.test(varName)) {
+      if (/^\w+$/.test(varName) && !excludedKeywords.includes(varName)) {
         variables.add(varName);
       }
     }
@@ -489,11 +516,18 @@ export default function TemplateDialog({
       const varMatches = condition.match(/\b\w+\b/g);
       if (varMatches) {
         varMatches.forEach((varName) => {
-          if (!["true", "false", "null", "undefined"].includes(varName)) {
+          if (!excludedKeywords.includes(varName)) {
             variables.add(varName);
           }
         });
       }
+    }
+
+    // Extract from for loops <? for (let i = 0; i < array.length; i++) { ?>
+    const forLoopRegex = /<\?\s*for\s*\([^)]*\)\s*\{/g;
+    while ((match = forLoopRegex.exec(content)) !== null) {
+      // Don't extract loop counters from for loops
+      // They are automatically handled by the template processing
     }
 
     return Array.from(variables);
@@ -1017,8 +1051,91 @@ export default function TemplateDialog({
   // Function to extract all variable references from template content
   const extractVariableReferences = (content: string): string[] => {
     const references = new Set<string>();
+    let currentLoopVariable: string | null = null;
 
-    // Extract variables from <?= variable ?> tags
+    // First pass: identify loop variables and their scope
+    const loopMatches = content.match(/<\?\s*for\s*\([^)]+\)\s*\{\s*\?>/g);
+    if (loopMatches) {
+      loopMatches.forEach((match) => {
+        const loopMatch = match.match(/<\?\s*for\s*\(([^)]+)\)\s*\{\s*\?>/);
+        if (loopMatch && loopMatch[1]) {
+          const loopExpression = loopMatch[1].trim();
+
+          // Skip generic instructional examples
+          if (
+            loopExpression.includes("loop") &&
+            (loopExpression.includes("{") || loopExpression === "loop")
+          ) {
+            return;
+          }
+
+          // Extract loop variable declaration (e.g., "let i = 0" -> "i")
+          const loopVarMatch = loopExpression.match(
+            /^(?:let|const|var)\s+([a-zA-Z_][a-zA-Z0-9_]*)/
+          );
+          const loopVarName = loopVarMatch ? loopVarMatch[1] : null;
+
+          if (loopVarName) {
+            // Skip common loop variables
+            if (
+              ![
+                "i",
+                "j",
+                "k",
+                "index",
+                "idx",
+                "counter",
+                "count",
+                "n",
+                "num",
+              ].includes(loopVarName)
+            ) {
+              references.add(loopVarName);
+            } else {
+              currentLoopVariable = loopVarName; // Track the current loop variable
+            }
+          }
+
+          // Extract other variables from the loop expression, excluding loop variables
+          const variables = loopExpression.match(
+            /\b[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*/g
+          );
+          if (variables) {
+            variables.forEach((variable) => {
+              // Skip loop variables, keywords, and common loop patterns
+              if (
+                variable &&
+                variable !== loopVarName && // Skip the actual loop variable
+                ![
+                  "let",
+                  "const",
+                  "var",
+                  "i",
+                  "j",
+                  "k",
+                  "index",
+                  "idx",
+                  "counter",
+                  "count",
+                  "n",
+                  "num",
+                  "item",
+                  "of",
+                  "in",
+                  "length",
+                  "loop", // Skip the instructional example
+                ].includes(variable)
+              ) {
+                const rootVar = variable.split(".")[0];
+                references.add(rootVar);
+              }
+            });
+          }
+        }
+      });
+    }
+
+    // Extract variables from <?= variable ?> tags, but be smarter about loop context
     const outputMatches = content.match(/<\?\s*=\s*([^?]+)\s*\?>/g);
     if (outputMatches) {
       outputMatches.forEach((match) => {
@@ -1044,6 +1161,29 @@ export default function TemplateDialog({
               if (variable) {
                 // Get the root variable name (before any dot notation)
                 const rootVar = variable.split(".")[0];
+
+                // Skip if this is a loop variable (like 'i' in 'terms[i]')
+                if (currentLoopVariable && rootVar === currentLoopVariable) {
+                  return;
+                }
+
+                // Skip common loop variables in any context
+                if (
+                  [
+                    "i",
+                    "j",
+                    "k",
+                    "index",
+                    "idx",
+                    "counter",
+                    "count",
+                    "n",
+                    "num",
+                  ].includes(rootVar)
+                ) {
+                  return;
+                }
+
                 references.add(rootVar);
               }
             });
@@ -1052,7 +1192,7 @@ export default function TemplateDialog({
       });
     }
 
-    // Extract variables from conditional statements
+    // Extract variables from conditional statements with structural analysis
     const conditionalMatches = content.match(
       /<\?\s*if\s*\([^)]+\)\s*\{\s*\?>/g
     );
@@ -1071,14 +1211,25 @@ export default function TemplateDialog({
             return;
           }
 
-          const variables = condition.match(
-            /\b[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*/g
-          );
-          if (variables) {
-            variables.forEach((variable) => {
-              // Skip JavaScript keywords, operators, and string literal content
+          // Split by logical operators to analyze each comparison separately
+          const comparisons = condition.split(/\s+(?:&&|\|\|)\s+/);
+
+          comparisons.forEach((comparison) => {
+            const trimmedComparison = comparison.trim();
+
+            // Look for patterns like: variable === "string" or variable !== "string"
+            const comparisonMatch = trimmedComparison.match(
+              /^([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*(===|!==|==|!=)\s*["'][^"']*["']$/
+            );
+
+            if (comparisonMatch) {
+              // Valid comparison pattern found - only add the variable part, not the string literal
+              const variable = comparisonMatch[1];
+              const rootVar = variable.split(".")[0];
+
+              // Skip JavaScript keywords and common loop variables
               if (
-                variable &&
+                rootVar &&
                 ![
                   "true",
                   "false",
@@ -1091,68 +1242,85 @@ export default function TemplateDialog({
                   "else",
                   "for",
                   "while",
-                  // Skip common string literal values that might be extracted
-                  "Stripe",
-                  "Bank",
-                  "PayPal",
-                  "Cash",
-                  "Credit",
-                  "Debit",
-                ].includes(variable)
-              ) {
-                const rootVar = variable.split(".")[0];
-                references.add(rootVar);
-              }
-            });
-          }
-        }
-      });
-    }
-
-    // Extract variables from for loops
-    const loopMatches = content.match(/<\?\s*for\s*\([^)]+\)\s*\{\s*\?>/g);
-    if (loopMatches) {
-      loopMatches.forEach((match) => {
-        const loopMatch = match.match(/<\?\s*for\s*\(([^)]+)\)\s*\{\s*\?>/);
-        if (loopMatch && loopMatch[1]) {
-          const loopExpression = loopMatch[1].trim();
-
-          // Skip generic instructional examples
-          if (
-            loopExpression.includes("loop") &&
-            (loopExpression.includes("{") || loopExpression === "loop")
-          ) {
-            return;
-          }
-
-          const variables = loopExpression.match(
-            /\b[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*/g
-          );
-          if (variables) {
-            variables.forEach((variable) => {
-              // Skip loop variables and keywords
-              if (
-                variable &&
-                ![
-                  "let",
-                  "const",
-                  "var",
                   "i",
                   "j",
                   "k",
                   "index",
+                  "idx",
+                  "counter",
+                  "count",
+                  "n",
+                  "num",
+                  "length",
                   "item",
+                  "element",
+                  "key",
+                  "value",
+                  "prop",
+                  "property",
                   "of",
                   "in",
-                  "length",
-                  "loop", // Skip the instructional example
-                ].includes(variable)
+                  "loop",
+                ].includes(rootVar)
               ) {
-                const rootVar = variable.split(".")[0];
                 references.add(rootVar);
               }
-            });
-          }
+            } else {
+              // For more complex conditions, extract variables more carefully
+              // Remove string literals first to avoid false positives
+              let cleanComparison = trimmedComparison;
+              cleanComparison = cleanComparison.replace(/"[^"]*"/g, "");
+              cleanComparison = cleanComparison.replace(/'[^']*'/g, "");
+
+              const variables = cleanComparison.match(
+                /\b[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*/g
+              );
+              if (variables) {
+                variables.forEach((variable) => {
+                  const rootVar = variable.split(".")[0];
+
+                  // Skip JavaScript keywords, operators, and common loop variables
+                  if (
+                    rootVar &&
+                    ![
+                      "true",
+                      "false",
+                      "null",
+                      "undefined",
+                      "let",
+                      "const",
+                      "var",
+                      "if",
+                      "else",
+                      "for",
+                      "while",
+                      "i",
+                      "j",
+                      "k",
+                      "index",
+                      "idx",
+                      "counter",
+                      "count",
+                      "n",
+                      "num",
+                      "length",
+                      "item",
+                      "element",
+                      "key",
+                      "value",
+                      "prop",
+                      "property",
+                      "of",
+                      "in",
+                      "loop",
+                    ].includes(rootVar)
+                  ) {
+                    references.add(rootVar);
+                  }
+                });
+              }
+            }
+          });
         }
       });
     }

@@ -37,6 +37,10 @@ import {
   runMigration008,
   rollbackMigration008,
 } from "./008-cancellation-email-template";
+import {
+  runMigration as runMigration009,
+  rollbackMigration as rollbackMigration009,
+} from "./009-initial-payment-reminder-template";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -175,6 +179,25 @@ async function main() {
       }
       break;
 
+    case "009":
+      console.log(
+        "📊 Running migration: 009-initial-payment-reminder-template"
+      );
+      const result009 = await runMigration009(dryRun);
+      console.log(`\n🎯 ${result009.message}`);
+      if (result009.details) {
+        console.log(
+          `📊 Details: ${result009.details.created} created, ${result009.details.skipped} skipped, ${result009.details.errors.length} errors`
+        );
+        if (result009.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result009.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "rollback":
     case "undo":
       console.log("🔄 Rolling back migration: 001-initial-tour-packages");
@@ -301,6 +324,25 @@ async function main() {
       }
       break;
 
+    case "rollback009":
+      console.log(
+        "🔄 Rolling back migration: 009-initial-payment-reminder-template"
+      );
+      const rollbackResult009 = await rollbackMigration009();
+      console.log(`\n🎯 ${rollbackResult009.message}`);
+      if (rollbackResult009.details) {
+        console.log(
+          `📊 Details: ${rollbackResult009.details.deleted} deleted, ${rollbackResult009.details.errors.length} errors`
+        );
+        if (rollbackResult009.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult009.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "dry-run":
     case "test":
       console.log(
@@ -391,6 +433,19 @@ async function main() {
       }
       break;
 
+    case "dry-run009":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 009-initial-payment-reminder-template"
+      );
+      const dryRunResult009 = await runMigration009(true);
+      console.log(`\n🎯 ${dryRunResult009.message}`);
+      if (dryRunResult009.details) {
+        console.log(
+          `📊 Details: ${dryRunResult009.details.created} would be created, ${dryRunResult009.details.skipped} would be skipped`
+        );
+      }
+      break;
+
     case "help":
     case "--help":
     case "-h":
@@ -416,6 +471,7 @@ function showHelp() {
   005                Run the migration to create currency conversion rates (USD to EUR)
   006                Run the migration to create conditional email templates
   008                Run the migration to create cancellation email templates
+  009                Run the migration to create initial payment reminder template
   rollback, undo     Rollback the migration 001 (delete created tours)
   rollback002        Rollback the migration 002 (delete created tours)
   rollback003        Rollback the migration 003 (delete created tours)
@@ -423,6 +479,7 @@ function showHelp() {
   rollback005        Rollback the migration 005 (delete currency conversion rates)
   rollback006        Rollback the migration 006 (delete conditional email templates)
   rollback008        Rollback the migration 008 (delete cancellation email template)
+  rollback009        Rollback the migration 009 (delete initial payment reminder template)
   dry-run, test     Test the migration 001 without making changes
   dry-run002        Test the migration 002 without making changes
   dry-run003        Test the migration 003 without making changes
@@ -430,6 +487,7 @@ function showHelp() {
   dry-run005        Test the migration 005 without making changes
   dry-run006        Test the migration 006 without making changes
   dry-run008        Test the migration 008 without making changes
+  dry-run009        Test the migration 009 without making changes
   help               Show this help message
 
 📝 Examples:
@@ -441,6 +499,7 @@ function showHelp() {
   tsx migrations/migrate.ts 005        # Run migration 005 (currency conversion)
   tsx migrations/migrate.ts 006        # Run migration 006 (conditional email templates)
   tsx migrations/migrate.ts 008        # Run migration 008 (cancellation email templates)
+  tsx migrations/migrate.ts 009        # Run migration 009 (initial payment reminder template)
   tsx migrations/migrate.ts dry-run    # Test migration 001 without changes
   tsx migrations/migrate.ts dry-run002 # Test migration 002 without changes
   tsx migrations/migrate.ts dry-run003 # Test migration 003 without changes
@@ -455,6 +514,7 @@ function showHelp() {
   tsx migrations/migrate.ts rollback005 # Undo migration 005
   tsx migrations/migrate.ts rollback006 # Undo migration 006
   tsx migrations/migrate.ts rollback008 # Undo migration 008
+  tsx migrations/migrate.ts rollback009 # Undo migration 009
 
 🔧 Options:
 
@@ -503,6 +563,13 @@ function showHelp() {
   - Supports different booking statuses (Cancelled, Refunded, etc.)
   - Dynamic content based on booking details
   - Uses custom conditional syntax: <? if (condition) { ?> content <? } ?>
+
+  Migration 009 - Initial Payment Reminder Template:
+  - Adds a comprehensive payment reminder email template
+  - Supports different payment methods (Stripe, Revolut, Ulster)
+  - Dynamic payment tracker table with array-based data
+  - Uses Google Apps Script-like syntax: <?= variable ?> and <? logic ?>
+  - Includes calendar integration and payment tracking
 
   Each tour includes:
   - Complete itinerary with day-by-day activities
