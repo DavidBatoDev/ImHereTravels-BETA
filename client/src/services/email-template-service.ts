@@ -32,7 +32,6 @@ import {
 const COLLECTION_NAME = "emailTemplates";
 
 export interface CreateTemplateData {
-  type: TemplateType;
   name: string;
   subject: string;
   content: string;
@@ -46,7 +45,6 @@ export interface UpdateTemplateData extends Partial<CreateTemplateData> {
 }
 
 export interface TemplateFilters {
-  type?: TemplateType;
   status?: TemplateStatus;
   search?: string;
   createdBy?: string;
@@ -155,9 +153,6 @@ export class EmailTemplateService {
 
       // Apply filters
       if (options.filters) {
-        if (options.filters.type) {
-          q = query(q, where("type", "==", options.filters.type));
-        }
         if (options.filters.status) {
           q = query(q, where("status", "==", options.filters.status));
         }
@@ -291,7 +286,6 @@ export class EmailTemplateService {
       }
 
       const duplicateData: CreateTemplateData = {
-        type: originalTemplate.type,
         name: `${originalTemplate.name} (Copy)`,
         subject: originalTemplate.subject,
         content: originalTemplate.content,
@@ -412,9 +406,6 @@ export class EmailTemplateService {
       let mostUsedTemplate: string | null = null;
 
       templates.forEach((template) => {
-        // Count by type
-        stats.byType[template.type]++;
-
         // Count by status
         stats.byStatus[template.status]++;
 
@@ -474,9 +465,7 @@ export class EmailTemplateService {
     if (!data.content?.trim()) {
       errors.push("Template content is required");
     }
-    if (!data.type) {
-      errors.push("Template type is required");
-    }
+
     if (!data.status) {
       errors.push("Template status is required");
     }
@@ -557,10 +546,6 @@ export class EmailTemplateService {
 
     if (updateData.content !== undefined && !updateData.content?.trim()) {
       errors.push("Template content is required");
-    }
-
-    if (updateData.type !== undefined && !updateData.type) {
-      errors.push("Template type is required");
     }
 
     if (updateData.status !== undefined && !updateData.status) {
@@ -682,9 +667,6 @@ export class EmailTemplateService {
 
       // Apply filters
       if (options.filters) {
-        if (options.filters.type) {
-          q = query(q, where("type", "==", options.filters.type));
-        }
         if (options.filters.status) {
           q = query(q, where("status", "==", options.filters.status));
         }
@@ -712,7 +694,6 @@ export class EmailTemplateService {
           const data = doc.data();
           const template: CommunicationTemplate = {
             id: doc.id,
-            type: data.type,
             name: data.name,
             subject: data.subject,
             content: data.content,

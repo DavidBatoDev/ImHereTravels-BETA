@@ -33,17 +33,10 @@ declare global {
 }
 
 // Types
-type TemplateType =
-  | "reservation"
-  | "payment-reminder"
-  | "cancellation"
-  | "adventure-kit";
-
 type TemplateStatus = "active" | "draft" | "archived";
 
 interface CommunicationTemplate {
   id: string;
-  type: TemplateType;
   name: string;
   subject: string;
   content: string;
@@ -64,27 +57,12 @@ interface TemplateDialogProps {
   isLoading?: boolean;
 }
 
-// Template types and data
-const templateTypes = [
-  { value: "reservation", label: "Reservation Confirmation" },
-  { value: "payment-reminder", label: "Payment Reminder" },
-  { value: "cancellation", label: "Cancellation Notice" },
-  { value: "adventure-kit", label: "Adventure Kit" },
-];
-
+// Template statuses
 const templateStatuses = [
   { value: "active", label: "Active" },
   { value: "draft", label: "Draft" },
   { value: "archived", label: "Archived" },
 ];
-
-// Pre-designed email templates
-const emailTemplates = {
-  reservation: `<!DOCTYPE html><html><head><style>body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;margin:0;padding:0;background-color:#f4f4f4}.container{max-width:600px;margin:0 auto;background-color:#ffffff}.header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:40px;text-align:center}.header h1{color:#ffffff;margin:0;font-size:28px}.content{padding:40px}.button{display:inline-block;padding:14px 30px;background-color:#667eea;color:#ffffff;text-decoration:none;border-radius:5px;margin:20px 0}.footer{background-color:#f8f9fa;padding:20px;text-align:center;color:#6c757d;font-size:14px}.highlight-box{background-color:#f8f9fa;border-left:4px solid #667eea;padding:15px;margin:20px 0}</style></head><body><div class="container"><div class="header"><h1>🎉 Booking Confirmed!</h1></div><div class="content"><h2>Hello {{traveler_name}},</h2><p>Great news! Your booking for <strong>{{tour_name}}</strong> has been confirmed.</p><div class="highlight-box"><h3>Booking Details:</h3><p><strong>Tour:</strong> {{tour_name}}</p><p><strong>Date:</strong> {{tour_date}}</p><p><strong>Duration:</strong> {{duration}} days</p><p><strong>Booking ID:</strong> {{booking_id}}</p></div><p>We're excited to have you join us on this amazing adventure!</p><center><a href="{{booking_link}}" class="button">View Your Booking</a></center><p>If you have any questions, feel free to reach out to our team.</p><p>Best regards,<br>The ImHereTravels Team</p></div><div class="footer"><p>© 2024 ImHereTravels | All rights reserved</p><p>You're receiving this email because you made a booking with ImHereTravels.</p></div></div></body></html>`,
-  "payment-reminder": `<!DOCTYPE html><html><head><style>body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;margin:0;padding:0;background-color:#f4f4f4}.container{max-width:600px;margin:0 auto;background-color:#ffffff}.header{background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);padding:40px;text-align:center}.header h1{color:#ffffff;margin:0;font-size:28px}.content{padding:40px}.amount-box{background-color:#fff3cd;border:2px solid #ffc107;border-radius:8px;padding:20px;margin:20px 0;text-align:center}.amount{font-size:36px;color:#856404;font-weight:bold}.button{display:inline-block;padding:14px 30px;background-color:#ffc107;color:#212529;text-decoration:none;border-radius:5px;margin:20px 0;font-weight:bold}.footer{background-color:#f8f9fa;padding:20px;text-align:center;color:#6c757d;font-size:14px}</style></head><body><div class="container"><div class="header"><h1>⏰ Payment Reminder</h1></div><div class="content"><h2>Hello {{traveler_name}},</h2><p>This is a friendly reminder about your upcoming payment for your tour booking.</p><div class="amount-box"><p style="margin:0;color:#856404;">Amount Due:</p><div class="amount">\${{amount_due}}</div><p style="margin:10px 0 0 0;color:#856404;">Due Date: {{due_date}}</p></div><p><strong>Tour Details:</strong></p><ul><li>Tour: {{tour_name}}</li><li>Departure: {{tour_date}}</li><li>Booking ID: {{booking_id}}</li></ul><center><a href="{{payment_link}}" class="button">Make Payment</a></center><p>Thank you for choosing ImHereTravels!</p></div><div class="footer"><p>© 2024 ImHereTravels | All rights reserved</p></div></div></body></html>`,
-  cancellation: `<!DOCTYPE html><html><head><style>body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;margin:0;padding:0;background-color:#f4f4f4}.container{max-width:600px;margin:0 auto;background-color:#ffffff}.header{background:linear-gradient(135deg,#fa709a 0%,#fee140 100%);padding:40px;text-align:center}.header h1{color:#ffffff;margin:0;font-size:28px}.content{padding:40px}.alert-box{background-color:#f8d7da;border:1px solid #f5c6cb;border-radius:8px;padding:20px;margin:20px 0}.button{display:inline-block;padding:14px 30px;background-color:#dc3545;color:#ffffff;text-decoration:none;border-radius:5px;margin:20px 0}.footer{background-color:#f8f9fa;padding:20px;text-align:center;color:#6c757d;font-size:14px}</style></head><body><div class="container"><div class="header"><h1>Booking Cancellation</h1></div><div class="content"><h2>Hello {{traveler_name}},</h2><div class="alert-box"><p><strong>Your booking has been cancelled.</strong></p><p>Booking ID: {{booking_id}}</p><p>Reason: {{cancellation_reason}}</p></div><p>We're sorry to see you go. If you have any questions about your cancellation or would like to book another tour, please don't hesitate to contact us.</p><p><strong>Refund Information:</strong></p><p>{{refund_details}}</p><center><a href="{{contact_link}}" class="button">Contact Support</a></center><p>We hope to see you on another adventure soon!</p><p>Best regards,<br>The ImHereTravels Team</p></div><div class="footer"><p>© 2024 ImHereTravels | All rights reserved</p></div></div></body></html>`,
-  "adventure-kit": `<!DOCTYPE html><html><head><style>body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;margin:0;padding:0;background-color:#f4f4f4}.container{max-width:600px;margin:0 auto;background-color:#ffffff}.header{background:linear-gradient(135deg,#00c9ff 0%,#92fe9d 100%);padding:40px;text-align:center}.header h1{color:#ffffff;margin:0;font-size:28px;text-shadow:2px 2px 4px rgba(0,0,0,0.1)}.content{padding:40px}.kit-item{background-color:#e7f5ff;border-left:4px solid #339af0;padding:15px;margin:15px 0;border-radius:5px}.button{display:inline-block;padding:14px 30px;background:linear-gradient(135deg,#00c9ff 0%,#92fe9d 100%);color:#ffffff;text-decoration:none;border-radius:5px;margin:20px 0;font-weight:bold}.footer{background-color:#f8f9fa;padding:20px;text-align:center;color:#6c757d;font-size:14px}</style></head><body><div class="container"><div class="header"><h1>🎒 Your Adventure Kit is Ready!</h1></div><div class="content"><h2>Hello {{traveler_name}},</h2><p>Your adventure is just around the corner! We've prepared your digital adventure kit with everything you need for your upcoming tour.</p><h3>📦 What's in Your Kit:</h3><div class="kit-item"><strong>📍 Detailed Itinerary</strong><p>Day-by-day breakdown of your adventure</p></div><div class="kit-item"><strong>📋 Packing List</strong><p>Everything you need to bring for your tour</p></div><div class="kit-item"><strong>🗺️ Maps & Guides</strong><p>Local maps and insider tips</p></div><div class="kit-item"><strong>📱 Emergency Contacts</strong><p>Important numbers and local contacts</p></div><center><a href="{{kit_download_link}}" class="button">Download Your Adventure Kit</a></center><p><strong>Tour Details:</strong></p><ul><li>Tour: {{tour_name}}</li><li>Start Date: {{tour_date}}</li><li>Meeting Point: {{meeting_point}}</li><li>Guide: {{guide_name}}</li></ul><p>Get ready for an unforgettable experience!</p><p>Happy travels,<br>The ImHereTravels Team</p></div><div class="footer"><p>© 2024 ImHereTravels | All rights reserved</p><p>Follow us on social media for travel inspiration!</p></div></div></body></html>`,
-};
 
 // Monaco Editor Component
 function MonacoEditor({
@@ -263,7 +241,6 @@ export default function TemplateDialog({
 }: TemplateDialogProps) {
   const [formData, setFormData] = useState({
     name: "",
-    type: "reservation" as TemplateType,
     subject: "",
     content: "",
     status: "draft" as TemplateStatus,
@@ -288,7 +265,6 @@ export default function TemplateDialog({
       // This is an existing template (Firestore ID is 20 characters)
       const newFormData = {
         name: template.name,
-        type: template.type as TemplateType,
         subject: template.subject,
         content: template.content,
         status: template.status as TemplateStatus,
@@ -299,17 +275,54 @@ export default function TemplateDialog({
       setHtmlContent(template.content);
     } else {
       // This is a new template or no template
+      const simpleEmailTemplate = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Template</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; color: #333;">Your Email Title</h1>
+    </div>
+    
+    <div style="background-color: #ffffff; padding: 20px; border: 1px solid #dee2e6;">
+        <h2 style="color: #333; margin-top: 0;">Hello {{customer_name}},</h2>
+        
+        <p>This is your email content. You can customize this template by:</p>
+        
+        <ul>
+            <li>Editing the HTML structure</li>
+            <li>Adding your own styling</li>
+            <li>Including dynamic variables like {{variable_name}}</li>
+            <li>Adding images and links</li>
+        </ul>
+        
+        <p>Feel free to modify this template to match your needs!</p>
+        
+        <center>
+            <a href="#" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0;">Call to Action</a>
+        </center>
+    </div>
+    
+    <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; font-size: 14px; color: #6c757d;">
+        <p style="margin: 0 0 10px 0;">© 2024 ImHereTravels | All rights reserved</p>
+        <p style="margin: 0;">You can customize this footer with your company information.</p>
+    </div>
+</body>
+</html>`;
+
       const newFormData = {
         name: "",
-        type: "reservation" as TemplateType,
         subject: "",
-        content: emailTemplates.reservation,
+        content: simpleEmailTemplate,
         status: "draft" as TemplateStatus,
-        variables: extractVariables(emailTemplates.reservation),
+        variables: extractVariables(simpleEmailTemplate),
       };
       console.log("Setting form data for new template:", newFormData);
       setFormData(newFormData);
-      setHtmlContent(emailTemplates.reservation);
+      setHtmlContent(simpleEmailTemplate);
 
       // Also set the subject to match the template type
       setTimeout(() => {
@@ -442,14 +455,12 @@ export default function TemplateDialog({
 
     // Debug logging
     console.log("Form data:", formData);
-    console.log("Form data type:", formData.type);
     console.log("Original template:", template);
     console.log("Original template ID:", template?.id);
     console.log("Original template ID length:", template?.id?.length);
 
     const templateData: CommunicationTemplate = {
       id: template?.id || "", // Don't assign temporary ID for new templates
-      type: formData.type,
       name: formData.name,
       subject: formData.subject,
       content: htmlContent,
@@ -487,16 +498,6 @@ export default function TemplateDialog({
     const regex = /\{\{(\w+)\}\}/g;
     const matches = [...content.matchAll(regex)];
     return [...new Set(matches.map((match) => "{{" + match[1] + "}}"))];
-  };
-
-  const handleTemplateTypeChange = (type: TemplateType) => {
-    setFormData((prev) => ({
-      ...prev,
-      type,
-      content: emailTemplates[type],
-      variables: extractVariables(emailTemplates[type]),
-    }));
-    setHtmlContent(emailTemplates[type]);
   };
 
   const handleBeautifyCode = () => {
@@ -1018,30 +1019,6 @@ export default function TemplateDialog({
                       placeholder="Template name"
                       className="mt-1 h-8 text-xs"
                     />
-                  </div>
-
-                  <div>
-                    <Label
-                      htmlFor="template-type"
-                      className="text-xs font-medium"
-                    >
-                      Template Type
-                    </Label>
-                    <Select
-                      value={formData.type}
-                      onValueChange={handleTemplateTypeChange}
-                    >
-                      <SelectTrigger className="mt-1 h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {templateTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
 
                   <div>

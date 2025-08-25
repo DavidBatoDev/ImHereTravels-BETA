@@ -6,7 +6,6 @@ import { Timestamp } from "firebase/firestore";
 
 export interface CommunicationTemplate {
   id: string; // Auto-generated Firestore ID
-  type: "reservation" | "payment-reminder" | "cancellation" | "adventure-kit";
   name: string;
   subject: string;
   content: string; // HTML content

@@ -75,41 +75,8 @@ interface CommunicationTemplate extends Omit<FirestoreTemplate, "metadata"> {
   };
 }
 
-// Template types
-type TemplateType =
-  | "reservation"
-  | "payment-reminder"
-  | "cancellation"
-  | "adventure-kit";
+// Template status
 type TemplateStatus = "active" | "draft" | "archived";
-
-// Template types
-const templateTypes = [
-  {
-    value: "reservation",
-    label: "Reservation Confirmation",
-    icon: CheckCircle,
-    color: "bg-green-500",
-  },
-  {
-    value: "payment-reminder",
-    label: "Payment Reminder",
-    icon: Clock,
-    color: "bg-yellow-500",
-  },
-  {
-    value: "cancellation",
-    label: "Cancellation Notice",
-    icon: AlertCircle,
-    color: "bg-red-500",
-  },
-  {
-    value: "adventure-kit",
-    label: "Adventure Kit",
-    icon: Sparkles,
-    color: "bg-purple-500",
-  },
-];
 
 const templateStatuses = [
   { value: "active", label: "Active", color: "bg-green-100 text-green-800" },
@@ -503,49 +470,10 @@ const emailTemplates = {
 </html>`,
 };
 
-// Available variables for templates
-const templateVariables = {
-  reservation: [
-    "{{traveler_name}}",
-    "{{tour_name}}",
-    "{{tour_date}}",
-    "{{duration}}",
-    "{{booking_id}}",
-    "{{booking_link}}",
-    "{{amount}}",
-  ],
-  "payment-reminder": [
-    "{{traveler_name}}",
-    "{{tour_name}}",
-    "{{tour_date}}",
-    "{{booking_id}}",
-    "{{amount_due}}",
-    "{{due_date}}",
-    "{{payment_link}}",
-  ],
-  cancellation: [
-    "{{traveler_name}}",
-    "{{booking_id}}",
-    "{{tour_name}}",
-    "{{cancellation_reason}}",
-    "{{refund_details}}",
-    "{{contact_link}}",
-  ],
-  "adventure-kit": [
-    "{{traveler_name}}",
-    "{{tour_name}}",
-    "{{tour_date}}",
-    "{{meeting_point}}",
-    "{{guide_name}}",
-    "{{kit_download_link}}",
-  ],
-};
-
 export default function CommunicationsCenter() {
   const { user } = useAuthStore();
   const [templates, setTemplates] = useState<CommunicationTemplate[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -664,7 +592,6 @@ export default function CommunicationsCenter() {
 
     // Debug logging
     console.log("Template data being saved:", templateData);
-    console.log("Template type:", templateData.type);
 
     try {
       setIsLoading(true);
@@ -683,7 +610,6 @@ export default function CommunicationsCenter() {
         // Update existing template
         const updateData = {
           id: templateData.id,
-          type: templateData.type,
           name: templateData.name,
           subject: templateData.subject,
           content: templateData.content,
@@ -702,7 +628,6 @@ export default function CommunicationsCenter() {
       } else {
         // Create new template
         console.log("Creating new template with data:", {
-          type: templateData.type,
           name: templateData.name,
           subject: templateData.subject,
           content: templateData.content,
@@ -712,7 +637,6 @@ export default function CommunicationsCenter() {
 
         const newId = await EmailTemplateService.createTemplate(
           {
-            type: templateData.type,
             name: templateData.name,
             subject: templateData.subject,
             content: templateData.content,
@@ -871,26 +795,15 @@ export default function CommunicationsCenter() {
       template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       template.subject.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesType = typeFilter === "all" || template.type === typeFilter;
     const matchesStatus =
       statusFilter === "all" || template.status === statusFilter;
 
-    return matchesSearch && matchesType && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
   const getStatusColor = (status: TemplateStatus) => {
     const statusObj = templateStatuses.find((s) => s.value === status);
     return statusObj?.color || "bg-gray-100 text-gray-800";
-  };
-
-  const getTypeIcon = (type: TemplateType) => {
-    const typeObj = templateTypes.find((t) => t.value === type);
-    return typeObj?.icon || FileText;
-  };
-
-  const getTypeColor = (type: TemplateType) => {
-    const typeObj = templateTypes.find((t) => t.value === type);
-    return typeObj?.color || "bg-gray-500";
   };
 
   if (isLoading && templates.length === 0) {
@@ -948,7 +861,7 @@ export default function CommunicationsCenter() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
@@ -958,19 +871,7 @@ export default function CommunicationsCenter() {
                 className="pl-10 h-9"
               />
             </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Template Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {templateTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Status" />
@@ -988,7 +889,6 @@ export default function CommunicationsCenter() {
               variant="outline"
               onClick={() => {
                 setSearchTerm("");
-                setTypeFilter("all");
                 setStatusFilter("all");
               }}
               className="h-9"
@@ -1002,22 +902,25 @@ export default function CommunicationsCenter() {
       {/* Templates Grid */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredTemplates.map((template) => {
-          const Icon = getTypeIcon(template.type);
           return (
             <Card
               key={template.id}
               className="group hover:shadow-lg transition-all duration-200 border-gray-200"
             >
+              {/* HTML Preview - At the very top */}
+              <div className="bg-gray-50 rounded-t-lg border-b max-h-32 overflow-hidden">
+                <div
+                  className="text-xs text-gray-700 line-clamp-4"
+                  dangerouslySetInnerHTML={{
+                    __html: template.content,
+                  }}
+                />
+              </div>
+
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-3">
-                    <div
-                      className={`p-2 rounded-lg ${getTypeColor(
-                        template.type
-                      )} bg-opacity-20`}
-                    >
-                      <Icon className="h-4 w-4 text-white" />
-                    </div>
+                    <div className={`p-2 rounded-lg bg-opacity-20`}></div>
                     <div className="flex-1">
                       <CardTitle className="text-base font-semibold">
                         {template.name}
@@ -1059,12 +962,6 @@ export default function CommunicationsCenter() {
                 </div>
 
                 <div className="space-y-1 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Type</span>
-                    <span className="font-medium capitalize">
-                      {template.type.replace("-", " ")}
-                    </span>
-                  </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-500">Variables</span>
                     <span className="font-medium">
@@ -1144,11 +1041,11 @@ export default function CommunicationsCenter() {
               No templates found
             </h3>
             <p className="text-sm text-gray-500 mb-4">
-              {searchTerm || typeFilter !== "all" || statusFilter !== "all"
+              {searchTerm || statusFilter !== "all"
                 ? "Try adjusting your filters or search terms."
                 : "Create your first email template to get started."}
             </p>
-            {!searchTerm && typeFilter === "all" && statusFilter === "all" && (
+            {!searchTerm && statusFilter === "all" && (
               <Button onClick={handleCreateTemplate} className="h-9">
                 <Plus className="mr-2 h-4 w-4" />
                 Create First Template
