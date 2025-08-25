@@ -21,6 +21,7 @@ import {
   Folder,
   ChevronDown,
   ChevronRight,
+  Edit,
 } from "lucide-react";
 import firebaseFunctionService from "@/services/firebase-function-service";
 import {
@@ -48,6 +49,10 @@ export default function FunctionsCenter() {
   const [isEditing, setIsEditing] = useState(false);
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [isCreateFileModalOpen, setIsCreateFileModalOpen] = useState(false);
+  const [renameFileModal, setRenameFileModal] = useState<{
+    isOpen: boolean;
+    file: JSFile | null;
+  }>({ isOpen: false, file: null });
   const [deleteFolderModal, setDeleteFolderModal] = useState<{
     isOpen: boolean;
     folderId: string;
@@ -236,6 +241,43 @@ export default function FunctionsCenter() {
     }
   };
 
+  const handleRenameFile = (file: JSFile) => {
+    setRenameFileModal({ isOpen: true, file });
+  };
+
+  const handleRenameFileSubmit = async (newName: string) => {
+    const file = renameFileModal.file;
+    if (!file || newName === file.name) return;
+
+    try {
+      const updatedFile = await firebaseFunctionService.files.update(file.id, {
+        name: newName,
+      });
+
+      if (updatedFile) {
+        const updatedFiles = await firebaseFunctionService.files.getAll();
+        setFiles(updatedFiles);
+
+        // Update active file if it's the renamed file
+        if (activeFile && activeFile.id === file.id) {
+          setActiveFile(updatedFile);
+        }
+
+        toast({
+          title: "Success",
+          description: `File renamed to "${newName}" successfully.`,
+        });
+      }
+    } catch (error) {
+      console.error("Error renaming file:", error);
+      toast({
+        title: "Error",
+        description: "Failed to rename file. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteFile = async (fileId: string) => {
     try {
       const success = await firebaseFunctionService.files.delete(fileId);
@@ -316,6 +358,8 @@ export default function FunctionsCenter() {
     setSelectedFolder(folder);
     // Clear active file when selecting a folder
     setActiveFile(null);
+    // Toggle folder open/close state when selecting
+    toggleFolder(folder.id);
   };
 
   const getFileIcon = () => {
@@ -349,17 +393,16 @@ export default function FunctionsCenter() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">JS Files</h2>
-              {selectedFolder && (
-                <p className="text-xs text-blue-600 mt-1">
-                  Selected: {selectedFolder.name}
-                </p>
-              )}
             </div>
             <div className="flex items-center space-x-1">
               <Button
                 size="sm"
                 variant={selectedFolder ? "outline" : "secondary"}
-                title={selectedFolder ? "New File" : "Select a folder first"}
+                title={
+                  selectedFolder
+                    ? "New File"
+                    : "Click a folder to select it and create files"
+                }
                 onClick={() => setIsCreateFileModalOpen(true)}
                 disabled={!selectedFolder}
               >
@@ -407,7 +450,7 @@ export default function FunctionsCenter() {
                         ? "bg-blue-50 border border-blue-200"
                         : "hover:bg-gray-100"
                     }`}
-                    onClick={() => toggleFolder(folder.id)}
+                    onClick={() => handleFolderSelect(folder)}
                   >
                     {folder.isCollapsed ? (
                       <ChevronRight className="h-4 w-4 text-gray-500" />
@@ -416,7 +459,7 @@ export default function FunctionsCenter() {
                     )}
                     <Folder className="h-4 w-4 text-gray-500" />
                     <span
-                      className="text-sm font-medium text-gray-700 flex-1 cursor-pointer"
+                      className="text-sm font-medium text-gray-700 flex-1 cursor-pointer select-none"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleFolderSelect(folder);
@@ -462,7 +505,7 @@ export default function FunctionsCenter() {
                             {getFileIcon()}
                             <div className="flex-1 min-w-0">
                               <p
-                                className={`text-sm font-medium truncate ${
+                                className={`text-sm font-medium truncate select-none ${
                                   file.isActive
                                     ? "text-blue-900"
                                     : "text-gray-900"
@@ -475,6 +518,18 @@ export default function FunctionsCenter() {
                                 {file.lastModified.toLocaleDateString()}
                               </p>
                             </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 text-gray-400 hover:text-blue-500"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRenameFile(file);
+                              }}
+                              title="Rename file"
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -617,6 +672,16 @@ export default function FunctionsCenter() {
         onSubmit={handleCreateFile}
         type="file"
         selectedFolderName={selectedFolder?.name}
+      />
+
+      {/* Rename File Modal */}
+      <CreateItemModal
+        isOpen={renameFileModal.isOpen}
+        onClose={() => setRenameFileModal({ isOpen: false, file: null })}
+        onSubmit={handleRenameFileSubmit}
+        type="file"
+        isRenaming={true}
+        currentName={renameFileModal.file?.name || ""}
       />
 
       {/* Delete Confirmation Modals */}

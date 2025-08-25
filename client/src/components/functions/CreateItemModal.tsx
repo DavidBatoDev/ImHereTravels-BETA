@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,8 @@ interface CreateItemModalProps {
   onSubmit: (name: string) => void;
   type: "folder" | "file";
   selectedFolderName?: string;
+  isRenaming?: boolean;
+  currentName?: string;
 }
 
 export default function CreateItemModal({
@@ -28,9 +30,20 @@ export default function CreateItemModal({
   onSubmit,
   type,
   selectedFolderName,
+  isRenaming = false,
+  currentName = "",
 }: CreateItemModalProps) {
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Set initial name when renaming
+  useEffect(() => {
+    if (isRenaming && currentName) {
+      setName(currentName);
+    } else {
+      setName("");
+    }
+  }, [isRenaming, currentName, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,10 +67,18 @@ export default function CreateItemModal({
   };
 
   const getTitle = () => {
+    if (isRenaming) {
+      return type === "folder" ? "Rename Folder" : "Rename File";
+    }
     return type === "folder" ? "Create New Folder" : "Create New File";
   };
 
   const getDescription = () => {
+    if (isRenaming) {
+      return `Enter a new name for this ${
+        type === "folder" ? "folder" : "JavaScript file"
+      }.`;
+    }
     if (type === "folder") {
       return "Enter a name for your new folder.";
     }
@@ -131,7 +152,13 @@ export default function CreateItemModal({
               type="submit"
               disabled={!name.trim() || !!error || isSubmitting}
             >
-              {isSubmitting ? "Creating..." : "Create"}
+              {isSubmitting
+                ? isRenaming
+                  ? "Renaming..."
+                  : "Creating..."
+                : isRenaming
+                ? "Rename"
+                : "Create"}
             </Button>
           </DialogFooter>
         </form>
