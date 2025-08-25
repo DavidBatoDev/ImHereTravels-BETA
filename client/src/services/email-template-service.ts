@@ -76,6 +76,17 @@ export interface TemplateValidationResult {
   warnings: string[];
 }
 
+// Add new interface for template processing
+interface TemplateData {
+  [key: string]: any;
+}
+
+// Add new interface for processing options
+interface ProcessingOptions {
+  removeConditionals?: boolean;
+  defaultValues?: { [key: string]: any };
+}
+
 export class EmailTemplateService {
   /**
    * Create a new email template
@@ -808,6 +819,257 @@ export class EmailTemplateService {
       console.error("Error getting template analytics:", error);
       throw new Error("Failed to get template analytics");
     }
+  }
+
+  /**
+   * Process a template with conditional rendering and variable substitution
+   * @param template The HTML template string
+   * @param data The data object containing variable values
+   * @param options Processing options
+   * @returns Processed HTML string
+   */
+  static processTemplate(
+    template: string,
+    data: TemplateData,
+    options: ProcessingOptions = {}
+  ): string {
+    let processedTemplate = template;
+
+    // Process conditional blocks
+    processedTemplate = this.processConditionals(
+      processedTemplate,
+      data,
+      options
+    );
+
+    // Process variable substitutions
+    processedTemplate = this.processVariables(processedTemplate, data, options);
+
+    return processedTemplate;
+  }
+
+  /**
+   * Process conditional blocks in the template
+   */
+  private static processConditionals(
+    template: string,
+    data: TemplateData,
+    options: ProcessingOptions
+  ): string {
+    const conditionalRegex = /<\? if \(([^)]+)\) \{ \?>/g;
+    const endRegex = /<\? \}/g;
+
+    let result = template;
+    let match;
+    let conditionalStack: Array<{
+      start: number;
+      condition: string;
+      content: string;
+    }> = [];
+
+    // Find all conditional blocks
+    while ((match = conditionalRegex.exec(template)) !== null) {
+      const condition = match[1].trim();
+      const startIndex = match.index;
+
+      // Find the corresponding end tag
+      const remainingTemplate = template.substring(startIndex);
+      const endMatch = endRegex.exec(remainingTemplate);
+
+      if (endMatch) {
+        const endIndex = startIndex + endMatch.index;
+        const content = template.substring(
+          startIndex + match[0].length,
+          endIndex
+        );
+
+        conditionalStack.push({
+          start: startIndex,
+          condition,
+          content,
+        });
+      }
+    }
+
+    // Process conditionals from end to start to avoid index shifting
+    for (let i = conditionalStack.length - 1; i >= 0; i--) {
+      const block = conditionalStack[i];
+      const shouldShow = this.evaluateCondition(block.condition, data);
+
+      if (shouldShow) {
+        // Keep the content, remove the conditional tags
+        result = result.replace(
+          `<? if (${block.condition}) { ?>${block.content}<? } ?>`,
+          block.content
+        );
+      } else {
+        // Remove the entire conditional block
+        result = result.replace(
+          `<? if (${block.condition}) { ?>${block.content}<? } ?>`,
+          ""
+        );
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Process variable substitutions in the template
+   */
+  private static processVariables(
+    template: string,
+    data: TemplateData,
+    options: ProcessingOptions
+  ): string {
+    let result = template;
+
+    // Replace variables with their values
+    Object.keys(data).forEach((key) => {
+      const variableRegex = new RegExp(`\\{\\{${key}\\}\\}`, "g");
+      const value =
+        data[key] !== undefined
+          ? data[key]
+          : options.defaultValues?.[key] || "";
+      result = result.replace(variableRegex, String(value));
+    });
+
+    // Replace any remaining variables with empty string or default
+    const remainingVariables = result.match(/\{\{(\w+)\}\}/g) || [];
+    remainingVariables.forEach((variable: string) => {
+      const varName = variable.replace(/\{\{|\}\}/g, "");
+      const defaultValue = options.defaultValues?.[varName] || "";
+      result = result.replace(new RegExp(variable, "g"), defaultValue);
+    });
+
+    return result;
+  }
+
+  /**
+   * Evaluate a conditional expression
+   */
+  private static evaluateCondition(
+    condition: string,
+    data: TemplateData
+  ): boolean {
+    try {
+      // Create a safe evaluation context
+      const context = { ...data };
+
+      // Replace variable references with actual values
+      let processedCondition = condition;
+      Object.keys(context).forEach((key) => {
+        const value = context[key];
+        if (typeof value === "string") {
+          processedCondition = processedCondition.replace(
+            new RegExp(`\\b${key}\\b`, "g"),
+            `"${value}"`
+          );
+        } else if (typeof value === "number" || typeof value === "boolean") {
+          processedCondition = processedCondition.replace(
+            new RegExp(`\\b${key}\\b`, "g"),
+            String(value)
+          );
+        }
+      });
+
+      // Evaluate the condition
+      // Note: In a production environment, you might want to use a safer evaluation method
+      // or implement a custom parser for security reasons
+      return new Function("return " + processedCondition)();
+    } catch (error) {
+      console.warn("Error evaluating condition:", condition, error);
+      return false;
+    }
+  }
+
+  /**
+   * Get all variables used in a template
+   */
+  static extractTemplateVariables(template: string): string[] {
+    const variables = new Set<string>();
+
+    // Extract variables from {{variable}} syntax
+    const variableRegex = /\{\{(\w+)\}\}/g;
+    let match;
+    while ((match = variableRegex.exec(template)) !== null) {
+      variables.add(match[1]);
+    }
+
+    // Extract variables from conditional expressions
+    const conditionalRegex = /<\? if \(([^)]+)\) \{ \?>/g;
+    while ((match = conditionalRegex.exec(template)) !== null) {
+      const condition = match[1];
+      // Extract variable names from the condition
+      const conditionVars = condition.match(/\b\w+\b/g) || [];
+      conditionVars.forEach((varName) => {
+        // Filter out operators and literals
+        if (
+          ![
+            "if",
+            "===",
+            "!==",
+            "==",
+            "!=",
+            "&&",
+            "||",
+            "true",
+            "false",
+            "null",
+            "undefined",
+          ].includes(varName)
+        ) {
+          variables.add(varName);
+        }
+      });
+    }
+
+    return Array.from(variables);
+  }
+
+  /**
+   * Validate template syntax
+   */
+  static validateTemplateSyntax(template: string): {
+    isValid: boolean;
+    errors: string[];
+  } {
+    const errors: string[] = [];
+
+    // Check for balanced conditional tags
+    const openTags = (template.match(/<\? if \(/g) || []).length;
+    const closeTags = (template.match(/<\? \}/g) || []).length;
+
+    if (openTags !== closeTags) {
+      errors.push(
+        `Mismatched conditional tags: ${openTags} opening tags, ${closeTags} closing tags`
+      );
+    }
+
+    // Check for proper conditional syntax
+    const conditionalRegex = /<\? if \(([^)]+)\) \{ \?>/g;
+    let match;
+    while ((match = conditionalRegex.exec(template)) !== null) {
+      const condition = match[1].trim();
+      if (!condition) {
+        errors.push("Empty conditional expression found");
+      }
+    }
+
+    // Check for unclosed variables
+    const openVariables = (template.match(/\{\{/g) || []).length;
+    const closeVariables = (template.match(/\}\}/g) || []).length;
+
+    if (openVariables !== closeVariables) {
+      errors.push(
+        `Mismatched variable tags: ${openVariables} opening tags, ${closeVariables} closing tags`
+      );
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
   }
 }
 
