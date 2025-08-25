@@ -20,7 +20,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Save, Eye, Code, Upload, Palette } from "lucide-react";
+import { Save, Eye, Code, Upload, Palette, AlertCircle } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import EmailTemplateService from "@/services/email-template-service";
 
 // Type declarations for Monaco Editor
 declare global {
@@ -41,8 +43,8 @@ type TemplateStatus = "active" | "draft" | "archived";
 
 interface CommunicationTemplate {
   id: string;
-  name: string;
   type: TemplateType;
+  name: string;
   subject: string;
   content: string;
   status: TemplateStatus;
@@ -273,30 +275,54 @@ export default function TemplateDialog({
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [codeEditorZoom, setCodeEditorZoom] = useState(1);
   const [previewZoom, setPreviewZoom] = useState(1);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const editorRef = useRef<any>(null);
 
   useEffect(() => {
-    if (template) {
-      setFormData({
+    console.log("Template changed:", template);
+    console.log("Template ID:", template?.id);
+    console.log("Template ID length:", template?.id?.length);
+
+    if (template && template.id && template.id.length === 20) {
+      // This is an existing template (Firestore ID is 20 characters)
+      const newFormData = {
         name: template.name,
-        type: template.type,
+        type: template.type as TemplateType,
         subject: template.subject,
         content: template.content,
-        status: template.status,
+        status: template.status as TemplateStatus,
         variables: template.variables,
-      });
+      };
+      console.log("Setting form data for existing template:", newFormData);
+      setFormData(newFormData);
       setHtmlContent(template.content);
     } else {
-      setFormData({
+      // This is a new template or no template
+      const newFormData = {
         name: "",
-        type: "reservation",
+        type: "reservation" as TemplateType,
         subject: "",
         content: emailTemplates.reservation,
-        status: "draft",
+        status: "draft" as TemplateStatus,
         variables: extractVariables(emailTemplates.reservation),
-      });
+      };
+      console.log("Setting form data for new template:", newFormData);
+      setFormData(newFormData);
       setHtmlContent(emailTemplates.reservation);
+
+      // Also set the subject to match the template type
+      setTimeout(() => {
+        setFormData((prev) => ({
+          ...prev,
+          subject: "Your Adventure Awaits - Booking Confirmed!",
+        }));
+      }, 100);
     }
+
+    // Clear validation messages when template changes
+    setValidationErrors([]);
+    setValidationWarnings([]);
   }, [template]);
 
   // Calculate preview scale based on container size
@@ -345,9 +371,84 @@ export default function TemplateDialog({
     };
   }, [htmlContent]);
 
+  const validateTemplate = () => {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Required field validation
+    if (!formData.name?.trim()) {
+      errors.push("Template name is required");
+    }
+    if (!formData.subject?.trim()) {
+      errors.push("Email subject is required");
+    }
+    if (!htmlContent?.trim()) {
+      errors.push("Template content is required");
+    }
+
+    // Content validation
+    if (htmlContent) {
+      // Check for basic HTML structure
+      if (
+        !htmlContent.includes("<html") &&
+        !htmlContent.includes("<!DOCTYPE")
+      ) {
+        warnings.push("Content doesn't appear to be valid HTML");
+      }
+
+      // Check for common email template elements
+      if (!htmlContent.includes("<body")) {
+        warnings.push("Content should include a <body> tag");
+      }
+
+      // Check for responsive design
+      if (
+        !htmlContent.includes("viewport") &&
+        !htmlContent.includes("max-width")
+      ) {
+        warnings.push(
+          "Consider adding responsive design elements for mobile compatibility"
+        );
+      }
+    }
+
+    // Name length validation
+    if (formData.name && formData.name.length > 100) {
+      errors.push("Template name is too long (max 100 characters)");
+    }
+
+    // Subject length validation
+    if (formData.subject && formData.subject.length > 200) {
+      warnings.push(
+        "Email subject is quite long (max 200 characters recommended)"
+      );
+    }
+
+    setValidationErrors(errors);
+    setValidationWarnings(warnings);
+
+    return errors.length === 0;
+  };
+
   const handleSaveTemplate = () => {
+    if (!validateTemplate()) {
+      toast({
+        title: "Validation Failed",
+        description: "Please fix the errors before saving",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Debug logging
+    console.log("Form data:", formData);
+    console.log("Form data type:", formData.type);
+    console.log("Original template:", template);
+    console.log("Original template ID:", template?.id);
+    console.log("Original template ID length:", template?.id?.length);
+
     const templateData: CommunicationTemplate = {
-      id: template?.id || Date.now().toString(),
+      id: template?.id || "", // Don't assign temporary ID for new templates
       type: formData.type,
       name: formData.name,
       subject: formData.subject,
@@ -360,6 +461,25 @@ export default function TemplateDialog({
         usedCount: template?.metadata?.usedCount || 0,
       },
     };
+
+    console.log("Template data being created:", templateData);
+    console.log("Template data ID:", templateData.id);
+    console.log("Template data ID length:", templateData.id?.length);
+
+    // Show warnings if any
+    if (validationWarnings.length > 0) {
+      toast({
+        title: "Template Saved with Warnings",
+        description: `Template saved successfully. ${validationWarnings.length} warning(s) found.`,
+        variant: "default",
+      });
+    } else {
+      toast({
+        title: "Template Saved",
+        description: "Template saved successfully",
+      });
+    }
+
     onSave(templateData);
   };
 
@@ -476,6 +596,30 @@ export default function TemplateDialog({
               </div>
             </div>
           </DialogHeader>
+
+          {/* Validation Messages */}
+          {(validationErrors.length > 0 || validationWarnings.length > 0) && (
+            <div className="mb-4 space-y-2">
+              {validationErrors.map((error, index) => (
+                <div
+                  key={index}
+                  className="flex items-center space-x-2 text-red-600 text-sm"
+                >
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{error}</span>
+                </div>
+              ))}
+              {validationWarnings.map((warning, index) => (
+                <div
+                  key={index}
+                  className="flex items-center space-x-2 text-yellow-600 text-sm"
+                >
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{warning}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="space-y-4 max-h-[calc(90vh-200px)] overflow-auto">
             <div className="grid grid-cols-10 gap-4 h-[600px]">
@@ -986,7 +1130,9 @@ export default function TemplateDialog({
             </Button>
             <Button
               onClick={handleSaveTemplate}
-              disabled={isLoading || !formData.name}
+              disabled={
+                isLoading || !formData.name || validationErrors.length > 0
+              }
               className="h-9"
             >
               <Save className="mr-2 h-4 w-4" />

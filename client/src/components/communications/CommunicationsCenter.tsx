@@ -48,8 +48,14 @@ import {
   MoreVertical,
   Clock,
   Sparkles,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
 import TemplateDialog from "./TemplateDialog";
+import EmailTemplateService from "@/services/email-template-service";
+import { useAuthStore } from "@/store/auth-store";
+import { toast } from "@/hooks/use-toast";
+import { CommunicationTemplate as FirestoreTemplate } from "@/types/communications";
 
 // Type declarations for Monaco Editor
 declare global {
@@ -59,28 +65,23 @@ declare global {
   }
 }
 
-// Mock types since we don't have the actual types
+// Local interface that extends the Firestore type for UI compatibility
+interface CommunicationTemplate extends Omit<FirestoreTemplate, "metadata"> {
+  metadata?: {
+    createdAt?: Date | any; // Allow both Date and Timestamp
+    updatedAt?: Date | any;
+    usedCount?: number;
+    createdBy?: string;
+  };
+}
+
+// Template types
 type TemplateType =
   | "reservation"
   | "payment-reminder"
   | "cancellation"
   | "adventure-kit";
 type TemplateStatus = "active" | "draft" | "archived";
-
-interface CommunicationTemplate {
-  id: string;
-  name: string;
-  type: TemplateType;
-  subject: string;
-  content: string;
-  status: TemplateStatus;
-  variables: string[];
-  metadata?: {
-    createdAt?: Date;
-    updatedAt?: Date;
-    usedCount?: number;
-  };
-}
 
 // Template types
 const templateTypes = [
@@ -541,51 +542,8 @@ const templateVariables = {
 };
 
 export default function CommunicationsCenter() {
-  const [templates, setTemplates] = useState<CommunicationTemplate[]>([
-    {
-      id: "1",
-      name: "Booking Confirmation",
-      type: "reservation",
-      subject: "Your Adventure Awaits - Booking Confirmed!",
-      content: emailTemplates.reservation,
-      status: "active",
-      variables: templateVariables.reservation,
-      metadata: {
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        usedCount: 42,
-      },
-    },
-    {
-      id: "2",
-      name: "Payment Due Notice",
-      type: "payment-reminder",
-      subject: "Payment Reminder - {{tour_name}}",
-      content: emailTemplates["payment-reminder"],
-      status: "active",
-      variables: templateVariables["payment-reminder"],
-      metadata: {
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        usedCount: 28,
-      },
-    },
-    {
-      id: "3",
-      name: "Adventure Kit Delivery",
-      type: "adventure-kit",
-      subject: "Your Adventure Kit is Ready! 🎒",
-      content: emailTemplates["adventure-kit"],
-      status: "draft",
-      variables: templateVariables["adventure-kit"],
-      metadata: {
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        usedCount: 15,
-      },
-    },
-  ]);
-
+  const { user } = useAuthStore();
+  const [templates, setTemplates] = useState<CommunicationTemplate[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -595,6 +553,89 @@ export default function CommunicationsCenter() {
   const [selectedTemplate, setSelectedTemplate] =
     useState<CommunicationTemplate | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load templates on component mount
+  useEffect(() => {
+    if (user?.uid) {
+      loadTemplates();
+    }
+  }, [user?.uid]);
+
+  // Real-time subscription to template updates
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const unsubscribe = EmailTemplateService.subscribeToTemplates(
+      (updatedTemplates) => {
+        console.log("Subscription received templates:", updatedTemplates);
+        console.log("Number of templates:", updatedTemplates.length);
+
+        // Convert Firestore templates to local format
+        const localTemplates: CommunicationTemplate[] = updatedTemplates.map(
+          (template) => ({
+            ...template,
+            metadata: {
+              ...template.metadata,
+              createdAt: template.metadata?.createdAt?.toDate?.() || new Date(),
+              updatedAt: template.metadata?.updatedAt?.toDate?.() || new Date(),
+            },
+          })
+        );
+
+        console.log("Local templates after conversion:", localTemplates);
+        setTemplates(localTemplates);
+      },
+      {
+        filters: { createdBy: user.uid },
+        sortBy: "metadata.updatedAt",
+        sortOrder: "desc",
+        limit: 100,
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  const loadTemplates = async () => {
+    if (!user?.uid) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const result = await EmailTemplateService.getTemplates({
+        filters: { createdBy: user.uid },
+        sortBy: "metadata.updatedAt",
+        sortOrder: "desc",
+        limit: 100,
+      });
+
+      // Convert Firestore templates to local format
+      const localTemplates: CommunicationTemplate[] = result.templates.map(
+        (template) => ({
+          ...template,
+          metadata: {
+            ...template.metadata,
+            createdAt: template.metadata?.createdAt?.toDate?.() || new Date(),
+            updatedAt: template.metadata?.updatedAt?.toDate?.() || new Date(),
+          },
+        })
+      );
+
+      setTemplates(localTemplates);
+    } catch (error) {
+      console.error("Failed to load templates:", error);
+      setError("Failed to load templates");
+      toast({
+        title: "Error",
+        description: "Failed to load templates",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleCreateTemplate = () => {
     setSelectedTemplate(null);
@@ -612,23 +653,95 @@ export default function CommunicationsCenter() {
   };
 
   const handleSaveTemplate = async (templateData: CommunicationTemplate) => {
-    setIsLoading(true);
+    if (!user?.uid) {
+      toast({
+        title: "Error",
+        description: "User not authenticated",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Debug logging
+    console.log("Template data being saved:", templateData);
+    console.log("Template type:", templateData.type);
 
     try {
-      if (selectedTemplate) {
+      setIsLoading(true);
+      setError(null);
+
+      // Check if this is a real existing template or a new one
+      // Firestore IDs are 20 characters long, so we check for that
+      const isExistingTemplate =
+        templateData.id && templateData.id.length === 20;
+
+      console.log("Template ID:", templateData.id);
+      console.log("ID length:", templateData.id?.length);
+      console.log("Is existing template:", isExistingTemplate);
+
+      if (isExistingTemplate) {
         // Update existing template
-        setTemplates((prev) =>
-          prev.map((t) => (t.id === selectedTemplate.id ? templateData : t))
-        );
+        const updateData = {
+          id: templateData.id,
+          type: templateData.type,
+          name: templateData.name,
+          subject: templateData.subject,
+          content: templateData.content,
+          status: templateData.status,
+          variables: templateData.variables,
+        };
+
+        console.log("Update data:", updateData);
+
+        await EmailTemplateService.updateTemplate(updateData);
+
+        toast({
+          title: "Success",
+          description: "Template updated successfully",
+        });
       } else {
         // Create new template
-        setTemplates((prev) => [...prev, templateData]);
+        console.log("Creating new template with data:", {
+          type: templateData.type,
+          name: templateData.name,
+          subject: templateData.subject,
+          content: templateData.content,
+          variables: templateData.variables,
+          status: templateData.status,
+        });
+
+        const newId = await EmailTemplateService.createTemplate(
+          {
+            type: templateData.type,
+            name: templateData.name,
+            subject: templateData.subject,
+            content: templateData.content,
+            variables: templateData.variables,
+            status: templateData.status,
+          },
+          user.uid
+        );
+
+        console.log("New template created with ID:", newId);
+        templateData.id = newId;
+        toast({
+          title: "Success",
+          description: "Template created successfully",
+        });
       }
 
       setIsCreateDialogOpen(false);
       setIsEditDialogOpen(false);
+
+      // Templates will be updated automatically via real-time subscription
     } catch (error) {
-      console.error("Error saving template:", error);
+      console.error("Failed to save template:", error);
+      setError("Failed to save template");
+      toast({
+        title: "Error",
+        description: "Failed to save template",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -637,35 +750,119 @@ export default function CommunicationsCenter() {
   const handleConfirmDelete = async () => {
     if (!selectedTemplate) return;
 
-    setIsLoading(true);
-
     try {
-      setTemplates((prev) => prev.filter((t) => t.id !== selectedTemplate.id));
+      setIsLoading(true);
+      setError(null);
+
+      await EmailTemplateService.deleteTemplate(selectedTemplate.id);
       setIsDeleteDialogOpen(false);
+
+      toast({
+        title: "Success",
+        description: "Template deleted successfully",
+      });
+
+      // Templates will be updated automatically via real-time subscription
     } catch (error) {
-      console.error("Error deleting template:", error);
+      console.error("Failed to delete template:", error);
+      setError("Failed to delete template");
+      toast({
+        title: "Error",
+        description: "Failed to delete template",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDuplicateTemplate = async (template: CommunicationTemplate) => {
+    if (!user?.uid) {
+      toast({
+        title: "Error",
+        description: "User not authenticated",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const duplicatedTemplate = {
-        ...template,
-        id: Date.now().toString(),
-        name: `${template.name} (Copy)`,
-        status: "draft" as TemplateStatus,
-        metadata: {
-          ...template.metadata,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          usedCount: 0,
-        },
-      };
-      setTemplates((prev) => [...prev, duplicatedTemplate]);
+      setIsLoading(true);
+      setError(null);
+
+      const newTemplateId = await EmailTemplateService.duplicateTemplate(
+        template.id,
+        user.uid
+      );
+
+      toast({
+        title: "Success",
+        description: "Template duplicated successfully",
+      });
+
+      // Templates will be updated automatically via real-time subscription
     } catch (error) {
-      console.error("Error duplicating template:", error);
+      console.error("Failed to duplicate template:", error);
+      setError("Failed to duplicate template");
+      toast({
+        title: "Error",
+        description: "Failed to duplicate template",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleArchiveTemplate = async (template: CommunicationTemplate) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      await EmailTemplateService.archiveTemplate(template.id);
+
+      toast({
+        title: "Success",
+        description: "Template archived successfully",
+      });
+
+      // Templates will be updated automatically via real-time subscription
+    } catch (error) {
+      console.error("Failed to archive template:", error);
+      setError("Failed to archive template");
+      toast({
+        title: "Error",
+        description: "Failed to archive template",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRestoreTemplate = async (template: CommunicationTemplate) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      await EmailTemplateService.restoreTemplate(template.id);
+
+      toast({
+        title: "Success",
+        description: "Template restored successfully",
+      });
+
+      // Templates will be updated automatically via real-time subscription
+    } catch (error) {
+      console.error("Failed to restore template:", error);
+      setError("Failed to restore template");
+      toast({
+        title: "Error",
+        description: "Failed to restore template",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -695,6 +892,34 @@ export default function CommunicationsCenter() {
     const typeObj = templateTypes.find((t) => t.value === type);
     return typeObj?.color || "bg-gray-500";
   };
+
+  if (isLoading && templates.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading templates...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && templates.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-red-600 mb-4">
+          <AlertCircle className="mx-auto h-12 w-12" />
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          Error loading templates
+        </h3>
+        <p className="text-gray-500 mb-4">{error}</p>
+        <Button onClick={loadTemplates} variant="outline">
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -874,6 +1099,27 @@ export default function CommunicationsCenter() {
                     <Copy className="mr-1 h-3 w-3" />
                     Duplicate
                   </Button>
+                  {template.status === "archived" ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRestoreTemplate(template)}
+                      className="text-blue-600 hover:text-blue-700 h-8 w-8 p-0"
+                      title="Restore template"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleArchiveTemplate(template)}
+                      className="text-yellow-600 hover:text-yellow-700 h-8 w-8 p-0"
+                      title="Archive template"
+                    >
+                      <Archive className="h-3 w-3" />
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -916,8 +1162,12 @@ export default function CommunicationsCenter() {
       <TemplateDialog
         open={isCreateDialogOpen || isEditDialogOpen}
         onOpenChange={(open) => {
-          setIsCreateDialogOpen(open);
-          setIsEditDialogOpen(open);
+          if (!open) {
+            // When closing, reset both states and clear selected template
+            setIsCreateDialogOpen(false);
+            setIsEditDialogOpen(false);
+            setSelectedTemplate(null);
+          }
         }}
         template={selectedTemplate}
         onSave={handleSaveTemplate}
@@ -951,4 +1201,3 @@ export default function CommunicationsCenter() {
     </div>
   );
 }
-
