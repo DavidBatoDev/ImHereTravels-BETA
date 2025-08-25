@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Timestamp } from "firebase/firestore";
 import {
   Select,
   SelectContent,
@@ -31,10 +32,8 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import EmailTemplateService, {
-  VariableDefinition,
-  VariableType,
-} from "@/services/email-template-service";
+import EmailTemplateService from "@/services/email-template-service";
+import { VariableDefinition, VariableType } from "@/types/communications";
 
 // Type declarations for Monaco Editor
 declare global {
@@ -45,22 +44,7 @@ declare global {
 }
 
 // Types
-type TemplateStatus = "active" | "draft" | "archived";
-
-interface CommunicationTemplate {
-  id: string;
-  name: string;
-  subject: string;
-  content: string;
-  status: TemplateStatus;
-  variables: string[];
-  variableDefinitions?: VariableDefinition[]; // New field for variable definitions
-  metadata?: {
-    createdAt?: Date;
-    updatedAt?: Date;
-    usedCount?: number;
-  };
-}
+import { CommunicationTemplate, TemplateStatus } from "@/types/communications";
 
 // Add new interface for conditional rendering
 interface ConditionalBlock {
@@ -476,7 +460,103 @@ export default function TemplateDialog({
   const [rightSidebarTab, setRightSidebarTab] = useState<
     "info" | "tools" | "variables"
   >("info");
+
+  // Test data state
+  const [testData, setTestData] = useState<{ [key: string]: any }>({});
+
   const editorRef = useRef<any>(null);
+
+  // Function to extract all variables referenced in the template
+  const extractAllTemplateVariables = (content: string) => {
+    const variables = new Set<string>();
+
+    // Extract from <?= variable ?> syntax
+    const variableRegex = /<\?\s*=\s*([^?]+)\s*\?>/g;
+    let match;
+    while ((match = variableRegex.exec(content)) !== null) {
+      const varName = match[1].trim();
+      // Handle simple variable names (not complex expressions)
+      if (/^\w+$/.test(varName)) {
+        variables.add(varName);
+      }
+    }
+
+    // Extract from conditional statements <? if (variable === "value") { ?>
+    const conditionalRegex = /<\?\s*if\s*\(([^)]+)\)\s*\{/g;
+    while ((match = conditionalRegex.exec(content)) !== null) {
+      const condition = match[1];
+      // Extract variable names from conditions like "paymentMethod === 'Stripe'"
+      const varMatches = condition.match(/\b\w+\b/g);
+      if (varMatches) {
+        varMatches.forEach((varName) => {
+          if (!["true", "false", "null", "undefined"].includes(varName)) {
+            variables.add(varName);
+          }
+        });
+      }
+    }
+
+    return Array.from(variables);
+  };
+
+  // Function to convert test data from flat structure to nested structure for processing
+  const convertTestDataForProcessing = (flatData: { [key: string]: any }) => {
+    const processedData: { [key: string]: any } = {};
+
+    // First, extract all variables referenced in the template
+    const allTemplateVariables = extractAllTemplateVariables(htmlContent);
+
+    // Initialize all template variables with empty values if they don't exist
+    allTemplateVariables.forEach((varName) => {
+      if (!(varName in flatData)) {
+        processedData[varName] = "";
+      }
+    });
+
+    // Process the actual test data
+    Object.entries(flatData).forEach(([key, value]) => {
+      try {
+        if (key.includes(".")) {
+          // Handle nested properties (like "companyName.field")
+          const [parentKey, ...childKeys] = key.split(".");
+          const childKey = childKeys.join(".");
+
+          // Ensure parent key is an object, not a string
+          if (
+            !processedData[parentKey] ||
+            typeof processedData[parentKey] !== "object"
+          ) {
+            processedData[parentKey] = {};
+          }
+
+          // Only proceed if parent is actually an object
+          if (
+            typeof processedData[parentKey] === "object" &&
+            processedData[parentKey] !== null
+          ) {
+            processedData[parentKey][childKey] = value;
+          } else {
+            console.warn(
+              `Cannot set property '${childKey}' on non-object value for '${parentKey}'`
+            );
+          }
+        } else {
+          // Handle direct properties
+          processedData[key] = value;
+        }
+      } catch (error) {
+        console.error(`Error processing test data for key '${key}':`, error);
+        // Set a safe fallback value
+        processedData[key] = "";
+      }
+    });
+
+    console.log("All template variables:", allTemplateVariables);
+    console.log("Original test data:", flatData);
+    console.log("Processed test data:", processedData);
+
+    return processedData;
+  };
 
   useEffect(() => {
     console.log("Template changed:", template);
@@ -526,7 +606,7 @@ export default function TemplateDialog({
              <li>Use &lt;? if (condition) { ?&gt; for conditionals</li>
              <li>Use &lt;? for (loop) { ?&gt; for loops</li>
              <li>Everything in &lt;? ?&gt; tags is dynamic logic</li>
-         </ul>
+        </ul>
         
         <? if (paymentMethod === "Stripe") { ?>
             <p><strong>Payment Method:</strong> Pay securely online with Stripe</p>
@@ -666,6 +746,45 @@ export default function TemplateDialog({
             });
           }
 
+          // Test template processing with sample data to catch processScriptLogic errors
+          try {
+            if (Object.keys(testData).length > 0) {
+              const processedData = convertTestDataForProcessing(testData);
+              EmailTemplateService.processTemplate(htmlContent, processedData);
+            }
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+
+            // Check if this is a processScriptLogic error (TypeError, ReferenceError, etc.)
+            const isScriptLogicError =
+              errorMessage.includes("Cannot create property") ||
+              errorMessage.includes("Cannot set property") ||
+              errorMessage.includes("TypeError") ||
+              errorMessage.includes("ReferenceError") ||
+              errorMessage.includes("Template processing failed") ||
+              errorMessage.includes("is not defined") ||
+              errorMessage.includes("Cannot read property");
+
+            if (isScriptLogicError) {
+              // Extract the specific variable name from ReferenceError messages
+              let warningMessage = `Template processing warning: ${errorMessage}`;
+
+              if (errorMessage.includes("is not defined")) {
+                const varMatch = errorMessage.match(/(\w+) is not defined/);
+                if (varMatch) {
+                  const varName = varMatch[1];
+                  warningMessage = `Variable '${varName}' is referenced in template but not provided in test data. This will cause rendering issues in the preview.`;
+                }
+              }
+
+              warnings.push(warningMessage);
+            } else {
+              // Only treat non-script errors as actual errors
+              errors.push(`Template processing error: ${errorMessage}`);
+            }
+          }
+
           // HTML structure warnings
           if (
             !htmlContent.includes("<html") &&
@@ -701,6 +820,7 @@ export default function TemplateDialog({
     formData.name,
     formData.subject,
     formData.status,
+    testData, // Add testData dependency to re-validate when test data changes
   ]);
 
   // Calculate preview scale based on container size
@@ -747,7 +867,7 @@ export default function TemplateDialog({
       resizeObserver.disconnect();
       window.removeEventListener("resize", updatePreviewScale);
     };
-  }, [htmlContent]);
+  }, [htmlContent, testData]); // Also update when testData changes
 
   // Function to parse conditional blocks in the template
   const parseConditionalBlocks = (content: string): ConditionalBlock[] => {
@@ -1110,6 +1230,45 @@ export default function TemplateDialog({
           );
         });
       }
+
+      // Test template processing with sample data to catch processScriptLogic errors
+      try {
+        if (Object.keys(testData).length > 0) {
+          const processedData = convertTestDataForProcessing(testData);
+          EmailTemplateService.processTemplate(htmlContent, processedData);
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+
+        // Check if this is a processScriptLogic error (TypeError, ReferenceError, etc.)
+        const isScriptLogicError =
+          errorMessage.includes("Cannot create property") ||
+          errorMessage.includes("Cannot set property") ||
+          errorMessage.includes("TypeError") ||
+          errorMessage.includes("ReferenceError") ||
+          errorMessage.includes("Template processing failed") ||
+          errorMessage.includes("is not defined") ||
+          errorMessage.includes("Cannot read property");
+
+        if (isScriptLogicError) {
+          // Extract the specific variable name from ReferenceError messages
+          let warningMessage = `Template processing warning: ${errorMessage}`;
+
+          if (errorMessage.includes("is not defined")) {
+            const varMatch = errorMessage.match(/(\w+) is not defined/);
+            if (varMatch) {
+              const varName = varMatch[1];
+              warningMessage = `Variable '${varName}' is referenced in template but not provided in test data. This will cause rendering issues in the preview.`;
+            }
+          }
+
+          warnings.push(warningMessage);
+        } else {
+          // Only treat non-script errors as actual errors
+          errors.push(`Template processing error: ${errorMessage}`);
+        }
+      }
     }
 
     // Name length validation
@@ -1154,9 +1313,14 @@ export default function TemplateDialog({
       variables: extractVariables(htmlContent),
       variableDefinitions: variableDefinitions, // Include variable definitions
       status: formData.status,
+      bccGroups: template?.bccGroups || [],
       metadata: {
-        createdAt: template?.metadata?.createdAt || new Date(),
-        updatedAt: new Date(),
+        createdAt:
+          template?.metadata?.createdAt instanceof Timestamp
+            ? template.metadata.createdAt
+            : Timestamp.now(),
+        updatedAt: Timestamp.now(),
+        createdBy: template?.metadata?.createdBy || "current-user", // TODO: Get actual user ID
         usedCount: template?.metadata?.usedCount || 0,
       },
     };
@@ -1493,7 +1657,14 @@ export default function TemplateDialog({
                       <div className="flex flex-col h-full min-h-0">
                         <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b flex-shrink-0">
                           <div className="flex items-center justify-between">
-                            <span>Live Preview</span>
+                            <span>
+                              Live Preview
+                              {Object.keys(testData).length > 0 && (
+                                <span className="text-green-600 ml-2">
+                                  (with test data)
+                                </span>
+                              )}
+                            </span>
                             <div className="flex items-center space-x-1">
                               <Button
                                 variant="outline"
@@ -1559,7 +1730,13 @@ export default function TemplateDialog({
                             >
                               <div
                                 dangerouslySetInnerHTML={{
-                                  __html: htmlContent,
+                                  __html:
+                                    Object.keys(testData).length > 0
+                                      ? EmailTemplateService.processTemplate(
+                                          htmlContent,
+                                          convertTestDataForProcessing(testData)
+                                        )
+                                      : htmlContent,
                                 }}
                                 className="w-full h-full"
                               />
@@ -1639,7 +1816,14 @@ export default function TemplateDialog({
                     <div className="flex flex-col h-[500px]">
                       <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b flex-shrink-0">
                         <div className="flex items-center justify-between">
-                          <span>Live Preview</span>
+                          <span>
+                            Live Preview
+                            {Object.keys(testData).length > 0 && (
+                              <span className="text-green-600 ml-2">
+                                (with test data)
+                              </span>
+                            )}
+                          </span>
                           <div className="flex items-center space-x-1">
                             <Button
                               variant="outline"
@@ -1703,12 +1887,147 @@ export default function TemplateDialog({
                               )}px`,
                             }}
                           >
-                            <div
-                              dangerouslySetInnerHTML={{
-                                __html: htmlContent,
-                              }}
-                              className="w-full h-full"
-                            />
+                            {(() => {
+                              try {
+                                if (Object.keys(testData).length > 0) {
+                                  const processedData =
+                                    convertTestDataForProcessing(testData);
+
+                                  // Log the processed data for debugging
+                                  console.log(
+                                    "Live Preview - Original test data:",
+                                    testData
+                                  );
+                                  console.log(
+                                    "Live Preview - Processed test data:",
+                                    processedData
+                                  );
+
+                                  const processedHtml =
+                                    EmailTemplateService.processTemplate(
+                                      htmlContent,
+                                      processedData
+                                    );
+
+                                  return (
+                                    <div
+                                      dangerouslySetInnerHTML={{
+                                        __html: processedHtml,
+                                      }}
+                                      className="w-full h-full"
+                                    />
+                                  );
+                                } else {
+                                  return (
+                                    <div
+                                      dangerouslySetInnerHTML={{
+                                        __html: htmlContent,
+                                      }}
+                                      className="w-full h-full"
+                                    />
+                                  );
+                                }
+                              } catch (error) {
+                                console.error(
+                                  "Error processing template:",
+                                  error
+                                );
+
+                                // Check if this is a processScriptLogic error
+                                const errorMessage =
+                                  error instanceof Error
+                                    ? error.message
+                                    : String(error);
+                                const isScriptLogicError =
+                                  errorMessage.includes(
+                                    "Cannot create property"
+                                  ) ||
+                                  errorMessage.includes(
+                                    "Cannot set property"
+                                  ) ||
+                                  errorMessage.includes("TypeError") ||
+                                  errorMessage.includes("ReferenceError") ||
+                                  errorMessage.includes(
+                                    "Template processing failed"
+                                  ) ||
+                                  errorMessage.includes("is not defined") ||
+                                  errorMessage.includes("Cannot read property");
+
+                                if (isScriptLogicError) {
+                                  // Show as a warning instead of blocking error
+                                  return (
+                                    <div className="w-full h-full p-4 bg-amber-50 border border-amber-200 rounded">
+                                      <div className="text-amber-800">
+                                        <h3 className="font-semibold text-lg mb-2">
+                                          Template Processing Warning
+                                        </h3>
+                                        <p className="text-sm mb-2">
+                                          The template has a processing warning
+                                          but can still be saved. This usually
+                                          indicates a data type mismatch or
+                                          undefined variable.
+                                        </p>
+                                        <div className="bg-amber-100 p-3 rounded text-xs font-mono">
+                                          {errorMessage.includes(
+                                            "is not defined"
+                                          )
+                                            ? (() => {
+                                                const varMatch =
+                                                  errorMessage.match(
+                                                    /(\w+) is not defined/
+                                                  );
+                                                if (varMatch) {
+                                                  const varName = varMatch[1];
+                                                  return `Variable '${varName}' is referenced in template but not provided in test data.`;
+                                                }
+                                                return errorMessage;
+                                              })()
+                                            : errorMessage}
+                                        </div>
+                                        <p className="text-sm mt-2 text-amber-600">
+                                          {errorMessage.includes(
+                                            "is not defined"
+                                          )
+                                            ? "Add this variable to your test data or define it in the Variables tab."
+                                            : "Check the Variables tab to ensure all variables are properly defined with correct types."}
+                                        </p>
+                                        <div className="mt-3 p-2 bg-white rounded border border-amber-300">
+                                          <p className="text-xs text-amber-700">
+                                            <strong>Note:</strong> This warning
+                                            won't prevent you from saving the
+                                            template, but the preview may not
+                                            render correctly until resolved.
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                } else {
+                                  // Show as a blocking error for non-script issues
+                                  return (
+                                    <div className="w-full h-full p-4 bg-red-50 border border-red-200 rounded">
+                                      <div className="text-red-800">
+                                        <h3 className="font-semibold text-lg mb-2">
+                                          Template Processing Error
+                                        </h3>
+                                        <p className="text-sm mb-2">
+                                          An error occurred while processing the
+                                          template with test data:
+                                        </p>
+                                        <div className="bg-red-100 p-3 rounded text-xs font-mono">
+                                          {errorMessage}
+                                        </div>
+                                        <p className="text-sm mt-2 text-red-600">
+                                          Check the console for more details and
+                                          ensure all required variables are
+                                          defined.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                              }
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -1749,7 +2068,7 @@ export default function TemplateDialog({
                         : "border-transparent text-gray-500 hover:text-gray-700"
                     }`}
                   >
-                    Insert
+                    Test Data
                   </button>
                 </div>
 
@@ -2074,159 +2393,536 @@ export default function TemplateDialog({
 
                 {rightSidebarTab === "tools" && (
                   <div className="space-y-3">
-                    {/* Defined Variables */}
-                    {variableDefinitions.length > 0 && (
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
-                          Your Variables
-                        </h3>
-                        <div className="bg-blue-50 p-2 rounded-lg">
-                          <Label className="text-xs font-medium mb-2 block text-blue-700">
-                            Click to Insert
-                          </Label>
-                          <div className="space-y-1 max-h-32 overflow-y-auto">
-                            {variableDefinitions.map((variable) => (
-                              <Button
-                                key={variable.id}
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  insertVariable(generateVariableCode(variable))
-                                }
-                                className="w-full h-6 px-1 text-xs bg-white hover:bg-blue-100 justify-between"
-                              >
-                                <span>{`<?= ${variable.name} ?>`}</span>
-                                <span
-                                  className={`text-xs px-1 rounded ${
-                                    variable.type === "string"
-                                      ? "bg-blue-100 text-blue-600"
-                                      : variable.type === "array"
-                                      ? "bg-orange-100 text-orange-600"
-                                      : variable.type === "map"
-                                      ? "bg-red-100 text-red-600"
-                                      : variable.type === "number"
-                                      ? "bg-green-100 text-green-600"
-                                      : "bg-purple-100 text-purple-600"
-                                  }`}
-                                >
-                                  {variable.type}
+                    {/* Test Data Header */}
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
+                        Test Your Template
+                      </h3>
+                      <div className="text-xs text-gray-500">
+                        Enter sample values to preview how your template will
+                        render
+                      </div>
+                      {Object.keys(testData).length > 0 && (
+                        <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
+                          ✓ Live Preview is showing template with test data
+                          <div className="mt-1 text-gray-600">
+                            {Object.entries(testData)
+                              .slice(0, 3)
+                              .map(([key, value]) => (
+                                <span key={key} className="mr-2">
+                                  {key}:{" "}
+                                  {Array.isArray(value)
+                                    ? `[${value.join(", ")}]`
+                                    : String(value)}
                                 </span>
-                              </Button>
+                              ))}
+                            {Object.keys(testData).length > 3 && (
+                              <span className="text-gray-500">
+                                +{Object.keys(testData).length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Show missing variables warning */}
+                      {(() => {
+                        const allTemplateVariables =
+                          extractAllTemplateVariables(htmlContent);
+                        const missingVariables = allTemplateVariables.filter(
+                          (varName) => !(varName in testData)
+                        );
+
+                        if (missingVariables.length > 0) {
+                          return (
+                            <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+                              ⚠️ Missing variables in test data:
+                              <div className="mt-1 text-amber-700">
+                                {missingVariables.map((varName) => (
+                                  <span key={varName} className="mr-2">
+                                    {varName}
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="mt-1 text-amber-600">
+                                These variables will be treated as empty strings
+                                in the preview.
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+
+                    {/* Test Data Form */}
+                    {variableDefinitions.length > 0 ? (
+                      <div className="space-y-3">
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                          <Label className="text-xs font-medium mb-2 block text-blue-700">
+                            Sample Values
+                          </Label>
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {variableDefinitions.map((variable) => (
+                              <div key={variable.id} className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-medium text-gray-700">
+                                    {variable.name}
+                                  </span>
+                                  <span
+                                    className={`text-xs px-2 py-1 rounded ${
+                                      variable.type === "string"
+                                        ? "bg-blue-100 text-blue-600"
+                                        : variable.type === "array"
+                                        ? "bg-orange-100 text-orange-600"
+                                        : variable.type === "map"
+                                        ? "bg-red-100 text-red-600"
+                                        : variable.type === "number"
+                                        ? "bg-green-100 text-green-600"
+                                        : "bg-purple-100 text-purple-600"
+                                    }`}
+                                  >
+                                    {variable.type}
+                                  </span>
+                                </div>
+
+                                {variable.type === "string" && (
+                                  <Input
+                                    placeholder={`Enter ${variable.name}...`}
+                                    className="h-6 text-xs"
+                                    value={testData[variable.name] || ""}
+                                    onChange={(e) => {
+                                      // Store test data in state
+                                      setTestData((prev) => ({
+                                        ...prev,
+                                        [variable.name]: e.target.value,
+                                      }));
+                                    }}
+                                  />
+                                )}
+
+                                {variable.type === "number" && (
+                                  <Input
+                                    type="number"
+                                    placeholder={`Enter ${variable.name}...`}
+                                    className="h-6 text-xs"
+                                    value={testData[variable.name] || ""}
+                                    onChange={(e) => {
+                                      setTestData((prev) => ({
+                                        ...prev,
+                                        [variable.name]: Number(e.target.value),
+                                      }));
+                                    }}
+                                  />
+                                )}
+
+                                {variable.type === "boolean" && (
+                                  <Select
+                                    value={
+                                      testData[variable.name] !== undefined
+                                        ? String(testData[variable.name])
+                                        : ""
+                                    }
+                                    onValueChange={(value) => {
+                                      setTestData((prev) => ({
+                                        ...prev,
+                                        [variable.name]: value === "true",
+                                      }));
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-6 text-xs">
+                                      <SelectValue placeholder="Select..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="true">True</SelectItem>
+                                      <SelectItem value="false">
+                                        False
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                )}
+
+                                {variable.type === "array" && (
+                                  <div className="space-y-1">
+                                    <textarea
+                                      placeholder="Enter Python array syntax, e.g., ['apple', 'banana', 'orange']"
+                                      className="h-16 text-xs p-2 border rounded resize-none bg-black text-white font-mono"
+                                      value={(() => {
+                                        const value = testData[variable.name];
+                                        if (Array.isArray(value)) {
+                                          return JSON.stringify(value);
+                                        } else if (
+                                          typeof value === "string" &&
+                                          value
+                                        ) {
+                                          return value;
+                                        }
+                                        return "";
+                                      })()}
+                                      onChange={(e) => {
+                                        const input = e.target.value;
+                                        setTestData((prev) => ({
+                                          ...prev,
+                                          [variable.name]: input,
+                                        }));
+                                      }}
+                                      onBlur={(e) => {
+                                        // Parse the input when user finishes typing
+                                        try {
+                                          const input = e.target.value.trim();
+                                          if (
+                                            input.startsWith("[") &&
+                                            input.endsWith("]")
+                                          ) {
+                                            // Remove brackets and split by comma, handling quotes
+                                            const content = input.slice(1, -1);
+                                            const values = content
+                                              .split(",")
+                                              .map((v) =>
+                                                v
+                                                  .trim()
+                                                  .replace(/^["']|["']$/g, "")
+                                              )
+                                              .filter((v) => v);
+
+                                            // Validate that we have a proper array
+                                            if (Array.isArray(values)) {
+                                              setTestData((prev) => ({
+                                                ...prev,
+                                                [variable.name]: values,
+                                              }));
+                                            } else {
+                                              throw new Error(
+                                                "Invalid array format"
+                                              );
+                                            }
+                                          }
+                                        } catch (error) {
+                                          // Keep the raw input if parsing fails
+                                          console.log(
+                                            "Array parsing failed, keeping raw input"
+                                          );
+                                          // Show error to user
+                                          toast({
+                                            title: "Invalid Array Format",
+                                            description:
+                                              "Please use valid Python array syntax like ['item1', 'item2']",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }}
+                                    />
+                                    <div className="text-xs text-gray-500">
+                                      Use Python syntax: start with [ and end
+                                      with ]
+                                    </div>
+                                  </div>
+                                )}
+
+                                {variable.type === "map" && (
+                                  <div className="space-y-1">
+                                    <textarea
+                                      placeholder="Enter Python dict syntax, e.g., {'name': 'John', 'age': 30}"
+                                      className="h-16 text-xs p-2 border rounded resize-none bg-black text-white font-mono"
+                                      value={(() => {
+                                        const value = testData[variable.name];
+                                        if (
+                                          typeof value === "string" &&
+                                          value
+                                        ) {
+                                          return value;
+                                        } else if (
+                                          variable.mapFields &&
+                                          Object.keys(variable.mapFields)
+                                            .length > 0
+                                        ) {
+                                          // Build object from individual field values for display
+                                          const obj: any = {};
+                                          Object.keys(
+                                            variable.mapFields
+                                          ).forEach((key) => {
+                                            const fieldValue =
+                                              testData[
+                                                `${variable.name}.${key}`
+                                              ];
+                                            if (fieldValue !== undefined) {
+                                              obj[key] = fieldValue;
+                                            }
+                                          });
+                                          return Object.keys(obj).length > 0
+                                            ? JSON.stringify(obj)
+                                            : "";
+                                        }
+                                        return "";
+                                      })()}
+                                      onChange={(e) => {
+                                        const input = e.target.value;
+                                        setTestData((prev) => ({
+                                          ...prev,
+                                          [variable.name]: input,
+                                        }));
+                                      }}
+                                      onBlur={(e) => {
+                                        // Parse the input when user finishes typing
+                                        try {
+                                          const input = e.target.value.trim();
+                                          if (
+                                            input.startsWith("{") &&
+                                            input.endsWith("}")
+                                          ) {
+                                            // Try to parse as JSON (Python dict syntax is similar)
+                                            const content = input.replace(
+                                              /'/g,
+                                              '"'
+                                            ); // Replace single quotes with double quotes
+                                            const parsed = JSON.parse(content);
+
+                                            // Validate that we have a proper object
+                                            if (
+                                              typeof parsed === "object" &&
+                                              parsed !== null &&
+                                              !Array.isArray(parsed)
+                                            ) {
+                                              // Update test data with parsed values
+                                              Object.entries(parsed).forEach(
+                                                ([key, value]) => {
+                                                  setTestData((prev) => ({
+                                                    ...prev,
+                                                    [`${variable.name}.${key}`]:
+                                                      value,
+                                                  }));
+                                                }
+                                              );
+
+                                              // Also store the original parsed object for direct access
+                                              setTestData((prev) => ({
+                                                ...prev,
+                                                [variable.name]: parsed,
+                                              }));
+                                            } else {
+                                              throw new Error(
+                                                "Invalid map format - must be a valid object"
+                                              );
+                                            }
+                                          }
+                                        } catch (error) {
+                                          // Keep the raw input if parsing fails
+                                          console.log(
+                                            "Map parsing failed, keeping raw input"
+                                          );
+                                          // Show error to user
+                                          toast({
+                                            title: "Invalid Map Format",
+                                            description:
+                                              "Please use valid Python dictionary syntax like {'key': 'value'}",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }}
+                                    />
+                                    <div className="text-xs text-gray-500">
+                                      Use Python syntax: start with {"{"} and
+                                      end with {"}"}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             ))}
                           </div>
                         </div>
+
+                        {/* Quick Test Data */}
+                        <div className="bg-gray-50 p-2 rounded-lg">
+                          <Label className="text-xs font-medium mb-2 block text-gray-700">
+                            Quick Test Sets
+                          </Label>
+                          <div className="space-y-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                // Get all variables referenced in the template
+                                const allTemplateVariables =
+                                  extractAllTemplateVariables(htmlContent);
+
+                                // Create comprehensive sample data for all template variables
+                                const quickData: { [key: string]: any } = {
+                                  // Common variables with realistic sample values
+                                  fullName: "David",
+                                  paymentMethod: "Bank",
+                                  companyName: "ImHereTravels",
+                                  accountNumber: "12345678",
+                                  sortCode: "12-34-56",
+                                  // Sample array data
+                                  terms: ["Flight", "Hotel", "Transfer"],
+                                  amounts: ["500.00", "200.00", "50.00"],
+                                  calendarLinks: [
+                                    "https://cal.com/1",
+                                    "https://cal.com/2",
+                                    "",
+                                  ],
+                                  // Sample map data
+                                  user: {
+                                    firstName: "John",
+                                    lastName: "Doe",
+                                    email: "john@example.com",
+                                  },
+                                  booking: {
+                                    id: "BK123",
+                                    status: "confirmed",
+                                    total: "750.00",
+                                  },
+                                };
+
+                                // Add any other template variables with default values
+                                allTemplateVariables.forEach((varName) => {
+                                  if (!(varName in quickData)) {
+                                    // Provide sensible defaults based on variable name patterns
+                                    if (
+                                      varName.toLowerCase().includes("name")
+                                    ) {
+                                      quickData[varName] = "Sample Name";
+                                    } else if (
+                                      varName.toLowerCase().includes("email")
+                                    ) {
+                                      quickData[varName] = "sample@example.com";
+                                    } else if (
+                                      varName.toLowerCase().includes("phone")
+                                    ) {
+                                      quickData[varName] = "+44 123 456 7890";
+                                    } else if (
+                                      varName.toLowerCase().includes("date")
+                                    ) {
+                                      quickData[varName] = "2024-12-25";
+                                    } else if (
+                                      varName
+                                        .toLowerCase()
+                                        .includes("amount") ||
+                                      varName.toLowerCase().includes("price") ||
+                                      varName.toLowerCase().includes("fee")
+                                    ) {
+                                      quickData[varName] = "100.00";
+                                    } else if (
+                                      varName
+                                        .toLowerCase()
+                                        .includes("number") ||
+                                      varName.toLowerCase().includes("id")
+                                    ) {
+                                      quickData[varName] = "12345";
+                                    } else if (
+                                      varName.toLowerCase().includes("url") ||
+                                      varName.toLowerCase().includes("link")
+                                    ) {
+                                      quickData[varName] =
+                                        "https://example.com";
+                                    } else {
+                                      quickData[varName] = "Sample Value";
+                                    }
+                                  }
+                                });
+
+                                setTestData(quickData);
+
+                                console.log(
+                                  "All template variables found:",
+                                  allTemplateVariables
+                                );
+                                console.log(
+                                  "Sample data populated:",
+                                  quickData
+                                );
+
+                                // Populate the input fields and textareas with sample data
+                                const inputs = document.querySelectorAll(
+                                  'input[placeholder*="Enter"], textarea[placeholder*="Enter"]'
+                                );
+                                inputs.forEach((input) => {
+                                  const inputElement = input as
+                                    | HTMLInputElement
+                                    | HTMLTextAreaElement;
+                                  const placeholder = inputElement.placeholder;
+
+                                  // Find matching variable name from placeholder
+                                  let variableName = placeholder
+                                    .replace("Enter ", "")
+                                    .replace("...", "");
+
+                                  // Handle array and map placeholders
+                                  if (
+                                    placeholder.includes("Python array syntax")
+                                  ) {
+                                    variableName =
+                                      placeholder.match(
+                                        /Enter (.*?)\.\.\./
+                                      )?.[1] || "";
+                                  } else if (
+                                    placeholder.includes("Python dict syntax")
+                                  ) {
+                                    variableName =
+                                      placeholder.match(
+                                        /Enter (.*?)\.\.\./
+                                      )?.[1] || "";
+                                  }
+
+                                  // Check if this input is for a map field (contains dot notation)
+                                  if (variableName.includes(".")) {
+                                    const [parentVar, fieldName] =
+                                      variableName.split(".");
+                                    if (
+                                      quickData[parentVar] &&
+                                      quickData[parentVar][fieldName]
+                                    ) {
+                                      inputElement.value =
+                                        quickData[parentVar][fieldName];
+                                    }
+                                  } else {
+                                    // Direct variable match
+                                    if (quickData[variableName] !== undefined) {
+                                      if (
+                                        Array.isArray(quickData[variableName])
+                                      ) {
+                                        // For arrays, use JSON.stringify to show Python-like syntax
+                                        inputElement.value = JSON.stringify(
+                                          quickData[variableName]
+                                        );
+                                      } else if (
+                                        typeof quickData[variableName] ===
+                                          "object" &&
+                                        quickData[variableName] !== null
+                                      ) {
+                                        // For maps/objects, use JSON.stringify to show Python-like syntax
+                                        inputElement.value = JSON.stringify(
+                                          quickData[variableName]
+                                        );
+                                      } else {
+                                        inputElement.value = String(
+                                          quickData[variableName]
+                                        );
+                                      }
+                                    }
+                                  }
+                                });
+
+                                toast({
+                                  title: "Test Data Loaded",
+                                  description:
+                                    "Quick test data has been loaded into input fields",
+                                });
+                              }}
+                              className="w-full h-6 px-1 text-xs bg-white hover:bg-gray-100 justify-start"
+                            >
+                              Load Sample Data
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-400 text-xs">
+                        No variables defined yet.
+                        <br />
+                        Define variables in the Variables tab first.
                       </div>
                     )}
-
-                    {/* Quick Insert Common Variables */}
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
-                        Quick Insert
-                      </h3>
-                      <div className="bg-gray-50 p-2 rounded-lg">
-                        <Label className="text-xs font-medium mb-2 block text-gray-700">
-                          Common Variables
-                        </Label>
-                        <div className="space-y-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => insertVariable("<?= email ?>")}
-                            className="w-full h-6 px-1 text-xs bg-white hover:bg-gray-100 justify-start"
-                          >
-                            {`<?= email ?>`}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => insertVariable("<?= date ?>")}
-                            className="w-full h-6 px-1 text-xs bg-white hover:bg-gray-100 justify-start"
-                          >
-                            {`<?= date ?>`}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              insertVariable("<?= customVariable ?>")
-                            }
-                            className="w-full h-6 px-1 text-xs bg-white hover:bg-gray-100 justify-start"
-                          >
-                            {`<?= customVariable ?>`}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Conditional Logic */}
-                    <div className="space-y-3">
-                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
-                        Insert Logic
-                      </h3>
-
-                      <div className="bg-green-50 p-2 rounded-lg">
-                        <Label className="text-xs font-medium mb-2 block text-green-700">
-                          Conditional Blocks
-                        </Label>
-                        <div className="space-y-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              insertVariable(`\n<? if (condition) { ?>
-  <p>Content when condition is true</p>
-<? } else { ?>
-  <p>Content when condition is false</p>
-<? } ?>\n`)
-                            }
-                            className="w-full h-8 px-1 text-xs bg-white hover:bg-green-100 justify-start"
-                          >
-                            If/Else Block
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              insertVariable(`\n<? for (let i = 0; i < items.length; i++) { ?>
-  <div><?= items[i] ?></div>
-<? } ?>\n`)
-                            }
-                            className="w-full h-8 px-1 text-xs bg-white hover:bg-green-100 justify-start"
-                          >
-                            For Loop
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Usage Examples */}
-                    <div className="space-y-3">
-                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
-                        Syntax Examples
-                      </h3>
-
-                      <div className="bg-gray-50 p-2 rounded-lg text-xs space-y-2">
-                        <div>
-                          <strong>Variables:</strong>
-                          <br />
-                          <code className="bg-white px-1 rounded">{`<?= variable ?>`}</code>
-                        </div>
-                        <div>
-                          <strong>Conditionals:</strong>
-                          <br />
-                          <code className="bg-white px-1 rounded">
-                            {`<? if (condition) { ?>...content...<? } ?>`}
-                          </code>
-                        </div>
-                        <div>
-                          <strong>Loops:</strong>
-                          <br />
-                          <code className="bg-white px-1 rounded">
-                            {`<? for (item of array) { ?>...content...<? } ?>`}
-                          </code>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>

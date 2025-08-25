@@ -10,6 +10,7 @@ export interface CommunicationTemplate {
   subject: string;
   content: string; // HTML content
   variables: string[]; // ["{{traveler_name}}", "{{tour_name}}"]
+  variableDefinitions?: VariableDefinition[]; // Variable type definitions with types, array types, map fields
   status: "active" | "draft" | "archived";
   // NEW V2 FIELDS
   bccGroups: string[]; // References to bccGroups
@@ -80,6 +81,21 @@ export type TemplateType =
   | "adventure-kit";
 
 export type TemplateStatus = "active" | "draft" | "archived";
+
+// Variable definition types for the new template system
+export type VariableType = "string" | "number" | "boolean" | "array" | "map";
+
+export interface VariableDefinition {
+  id: string;
+  name: string;
+  type: VariableType;
+  description?: string;
+  // For arrays
+  arrayElementType?: VariableType;
+  arrayElementDefinitions?: VariableDefinition[]; // For complex array elements
+  // For maps/objects
+  mapFields?: { [key: string]: VariableDefinition };
+}
 
 export interface TemplateVariable {
   name: string;

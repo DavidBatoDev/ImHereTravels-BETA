@@ -65,15 +65,8 @@ declare global {
   }
 }
 
-// Local interface that extends the Firestore type for UI compatibility
-interface CommunicationTemplate extends Omit<FirestoreTemplate, "metadata"> {
-  metadata?: {
-    createdAt?: Date | any; // Allow both Date and Timestamp
-    updatedAt?: Date | any;
-    usedCount?: number;
-    createdBy?: string;
-  };
-}
+// Use the imported type directly to avoid conflicts
+type CommunicationTemplate = FirestoreTemplate;
 
 // Template status
 type TemplateStatus = "active" | "draft" | "archived";
@@ -499,17 +492,8 @@ export default function CommunicationsCenter() {
         console.log("Subscription received templates:", updatedTemplates);
         console.log("Number of templates:", updatedTemplates.length);
 
-        // Convert Firestore templates to local format
-        const localTemplates: CommunicationTemplate[] = updatedTemplates.map(
-          (template) => ({
-            ...template,
-            metadata: {
-              ...template.metadata,
-              createdAt: template.metadata?.createdAt?.toDate?.() || new Date(),
-              updatedAt: template.metadata?.updatedAt?.toDate?.() || new Date(),
-            },
-          })
-        );
+        // Keep templates in their original Firestore format
+        const localTemplates: CommunicationTemplate[] = updatedTemplates;
 
         console.log("Local templates after conversion:", localTemplates);
         setTemplates(localTemplates);
@@ -540,17 +524,8 @@ export default function CommunicationsCenter() {
         limit: 100,
       });
 
-      // Convert Firestore templates to local format
-      const localTemplates: CommunicationTemplate[] = result.templates.map(
-        (template) => ({
-          ...template,
-          metadata: {
-            ...template.metadata,
-            createdAt: template.metadata?.createdAt?.toDate?.() || new Date(),
-            updatedAt: template.metadata?.updatedAt?.toDate?.() || new Date(),
-          },
-        })
-      );
+      // Keep templates in their original Firestore format
+      const localTemplates: CommunicationTemplate[] = result.templates;
 
       setTemplates(localTemplates);
     } catch (error) {
@@ -616,6 +591,8 @@ export default function CommunicationsCenter() {
           content: templateData.content,
           status: templateData.status,
           variables: templateData.variables,
+          variableDefinitions: templateData.variableDefinitions,
+          bccGroups: templateData.bccGroups,
         };
 
         console.log("Update data:", updateData);
@@ -643,6 +620,8 @@ export default function CommunicationsCenter() {
             content: templateData.content,
             variables: templateData.variables,
             status: templateData.status,
+            variableDefinitions: templateData.variableDefinitions,
+            bccGroups: templateData.bccGroups,
           },
           user.uid
         );
@@ -972,8 +951,9 @@ export default function CommunicationsCenter() {
                   <div className="flex items-center justify-between">
                     <span className="text-gray-500">Last Modified</span>
                     <span className="font-medium">
-                      {template.metadata?.updatedAt?.toLocaleDateString?.() ||
-                        "Today"}
+                      {template.metadata?.updatedAt
+                        ?.toDate?.()
+                        ?.toLocaleDateString?.() || "Today"}
                     </span>
                   </div>
                 </div>

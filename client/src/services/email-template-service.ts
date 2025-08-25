@@ -18,33 +18,18 @@ import {
   increment as firestoreIncrement,
   onSnapshot,
   Unsubscribe,
-  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   CommunicationTemplate,
-  CommunicationMetadata,
-  TemplateType,
   TemplateStatus,
+  VariableDefinition,
 } from "@/types/communications";
 
 // Collection reference
 const COLLECTION_NAME = "emailTemplates";
 
-// Variable definition types
-export type VariableType = "string" | "number" | "boolean" | "array" | "map";
-
-export interface VariableDefinition {
-  id: string;
-  name: string;
-  type: VariableType;
-  description?: string;
-  // For arrays
-  arrayElementType?: VariableType;
-  arrayElementDefinitions?: VariableDefinition[]; // For complex array elements
-  // For maps/objects
-  mapFields?: { [key: string]: VariableDefinition };
-}
+// Variable definition types are now imported from @/types/communications
 
 export interface CreateTemplateData {
   name: string;
@@ -76,7 +61,6 @@ export interface TemplateQueryOptions {
 
 export interface TemplateStats {
   total: number;
-  byType: Record<TemplateType, number>;
   byStatus: Record<TemplateStatus, number>;
   byUser: Record<string, number>;
   recentActivity: {
@@ -120,8 +104,14 @@ export class EmailTemplateService {
         );
       }
 
-      const templateData: Omit<CommunicationTemplate, "id"> = {
-        ...data,
+      // Prepare the template data for Firebase
+      const templateData = {
+        name: data.name,
+        subject: data.subject,
+        content: data.content,
+        variables: data.variables || [],
+        variableDefinitions: data.variableDefinitions || [],
+        status: data.status,
         bccGroups: data.bccGroups || [],
         metadata: {
           createdAt: Timestamp.now(),
@@ -157,7 +147,27 @@ export class EmailTemplateService {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as CommunicationTemplate;
+        const data = docSnap.data();
+
+        // Transform the data to match CommunicationTemplate interface
+        const template: CommunicationTemplate = {
+          id: docSnap.id,
+          name: data.name || "",
+          subject: data.subject || "",
+          content: data.content || "",
+          variables: data.variables || [],
+          variableDefinitions: data.variableDefinitions || [],
+          status: data.status || "draft",
+          bccGroups: data.bccGroups || [],
+          metadata: {
+            createdAt: data.metadata?.createdAt?.toDate?.() || new Date(),
+            updatedAt: data.metadata?.updatedAt?.toDate?.() || new Date(),
+            createdBy: data.metadata?.createdBy || "",
+            usedCount: data.metadata?.usedCount || 0,
+          },
+        };
+
+        return template;
       }
       return null;
     } catch (error) {
@@ -208,7 +218,27 @@ export class EmailTemplateService {
       const templates: CommunicationTemplate[] = [];
 
       querySnapshot.forEach((doc) => {
-        templates.push({ id: doc.id, ...doc.data() } as CommunicationTemplate);
+        const data = doc.data();
+
+        // Transform the data to match CommunicationTemplate interface
+        const template: CommunicationTemplate = {
+          id: doc.id,
+          name: data.name || "",
+          subject: data.subject || "",
+          content: data.content || "",
+          variables: data.variables || [],
+          variableDefinitions: data.variableDefinitions || [],
+          status: data.status || "draft",
+          bccGroups: data.bccGroups || [],
+          metadata: {
+            createdAt: data.metadata?.createdAt?.toDate?.() || new Date(),
+            updatedAt: data.metadata?.updatedAt?.toDate?.() || new Date(),
+            createdBy: data.metadata?.createdBy || "",
+            usedCount: data.metadata?.usedCount || 0,
+          },
+        };
+
+        templates.push(template);
       });
 
       // Apply search filter if provided
@@ -262,12 +292,28 @@ export class EmailTemplateService {
         );
       }
 
-      const updatePayload = {
-        ...updateData,
-        metadata: {
-          ...existingTemplate.metadata, // Preserve existing metadata
-          updatedAt: Timestamp.now(),
-        },
+      // Prepare the update payload with proper data structure
+      const updatePayload: any = {};
+
+      // Only include fields that are being updated
+      if (updateData.name !== undefined) updatePayload.name = updateData.name;
+      if (updateData.subject !== undefined)
+        updatePayload.subject = updateData.subject;
+      if (updateData.content !== undefined)
+        updatePayload.content = updateData.content;
+      if (updateData.variables !== undefined)
+        updatePayload.variables = updateData.variables;
+      if (updateData.variableDefinitions !== undefined)
+        updatePayload.variableDefinitions = updateData.variableDefinitions;
+      if (updateData.status !== undefined)
+        updatePayload.status = updateData.status;
+      if (updateData.bccGroups !== undefined)
+        updatePayload.bccGroups = updateData.bccGroups;
+
+      // Always update the metadata
+      updatePayload.metadata = {
+        ...existingTemplate.metadata,
+        updatedAt: Timestamp.now(),
       };
 
       console.log("Update payload:", updatePayload);
@@ -376,12 +422,11 @@ export class EmailTemplateService {
    * Get templates by type
    */
   static async getTemplatesByType(
-    type: TemplateType
+    type: string
   ): Promise<CommunicationTemplate[]> {
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
-        where("type", "==", type),
         where("status", "==", "active"),
         orderBy("metadata.updatedAt", "desc")
       );
@@ -390,7 +435,27 @@ export class EmailTemplateService {
       const templates: CommunicationTemplate[] = [];
 
       querySnapshot.forEach((doc) => {
-        templates.push({ id: doc.id, ...doc.data() } as CommunicationTemplate);
+        const data = doc.data();
+
+        // Transform the data to match CommunicationTemplate interface
+        const template: CommunicationTemplate = {
+          id: doc.id,
+          name: data.name || "",
+          subject: data.subject || "",
+          content: data.content || "",
+          variables: data.variables || [],
+          variableDefinitions: data.variableDefinitions || [],
+          status: data.status || "draft",
+          bccGroups: data.bccGroups || [],
+          metadata: {
+            createdAt: data.metadata?.createdAt?.toDate?.() || new Date(),
+            updatedAt: data.metadata?.updatedAt?.toDate?.() || new Date(),
+            createdBy: data.metadata?.createdBy || "",
+            usedCount: data.metadata?.usedCount || 0,
+          },
+        };
+
+        templates.push(template);
       });
 
       return templates;
@@ -410,12 +475,6 @@ export class EmailTemplateService {
 
       const stats: TemplateStats = {
         total: templates.length,
-        byType: {
-          reservation: 0,
-          "payment-reminder": 0,
-          cancellation: 0,
-          "adventure-kit": 0,
-        },
         byStatus: {
           active: 0,
           draft: 0,
@@ -717,6 +776,7 @@ export class EmailTemplateService {
             subject: data.subject,
             content: data.content,
             variables: data.variables || [],
+            variableDefinitions: data.variableDefinitions || [],
             status: data.status,
             bccGroups: data.bccGroups || [],
             metadata: {
@@ -844,19 +904,29 @@ export class EmailTemplateService {
   ): string {
     let processedTemplate = template;
 
-    // Process conditional blocks and loops
-    processedTemplate = this.processScriptLogic(
-      processedTemplate,
-      data,
-      options
-    );
+    try {
+      // Process conditional blocks and loops
+      processedTemplate = this.processScriptLogic(
+        processedTemplate,
+        data,
+        options
+      );
 
-    // Process variable outputs
-    processedTemplate = this.processVariableOutputs(
-      processedTemplate,
-      data,
-      options
-    );
+      // Process variable outputs
+      processedTemplate = this.processVariableOutputs(
+        processedTemplate,
+        data,
+        options
+      );
+    } catch (error) {
+      console.warn(
+        "Template processing failed, returning original template:",
+        error
+      );
+      // Return the original template if processing fails
+      // This prevents the app from crashing
+      return template;
+    }
 
     return processedTemplate;
   }
@@ -885,8 +955,14 @@ export class EmailTemplateService {
       );
       return func(...Object.values(context));
     } catch (error) {
-      console.warn("Error processing script logic:", error);
-      return template; // Return original template if processing fails
+      console.warn(
+        "Error processing script logic, returning original template:",
+        error
+      );
+
+      // Instead of throwing errors, return the original template
+      // This prevents the app from crashing and allows the user to see the issue
+      return template;
     }
   }
 
@@ -896,37 +972,97 @@ export class EmailTemplateService {
   private static convertTemplateToJS(template: string): string {
     let jsCode = template;
 
-    // Convert <?= variable ?> to ${variable}
-    jsCode = jsCode.replace(/<\?\s*=\s*([^?]+)\s*\?>/g, "${$1}");
+    // Step 1: Convert <?= variable ?> to ${variable} (trim whitespace)
+    jsCode = jsCode.replace(/<\?\s*=\s*([^?]+)\s*\?>/g, (match, variable) => {
+      return `\${${variable.trim()}}`;
+    });
 
-    // Convert <? if (condition) { ?> to ${condition ? `
-    jsCode = jsCode.replace(/<\?\s*if\s*\(([^)]+)\)\s*{\s*\?>/g, "${$1 ? `");
-
-    // Convert <? } else if (condition) { ?> to ` : $1 ? `
+    // Step 2: Process ALL conditional blocks in one pass to avoid conflicts
+    // This approach processes the entire conditional structure as a unit
     jsCode = jsCode.replace(
-      /<\?\s*}\s*else\s*if\s*\(([^)]+)\)\s*{\s*\?>/g,
-      "` : $1 ? `"
+      /<\?\s*if\s*\(([^)]+)\)\s*\{\s*\?>([\s\S]*?)(?:<\?\s*\}\s*else\s*if\s*\(([^)]+)\)\s*\{\s*\?>([\s\S]*?))*?(?:<\?\s*\}\s*else\s*\{\s*\?>([\s\S]*?))?<\?\s*\}\s*\?>/g,
+      (match, ifCondition, ifContent, ...rest) => {
+        // Parse the entire conditional structure
+        const parts = [];
+
+        // Add the first if condition
+        parts.push(`${ifCondition.trim()} ? \`${ifContent}\``);
+
+        // Process else if and else parts
+        for (let i = 0; i < rest.length; i += 2) {
+          if (rest[i] && rest[i + 1]) {
+            // This is an else if
+            parts.push(`${rest[i].trim()} ? \`${rest[i + 1]}\``);
+          } else if (rest[i]) {
+            // This is an else
+            parts.push(`\`${rest[i]}\``);
+            break;
+          }
+        }
+
+        // If no else, add empty string fallback
+        if (parts.length % 2 === 1) {
+          parts.push('""');
+        }
+
+        // Build the ternary chain
+        let result = `\${${parts[0]}`;
+        for (let i = 1; i < parts.length; i += 2) {
+          result += ` : ${parts[i]}`;
+        }
+        result += "}";
+
+        return result;
+      }
     );
 
-    // Convert <? } else { ?> to ` : `
-    jsCode = jsCode.replace(/<\?\s*}\s*else\s*{\s*\?>/g, "` : `");
-
-    // Convert <? } ?> to ` : ""}
-    jsCode = jsCode.replace(/<\?\s*}\s*\?>/g, '` : ""}');
-
-    // Convert <? for (let i = 0; i < array.length; i++) { ?> to ${array.map((item, i) => `
+    // Step 3: Handle for loops
     jsCode = jsCode.replace(
-      /<\?\s*for\s*\(\s*let\s+(\w+)\s*=\s*0;\s*\1\s*<\s*(\w+)\.length;\s*\1\+\+\s*\)\s*{\s*\?>/g,
-      "${$2.map(($2[$1], $1) => `"
-    );
-
-    // Handle simple array iteration: for (item of array)
-    jsCode = jsCode.replace(
-      /<\?\s*for\s*\(\s*(\w+)\s+of\s+(\w+)\s*\)\s*{\s*\?>/g,
-      "${$2.map($1 => `"
+      /<\?\s*for\s*\(\s*(\w+)\s+of\s+(\w+)\s*\)\s*\{\s*\?>([\s\S]*?)<\?\s*\}\s*\?>/g,
+      (match, item, array, content) => {
+        return `\${${array}.map(${item} => \`${content}\`).join('')}`;
+      }
     );
 
     return jsCode;
+  }
+
+  /**
+   * Process conditional blocks properly to handle if/else if/else chains
+   */
+  private static processConditionalBlocks(template: string): string {
+    let result = template;
+
+    // Find and process each conditional block
+    const conditionalBlockRegex =
+      /<\?\s*if\s*\([^)]+\)\s*\{\s*\?>[\s\S]*?<\?\s*\}\s*\?>/g;
+
+    result = result.replace(conditionalBlockRegex, (match) => {
+      // Process this conditional block
+      let blockCode = match;
+
+      // Convert the opening if
+      blockCode = blockCode.replace(
+        /<\?\s*if\s*\(([^)]+)\)\s*{\s*\?>/g,
+        "${$1 ? `"
+      );
+
+      // Convert else if statements
+      blockCode = blockCode.replace(
+        /<\?\s*}\s*else\s*if\s*\(([^)]+)\)\s*{\s*\?>/g,
+        "` : ($1) ? `"
+      );
+
+      // Convert else statements
+      blockCode = blockCode.replace(/<\?\s*}\s*else\s*{\s*\?>/g, "` : `");
+
+      // Convert the final closing brace
+      blockCode = blockCode.replace(/<\?\s*}\s*\?>$/, '` : ""}');
+
+      return blockCode;
+    });
+
+    return result;
   }
 
   /**

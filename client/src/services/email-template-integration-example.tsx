@@ -79,7 +79,6 @@ export function EmailTemplateIntegrationExample() {
 
       const newTemplateId = await EmailTemplateService.createTemplate(
         {
-          type: templateData.type,
           name: templateData.name,
           subject: templateData.subject,
           content: templateData.content,
@@ -279,7 +278,6 @@ export function EmailTemplateIntegrationExample() {
             }}
           >
             <h3>{template.name}</h3>
-            <p>Type: {template.type}</p>
             <p>Status: {template.status}</p>
             <p>Subject: {template.subject}</p>
             <p>Variables: {template.variables.length}</p>
