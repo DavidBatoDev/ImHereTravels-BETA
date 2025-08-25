@@ -18,6 +18,7 @@ import {
   LogOut,
   AlertTriangle,
   CreditCard,
+  Code,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -59,6 +60,11 @@ const navigation = [
     icon: User,
   },
   { type: "separator" },
+  {
+    name: "Apps Script",
+    href: "/functions",
+    icon: Code,
+  },
   {
     name: "Reports",
     href: "/reports",
