@@ -262,7 +262,13 @@ export default function TemplateDialog({
   const [previewZoom, setPreviewZoom] = useState(1);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
-  const [showConditionalHelper, setShowConditionalHelper] = useState(false);
+
+  const [previewData, setPreviewData] = useState<Record<string, any>>({});
+
+  const [processedPreview, setProcessedPreview] = useState<string>("");
+  const [rightSidebarTab, setRightSidebarTab] = useState<"info" | "variables">(
+    "info"
+  );
   const editorRef = useRef<any>(null);
 
   useEffect(() => {
@@ -398,85 +404,134 @@ export default function TemplateDialog({
     const blocks: ConditionalBlock[] = [];
     const conditionalRegex = /<\? if \(([^)]+)\) \{ \?>/g;
     const endRegex = /<\? \}/g;
-    
+
+    // Find all conditional blocks and their positions
+    const conditionalMatches: Array<{
+      condition: string;
+      startIndex: number;
+      matchLength: number;
+    }> = [];
     let match;
-    let currentBlock: Partial<ConditionalBlock> | null = null;
-    
-    // Find all conditional blocks
+
     while ((match = conditionalRegex.exec(content)) !== null) {
-      if (currentBlock) {
-        // If we find a new opening tag before closing the previous one, it's nested
-        // For simplicity, we'll just close the previous block at the next end tag
-      }
-      
-      currentBlock = {
+      conditionalMatches.push({
         condition: match[1].trim(),
         startIndex: match.index,
-        content: "",
-      };
+        matchLength: match[0].length,
+      });
     }
-    
+
     // Find end tags and complete blocks
     let endMatch;
+    let currentBlockIndex = 0;
+
     while ((endMatch = endRegex.exec(content)) !== null) {
-      if (currentBlock) {
-        currentBlock.endIndex = endMatch.index;
-        currentBlock.content = content.substring(
-          currentBlock.startIndex! + match![0].length,
-          endMatch.index
-        );
-        blocks.push(currentBlock as ConditionalBlock);
-        currentBlock = null;
+      if (currentBlockIndex < conditionalMatches.length) {
+        const conditionalMatch = conditionalMatches[currentBlockIndex];
+        const block: ConditionalBlock = {
+          condition: conditionalMatch.condition,
+          startIndex: conditionalMatch.startIndex,
+          endIndex: endMatch.index,
+          content: content.substring(
+            conditionalMatch.startIndex + conditionalMatch.matchLength,
+            endMatch.index
+          ),
+        };
+
+        blocks.push(block);
+        currentBlockIndex++;
       }
     }
-    
+
     return blocks;
   };
 
   // Function to validate conditional syntax
-  const validateConditionalSyntax = (content: string): { isValid: boolean; errors: string[] } => {
-    const errors: string[] = [];
-    const openTags = (content.match(/<\? if \(/g) || []).length;
-    const closeTags = (content.match(/<\? \}/g) || []).length;
-    
-    if (openTags !== closeTags) {
-      errors.push(`Mismatched conditional tags: ${openTags} opening tags, ${closeTags} closing tags`);
+  const validateConditionalSyntax = (
+    content: string
+  ): { isValid: boolean; errors: string[] } => {
+    try {
+      const result = EmailTemplateService.validateTemplateSyntax(content);
+      return {
+        isValid: result.isValid,
+        errors: result.errors,
+      };
+    } catch (error) {
+      return {
+        isValid: false,
+        errors: [`Validation error: ${error}`],
+      };
     }
-    
-    // Check for proper conditional syntax
-    const conditionalRegex = /<\? if \(([^)]+)\) \{ \?>/g;
-    let match;
-    while ((match = conditionalRegex.exec(content)) !== null) {
-      const condition = match[1].trim();
-      if (!condition) {
-        errors.push("Empty conditional expression found");
+  };
+
+  // Initialize default preview data based on variables found
+  useEffect(() => {
+    const variables = extractVariables(htmlContent);
+    const defaultData: Record<string, any> = {};
+
+    variables.forEach((variable) => {
+      const varName = variable.replace(/\{\{|\}\}/g, "");
+
+      // Set all variables to empty by default
+      defaultData[varName] = "";
+    });
+
+    setPreviewData(defaultData);
+
+    // Automatically process preview with empty variables
+    if (variables.length > 0) {
+      try {
+        const processed = EmailTemplateService.processTemplate(
+          htmlContent,
+          defaultData
+        );
+        setProcessedPreview(processed);
+      } catch (error) {
+        console.error("Error processing initial preview:", error);
+        setProcessedPreview("");
       }
     }
-    
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
+  }, [htmlContent]);
+
+  // Function to update preview data
+  const updatePreviewData = (variable: string, value: string) => {
+    const varName = variable.replace(/\{\{|\}\}/g, "");
+    setPreviewData((prev) => ({
+      ...prev,
+      [varName]: value,
+    }));
+
+    // Automatically process preview when variables change
+    setTimeout(() => {
+      try {
+        const updatedData = { ...previewData, [varName]: value };
+        const processed = EmailTemplateService.processTemplate(
+          htmlContent,
+          updatedData
+        );
+        setProcessedPreview(processed);
+      } catch (error) {
+        console.error("Error processing preview:", error);
+        setProcessedPreview("");
+      }
+    }, 100); // Small delay to avoid excessive processing
   };
 
-  // Function to insert conditional block template
-  const insertConditionalBlock = () => {
-    const conditionalTemplate = `<? if (availablePaymentTerms === "P1") { ?>
-  <!-- Content for P1 payment terms -->
-  <p>This content will only show when availablePaymentTerms equals "P1"</p>
-<? } ?>`;
-    
-    setHtmlContent((prev) => prev + "\n" + conditionalTemplate);
-  };
+  // Function to reset preview data to defaults
+  const resetPreviewData = () => {
+    const variables = extractVariables(htmlContent);
+    const defaultData: Record<string, any> = {};
 
-  // Function to insert variable-based conditional
-  const insertVariableConditional = (variable: string) => {
-    const conditionalTemplate = `<? if (${variable} === "value") { ?>
-  <!-- Content when ${variable} equals "value" -->
-  <p>This content will only show when ${variable} equals "value"</p>
-<? } ?>`;
-    
-    setHtmlContent((prev) => prev + "\n" + conditionalTemplate);
+    variables.forEach((variable) => {
+      const varName = variable.replace(/\{\{|\}\}/g, "");
+      // Reset all variables to empty
+      defaultData[varName] = "";
+    });
+
+    setPreviewData(defaultData);
+
+    // Clear processed preview when resetting data
+    setProcessedPreview("");
   };
 
   const validateTemplate = () => {
@@ -522,7 +577,9 @@ export default function TemplateDialog({
       // Validate conditional syntax
       const conditionalValidation = validateConditionalSyntax(htmlContent);
       if (!conditionalValidation.isValid) {
-        conditionalValidation.errors.forEach(error => errors.push(`Conditional syntax: ${error}`));
+        conditionalValidation.errors.forEach((error) =>
+          errors.push(`Conditional syntax: ${error}`)
+        );
       }
     }
 
@@ -596,9 +653,7 @@ export default function TemplateDialog({
   };
 
   const extractVariables = (content: string): string[] => {
-    const regex = /\{\{(\w+)\}\}/g;
-    const matches = [...content.matchAll(regex)];
-    return [...new Set(matches.map((match) => "{{" + match[1] + "}}"))];
+    return EmailTemplateService.extractTemplateVariables(content);
   };
 
   const handleBeautifyCode = () => {
@@ -679,7 +734,8 @@ export default function TemplateDialog({
                 </DialogTitle>
                 <DialogDescription className="text-sm text-gray-600 mt-1">
                   Design your email template with our advanced editor. Use
-                  variables to personalize content and conditional rendering for dynamic content.
+                  variables to personalize content and conditional rendering for
+                  dynamic content.
                 </DialogDescription>
               </div>
               <div className="flex items-center space-x-2">
@@ -769,15 +825,7 @@ export default function TemplateDialog({
                       <Palette className="mr-2 h-4 w-4" />
                       Format
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowConditionalHelper(!showConditionalHelper)}
-                      className="h-8 px-3"
-                    >
-                      <Code className="mr-2 h-4 w-4" />
-                      Conditional
-                    </Button>
+
                     <input
                       type="file"
                       accept="image/*"
@@ -805,45 +853,6 @@ export default function TemplateDialog({
                     </Label>
                   </div>
                 </div>
-
-                {/* Conditional Rendering Helper */}
-                {showConditionalHelper && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                    <h4 className="text-sm font-medium text-blue-800">Conditional Rendering Helper</h4>
-                    <div className="text-xs text-blue-700 space-y-2">
-                      <p>Use conditional blocks to show different content based on variable values:</p>
-                      <div className="bg-white p-2 rounded border font-mono text-xs">
-                        {`<? if (variable === "value") { ?>
-  <!-- Content to show when condition is true -->
-<? } ?>`}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={insertConditionalBlock}
-                          className="h-6 px-2 text-xs"
-                        >
-                          Insert Basic Conditional
-                        </Button>
-                        {extractVariables(htmlContent).slice(0, 5).map((variable) => (
-                          <Button
-                            key={variable}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => insertVariableConditional(variable)}
-                            className="h-6 px-2 text-xs"
-                          >
-                            {variable}
-                          </Button>
-                        ))}
-                      </div>
-                      <div className="text-xs text-blue-600">
-                        <strong>Common conditions:</strong> availablePaymentTerms === "P1", bookingType === "Group Booking", etc.
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Editor */}
                 <div
@@ -917,7 +926,14 @@ export default function TemplateDialog({
                       <div className="flex flex-col h-full min-h-0">
                         <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b flex-shrink-0">
                           <div className="flex items-center justify-between">
-                            <span>Live Preview</span>
+                            <span>
+                              Live Preview
+                              {processedPreview && (
+                                <span className="ml-2 text-green-600 font-medium">
+                                  (Processed)
+                                </span>
+                              )}
+                            </span>
                             <div className="flex items-center space-x-1">
                               <Button
                                 variant="outline"
@@ -983,7 +999,7 @@ export default function TemplateDialog({
                             >
                               <div
                                 dangerouslySetInnerHTML={{
-                                  __html: htmlContent,
+                                  __html: processedPreview || htmlContent,
                                 }}
                                 className="w-full h-full"
                               />
@@ -1129,7 +1145,7 @@ export default function TemplateDialog({
                           >
                             <div
                               dangerouslySetInnerHTML={{
-                                __html: htmlContent,
+                                __html: processedPreview || htmlContent,
                               }}
                               className="w-full h-full"
                             />
@@ -1141,125 +1157,188 @@ export default function TemplateDialog({
                 </div>
               </div>
 
-              {/* Right Side - Form Fields (30%) */}
-              <div className="col-span-3 space-y-3">
-                {/* Basic Info */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
-                    Template Information
-                  </h3>
-
-                  <div>
-                    <Label
-                      htmlFor="template-name"
-                      className="text-xs font-medium"
-                    >
-                      Template Name
-                    </Label>
-                    <Input
-                      id="template-name"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          name: e.target.value,
-                        }))
-                      }
-                      placeholder="Template name"
-                      className="mt-1 h-8 text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <Label
-                      htmlFor="template-status"
-                      className="text-xs font-medium"
-                    >
-                      Status
-                    </Label>
-                    <Select
-                      value={formData.status}
-                      onValueChange={(value: TemplateStatus) =>
-                        setFormData((prev) => ({ ...prev, status: value }))
-                      }
-                    >
-                      <SelectTrigger className="mt-1 h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {templateStatuses.map((status) => (
-                          <SelectItem key={status.value} value={status.value}>
-                            {status.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label
-                      htmlFor="template-subject"
-                      className="text-xs font-medium"
-                    >
-                      Email Subject
-                    </Label>
-                    <Input
-                      id="template-subject"
-                      value={formData.subject}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          subject: e.target.value,
-                        }))
-                      }
-                      placeholder="Email subject"
-                      className="mt-1 h-8 text-xs"
-                    />
-                  </div>
+              {/* Right Side - Tabbed Interface (30%) */}
+              <div className="col-span-3 max-h-full overflow-y-auto">
+                {/* Tab Navigation */}
+                <div className="flex border-b mb-3">
+                  <button
+                    onClick={() => setRightSidebarTab("info")}
+                    className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                      rightSidebarTab === "info"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Template Info
+                  </button>
+                  <button
+                    onClick={() => setRightSidebarTab("variables")}
+                    className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                      rightSidebarTab === "variables"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Variables & Preview
+                  </button>
                 </div>
 
-                {/* Template Variables */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
-                    Template Variables
-                  </h3>
-                  <div className="bg-gray-50 p-2 rounded-lg">
-                    <Label className="text-xs font-medium mb-2 block">
-                      Variables Found in Code
-                    </Label>
-                    <div className="flex flex-wrap gap-1">
-                      {extractVariables(htmlContent).map((variable) => (
-                        <Badge
-                          key={variable}
-                          variant="secondary"
-                          className="cursor-pointer hover:bg-blue-100 hover:text-blue-800 transition-colors text-xs px-1 py-0"
-                          onClick={() => navigateToVariable(variable)}
-                          title={`Click to go to ${variable} in code`}
+                {/* Tab Content */}
+                {rightSidebarTab === "info" && (
+                  <div className="space-y-3">
+                    {/* Basic Info */}
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
+                        Template Information
+                      </h3>
+
+                      <div>
+                        <Label
+                          htmlFor="template-name"
+                          className="text-xs font-medium"
                         >
-                          {variable}
-                        </Badge>
-                      ))}
+                          Template Name
+                        </Label>
+                        <Input
+                          id="template-name"
+                          value={formData.name}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              name: e.target.value,
+                            }))
+                          }
+                          placeholder="Template name"
+                          className="mt-1 h-8 text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <Label
+                          htmlFor="template-status"
+                          className="text-xs font-medium"
+                        >
+                          Status
+                        </Label>
+                        <Select
+                          value={formData.status}
+                          onValueChange={(value: TemplateStatus) =>
+                            setFormData((prev) => ({ ...prev, status: value }))
+                          }
+                        >
+                          <SelectTrigger className="mt-1 h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {templateStatuses.map((status) => (
+                              <SelectItem
+                                key={status.value}
+                                value={status.value}
+                              >
+                                {status.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label
+                          htmlFor="template-subject"
+                          className="text-xs font-medium"
+                        >
+                          Email Subject
+                        </Label>
+                        <Input
+                          id="template-subject"
+                          value={formData.subject}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              subject: e.target.value,
+                            }))
+                          }
+                          placeholder="Email subject"
+                          className="mt-1 h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Template Variables */}
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
+                        Template Variables
+                      </h3>
+                      <div className="bg-gray-50 p-2 rounded-lg">
+                        <Label className="text-xs font-medium mb-2 block">
+                          Variables Found in Code
+                        </Label>
+                        <div className="flex flex-wrap gap-1">
+                          {extractVariables(htmlContent).map((variable) => (
+                            <Badge
+                              key={variable}
+                              variant="secondary"
+                              className="cursor-pointer hover:bg-blue-100 hover:text-blue-800 transition-colors text-xs px-1 py-0"
+                              onClick={() => navigateToVariable(variable)}
+                              title={`Click to go to ${variable} in code`}
+                            >
+                              {variable}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Conditional Blocks Info */}
-                {htmlContent.includes("<? if") && (
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
-                      Conditional Blocks
-                    </h3>
-                    <div className="bg-blue-50 p-2 rounded-lg">
-                      <Label className="text-xs font-medium mb-2 block text-blue-700">
-                        Conditional Blocks Found
+                {rightSidebarTab === "variables" && (
+                  <div className="space-y-3">
+                    {/* Reset Button */}
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
+                        Reset Variables
+                      </h3>
+
+                      <div className="bg-purple-50 p-2 rounded-lg">
+                        <div className="flex gap-1 mb-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={resetPreviewData}
+                            className="h-6 px-1 text-xs bg-white hover:bg-purple-100"
+                          >
+                            Reset All Variables
+                          </Button>
+                        </div>
+                        <div className="text-xs text-purple-600">
+                          Preview updates automatically as you type
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Variable Inputs */}
+                    <div className="bg-orange-50 p-2 rounded-lg">
+                      <Label className="text-xs font-medium mb-2 block text-orange-700">
+                        Variable Values
                       </Label>
-                      <div className="text-xs text-blue-600 space-y-1">
-                        {parseConditionalBlocks(htmlContent).map((block, index) => (
-                          <div key={index} className="p-1 bg-white rounded border">
-                            <div className="font-medium">{block.condition}</div>
-                            <div className="text-gray-600 truncate">
-                              {block.content.substring(0, 50)}...
-                            </div>
+                      <div className="text-xs text-orange-600 mb-2">
+                        Variables start empty. Preview updates automatically as
+                        you type
+                      </div>
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {Object.entries(previewData).map(([key, value]) => (
+                          <div key={key} className="space-y-1">
+                            <Label className="text-xs text-orange-700 block">
+                              {key}
+                            </Label>
+                            <Input
+                              value={value}
+                              onChange={(e) =>
+                                updatePreviewData(`{{${key}}}`, e.target.value)
+                              }
+                              className="h-6 text-xs"
+                              placeholder={`Enter value for ${key}`}
+                            />
                           </div>
                         ))}
                       </div>

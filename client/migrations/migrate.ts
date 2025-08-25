@@ -29,6 +29,10 @@ import {
   runMigration as runMigration005,
   rollbackMigration as rollbackMigration005,
 } from "./005-currency-usd-to-eur";
+import {
+  runMigration as runMigration006,
+  rollbackMigration as rollbackMigration006,
+} from "./006-conditional-email-templates";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -133,6 +137,23 @@ async function main() {
       }
       break;
 
+    case "006":
+      console.log("📊 Running migration: 006-conditional-email-templates");
+      const result006 = await runMigration006(dryRun);
+      console.log(`\n🎯 ${result006.message}`);
+      if (result006.details) {
+        console.log(
+          `📊 Details: ${result006.details.created} created, ${result006.details.skipped} skipped, ${result006.details.errors.length} errors`
+        );
+        if (result006.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result006.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "rollback":
     case "undo":
       console.log("🔄 Rolling back migration: 001-initial-tour-packages");
@@ -225,6 +246,23 @@ async function main() {
       }
       break;
 
+    case "rollback006":
+      console.log("🔄 Rolling back migration: 006-conditional-email-templates");
+      const rollbackResult006 = await rollbackMigration006();
+      console.log(`\n🎯 ${rollbackResult006.message}`);
+      if (rollbackResult006.details) {
+        console.log(
+          `📊 Details: ${rollbackResult006.details.deleted} deleted, ${rollbackResult006.details.errors.length} errors`
+        );
+        if (rollbackResult006.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult006.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "dry-run":
     case "test":
       console.log(
@@ -289,6 +327,19 @@ async function main() {
       }
       break;
 
+    case "dry-run006":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 006-conditional-email-templates"
+      );
+      const dryRunResult006 = await runMigration006(true);
+      console.log(`\n🎯 ${dryRunResult006.message}`);
+      if (dryRunResult006.details) {
+        console.log(
+          `📊 Details: ${dryRunResult006.details.created} would be created, ${dryRunResult006.details.skipped} would be skipped`
+        );
+      }
+      break;
+
     case "help":
     case "--help":
     case "-h":
@@ -312,16 +363,19 @@ function showHelp() {
   003                Run the migration to create final tour packages
   004                Run the migration to create payment plans
   005                Run the migration to create currency conversion rates (USD to EUR)
+  006                Run the migration to create conditional email templates
   rollback, undo     Rollback the migration 001 (delete created tours)
   rollback002        Rollback the migration 002 (delete created tours)
   rollback003        Rollback the migration 003 (delete created tours)
   rollback004        Rollback the migration 004 (delete created payment plans)
   rollback005        Rollback the migration 005 (delete currency conversion rates)
+  rollback006        Rollback the migration 006 (delete conditional email templates)
   dry-run, test     Test the migration 001 without making changes
   dry-run002        Test the migration 002 without making changes
   dry-run003        Test the migration 003 without making changes
   dry-run004        Test the migration 004 without making changes
   dry-run005        Test the migration 005 without making changes
+  dry-run006        Test the migration 006 without making changes
   help               Show this help message
 
 📝 Examples:
@@ -331,16 +385,19 @@ function showHelp() {
   tsx migrations/migrate.ts 003        # Run migration 003 (final tours)
   tsx migrations/migrate.ts 004        # Run migration 004 (payment plans)
   tsx migrations/migrate.ts 005        # Run migration 005 (currency conversion)
+  tsx migrations/migrate.ts 006        # Run migration 006 (conditional email templates)
   tsx migrations/migrate.ts dry-run    # Test migration 001 without changes
   tsx migrations/migrate.ts dry-run002 # Test migration 002 without changes
   tsx migrations/migrate.ts dry-run003 # Test migration 003 without changes
   tsx migrations/migrate.ts dry-run004 # Test migration 004 without changes
   tsx migrations/migrate.ts dry-run005 # Test migration 005 without changes
+  tsx migrations/migrate.ts dry-run006 # Test migration 006 without changes
   tsx migrations/migrate.ts rollback   # Undo migration 001
   tsx migrations/migrate.ts rollback002 # Undo migration 002
   tsx migrations/migrate.ts rollback003 # Undo migration 003
   tsx migrations/migrate.ts rollback004 # Undo migration 004
   tsx migrations/migrate.ts rollback005 # Undo migration 005
+  tsx migrations/migrate.ts rollback006 # Undo migration 006
 
 🔧 Options:
 
@@ -377,6 +434,12 @@ function showHelp() {
   Migration 005 - Currency Conversion:
   - Converts all USD prices to EUR prices
   - Updates all currency fields in the database
+
+  Migration 006 - Conditional Email Templates:
+  - Adds reservation email template with conditional rendering
+  - Supports different payment term scenarios (P1, P2, P3, P4, Invalid, etc.)
+  - Dynamic content based on booking type and payment terms
+  - Uses custom conditional syntax: <? if (condition) { ?> content <? } ?>
 
   Each tour includes:
   - Complete itinerary with day-by-day activities

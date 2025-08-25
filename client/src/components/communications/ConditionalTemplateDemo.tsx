@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EmailTemplateService from "@/services/email-template-service";
@@ -138,7 +144,7 @@ const sampleDataSets = {
     p4Amount: "",
     p4DueDate: "",
     remainingBalance: "",
-    fullPaymentDueDate: ""
+    fullPaymentDueDate: "",
   },
   p1: {
     fullName: "Jane Smith",
@@ -161,7 +167,7 @@ const sampleDataSets = {
     p4Amount: "",
     p4DueDate: "",
     remainingBalance: "",
-    fullPaymentDueDate: ""
+    fullPaymentDueDate: "",
   },
   group: {
     fullName: "Mike Johnson",
@@ -184,7 +190,7 @@ const sampleDataSets = {
     p4Amount: "",
     p4DueDate: "",
     remainingBalance: "",
-    fullPaymentDueDate: ""
+    fullPaymentDueDate: "",
   },
   final48: {
     fullName: "Sarah Wilson",
@@ -207,17 +213,21 @@ const sampleDataSets = {
     p4Amount: "",
     p4DueDate: "",
     remainingBalance: 750,
-    fullPaymentDueDate: "2024-12-18"
-  }
+    fullPaymentDueDate: "2024-12-18",
+  },
 };
 
 export default function ConditionalTemplateDemo() {
-  const [selectedScenario, setSelectedScenario] = useState<keyof typeof sampleDataSets>("p1");
+  const [selectedScenario, setSelectedScenario] =
+    useState<keyof typeof sampleDataSets>("p1");
   const [processedTemplate, setProcessedTemplate] = useState("");
 
   const processTemplate = () => {
     const data = sampleDataSets[selectedScenario];
-    const processed = EmailTemplateService.processTemplate(sampleTemplate, data);
+    const processed = EmailTemplateService.processTemplate(
+      sampleTemplate,
+      data
+    );
     setProcessedTemplate(processed);
   };
 
@@ -232,8 +242,12 @@ export default function ConditionalTemplateDemo() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Conditional Template Rendering Demo</h1>
-        <p className="text-gray-600">See how conditional rendering works with different data scenarios</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Conditional Template Rendering Demo
+        </h1>
+        <p className="text-gray-600">
+          See how conditional rendering works with different data scenarios
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -265,10 +279,20 @@ export default function ConditionalTemplateDemo() {
                 const validation = validateTemplate();
                 return (
                   <div className="space-y-2">
-                    <div className={`flex items-center space-x-2 ${validation.isValid ? 'text-green-600' : 'text-red-600'}`}>
-                      <span className={`w-2 h-2 rounded-full ${validation.isValid ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                    <div
+                      className={`flex items-center space-x-2 ${
+                        validation.isValid ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          validation.isValid ? "bg-green-500" : "bg-red-500"
+                        }`}
+                      ></span>
                       <span className="font-medium">
-                        {validation.isValid ? 'Template is valid' : 'Template has errors'}
+                        {validation.isValid
+                          ? "Template is valid"
+                          : "Template has errors"}
                       </span>
                     </div>
                     {!validation.isValid && (
@@ -287,22 +311,30 @@ export default function ConditionalTemplateDemo() {
           <Card>
             <CardHeader>
               <CardTitle>Test Scenarios</CardTitle>
-              <CardDescription>Select a scenario to test conditional rendering</CardDescription>
+              <CardDescription>
+                Select a scenario to test conditional rendering
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
                 {Object.keys(sampleDataSets).map((scenario) => (
                   <Button
                     key={scenario}
-                    variant={selectedScenario === scenario ? "default" : "outline"}
-                    onClick={() => setSelectedScenario(scenario as keyof typeof sampleDataSets)}
+                    variant={
+                      selectedScenario === scenario ? "default" : "outline"
+                    }
+                    onClick={() =>
+                      setSelectedScenario(
+                        scenario as keyof typeof sampleDataSets
+                      )
+                    }
                     className="text-xs"
                   >
                     {scenario.charAt(0).toUpperCase() + scenario.slice(1)}
                   </Button>
                 ))}
               </div>
-              
+
               <Button onClick={processTemplate} className="w-full">
                 Process Template
               </Button>
@@ -312,16 +344,20 @@ export default function ConditionalTemplateDemo() {
           <Card>
             <CardHeader>
               <CardTitle>Selected Scenario Data</CardTitle>
-              <CardDescription>Data being used for template processing</CardDescription>
+              <CardDescription>
+                Data being used for template processing
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-xs space-y-1 max-h-40 overflow-y-auto">
-                {Object.entries(sampleDataSets[selectedScenario]).map(([key, value]) => (
-                  <div key={key} className="flex justify-between">
-                    <span className="font-medium">{key}:</span>
-                    <span className="text-gray-600">{String(value)}</span>
-                  </div>
-                ))}
+                {Object.entries(sampleDataSets[selectedScenario]).map(
+                  ([key, value]) => (
+                    <div key={key} className="flex justify-between">
+                      <span className="font-medium">{key}:</span>
+                      <span className="text-gray-600">{String(value)}</span>
+                    </div>
+                  )
+                )}
               </div>
             </CardContent>
           </Card>
@@ -332,12 +368,16 @@ export default function ConditionalTemplateDemo() {
           <Card>
             <CardHeader>
               <CardTitle>Template Output</CardTitle>
-              <CardDescription>Processed template with conditional rendering applied</CardDescription>
+              <CardDescription>
+                Processed template with conditional rendering applied
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {processedTemplate ? (
                 <div className="border rounded-lg p-4 bg-gray-50 max-h-96 overflow-y-auto">
-                  <div dangerouslySetInnerHTML={{ __html: processedTemplate }} />
+                  <div
+                    dangerouslySetInnerHTML={{ __html: processedTemplate }}
+                  />
                 </div>
               ) : (
                 <div className="text-center text-gray-500 py-8">

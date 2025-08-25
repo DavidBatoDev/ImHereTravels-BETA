@@ -12,8 +12,8 @@ The conditional rendering system uses a simple syntax that looks similar to PHP 
 
 ```html
 <? if (variable === "value") { ?>
-  <!-- Content to show when condition is true -->
-  <p>This will only appear when the condition is met</p>
+<!-- Content to show when condition is true -->
+<p>This will only appear when the condition is met</p>
 <? } ?>
 ```
 
@@ -21,8 +21,11 @@ The conditional rendering system uses a simple syntax that looks similar to PHP 
 
 ```html
 <? if (bookingType === "Group Booking" || bookingType === "Duo Booking") { ?>
-  <!-- Content for group bookings -->
-  <tr><td><strong>Group ID:</strong></td><td>{{groupId}}</td></tr>
+<!-- Content for group bookings -->
+<tr>
+  <td><strong>Group ID:</strong></td>
+  <td>{{groupId}}</td>
+</tr>
 <? } ?>
 ```
 
@@ -30,8 +33,8 @@ The conditional rendering system uses a simple syntax that looks similar to PHP 
 
 ```html
 <? if (availablePaymentTerms !== "Invalid" && availablePaymentTerms !== "Full payment required within 48hrs") { ?>
-  <!-- Content for valid payment terms -->
-  <p>Thank you for your booking!</p>
+<!-- Content for valid payment terms -->
+<p>Thank you for your booking!</p>
 <? } ?>
 ```
 
@@ -56,38 +59,42 @@ Variables are referenced using double curly braces: `{{variableName}}`
 ## Payment Terms Scenarios
 
 ### Invalid Booking
+
 ```html
 <? if (availablePaymentTerms === "Invalid") { ?>
-  <!-- Show refund information -->
-  <h3 style="color: red;">Refund Details for Your Booking</h3>
-  <p>Unfortunately, we're unable to process your booking...</p>
+<!-- Show refund information -->
+<h3 style="color: red;">Refund Details for Your Booking</h3>
+<p>Unfortunately, we're unable to process your booking...</p>
 <? } ?>
 ```
 
 ### P1 Payment Plan
+
 ```html
 <? if (availablePaymentTerms === "P1") { ?>
-  <!-- Show P1 payment details -->
-  <h3>Final Payment Due Soon</h3>
-  <p>There is only one available payment plan...</p>
+<!-- Show P1 payment details -->
+<h3>Final Payment Due Soon</h3>
+<p>There is only one available payment plan...</p>
 <? } ?>
 ```
 
 ### P2 Payment Plan
+
 ```html
 <? if (availablePaymentTerms === "P2") { ?>
-  <!-- Show P2 payment options -->
-  <h3>Choose Your Payment Plan</h3>
-  <p>You have 2 available payment plans...</p>
+<!-- Show P2 payment options -->
+<h3>Choose Your Payment Plan</h3>
+<p>You have 2 available payment plans...</p>
 <? } ?>
 ```
 
 ### Full Payment Required (48 hours)
+
 ```html
 <? if (availablePaymentTerms === "Full payment required within 48hrs") { ?>
-  <!-- Show urgent payment requirement -->
-  <h3>⚠️ Final Payment Required Within 48 Hours</h3>
-  <p>Your tour is less than 30 days away...</p>
+<!-- Show urgent payment requirement -->
+<h3>⚠️ Final Payment Required Within 48 Hours</h3>
+<p>Your tour is less than 30 days away...</p>
 <? } ?>
 ```
 
@@ -97,12 +104,21 @@ Variables are referenced using double curly braces: `{{variableName}}`
 
 ```html
 <!-- Always show basic info -->
-<tr><td><strong>Traveler Name:</strong></td><td>{{fullName}}</td></tr>
+<tr>
+  <td><strong>Traveler Name:</strong></td>
+  <td>{{fullName}}</td>
+</tr>
 
 <!-- Only show for group bookings -->
 <? if (bookingType === "Group Booking" || bookingType === "Duo Booking") { ?>
-  <tr><td><strong>Main Booker:</strong></td><td>{{mainBooker}}</td></tr>
-  <tr><td><strong>Group ID:</strong></td><td>{{groupId}}</td></tr>
+<tr>
+  <td><strong>Main Booker:</strong></td>
+  <td>{{mainBooker}}</td>
+</tr>
+<tr>
+  <td><strong>Group ID:</strong></td>
+  <td>{{groupId}}</td>
+</tr>
 <? } ?>
 ```
 
@@ -110,11 +126,11 @@ Variables are referenced using double curly braces: `{{variableName}}`
 
 ```html
 <? if (availablePaymentTerms !== 'Invalid') { ?>
-  <!-- Show payment methods for valid bookings -->
-  <h3>Choose Your Payment Method</h3>
-  <div class="payment-methods">
-    <!-- Payment method details -->
-  </div>
+<!-- Show payment methods for valid bookings -->
+<h3>Choose Your Payment Method</h3>
+<div class="payment-methods">
+  <!-- Payment method details -->
+</div>
 <? } ?>
 ```
 
@@ -129,6 +145,7 @@ Variables are referenced using double curly braces: `{{variableName}}`
 ### 2. Template Validation
 
 The system automatically validates your template syntax:
+
 - Checks for balanced conditional tags
 - Validates variable syntax
 - Shows errors and warnings
@@ -136,6 +153,7 @@ The system automatically validates your template syntax:
 ### 3. Live Preview
 
 See how your template looks with different data scenarios:
+
 - Switch between different payment term scenarios
 - View how conditional content appears/disappears
 - Test with various booking types
@@ -143,38 +161,41 @@ See how your template looks with different data scenarios:
 ## Best Practices
 
 ### 1. Keep Conditions Simple
+
 ```html
 <!-- Good -->
 <? if (availablePaymentTerms === "P1") { ?>
 
 <!-- Avoid complex nested conditions -->
-<? if (availablePaymentTerms === "P1" && bookingType !== "Invalid" && reservationFee > 0) { ?>
+<? if (availablePaymentTerms === "P1" && bookingType !== "Invalid" && reservationFee >
+0) { ?>
 ```
 
 ### 2. Use Clear Variable Names
+
 ```html
 <!-- Good -->
-{{fullName}}
-{{tourPackage}}
+{{fullName}} {{tourPackage}}
 
 <!-- Avoid -->
-{{n}}
-{{tp}}
+{{n}} {{tp}}
 ```
 
 ### 3. Test All Scenarios
+
 - Test with each payment term type
 - Test with different booking types
 - Verify conditional content appears/disappears correctly
 
 ### 4. Handle Edge Cases
+
 ```html
 <!-- Always provide fallback content -->
 <? if (availablePaymentTerms === "P1") { ?>
-  <!-- P1 specific content -->
+<!-- P1 specific content -->
 <? } ?>
 <? if (availablePaymentTerms === "P2") { ?>
-  <!-- P2 specific content -->
+<!-- P2 specific content -->
 <? } ?>
 <!-- Default content for other cases -->
 <p>Thank you for your booking!</p>
@@ -185,27 +206,27 @@ See how your template looks with different data scenarios:
 ```html
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Booking Confirmation</title>
-</head>
-<body>
+  </head>
+  <body>
     <!-- Header (always shown) -->
     <h1>Welcome to ImHereTravels!</h1>
-    
+
     <!-- Conditional greeting based on payment terms -->
     <? if (availablePaymentTerms === "Invalid") { ?>
-        <h2>Refund Information</h2>
-        <p>We're sorry, but your booking cannot be processed...</p>
+    <h2>Refund Information</h2>
+    <p>We're sorry, but your booking cannot be processed...</p>
     <? } ?>
-    
+
     <? if (availablePaymentTerms === "P1") { ?>
-        <h2>Payment Plan P1</h2>
-        <p>Your final payment is due on {{p1DueDate}}</p>
+    <h2>Payment Plan P1</h2>
+    <p>Your final payment is due on {{p1DueDate}}</p>
     <? } ?>
-    
+
     <!-- Common footer (always shown) -->
-    <p>Best regards,<br>The ImHereTravels Team</p>
-</body>
+    <p>Best regards,<br />The ImHereTravels Team</p>
+  </body>
 </html>
 ```
 
@@ -214,11 +235,13 @@ See how your template looks with different data scenarios:
 ### Common Issues
 
 1. **Conditional tags not working**
+
    - Check syntax: `<? if (condition) { ?>` and `<? } ?>`
    - Ensure tags are properly closed
    - Verify variable names match exactly
 
 2. **Content not showing**
+
    - Check your condition logic
    - Verify variable values in your data
    - Use the template validation to check for errors

@@ -515,7 +515,7 @@ export default function CommunicationsCenter() {
         setTemplates(localTemplates);
       },
       {
-        filters: { createdBy: user.uid },
+        // Remove the createdBy filter to show all templates (user + system)
         sortBy: "metadata.updatedAt",
         sortOrder: "desc",
         limit: 100,
@@ -533,7 +533,8 @@ export default function CommunicationsCenter() {
       setError(null);
 
       const result = await EmailTemplateService.getTemplates({
-        filters: { createdBy: user.uid },
+        // Remove the createdBy filter to show all templates (user + system)
+        // filters: { createdBy: user.uid },
         sortBy: "metadata.updatedAt",
         sortOrder: "desc",
         limit: 100,

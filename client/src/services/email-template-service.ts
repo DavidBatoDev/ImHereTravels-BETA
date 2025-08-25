@@ -856,44 +856,14 @@ export class EmailTemplateService {
     data: TemplateData,
     options: ProcessingOptions
   ): string {
-    const conditionalRegex = /<\? if \(([^)]+)\) \{ \?>/g;
-    const endRegex = /<\? \}/g;
-
     let result = template;
-    let match;
-    let conditionalStack: Array<{
-      start: number;
-      condition: string;
-      content: string;
-    }> = [];
 
-    // Find all conditional blocks
-    while ((match = conditionalRegex.exec(template)) !== null) {
-      const condition = match[1].trim();
-      const startIndex = match.index;
-
-      // Find the corresponding end tag
-      const remainingTemplate = template.substring(startIndex);
-      const endMatch = endRegex.exec(remainingTemplate);
-
-      if (endMatch) {
-        const endIndex = startIndex + endMatch.index;
-        const content = template.substring(
-          startIndex + match[0].length,
-          endIndex
-        );
-
-        conditionalStack.push({
-          start: startIndex,
-          condition,
-          content,
-        });
-      }
-    }
+    // Parse conditional blocks with a more sophisticated approach
+    const conditionalBlocks = this.parseConditionalBlocks(template);
 
     // Process conditionals from end to start to avoid index shifting
-    for (let i = conditionalStack.length - 1; i >= 0; i--) {
-      const block = conditionalStack[i];
+    for (let i = conditionalBlocks.length - 1; i >= 0; i--) {
+      const block = conditionalBlocks[i];
       const shouldShow = this.evaluateCondition(block.condition, data);
 
       if (shouldShow) {
@@ -915,6 +885,82 @@ export class EmailTemplateService {
   }
 
   /**
+   * Parse conditional blocks with proper handling of complex conditions
+   */
+  private static parseConditionalBlocks(template: string): Array<{
+    start: number;
+    condition: string;
+    content: string;
+  }> {
+    const blocks: Array<{
+      start: number;
+      condition: string;
+      content: string;
+    }> = [];
+
+    let currentIndex = 0;
+
+    while (currentIndex < template.length) {
+      // Find the start of a conditional block
+      const startMatch = template.indexOf("<? if (", currentIndex);
+      if (startMatch === -1) break;
+
+      // Find the opening brace after the condition
+      const braceStart = template.indexOf(") { ?>", startMatch);
+      if (braceStart === -1) break;
+
+      // Extract the condition (everything between '<? if (' and ') { ?>')
+      const conditionStart = startMatch + 7; // length of '<? if ('
+      const condition = template.substring(conditionStart, braceStart).trim();
+
+      // Find the corresponding end tag, handling nested conditionals
+      const contentStart = braceStart + 6; // length of ') { ?>'
+      let endMatch = -1;
+      let nestedLevel = 0;
+      let searchIndex = contentStart;
+
+      while (searchIndex < template.length) {
+        const nextIf = template.indexOf("<? if (", searchIndex);
+        const nextEnd = template.indexOf("<? } ?>", searchIndex);
+
+        if (nextIf === -1 && nextEnd === -1) break;
+
+        if (nextIf !== -1 && (nextEnd === -1 || nextIf < nextEnd)) {
+          // Found a nested if statement
+          nestedLevel++;
+          searchIndex = nextIf + 1;
+        } else if (nextEnd !== -1) {
+          if (nestedLevel > 0) {
+            // Found an end tag for a nested conditional
+            nestedLevel--;
+            searchIndex = nextEnd + 1;
+          } else {
+            // Found the end tag for our current conditional
+            endMatch = nextEnd;
+            break;
+          }
+        }
+      }
+
+      if (endMatch === -1) break;
+
+      // Extract the content
+      const content = template.substring(contentStart, endMatch);
+
+      blocks.push({
+        start: startMatch,
+        condition,
+        content,
+      });
+
+      // Move to the next position after this block
+      currentIndex = endMatch + 6; // length of '<? } ?>'
+    }
+
+    return blocks;
+  }
+
+  /**
    * Process variable substitutions in the template
    */
   private static processVariables(
@@ -927,11 +973,14 @@ export class EmailTemplateService {
     // Replace variables with their values
     Object.keys(data).forEach((key) => {
       const variableRegex = new RegExp(`\\{\\{${key}\\}\\}`, "g");
-      const value =
-        data[key] !== undefined
-          ? data[key]
-          : options.defaultValues?.[key] || "";
-      result = result.replace(variableRegex, String(value));
+      const value = data[key];
+
+      // If value is empty or undefined, show the placeholder
+      if (value === undefined || value === null || value === "") {
+        result = result.replace(variableRegex, `{{${key}}}`);
+      } else {
+        result = result.replace(variableRegex, String(value));
+      }
     });
 
     // Replace any remaining variables with empty string or default
@@ -956,8 +1005,32 @@ export class EmailTemplateService {
       // Create a safe evaluation context
       const context = { ...data };
 
-      // Replace variable references with actual values
+      // Replace {{variable}} references with actual values
       let processedCondition = condition;
+      Object.keys(context).forEach((key) => {
+        const value = context[key];
+        const variablePattern = new RegExp(`\\{\\{${key}\\}\\}`, "g");
+
+        if (value === undefined || value === null || value === "") {
+          // Empty values are treated as falsy for conditional evaluation
+          processedCondition = processedCondition.replace(
+            variablePattern,
+            `""`
+          );
+        } else if (typeof value === "string") {
+          processedCondition = processedCondition.replace(
+            variablePattern,
+            `"${value}"`
+          );
+        } else if (typeof value === "number" || typeof value === "boolean") {
+          processedCondition = processedCondition.replace(
+            variablePattern,
+            String(value)
+          );
+        }
+      });
+
+      // Also handle legacy variable references (without {{}})
       Object.keys(context).forEach((key) => {
         const value = context[key];
         if (typeof value === "string") {
@@ -989,39 +1062,11 @@ export class EmailTemplateService {
   static extractTemplateVariables(template: string): string[] {
     const variables = new Set<string>();
 
-    // Extract variables from {{variable}} syntax
+    // Extract variables from {{variable}} syntax only
     const variableRegex = /\{\{(\w+)\}\}/g;
     let match;
     while ((match = variableRegex.exec(template)) !== null) {
       variables.add(match[1]);
-    }
-
-    // Extract variables from conditional expressions
-    const conditionalRegex = /<\? if \(([^)]+)\) \{ \?>/g;
-    while ((match = conditionalRegex.exec(template)) !== null) {
-      const condition = match[1];
-      // Extract variable names from the condition
-      const conditionVars = condition.match(/\b\w+\b/g) || [];
-      conditionVars.forEach((varName) => {
-        // Filter out operators and literals
-        if (
-          ![
-            "if",
-            "===",
-            "!==",
-            "==",
-            "!=",
-            "&&",
-            "||",
-            "true",
-            "false",
-            "null",
-            "undefined",
-          ].includes(varName)
-        ) {
-          variables.add(varName);
-        }
-      });
     }
 
     return Array.from(variables);
@@ -1046,15 +1091,13 @@ export class EmailTemplateService {
       );
     }
 
-    // Check for proper conditional syntax
-    const conditionalRegex = /<\? if \(([^)]+)\) \{ \?>/g;
-    let match;
-    while ((match = conditionalRegex.exec(template)) !== null) {
-      const condition = match[1].trim();
-      if (!condition) {
+    // Check for proper conditional syntax using the new parser
+    const conditionalBlocks = this.parseConditionalBlocks(template);
+    conditionalBlocks.forEach((block) => {
+      if (!block.condition.trim()) {
         errors.push("Empty conditional expression found");
       }
-    }
+    });
 
     // Check for unclosed variables
     const openVariables = (template.match(/\{\{/g) || []).length;
