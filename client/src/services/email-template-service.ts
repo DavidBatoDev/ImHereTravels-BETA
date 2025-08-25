@@ -31,11 +31,27 @@ import {
 // Collection reference
 const COLLECTION_NAME = "emailTemplates";
 
+// Variable definition types
+export type VariableType = "string" | "number" | "boolean" | "array" | "map";
+
+export interface VariableDefinition {
+  id: string;
+  name: string;
+  type: VariableType;
+  description?: string;
+  // For arrays
+  arrayElementType?: VariableType;
+  arrayElementDefinitions?: VariableDefinition[]; // For complex array elements
+  // For maps/objects
+  mapFields?: { [key: string]: VariableDefinition };
+}
+
 export interface CreateTemplateData {
   name: string;
   subject: string;
   content: string;
   variables: string[];
+  variableDefinitions?: VariableDefinition[];
   status: TemplateStatus;
   bccGroups?: string[];
 }
@@ -507,15 +523,8 @@ export class EmailTemplateService {
       }
     }
 
-    // Variable validation
-    if (data.variables && data.variables.length > 0) {
-      const invalidVariables = data.variables.filter(
-        (variable) => !variable.match(/^\{\{[\w_]+\}\}$/)
-      );
-      if (invalidVariables.length > 0) {
-        errors.push(`Invalid variable format: ${invalidVariables.join(", ")}`);
-      }
-    }
+    // Variable validation - no longer needed since variables are explicitly defined by user
+    // The new system doesn't require variables to be predefined in any specific format
 
     // Name length validation
     if (data.name && data.name.length > 100) {
@@ -609,12 +618,11 @@ export class EmailTemplateService {
   }
 
   /**
-   * Extract variables from HTML content
+   * Extract variables from HTML content (legacy method for compatibility)
+   * Now extracts from <?= variable ?> syntax
    */
   static extractVariables(content: string): string[] {
-    const regex = /\{\{(\w+)\}\}/g;
-    const matches = [...content.matchAll(regex)];
-    return [...new Set(matches.map((match) => `{{${match[1]}}}`))];
+    return this.extractTemplateVariables(content);
   }
 
   /**
@@ -823,6 +831,7 @@ export class EmailTemplateService {
 
   /**
    * Process a template with conditional rendering and variable substitution
+   * Using Google Apps Script-like syntax: <?= variable ?> for output and <? ... ?> for logic
    * @param template The HTML template string
    * @param data The data object containing variable values
    * @param options Processing options
@@ -835,245 +844,143 @@ export class EmailTemplateService {
   ): string {
     let processedTemplate = template;
 
-    // Process conditional blocks
-    processedTemplate = this.processConditionals(
+    // Process conditional blocks and loops
+    processedTemplate = this.processScriptLogic(
       processedTemplate,
       data,
       options
     );
 
-    // Process variable substitutions
-    processedTemplate = this.processVariables(processedTemplate, data, options);
+    // Process variable outputs
+    processedTemplate = this.processVariableOutputs(
+      processedTemplate,
+      data,
+      options
+    );
 
     return processedTemplate;
   }
 
   /**
-   * Process conditional blocks in the template
+   * Process script logic blocks (conditionals, loops) in the template
+   * Handles: <? if (condition) { ?>...<? } ?>, <? for (loop) { ?>...<? } ?>, etc.
    */
-  private static processConditionals(
+  private static processScriptLogic(
     template: string,
     data: TemplateData,
     options: ProcessingOptions
   ): string {
-    let result = template;
-
-    // Parse conditional blocks with a more sophisticated approach
-    const conditionalBlocks = this.parseConditionalBlocks(template);
-
-    // Process conditionals from end to start to avoid index shifting
-    for (let i = conditionalBlocks.length - 1; i >= 0; i--) {
-      const block = conditionalBlocks[i];
-      const shouldShow = this.evaluateCondition(block.condition, data);
-
-      if (shouldShow) {
-        // Keep the content, remove the conditional tags
-        result = result.replace(
-          `<? if (${block.condition}) { ?>${block.content}<? } ?>`,
-          block.content
-        );
-      } else {
-        // Remove the entire conditional block
-        result = result.replace(
-          `<? if (${block.condition}) { ?>${block.content}<? } ?>`,
-          ""
-        );
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Parse conditional blocks with proper handling of complex conditions
-   */
-  private static parseConditionalBlocks(template: string): Array<{
-    start: number;
-    condition: string;
-    content: string;
-  }> {
-    const blocks: Array<{
-      start: number;
-      condition: string;
-      content: string;
-    }> = [];
-
-    let currentIndex = 0;
-
-    while (currentIndex < template.length) {
-      // Find the start of a conditional block
-      const startMatch = template.indexOf("<? if (", currentIndex);
-      if (startMatch === -1) break;
-
-      // Find the opening brace after the condition
-      const braceStart = template.indexOf(") { ?>", startMatch);
-      if (braceStart === -1) break;
-
-      // Extract the condition (everything between '<? if (' and ') { ?>')
-      const conditionStart = startMatch + 7; // length of '<? if ('
-      const condition = template.substring(conditionStart, braceStart).trim();
-
-      // Find the corresponding end tag, handling nested conditionals
-      const contentStart = braceStart + 6; // length of ') { ?>'
-      let endMatch = -1;
-      let nestedLevel = 0;
-      let searchIndex = contentStart;
-
-      while (searchIndex < template.length) {
-        const nextIf = template.indexOf("<? if (", searchIndex);
-        const nextEnd = template.indexOf("<? } ?>", searchIndex);
-
-        if (nextIf === -1 && nextEnd === -1) break;
-
-        if (nextIf !== -1 && (nextEnd === -1 || nextIf < nextEnd)) {
-          // Found a nested if statement
-          nestedLevel++;
-          searchIndex = nextIf + 1;
-        } else if (nextEnd !== -1) {
-          if (nestedLevel > 0) {
-            // Found an end tag for a nested conditional
-            nestedLevel--;
-            searchIndex = nextEnd + 1;
-          } else {
-            // Found the end tag for our current conditional
-            endMatch = nextEnd;
-            break;
-          }
-        }
-      }
-
-      if (endMatch === -1) break;
-
-      // Extract the content
-      const content = template.substring(contentStart, endMatch);
-
-      blocks.push({
-        start: startMatch,
-        condition,
-        content,
-      });
-
-      // Move to the next position after this block
-      currentIndex = endMatch + 6; // length of '<? } ?>'
-    }
-
-    return blocks;
-  }
-
-  /**
-   * Process variable substitutions in the template
-   */
-  private static processVariables(
-    template: string,
-    data: TemplateData,
-    options: ProcessingOptions
-  ): string {
-    let result = template;
-
-    // Replace variables with their values
-    Object.keys(data).forEach((key) => {
-      const variableRegex = new RegExp(`\\{\\{${key}\\}\\}`, "g");
-      const value = data[key];
-
-      // If value is empty or undefined, show the placeholder
-      if (value === undefined || value === null || value === "") {
-        result = result.replace(variableRegex, `{{${key}}}`);
-      } else {
-        result = result.replace(variableRegex, String(value));
-      }
-    });
-
-    // Replace any remaining variables with empty string or default
-    const remainingVariables = result.match(/\{\{(\w+)\}\}/g) || [];
-    remainingVariables.forEach((variable: string) => {
-      const varName = variable.replace(/\{\{|\}\}/g, "");
-      const defaultValue = options.defaultValues?.[varName] || "";
-      result = result.replace(new RegExp(variable, "g"), defaultValue);
-    });
-
-    return result;
-  }
-
-  /**
-   * Evaluate a conditional expression
-   */
-  private static evaluateCondition(
-    condition: string,
-    data: TemplateData
-  ): boolean {
     try {
       // Create a safe evaluation context
       const context = { ...data };
 
-      // Replace {{variable}} references with actual values
-      let processedCondition = condition;
-      Object.keys(context).forEach((key) => {
-        const value = context[key];
-        const variablePattern = new RegExp(`\\{\\{${key}\\}\\}`, "g");
+      // Use Function constructor to safely evaluate the template as JavaScript
+      // This converts the template into executable JavaScript code
+      const jsCode = this.convertTemplateToJS(template);
 
-        if (value === undefined || value === null || value === "") {
-          // Empty values are treated as falsy for conditional evaluation
-          processedCondition = processedCondition.replace(
-            variablePattern,
-            `""`
-          );
-        } else if (typeof value === "string") {
-          processedCondition = processedCondition.replace(
-            variablePattern,
-            `"${value}"`
-          );
-        } else if (typeof value === "number" || typeof value === "boolean") {
-          processedCondition = processedCondition.replace(
-            variablePattern,
-            String(value)
-          );
-        }
-      });
-
-      // Also handle legacy variable references (without {{}})
-      Object.keys(context).forEach((key) => {
-        const value = context[key];
-        if (typeof value === "string") {
-          processedCondition = processedCondition.replace(
-            new RegExp(`\\b${key}\\b`, "g"),
-            `"${value}"`
-          );
-        } else if (typeof value === "number" || typeof value === "boolean") {
-          processedCondition = processedCondition.replace(
-            new RegExp(`\\b${key}\\b`, "g"),
-            String(value)
-          );
-        }
-      });
-
-      // Evaluate the condition
-      // Note: In a production environment, you might want to use a safer evaluation method
-      // or implement a custom parser for security reasons
-      return new Function("return " + processedCondition)();
+      // Execute the JavaScript code with the data context
+      const func = new Function(
+        ...Object.keys(context),
+        `return \`${jsCode}\`;`
+      );
+      return func(...Object.values(context));
     } catch (error) {
-      console.warn("Error evaluating condition:", condition, error);
-      return false;
+      console.warn("Error processing script logic:", error);
+      return template; // Return original template if processing fails
     }
   }
 
   /**
-   * Get all variables used in a template
+   * Convert template with <? ?> syntax to JavaScript template literal syntax
+   */
+  private static convertTemplateToJS(template: string): string {
+    let jsCode = template;
+
+    // Convert <?= variable ?> to ${variable}
+    jsCode = jsCode.replace(/<\?\s*=\s*([^?]+)\s*\?>/g, "${$1}");
+
+    // Convert <? if (condition) { ?> to ${condition ? `
+    jsCode = jsCode.replace(/<\?\s*if\s*\(([^)]+)\)\s*{\s*\?>/g, "${$1 ? `");
+
+    // Convert <? } else if (condition) { ?> to ` : $1 ? `
+    jsCode = jsCode.replace(
+      /<\?\s*}\s*else\s*if\s*\(([^)]+)\)\s*{\s*\?>/g,
+      "` : $1 ? `"
+    );
+
+    // Convert <? } else { ?> to ` : `
+    jsCode = jsCode.replace(/<\?\s*}\s*else\s*{\s*\?>/g, "` : `");
+
+    // Convert <? } ?> to ` : ""}
+    jsCode = jsCode.replace(/<\?\s*}\s*\?>/g, '` : ""}');
+
+    // Convert <? for (let i = 0; i < array.length; i++) { ?> to ${array.map((item, i) => `
+    jsCode = jsCode.replace(
+      /<\?\s*for\s*\(\s*let\s+(\w+)\s*=\s*0;\s*\1\s*<\s*(\w+)\.length;\s*\1\+\+\s*\)\s*{\s*\?>/g,
+      "${$2.map(($2[$1], $1) => `"
+    );
+
+    // Handle simple array iteration: for (item of array)
+    jsCode = jsCode.replace(
+      /<\?\s*for\s*\(\s*(\w+)\s+of\s+(\w+)\s*\)\s*{\s*\?>/g,
+      "${$2.map($1 => `"
+    );
+
+    return jsCode;
+  }
+
+  /**
+   * Process variable outputs in the template (<?= variable ?> syntax)
+   * This is a fallback for any <?= ?> tags that weren't processed by the main logic
+   */
+  private static processVariableOutputs(
+    template: string,
+    data: TemplateData,
+    options: ProcessingOptions
+  ): string {
+    let result = template;
+
+    // Replace any remaining <?= variable ?> with actual values
+    result = result.replace(
+      /<\?\s*=\s*([^?]+)\s*\?>/g,
+      (match, variableName) => {
+        const varName = variableName.trim();
+        const value = data[varName];
+
+        // If value is empty or undefined, use default or empty string
+        if (value === undefined || value === null || value === "") {
+          return options.defaultValues?.[varName] || "";
+        } else {
+          return String(value);
+        }
+      }
+    );
+
+    return result;
+  }
+
+  /**
+   * Get all variables used in a template (from <?= variable ?> syntax)
    */
   static extractTemplateVariables(template: string): string[] {
     const variables = new Set<string>();
 
-    // Extract variables from {{variable}} syntax only
-    const variableRegex = /\{\{(\w+)\}\}/g;
+    // Extract variables from <?= variable ?> syntax
+    const variableRegex = /<\?\s*=\s*([^?]+)\s*\?>/g;
     let match;
     while ((match = variableRegex.exec(template)) !== null) {
-      variables.add(match[1]);
+      const varName = match[1].trim();
+      // Handle simple variable names (not complex expressions)
+      if (/^\w+$/.test(varName)) {
+        variables.add(varName);
+      }
     }
 
     return Array.from(variables);
   }
 
   /**
-   * Validate template syntax
+   * Validate template syntax for new <?= ?> and <? ?> format
    */
   static validateTemplateSyntax(template: string): {
     isValid: boolean;
@@ -1081,31 +988,56 @@ export class EmailTemplateService {
   } {
     const errors: string[] = [];
 
-    // Check for balanced conditional tags
-    const openTags = (template.match(/<\? if \(/g) || []).length;
-    const closeTags = (template.match(/<\? \}/g) || []).length;
+    // Count actual opening blocks (if and for statements)
+    const ifBlocks = (template.match(/<\?\s*if\s*\(/g) || []).length;
+    const forBlocks = (template.match(/<\?\s*for\s*\(/g) || []).length;
 
-    if (openTags !== closeTags) {
+    // Count only TRUE closing blocks (not else if or else continuations)
+    // A true closing block is <? } ?> that is NOT followed by else
+    const allClosingTags = template.match(/<\?\s*\}\s*\?>/g) || [];
+    const elseIfContinuations =
+      template.match(/<\?\s*\}\s*else\s*if\s*\(/g) || [];
+    const elseContinuations =
+      template.match(/<\?\s*\}\s*else\s*\{\s*\?>/g) || [];
+
+    const totalOpenBlocks = ifBlocks + forBlocks;
+    const trueClosingBlocks = allClosingTags.length;
+
+    if (totalOpenBlocks !== trueClosingBlocks) {
       errors.push(
-        `Mismatched conditional tags: ${openTags} opening tags, ${closeTags} closing tags`
+        `Mismatched conditional/loop blocks: ${totalOpenBlocks} opening blocks, ${trueClosingBlocks} closing blocks`
       );
     }
 
-    // Check for proper conditional syntax using the new parser
-    const conditionalBlocks = this.parseConditionalBlocks(template);
-    conditionalBlocks.forEach((block) => {
-      if (!block.condition.trim()) {
-        errors.push("Empty conditional expression found");
+    // Validate that variable output tags are properly closed
+    const variablePatternWithClosing = /<\?\s*=\s*[^?]*\?>/g;
+    const variablePatternWithoutClosing = /<\?\s*=\s*[^?]*(?!\?>)/g;
+
+    const completeVariables = template.match(variablePatternWithClosing) || [];
+    const incompleteVariables =
+      template.match(variablePatternWithoutClosing) || [];
+
+    // Remove complete variables from incomplete count to avoid double counting
+    const actualIncompleteVariables = incompleteVariables.filter(
+      (incomplete: string) => {
+        return !completeVariables.some((complete: string) =>
+          complete.includes(incomplete)
+        );
       }
-    });
+    );
 
-    // Check for unclosed variables
-    const openVariables = (template.match(/\{\{/g) || []).length;
-    const closeVariables = (template.match(/\}\}/g) || []).length;
+    if (actualIncompleteVariables.length > 0) {
+      errors.push("Incomplete variable output tags found (missing ?>)");
+    }
 
-    if (openVariables !== closeVariables) {
+    // Validate overall tag balance
+    // Count all <? openings vs all ?> closings
+    const allOpenings = template.match(/<\?/g) || [];
+    const allClosings = template.match(/\?>/g) || [];
+
+    if (allOpenings.length !== allClosings.length) {
       errors.push(
-        `Mismatched variable tags: ${openVariables} opening tags, ${closeVariables} closing tags`
+        `Mismatched script tags: ${allOpenings.length} opening tags, ${allClosings.length} closing tags`
       );
     }
 

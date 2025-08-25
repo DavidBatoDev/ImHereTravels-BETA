@@ -20,9 +20,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Save, Eye, Code, Upload, Palette, AlertCircle } from "lucide-react";
+import {
+  Save,
+  Eye,
+  Code,
+  Upload,
+  Palette,
+  AlertCircle,
+  X,
+  Plus,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import EmailTemplateService from "@/services/email-template-service";
+import EmailTemplateService, {
+  VariableDefinition,
+  VariableType,
+} from "@/services/email-template-service";
 
 // Type declarations for Monaco Editor
 declare global {
@@ -42,6 +54,7 @@ interface CommunicationTemplate {
   content: string;
   status: TemplateStatus;
   variables: string[];
+  variableDefinitions?: VariableDefinition[]; // New field for variable definitions
   metadata?: {
     createdAt?: Date;
     updatedAt?: Date;
@@ -240,6 +253,199 @@ function getIndentLevel(lines: string[]): number {
   return Math.max(0, level);
 }
 
+// Variable Definition Item Component
+interface VariableDefinitionItemProps {
+  variable: VariableDefinition;
+  index: number;
+  onUpdate: (updates: Partial<VariableDefinition>) => void;
+  onRemove: () => void;
+  onAddMapField: (key: string, type: VariableType) => void;
+  onRemoveMapField: (key: string) => void;
+  onInsert: () => void;
+}
+
+function VariableDefinitionItem({
+  variable,
+  index,
+  onUpdate,
+  onRemove,
+  onAddMapField,
+  onRemoveMapField,
+  onInsert,
+}: VariableDefinitionItemProps) {
+  const [isExpanded, setIsExpanded] = useState(
+    variable.type === "map" || variable.type === "array"
+  );
+
+  const typeColors = {
+    string: "bg-blue-50 text-blue-700 border-blue-200",
+    number: "bg-green-50 text-green-700 border-green-200",
+    boolean: "bg-purple-50 text-purple-700 border-purple-200",
+    array: "bg-orange-50 text-orange-700 border-orange-200",
+    map: "bg-red-50 text-red-700 border-red-200",
+  };
+
+  return (
+    <div className="border rounded-lg p-2 space-y-2 bg-white">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2 flex-1">
+          <span className="text-xs font-medium text-gray-500 min-w-[1rem]">
+            {index + 1}.
+          </span>
+          <Input
+            value={variable.name}
+            onChange={(e) => onUpdate({ name: e.target.value })}
+            placeholder="Variable name"
+            className="h-6 text-xs flex-1"
+          />
+          <Select
+            value={variable.type}
+            onValueChange={(value: VariableType) => onUpdate({ type: value })}
+          >
+            <SelectTrigger
+              className={`h-6 w-20 text-xs border ${typeColors[variable.type]}`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="string">string</SelectItem>
+              <SelectItem value="number">number</SelectItem>
+              <SelectItem value="boolean">boolean</SelectItem>
+              <SelectItem value="array">array</SelectItem>
+              <SelectItem value="map">map</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center space-x-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onInsert}
+            className="h-6 w-6 p-0 text-xs"
+            title="Insert into template"
+          >
+            +
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRemove}
+            className="h-6 w-6 p-0 text-xs text-red-600 hover:bg-red-50"
+            title="Remove variable"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Array Configuration */}
+      {variable.type === "array" && (
+        <div className="ml-4 pl-2 border-l-2 border-gray-200 space-y-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500">Element type:</span>
+            <Select
+              value={variable.arrayElementType || "string"}
+              onValueChange={(value: VariableType) =>
+                onUpdate({ arrayElementType: value })
+              }
+            >
+              <SelectTrigger className="h-6 w-20 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="string">string</SelectItem>
+                <SelectItem value="number">number</SelectItem>
+                <SelectItem value="boolean">boolean</SelectItem>
+                <SelectItem value="map">map</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="text-xs text-gray-400">
+            Access with: {`<?= ${variable.name}[0] ?>`},{" "}
+            {`<?= ${variable.name}.length ?>`}
+          </div>
+        </div>
+      )}
+
+      {/* Map Configuration */}
+      {variable.type === "map" && (
+        <div className="ml-4 pl-2 border-l-2 border-gray-200 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Fields:</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onAddMapField("", "string")}
+              className="h-5 px-2 text-xs"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add Field
+            </Button>
+          </div>
+
+          {variable.mapFields &&
+            Object.entries(variable.mapFields).map(([key, field]) => (
+              <div key={key} className="flex items-center space-x-1">
+                <Input
+                  value={key}
+                  onChange={(e) => {
+                    // Handle key rename
+                    const newMapFields = { ...variable.mapFields };
+                    delete newMapFields[key];
+                    newMapFields[e.target.value] = field;
+                    onUpdate({ mapFields: newMapFields });
+                  }}
+                  placeholder="field name"
+                  className="h-5 text-xs flex-1"
+                />
+                <span className="text-xs text-gray-400">:</span>
+                <Select
+                  value={field.type}
+                  onValueChange={(value: VariableType) => {
+                    const newMapFields = { ...variable.mapFields };
+                    newMapFields[key] = { ...field, type: value };
+                    onUpdate({ mapFields: newMapFields });
+                  }}
+                >
+                  <SelectTrigger
+                    className={`h-5 w-16 text-xs border ${
+                      typeColors[field.type]
+                    }`}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="string">string</SelectItem>
+                    <SelectItem value="number">number</SelectItem>
+                    <SelectItem value="boolean">boolean</SelectItem>
+                    <SelectItem value="array">array</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onRemoveMapField(key)}
+                  className="h-5 w-5 p-0 text-xs text-red-600 hover:bg-red-50"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+
+          {variable.mapFields && Object.keys(variable.mapFields).length > 0 && (
+            <div className="text-xs text-gray-400">
+              Access with:{" "}
+              {`<?= ${variable.name}.${
+                Object.keys(variable.mapFields)[0] || "field"
+              } ?>`}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TemplateDialog({
   open,
   onOpenChange,
@@ -263,12 +469,13 @@ export default function TemplateDialog({
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
-  const [previewData, setPreviewData] = useState<Record<string, any>>({});
-
-  const [processedPreview, setProcessedPreview] = useState<string>("");
-  const [rightSidebarTab, setRightSidebarTab] = useState<"info" | "variables">(
-    "info"
-  );
+  // Variable definitions state
+  const [variableDefinitions, setVariableDefinitions] = useState<
+    VariableDefinition[]
+  >([]);
+  const [rightSidebarTab, setRightSidebarTab] = useState<
+    "info" | "tools" | "variables"
+  >("info");
   const editorRef = useRef<any>(null);
 
   useEffect(() => {
@@ -288,6 +495,13 @@ export default function TemplateDialog({
       console.log("Setting form data for existing template:", newFormData);
       setFormData(newFormData);
       setHtmlContent(template.content);
+
+      // Load existing variable definitions
+      if (template.variableDefinitions) {
+        setVariableDefinitions(template.variableDefinitions);
+      } else {
+        setVariableDefinitions([]);
+      }
     } else {
       // This is a new template or no template
       const simpleEmailTemplate = `<!DOCTYPE html>
@@ -303,18 +517,35 @@ export default function TemplateDialog({
     </div>
     
     <div style="background-color: #ffffff; padding: 20px; border: 1px solid #dee2e6;">
-        <h2 style="color: #333; margin-top: 0;">Hello {{customer_name}},</h2>
+        <h2 style="color: #333; margin-top: 0;">Hello <?= fullName ?>,</h2>
         
-        <p>This is your email content. You can customize this template by:</p>
+        <p>This is your email content using the new Google Apps Script-like syntax:</p>
         
-        <ul>
-            <li>Editing the HTML structure</li>
-            <li>Adding your own styling</li>
-            <li>Including dynamic variables like {{variable_name}}</li>
-            <li>Adding images and links</li>
-        </ul>
+                 <ul>
+             <li>Use &lt;?= variable ?&gt; for outputting variables</li>
+             <li>Use &lt;? if (condition) { ?&gt; for conditionals</li>
+             <li>Use &lt;? for (loop) { ?&gt; for loops</li>
+             <li>Everything in &lt;? ?&gt; tags is dynamic logic</li>
+         </ul>
         
-        <p>Feel free to modify this template to match your needs!</p>
+        <? if (paymentMethod === "Stripe") { ?>
+            <p><strong>Payment Method:</strong> Pay securely online with Stripe</p>
+            <a href="https://buy.stripe.com/example" target="_blank" 
+               style="background-color: #28a745; color: white; text-decoration: none; 
+                      font-weight: bold; padding: 8px 16px; border-radius: 4px; 
+                      display: inline-block; margin-top: 8px;">
+                Pay with Stripe
+            </a>
+        <? } else if (paymentMethod === "Bank") { ?>
+            <p><strong>Bank Details:</strong></p>
+            <ul>
+                <li>Account Name: <?= companyName ?></li>
+                <li>Account Number: <?= accountNumber ?></li>
+                <li>Sort Code: <?= sortCode ?></li>
+            </ul>
+        <? } else { ?>
+            <p>Payment details will be provided separately.</p>
+        <? } ?>
         
         <center>
             <a href="#" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0;">Call to Action</a>
@@ -339,6 +570,40 @@ export default function TemplateDialog({
       setFormData(newFormData);
       setHtmlContent(simpleEmailTemplate);
 
+      // Initialize with some default variable definitions that match the template
+      setVariableDefinitions([
+        {
+          id: "1",
+          name: "fullName",
+          type: "string",
+          description: "Full name of the recipient",
+        },
+        {
+          id: "2",
+          name: "paymentMethod",
+          type: "string",
+          description: "Payment method selected",
+        },
+        {
+          id: "3",
+          name: "companyName",
+          type: "string",
+          description: "Company name for bank details",
+        },
+        {
+          id: "4",
+          name: "accountNumber",
+          type: "string",
+          description: "Bank account number",
+        },
+        {
+          id: "5",
+          name: "sortCode",
+          type: "string",
+          description: "Bank sort code",
+        },
+      ]);
+
       // Also set the subject to match the template type
       setTimeout(() => {
         setFormData((prev) => ({
@@ -352,6 +617,91 @@ export default function TemplateDialog({
     setValidationErrors([]);
     setValidationWarnings([]);
   }, [template]);
+
+  // Auto-validate when content, variable definitions, or form data changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const errors: string[] = [];
+      const warnings: string[] = [];
+
+      // Form field validation
+      if (!formData.name?.trim()) {
+        errors.push("Template name is required");
+      } else if (formData.name.length > 100) {
+        errors.push("Template name is too long (max 100 characters)");
+      }
+
+      if (!formData.subject?.trim()) {
+        errors.push("Email subject is required");
+      } else if (formData.subject.length > 200) {
+        warnings.push(
+          "Email subject is quite long (max 200 characters recommended)"
+        );
+      }
+
+      if (!formData.status) {
+        errors.push("Template status is required");
+      }
+
+      // Content validation
+      if (htmlContent) {
+        if (!htmlContent.trim()) {
+          errors.push("Template content is required");
+        } else {
+          // Validate conditional syntax
+          const conditionalValidation = validateConditionalSyntax(htmlContent);
+          if (!conditionalValidation.isValid) {
+            conditionalValidation.errors.forEach((error) =>
+              errors.push(`Conditional syntax: ${error}`)
+            );
+          }
+
+          // Validate variable references
+          const undefinedVariables = validateVariableReferences(htmlContent);
+          if (undefinedVariables.length > 0) {
+            undefinedVariables.forEach((varName) => {
+              warnings.push(
+                `Variable '${varName}' is used in template but not defined in Variables tab`
+              );
+            });
+          }
+
+          // HTML structure warnings
+          if (
+            !htmlContent.includes("<html") &&
+            !htmlContent.includes("<!DOCTYPE")
+          ) {
+            warnings.push("Content doesn't appear to be valid HTML");
+          }
+
+          if (!htmlContent.includes("<body")) {
+            warnings.push("Content should include a <body> tag");
+          }
+
+          if (
+            !htmlContent.includes("viewport") &&
+            !htmlContent.includes("max-width")
+          ) {
+            warnings.push(
+              "Consider adding responsive design elements for mobile compatibility"
+            );
+          }
+        }
+      }
+
+      // Update validation state
+      setValidationErrors(errors);
+      setValidationWarnings(warnings);
+    }, 300); // Faster debounce for form inputs
+
+    return () => clearTimeout(timer);
+  }, [
+    htmlContent,
+    variableDefinitions,
+    formData.name,
+    formData.subject,
+    formData.status,
+  ]);
 
   // Calculate preview scale based on container size
   const calculatePreviewScale = (containerWidth: number) => {
@@ -464,74 +814,243 @@ export default function TemplateDialog({
     }
   };
 
-  // Initialize default preview data based on variables found
-  useEffect(() => {
-    const variables = extractVariables(htmlContent);
-    const defaultData: Record<string, any> = {};
-
-    variables.forEach((variable) => {
-      const varName = variable.replace(/\{\{|\}\}/g, "");
-
-      // Set all variables to empty by default
-      defaultData[varName] = "";
-    });
-
-    setPreviewData(defaultData);
-
-    // Automatically process preview with empty variables
-    if (variables.length > 0) {
-      try {
-        const processed = EmailTemplateService.processTemplate(
-          htmlContent,
-          defaultData
-        );
-        setProcessedPreview(processed);
-      } catch (error) {
-        console.error("Error processing initial preview:", error);
-        setProcessedPreview("");
-      }
-    }
-  }, [htmlContent]);
-
-  // Function to update preview data
-  const updatePreviewData = (variable: string, value: string) => {
-    const varName = variable.replace(/\{\{|\}\}/g, "");
-    setPreviewData((prev) => ({
-      ...prev,
-      [varName]: value,
-    }));
-
-    // Automatically process preview when variables change
-    setTimeout(() => {
-      try {
-        const updatedData = { ...previewData, [varName]: value };
-        const processed = EmailTemplateService.processTemplate(
-          htmlContent,
-          updatedData
-        );
-        setProcessedPreview(processed);
-      } catch (error) {
-        console.error("Error processing preview:", error);
-        setProcessedPreview("");
-      }
-    }, 100); // Small delay to avoid excessive processing
+  // Variable definition management functions
+  const addVariableDefinition = (type: VariableType = "string") => {
+    const newId = Date.now().toString();
+    const newVariable: VariableDefinition = {
+      id: newId,
+      name: "",
+      type: type,
+    };
+    setVariableDefinitions((prev) => [...prev, newVariable]);
   };
 
-  // Function to reset preview data to defaults
-  const resetPreviewData = () => {
-    const variables = extractVariables(htmlContent);
-    const defaultData: Record<string, any> = {};
+  const removeVariableDefinition = (id: string) => {
+    setVariableDefinitions((prev) => prev.filter((v) => v.id !== id));
+  };
 
-    variables.forEach((variable) => {
-      const varName = variable.replace(/\{\{|\}\}/g, "");
-      // Reset all variables to empty
-      defaultData[varName] = "";
-    });
+  const updateVariableDefinition = (
+    id: string,
+    updates: Partial<VariableDefinition>
+  ) => {
+    setVariableDefinitions((prev) =>
+      prev.map((v) => (v.id === id ? { ...v, ...updates } : v))
+    );
+  };
 
-    setPreviewData(defaultData);
+  const addMapField = (
+    variableId: string,
+    key: string = "",
+    type: VariableType = "string"
+  ) => {
+    setVariableDefinitions((prev) =>
+      prev.map((v) => {
+        if (v.id === variableId) {
+          const newField: VariableDefinition = {
+            id: Date.now().toString(),
+            name: key,
+            type: type,
+          };
+          return {
+            ...v,
+            mapFields: {
+              ...v.mapFields,
+              [key || `field_${Object.keys(v.mapFields || {}).length + 1}`]:
+                newField,
+            },
+          };
+        }
+        return v;
+      })
+    );
+  };
 
-    // Clear processed preview when resetting data
-    setProcessedPreview("");
+  const removeMapField = (variableId: string, fieldKey: string) => {
+    setVariableDefinitions((prev) =>
+      prev.map((v) => {
+        if (v.id === variableId && v.mapFields) {
+          const newMapFields = { ...v.mapFields };
+          delete newMapFields[fieldKey];
+          return { ...v, mapFields: newMapFields };
+        }
+        return v;
+      })
+    );
+  };
+
+  const generateVariableCode = (
+    variable: VariableDefinition,
+    path: string = ""
+  ): string => {
+    const fullPath = path ? `${path}.${variable.name}` : variable.name;
+
+    switch (variable.type) {
+      case "array":
+        return `<?= ${fullPath} ?>`;
+      case "map":
+        return `<?= ${fullPath} ?>`;
+      default:
+        return `<?= ${fullPath} ?>`;
+    }
+  };
+
+  // Function to extract all variable references from template content
+  const extractVariableReferences = (content: string): string[] => {
+    const references = new Set<string>();
+
+    // Extract variables from <?= variable ?> tags
+    const outputMatches = content.match(/<\?\s*=\s*([^?]+)\s*\?>/g);
+    if (outputMatches) {
+      outputMatches.forEach((match) => {
+        const varMatch = match.match(/<\?\s*=\s*([^?]+)\s*\?>/);
+        if (varMatch && varMatch[1]) {
+          const expression = varMatch[1].trim();
+
+          // Skip generic instructional examples
+          if (
+            expression === "variable" ||
+            expression === "example" ||
+            expression === "placeholder"
+          ) {
+            return;
+          }
+
+          // Extract simple variable names and object property access
+          const variables = expression.match(
+            /\b[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*/g
+          );
+          if (variables) {
+            variables.forEach((variable) => {
+              if (variable) {
+                // Get the root variable name (before any dot notation)
+                const rootVar = variable.split(".")[0];
+                references.add(rootVar);
+              }
+            });
+          }
+        }
+      });
+    }
+
+    // Extract variables from conditional statements
+    const conditionalMatches = content.match(
+      /<\?\s*if\s*\([^)]+\)\s*\{\s*\?>/g
+    );
+    if (conditionalMatches) {
+      conditionalMatches.forEach((match) => {
+        const condMatch = match.match(/<\?\s*if\s*\(([^)]+)\)\s*\{\s*\?>/);
+        if (condMatch && condMatch[1]) {
+          const condition = condMatch[1].trim();
+
+          // Skip generic instructional examples
+          if (
+            condition === "condition" ||
+            condition === "example" ||
+            condition === "placeholder"
+          ) {
+            return;
+          }
+
+          const variables = condition.match(
+            /\b[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*/g
+          );
+          if (variables) {
+            variables.forEach((variable) => {
+              // Skip JavaScript keywords, operators, and string literal content
+              if (
+                variable &&
+                ![
+                  "true",
+                  "false",
+                  "null",
+                  "undefined",
+                  "let",
+                  "const",
+                  "var",
+                  "if",
+                  "else",
+                  "for",
+                  "while",
+                  // Skip common string literal values that might be extracted
+                  "Stripe",
+                  "Bank",
+                  "PayPal",
+                  "Cash",
+                  "Credit",
+                  "Debit",
+                ].includes(variable)
+              ) {
+                const rootVar = variable.split(".")[0];
+                references.add(rootVar);
+              }
+            });
+          }
+        }
+      });
+    }
+
+    // Extract variables from for loops
+    const loopMatches = content.match(/<\?\s*for\s*\([^)]+\)\s*\{\s*\?>/g);
+    if (loopMatches) {
+      loopMatches.forEach((match) => {
+        const loopMatch = match.match(/<\?\s*for\s*\(([^)]+)\)\s*\{\s*\?>/);
+        if (loopMatch && loopMatch[1]) {
+          const loopExpression = loopMatch[1].trim();
+
+          // Skip generic instructional examples
+          if (
+            loopExpression.includes("loop") &&
+            (loopExpression.includes("{") || loopExpression === "loop")
+          ) {
+            return;
+          }
+
+          const variables = loopExpression.match(
+            /\b[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*/g
+          );
+          if (variables) {
+            variables.forEach((variable) => {
+              // Skip loop variables and keywords
+              if (
+                variable &&
+                ![
+                  "let",
+                  "const",
+                  "var",
+                  "i",
+                  "j",
+                  "k",
+                  "index",
+                  "item",
+                  "of",
+                  "in",
+                  "length",
+                  "loop", // Skip the instructional example
+                ].includes(variable)
+              ) {
+                const rootVar = variable.split(".")[0];
+                references.add(rootVar);
+              }
+            });
+          }
+        }
+      });
+    }
+
+    return Array.from(references);
+  };
+
+  // Function to validate variable references against definitions
+  const validateVariableReferences = (content: string): string[] => {
+    const referencedVariables = extractVariableReferences(content);
+    const definedVariableNames = variableDefinitions.map((def) => def.name);
+
+    const undefinedVariables = referencedVariables.filter(
+      (varName) =>
+        !definedVariableNames.includes(varName) && varName.trim() !== ""
+    );
+
+    return undefinedVariables;
   };
 
   const validateTemplate = () => {
@@ -581,6 +1100,16 @@ export default function TemplateDialog({
           errors.push(`Conditional syntax: ${error}`)
         );
       }
+
+      // Validate variable references - NEW VALIDATION
+      const undefinedVariables = validateVariableReferences(htmlContent);
+      if (undefinedVariables.length > 0) {
+        undefinedVariables.forEach((varName) => {
+          warnings.push(
+            `Variable '${varName}' is used in template but not defined in Variables tab`
+          );
+        });
+      }
     }
 
     // Name length validation
@@ -623,6 +1152,7 @@ export default function TemplateDialog({
       subject: formData.subject,
       content: htmlContent,
       variables: extractVariables(htmlContent),
+      variableDefinitions: variableDefinitions, // Include variable definitions
       status: formData.status,
       metadata: {
         createdAt: template?.metadata?.createdAt || new Date(),
@@ -767,15 +1297,52 @@ export default function TemplateDialog({
                   <span>{error}</span>
                 </div>
               ))}
-              {validationWarnings.map((warning, index) => (
-                <div
-                  key={index}
-                  className="flex items-center space-x-2 text-yellow-600 text-sm"
-                >
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{warning}</span>
-                </div>
-              ))}
+              {validationWarnings.map((warning, index) => {
+                // Check if this is an undefined variable warning
+                const undefinedVarMatch = warning.match(
+                  /Variable '(.+)' is used in template but not defined/
+                );
+                const variableName = undefinedVarMatch
+                  ? undefinedVarMatch[1]
+                  : null;
+
+                return (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between text-yellow-600 text-sm bg-yellow-50 p-2 rounded"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>{warning}</span>
+                    </div>
+                    {variableName && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Add the undefined variable as a new string variable
+                          const newId = Date.now().toString();
+                          const newVariable: VariableDefinition = {
+                            id: newId,
+                            name: variableName,
+                            type: "string",
+                            description: `Auto-generated from template usage`,
+                          };
+                          setVariableDefinitions((prev) => [
+                            ...prev,
+                            newVariable,
+                          ]);
+                          // Switch to variables tab
+                          setRightSidebarTab("variables");
+                        }}
+                        className="h-6 px-2 text-xs text-yellow-700 hover:text-yellow-800 hover:bg-yellow-100"
+                      >
+                        + Define
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -926,14 +1493,7 @@ export default function TemplateDialog({
                       <div className="flex flex-col h-full min-h-0">
                         <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b flex-shrink-0">
                           <div className="flex items-center justify-between">
-                            <span>
-                              Live Preview
-                              {processedPreview && (
-                                <span className="ml-2 text-green-600 font-medium">
-                                  (Processed)
-                                </span>
-                              )}
-                            </span>
+                            <span>Live Preview</span>
                             <div className="flex items-center space-x-1">
                               <Button
                                 variant="outline"
@@ -999,7 +1559,7 @@ export default function TemplateDialog({
                             >
                               <div
                                 dangerouslySetInnerHTML={{
-                                  __html: processedPreview || htmlContent,
+                                  __html: htmlContent,
                                 }}
                                 className="w-full h-full"
                               />
@@ -1145,7 +1705,7 @@ export default function TemplateDialog({
                           >
                             <div
                               dangerouslySetInnerHTML={{
-                                __html: processedPreview || htmlContent,
+                                __html: htmlContent,
                               }}
                               className="w-full h-full"
                             />
@@ -1163,23 +1723,33 @@ export default function TemplateDialog({
                 <div className="flex border-b mb-3">
                   <button
                     onClick={() => setRightSidebarTab("info")}
-                    className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                    className={`px-2 py-2 text-xs font-medium border-b-2 transition-colors ${
                       rightSidebarTab === "info"
                         ? "border-blue-500 text-blue-600"
                         : "border-transparent text-gray-500 hover:text-gray-700"
                     }`}
                   >
-                    Template Info
+                    Info
                   </button>
                   <button
                     onClick={() => setRightSidebarTab("variables")}
-                    className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                    className={`px-2 py-2 text-xs font-medium border-b-2 transition-colors ${
                       rightSidebarTab === "variables"
                         ? "border-blue-500 text-blue-600"
                         : "border-transparent text-gray-500 hover:text-gray-700"
                     }`}
                   >
-                    Variables & Preview
+                    Variables
+                  </button>
+                  <button
+                    onClick={() => setRightSidebarTab("tools")}
+                    className={`px-2 py-2 text-xs font-medium border-b-2 transition-colors ${
+                      rightSidebarTab === "tools"
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Insert
                   </button>
                 </div>
 
@@ -1191,6 +1761,48 @@ export default function TemplateDialog({
                       <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
                         Template Information
                       </h3>
+
+                      {/* Real-time Validation Summary */}
+                      <div className="bg-gray-50 p-2 rounded-lg text-xs">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-gray-700">
+                            Form Status:
+                          </span>
+                          <div className="flex items-center space-x-2">
+                            {validationErrors.length > 0 && (
+                              <span className="flex items-center text-red-600">
+                                <span className="w-2 h-2 bg-red-500 rounded-full mr-1"></span>
+                                {validationErrors.length} error
+                                {validationErrors.length !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                            {validationWarnings.length > 0 && (
+                              <span className="flex items-center text-yellow-600">
+                                <span className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></span>
+                                {validationWarnings.length} warning
+                                {validationWarnings.length !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                            {validationErrors.length === 0 &&
+                              validationWarnings.length === 0 && (
+                                <span className="flex items-center text-green-600">
+                                  <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                                  All good!
+                                </span>
+                              )}
+                          </div>
+                        </div>
+                        <div className="text-gray-600">
+                          {formData.name
+                            ? `${formData.name.length}/100`
+                            : "0/100"}{" "}
+                          name •
+                          {formData.subject
+                            ? `${formData.subject.length}/200`
+                            : "0/200"}{" "}
+                          subject •{formData.status || "No status"}
+                        </div>
+                      </div>
 
                       <div>
                         <Label
@@ -1209,8 +1821,28 @@ export default function TemplateDialog({
                             }))
                           }
                           placeholder="Template name"
-                          className="mt-1 h-8 text-xs"
+                          className={`mt-1 h-8 text-xs ${
+                            validationErrors.some((error) =>
+                              error.includes("Template name")
+                            )
+                              ? "border-red-500 focus:border-red-500"
+                              : formData.name && formData.name.length > 80
+                              ? "border-yellow-500 focus:border-yellow-500"
+                              : ""
+                          }`}
                         />
+                        {formData.name && (
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-xs text-gray-500">
+                              {formData.name.length}/100 characters
+                            </span>
+                            {formData.name.length > 80 && (
+                              <span className="text-xs text-yellow-600">
+                                Getting long
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div>
@@ -1226,7 +1858,15 @@ export default function TemplateDialog({
                             setFormData((prev) => ({ ...prev, status: value }))
                           }
                         >
-                          <SelectTrigger className="mt-1 h-8 text-xs">
+                          <SelectTrigger
+                            className={`mt-1 h-8 text-xs ${
+                              validationErrors.some((error) =>
+                                error.includes("Template status")
+                              )
+                                ? "border-red-500 focus:border-red-500"
+                                : ""
+                            }`}
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1259,8 +1899,29 @@ export default function TemplateDialog({
                             }))
                           }
                           placeholder="Email subject"
-                          className="mt-1 h-8 text-xs"
+                          className={`mt-1 h-8 text-xs ${
+                            validationErrors.some((error) =>
+                              error.includes("Email subject")
+                            )
+                              ? "border-red-500 focus:border-red-500"
+                              : formData.subject &&
+                                formData.subject.length > 150
+                              ? "border-yellow-500 focus:border-yellow-500"
+                              : ""
+                          }`}
                         />
+                        {formData.subject && (
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-xs text-gray-500">
+                              {formData.subject.length}/200 characters
+                            </span>
+                            {formData.subject.length > 150 && (
+                              <span className="text-xs text-yellow-600">
+                                Subject getting long
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1293,54 +1954,277 @@ export default function TemplateDialog({
 
                 {rightSidebarTab === "variables" && (
                   <div className="space-y-3">
-                    {/* Reset Button */}
-                    <div className="space-y-3">
-                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
-                        Reset Variables
-                      </h3>
-
-                      <div className="bg-purple-50 p-2 rounded-lg">
-                        <div className="flex gap-1 mb-2">
+                    {/* Variable Definition Header */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-medium text-gray-700">
+                          Define Variables
+                        </h3>
+                        <div className="flex gap-1">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={resetPreviewData}
-                            className="h-6 px-1 text-xs bg-white hover:bg-purple-100"
+                            onClick={() => addVariableDefinition("string")}
+                            className="h-6 px-2 text-xs"
                           >
-                            Reset All Variables
+                            + String
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addVariableDefinition("array")}
+                            className="h-6 px-2 text-xs"
+                          >
+                            + Array
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addVariableDefinition("map")}
+                            className="h-6 px-2 text-xs"
+                          >
+                            + Map
                           </Button>
                         </div>
-                        <div className="text-xs text-purple-600">
-                          Preview updates automatically as you type
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Define your template variables with types, similar to
+                        Firestore collections
+                      </div>
+                    </div>
+
+                    {/* Variable Usage Summary */}
+                    {variableDefinitions.length > 0 && (
+                      <div className="bg-gray-50 p-2 rounded-lg text-xs">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-gray-700">
+                            Usage Status:
+                          </span>
+                          <div className="flex space-x-2">
+                            <span className="flex items-center">
+                              <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                              Used
+                            </span>
+                            <span className="flex items-center">
+                              <span className="w-2 h-2 bg-gray-400 rounded-full mr-1"></span>
+                              Unused
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-gray-600">
+                          {extractVariableReferences(htmlContent).length}{" "}
+                          variables referenced in template
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Variable Definitions List */}
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {variableDefinitions.length === 0 ? (
+                        <div className="text-center py-8 text-gray-400 text-xs">
+                          No variables defined yet.
+                          <br />
+                          Click above to add your first variable.
+                        </div>
+                      ) : (
+                        variableDefinitions.map((variable, index) => {
+                          const isUsed = extractVariableReferences(
+                            htmlContent
+                          ).includes(variable.name);
+                          return (
+                            <div key={variable.id} className="relative">
+                              {/* Usage indicator */}
+                              <div
+                                className={`absolute -left-1 top-1/2 transform -translate-y-1/2 w-2 h-2 rounded-full ${
+                                  isUsed ? "bg-green-500" : "bg-gray-400"
+                                }`}
+                              ></div>
+                              <div className="pl-2">
+                                <VariableDefinitionItem
+                                  variable={variable}
+                                  index={index}
+                                  onUpdate={(updates) =>
+                                    updateVariableDefinition(
+                                      variable.id,
+                                      updates
+                                    )
+                                  }
+                                  onRemove={() =>
+                                    removeVariableDefinition(variable.id)
+                                  }
+                                  onAddMapField={(key, type) =>
+                                    addMapField(variable.id, key, type)
+                                  }
+                                  onRemoveMapField={(key) =>
+                                    removeMapField(variable.id, key)
+                                  }
+                                  onInsert={() => {
+                                    const code = generateVariableCode(variable);
+                                    insertVariable(code);
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {rightSidebarTab === "tools" && (
+                  <div className="space-y-3">
+                    {/* Defined Variables */}
+                    {variableDefinitions.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
+                          Your Variables
+                        </h3>
+                        <div className="bg-blue-50 p-2 rounded-lg">
+                          <Label className="text-xs font-medium mb-2 block text-blue-700">
+                            Click to Insert
+                          </Label>
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {variableDefinitions.map((variable) => (
+                              <Button
+                                key={variable.id}
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  insertVariable(generateVariableCode(variable))
+                                }
+                                className="w-full h-6 px-1 text-xs bg-white hover:bg-blue-100 justify-between"
+                              >
+                                <span>{`<?= ${variable.name} ?>`}</span>
+                                <span
+                                  className={`text-xs px-1 rounded ${
+                                    variable.type === "string"
+                                      ? "bg-blue-100 text-blue-600"
+                                      : variable.type === "array"
+                                      ? "bg-orange-100 text-orange-600"
+                                      : variable.type === "map"
+                                      ? "bg-red-100 text-red-600"
+                                      : variable.type === "number"
+                                      ? "bg-green-100 text-green-600"
+                                      : "bg-purple-100 text-purple-600"
+                                  }`}
+                                >
+                                  {variable.type}
+                                </span>
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quick Insert Common Variables */}
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
+                        Quick Insert
+                      </h3>
+                      <div className="bg-gray-50 p-2 rounded-lg">
+                        <Label className="text-xs font-medium mb-2 block text-gray-700">
+                          Common Variables
+                        </Label>
+                        <div className="space-y-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => insertVariable("<?= email ?>")}
+                            className="w-full h-6 px-1 text-xs bg-white hover:bg-gray-100 justify-start"
+                          >
+                            {`<?= email ?>`}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => insertVariable("<?= date ?>")}
+                            className="w-full h-6 px-1 text-xs bg-white hover:bg-gray-100 justify-start"
+                          >
+                            {`<?= date ?>`}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              insertVariable("<?= customVariable ?>")
+                            }
+                            className="w-full h-6 px-1 text-xs bg-white hover:bg-gray-100 justify-start"
+                          >
+                            {`<?= customVariable ?>`}
+                          </Button>
                         </div>
                       </div>
                     </div>
 
-                    {/* Variable Inputs */}
-                    <div className="bg-orange-50 p-2 rounded-lg">
-                      <Label className="text-xs font-medium mb-2 block text-orange-700">
-                        Variable Values
-                      </Label>
-                      <div className="text-xs text-orange-600 mb-2">
-                        Variables start empty. Preview updates automatically as
-                        you type
+                    {/* Conditional Logic */}
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
+                        Insert Logic
+                      </h3>
+
+                      <div className="bg-green-50 p-2 rounded-lg">
+                        <Label className="text-xs font-medium mb-2 block text-green-700">
+                          Conditional Blocks
+                        </Label>
+                        <div className="space-y-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              insertVariable(`\n<? if (condition) { ?>
+  <p>Content when condition is true</p>
+<? } else { ?>
+  <p>Content when condition is false</p>
+<? } ?>\n`)
+                            }
+                            className="w-full h-8 px-1 text-xs bg-white hover:bg-green-100 justify-start"
+                          >
+                            If/Else Block
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              insertVariable(`\n<? for (let i = 0; i < items.length; i++) { ?>
+  <div><?= items[i] ?></div>
+<? } ?>\n`)
+                            }
+                            className="w-full h-8 px-1 text-xs bg-white hover:bg-green-100 justify-start"
+                          >
+                            For Loop
+                          </Button>
+                        </div>
                       </div>
-                      <div className="space-y-2 max-h-80 overflow-y-auto">
-                        {Object.entries(previewData).map(([key, value]) => (
-                          <div key={key} className="space-y-1">
-                            <Label className="text-xs text-orange-700 block">
-                              {key}
-                            </Label>
-                            <Input
-                              value={value}
-                              onChange={(e) =>
-                                updatePreviewData(`{{${key}}}`, e.target.value)
-                              }
-                              className="h-6 text-xs"
-                              placeholder={`Enter value for ${key}`}
-                            />
-                          </div>
-                        ))}
+                    </div>
+
+                    {/* Usage Examples */}
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
+                        Syntax Examples
+                      </h3>
+
+                      <div className="bg-gray-50 p-2 rounded-lg text-xs space-y-2">
+                        <div>
+                          <strong>Variables:</strong>
+                          <br />
+                          <code className="bg-white px-1 rounded">{`<?= variable ?>`}</code>
+                        </div>
+                        <div>
+                          <strong>Conditionals:</strong>
+                          <br />
+                          <code className="bg-white px-1 rounded">
+                            {`<? if (condition) { ?>...content...<? } ?>`}
+                          </code>
+                        </div>
+                        <div>
+                          <strong>Loops:</strong>
+                          <br />
+                          <code className="bg-white px-1 rounded">
+                            {`<? for (item of array) { ?>...content...<? } ?>`}
+                          </code>
+                        </div>
                       </div>
                     </div>
                   </div>
