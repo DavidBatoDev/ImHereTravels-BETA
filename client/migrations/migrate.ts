@@ -41,6 +41,10 @@ import {
   runMigration as runMigration009,
   rollbackMigration as rollbackMigration009,
 } from "./009-initial-payment-reminder-template";
+import {
+  runMigration as runMigration010,
+  rollbackMigration as rollbackMigration010,
+} from "./010-scheduled-reminder-email-template";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -198,6 +202,25 @@ async function main() {
       }
       break;
 
+    case "010":
+      console.log(
+        "📊 Running migration: 010-scheduled-reminder-email-template"
+      );
+      const result010 = await runMigration010(dryRun);
+      console.log(`\n🎯 ${result010.message}`);
+      if (result010.details) {
+        console.log(
+          `📊 Details: ${result010.details.created} created, ${result010.details.skipped} skipped, ${result010.details.errors.length} errors`
+        );
+        if (result010.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result010.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "rollback":
     case "undo":
       console.log("🔄 Rolling back migration: 001-initial-tour-packages");
@@ -343,6 +366,25 @@ async function main() {
       }
       break;
 
+    case "rollback010":
+      console.log(
+        "🔄 Rolling back migration: 010-scheduled-reminder-email-template"
+      );
+      const rollbackResult010 = await rollbackMigration010();
+      console.log(`\n🎯 ${rollbackResult010.message}`);
+      if (rollbackResult010.details) {
+        console.log(
+          `📊 Details: ${rollbackResult010.details.deleted} deleted, ${rollbackResult010.details.errors.length} errors`
+        );
+        if (rollbackResult010.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult010.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "dry-run":
     case "test":
       console.log(
@@ -446,6 +488,19 @@ async function main() {
       }
       break;
 
+    case "dry-run010":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 010-scheduled-reminder-email-template"
+      );
+      const dryRunResult010 = await runMigration010(true);
+      console.log(`\n🎯 ${dryRunResult010.message}`);
+      if (dryRunResult010.details) {
+        console.log(
+          `📊 Details: ${dryRunResult010.details.created} would be created, ${dryRunResult010.details.skipped} would be skipped`
+        );
+      }
+      break;
+
     case "help":
     case "--help":
     case "-h":
@@ -472,6 +527,7 @@ function showHelp() {
   006                Run the migration to create conditional email templates
   008                Run the migration to create cancellation email templates
   009                Run the migration to create initial payment reminder template
+  010                Run the migration to create scheduled reminder email template
   rollback, undo     Rollback the migration 001 (delete created tours)
   rollback002        Rollback the migration 002 (delete created tours)
   rollback003        Rollback the migration 003 (delete created tours)
@@ -480,6 +536,7 @@ function showHelp() {
   rollback006        Rollback the migration 006 (delete conditional email templates)
   rollback008        Rollback the migration 008 (delete cancellation email template)
   rollback009        Rollback the migration 009 (delete initial payment reminder template)
+  rollback010        Rollback the migration 010 (delete scheduled reminder email template)
   dry-run, test     Test the migration 001 without making changes
   dry-run002        Test the migration 002 without making changes
   dry-run003        Test the migration 003 without making changes
@@ -488,6 +545,7 @@ function showHelp() {
   dry-run006        Test the migration 006 without making changes
   dry-run008        Test the migration 008 without making changes
   dry-run009        Test the migration 009 without making changes
+  dry-run010        Test the migration 010 without making changes
   help               Show this help message
 
 📝 Examples:
@@ -500,6 +558,7 @@ function showHelp() {
   tsx migrations/migrate.ts 006        # Run migration 006 (conditional email templates)
   tsx migrations/migrate.ts 008        # Run migration 008 (cancellation email templates)
   tsx migrations/migrate.ts 009        # Run migration 009 (initial payment reminder template)
+  tsx migrations/migrate.ts 010        # Run migration 010 (scheduled reminder email template)
   tsx migrations/migrate.ts dry-run    # Test migration 001 without changes
   tsx migrations/migrate.ts dry-run002 # Test migration 002 without changes
   tsx migrations/migrate.ts dry-run003 # Test migration 003 without changes
@@ -515,6 +574,7 @@ function showHelp() {
   tsx migrations/migrate.ts rollback006 # Undo migration 006
   tsx migrations/migrate.ts rollback008 # Undo migration 008
   tsx migrations/migrate.ts rollback009 # Undo migration 009
+  tsx migrations/migrate.ts rollback010 # Undo migration 010
 
 🔧 Options:
 
@@ -570,6 +630,13 @@ function showHelp() {
   - Dynamic payment tracker table with array-based data
   - Uses Google Apps Script-like syntax: <?= variable ?> and <? logic ?>
   - Includes calendar integration and payment tracking
+
+  Migration 010 - Scheduled Reminder Email Template:
+  - Adds a tour reminder email template for travelers before departure
+  - Supports different booking types (Individual, Duo, Group)
+  - Conditional rendering for group-specific information
+  - Dynamic content based on booking details and special instructions
+  - Professional layout with tour details table and important reminders
 
   Each tour includes:
   - Complete itinerary with day-by-day activities
