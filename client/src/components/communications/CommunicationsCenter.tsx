@@ -909,7 +909,7 @@ export default function CommunicationsCenter() {
               className="group hover:shadow-lg transition-all duration-200 border-gray-200"
             >
               {/* HTML Preview - At the very top */}
-              <div className="bg-gray-50 rounded-t-lg border-b max-h-32 overflow-hidden">
+              <div className="bg-gray-50 rounded-t-lg border-b h-32 overflow-hidden">
                 <div
                   className="text-xs text-gray-700 line-clamp-4"
                   dangerouslySetInnerHTML={{

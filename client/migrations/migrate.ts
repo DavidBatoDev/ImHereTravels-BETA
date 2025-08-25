@@ -33,6 +33,10 @@ import {
   runMigration as runMigration006,
   rollbackMigration as rollbackMigration006,
 } from "./006-conditional-email-templates";
+import {
+  runMigration008,
+  rollbackMigration008,
+} from "./008-cancellation-email-template";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -154,6 +158,23 @@ async function main() {
       }
       break;
 
+    case "008":
+      console.log("📊 Running migration: 008-cancellation-email-template");
+      const result008 = await runMigration008(dryRun);
+      console.log(`\n🎯 ${result008.message}`);
+      if (result008.details) {
+        console.log(
+          `�� Details: ${result008.details.created} created, ${result008.details.skipped} skipped, ${result008.details.errors.length} errors`
+        );
+        if (result008.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result008.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "rollback":
     case "undo":
       console.log("🔄 Rolling back migration: 001-initial-tour-packages");
@@ -263,6 +284,23 @@ async function main() {
       }
       break;
 
+    case "rollback008":
+      console.log("🔄 Rolling back migration: 008-cancellation-email-template");
+      const rollbackResult008 = await rollbackMigration008();
+      console.log(`\n🎯 ${rollbackResult008.message}`);
+      if (rollbackResult008.details) {
+        console.log(
+          `📊 Details: ${rollbackResult008.details.created} created, ${rollbackResult008.details.skipped} skipped, ${rollbackResult008.details.errors.length} errors`
+        );
+        if (rollbackResult008.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult008.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "dry-run":
     case "test":
       console.log(
@@ -340,6 +378,19 @@ async function main() {
       }
       break;
 
+    case "dry-run008":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 008-cancellation-email-template"
+      );
+      const dryRunResult008 = await runMigration008(true);
+      console.log(`\n🎯 ${dryRunResult008.message}`);
+      if (dryRunResult008.details) {
+        console.log(
+          `📊 Details: ${dryRunResult008.details.created} would be created, ${dryRunResult008.details.skipped} would be skipped`
+        );
+      }
+      break;
+
     case "help":
     case "--help":
     case "-h":
@@ -364,18 +415,21 @@ function showHelp() {
   004                Run the migration to create payment plans
   005                Run the migration to create currency conversion rates (USD to EUR)
   006                Run the migration to create conditional email templates
+  008                Run the migration to create cancellation email templates
   rollback, undo     Rollback the migration 001 (delete created tours)
   rollback002        Rollback the migration 002 (delete created tours)
   rollback003        Rollback the migration 003 (delete created tours)
   rollback004        Rollback the migration 004 (delete created payment plans)
   rollback005        Rollback the migration 005 (delete currency conversion rates)
   rollback006        Rollback the migration 006 (delete conditional email templates)
+  rollback008        Rollback the migration 008 (delete cancellation email template)
   dry-run, test     Test the migration 001 without making changes
   dry-run002        Test the migration 002 without making changes
   dry-run003        Test the migration 003 without making changes
   dry-run004        Test the migration 004 without making changes
   dry-run005        Test the migration 005 without making changes
   dry-run006        Test the migration 006 without making changes
+  dry-run008        Test the migration 008 without making changes
   help               Show this help message
 
 📝 Examples:
@@ -386,18 +440,21 @@ function showHelp() {
   tsx migrations/migrate.ts 004        # Run migration 004 (payment plans)
   tsx migrations/migrate.ts 005        # Run migration 005 (currency conversion)
   tsx migrations/migrate.ts 006        # Run migration 006 (conditional email templates)
+  tsx migrations/migrate.ts 008        # Run migration 008 (cancellation email templates)
   tsx migrations/migrate.ts dry-run    # Test migration 001 without changes
   tsx migrations/migrate.ts dry-run002 # Test migration 002 without changes
   tsx migrations/migrate.ts dry-run003 # Test migration 003 without changes
   tsx migrations/migrate.ts dry-run004 # Test migration 004 without changes
   tsx migrations/migrate.ts dry-run005 # Test migration 005 without changes
   tsx migrations/migrate.ts dry-run006 # Test migration 006 without changes
+  tsx migrations/migrate.ts dry-run008 # Test migration 008 without changes
   tsx migrations/migrate.ts rollback   # Undo migration 001
   tsx migrations/migrate.ts rollback002 # Undo migration 002
   tsx migrations/migrate.ts rollback003 # Undo migration 003
   tsx migrations/migrate.ts rollback004 # Undo migration 004
   tsx migrations/migrate.ts rollback005 # Undo migration 005
   tsx migrations/migrate.ts rollback006 # Undo migration 006
+  tsx migrations/migrate.ts rollback008 # Undo migration 008
 
 🔧 Options:
 
@@ -439,6 +496,12 @@ function showHelp() {
   - Adds reservation email template with conditional rendering
   - Supports different payment term scenarios (P1, P2, P3, P4, Invalid, etc.)
   - Dynamic content based on booking type and payment terms
+  - Uses custom conditional syntax: <? if (condition) { ?> content <? } ?>
+
+  Migration 008 - Cancellation Email Templates:
+  - Adds a template for sending cancellation emails
+  - Supports different booking statuses (Cancelled, Refunded, etc.)
+  - Dynamic content based on booking details
   - Uses custom conditional syntax: <? if (condition) { ?> content <? } ?>
 
   Each tour includes:
