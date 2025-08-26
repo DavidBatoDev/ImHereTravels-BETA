@@ -107,15 +107,14 @@ export default function BookingsSheet() {
       .map((col) => ({
         id: col.id,
         header: () => (
-          <div className="flex items-center justify-between group">
+          <div className="flex items-center justify-between group h-full w-full bg-red-50 text-red-600 px-3 py-2 rounded">
             <div className="flex items-center gap-2">
-              <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
               <span className="font-medium">{col.name}</span>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:bg-red-100"
               onClick={() => openColumnSettings(col)}
             >
               <Settings className="h-4 w-4" />
@@ -153,8 +152,8 @@ export default function BookingsSheet() {
 
           return (
             <div
-              className={`min-h-[32px] flex items-center ${
-                columnDef.editable ? "cursor-pointer hover:bg-gray-50" : ""
+              className={`h-full w-full px-2 ${
+                columnDef.editable ? "cursor-pointer" : ""
               }`}
               onClick={() => {
                 if (columnDef.editable) {
@@ -167,9 +166,7 @@ export default function BookingsSheet() {
             </div>
           );
         },
-        size: col.width || 150,
-        minSize: col.minWidth || 50,
-        maxSize: col.maxWidth || 500,
+
         enableSorting: col.sortable,
         enableColumnFilter: col.filterable,
       }));
@@ -351,16 +348,15 @@ export default function BookingsSheet() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border border-gray-200">
+            <Table className="border border-gray-200">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
                       <TableHead
                         key={header.id}
-                        style={{ width: header.getSize() }}
-                        className="relative"
+                        className="relative border border-gray-200 p-0"
                       >
                         {header.isPlaceholder
                           ? null
@@ -379,9 +375,7 @@ export default function BookingsSheet() {
                               <ChevronUp className="h-4 w-4" />
                             ) : header.column.getIsSorted() === "desc" ? (
                               <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <MoreHorizontal className="h-4 w-4" />
-                            )}
+                            ) : null}
                           </Button>
                         )}
                       </TableHead>
@@ -399,7 +393,7 @@ export default function BookingsSheet() {
                       {row.getVisibleCells().map((cell) => (
                         <TableCell
                           key={cell.id}
-                          style={{ width: cell.column.getSize() }}
+                          className="border border-gray-200 p-0"
                         >
                           {flexRender(
                             cell.column.columnDef.cell,

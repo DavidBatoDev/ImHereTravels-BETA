@@ -180,31 +180,39 @@ export default function BookingsList() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full border border-gray-200">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium">
+                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
                     Booking ID
                   </th>
-                  <th className="text-left py-3 px-4 font-medium">Traveler</th>
-                  <th className="text-left py-3 px-4 font-medium">
+                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
+                    Traveler
+                  </th>
+                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
                     Tour Package
                   </th>
-                  <th className="text-left py-3 px-4 font-medium">Tour Date</th>
-                  <th className="text-left py-3 px-4 font-medium">
+                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
+                    Tour Date
+                  </th>
+                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
                     Payment Status
                   </th>
-                  <th className="text-left py-3 px-4 font-medium">Balance</th>
-                  <th className="text-left py-3 px-4 font-medium">Actions</th>
+                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
+                    Balance
+                  </th>
+                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filteredBookings.map((booking) => (
                   <tr key={booking.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 border border-gray-200">
                       <span className="font-mono text-sm">{booking.id}</span>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 border border-gray-200">
                       <div>
                         <div className="font-medium">
                           {booking.travelerName}
@@ -214,19 +222,19 @@ export default function BookingsList() {
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 border border-gray-200">
                       <div className="flex items-center">
                         <MapPin className="mr-2 h-4 w-4 text-gray-400" />
                         {booking.tourPackage}
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 border border-gray-200">
                       <div className="flex items-center">
                         <Calendar className="mr-2 h-4 w-4 text-gray-400" />
                         {new Date(booking.tourDate).toLocaleDateString()}
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 border border-gray-200">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
                           booking.paymentStatus
@@ -235,7 +243,7 @@ export default function BookingsList() {
                         {booking.paymentStatus}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 border border-gray-200">
                       <div className="flex items-center">
                         <DollarSign className="mr-1 h-4 w-4 text-gray-400" />
                         <span
@@ -249,7 +257,7 @@ export default function BookingsList() {
                         </span>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 border border-gray-200">
                       <div className="flex space-x-2">
                         <Button variant="ghost" size="sm">
                           <Eye className="h-4 w-4" />

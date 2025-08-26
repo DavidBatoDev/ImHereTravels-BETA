@@ -142,61 +142,6 @@ export default function ColumnSettingsModal({
             </div>
           </div>
 
-          {/* Width Settings */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="width">Width (px)</Label>
-              <Input
-                id="width"
-                type="number"
-                value={formData.width || ""}
-                onChange={(e) =>
-                  handleInputChange(
-                    "width",
-                    parseInt(e.target.value) || undefined
-                  )
-                }
-                placeholder="Auto"
-                min="50"
-                max="500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="minWidth">Min Width (px)</Label>
-              <Input
-                id="minWidth"
-                type="number"
-                value={formData.minWidth || ""}
-                onChange={(e) =>
-                  handleInputChange(
-                    "minWidth",
-                    parseInt(e.target.value) || undefined
-                  )
-                }
-                placeholder="50"
-                min="50"
-                max="500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="maxWidth">Max Width (px)</Label>
-              <Input
-                id="maxWidth"
-                type="number"
-                value={formData.maxWidth || ""}
-                onChange={(e) =>
-                  handleInputChange(
-                    "maxWidth",
-                    parseInt(e.target.value) || undefined
-                  )
-                }
-                placeholder="500"
-                min="100"
-                max="1000"
-              />
-            </div>
-          </div>
-
           {/* Select Options */}
           {formData.type === "select" && (
             <div className="space-y-2">

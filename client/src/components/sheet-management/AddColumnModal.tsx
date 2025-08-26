@@ -52,9 +52,6 @@ export default function AddColumnModal({
     name: "",
     type: "" as ColumnType,
     required: false,
-    width: 150,
-    minWidth: 50,
-    maxWidth: 500,
     options: "",
     defaultValue: "",
     visible: true,
@@ -74,9 +71,6 @@ export default function AddColumnModal({
       name: formData.name,
       type: formData.type,
       required: formData.required,
-      width: formData.width,
-      minWidth: formData.minWidth,
-      maxWidth: formData.maxWidth,
       options:
         formData.type === "select"
           ? formData.options
@@ -98,9 +92,6 @@ export default function AddColumnModal({
       name: "",
       type: "" as ColumnType,
       required: false,
-      width: 150,
-      minWidth: 50,
-      maxWidth: 500,
       options: "",
       defaultValue: "",
       visible: true,
@@ -156,49 +147,6 @@ export default function AddColumnModal({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          </div>
-
-          {/* Width Settings */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="width">Width (px)</Label>
-              <Input
-                id="width"
-                type="number"
-                value={formData.width}
-                onChange={(e) =>
-                  handleInputChange("width", parseInt(e.target.value) || 150)
-                }
-                min="50"
-                max="500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="minWidth">Min Width (px)</Label>
-              <Input
-                id="minWidth"
-                type="number"
-                value={formData.minWidth}
-                onChange={(e) =>
-                  handleInputChange("minWidth", parseInt(e.target.value) || 50)
-                }
-                min="50"
-                max="500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="maxWidth">Max Width (px)</Label>
-              <Input
-                id="maxWidth"
-                type="number"
-                value={formData.maxWidth}
-                onChange={(e) =>
-                  handleInputChange("maxWidth", parseInt(e.target.value) || 500)
-                }
-                min="100"
-                max="1000"
-              />
             </div>
           </div>
 
