@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,10 +43,10 @@ export default function FunctionsCenter() {
   const { toast } = useToast();
   const [folders, setFolders] = useState<JSFolder[]>([]);
   const [files, setFiles] = useState<JSFile[]>([]);
-  const [activeFile, setActiveFile] = useState<JSFile | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<JSFolder | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [activeFile, setActiveFile] = useState<JSFile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [isCreateFileModalOpen, setIsCreateFileModalOpen] = useState(false);
   const [renameFileModal, setRenameFileModal] = useState<{
@@ -63,6 +63,11 @@ export default function FunctionsCenter() {
     fileId: string;
     fileName: string;
   }>({ isOpen: false, fileId: "", fileName: "" });
+
+  // Add editor instance ref and loading state
+  const editorRef = useRef<any>(null);
+  const [isEditorLoading, setIsEditorLoading] = useState(false);
+  const [editorValue, setEditorValue] = useState("");
 
   // Load data from Firebase function service and set up real-time listeners
   useEffect(() => {
@@ -118,8 +123,13 @@ export default function FunctionsCenter() {
   );
 
   const handleFileSelect = async (file: JSFile) => {
+    if (activeFile?.id === file.id) return; // Prevent unnecessary re-renders
+
+    setIsEditorLoading(true);
     setActiveFile(file);
+    setEditorValue(file.content);
     setIsEditing(false);
+
     // Update active state using Firebase service
     try {
       await firebaseFunctionService.files.setActive(file.id);
@@ -128,6 +138,9 @@ export default function FunctionsCenter() {
     } catch (error) {
       console.error("Error setting file as active:", error);
     }
+
+    // Small delay to ensure smooth transition
+    setTimeout(() => setIsEditorLoading(false), 100);
   };
 
   const toggleEditMode = () => {
@@ -366,23 +379,45 @@ export default function FunctionsCenter() {
     return <FileCode className="h-4 w-4 text-blue-500" />;
   };
 
-  const handleEditorDidMount = (editor: any, monaco: any) => {
-    // Configure JavaScript validation
-    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-      noSemanticValidation: false,
-      noSyntaxValidation: false,
-    });
+  const handleEditorDidMount = useCallback(
+    (editor: any, monaco: any) => {
+      editorRef.current = editor;
 
-    // Set compiler options for better JavaScript support
-    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-      target: monaco.languages.typescript.ScriptTarget.ES2020,
-      allowNonTsExtensions: true,
-      moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-      module: monaco.languages.typescript.ModuleKind.CommonJS,
-      noEmit: true,
-      typeRoots: ["node_modules/@types"],
-    });
-  };
+      // Configure JavaScript validation
+      monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+      });
+
+      // Set compiler options for better JavaScript support
+      monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ES2020,
+        allowNonTsExtensions: true,
+        moduleResolution:
+          monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        module: monaco.languages.typescript.ModuleKind.CommonJS,
+        noEmit: true,
+        typeRoots: ["node_modules/@types"],
+      });
+
+      // Set initial value if available
+      if (activeFile) {
+        editor.setValue(activeFile.content);
+        setEditorValue(activeFile.content);
+      }
+
+      setIsEditorLoading(false);
+    },
+    [activeFile]
+  );
+
+  // Update editor value when activeFile changes
+  useEffect(() => {
+    if (editorRef.current && activeFile && editorValue !== activeFile.content) {
+      editorRef.current.setValue(activeFile.content);
+      setEditorValue(activeFile.content);
+    }
+  }, [activeFile, editorValue]);
 
   return (
     <div className="flex h-[calc(100vh-120px)]">
@@ -608,18 +643,29 @@ export default function FunctionsCenter() {
             </div>
 
             {/* Code Editor */}
-            <div className="flex-1 bg-gray-900 overflow-hidden">
+            <div className="flex-1 bg-white overflow-hidden relative">
+              {isEditorLoading && (
+                <div className="absolute inset-0 bg-white flex items-center justify-center z-10">
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="text-gray-600">Loading editor...</span>
+                  </div>
+                </div>
+              )}
               <Editor
-                key={`${activeFile.id}-${isEditing}`}
+                key={activeFile?.id || "empty"}
                 height="100%"
                 defaultLanguage="javascript"
-                value={activeFile.content}
+                value={editorValue}
                 onChange={(value) => {
-                  if (activeFile && value !== undefined) {
-                    setActiveFile({
-                      ...activeFile,
-                      content: value,
-                    });
+                  if (value !== undefined) {
+                    setEditorValue(value);
+                    if (activeFile) {
+                      setActiveFile({
+                        ...activeFile,
+                        content: value,
+                      });
+                    }
                   }
                 }}
                 onMount={handleEditorDidMount}
@@ -638,7 +684,20 @@ export default function FunctionsCenter() {
                   parameterHints: { enabled: true },
                   formatOnPaste: true,
                   formatOnType: true,
+                  // Add these options to reduce flashing
+                  renderWhitespace: "none",
+                  renderLineHighlight: "all",
+                  smoothScrolling: true,
+                  // Prevent cursor jumping
+                  cursorBlinking: "smooth",
+                  cursorSmoothCaretAnimation: "on",
                 }}
+                // Add loading component
+                loading={
+                  <div className="flex items-center justify-center h-full">
+                    Loading editor...
+                  </div>
+                }
               />
             </div>
           </>

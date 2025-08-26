@@ -87,6 +87,8 @@ function MonacoEditor({
 }) {
   const editorRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isEditorReady, setIsEditorReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!window.monaco) {
@@ -116,14 +118,22 @@ function MonacoEditor({
   }, []);
 
   useEffect(() => {
-    if (editorRef.current && value !== editorRef.current.getValue()) {
-      editorRef.current.setValue(value);
+    if (
+      editorRef.current &&
+      isEditorReady &&
+      value !== editorRef.current.getValue()
+    ) {
+      // Use setValue with a flag to prevent unnecessary change events
+      const currentValue = editorRef.current.getValue();
+      if (currentValue !== value) {
+        editorRef.current.setValue(value);
+      }
     }
-  }, [value]);
+  }, [value, isEditorReady]);
 
   // Update zoom level when it changes
   useEffect(() => {
-    if (editorRef.current) {
+    if (editorRef.current && isEditorReady) {
       const newFontSize = Math.round(14 * zoomLevel);
       const newLineHeight = Math.round(20 * zoomLevel);
 
@@ -139,11 +149,11 @@ function MonacoEditor({
         }
       }, 0);
     }
-  }, [zoomLevel]);
+  }, [zoomLevel, isEditorReady]);
 
   // Handle container resize
   useEffect(() => {
-    if (containerRef.current && editorRef.current) {
+    if (containerRef.current && editorRef.current && isEditorReady) {
       const resizeObserver = new ResizeObserver(() => {
         if (editorRef.current) {
           editorRef.current.layout();
@@ -156,7 +166,7 @@ function MonacoEditor({
         resizeObserver.disconnect();
       };
     }
-  }, [editorRef.current]);
+  }, [isEditorReady]);
 
   const initializeEditor = () => {
     if (containerRef.current && window.monaco) {
@@ -183,6 +193,16 @@ function MonacoEditor({
           horizontalScrollbarSize: Math.round(12 * zoomLevel),
           useShadows: false,
         },
+        // Add these options to reduce flashing
+        renderWhitespace: "none",
+        renderLineHighlight: "all",
+        smoothScrolling: true,
+        // Prevent cursor jumping
+        cursorBlinking: "smooth",
+        cursorSmoothCaretAnimation: "on",
+        // Better performance
+        largeFileOptimizations: true,
+        maxTokenizationLineLength: 20000,
       });
 
       editorRef.current.onDidChangeModelContent(() => {
@@ -194,6 +214,9 @@ function MonacoEditor({
       if (onEditorReady) {
         onEditorReady(editorRef.current);
       }
+
+      setIsEditorReady(true);
+      setIsLoading(false);
     }
   };
 
@@ -206,7 +229,16 @@ function MonacoEditor({
         overflow: "hidden", // Let Monaco handle scrolling
         position: "relative", // Ensure proper positioning
       }}
-    />
+    >
+      {isLoading && (
+        <div className="absolute inset-0 bg-white flex items-center justify-center z-10">
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="text-gray-600">Loading editor...</span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -92,7 +92,7 @@ export interface ImageConversionOptions {
   maxWidth?: number;
   maxHeight?: number;
   quality?: number; // 0-1 for JPEG
-  format?: 'jpeg' | 'png' | 'webp';
+  format?: "jpeg" | "png" | "webp";
   maintainAspectRatio?: boolean;
 }
 
@@ -109,4 +109,12 @@ export interface BlobUploadResult {
     error?: string;
     fileName: string;
   }>;
+}
+
+// Monaco Editor Types
+declare global {
+  interface Window {
+    monaco: any;
+    require: any;
+  }
 }

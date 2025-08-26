@@ -2,6 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Monaco Editor Optimizations */
+.monaco-editor {
+  transition: none !important;
+}
+
+.monaco-editor .overflow-guard {
+  transition: none !important;
+}
+
+/* Prevent flash during editor transitions */
+.monaco-editor-container {
+  background: white !important;
+}
+
+/* Smooth transitions for editor content */
+.editor-content {
+  transition: opacity 0.15s ease-in-out;
+}
+
+/* Loading state animations */
+.editor-loading {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Prevent text selection flash */
+.monaco-editor .view-lines {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* Optimize cursor rendering */
+.monaco-editor .cursor {
+  transition: none !important;
+}
+
+/* Smooth scrollbar */
+.monaco-editor .scrollbar .slider {
+  transition: background-color 0.1s ease;
+}
+
+/* Prevent layout shifts */
+.monaco-editor .margin,
+.monaco-editor .monaco-editor-background {
+  transition: none !important;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
