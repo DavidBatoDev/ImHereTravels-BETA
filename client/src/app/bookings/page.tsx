@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import BookingsList from "@/components/bookings/BookingsList";
+import BookingsTabs from "@/components/bookings/BookingsTabs";
 
 export const metadata: Metadata = {
   title: "Bookings - ImHereTravels Admin",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function BookingsPage() {
   return (
     <DashboardLayout>
-      <BookingsList />
+      <BookingsTabs />
     </DashboardLayout>
   );
 }
