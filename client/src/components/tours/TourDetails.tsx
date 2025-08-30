@@ -134,12 +134,14 @@ export default function TourDetails({
                     <div>
                       <p className="text-sm text-grey font-medium">Price</p>
                       <div className="flex flex-col items-center">
-                        {hasDiscount && tour.pricing.original && tour.pricing.original > 0 && (
-                          <p className="text-sm text-grey line-through">
-                            {tour.pricing.currency}{" "}
-                            {tour.pricing.original.toLocaleString()}
-                          </p>
-                        )}
+                        {hasDiscount &&
+                          tour.pricing.original &&
+                          tour.pricing.original > 0 && (
+                            <p className="text-sm text-grey line-through">
+                              {tour.pricing.currency}{" "}
+                              {tour.pricing.original.toLocaleString()}
+                            </p>
+                          )}
                         <p className="text-xl font-bold text-creative-midnight">
                           {tour.pricing.currency}{" "}
                           {currentPrice.toLocaleString()}
