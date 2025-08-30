@@ -178,13 +178,13 @@ export default function UserManagement() {
 
   if (!canManageUsers) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-red-500" />
+      <Card className="border border-royal-purple/20 shadow">
+        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
+          <CardTitle className="flex items-center gap-2 text-crimson-red">
+            <Shield className="h-5 w-5" />
             Access Denied
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-grey">
             You don&apos;t have permission to manage users.
           </CardDescription>
         </CardHeader>
@@ -197,15 +197,20 @@ export default function UserManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-2xl font-semibold text-creative-midnight font-hk-grotesk">
             User Management
           </h2>
-          <p className="text-gray-600">
+          <p className="text-grey text-lg">
             Manage user accounts, permissions, and approval status
           </p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={fetchUsers} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={fetchUsers}
+            disabled={loading}
+            className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+          >
             <RefreshCw
               className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
             />
@@ -215,29 +220,33 @@ export default function UserManagement() {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
+      <Card className="border border-royal-purple/20 shadow">
+        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
+          <CardTitle className="text-creative-midnight">Filters</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div className="space-y-2">
-              <Label htmlFor="search">Search Users</Label>
+              <Label htmlFor="search" className="text-creative-midnight">
+                Search Users
+              </Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-royal-purple/60" />
                 <Input
                   id="search"
                   placeholder="Search by name or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="role-filter">Role</Label>
+              <Label htmlFor="role-filter" className="text-creative-midnight">
+                Role
+              </Label>
               <Select value={filterRole} onValueChange={setFilterRole}>
-                <SelectTrigger>
+                <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -248,9 +257,14 @@ export default function UserManagement() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="approval-filter">Approval Status</Label>
+              <Label
+                htmlFor="approval-filter"
+                className="text-creative-midnight"
+              >
+                Approval Status
+              </Label>
               <Select value={filterApproval} onValueChange={setFilterApproval}>
-                <SelectTrigger>
+                <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -261,7 +275,10 @@ export default function UserManagement() {
               </Select>
             </div>
             <div className="flex items-end">
-              <Badge variant="secondary" className="text-sm">
+              <Badge
+                variant="secondary"
+                className="text-sm bg-royal-purple/20 text-royal-purple border border-royal-purple/30"
+              >
                 {filteredUsers.length} users
               </Badge>
             </div>
@@ -270,47 +287,58 @@ export default function UserManagement() {
       </Card>
 
       {/* Users Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Users</CardTitle>
-          <CardDescription>
+      <Card className="border border-royal-purple/20 shadow">
+        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
+          <CardTitle className="text-creative-midnight">Users</CardTitle>
+          <CardDescription className="text-grey">
             Manage user permissions and approval status
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
-              <span className="ml-2 text-gray-500">Loading users...</span>
+              <RefreshCw className="h-6 w-6 animate-spin text-royal-purple" />
+              <span className="ml-2 text-grey">Loading users...</span>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Approved</TableHead>
-                    <TableHead>Permissions</TableHead>
+                  <TableRow className="border-royal-purple/20">
+                    <TableHead className="text-creative-midnight">
+                      User
+                    </TableHead>
+                    <TableHead className="text-creative-midnight">
+                      Role
+                    </TableHead>
+                    <TableHead className="text-creative-midnight">
+                      Approved
+                    </TableHead>
+                    <TableHead className="text-creative-midnight">
+                      Permissions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow
+                      key={user.id}
+                      className="border-b border-royal-purple/20 transition-colors duration-200 hover:bg-royal-purple/5"
+                    >
                       <TableCell>
                         <div className="flex items-center space-x-3">
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={user.profile?.avatar} />
-                            <AvatarFallback>
+                            <AvatarFallback className="bg-royal-purple/20 text-royal-purple">
                               {user.profile?.firstName?.[0]}
                               {user.profile?.lastName?.[0]}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-medium">
+                            <div className="font-medium text-creative-midnight">
                               {user.profile?.firstName} {user.profile?.lastName}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-grey">
                               {user.email}
                             </div>
                           </div>
@@ -320,6 +348,11 @@ export default function UserManagement() {
                         <Badge
                           variant={
                             user.role === "admin" ? "destructive" : "secondary"
+                          }
+                          className={
+                            user.role === "admin"
+                              ? "bg-crimson-red/20 text-crimson-red border border-crimson-red/30"
+                              : "bg-royal-purple/20 text-royal-purple border border-royal-purple/30"
                           }
                         >
                           {user.role}
@@ -334,7 +367,7 @@ export default function UserManagement() {
                             }
                             disabled={updatingUser === user.id}
                           />
-                          <Label className="text-sm">
+                          <Label className="text-sm text-creative-midnight">
                             {user.isApproved ? "Approved" : "Pending"}
                           </Label>
                         </div>
@@ -342,8 +375,8 @@ export default function UserManagement() {
                       <TableCell>
                         <div className="space-y-3">
                           {!user.isApproved && (
-                            <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
-                              <p className="text-xs text-amber-700 font-medium">
+                            <div className="mb-2 p-2 bg-sunglow-yellow/20 border border-sunglow-yellow/30 rounded-md">
+                              <p className="text-xs text-vivid-orange font-medium">
                                 User not approved - All permissions disabled
                               </p>
                             </div>
@@ -351,10 +384,10 @@ export default function UserManagement() {
 
                           <div className="grid grid-cols-2 gap-3">
                             {/* Bookings Permission */}
-                            <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                            <div className="flex items-center justify-between p-2 bg-light-grey/30 rounded-md border border-royal-purple/20">
                               <div className="flex items-center space-x-2">
-                                <Calendar className="h-4 w-4 text-gray-500" />
-                                <Label className="text-xs font-medium">
+                                <Calendar className="h-4 w-4 text-royal-purple" />
+                                <Label className="text-xs font-medium text-creative-midnight">
                                   Bookings
                                 </Label>
                               </div>
@@ -378,10 +411,10 @@ export default function UserManagement() {
                             </div>
 
                             {/* Tours Permission */}
-                            <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                            <div className="flex items-center justify-between p-2 bg-light-grey/30 rounded-md border border-royal-purple/20">
                               <div className="flex items-center space-x-2">
-                                <MapPin className="h-4 w-4 text-gray-500" />
-                                <Label className="text-xs font-medium">
+                                <MapPin className="h-4 w-4 text-spring-green" />
+                                <Label className="text-xs font-medium text-creative-midnight">
                                   Tours
                                 </Label>
                               </div>
@@ -405,10 +438,10 @@ export default function UserManagement() {
                             </div>
 
                             {/* Communications Permission */}
-                            <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                            <div className="flex items-center justify-between p-2 bg-light-grey/30 rounded-md border border-royal-purple/20">
                               <div className="flex items-center space-x-2">
-                                <MessageSquare className="h-4 w-4 text-gray-500" />
-                                <Label className="text-xs font-medium">
+                                <MessageSquare className="h-4 w-4 text-royal-purple" />
+                                <Label className="text-xs font-medium text-creative-midnight">
                                   Communications
                                 </Label>
                               </div>
@@ -432,10 +465,10 @@ export default function UserManagement() {
                             </div>
 
                             {/* Reports Permission */}
-                            <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                            <div className="flex items-center justify-between p-2 bg-light-grey/30 rounded-md border border-royal-purple/20">
                               <div className="flex items-center space-x-2">
-                                <BarChart3 className="h-4 w-4 text-gray-500" />
-                                <Label className="text-xs font-medium">
+                                <BarChart3 className="h-4 w-4 text-royal-purple" />
+                                <Label className="text-xs font-medium text-creative-midnight">
                                   Reports
                                 </Label>
                               </div>
@@ -459,10 +492,10 @@ export default function UserManagement() {
                             </div>
 
                             {/* Financials Permission */}
-                            <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                            <div className="flex items-center justify-between p-2 bg-light-grey/30 rounded-md border border-royal-purple/20">
                               <div className="flex items-center space-x-2">
-                                <CreditCard className="h-4 w-4 text-gray-500" />
-                                <Label className="text-xs font-medium">
+                                <CreditCard className="h-4 w-4 text-spring-green" />
+                                <Label className="text-xs font-medium text-creative-midnight">
                                   Financials
                                 </Label>
                               </div>
@@ -486,10 +519,10 @@ export default function UserManagement() {
                             </div>
 
                             {/* User Management Permission */}
-                            <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                            <div className="flex items-center justify-between p-2 bg-light-grey/30 rounded-md border border-royal-purple/20">
                               <div className="flex items-center space-x-2">
-                                <Users className="h-4 w-4 text-gray-500" />
-                                <Label className="text-xs font-medium">
+                                <Users className="h-4 w-4 text-crimson-red" />
+                                <Label className="text-xs font-medium text-creative-midnight">
                                   User Management
                                 </Label>
                               </div>

@@ -72,12 +72,12 @@ type CommunicationTemplate = FirestoreTemplate;
 type TemplateStatus = "active" | "draft" | "archived";
 
 const templateStatuses = [
-  { value: "active", label: "Active", color: "bg-green-100 text-green-800" },
-  { value: "draft", label: "Draft", color: "bg-gray-100 text-gray-800" },
+  { value: "active", label: "Active", color: "bg-spring-green/20 text-spring-green border border-spring-green/30" },
+  { value: "draft", label: "Draft", color: "bg-sunglow-yellow/20 text-vivid-orange border border-sunglow-yellow/30" },
   {
     value: "archived",
     label: "Archived",
-    color: "bg-yellow-100 text-yellow-800",
+    color: "bg-grey/20 text-grey border border-grey/30",
   },
 ];
 
@@ -783,15 +783,15 @@ export default function CommunicationsCenter() {
 
   const getStatusColor = (status: TemplateStatus) => {
     const statusObj = templateStatuses.find((s) => s.value === status);
-    return statusObj?.color || "bg-gray-100 text-gray-800";
+    return statusObj?.color || "bg-grey/20 text-grey border border-grey/30";
   };
 
   if (isLoading && templates.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading templates...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-grey">Loading templates...</p>
         </div>
       </div>
     );
@@ -800,14 +800,18 @@ export default function CommunicationsCenter() {
   if (error && templates.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="text-red-600 mb-4">
+        <div className="text-crimson-red mb-4">
           <AlertCircle className="mx-auto h-12 w-12" />
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <h3 className="text-lg font-medium text-creative-midnight mb-2">
           Error loading templates
         </h3>
-        <p className="text-gray-500 mb-4">{error}</p>
-        <Button onClick={loadTemplates} variant="outline">
+        <p className="text-grey mb-4">{error}</p>
+        <Button 
+          onClick={loadTemplates} 
+          variant="outline"
+          className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple"
+        >
           Retry
         </Button>
       </div>
@@ -819,41 +823,44 @@ export default function CommunicationsCenter() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-creative-midnight font-hk-grotesk">
             Communications Center
           </h1>
-          <p className="text-gray-600 text-sm mt-1">
+          <p className="text-grey text-lg mt-1">
             Create and manage email templates for automated communications
           </p>
         </div>
-        <Button onClick={handleCreateTemplate} className="h-9">
+        <Button 
+          onClick={handleCreateTemplate} 
+          className="h-9 bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Create Template
         </Button>
       </div>
 
       {/* Filters */}
-      <Card className="mb-6">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center text-base">
-            <Filter className="mr-2 h-4 w-4" />
+      <Card className="mb-6 border border-royal-purple/20 shadow">
+        <CardHeader className="pb-3 bg-light-grey/50 border-b border-royal-purple/20">
+          <CardTitle className="flex items-center text-base text-creative-midnight">
+            <Filter className="mr-2 h-4 w-4 text-royal-purple" />
             Filter Templates
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-royal-purple/60" />
               <Input
                 placeholder="Search templates..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-9"
+                className="pl-10 h-9 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
               />
             </div>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-9 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -871,7 +878,7 @@ export default function CommunicationsCenter() {
                 setSearchTerm("");
                 setStatusFilter("all");
               }}
-              className="h-9"
+              className="h-9 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
             >
               Clear Filters
             </Button>
@@ -880,17 +887,17 @@ export default function CommunicationsCenter() {
       </Card>
 
       {/* Templates Grid */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredTemplates.map((template) => {
           return (
             <Card
               key={template.id}
-              className="group hover:shadow-lg transition-all duration-200 border-gray-200"
+              className="group hover:shadow-lg transition-all duration-200 border border-royal-purple/20 shadow hover:border-royal-purple/40"
             >
               {/* HTML Preview - At the very top */}
-              <div className="bg-gray-50 rounded-t-lg border-b h-32 overflow-hidden">
+              <div className="bg-light-grey/30 rounded-t-lg border-b border-royal-purple/20 h-32 overflow-hidden">
                 <div
-                  className="text-xs text-gray-700 line-clamp-4"
+                  className="text-xs text-creative-midnight line-clamp-4"
                   dangerouslySetInnerHTML={{
                     __html: template.content,
                   }}
@@ -900,12 +907,12 @@ export default function CommunicationsCenter() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-3">
-                    <div className={`p-2 rounded-lg bg-opacity-20`}></div>
+                    <div className={`p-2 rounded-lg bg-royal-purple/20`}></div>
                     <div className="flex-1">
-                      <CardTitle className="text-base font-semibold">
+                      <CardTitle className="text-base font-semibold text-creative-midnight">
                         {template.name}
                       </CardTitle>
-                      <CardDescription className="mt-1 line-clamp-2 text-sm">
+                      <CardDescription className="mt-1 line-clamp-2 text-sm text-grey">
                         {template.subject}
                       </CardDescription>
                     </div>
@@ -916,7 +923,7 @@ export default function CommunicationsCenter() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 text-royal-purple hover:bg-royal-purple/10 hover:text-royal-purple"
                         >
                           <MoreVertical className="h-4 w-4" />
                         </Button>
@@ -935,22 +942,22 @@ export default function CommunicationsCenter() {
                   >
                     {template.status}
                   </Badge>
-                  <div className="flex items-center text-xs text-gray-500">
-                    <Send className="mr-1 h-3 w-3" />
+                  <div className="flex items-center text-xs text-grey">
+                    <Send className="mr-1 h-3 w-3 text-royal-purple" />
                     {template.metadata?.usedCount || 0} sent
                   </div>
                 </div>
 
                 <div className="space-y-1 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Variables</span>
-                    <span className="font-medium">
+                    <span className="text-grey">Variables</span>
+                    <span className="font-medium text-creative-midnight">
                       {template.variables.length}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Last Modified</span>
-                    <span className="font-medium">
+                    <span className="text-grey">Last Modified</span>
+                    <span className="font-medium text-creative-midnight">
                       {template.metadata?.updatedAt
                         ?.toDate?.()
                         ?.toLocaleDateString?.() || "Today"}
@@ -963,7 +970,7 @@ export default function CommunicationsCenter() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleEditTemplate(template)}
-                    className="flex-1 h-8 text-xs"
+                    className="flex-1 h-8 text-xs border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
                   >
                     <Edit className="mr-1 h-3 w-3" />
                     Edit
@@ -972,7 +979,7 @@ export default function CommunicationsCenter() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleDuplicateTemplate(template)}
-                    className="flex-1 h-8 text-xs"
+                    className="flex-1 h-8 text-xs border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
                   >
                     <Copy className="mr-1 h-3 w-3" />
                     Duplicate
@@ -982,7 +989,7 @@ export default function CommunicationsCenter() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleRestoreTemplate(template)}
-                      className="text-blue-600 hover:text-blue-700 h-8 w-8 p-0"
+                      className="text-royal-purple hover:text-royal-purple hover:bg-royal-purple/10 h-8 w-8 p-0 border-royal-purple/20 transition-all duration-200"
                       title="Restore template"
                     >
                       <RotateCcw className="h-3 w-3" />
@@ -992,7 +999,7 @@ export default function CommunicationsCenter() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleArchiveTemplate(template)}
-                      className="text-yellow-600 hover:text-yellow-700 h-8 w-8 p-0"
+                      className="text-sunglow-yellow hover:text-vivid-orange hover:bg-sunglow-yellow/10 h-8 w-8 p-0 border-sunglow-yellow/20 transition-all duration-200"
                       title="Archive template"
                     >
                       <Archive className="h-3 w-3" />
@@ -1002,7 +1009,7 @@ export default function CommunicationsCenter() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleDeleteTemplate(template)}
-                    className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                    className="text-crimson-red hover:text-crimson-red hover:bg-crimson-red/10 h-8 w-8 p-0 border-crimson-red/20 transition-all duration-200"
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -1015,19 +1022,24 @@ export default function CommunicationsCenter() {
 
       {/* Empty State */}
       {filteredTemplates.length === 0 && (
-        <Card className="text-center py-8">
+        <Card className="text-center py-8 border border-royal-purple/20 shadow">
           <CardContent>
-            <FileText className="mx-auto h-10 w-10 text-gray-400 mb-3" />
-            <h3 className="text-base font-medium text-gray-900 mb-2">
+            <div className="p-3 bg-royal-purple/20 rounded-xl inline-block mb-3">
+              <FileText className="h-10 w-10 text-royal-purple" />
+            </div>
+            <h3 className="text-base font-medium text-creative-midnight mb-2">
               No templates found
             </h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-grey mb-4">
               {searchTerm || statusFilter !== "all"
                 ? "Try adjusting your filters or search terms."
                 : "Create your first email template to get started."}
             </p>
             {!searchTerm && statusFilter === "all" && (
-              <Button onClick={handleCreateTemplate} className="h-9">
+              <Button 
+                onClick={handleCreateTemplate} 
+                className="h-9 bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200"
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Create First Template
               </Button>
@@ -1057,19 +1069,21 @@ export default function CommunicationsCenter() {
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="border border-royal-purple/20">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Template</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-creative-midnight">Delete Template</AlertDialogTitle>
+            <AlertDialogDescription className="text-grey">
               Are you sure you want to delete "{selectedTemplate?.name}"? This
               action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-crimson-red hover:bg-crimson-red/90 text-white"
             >
               Delete
             </AlertDialogAction>

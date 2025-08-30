@@ -96,13 +96,13 @@ export default function BookingsList() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Paid":
-        return "bg-green-100 text-green-800";
+        return "bg-spring-green/20 text-spring-green border border-spring-green/30";
       case "Partial":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-sunglow-yellow/20 text-vivid-orange border border-sunglow-yellow/30";
       case "Pending":
-        return "bg-red-100 text-red-800";
+        return "bg-crimson-red/20 text-crimson-red border border-crimson-red/30";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-grey/20 text-grey border border-grey/30";
     }
   };
 
@@ -111,36 +111,38 @@ export default function BookingsList() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-          <p className="text-gray-600">Manage all bookings and reservations</p>
+          <h1 className="text-2xl font-bold text-creative-midnight font-hk-grotesk">
+            Bookings
+          </h1>
+          <p className="text-grey">Manage all bookings and reservations</p>
         </div>
-        <Button>
+        <Button className="bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200">
           <Plus className="mr-2 h-4 w-4" />
           New Booking
         </Button>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Filter className="mr-2 h-5 w-5" />
+      <Card className="border border-royal-purple/20 shadow">
+        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
+          <CardTitle className="flex items-center text-creative-midnight">
+            <Filter className="mr-2 h-5 w-5 text-royal-purple" />
             Filters
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-royal-purple/60" />
               <Input
                 placeholder="Search bookings..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
                 <SelectValue placeholder="Payment Status" />
               </SelectTrigger>
               <SelectContent>
@@ -152,7 +154,7 @@ export default function BookingsList() {
               </SelectContent>
             </Select>
             <Select value={tourFilter} onValueChange={setTourFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
                 <SelectValue placeholder="Tour Package" />
               </SelectTrigger>
               <SelectContent>
@@ -163,7 +165,10 @@ export default function BookingsList() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" className="w-full">
+            <Button
+              variant="outline"
+              className="w-full border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+            >
               Clear Filters
             </Button>
           </div>
@@ -171,98 +176,115 @@ export default function BookingsList() {
       </Card>
 
       {/* Bookings Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Bookings</CardTitle>
-          <CardDescription>
+      <Card className="border border-royal-purple/20 shadow">
+        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
+          <CardTitle className="text-creative-midnight">All Bookings</CardTitle>
+          <CardDescription className="text-grey">
             Showing {filteredBookings.length} of {mockBookings.length} bookings
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full border border-gray-200">
+            <table className="w-full">
               <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
+                <tr className="bg-light-grey/30 border-b border-royal-purple/20">
+                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight border-r border-royal-purple/20">
                     Booking ID
                   </th>
-                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
+                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight border-r border-royal-purple/20">
                     Traveler
                   </th>
-                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
+                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight border-r border-royal-purple/20">
                     Tour Package
                   </th>
-                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
+                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight border-r border-royal-purple/20">
                     Tour Date
                   </th>
-                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
+                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight border-r border-royal-purple/20">
                     Payment Status
                   </th>
-                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
+                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight border-r border-royal-purple/20">
                     Balance
                   </th>
-                  <th className="text-left py-3 px-4 font-medium border border-gray-200">
+                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredBookings.map((booking) => (
-                  <tr key={booking.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4 border border-gray-200">
-                      <span className="font-mono text-sm">{booking.id}</span>
+                {filteredBookings.map((booking, index) => (
+                  <tr
+                    key={booking.id}
+                    className={`border-b border-royal-purple/20 transition-colors duration-200 ${
+                      index % 2 === 0 ? "bg-white" : "bg-light-grey/20"
+                    } hover:bg-royal-purple/5`}
+                  >
+                    <td className="py-4 px-6 border-r border-royal-purple/20">
+                      <span className="font-mono text-sm bg-royal-purple/10 text-royal-purple px-2 py-1 rounded-md">
+                        {booking.id}
+                      </span>
                     </td>
-                    <td className="py-3 px-4 border border-gray-200">
+                    <td className="py-4 px-6 border-r border-royal-purple/20">
                       <div>
-                        <div className="font-medium">
+                        <div className="font-semibold text-creative-midnight">
                           {booking.travelerName}
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {booking.email}
-                        </div>
+                        <div className="text-sm text-grey">{booking.email}</div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 border border-gray-200">
+                    <td className="py-4 px-6 border-r border-royal-purple/20">
                       <div className="flex items-center">
-                        <MapPin className="mr-2 h-4 w-4 text-gray-400" />
-                        {booking.tourPackage}
+                        <MapPin className="mr-2 h-4 w-4 text-royal-purple" />
+                        <span className="text-creative-midnight">
+                          {booking.tourPackage}
+                        </span>
                       </div>
                     </td>
-                    <td className="py-3 px-4 border border-gray-200">
+                    <td className="py-4 px-6 border-r border-royal-purple/20">
                       <div className="flex items-center">
-                        <Calendar className="mr-2 h-4 w-4 text-gray-400" />
-                        {new Date(booking.tourDate).toLocaleDateString()}
+                        <Calendar className="mr-2 h-4 w-4 text-royal-purple" />
+                        <span className="text-creative-midnight">
+                          {new Date(booking.tourDate).toLocaleDateString()}
+                        </span>
                       </div>
                     </td>
-                    <td className="py-3 px-4 border border-gray-200">
+                    <td className="py-4 px-6 border-r border-royal-purple/20">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
                           booking.paymentStatus
                         )}`}
                       >
                         {booking.paymentStatus}
                       </span>
                     </td>
-                    <td className="py-3 px-4 border border-gray-200">
+                    <td className="py-4 px-6 border-r border-royal-purple/20">
                       <div className="flex items-center">
-                        <DollarSign className="mr-1 h-4 w-4 text-gray-400" />
+                        <DollarSign className="mr-1 h-4 w-4 text-royal-purple" />
                         <span
                           className={
                             booking.remainingBalance > 0
-                              ? "text-red-600"
-                              : "text-green-600"
+                              ? "text-crimson-red font-semibold"
+                              : "text-spring-green font-semibold"
                           }
                         >
                           ${booking.remainingBalance}
                         </span>
                       </div>
                     </td>
-                    <td className="py-3 px-4 border border-gray-200">
+                    <td className="py-4 px-6">
                       <div className="flex space-x-2">
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-royal-purple hover:bg-royal-purple/10 hover:text-royal-purple transition-all duration-200"
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-royal-purple hover:bg-royal-purple/10 hover:text-royal-purple transition-all duration-200"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                       </div>
@@ -276,35 +298,31 @@ export default function BookingsList() {
       </Card>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
           <CardContent className="p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Calendar className="h-6 w-6 text-blue-600" />
+              <div className="p-3 bg-royal-purple/20 rounded-xl">
+                <Calendar className="h-6 w-6 text-royal-purple" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Total Bookings
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-grey">Total Bookings</p>
+                <p className="text-2xl font-bold text-creative-midnight">
                   {mockBookings.length}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
           <CardContent className="p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign className="h-6 w-6 text-green-600" />
+              <div className="p-3 bg-spring-green/20 rounded-xl">
+                <DollarSign className="h-6 w-6 text-spring-green" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Total Revenue
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-grey">Total Revenue</p>
+                <p className="text-2xl font-bold text-creative-midnight">
                   $
                   {mockBookings
                     .reduce((sum, booking) => sum + booking.totalAmount, 0)
@@ -314,17 +332,17 @@ export default function BookingsList() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
           <CardContent className="p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <User className="h-6 w-6 text-orange-600" />
+              <div className="p-3 bg-crimson-red/20 rounded-xl">
+                <User className="h-6 w-6 text-crimson-red" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
+                <p className="text-sm font-medium text-grey">
                   Pending Payments
                 </p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-creative-midnight">
                   $
                   {mockBookings
                     .reduce((sum, booking) => sum + booking.remainingBalance, 0)

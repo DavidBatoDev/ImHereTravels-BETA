@@ -500,7 +500,7 @@ export default function GalleryTab() {
   return (
     <div
       className={`space-y-6 min-h-screen transition-all duration-200 ${
-        isDragOver ? "bg-blue-50/30" : ""
+        isDragOver ? "bg-royal-purple/10" : ""
       }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -509,13 +509,16 @@ export default function GalleryTab() {
       {/* Actions Bar */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex gap-2">
-          <Button onClick={handleUpload} className="flex items-center gap-2">
+          <Button
+            onClick={handleUpload}
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200"
+          >
             <Upload className="h-4 w-4" />
             Upload Images
           </Button>
           <button
             onClick={() => setSelectMode(!selectMode)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
           >
             {selectMode ? (
               <>
@@ -537,7 +540,7 @@ export default function GalleryTab() {
             <button
               onClick={handleBulkDelete}
               disabled={selectedImages.some((id) => deletingImages.has(id))}
-              className="flex items-center gap-2 hover:text-red-500"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-crimson-red/20 text-crimson-red hover:bg-crimson-red/10 hover:border-crimson-red transition-all duration-200"
             >
               {selectedImages.some((id) => deletingImages.has(id)) ? (
                 <>
@@ -558,12 +561,12 @@ export default function GalleryTab() {
 
         <div className="flex gap-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-royal-purple/60" />
             <Input
               placeholder="Search images... (Ctrl+K)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 w-64"
+              className="pl-10 w-64 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
               title="Search images (Ctrl+K)"
             />
           </div>
@@ -572,22 +575,31 @@ export default function GalleryTab() {
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
             title="Toggle filters (Ctrl+F)"
+            className={
+              showFilters
+                ? "bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25"
+                : "border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple"
+            }
           >
             <Filter className="h-4 w-4" />
             {getActiveFilterCount() > 0 && (
-              <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
+              <span className="ml-2 text-xs bg-royal-purple/20 text-royal-purple px-1.5 py-0.5 rounded-full border border-royal-purple/30">
                 {getActiveFilterCount()}
               </span>
             )}
           </Button>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 font-medium">View:</span>
-            <div className="flex border rounded-md bg-white shadow-sm">
+            <span className="text-xs text-grey font-medium">View:</span>
+            <div className="flex border border-royal-purple/20 rounded-md bg-white shadow-sm">
               <Button
                 variant={viewMode === "large" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("large")}
-                className="rounded-r-none border-r border-gray-200 hover:bg-gray-50 transition-colors"
+                className={`rounded-r-none border-r border-royal-purple/20 transition-colors ${
+                  viewMode === "large"
+                    ? "bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25"
+                    : "hover:bg-royal-purple/10"
+                }`}
                 title="Large icons"
               >
                 <Grid3X3 className="h-4 w-4" />
@@ -596,7 +608,11 @@ export default function GalleryTab() {
                 variant={viewMode === "small" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("small")}
-                className="rounded-none border-r border-gray-200 hover:bg-gray-50 transition-colors"
+                className={`rounded-none border-r border-royal-purple/20 transition-colors ${
+                  viewMode === "small"
+                    ? "bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25"
+                    : "hover:bg-royal-purple/10"
+                }`}
                 title="Small icons"
               >
                 <Grid3X3 className="h-3 w-3" />
@@ -605,7 +621,11 @@ export default function GalleryTab() {
                 variant={viewMode === "list" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("list")}
-                className="rounded-l-none hover:bg-gray-50 transition-colors"
+                className={`rounded-l-none transition-colors ${
+                  viewMode === "list"
+                    ? "bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25"
+                    : "hover:bg-royal-purple/10"
+                }`}
                 title="List"
               >
                 <List className="h-4 w-4" />
@@ -812,13 +832,15 @@ export default function GalleryTab() {
       {/* Results Counter */}
       {!loading && (
         <div className="flex items-center justify-between mb-4">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-grey">
             Showing {filteredImages.length} of {images.length} images
             {searchQuery && (
-              <span className="ml-2 text-blue-600">for "{searchQuery}"</span>
+              <span className="ml-2 text-royal-purple">
+                for "{searchQuery}"
+              </span>
             )}
             {getActiveFilterCount() > 0 && (
-              <span className="ml-2 text-gray-500">
+              <span className="ml-2 text-grey">
                 • {getActiveFilterCount()} filter
                 {getActiveFilterCount() !== 1 ? "s" : ""} active
               </span>
@@ -829,7 +851,7 @@ export default function GalleryTab() {
               variant="ghost"
               size="sm"
               onClick={clearAllFilters}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-royal-purple hover:text-royal-purple hover:bg-royal-purple/10"
             >
               Clear Filters
             </Button>
@@ -840,8 +862,8 @@ export default function GalleryTab() {
       {/* Images Grid/List */}
       {loading ? (
         <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading images...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-grey">Loading images...</p>
         </div>
       ) : viewMode === "large" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
@@ -1184,13 +1206,13 @@ export default function GalleryTab() {
       {/* Empty State */}
       {!loading && filteredImages.length === 0 && (
         <div className="text-center py-12">
-          <ImageIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <ImageIcon className="mx-auto h-12 w-12 text-royal-purple mb-4" />
+          <h3 className="text-lg font-medium text-creative-midnight mb-2">
             {images.length === 0
               ? "No images uploaded yet"
               : "No images match your filters"}
           </h3>
-          <p className="text-gray-500 mb-4">
+          <p className="text-grey mb-4">
             {images.length === 0
               ? "Start building your image collection by uploading some photos"
               : "Try adjusting your search or filters to see more results"}
@@ -1198,17 +1220,26 @@ export default function GalleryTab() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
             {images.length === 0 ? (
               <>
-                <Button onClick={handleUpload}>Upload Your First Image</Button>
-                <span className="text-sm text-gray-400">
+                <Button
+                  onClick={handleUpload}
+                  className="bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200"
+                >
+                  Upload Your First Image
+                </Button>
+                <span className="text-sm text-grey">
                   or drag and drop images here
                 </span>
               </>
             ) : (
               <>
-                <Button onClick={clearAllFilters} variant="outline">
+                <Button
+                  onClick={clearAllFilters}
+                  variant="outline"
+                  className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                >
                   Clear All Filters
                 </Button>
-                <span className="text-sm text-gray-400">
+                <span className="text-sm text-grey">
                   or adjust your search criteria
                 </span>
               </>
@@ -1549,11 +1580,11 @@ export default function GalleryTab() {
 
       {/* Drag Overlay */}
       {isDragOver && (
-        <div className="fixed inset-0 bg-blue-500 bg-opacity-10 border-2 border-dashed border-blue-400 flex items-center justify-center z-40 pointer-events-none animate-in fade-in duration-200">
-          <div className="bg-white rounded-lg px-6 py-4 shadow-lg animate-in zoom-in-95 duration-200 ease-out">
+        <div className="fixed inset-0 bg-royal-purple/10 border-2 border-dashed border-royal-purple/40 flex items-center justify-center z-40 pointer-events-none animate-in fade-in duration-200">
+          <div className="bg-white rounded-lg px-6 py-4 shadow-lg animate-in zoom-in-95 duration-200 ease-out border border-royal-purple/20">
             <div className="flex items-center gap-3">
-              <Upload className="h-6 w-6 text-blue-500" />
-              <span className="text-blue-700 font-medium">
+              <Upload className="h-6 w-6 text-royal-purple" />
+              <span className="text-royal-purple font-medium">
                 Drop images to upload
               </span>
             </div>

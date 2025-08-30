@@ -107,14 +107,14 @@ export default function BookingsSheet() {
       .map((col) => ({
         id: col.id,
         header: () => (
-          <div className="flex items-center justify-between group h-full w-full bg-red-50 text-red-600 px-3 py-2 rounded">
+          <div className="flex items-center justify-between group h-full w-full bg-royal-purple/10 text-royal-purple px-3 py-2 rounded">
             <div className="flex items-center gap-2">
               <span className="font-medium">{col.name}</span>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:bg-red-100"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-royal-purple hover:bg-royal-purple/20"
               onClick={() => openColumnSettings(col)}
             >
               <Settings className="h-4 w-4" />
@@ -145,7 +145,7 @@ export default function BookingsSheet() {
                   }
                 }}
                 autoFocus
-                className="h-8"
+                className="h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
               />
             );
           }
@@ -205,7 +205,11 @@ export default function BookingsSheet() {
         return value;
       case "function":
         return column.id === "delete" ? (
-          <Button variant="destructive" size="sm">
+          <Button
+            variant="destructive"
+            size="sm"
+            className="bg-crimson-red hover:bg-crimson-red/90"
+          >
             Delete
           </Button>
         ) : (
@@ -249,8 +253,10 @@ export default function BookingsSheet() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Bookings Sheet</h2>
-          <p className="text-gray-600">
+          <h2 className="text-2xl font-bold text-creative-midnight font-hk-grotesk">
+            Bookings Sheet
+          </h2>
+          <p className="text-grey">
             Manage your bookings data with customizable columns
           </p>
         </div>
@@ -258,7 +264,7 @@ export default function BookingsSheet() {
           <Button
             variant="outline"
             onClick={() => setAddColumnModal(true)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
           >
             <Plus className="h-4 w-4" />
             Add Column
@@ -267,22 +273,22 @@ export default function BookingsSheet() {
       </div>
 
       {/* Filters and Search */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
+      <Card className="border border-royal-purple/20 shadow-lg">
+        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
+          <CardTitle className="flex items-center gap-2 text-creative-midnight">
+            <Filter className="h-5 w-5 text-royal-purple" />
             Filters & Search
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-royal-purple/60" />
               <Input
                 placeholder="Search all columns..."
                 value={globalFilter ?? ""}
                 onChange={(e) => setGlobalFilter(e.target.value)}
-                className="pl-10"
+                className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
               />
             </div>
             <Select
@@ -291,7 +297,7 @@ export default function BookingsSheet() {
                 table.setPageSize(Number(value));
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -304,7 +310,10 @@ export default function BookingsSheet() {
             </Select>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                >
                   <Eye className="h-4 w-4" />
                   Columns
                   <ChevronDown className="h-4 w-4" />
@@ -339,24 +348,26 @@ export default function BookingsSheet() {
       </Card>
 
       {/* Sheet Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Bookings Data</CardTitle>
-          <CardDescription>
+      <Card className="border border-royal-purple/20 shadow-lg">
+        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
+          <CardTitle className="text-creative-midnight">
+            Bookings Data
+          </CardTitle>
+          <CardDescription className="text-grey">
             Showing {table.getFilteredRowModel().rows.length} of {data.length}{" "}
             rows
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-md border border-gray-200">
-            <Table className="border border-gray-200">
+        <CardContent className="p-0">
+          <div className="rounded-md border border-royal-purple/20">
+            <Table className="border border-royal-purple/20">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
+                  <TableRow key={headerGroup.id} className="bg-light-grey/30">
                     {headerGroup.headers.map((header) => (
                       <TableHead
                         key={header.id}
-                        className="relative border border-gray-200 p-0"
+                        className="relative border border-royal-purple/20 p-0"
                       >
                         {header.isPlaceholder
                           ? null
@@ -368,7 +379,7 @@ export default function BookingsSheet() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="ml-2 h-6 w-6 p-0"
+                            className="ml-2 h-6 w-6 p-0 text-royal-purple hover:bg-royal-purple/20"
                             onClick={header.column.getToggleSortingHandler()}
                           >
                             {header.column.getIsSorted() === "asc" ? (
@@ -385,15 +396,18 @@ export default function BookingsSheet() {
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
+                  table.getRowModel().rows.map((row, index) => (
                     <TableRow
                       key={row.id}
                       data-state={row.getIsSelected() && "selected"}
+                      className={`border-b border-royal-purple/20 transition-colors duration-200 ${
+                        index % 2 === 0 ? "bg-white" : "bg-light-grey/20"
+                      } hover:bg-royal-purple/5`}
                     >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell
                           key={cell.id}
-                          className="border border-gray-200 p-0"
+                          className="border border-royal-purple/20 p-0"
                         >
                           {flexRender(
                             cell.column.columnDef.cell,
@@ -407,7 +421,7 @@ export default function BookingsSheet() {
                   <TableRow>
                     <TableCell
                       colSpan={columns.length}
-                      className="h-24 text-center"
+                      className="h-24 text-center text-grey"
                     >
                       No results.
                     </TableCell>
@@ -418,21 +432,23 @@ export default function BookingsSheet() {
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between space-x-2 py-4">
-            <div className="flex-1 text-sm text-muted-foreground">
+          <div className="flex items-center justify-between space-x-2 py-4 px-6">
+            <div className="flex-1 text-sm text-grey">
               {table.getFilteredSelectedRowModel().rows.length} of{" "}
               {table.getFilteredRowModel().rows.length} row(s) selected.
             </div>
             <div className="flex items-center space-x-6 lg:space-x-8">
               <div className="flex items-center space-x-2">
-                <p className="text-sm font-medium">Rows per page</p>
+                <p className="text-sm font-medium text-creative-midnight">
+                  Rows per page
+                </p>
                 <Select
                   value={`${table.getState().pagination.pageSize}`}
                   onValueChange={(value) => {
                     table.setPageSize(Number(value));
                   }}
                 >
-                  <SelectTrigger className="h-8 w-[70px]">
+                  <SelectTrigger className="h-8 w-[70px] border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
                     <SelectValue
                       placeholder={table.getState().pagination.pageSize}
                     />
@@ -446,14 +462,14 @@ export default function BookingsSheet() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+              <div className="flex w-[100px] items-center justify-center text-sm font-medium text-creative-midnight">
                 Page {table.getState().pagination.pageIndex + 1} of{" "}
                 {table.getPageCount()}
               </div>
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
-                  className="hidden h-8 w-8 p-0 lg:flex"
+                  className="hidden h-8 w-8 p-0 lg:flex border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple"
                   onClick={() => table.setPageIndex(0)}
                   disabled={!table.getCanPreviousPage()}
                 >
@@ -462,7 +478,7 @@ export default function BookingsSheet() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple"
                   onClick={() => table.previousPage()}
                   disabled={!table.getCanPreviousPage()}
                 >
@@ -471,7 +487,7 @@ export default function BookingsSheet() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple"
                   onClick={() => table.nextPage()}
                   disabled={!table.getCanNextPage()}
                 >
@@ -480,7 +496,7 @@ export default function BookingsSheet() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="hidden h-8 w-8 p-0 lg:flex"
+                  className="hidden h-8 w-8 p-0 lg:flex border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple"
                   onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                   disabled={!table.getCanNextPage()}
                 >

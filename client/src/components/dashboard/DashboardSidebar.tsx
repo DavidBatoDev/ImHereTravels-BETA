@@ -33,53 +33,63 @@ const navigation = [
     name: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+    description: "Overview and analytics",
   },
   {
     name: "Bookings",
     href: "/bookings",
     icon: Calendar,
+    description: "Manage reservations",
   },
   { type: "separator" },
   {
     name: "Tour Packages",
     href: "/tours",
     icon: MapPin,
+    description: "Travel destinations",
   },
   {
     name: "Payment Types",
     href: "/payment-terms",
     icon: CreditCard,
+    description: "Billing options",
   },
   {
     name: "Communications",
     href: "/communications",
     icon: MessageSquare,
+    description: "Customer messages",
   },
   {
     name: "BBC Users",
     href: "/bbc-users",
     icon: User,
+    description: "User management",
   },
   { type: "separator" },
   {
     name: "Storage",
     href: "/storage",
     icon: HardDrive,
+    description: "File management",
   },
   {
     name: "Apps Script",
     href: "/functions",
     icon: Code,
+    description: "Automation tools",
   },
   {
     name: "Reports",
     href: "/reports",
     icon: BarChart3,
+    description: "Analytics & insights",
   },
   {
     name: "Settings",
     href: "/settings",
     icon: Settings,
+    description: "System configuration",
   },
 ];
 
@@ -118,22 +128,22 @@ export default function DashboardSidebar({
         )}
       >
         <div
-          className="fixed inset-0 bg-gray-600 bg-opacity-75"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
-          <div className="flex h-16 items-center justify-between px-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8">
+        <div className="fixed inset-y-0 left-0 flex w-72 flex-col bg-white shadow-2xl">
+          <div className="flex h-20 items-center justify-between px-6 bg-primary">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl p-2 backdrop-blur-sm">
                 <Image
-                  src="/logos/Logo_Red.svg"
+                  src="/logos/Logo_White.svg"
                   alt="ImHereTravels Logo"
-                  width={32}
-                  height={32}
+                  width={24}
+                  height={24}
                   className="w-full h-full"
                 />
               </div>
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-xl font-bold text-white font-hk-grotesk">
                 ImHereTravels
               </h1>
             </div>
@@ -141,18 +151,25 @@ export default function DashboardSidebar({
               variant="ghost"
               size="sm"
               onClick={() => setSidebarOpen(false)}
+              className="text-white hover:bg-white/20 hover:text-white"
             >
               <X className="h-5 w-5" />
             </Button>
           </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
+          <nav className="flex-1 space-y-2 px-4 py-6">
             {navigation.map((item, index) => {
               if (item.type === "separator") {
                 return (
-                  <hr
-                    key={`separator-${index}`}
-                    className="my-3 border-gray-200"
-                  />
+                  <div key={`separator-${index}`} className="relative py-2">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-royal-purple/20" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-royal-purple/60 font-medium">
+                        Section
+                      </span>
+                    </div>
+                  </div>
                 );
               }
 
@@ -162,55 +179,79 @@ export default function DashboardSidebar({
                   key={`nav-${index}-${item.name}`}
                   href={item.href}
                   className={cn(
-                    "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                    "group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ease-in-out",
                     isActive
-                      ? "bg-blue-100 text-blue-900"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      ? "bg-primary text-white shadow-lg shadow-primary/25"
+                      : "text-creative-midnight hover:bg-royal-purple/10 hover:text-royal-purple hover:shadow-md"
                   )}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <item.icon
+                  <div
                     className={cn(
-                      "mr-3 h-5 w-5 flex-shrink-0",
+                      "mr-3 p-2 rounded-lg transition-all duration-200",
                       isActive
-                        ? "text-blue-500"
-                        : "text-gray-400 group-hover:text-gray-500"
+                        ? "bg-white/20 backdrop-blur-sm"
+                        : "bg-royal-purple/10 group-hover:bg-royal-purple/20"
                     )}
-                  />
-                  {item.name}
+                  >
+                    <item.icon
+                      className={cn(
+                        "h-5 w-5 flex-shrink-0 transition-colors duration-200",
+                        isActive
+                          ? "text-white"
+                          : "text-royal-purple group-hover:text-royal-purple"
+                      )}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold">{item.name}</div>
+                    <div
+                      className={cn(
+                        "text-xs opacity-75 transition-opacity duration-200",
+                        isActive ? "text-white/80" : "text-grey"
+                      )}
+                    >
+                      {item.description}
+                    </div>
+                  </div>
+                  {isActive && (
+                    <div className="absolute right-2 w-2 h-2 bg-white rounded-full" />
+                  )}
                 </Link>
               );
             })}
           </nav>
-          <div className="border-t border-gray-200 p-4">
-            <div className="flex items-center">
+          <div className="border-t border-royal-purple/20 p-6 bg-light-grey">
+            <div className="flex items-center mb-4">
               <div className="flex-shrink-0">
                 {userProfile?.profile?.avatar ? (
                   <img
                     src={userProfile.profile.avatar}
                     alt="Profile"
-                    className="h-8 w-8 rounded-full object-cover"
+                    className="h-12 w-12 rounded-xl object-cover ring-2 ring-royal-purple/20 shadow-md"
                   />
                 ) : (
-                  <User className="h-8 w-8 text-gray-400" />
+                  <div className="h-12 w-12 rounded-xl bg-royal-purple flex items-center justify-center shadow-md">
+                    <User className="h-6 w-6 text-white" />
+                  </div>
                 )}
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700">
+              <div className="ml-4 flex-1">
+                <p className="text-sm font-semibold text-creative-midnight">
                   {userProfile?.profile?.firstName || "User"}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-grey">
                   {userProfile?.email || "user@imheretravels.com"}
                 </p>
-                <p className="text-xs text-gray-400 capitalize">
+                <div className="inline-flex items-center px-2 py-1 rounded-full bg-spring-green/20 text-xs font-medium text-spring-green mt-1">
                   {userProfile?.role || "user"}
-                </p>
+                </div>
               </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="mt-2 w-full justify-start"
+              className="w-full justify-start bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary border border-primary/20 rounded-xl transition-all duration-200"
               onClick={() => setShowLogoutModal(true)}
               disabled={isLoading}
             >
@@ -222,32 +263,43 @@ export default function DashboardSidebar({
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex min-h-0 flex-1 flex-col border-r border-gray-200 bg-white">
-          <div className="flex h-16 items-center px-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
+        <div className="flex min-h-0 flex-1 flex-col bg-white shadow">
+          {/* <div className="flex items-center px-6 py-3 bg-primary"> */}
+          <div className="flex items-center px-6 py-3 bg-slate-100">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl p-2 backdrop-blur-sm">
                 <Image
                   src="/logos/Logo_Red.svg"
                   alt="ImHereTravels Logo"
-                  width={32}
-                  height={32}
+                  width={24}
+                  height={24}
                   className="w-full h-full"
                 />
               </div>
-              <h1 className="text-xl font-semibold text-gray-900">
+              {/* <h1 className="text-xl font-bold text-white font-hk-grotesk"> */}
+              <h1 className="text-xl font-bold text-creative-midnight font-hk-grotesk">
                 ImHereTravels
               </h1>
             </div>
           </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
+          <nav className="flex-1 space-y-2 px-4 py-6">
             {navigation.map((item, index) => {
               if (item.type === "separator") {
                 return (
-                  <hr
+                  <div
                     key={`desktop-separator-${index}`}
-                    className="my-3 border-gray-200"
-                  />
+                    className="relative py-2"
+                  >
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-royal-purple/20" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-royal-purple/60 font-medium">
+                        Section
+                      </span>
+                    </div>
+                  </div>
                 );
               }
 
@@ -257,54 +309,78 @@ export default function DashboardSidebar({
                   key={`desktop-nav-${index}-${item.name}`}
                   href={item.href}
                   className={cn(
-                    "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                    "group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ease-in-out",
                     isActive
-                      ? "bg-blue-100 text-blue-900"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      ? "bg-primary text-white shadow-lg shadow-primary-red/25"
+                      : "text-creative-midnight hover:bg-royal-purple/10 hover:text-royal-purple hover:shadow-md"
                   )}
                 >
-                  <item.icon
+                  <div
                     className={cn(
-                      "mr-3 h-5 w-5 flex-shrink-0",
+                      "mr-3 p-2 rounded-lg transition-all duration-200",
                       isActive
-                        ? "text-blue-500"
-                        : "text-gray-400 group-hover:text-gray-500"
+                        ? "bg-white/20 backdrop-blur-sm"
+                        : "bg-royal-purple/10 group-hover:bg-royal-purple/20"
                     )}
-                  />
-                  {item.name}
+                  >
+                    <item.icon
+                      className={cn(
+                        "h-5 w-5 flex-shrink-0 transition-colors duration-200",
+                        isActive
+                          ? "text-white"
+                          : "text-royal-purple group-hover:text-royal-purple"
+                      )}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold">{item.name}</div>
+                    <div
+                      className={cn(
+                        "text-xs opacity-75 transition-opacity duration-200",
+                        isActive ? "text-white/80" : "text-grey"
+                      )}
+                    >
+                      {item.description}
+                    </div>
+                  </div>
+                  {isActive && (
+                    <div className="absolute right-2 w-2 h-2 bg-white rounded-full" />
+                  )}
                 </Link>
               );
             })}
           </nav>
-          <div className="border-t border-gray-200 p-4">
-            <div className="flex items-center">
+          <div className="border-t border-royal-purple/20 p-6 bg-light-grey">
+            <div className="flex items-center mb-4">
               <div className="flex-shrink-0">
                 {userProfile?.profile?.avatar ? (
                   <img
                     src={userProfile.profile.avatar}
                     alt="Profile"
-                    className="h-8 w-8 rounded-full object-cover"
+                    className="h-12 w-12 rounded-xl object-cover ring-2 ring-royal-purple/20 shadow-md"
                   />
                 ) : (
-                  <User className="h-8 w-8 text-gray-400" />
+                  <div className="h-12 w-12 rounded-xl bg-royal-purple flex items-center justify-center shadow-md">
+                    <User className="h-6 w-6 text-white" />
+                  </div>
                 )}
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700">
+              <div className="ml-4 flex-1">
+                <p className="text-sm font-semibold text-creative-midnight">
                   {userProfile?.profile?.firstName || "User"}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-grey">
                   {userProfile?.email || "user@imheretravels.com"}
                 </p>
-                <p className="text-xs text-gray-400 capitalize">
+                <div className="inline-flex items-center px-2 py-1 rounded-full bg-spring-green/20 text-xs font-medium text-spring-green mt-1">
                   {userProfile?.role || "user"}
-                </p>
+                </div>
               </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="mt-2 w-full justify-start"
+              className="w-full justify-start bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary border border-primary/20 rounded-xl transition-all duration-200"
               onClick={() => setShowLogoutModal(true)}
               disabled={isLoading}
             >
@@ -317,17 +393,17 @@ export default function DashboardSidebar({
 
       {/* Logout Confirmation Modal */}
       {showLogoutModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-royal-purple/10">
+            <div className="flex items-center space-x-4 mb-6">
+              <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-xl font-bold text-creative-midnight font-hk-grotesk">
                   Confirm Logout
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-grey">
                   Are you sure you want to sign out?
                 </p>
               </div>
@@ -335,7 +411,7 @@ export default function DashboardSidebar({
             <div className="flex space-x-3">
               <Button
                 variant="outline"
-                className="flex-1"
+                className="flex-1 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 rounded-xl transition-all duration-200"
                 onClick={() => setShowLogoutModal(false)}
                 disabled={isLoading}
               >
@@ -343,7 +419,7 @@ export default function DashboardSidebar({
               </Button>
               <Button
                 variant="destructive"
-                className="flex-1"
+                className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-xl transition-all duration-200 shadow-lg shadow-primary/25"
                 onClick={handleLogout}
                 disabled={isLoading}
               >

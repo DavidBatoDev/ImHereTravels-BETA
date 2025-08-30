@@ -219,24 +219,29 @@ export default function BBCUsersManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tight text-creative-midnight font-hk-grotesk">
             Manage BBC Users
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-grey text-lg">
             Manage BBC users, their roles, and access permissions
           </p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button disabled={isLoading}>
+            <Button
+              disabled={isLoading}
+              className="bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200"
+            >
               <UserPlus className="mr-2 h-4 w-4" />
               Add BBC User
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px] border border-royal-purple/20">
             <DialogHeader>
-              <DialogTitle>Add New BBC User</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-creative-midnight">
+                Add New BBC User
+              </DialogTitle>
+              <DialogDescription className="text-grey">
                 Create a new BBC user account with appropriate permissions
               </DialogDescription>
             </DialogHeader>
@@ -246,29 +251,33 @@ export default function BBCUsersManagement() {
       </div>
 
       {/* Filters and Search */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters & Search</CardTitle>
+      <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
+          <CardTitle className="text-creative-midnight">
+            Filters & Search
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="search">Search</Label>
+              <Label htmlFor="search" className="text-creative-midnight">
+                Search
+              </Label>
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-royal-purple/60" />
                 <Input
                   id="search"
                   placeholder="Search users..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
+                  className="pl-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Results</Label>
-              <div className="text-sm text-muted-foreground pt-2">
+              <Label className="text-creative-midnight">Results</Label>
+              <div className="text-sm text-grey pt-2">
                 {filteredUsers.length} of {users.length} users
               </div>
             </div>
@@ -277,21 +286,23 @@ export default function BBCUsersManagement() {
       </Card>
 
       {/* Users Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>BBC Users</CardTitle>
-          <CardDescription>
+      <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
+          <CardTitle className="text-creative-midnight">BBC Users</CardTitle>
+          <CardDescription className="text-grey">
             Manage BBC user accounts and their access levels
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>BBC ID</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+              <TableRow className="border-royal-purple/20">
+                <TableHead className="text-creative-midnight">User</TableHead>
+                <TableHead className="text-creative-midnight">BBC ID</TableHead>
+                <TableHead className="text-creative-midnight">Status</TableHead>
+                <TableHead className="text-creative-midnight">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -300,16 +311,14 @@ export default function BBCUsersManagement() {
                   <TableCell colSpan={4} className="text-center py-8">
                     <div className="flex items-center justify-center space-x-2">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                      <span className="text-muted-foreground">
-                        Loading users...
-                      </span>
+                      <span className="text-grey">Loading users...</span>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : filteredUsers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-8">
-                    <div className="text-muted-foreground">
+                    <div className="text-grey">
                       {searchTerm
                         ? "No users found matching your search."
                         : "No BBC users found."}
@@ -318,28 +327,31 @@ export default function BBCUsersManagement() {
                 </TableRow>
               ) : (
                 filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
+                  <TableRow
+                    key={user.id}
+                    className="border-b border-royal-purple/20 transition-colors duration-200 hover:bg-royal-purple/5"
+                  >
                     <TableCell>
                       <div className="flex items-center space-x-3">
                         <Avatar>
                           <AvatarImage src={undefined} />
-                          <AvatarFallback>
+                          <AvatarFallback className="bg-royal-purple/20 text-royal-purple">
                             {user.firstName[0]}
                             {user.lastName[0]}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium">
+                          <div className="font-medium text-creative-midnight">
                             {user.firstName} {user.lastName}
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            {user.email}
-                          </div>
+                          <div className="text-sm text-grey">{user.email}</div>
                           <div className="flex items-center space-x-2 mt-1">
                             <Badge
                               variant={user.isActive ? "default" : "secondary"}
                               className={
-                                user.isActive ? "bg-green-600" : "bg-gray-500"
+                                user.isActive
+                                  ? "bg-spring-green/20 text-spring-green border border-spring-green/30"
+                                  : "bg-grey/20 text-grey border border-grey/30"
                               }
                             >
                               {user.isActive ? "Active" : "Inactive"}
@@ -349,13 +361,18 @@ export default function BBCUsersManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{user.bbcId}</Badge>
+                      <Badge
+                        variant="outline"
+                        className="border-royal-purple/30 text-royal-purple"
+                      >
+                        {user.bbcId}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <Power
                           className={`h-4 w-4 ${
-                            user.isActive ? "text-green-600" : "text-gray-400"
+                            user.isActive ? "text-spring-green" : "text-grey"
                           }`}
                         />
                         <Switch
@@ -365,7 +382,7 @@ export default function BBCUsersManagement() {
                           }
                           disabled={isLoading}
                         />
-                        <span className="text-sm text-muted-foreground ml-2">
+                        <span className="text-sm text-grey ml-2">
                           {user.isActive ? "Active" : "Inactive"}
                         </span>
                       </div>
@@ -380,6 +397,7 @@ export default function BBCUsersManagement() {
                             setEditingUser(user);
                             setIsEditDialogOpen(true);
                           }}
+                          className="text-royal-purple hover:text-royal-purple hover:bg-royal-purple/10"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -388,6 +406,7 @@ export default function BBCUsersManagement() {
                           size="sm"
                           disabled={isLoading}
                           onClick={() => handleDeleteUser(user.id)}
+                          className="text-crimson-red hover:text-crimson-red hover:bg-crimson-red/10"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -403,10 +422,12 @@ export default function BBCUsersManagement() {
 
       {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] border border-royal-purple/20">
           <DialogHeader>
-            <DialogTitle>Edit BBC User</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-creative-midnight">
+              Edit BBC User
+            </DialogTitle>
+            <DialogDescription className="text-grey">
               Update user information and permissions
             </DialogDescription>
           </DialogHeader>
@@ -473,7 +494,9 @@ function CreateUserForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="firstName">First Name</Label>
+          <Label htmlFor="firstName" className="text-creative-midnight">
+            First Name
+          </Label>
           <Input
             id="firstName"
             value={formData.firstName}
@@ -481,10 +504,13 @@ function CreateUserForm({
               setFormData({ ...formData, firstName: e.target.value })
             }
             required
+            className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="lastName">Last Name</Label>
+          <Label htmlFor="lastName" className="text-creative-midnight">
+            Last Name
+          </Label>
           <Input
             id="lastName"
             value={formData.lastName}
@@ -492,22 +518,30 @@ function CreateUserForm({
               setFormData({ ...formData, lastName: e.target.value })
             }
             required
+            className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
           />
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email" className="text-creative-midnight">
+          Email
+        </Label>
         <Input
           id="email"
           type="email"
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           required
+          className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
         />
       </div>
 
       <DialogFooter>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200"
+        >
           {isSubmitting ? "Creating..." : "Create User"}
         </Button>
       </DialogFooter>
@@ -564,7 +598,9 @@ function EditUserForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="editFirstName">First Name</Label>
+          <Label htmlFor="editFirstName" className="text-creative-midnight">
+            First Name
+          </Label>
           <Input
             id="editFirstName"
             value={formData.firstName}
@@ -572,10 +608,13 @@ function EditUserForm({
               setFormData({ ...formData, firstName: e.target.value })
             }
             required
+            className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="editLastName">Last Name</Label>
+          <Label htmlFor="editLastName" className="text-creative-midnight">
+            Last Name
+          </Label>
           <Input
             id="editLastName"
             value={formData.lastName}
@@ -583,25 +622,38 @@ function EditUserForm({
               setFormData({ ...formData, lastName: e.target.value })
             }
             required
+            className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
           />
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="editEmail">Email</Label>
+        <Label htmlFor="editEmail" className="text-creative-midnight">
+          Email
+        </Label>
         <Input
           id="editEmail"
           type="email"
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           required
+          className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
         />
       </div>
 
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+        >
           Cancel
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200"
+        >
           {isSubmitting ? "Updating..." : "Update User"}
         </Button>
       </DialogFooter>

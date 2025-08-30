@@ -9,8 +9,10 @@ export default function StorageTabs() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Storage</h1>
-          <p className="text-gray-600">
+          <h1 className="text-3xl font-bold text-creative-midnight font-hk-grotesk">
+            Storage
+          </h1>
+          <p className="text-grey text-lg">
             Manage file storage and image collections
           </p>
         </div>
@@ -18,10 +20,25 @@ export default function StorageTabs() {
 
       {/* Tabs */}
       <Tabs defaultValue="gallery" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="gallery">Gallery</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="media">Media</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 bg-light-grey border border-royal-purple/20">
+          <TabsTrigger
+            value="gallery"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            Gallery
+          </TabsTrigger>
+          <TabsTrigger
+            value="documents"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            Documents
+          </TabsTrigger>
+          <TabsTrigger
+            value="media"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            Media
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="gallery" className="mt-6">
@@ -30,17 +47,19 @@ export default function StorageTabs() {
 
         <TabsContent value="documents" className="mt-6">
           <div className="text-center py-12">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <h3 className="text-lg font-medium text-creative-midnight mb-2">
               Documents
             </h3>
-            <p className="text-gray-500">Document management coming soon...</p>
+            <p className="text-grey">Document management coming soon...</p>
           </div>
         </TabsContent>
 
         <TabsContent value="media" className="mt-6">
           <div className="text-center py-12">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Media</h3>
-            <p className="text-gray-500">Media management coming soon...</p>
+            <h3 className="text-lg font-medium text-creative-midnight mb-2">
+              Media
+            </h3>
+            <p className="text-grey">Media management coming soon...</p>
           </div>
         </TabsContent>
       </Tabs>
