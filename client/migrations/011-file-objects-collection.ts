@@ -51,16 +51,3 @@ export async function migrateFileObjectsCollection() {
     throw error;
   }
 }
-
-// Run migration if called directly
-if (require.main === module) {
-  migrateFileObjectsCollection()
-    .then(() => {
-      console.log("Migration completed successfully");
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("Migration failed:", error);
-      process.exit(1);
-    });
-}

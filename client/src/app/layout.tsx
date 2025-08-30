@@ -23,6 +23,17 @@ export const metadata: Metadata = {
   title: "I'm Here Travels",
   description:
     "Connect people with places and create lifelong impact together for the community.",
+  icons: {
+    icon: [
+      {
+        url: "/favicon.svg?v=2",
+        type: "image/svg+xml",
+        sizes: "any",
+      },
+    ],
+    shortcut: "/favicon.svg?v=2",
+    apple: "/favicon.svg?v=2",
+  },
 };
 
 export default function RootLayout({
