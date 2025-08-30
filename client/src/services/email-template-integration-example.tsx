@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useAuth } from "@/store/auth-store"; // Assuming you have an auth store
+import { useAuthStore } from "@/store/auth-store";
 import EmailTemplateService from "./email-template-service";
 import {
   CommunicationTemplate,
@@ -13,7 +13,7 @@ import {
  */
 
 export function EmailTemplateIntegrationExample() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const [templates, setTemplates] = useState<CommunicationTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -6,7 +6,7 @@ export const helloWorld = onCall(
     region: "asia-southeast1",
     maxInstances: 10,
   },
-  async (request) => {
+  async (request: any) => {
     try {
       // Simple hello world response
       return {

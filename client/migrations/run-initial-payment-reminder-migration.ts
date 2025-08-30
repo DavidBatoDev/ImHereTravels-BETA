@@ -1,14 +1,14 @@
-import { migrateInitialPaymentReminderTemplate } from "./009-initial-payment-reminder-template";
+import { runMigration as migrateInitialPaymentReminderTemplate } from "./009-initial-payment-reminder-template";
 
 // Run the migration
 async function runMigration() {
   try {
     console.log("🚀 Starting Initial Payment Reminder Template Migration...");
 
-    const templateId = await migrateInitialPaymentReminderTemplate();
+    const result = await migrateInitialPaymentReminderTemplate();
 
     console.log("🎉 Migration completed successfully!");
-    console.log(`📧 Template created with ID: ${templateId}`);
+    console.log(`📧 Template created with result: ${JSON.stringify(result)}`);
     console.log("📋 Template: Initial Payment Reminder");
     console.log("🔧 Variables: 9 variables with proper type definitions");
     console.log("📱 Status: Active");
