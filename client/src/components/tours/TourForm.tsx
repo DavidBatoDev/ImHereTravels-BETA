@@ -18,6 +18,14 @@ import {
   FolderOpen,
   Upload,
   X,
+  Globe,
+  CreditCard,
+  Package,
+  Plane,
+  CheckCircle,
+  AlertCircle,
+  Hash,
+  Users,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -57,6 +65,8 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 
 import {
   TourPackage,
@@ -963,974 +973,1129 @@ export default function TourForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="max-w-6xl max-h-[95vh] p-0 bg-gradient-to-br from-white to-light-grey">
+        <DialogHeader className="px-8 pt-8 pb-6 bg-gradient-to-r from-crimson-red to-light-red text-white rounded-t-lg">
+          <DialogTitle className="text-3xl font-bold text-white mb-2">
             {tour ? "Edit Tour Package" : "Create New Tour Package"}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-white/90 text-lg">
             {tour
               ? "Update the tour package details below."
               : "Fill in the details to create a new tour package."}
           </DialogDescription>
+          <div className="flex items-center gap-4 mt-4 text-white/80">
+            <div className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-white" />
+              <span className="font-medium">Tour Management</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Hash className="w-5 h-5 text-white" />
+              <span className="font-medium">
+                {tour?.tourCode || "New Tour"}
+              </span>
+            </div>
+          </div>
         </DialogHeader>
 
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(handleSubmit)}
-            className="space-y-6"
-          >
-            {/* Cover Image */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5" />
-                  Cover Image
-                </CardTitle>
-                <CardDescription>
-                  Upload a high-quality cover image for this tour (recommended:
-                  1200x800px) or use an image URL
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Test Storage Connection Button */}
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={testStorageConnection}
-                      className="text-xs"
-                    >
-                      Test Firebase Storage
-                    </Button>
-                  </div>
-
-                  {/* Toggle Switch */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="cover-toggle"
-                        checked={useCoverUrl}
-                        onCheckedChange={handleCoverToggle}
-                        disabled={isSubmitting}
-                      />
-                      <Label
-                        htmlFor="cover-toggle"
-                        className="text-sm font-medium"
+        <div className="overflow-y-auto h-[calc(95vh-200px)]">
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(handleSubmit)}
+              className="p-8 space-y-8"
+            >
+              {/* Cover Image Section */}
+              <Card className="bg-white border-2 border-light-grey hover:border-crimson-red transition-colors duration-200">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <div className="p-2 bg-crimson-red/10 rounded-full">
+                      <ImageIcon className="h-5 w-5 text-crimson-red" />
+                    </div>
+                    Cover Image
+                  </CardTitle>
+                  <CardDescription className="text-grey">
+                    Upload a high-quality cover image for this tour
+                    (recommended: 1200x800px) or use an image URL
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    {/* Test Storage Connection Button */}
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={testStorageConnection}
+                        className="text-xs border-crimson-red text-crimson-red hover:bg-crimson-red hover:text-white"
                       >
-                        {useCoverUrl ? "Use Image URL" : "Upload Image File"}
-                      </Label>
+                        Test Firebase Storage
+                      </Button>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {useCoverUrl ? "URL Mode" : "Upload Mode"}
+
+                    {/* Toggle Switch */}
+                    <div className="flex items-center justify-between p-4 bg-light-grey/30 rounded-lg border-2 border-light-grey">
+                      <div className="flex items-center space-x-3">
+                        <Switch
+                          id="cover-toggle"
+                          checked={useCoverUrl}
+                          onCheckedChange={handleCoverToggle}
+                          disabled={isSubmitting}
+                        />
+                        <Label
+                          htmlFor="cover-toggle"
+                          className="text-sm font-medium text-creative-midnight"
+                        >
+                          {useCoverUrl ? "Use Image URL" : "Upload Image File"}
+                        </Label>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="border-crimson-red text-crimson-red"
+                      >
+                        {useCoverUrl ? "URL Mode" : "Upload Mode"}
+                      </Badge>
                     </div>
+
+                    {/* Upload Mode */}
+                    {!useCoverUrl && (
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleCoverUpload}
+                          disabled={isSubmitting}
+                          className="hidden"
+                          id="cover-upload"
+                        />
+                        <Label
+                          htmlFor="cover-upload"
+                          className={`flex items-center gap-3 px-6 py-4 border-2 border-dashed border-crimson-red/30 rounded-lg cursor-pointer hover:bg-crimson-red/5 transition-colors duration-200 ${
+                            isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
+                        >
+                          <Upload className="h-5 w-5 text-crimson-red" />
+                          <span className="font-medium text-creative-midnight">
+                            Choose Cover Image
+                          </span>
+                        </Label>
+                      </div>
+                    )}
+
+                    {/* URL Mode */}
+                    {useCoverUrl && (
+                      <div className="space-y-3">
+                        <Label
+                          htmlFor="cover-url"
+                          className="text-sm font-medium text-creative-midnight"
+                        >
+                          Image URL
+                        </Label>
+                        <Input
+                          id="cover-url"
+                          type="url"
+                          placeholder="https://example.com/image.jpg"
+                          value={coverImageUrl}
+                          onChange={(e) =>
+                            handleCoverImageUrlChange(e.target.value)
+                          }
+                          disabled={isSubmitting}
+                          className="w-full border-2 border-light-grey focus:border-crimson-red"
+                        />
+                        <p className="text-xs text-grey">
+                          Enter a direct link to an image (JPG, PNG, WebP, etc.)
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Cover Image Preview */}
+                    {uploadedCover && (
+                      <div className="relative">
+                        <img
+                          src={uploadedCover}
+                          alt="Cover preview"
+                          className="w-full h-48 object-cover rounded-lg border-2 border-light-grey"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={removeCoverImage}
+                          className="absolute top-3 right-3 bg-crimson-red hover:bg-light-red"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Basic Information */}
+              <Card className="bg-white border-2 border-light-grey hover:border-royal-purple transition-colors duration-200">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <div className="p-2 bg-royal-purple/10 rounded-full">
+                      <FileText className="h-5 w-5 text-royal-purple" />
+                    </div>
+                    Basic Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-creative-midnight font-medium">
+                            Tour Name
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter tour name"
+                              {...field}
+                              className="border-2 border-light-grey focus:border-royal-purple"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tourCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-creative-midnight font-medium">
+                            Tour Code
+                          </FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="border-2 border-light-grey focus:border-royal-purple">
+                                <SelectValue placeholder="Select tour code" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="SIA">
+                                SIA - Siargao Island Adventure
+                              </SelectItem>
+                              <SelectItem value="PHS">
+                                PHS - Philippine Sunrise
+                              </SelectItem>
+                              <SelectItem value="PSS">
+                                PSS - Philippines Sunset
+                              </SelectItem>
+                              <SelectItem value="MLB">
+                                MLB - Maldives Bucketlist
+                              </SelectItem>
+                              <SelectItem value="SLW">
+                                SLW - Sri Lanka Wander Tour
+                              </SelectItem>
+                              <SelectItem value="ARW">
+                                ARW - Argentina's Wonders
+                              </SelectItem>
+                              <SelectItem value="BZT">
+                                BZT - Brazil's Treasures
+                              </SelectItem>
+                              <SelectItem value="VNE">
+                                VNE - Vietnam Expedition
+                              </SelectItem>
+                              <SelectItem value="IDD">
+                                IDD - India Discovery Tour
+                              </SelectItem>
+                              <SelectItem value="IHF">
+                                IHF - India Holi Festival Tour
+                              </SelectItem>
+                              <SelectItem value="TXP">
+                                TXP - Tanzania Exploration
+                              </SelectItem>
+                              <SelectItem value="NZE">
+                                NZE - New Zealand Expedition
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription className="text-grey">
+                            Unique identifier for the tour package
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
 
-                  {/* Upload Mode */}
-                  {!useCoverUrl && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="slug"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-creative-midnight font-medium">
+                            URL Slug
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="tour-url-slug"
+                              {...field}
+                              className="border-2 border-light-grey focus:border-royal-purple"
+                            />
+                          </FormControl>
+                          <FormDescription className="text-grey">
+                            URL-friendly identifier for the tour
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-creative-midnight font-medium">
+                            Direct URL
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="https://imheretravels.com/tour-name"
+                              {...field}
+                              className="border-2 border-light-grey focus:border-royal-purple"
+                            />
+                          </FormControl>
+                          <FormDescription className="text-grey">
+                            Direct link to tour page (optional)
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-creative-midnight font-medium">
+                          Description
+                        </FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Describe the tour package..."
+                            rows={4}
+                            {...field}
+                            className="border-2 border-light-grey focus:border-royal-purple resize-none"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="location"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-creative-midnight font-medium">
+                            <MapPin className="h-4 w-4 text-royal-purple" />
+                            Location
+                          </FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="border-2 border-light-grey focus:border-royal-purple">
+                                <SelectValue placeholder="Select location" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Philippines">
+                                Philippines
+                              </SelectItem>
+                              <SelectItem value="Maldives">Maldives</SelectItem>
+                              <SelectItem value="Sri Lanka">
+                                Sri Lanka
+                              </SelectItem>
+                              <SelectItem value="Argentina">
+                                Argentina
+                              </SelectItem>
+                              <SelectItem value="Brazil">Brazil</SelectItem>
+                              <SelectItem value="Vietnam">Vietnam</SelectItem>
+                              <SelectItem value="India">India</SelectItem>
+                              <SelectItem value="Tanzania">Tanzania</SelectItem>
+                              <SelectItem value="New Zealand">
+                                New Zealand
+                              </SelectItem>
+                              <SelectItem value="Ecuador">Ecuador</SelectItem>
+                              <SelectItem value="Galapagos">
+                                Galapagos
+                              </SelectItem>
+                              <SelectItem value="Amazon">Amazon</SelectItem>
+                              <SelectItem value="Andes">Andes</SelectItem>
+                              <SelectItem value="Coast">Coast</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="duration"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-creative-midnight font-medium">
+                            <Clock className="h-4 w-4 text-spring-green" />
+                            Duration (Days)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="1"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseInt(e.target.value) || 1)
+                              }
+                              className="border-2 border-light-grey focus:border-spring-green"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-creative-midnight font-medium">
+                            Status
+                          </FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="border-2 border-light-grey focus:border-vivid-orange">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="draft">Draft</SelectItem>
+                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="archived">Archived</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Travel Dates */}
+              <Card className="bg-white border-2 border-light-grey hover:border-spring-green transition-colors duration-200">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <div className="p-2 bg-spring-green/10 rounded-full">
+                      <Calendar className="h-5 w-5 text-spring-green" />
+                    </div>
+                    Travel Dates
+                  </CardTitle>
+                  <CardDescription className="text-grey">
+                    Add available travel dates for this tour package
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {travelDateFields.map((field, index) => (
+                    <div
+                      key={field.id}
+                      className="border-2 border-light-grey rounded-lg p-6 space-y-4 bg-light-grey/20"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-spring-green text-white rounded-full flex items-center justify-center font-bold text-sm">
+                            {index + 1}
+                          </div>
+                          <h4 className="font-medium text-creative-midnight">
+                            Travel Date {index + 1}
+                          </h4>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeTravelDate(index)}
+                          disabled={travelDateFields.length === 1}
+                          className="border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <FormField
+                          control={form.control}
+                          name={`travelDates.${index}.startDate`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-creative-midnight font-medium">
+                                Start Date
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="date"
+                                  {...field}
+                                  className="border-2 border-light-grey focus:border-spring-green"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`travelDates.${index}.endDate`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-creative-midnight font-medium">
+                                End Date
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="date"
+                                  {...field}
+                                  className="border-2 border-light-grey focus:border-spring-green"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`travelDates.${index}.isAvailable`}
+                          render={({ field }) => (
+                            <FormItem className="flex items-center space-x-3">
+                              <FormControl>
+                                <input
+                                  type="checkbox"
+                                  checked={field.value}
+                                  onChange={field.onChange}
+                                  className="rounded border-2 border-light-grey focus:border-spring-green"
+                                />
+                              </FormControl>
+                              <FormLabel className="text-sm font-normal text-creative-midnight">
+                                Available for booking
+                              </FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name={`travelDates.${index}.maxCapacity`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-creative-midnight font-medium">
+                                Max Capacity (Optional)
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  placeholder="Maximum number of travelers"
+                                  {...field}
+                                  onChange={(e) =>
+                                    field.onChange(
+                                      e.target.value
+                                        ? parseInt(e.target.value)
+                                        : 0
+                                    )
+                                  }
+                                  className="border-2 border-light-grey focus:border-spring-green"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`travelDates.${index}.currentBookings`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-creative-midnight font-medium">
+                                Current Bookings (Optional)
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  placeholder="Number of current bookings"
+                                  {...field}
+                                  onChange={(e) =>
+                                    field.onChange(
+                                      e.target.value
+                                        ? parseInt(e.target.value)
+                                        : 0
+                                    )
+                                  }
+                                  className="border-2 border-light-grey focus:border-spring-green"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      appendTravelDate({
+                        startDate: "",
+                        endDate: "",
+                        isAvailable: true,
+                        maxCapacity: 0,
+                        currentBookings: 0,
+                      })
+                    }
+                    className="w-full border-2 border-spring-green text-spring-green hover:bg-spring-green hover:text-white"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Travel Date
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Pricing */}
+              <Card className="bg-white border-2 border-light-grey hover:border-vivid-orange transition-colors duration-200">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <div className="p-2 bg-vivid-orange/10 rounded-full">
+                      <DollarSign className="h-5 w-5 text-vivid-orange" />
+                    </div>
+                    Pricing
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="pricing.original"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-creative-midnight font-medium">
+                            Original Price
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                              className="border-2 border-light-grey focus:border-vivid-orange"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="pricing.discounted"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-creative-midnight font-medium">
+                            Discounted Price
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                              className="border-2 border-light-grey focus:border-vivid-orange"
+                            />
+                          </FormControl>
+                          <FormDescription className="text-grey">
+                            Optional
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="pricing.deposit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-creative-midnight font-medium">
+                            Deposit
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                              className="border-2 border-light-grey focus:border-vivid-orange"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="pricing.currency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-creative-midnight font-medium">
+                            Currency
+                          </FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="border-2 border-light-grey focus:border-vivid-orange">
+                                <SelectValue placeholder="Select currency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="USD">USD</SelectItem>
+                              <SelectItem value="EUR">EUR</SelectItem>
+                              <SelectItem value="GBP">GBP</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* External Links */}
+              <Card className="bg-white border-2 border-light-grey hover:border-royal-purple transition-colors duration-200">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <div className="p-2 bg-royal-purple/10 rounded-full">
+                      <FolderOpen className="h-5 w-5 text-royal-purple" />
+                    </div>
+                    External Links
+                  </CardTitle>
+                  <CardDescription className="text-grey">
+                    Add links to brochures, payment pages, and pre-departure
+                    materials
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="brochureLink"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-creative-midnight font-medium">
+                          Brochure Link
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="https://drive.google.com/file/d/..."
+                            {...field}
+                            className="border-2 border-light-grey focus:border-royal-purple"
+                          />
+                        </FormControl>
+                        <FormDescription className="text-grey">
+                          Link to tour brochure (Google Drive, PDF, etc.)
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="stripePaymentLink"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-creative-midnight font-medium">
+                          Stripe Payment Link
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="https://book.stripe.com/..."
+                            {...field}
+                            className="border-2 border-light-grey focus:border-royal-purple"
+                          />
+                        </FormControl>
+                        <FormDescription className="text-grey">
+                          Stripe checkout link for tour bookings
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="preDeparturePack"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-creative-midnight font-medium">
+                          Pre-Departure Pack
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="https://drive.google.com/file/d/..."
+                            {...field}
+                            className="border-2 border-light-grey focus:border-royal-purple"
+                          />
+                        </FormControl>
+                        <FormDescription className="text-grey">
+                          Link to pre-departure information pack
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Highlights */}
+              <Card className="bg-white border-2 border-light-grey hover:border-sunglow-yellow transition-colors duration-200">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <div className="p-2 bg-sunglow-yellow/10 rounded-full">
+                      <Star className="h-5 w-5 text-sunglow-yellow" />
+                    </div>
+                    Highlights
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {highlightFields.map((field, index) => (
+                    <FormField
+                      key={field.id}
+                      control={form.control}
+                      name={`details.highlights.${index}`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <div className="flex items-center gap-3 group">
+                              <div className="w-2 h-2 bg-sunglow-yellow rounded-full flex-shrink-0"></div>
+                              <Input
+                                placeholder={`Highlight ${index + 1}`}
+                                {...field}
+                                className="border-none bg-transparent group-hover:bg-white transition-colors duration-200 focus:ring-2 focus:ring-sunglow-yellow focus:ring-opacity-50 rounded px-2"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => removeHighlight(index)}
+                                disabled={highlightFields.length === 1}
+                                className="h-6 w-6 p-0 border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => (appendHighlight as any)("")}
+                    className="w-full border-2 border-sunglow-yellow text-sunglow-yellow hover:bg-sunglow-yellow hover:text-creative-midnight"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Highlight
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Itinerary */}
+              <Card className="bg-white border-2 border-light-grey hover:border-royal-purple transition-colors duration-200">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <div className="p-2 bg-royal-purple/10 rounded-full">
+                      <Plane className="h-5 w-5 text-royal-purple" />
+                    </div>
+                    Itinerary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {itineraryFields.map((field, index) => (
+                      <div
+                        key={field.id}
+                        className="border-2 border-light-grey rounded-lg p-4 bg-light-grey/20 hover:border-royal-purple transition-colors duration-200"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-royal-purple text-white rounded-full flex items-center justify-center font-bold text-xs">
+                              {index + 1}
+                            </div>
+                            <h4 className="font-medium text-creative-midnight text-sm">
+                              Day {index + 1}
+                            </h4>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeItinerary(index)}
+                            disabled={itineraryFields.length === 1}
+                            className="h-6 w-6 p-0 border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                        </div>
+
+                        <div className="space-y-3">
+                          <FormField
+                            control={form.control}
+                            name={`details.itinerary.${index}.title`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-creative-midnight font-medium text-xs">
+                                  Title
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="Day title"
+                                    {...field}
+                                    className="h-8 text-sm border-2 border-light-grey focus:border-royal-purple"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name={`details.itinerary.${index}.description`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-creative-midnight font-medium text-xs">
+                                  Description
+                                </FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    placeholder="Activities for this day"
+                                    rows={2}
+                                    {...field}
+                                    className="text-sm border-2 border-light-grey focus:border-royal-purple resize-none"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      appendItinerary({
+                        day: itineraryFields.length + 1,
+                        title: "",
+                        description: "",
+                      })
+                    }
+                    className="w-full border-2 border-royal-purple text-royal-purple hover:bg-royal-purple hover:text-white"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Day
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Requirements */}
+              <Card className="bg-white border-2 border-light-grey hover:border-vivid-orange transition-colors duration-200">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <div className="p-2 bg-vivid-orange/10 rounded-full">
+                      <AlertCircle className="h-5 w-5 text-vivid-orange" />
+                    </div>
+                    Requirements
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {requirementFields.map((field, index) => (
+                    <FormField
+                      key={field.id}
+                      control={form.control}
+                      name={`details.requirements.${index}`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <div className="flex items-center gap-3 group">
+                              <div className="w-2 h-2 bg-vivid-orange rounded-full flex-shrink-0"></div>
+                              <Input
+                                placeholder={`Requirement ${index + 1}`}
+                                {...field}
+                                className="border-none bg-transparent group-hover:bg-white transition-colors duration-200 focus:ring-2 focus:ring-vivid-orange focus:ring-opacity-50 rounded px-2"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => removeRequirement(index)}
+                                disabled={requirementFields.length === 1}
+                                className="h-6 w-6 p-0 border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => (appendRequirement as any)("")}
+                    className="w-full border-2 border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Requirement
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Gallery Images */}
+              <Card className="bg-white border-2 border-light-grey hover:border-royal-purple transition-colors duration-200">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <div className="p-2 bg-royal-purple/10 rounded-full">
+                      <FolderOpen className="h-5 w-5 text-royal-purple" />
+                    </div>
+                    Gallery Images
+                  </CardTitle>
+                  <CardDescription className="text-grey">
+                    Upload multiple images to showcase your tour (up to 10
+                    images)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
                     <div className="flex items-center gap-4">
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={handleCoverUpload}
+                        multiple
+                        onChange={handleGalleryUpload}
                         disabled={isSubmitting}
                         className="hidden"
-                        id="cover-upload"
+                        id="gallery-upload"
                       />
                       <Label
-                        htmlFor="cover-upload"
-                        className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 ${
+                        htmlFor="gallery-upload"
+                        className={`flex items-center gap-3 px-6 py-4 border-2 border-dashed border-royal-purple/30 rounded-lg cursor-pointer hover:bg-royal-purple/5 transition-colors duration-200 ${
                           isSubmitting ? "opacity-50 cursor-not-allowed" : ""
                         }`}
                       >
-                        <Upload className="h-4 w-4" />
-                        Choose Cover Image
+                        <Upload className="h-5 w-5 text-royal-purple" />
+                        <span className="font-medium text-creative-midnight">
+                          Choose Gallery Images
+                        </span>
                       </Label>
                     </div>
-                  )}
 
-                  {/* URL Mode */}
-                  {useCoverUrl && (
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="cover-url"
-                        className="text-sm font-medium"
-                      >
-                        Image URL
-                      </Label>
-                      <Input
-                        id="cover-url"
-                        type="url"
-                        placeholder="https://example.com/image.jpg"
-                        value={coverImageUrl}
-                        onChange={(e) =>
-                          handleCoverImageUrlChange(e.target.value)
-                        }
-                        disabled={isSubmitting}
-                        className="w-full"
-                      />
-                      <p className="text-xs text-gray-500">
-                        Enter a direct link to an image (JPG, PNG, WebP, etc.)
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Cover Image Preview */}
-                  {uploadedCover && (
-                    <div className="relative">
-                      <img
-                        src={uploadedCover}
-                        alt="Cover preview"
-                        className="w-full h-48 object-cover rounded-lg border"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={removeCoverImage}
-                        className="absolute top-2 right-2"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Basic Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Basic Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tour Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter tour name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="tourCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tour Code</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select tour code" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="SIA">
-                              SIA - Siargao Island Adventure
-                            </SelectItem>
-                            <SelectItem value="PHS">
-                              PHS - Philippine Sunrise
-                            </SelectItem>
-                            <SelectItem value="PSS">
-                              PSS - Philippines Sunset
-                            </SelectItem>
-                            <SelectItem value="MLB">
-                              MLB - Maldives Bucketlist
-                            </SelectItem>
-                            <SelectItem value="SLW">
-                              SLW - Sri Lanka Wander Tour
-                            </SelectItem>
-                            <SelectItem value="ARW">
-                              ARW - Argentina's Wonders
-                            </SelectItem>
-                            <SelectItem value="BZT">
-                              BZT - Brazil's Treasures
-                            </SelectItem>
-                            <SelectItem value="VNE">
-                              VNE - Vietnam Expedition
-                            </SelectItem>
-                            <SelectItem value="IDD">
-                              IDD - India Discovery Tour
-                            </SelectItem>
-                            <SelectItem value="IHF">
-                              IHF - India Holi Festival Tour
-                            </SelectItem>
-                            <SelectItem value="TXP">
-                              TXP - Tanzania Exploration
-                            </SelectItem>
-                            <SelectItem value="NZE">
-                              NZE - New Zealand Expedition
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Unique identifier for the tour package
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="slug"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>URL Slug</FormLabel>
-                        <FormControl>
-                          <Input placeholder="tour-url-slug" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          URL-friendly identifier for the tour
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="url"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Direct URL</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="https://imheretravels.com/tour-name"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Direct link to tour page (optional)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Describe the tour package..."
-                          rows={4}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="location"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          Location
-                        </FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select location" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Philippines">
-                              Philippines
-                            </SelectItem>
-                            <SelectItem value="Maldives">Maldives</SelectItem>
-                            <SelectItem value="Sri Lanka">Sri Lanka</SelectItem>
-                            <SelectItem value="Argentina">Argentina</SelectItem>
-                            <SelectItem value="Brazil">Brazil</SelectItem>
-                            <SelectItem value="Vietnam">Vietnam</SelectItem>
-                            <SelectItem value="India">India</SelectItem>
-                            <SelectItem value="Tanzania">Tanzania</SelectItem>
-                            <SelectItem value="New Zealand">
-                              New Zealand
-                            </SelectItem>
-                            <SelectItem value="Ecuador">Ecuador</SelectItem>
-                            <SelectItem value="Galapagos">Galapagos</SelectItem>
-                            <SelectItem value="Amazon">Amazon</SelectItem>
-                            <SelectItem value="Andes">Andes</SelectItem>
-                            <SelectItem value="Coast">Coast</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="duration"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          Duration (Days)
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min="1"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseInt(e.target.value) || 1)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="archived">Archived</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Travel Dates */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Travel Dates
-                </CardTitle>
-                <CardDescription>
-                  Add available travel dates for this tour package
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {travelDateFields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="border rounded-lg p-4 space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">Travel Date {index + 1}</h4>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeTravelDate(index)}
-                        disabled={travelDateFields.length === 1}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <FormField
-                        control={form.control}
-                        name={`travelDates.${index}.startDate`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Start Date</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`travelDates.${index}.endDate`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>End Date</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`travelDates.${index}.isAvailable`}
-                        render={({ field }) => (
-                          <FormItem className="flex items-center space-x-2">
-                            <FormControl>
-                              <input
-                                type="checkbox"
-                                checked={field.value}
-                                onChange={field.onChange}
-                                className="rounded"
-                              />
-                            </FormControl>
-                            <FormLabel className="text-sm font-normal">
-                              Available for booking
-                            </FormLabel>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name={`travelDates.${index}.maxCapacity`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Max Capacity (Optional)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min="1"
-                                placeholder="Maximum number of travelers"
-                                {...field}
-                                onChange={(e) =>
-                                  field.onChange(
-                                    e.target.value
-                                      ? parseInt(e.target.value)
-                                      : 0
-                                  )
-                                }
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`travelDates.${index}.currentBookings`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Current Bookings (Optional)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min="0"
-                                placeholder="Number of current bookings"
-                                {...field}
-                                onChange={(e) =>
-                                  field.onChange(
-                                    e.target.value
-                                      ? parseInt(e.target.value)
-                                      : 0
-                                  )
-                                }
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    appendTravelDate({
-                      startDate: "",
-                      endDate: "",
-                      isAvailable: true,
-                      maxCapacity: 0,
-                      currentBookings: 0,
-                    })
-                  }
-                  className="w-full"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Travel Date
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Pricing */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
-                  Pricing
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="pricing.original"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Original Price</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="pricing.discounted"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Discounted Price</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormDescription>Optional</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="pricing.deposit"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Deposit</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(parseFloat(e.target.value) || 0)
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="pricing.currency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Currency</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select currency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="USD">USD</SelectItem>
-                            <SelectItem value="EUR">EUR</SelectItem>
-                            <SelectItem value="GBP">GBP</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* External Links */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FolderOpen className="h-5 w-5" />
-                  External Links
-                </CardTitle>
-                <CardDescription>
-                  Add links to brochures, payment pages, and pre-departure
-                  materials
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="brochureLink"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Brochure Link</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="https://drive.google.com/file/d/..."
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Link to tour brochure (Google Drive, PDF, etc.)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="stripePaymentLink"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Stripe Payment Link</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="https://book.stripe.com/..."
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Stripe checkout link for tour bookings
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="preDeparturePack"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pre-Departure Pack</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="https://drive.google.com/file/d/..."
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Link to pre-departure information pack
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Highlights */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Star className="h-5 w-5" />
-                  Highlights
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {highlightFields.map((field, index) => (
-                  <div key={field.id} className="flex gap-2 items-end">
-                    <FormField
-                      control={form.control}
-                      name={`details.highlights.${index}`}
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormControl>
-                            <Input
-                              placeholder={`Highlight ${index + 1}`}
-                              {...field}
+                    {uploadedGallery.length > 0 && (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {uploadedGallery.map((image, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={image}
+                              alt={`Gallery ${index + 1}`}
+                              className="w-full h-32 object-cover rounded-lg border-2 border-light-grey"
                             />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => removeHighlight(index)}
-                      disabled={highlightFields.length === 1}
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => removeGalleryImage(index)}
+                              className="absolute top-2 right-2 bg-crimson-red hover:bg-light-red"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))}
+                </CardContent>
+              </Card>
+
+              <DialogFooter className="pt-6 border-t-2 border-light-grey">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => (appendHighlight as any)("")}
-                  className="w-full"
+                  onClick={onClose}
+                  className="border-2 border-light-grey text-grey hover:bg-light-grey hover:text-creative-midnight"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Highlight
+                  Cancel
                 </Button>
-              </CardContent>
-            </Card>
-
-            {/* Itinerary */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Itinerary
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {itineraryFields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="border rounded-lg p-4 space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">Day {index + 1}</h4>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeItinerary(index)}
-                        disabled={itineraryFields.length === 1}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name={`details.itinerary.${index}.title`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Day Title</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter day title" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`details.itinerary.${index}.description`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Day Description</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Describe activities for this day"
-                              rows={3}
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                ))}
                 <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    appendItinerary({
-                      day: itineraryFields.length + 1,
-                      title: "",
-                      description: "",
-                    })
-                  }
-                  className="w-full"
+                  type="submit"
+                  disabled={isSubmitting || isLoading}
+                  className="flex items-center gap-2 bg-crimson-red hover:bg-light-red text-white"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Day
+                  <Save className="h-4 w-4" />
+                  {isSubmitting
+                    ? "Saving..."
+                    : tour
+                    ? "Update Tour"
+                    : "Create Tour"}
                 </Button>
-              </CardContent>
-            </Card>
-
-            {/* Requirements */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Requirements</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {requirementFields.map((field, index) => (
-                  <div key={field.id} className="flex gap-2 items-end">
-                    <FormField
-                      control={form.control}
-                      name={`details.requirements.${index}`}
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormControl>
-                            <Input
-                              placeholder={`Requirement ${index + 1}`}
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => removeRequirement(index)}
-                      disabled={requirementFields.length === 1}
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => (appendRequirement as any)("")}
-                  className="w-full"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Requirement
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Gallery Images */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FolderOpen className="h-5 w-5" />
-                  Gallery Images
-                </CardTitle>
-                <CardDescription>
-                  Upload multiple images to showcase your tour (up to 10 images)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleGalleryUpload}
-                      disabled={isSubmitting}
-                      className="hidden"
-                      id="gallery-upload"
-                    />
-                    <Label
-                      htmlFor="gallery-upload"
-                      className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 ${
-                        isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-                      }`}
-                    >
-                      <Upload className="h-4 w-4" />
-                      Choose Gallery Images
-                    </Label>
-                  </div>
-
-                  {uploadedGallery.length > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {uploadedGallery.map((image, index) => (
-                        <div key={index} className="relative">
-                          <img
-                            src={image}
-                            alt={`Gallery ${index + 1}`}
-                            className="w-full h-32 object-cover rounded-lg border"
-                          />
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => removeGalleryImage(index)}
-                            className="absolute top-1 right-1"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting || isLoading}
-                className="flex items-center gap-2"
-              >
-                <Save className="h-4 w-4" />
-                {isSubmitting
-                  ? "Saving..."
-                  : tour
-                  ? "Update Tour"
-                  : "Create Tour"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+              </DialogFooter>
+            </form>
+          </Form>
+        </div>
       </DialogContent>
     </Dialog>
   );
