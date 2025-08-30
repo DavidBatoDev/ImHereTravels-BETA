@@ -45,6 +45,14 @@ import {
   runMigration as runMigration010,
   rollbackMigration as rollbackMigration010,
 } from "./010-scheduled-reminder-email-template";
+import {
+  runMigration as runMigration012,
+  rollbackMigration as rollbackMigration012,
+} from "./012-default-booking-sheet-columns";
+import {
+  runMigration as runMigration013,
+  rollbackMigration as rollbackMigration013,
+} from "./013-sample-booking-with-all-columns";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -221,6 +229,44 @@ async function main() {
       }
       break;
 
+    case "012":
+      console.log("📊 Running migration: 012-default-booking-sheet-columns");
+      const result012 = await runMigration012(dryRun);
+      console.log(`\n🎯 ${result012.message}`);
+      if (result012.details) {
+        console.log(
+          `📊 Details: ${result012.details.created} created, ${result012.details.skipped} skipped, ${result012.details.errors.length} errors`
+        );
+        if (result012.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result012.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
+    case "013":
+      console.log("📊 Running migration: 013-sample-booking-with-all-columns");
+      const result013 = await runMigration013(dryRun);
+      console.log(`\n🎯 ${result013.message}`);
+      if (result013.details) {
+        console.log(
+          `📊 Details: ${
+            result013.details.columnsFound
+          } columns found, booking ${
+            result013.details.bookingCreated ? "created" : "not created"
+          }, ${result013.details.errors.length} errors`
+        );
+        if (result013.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result013.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "rollback":
     case "undo":
       console.log("🔄 Rolling back migration: 001-initial-tour-packages");
@@ -385,6 +431,44 @@ async function main() {
       }
       break;
 
+    case "rollback012":
+      console.log(
+        "🔄 Rolling back migration: 012-default-booking-sheet-columns"
+      );
+      const rollbackResult012 = await rollbackMigration012();
+      console.log(`\n🎯 ${rollbackResult012.message}`);
+      if (rollbackResult012.details) {
+        console.log(
+          `📊 Details: ${rollbackResult012.details.deleted} deleted, ${rollbackResult012.details.errors.length} errors`
+        );
+        if (rollbackResult012.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult012.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
+    case "rollback013":
+      console.log(
+        "🔄 Rolling back migration: 013-sample-booking-with-all-columns"
+      );
+      const rollbackResult013 = await rollbackMigration013();
+      console.log(`\n🎯 ${rollbackResult013.message}`);
+      if (rollbackResult013.details) {
+        console.log(
+          `📊 Details: ${rollbackResult013.details.deleted} deleted, ${rollbackResult013.details.errors.length} errors`
+        );
+        if (rollbackResult013.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult013.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "dry-run":
     case "test":
       console.log(
@@ -501,6 +585,32 @@ async function main() {
       }
       break;
 
+    case "dry-run012":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 012-default-booking-sheet-columns"
+      );
+      const dryRunResult012 = await runMigration012(true);
+      console.log(`\n🎯 ${dryRunResult012.message}`);
+      if (dryRunResult012.details) {
+        console.log(
+          `📊 Details: ${dryRunResult012.details.created} would be created, ${dryRunResult012.details.skipped} would be skipped`
+        );
+      }
+      break;
+
+    case "dry-run013":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 013-sample-booking-with-all-columns"
+      );
+      const dryRunResult013 = await runMigration013(true);
+      console.log(`\n🎯 ${dryRunResult013.message}`);
+      if (dryRunResult013.details) {
+        console.log(
+          `📊 Details: ${dryRunResult013.details.columnsFound} columns found, would create sample booking`
+        );
+      }
+      break;
+
     case "help":
     case "--help":
     case "-h":
@@ -528,6 +638,8 @@ function showHelp() {
   008                Run the migration to create cancellation email templates
   009                Run the migration to create initial payment reminder template
   010                Run the migration to create scheduled reminder email template
+  012                Run the migration to create default booking sheet columns
+  013                Run the migration to create sample booking with all columns
   rollback, undo     Rollback the migration 001 (delete created tours)
   rollback002        Rollback the migration 002 (delete created tours)
   rollback003        Rollback the migration 003 (delete created tours)
@@ -537,6 +649,8 @@ function showHelp() {
   rollback008        Rollback the migration 008 (delete cancellation email template)
   rollback009        Rollback the migration 009 (delete initial payment reminder template)
   rollback010        Rollback the migration 010 (delete scheduled reminder email template)
+  rollback012        Rollback the migration 012 (delete default booking sheet columns)
+  rollback013        Rollback the migration 013 (delete sample booking)
   dry-run, test     Test the migration 001 without making changes
   dry-run002        Test the migration 002 without making changes
   dry-run003        Test the migration 003 without making changes
@@ -546,6 +660,8 @@ function showHelp() {
   dry-run008        Test the migration 008 without making changes
   dry-run009        Test the migration 009 without making changes
   dry-run010        Test the migration 010 without making changes
+  dry-run012        Test the migration 012 without making changes
+  dry-run013        Test the migration 013 without making changes
   help               Show this help message
 
 📝 Examples:
@@ -559,6 +675,8 @@ function showHelp() {
   tsx migrations/migrate.ts 008        # Run migration 008 (cancellation email templates)
   tsx migrations/migrate.ts 009        # Run migration 009 (initial payment reminder template)
   tsx migrations/migrate.ts 010        # Run migration 010 (scheduled reminder email template)
+  tsx migrations/migrate.ts 012        # Run migration 012 (default booking sheet columns)
+  tsx migrations/migrate.ts 013        # Run migration 013 (sample booking with all columns)
   tsx migrations/migrate.ts dry-run    # Test migration 001 without changes
   tsx migrations/migrate.ts dry-run002 # Test migration 002 without changes
   tsx migrations/migrate.ts dry-run003 # Test migration 003 without changes
@@ -575,6 +693,8 @@ function showHelp() {
   tsx migrations/migrate.ts rollback008 # Undo migration 008
   tsx migrations/migrate.ts rollback009 # Undo migration 009
   tsx migrations/migrate.ts rollback010 # Undo migration 010
+  tsx migrations/migrate.ts rollback012 # Undo migration 012
+  tsx migrations/migrate.ts rollback013 # Undo migration 013
 
 🔧 Options:
 
@@ -637,6 +757,13 @@ function showHelp() {
   - Conditional rendering for group-specific information
   - Dynamic content based on booking details and special instructions
   - Professional layout with tour details table and important reminders
+
+  Migration 012 - Default Booking Sheet Columns:
+  - Populates the bookingSheetColumns collection with 60 default columns
+  - Establishes the foundation for the hybrid booking system
+  - Includes core booking fields, traveller information, tour details, pricing
+  - Covers email management, payment terms, and cancellation handling
+  - Sets up column metadata with types, validation, and behavior rules
 
   Each tour includes:
   - Complete itinerary with day-by-day activities
