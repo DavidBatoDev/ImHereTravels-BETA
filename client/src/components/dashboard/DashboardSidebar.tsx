@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   CreditCard,
   Code,
+  HardDrive,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -60,6 +61,11 @@ const navigation = [
     icon: User,
   },
   { type: "separator" },
+  {
+    name: "Storage",
+    href: "/storage",
+    icon: HardDrive,
+  },
   {
     name: "Apps Script",
     href: "/functions",

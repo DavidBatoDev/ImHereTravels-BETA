@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // File objects collection - users can only access their own files
+    match /file_objects/{fileId} {
+      // Allow read if user is authenticated and owns the file
+      allow read: if request.auth != null && 
+                   (request.auth.uid == resource.data.uploadedBy || 
+                    request.auth.token.admin == true);
+      
+      // Allow create if user is authenticated
+      allow create: if request.auth != null && 
+                     request.auth.uid == request.resource.data.uploadedBy;
+      
+      // Allow update if user is authenticated and owns the file
+      allow update: if request.auth != null && 
+                     request.auth.uid == resource.data.uploadedBy;
+      
+      // Allow delete if user is authenticated and owns the file
+      allow delete: if request.auth != null && 
+                     request.auth.uid == resource.data.uploadedBy;
+    }
+    
+    // Admin access for all collections (if needed)
+    match /{document=**} {
+      allow read, write: if request.auth != null && request.auth.token.admin == true;
+    }
+  }
+}

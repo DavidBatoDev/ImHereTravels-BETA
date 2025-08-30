@@ -16,6 +16,15 @@ client/migrations/
 ├── README.md                 # Migration system documentation
 ├── MIGRATION_GUIDE.md       # This guide
 ├── 001-initial-tour-packages.ts  # First migration script
+├── 002-additional-tour-packages.ts # Additional tour packages
+├── 003-final-tour-packages.ts     # Final tour packages
+├── 004-payment-plans.ts           # Payment plans
+├── 005-currency-usd-to-eur.ts     # Currency conversion
+├── 006-conditional-email-templates.ts # Email templates
+├── 008-cancellation-email-template.ts # Cancellation emails
+├── 009-initial-payment-reminder-template.ts # Payment reminders
+├── 010-scheduled-reminder-email-template.ts # Scheduled reminders
+├── 011-file-objects-collection.ts # File objects collection setup
 ├── migrate.ts               # Command line runner
 └── src/app/
     ├── test-migration/      # Web test interface
@@ -52,6 +61,32 @@ client/migrations/
    - 8 days, $1300, Maldives
    - Male City, Rasdhoo reefs, dolphin cruise
    - 3 travel dates (May-Jul 2025)
+
+## 🗂️ File Objects Collection Migration
+
+**Migration ID**: `011-file-objects-collection`  
+**Purpose**: Set up the file_objects collection for Firebase Storage integration
+
+### What This Migration Does:
+
+- Creates the `file_objects` collection structure
+- Establishes document schema for file metadata
+- Sets up sample document for collection validation
+- Prepares for image upload and storage functionality
+
+### Collection Features:
+
+- **File Metadata**: Name, size, type, upload date
+- **User Ownership**: Tracks who uploaded each file
+- **Storage References**: Links to Firebase Storage files
+- **Tagging System**: User-defined tags for organization
+- **Metadata Support**: Description, location, category
+
+### Usage:
+
+```bash
+npm run migrate:011
+```
 
 ## 🛠️ How to Use
 

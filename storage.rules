@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Images folder - users can only access their own images
+    match /images/{imageId} {
+      // Allow read if user is authenticated
+      allow read: if request.auth != null;
+      
+      // Allow write if user is authenticated and file size is reasonable (max 10MB)
+      allow write: if request.auth != null && 
+                    request.resource.size < 10 * 1024 * 1024 &&
+                    request.resource.contentType.matches('image/.*');
+      
+      // Allow delete if user is authenticated
+      allow delete: if request.auth != null;
+    }
+    
+    // Deny access to all other files
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -56,6 +56,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
 
 import {
   TourPackage,
@@ -165,6 +166,9 @@ export default function TourForm({
   const [galleryBlobs, setGalleryBlobs] = useState<File[]>([]);
   // Track original gallery for cleanup when updating
   const [originalGallery, setOriginalGallery] = useState<string[]>([]);
+  // Cover image toggle state
+  const [useCoverUrl, setUseCoverUrl] = useState(false);
+  const [coverImageUrl, setCoverImageUrl] = useState("");
   const { toast } = useToast();
 
   const form = useForm<TourFormData>({
@@ -337,6 +341,9 @@ export default function TourForm({
       // Clear blobs for existing tours (they use direct uploads)
       setCoverBlob(null);
       setGalleryBlobs([]);
+      // Initialize cover image URL state
+      setUseCoverUrl(false);
+      setCoverImageUrl("");
     } else {
       console.log("Resetting form for new tour");
 
@@ -382,6 +389,9 @@ export default function TourForm({
       // Reset blobs for new tours
       setCoverBlob(null);
       setGalleryBlobs([]);
+      // Reset cover image URL state for new tours
+      setUseCoverUrl(false);
+      setCoverImageUrl("");
     }
   }, [tour, form]);
 
@@ -488,6 +498,38 @@ export default function TourForm({
     }
     setUploadedCover(null);
     setCoverBlob(null);
+    setCoverImageUrl("");
+  };
+
+  // Handle cover image URL input
+  const handleCoverImageUrlChange = (url: string) => {
+    setCoverImageUrl(url);
+    if (url.trim()) {
+      setUploadedCover(url);
+      setCoverBlob(null); // Clear blob when using URL
+    } else {
+      setUploadedCover(null);
+    }
+  };
+
+  // Handle toggle between upload and URL
+  const handleCoverToggle = (useUrl: boolean) => {
+    setUseCoverUrl(useUrl);
+    if (useUrl) {
+      // Switch to URL mode - clear blob and set URL if available
+      if (coverImageUrl.trim()) {
+        setUploadedCover(coverImageUrl);
+      } else {
+        setUploadedCover(null);
+      }
+      setCoverBlob(null);
+    } else {
+      // Switch to upload mode - clear URL and keep existing blob if any
+      setCoverImageUrl("");
+      if (!coverBlob) {
+        setUploadedCover(null);
+      }
+    }
   };
 
   // Remove gallery image
@@ -517,7 +559,7 @@ export default function TourForm({
       const tourId = await onSubmit(data);
 
       // If we have blobs to upload and tour creation was successful
-      if ((coverBlob || galleryBlobs.length > 0) && tourId) {
+      if ((coverBlob || galleryBlobs.length > 0) && tourId && !useCoverUrl) {
         toast({
           title: "Tour created",
           description: "Now uploading images...",
@@ -663,8 +705,8 @@ export default function TourForm({
         currentGallery.length !== originalGallery.length ||
         !currentGallery.every((url) => originalGallery.includes(url));
 
-      // If we have blobs to upload
-      if ((coverBlob || galleryBlobs.length > 0) && tour?.id) {
+      // If we have blobs to upload (and not using URL mode)
+      if ((coverBlob || galleryBlobs.length > 0) && tour?.id && !useCoverUrl) {
         console.log("Starting image upload process for update...");
 
         toast({
@@ -802,7 +844,23 @@ export default function TourForm({
       uploadedGalleryCount: uploadedGallery.length,
       coverBlob: coverBlob?.name,
       galleryBlobsCount: galleryBlobs.length,
+      useCoverUrl,
+      coverImageUrl,
     });
+
+    // Validate cover image URL if using URL mode
+    if (useCoverUrl && coverImageUrl.trim()) {
+      try {
+        new URL(coverImageUrl.trim());
+      } catch (error) {
+        toast({
+          title: "Invalid Image URL",
+          description: "Please enter a valid image URL",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
 
     try {
       setIsSubmitting(true);
@@ -820,7 +878,19 @@ export default function TourForm({
         // Include uploaded images in media field
         media: {
           // For cover image: use uploaded cover if available, otherwise keep existing
-          coverImage: uploadedCover || tour?.media?.coverImage || "",
+          coverImage: (() => {
+            if (useCoverUrl && coverImageUrl.trim()) {
+              // If using URL mode and URL is provided, use the URL
+              return coverImageUrl.trim();
+            } else if (uploadedCover && !uploadedCover.startsWith("blob:")) {
+              // If not using URL mode and we have a non-blob URL, use it
+              return uploadedCover;
+            } else if (tour?.media?.coverImage) {
+              // Otherwise, keep existing cover image
+              return tour.media.coverImage;
+            }
+            return "";
+          })(),
           // For gallery: merge existing non-blob URLs with uploaded URLs
           gallery: (() => {
             const existingGallery = tour?.media?.gallery || [];
@@ -910,6 +980,126 @@ export default function TourForm({
             onSubmit={form.handleSubmit(handleSubmit)}
             className="space-y-6"
           >
+            {/* Cover Image */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5" />
+                  Cover Image
+                </CardTitle>
+                <CardDescription>
+                  Upload a high-quality cover image for this tour (recommended:
+                  1200x800px) or use an image URL
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Test Storage Connection Button */}
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={testStorageConnection}
+                      className="text-xs"
+                    >
+                      Test Firebase Storage
+                    </Button>
+                  </div>
+
+                  {/* Toggle Switch */}
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="cover-toggle"
+                        checked={useCoverUrl}
+                        onCheckedChange={handleCoverToggle}
+                        disabled={isSubmitting}
+                      />
+                      <Label
+                        htmlFor="cover-toggle"
+                        className="text-sm font-medium"
+                      >
+                        {useCoverUrl ? "Use Image URL" : "Upload Image File"}
+                      </Label>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {useCoverUrl ? "URL Mode" : "Upload Mode"}
+                    </div>
+                  </div>
+
+                  {/* Upload Mode */}
+                  {!useCoverUrl && (
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCoverUpload}
+                        disabled={isSubmitting}
+                        className="hidden"
+                        id="cover-upload"
+                      />
+                      <Label
+                        htmlFor="cover-upload"
+                        className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 ${
+                          isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
+                      >
+                        <Upload className="h-4 w-4" />
+                        Choose Cover Image
+                      </Label>
+                    </div>
+                  )}
+
+                  {/* URL Mode */}
+                  {useCoverUrl && (
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="cover-url"
+                        className="text-sm font-medium"
+                      >
+                        Image URL
+                      </Label>
+                      <Input
+                        id="cover-url"
+                        type="url"
+                        placeholder="https://example.com/image.jpg"
+                        value={coverImageUrl}
+                        onChange={(e) =>
+                          handleCoverImageUrlChange(e.target.value)
+                        }
+                        disabled={isSubmitting}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Enter a direct link to an image (JPG, PNG, WebP, etc.)
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Cover Image Preview */}
+                  {uploadedCover && (
+                    <div className="relative">
+                      <img
+                        src={uploadedCover}
+                        alt="Cover preview"
+                        className="w-full h-48 object-cover rounded-lg border"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={removeCoverImage}
+                        className="absolute top-2 right-2"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Basic Information */}
             <Card>
               <CardHeader>
@@ -1305,75 +1495,6 @@ export default function TourForm({
                   <Plus className="h-4 w-4 mr-2" />
                   Add Travel Date
                 </Button>
-              </CardContent>
-            </Card>
-
-            {/* Cover Image */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5" />
-                  Cover Image
-                </CardTitle>
-                <CardDescription>
-                  Upload a high-quality cover image for this tour (recommended:
-                  1200x800px)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Test Storage Connection Button */}
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={testStorageConnection}
-                      className="text-xs"
-                    >
-                      Test Firebase Storage
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleCoverUpload}
-                      disabled={isSubmitting}
-                      className="hidden"
-                      id="cover-upload"
-                    />
-                    <Label
-                      htmlFor="cover-upload"
-                      className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 ${
-                        isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-                      }`}
-                    >
-                      <Upload className="h-4 w-4" />
-                      Choose Cover Image
-                    </Label>
-                  </div>
-
-                  {uploadedCover && (
-                    <div className="relative">
-                      <img
-                        src={uploadedCover}
-                        alt="Cover preview"
-                        className="w-full h-48 object-cover rounded-lg border"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={removeCoverImage}
-                        className="absolute top-2 right-2"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
               </CardContent>
             </Card>
 

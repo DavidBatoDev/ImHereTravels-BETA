@@ -16,8 +16,17 @@ export function Toaster() {
   return (
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, ...props }) {
+        // Check if this is an upload toast and apply custom styling
+        const isUploadToast = id?.startsWith("upload-");
+
         return (
-          <Toast key={id} {...props}>
+          <Toast
+            key={id}
+            {...props}
+            className={
+              isUploadToast ? "upload-toast border-l-4 border-l-blue-500" : ""
+            }
+          >
             <div className="grid gap-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && (
