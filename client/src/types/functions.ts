@@ -7,6 +7,13 @@ export interface JSFile {
   folderId: string;
   createdAt: Date;
   updatedAt: Date;
+  hasExportDefault: boolean;
+  arguements: JSArgument[];
+}
+
+export interface JSArgument {
+  name: string;
+  type: string;
 }
 
 export interface JSFolder {

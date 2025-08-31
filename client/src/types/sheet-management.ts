@@ -8,11 +8,27 @@ export type ColumnType =
   | "email"
   | "currency";
 
-export interface SheetColumn {
+export interface JSFunction {
   id: string;
   name: string;
-  type: ColumnType;
-  required: boolean;
+  parameters: string[];
+  description?: string;
+  filePath: string;
+}
+
+export interface SheetColumn {
+  id: string;
+  columnName: string; // Human-readable column name
+  dataType: ColumnType;
+  function?: JSFunction; // Only when dataType is "function"
+  parameters?: any[]; // Parameters for the function
+  includeInForms: boolean; // Whether to include in forms
+
+  // Legacy fields for backward compatibility
+  name: string; // Keep for existing code
+  type: ColumnType; // Keep for existing code
+
+  // Column behavior and styling
   width?: number;
   minWidth?: number;
   maxWidth?: number;
@@ -25,10 +41,6 @@ export interface SheetColumn {
     custom?: (value: any) => boolean | string;
   };
   order: number;
-  visible: boolean;
-  editable: boolean;
-  sortable: boolean;
-  filterable: boolean;
 }
 
 export interface SheetConfig {
@@ -56,6 +68,6 @@ export interface ColumnSettingsModalProps {
 export interface AddColumnModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (column: Omit<SheetColumn, "id" | "order">) => void;
+  onAdd: (column: Omit<SheetColumn, "id">) => void;
   existingColumns: SheetColumn[];
 }

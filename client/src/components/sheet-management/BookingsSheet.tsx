@@ -11,7 +11,6 @@ import {
   ColumnDef,
   SortingState,
   ColumnFiltersState,
-  VisibilityState,
 } from "@tanstack/react-table";
 import {
   Card,
@@ -29,14 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
 import {
   Table,
   TableBody,
@@ -45,18 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Settings,
-  Plus,
-  Eye,
-  EyeOff,
-  GripVertical,
-  Filter,
-  Search,
-  ChevronDown,
-  ChevronUp,
-  MoreHorizontal,
-} from "lucide-react";
+import { Settings, Plus, Filter, Search } from "lucide-react";
 import { SheetColumn, SheetData } from "@/types/sheet-management";
 import { useSheetManagement } from "@/hooks/use-sheet-management";
 import { demoBookingData } from "@/lib/demo-booking-data";
@@ -77,7 +58,6 @@ export default function BookingsSheet() {
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = useState("");
   const [editingCell, setEditingCell] = useState<{
     rowId: string;
@@ -102,19 +82,26 @@ export default function BookingsSheet() {
   // Create table columns from sheet columns
   const tableColumns = useMemo<ColumnDef<SheetData>[]>(() => {
     return columns
-      .filter((col) => col.visible)
       .sort((a, b) => a.order - b.order)
       .map((col) => ({
         id: col.id,
         header: () => (
-          <div className="flex items-center justify-between group h-full w-full bg-royal-purple/10 text-royal-purple px-3 py-2 rounded">
-            <div className="flex items-center gap-2">
-              <span className="font-medium">{col.name}</span>
+          <div
+            className="flex items-center justify-between group h-12 w-full bg-royal-purple/10 text-royal-purple px-3 py-2 rounded"
+            style={{
+              minWidth: `${col.width || 150}px`,
+              maxWidth: `${col.width || 150}px`,
+            }}
+          >
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="font-medium truncate" title={col.name}>
+                {col.name}
+              </span>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-royal-purple hover:bg-royal-purple/20"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-royal-purple hover:bg-royal-purple/20 flex-shrink-0"
               onClick={() => openColumnSettings(col)}
             >
               <Settings className="h-4 w-4" />
@@ -152,23 +139,28 @@ export default function BookingsSheet() {
 
           return (
             <div
-              className={`h-full w-full px-2 ${
-                columnDef.editable ? "cursor-pointer" : ""
-              }`}
+              className="h-12 w-full px-2 flex items-center cursor-pointer"
+              style={{
+                minWidth: `${columnDef.width || 150}px`,
+                maxWidth: `${columnDef.width || 150}px`,
+              }}
               onClick={() => {
-                if (columnDef.editable) {
-                  setEditingCell({ rowId: row.id, columnId: column.id });
-                  setEditingValue(value?.toString() || "");
-                }
+                setEditingCell({ rowId: row.id, columnId: column.id });
+                setEditingValue(value?.toString() || "");
               }}
             >
-              {renderCellValue(value, columnDef)}
+              <div
+                className="w-full truncate text-sm"
+                title={value?.toString() || ""}
+              >
+                {renderCellValue(value, columnDef)}
+              </div>
             </div>
           );
         },
 
-        enableSorting: col.sortable,
-        enableColumnFilter: col.filterable,
+        enableSorting: true,
+        enableColumnFilter: true,
       }));
   }, [columns, editingCell, editingValue]);
 
@@ -178,17 +170,20 @@ export default function BookingsSheet() {
     state: {
       sorting,
       columnFilters,
-      columnVisibility,
       globalFilter,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
   });
 
   const renderCellValue = (value: any, column: SheetColumn) => {
@@ -237,15 +232,8 @@ export default function BookingsSheet() {
     deleteColumn(columnId);
   };
 
-  const handleAddColumn = (newColumn: Omit<SheetColumn, "id" | "order">) => {
+  const handleAddColumn = (newColumn: Omit<SheetColumn, "id">) => {
     addColumn(newColumn);
-  };
-
-  const toggleColumnVisibility = (columnId: string) => {
-    setColumnVisibility((prev) => ({
-      ...prev,
-      [columnId]: !prev[columnId],
-    }));
   };
 
   return (
@@ -292,9 +280,13 @@ export default function BookingsSheet() {
               />
             </div>
             <Select
-              value={table.getState().pagination.pageSize.toString()}
+              value={Math.max(
+                table.getState().pagination.pageSize,
+                10
+              ).toString()}
               onValueChange={(value) => {
-                table.setPageSize(Number(value));
+                const newPageSize = Math.max(Number(value), 10);
+                table.setPageSize(newPageSize);
               }}
             >
               <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
@@ -308,41 +300,11 @@ export default function BookingsSheet() {
                 ))}
               </SelectContent>
             </Select>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-                >
-                  <Eye className="h-4 w-4" />
-                  Columns
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {table.getAllLeafColumns().map((column) => {
-                  return (
-                    <DropdownMenuItem
-                      key={column.id}
-                      className="capitalize"
-                      onSelect={(e) => e.preventDefault()}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={column.getIsVisible()}
-                          onChange={column.getToggleVisibilityHandler()}
-                          className="rounded"
-                        />
-                        <span>{column.id}</span>
-                      </div>
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-grey">
+                {columns.length} columns
+              </span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -355,48 +317,51 @@ export default function BookingsSheet() {
           </CardTitle>
           <CardDescription className="text-grey">
             Showing {table.getFilteredRowModel().rows.length} of {data.length}{" "}
-            rows
+            rows{" "}
+            {table.getFilteredRowModel().rows.length < 10 &&
+              `(${
+                10 - table.getFilteredRowModel().rows.length
+              } empty rows for layout)`}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="rounded-md border border-royal-purple/20">
-            <Table className="border border-royal-purple/20">
+          <div className="rounded-md border border-royal-purple/20 overflow-x-auto">
+            <Table className="border border-royal-purple/20 min-w-full table-fixed">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id} className="bg-light-grey/30">
-                    {headerGroup.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        className="relative border border-royal-purple/20 p-0"
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                        {header.column.getCanSort() && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="ml-2 h-6 w-6 p-0 text-royal-purple hover:bg-royal-purple/20"
-                            onClick={header.column.getToggleSortingHandler()}
-                          >
-                            {header.column.getIsSorted() === "asc" ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : header.column.getIsSorted() === "desc" ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : null}
-                          </Button>
-                        )}
-                      </TableHead>
-                    ))}
+                    {headerGroup.headers.map((header) => {
+                      const columnDef = columns.find((c) => c.id === header.id);
+                      return (
+                        <TableHead
+                          key={header.id}
+                          className="relative border border-royal-purple/20 p-0"
+                          style={{
+                            minWidth: `${columnDef?.width || 150}px`,
+                            maxWidth: `${columnDef?.width || 150}px`,
+                            width: `${columnDef?.width || 150}px`,
+                          }}
+                        >
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                        </TableHead>
+                      );
+                    })}
                   </TableRow>
                 ))}
               </TableHeader>
               <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row, index) => (
+                {(() => {
+                  const visibleRows = table.getRowModel().rows;
+                  const minRows = 10;
+                  const rowsToShow = Math.max(visibleRows.length, minRows);
+
+                  // Show actual data rows
+                  const dataRows = visibleRows.map((row, index) => (
                     <TableRow
                       key={row.id}
                       data-state={row.getIsSelected() && "selected"}
@@ -404,29 +369,68 @@ export default function BookingsSheet() {
                         index % 2 === 0 ? "bg-white" : "bg-light-grey/20"
                       } hover:bg-royal-purple/5`}
                     >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell
-                          key={cell.id}
-                          className="border border-royal-purple/20 p-0"
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
+                      {row.getVisibleCells().map((cell) => {
+                        const columnDef = columns.find(
+                          (c) => c.id === cell.column.id
+                        );
+                        return (
+                          <TableCell
+                            key={cell.id}
+                            className="border border-royal-purple/20 p-0"
+                            style={{
+                              minWidth: `${columnDef?.width || 150}px`,
+                              maxWidth: `${columnDef?.width || 150}px`,
+                              width: `${columnDef?.width || 150}px`,
+                            }}
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center text-grey"
-                    >
-                      No results.
-                    </TableCell>
-                  </TableRow>
-                )}
+                  ));
+
+                  // Add empty rows to reach minimum
+                  const emptyRows = [];
+                  for (let i = visibleRows.length; i < rowsToShow; i++) {
+                    emptyRows.push(
+                      <TableRow
+                        key={`empty-${i}`}
+                        className={`border-b border-royal-purple/20 ${
+                          i % 2 === 0 ? "bg-white" : "bg-light-grey/20"
+                        } opacity-60`}
+                      >
+                        {table.getAllLeafColumns().map((column) => {
+                          const columnDef = columns.find(
+                            (c) => c.id === column.id
+                          );
+                          return (
+                            <TableCell
+                              key={column.id}
+                              className="border border-royal-purple/20 p-0"
+                              style={{
+                                minWidth: `${columnDef?.width || 150}px`,
+                                maxWidth: `${columnDef?.width || 150}px`,
+                                width: `${columnDef?.width || 150}px`,
+                              }}
+                            >
+                              <div className="h-12 w-full px-2 flex items-center">
+                                <div className="w-full text-sm text-grey/30">
+                                  {/* Empty cell - shows table structure */}
+                                </div>
+                              </div>
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    );
+                  }
+
+                  return [...dataRows, ...emptyRows];
+                })()}
               </TableBody>
             </Table>
           </div>
@@ -474,7 +478,7 @@ export default function BookingsSheet() {
                   disabled={!table.getCanPreviousPage()}
                 >
                   <span className="sr-only">Go to first page</span>
-                  <ChevronUp className="h-4 w-4" />
+                  <span className="text-xs font-bold">1</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -483,7 +487,7 @@ export default function BookingsSheet() {
                   disabled={!table.getCanPreviousPage()}
                 >
                   <span className="sr-only">Go to previous page</span>
-                  <ChevronDown className="h-4 w-4" />
+                  <span className="text-xs font-bold">‹</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -492,7 +496,7 @@ export default function BookingsSheet() {
                   disabled={!table.getCanNextPage()}
                 >
                   <span className="sr-only">Go to next page</span>
-                  <ChevronUp className="h-4 w-4" />
+                  <span className="text-xs font-bold">›</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -501,7 +505,7 @@ export default function BookingsSheet() {
                   disabled={!table.getCanNextPage()}
                 >
                   <span className="sr-only">Go to last page</span>
-                  <ChevronDown className="h-4 w-4" />
+                  <span className="text-xs font-bold">∞</span>
                 </Button>
               </div>
             </div>
