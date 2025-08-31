@@ -73,6 +73,33 @@ export function useSheetManagement() {
         console.log(
           `✅ Received ${bookings.length} bookings from Firestore ordered by ID`
         );
+
+        // Debug: Log each booking to see what fields are present
+        bookings.forEach((booking, index) => {
+          const fieldCount = Object.keys(booking).length;
+          const nonEssentialFields = Object.keys(booking).filter(
+            (key) => key !== "id" && key !== "createdAt" && key !== "updatedAt"
+          );
+          const hasNullFields = nonEssentialFields.some(
+            (key) => booking[key] === null
+          );
+          console.log(
+            `📊 Booking ${index + 1} (ID: ${
+              booking.id
+            }): ${fieldCount} fields, Non-essential: [${nonEssentialFields.join(
+              ", "
+            )}]${hasNullFields ? " (has null fields)" : ""}`
+          );
+
+          // Log null fields specifically
+          if (hasNullFields) {
+            const nullFields = nonEssentialFields.filter(
+              (key) => booking[key] === null
+            );
+            console.log(`  🔍 Null fields: [${nullFields.join(", ")}]`);
+          }
+        });
+
         setData(bookings);
         setIsLoading(false);
         setError(null);

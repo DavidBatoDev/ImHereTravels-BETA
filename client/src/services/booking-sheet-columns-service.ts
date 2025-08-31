@@ -146,11 +146,21 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
       // Get the next order number
       const existingColumns = await this.getAllColumns();
       const maxOrder = Math.max(...existingColumns.map((col) => col.order), 0);
+
+      // Clean the column data to remove undefined values
+      const cleanColumn = { ...column };
+      Object.keys(cleanColumn).forEach((key) => {
+        if (cleanColumn[key] === undefined) {
+          delete cleanColumn[key];
+        }
+      });
+
       const newColumn = {
-        ...column,
+        ...cleanColumn,
         order: maxOrder + 1,
       };
 
+      console.log(`🔍 Creating column with data:`, newColumn);
       const docRef = await addDoc(collection(db, COLLECTION_NAME), newColumn);
       console.log(
         `✅ Created column: ${column.columnName} with ID: ${docRef.id}`
@@ -235,8 +245,17 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
         throw new Error(`Invalid column data: ${validation.errors.join(", ")}`);
       }
 
+      // Clean the updates to remove undefined values
+      const cleanUpdates = { ...updates };
+      Object.keys(cleanUpdates).forEach((key) => {
+        if (cleanUpdates[key] === undefined) {
+          delete cleanUpdates[key];
+        }
+      });
+
+      console.log(`🔍 Updating column ${columnId} with data:`, cleanUpdates);
       const docRef = doc(db, COLLECTION_NAME, columnId);
-      await updateDoc(docRef, updates);
+      await updateDoc(docRef, cleanUpdates);
       console.log(`✅ Updated column: ${columnId}`);
     } catch (error) {
       console.error(
@@ -461,6 +480,14 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
       (!column.options || column.options.length === 0)
     ) {
       errors.push("Select columns must have options");
+    }
+
+    if (
+      column.dataType === "function" &&
+      column.function !== undefined &&
+      (!column.function || column.function.trim().length === 0)
+    ) {
+      errors.push("Function columns must have a valid function name");
     }
 
     if (

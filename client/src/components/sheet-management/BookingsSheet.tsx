@@ -207,7 +207,7 @@ export default function BookingsSheet() {
       // Log specific values for debugging
       Object.keys(row).forEach((key) => {
         if (key !== "id" && key !== "createdAt" && key !== "updatedAt") {
-          console.log(`    ${key}: ${row[key]}`);
+          console.log(`    ${key}: ${row[key]} (type: ${typeof row[key]})`);
         }
       });
     });
@@ -282,7 +282,10 @@ export default function BookingsSheet() {
           const value = row.getValue(column.id);
           console.log(
             `🔍 Cell render: Row ${row.id}, Column ${column.id}, Value:`,
-            value
+            value,
+            `(type: ${typeof value}, isNull: ${value === null}, isUndefined: ${
+              value === undefined
+            })`
           );
           const columnDef = columns.find((c) => c.id === column.id);
 
@@ -464,7 +467,7 @@ export default function BookingsSheet() {
   });
 
   const renderCellValue = (value: any, column: SheetColumn) => {
-    if (value === null || value === undefined) return "-";
+    if (value === null || value === undefined || value === "") return "-";
 
     const dataType = column.dataType;
     const columnId = column.id;
@@ -739,20 +742,13 @@ export default function BookingsSheet() {
   // Handle clearing a row (keeping document but clearing fields)
   const handleDeleteRow = async (rowId: string) => {
     try {
+      console.log(`🧹 Starting to clear row ${rowId}...`);
+
       // Clear all fields from the document in Firestore (keep the document)
       await bookingService.clearBookingFields(rowId);
 
-      // Update local state to show empty row
-      const updatedData = data.map((row) =>
-        row.id === rowId
-          ? {
-              id: rowId,
-              createdAt: row.createdAt,
-              updatedAt: new Date(),
-            }
-          : row
-      );
-      updateData(updatedData);
+      // Don't manually update local state - let the real-time listener handle it
+      // The clearBookingFields method will update Firestore, and the listener will update the UI
 
       // Show success toast
       toast({

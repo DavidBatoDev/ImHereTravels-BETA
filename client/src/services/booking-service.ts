@@ -363,16 +363,27 @@ class BookingServiceImpl implements BookingService {
       }
 
       const currentData = docSnap.data();
+      console.log(`🔍 Current data for booking ${bookingId}:`, currentData);
 
       // Keep only essential fields: id, createdAt, updatedAt
-      const preservedFields = {
-        id: currentData.id,
-        createdAt: currentData.createdAt,
+      const preservedFields: Record<string, any> = {
+        id: currentData.id || bookingId,
+        createdAt: currentData.createdAt || new Date(),
         updatedAt: new Date(),
       };
 
-      // Update the document with only preserved fields
-      await updateDoc(docRef, preservedFields);
+      console.log(`🔒 Preserved fields:`, preservedFields);
+      console.log(
+        `🧹 Fields being cleared:`,
+        Object.keys(currentData).filter(
+          (key) => key !== "id" && key !== "createdAt" && key !== "updatedAt"
+        )
+      );
+
+      // Delete the document and recreate it with only essential fields
+      // This ensures all dynamic fields are completely removed
+      await deleteDoc(docRef);
+      await setDoc(docRef, preservedFields);
 
       console.log(
         `✅ Cleared all fields from booking ${bookingId}, preserved essential fields`

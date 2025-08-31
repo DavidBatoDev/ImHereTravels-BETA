@@ -69,29 +69,82 @@ export default function AddColumnModal({
   };
 
   const handleAdd = () => {
+    console.log("🔍 Form validation check:", {
+      columnName: !!formData.columnName,
+      dataType: !!formData.dataType,
+      functionValid:
+        formData.dataType !== "function" ||
+        (formData.function && formData.function.trim() !== ""),
+      selectValid:
+        formData.dataType !== "select" ||
+        (formData.options && formData.options.trim() !== ""),
+    });
+
     if (!formData.columnName || !formData.dataType) return;
+
+    // For function columns, ensure function is selected
+    if (
+      formData.dataType === "function" &&
+      (!formData.function || formData.function.trim() === "")
+    ) {
+      console.error("❌ Function column must have a function selected");
+      return;
+    }
+
+    // For select columns, ensure options are provided
+    if (
+      formData.dataType === "select" &&
+      (!formData.options || formData.options.trim() === "")
+    ) {
+      console.error("❌ Select column must have options");
+      return;
+    }
 
     // For function columns, automatically set includeInForms to false
     if (formData.dataType === "function") {
       formData.includeInForms = false;
     }
 
+    // Clean arguments to remove undefined values
+    const cleanArguments =
+      formData.arguments && formData.arguments.length > 0
+        ? formData.arguments
+            .map((arg) => {
+              const cleanArg = { ...arg };
+              Object.keys(cleanArg).forEach((key) => {
+                if (cleanArg[key] === undefined) {
+                  delete cleanArg[key];
+                }
+              });
+              return cleanArg;
+            })
+            .filter((arg) => Object.keys(arg).length > 0)
+        : undefined;
+
+    console.log("🔍 Function field value:", formData.function);
+    console.log("🔍 Clean arguments:", cleanArguments);
+
     const newColumn: Omit<SheetColumn, "id" | "order"> = {
       columnName: formData.columnName,
       dataType: formData.dataType,
-      function: formData.function || undefined,
-      arguments: formData.arguments || undefined,
       includeInForms: formData.includeInForms,
-
-      options:
-        formData.dataType === "select"
-          ? formData.options
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : undefined,
-      defaultValue: formData.defaultValue || undefined,
+      ...(formData.dataType === "function" &&
+        formData.function &&
+        formData.function.trim() !== "" && {
+          function: formData.function,
+          arguments: cleanArguments,
+        }),
+      ...(formData.dataType === "select" && {
+        options: formData.options
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+      }),
+      ...(formData.defaultValue && { defaultValue: formData.defaultValue }),
     };
+
+    console.log("🔍 Form data:", formData);
+    console.log("🔍 New column data:", newColumn);
 
     onAdd(newColumn);
     onClose();
@@ -108,7 +161,13 @@ export default function AddColumnModal({
     });
   };
 
-  const isFormValid = formData.columnName && formData.dataType;
+  const isFormValid =
+    formData.columnName &&
+    formData.dataType &&
+    (formData.dataType !== "function" ||
+      (formData.function && formData.function.trim() !== "")) &&
+    (formData.dataType !== "select" ||
+      (formData.options && formData.options.trim() !== ""));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -182,7 +241,10 @@ export default function AddColumnModal({
               <Label htmlFor="function">TypeScript Function *</Label>
               <Select
                 value={formData.function}
-                onValueChange={(value) => handleInputChange("function", value)}
+                onValueChange={(value) => {
+                  console.log("🔍 Function selected:", value);
+                  handleInputChange("function", value);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a TypeScript function" />
