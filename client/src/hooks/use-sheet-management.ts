@@ -38,10 +38,10 @@ export function useSheetManagement() {
           `✅ Received ${fetchedColumns.length} columns from Firestore`
         );
         setColumns(fetchedColumns);
-      setConfig((prev) => ({
-        ...prev,
+        setConfig((prev) => ({
+          ...prev,
           columns: fetchedColumns,
-        updatedAt: new Date(),
+          updatedAt: new Date(),
         }));
         setIsLoading(false);
         setError(null);
@@ -200,14 +200,14 @@ export function useSheetManagement() {
       const defaultColumns =
         await bookingSheetColumnService.getDefaultColumns();
       setColumns(defaultColumns);
-    setConfig({
-      id: "bookings-sheet",
-      name: "Bookings Sheet",
+      setConfig({
+        id: "bookings-sheet",
+        name: "Bookings Sheet",
         columns: defaultColumns,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      version: 1,
-    });
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        version: 1,
+      });
 
       console.log("✅ Reset to default columns");
     } catch (error) {

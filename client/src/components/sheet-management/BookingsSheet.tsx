@@ -1204,6 +1204,7 @@ export default function BookingsSheet() {
         onSave={handleColumnSave}
         onDelete={handleColumnDelete}
         availableFunctions={availableFunctions}
+        existingColumns={columns}
       />
 
       <AddColumnModal

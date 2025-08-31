@@ -35,6 +35,7 @@ interface ColumnSettingsModalProps {
   onSave: (column: SheetColumn) => void;
   onDelete?: (columnId: string) => void;
   availableFunctions?: TypeScriptFunction[];
+  existingColumns?: SheetColumn[];
 }
 
 const columnTypes: { value: ColumnType; label: string }[] = [
@@ -55,6 +56,7 @@ export default function ColumnSettingsModal({
   onSave,
   onDelete,
   availableFunctions = [],
+  existingColumns = [],
 }: ColumnSettingsModalProps) {
   const [formData, setFormData] = useState<Partial<SheetColumn>>({});
   const [optionsText, setOptionsText] = useState("");
@@ -264,9 +266,51 @@ export default function ColumnSettingsModal({
                                 >
                                   Select Column to Reference
                                 </Label>
+                                <Select
+                                  value={
+                                    formData.arguments?.[index]
+                                      ?.columnReference || ""
+                                  }
+                                  onValueChange={(value) => {
+                                    const newArgs = [
+                                      ...(formData.arguments || []),
+                                    ];
+                                    newArgs[index] = {
+                                      ...newArgs[index],
+                                      name: arg.name,
+                                      type: arg.type,
+                                      value: "",
+                                      columnReference: value,
+                                      hasDefault: arg.hasDefault,
+                                      isOptional: arg.isOptional,
+                                    };
+                                    handleInputChange("arguments", newArgs);
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Choose a column to reference" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {existingColumns
+                                      .filter((col) => col.id !== column?.id) // Exclude current column being edited
+                                      .map((col) => (
+                                        <SelectItem
+                                          key={col.id}
+                                          value={col.columnName}
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <span>{col.columnName}</span>
+                                            <span className="text-xs text-gray-500 ml-2">
+                                              {col.dataType}
+                                            </span>
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
                                 <p className="text-xs text-blue-600">
-                                  Column reference functionality will be
-                                  available when editing existing columns
+                                  This argument will use the value from the
+                                  selected column
                                 </p>
                               </div>
                             ) : (
