@@ -361,6 +361,383 @@ export default function BookingsSheet() {
             );
           }
 
+          // For boolean columns, always show a checkbox
+          if (columnDef.dataType === "boolean") {
+            return (
+              <div
+                className={`h-12 w-full px-2 flex items-center justify-center transition-all duration-200 relative ${
+                  editingCell?.rowId === row.id &&
+                  editingCell?.columnId === column.id
+                    ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                    : value
+                    ? "bg-royal-purple/5 hover:bg-royal-purple/10"
+                    : "hover:bg-royal-purple/5"
+                }`}
+                style={{
+                  minWidth: `${columnDef.width || 150}px`,
+                  maxWidth: `${columnDef.width || 150}px`,
+                  position: "relative",
+                  zIndex: 5,
+                }}
+              >
+                <div className="relative flex items-center justify-center w-full gap-2">
+                  <input
+                    type="checkbox"
+                    checked={!!value}
+                    onChange={(e) => {
+                      // Update the cell value directly when checkbox changes
+                      handleCellEdit(
+                        row.id,
+                        column.id,
+                        e.target.checked.toString()
+                      );
+                    }}
+                    className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-royal-purple/40"
+                    title={
+                      value ? "Uncheck to set to No" : "Check to set to Yes"
+                    }
+                    aria-label={`${columnDef.columnName}: ${
+                      value ? "Yes" : "No"
+                    }`}
+                    disabled={
+                      updatingCell?.rowId === row.id &&
+                      updatingCell?.columnId === column.id
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        if (
+                          !updatingCell ||
+                          updatingCell.rowId !== row.id ||
+                          updatingCell.columnId !== column.id
+                        ) {
+                          const newValue = !value;
+                          handleCellEdit(
+                            row.id,
+                            column.id,
+                            newValue.toString()
+                          );
+                        }
+                      }
+                    }}
+                  />
+                  <span
+                    className={`text-sm font-medium transition-colors duration-200 select-none ${
+                      value
+                        ? "text-royal-purple font-semibold"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    {value ? "Yes" : "No"}
+                  </span>
+                </div>
+                {/* Show pending update indicator */}
+                {pendingUpdates.has(`${row.id}.${column.id}`) && (
+                  <div className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                )}
+                {/* Show updating indicator */}
+                {updatingCell?.rowId === row.id &&
+                  updatingCell?.columnId === column.id && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded">
+                      <div className="w-4 h-4 border-2 border-royal-purple border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+              </div>
+            );
+          }
+
+          // For select columns, always show a dropdown
+          if (columnDef.dataType === "select") {
+            return (
+              <div
+                className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
+                  editingCell?.rowId === row.id &&
+                  editingCell?.columnId === column.id
+                    ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                    : updatingCell?.rowId === row.id &&
+                      updatingCell?.columnId === column.id
+                    ? "bg-gray-50"
+                    : value
+                    ? "bg-royal-purple/5 hover:bg-royal-purple/10"
+                    : "hover:bg-royal-purple/5"
+                }`}
+                style={{
+                  minWidth: `${columnDef.width || 150}px`,
+                  maxWidth: `${columnDef.width || 150}px`,
+                  position: "relative",
+                  zIndex: 5,
+                }}
+              >
+                <div
+                  className="relative w-full"
+                  style={{ position: "relative", zIndex: 15 }}
+                >
+                  {columnDef.options && columnDef.options.length > 0 ? (
+                    <Select
+                      value={value?.toString() || ""}
+                      onValueChange={(newValue) => {
+                        // Update the cell value directly when selection changes
+                        handleCellEdit(row.id, column.id, newValue);
+                      }}
+                      disabled={
+                        updatingCell?.rowId === row.id &&
+                        updatingCell?.columnId === column.id
+                      }
+                    >
+                      <SelectTrigger
+                        className={`h-8 border-royal-purple/20 focus:border-royal-purple text-sm transition-colors duration-200 focus:ring-2 focus:ring-royal-purple/20 ${
+                          updatingCell?.rowId === row.id &&
+                          updatingCell?.columnId === column.id
+                            ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed opacity-50"
+                            : value
+                            ? "bg-royal-purple/5 border-royal-purple/40 text-royal-purple font-medium"
+                            : "bg-white hover:bg-royal-purple/5 text-gray-500"
+                        }`}
+                      >
+                        <SelectValue
+                          placeholder="Select option"
+                          className={
+                            updatingCell?.rowId === row.id &&
+                            updatingCell?.columnId === column.id
+                              ? "text-gray-400"
+                              : !value
+                              ? "text-gray-400"
+                              : "text-royal-purple"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-royal-purple/20 shadow-lg max-h-60 z-50">
+                        {columnDef.options.map((option) => (
+                          <SelectItem
+                            key={option}
+                            value={option}
+                            className={`text-sm transition-colors duration-200 ${
+                              option === value
+                                ? "bg-royal-purple/20 text-royal-purple font-medium"
+                                : "hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
+                            }`}
+                          >
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="h-8 w-full flex items-center justify-center text-sm text-gray-400 bg-gray-50 border border-gray-200 rounded cursor-not-allowed">
+                      No options available
+                    </div>
+                  )}
+                </div>
+                {/* Show pending update indicator */}
+                {pendingUpdates.has(`${row.id}.${column.id}`) && (
+                  <div className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                )}
+                {/* Show updating indicator */}
+                {updatingCell?.rowId === row.id &&
+                  updatingCell?.columnId === column.id && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded">
+                      <div className="w-4 h-4 border-2 border-royal-purple border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+              </div>
+            );
+          }
+
+          // For date columns, always show a date picker input
+          if (columnDef.dataType === "date") {
+            return (
+              <div
+                className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
+                  editingCell?.rowId === row.id &&
+                  editingCell?.columnId === column.id
+                    ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                    : "hover:bg-royal-purple/5"
+                }`}
+                style={{
+                  minWidth: `${columnDef.width || 150}px`,
+                  maxWidth: `${columnDef.width || 150}px`,
+                  position: "relative",
+                  zIndex: 5,
+                }}
+              >
+                <div
+                  className="relative w-full"
+                  style={{ position: "relative", zIndex: 15 }}
+                >
+                  <Input
+                    type="date"
+                    min="1900-01-01"
+                    max="2100-12-31"
+                    value={(() => {
+                      // Format current value for date picker
+                      if (value) {
+                        try {
+                          let date: Date;
+
+                          // Check if it's a Firestore Timestamp
+                          if (
+                            value &&
+                            typeof value === "object" &&
+                            "toDate" in value &&
+                            typeof (value as any).toDate === "function"
+                          ) {
+                            date = (value as any).toDate();
+                          } else if (
+                            value &&
+                            typeof value === "object" &&
+                            "seconds" in value &&
+                            typeof (value as any).seconds === "number"
+                          ) {
+                            // Handle Firestore Timestamp with seconds
+                            date = new Date((value as any).seconds * 1000);
+                          } else {
+                            // Handle string dates or other formats
+                            date = new Date(value as string | number | Date);
+                          }
+
+                          if (!isNaN(date.getTime())) {
+                            return date.toISOString().split("T")[0];
+                          }
+                        } catch {
+                          // Fallback to empty string
+                        }
+                      }
+                      return "";
+                    })()}
+                    onChange={(e) => {
+                      // Validate the date before updating
+                      const dateValue = e.target.value;
+                      if (dateValue && !isNaN(new Date(dateValue).getTime())) {
+                        // Update the cell value directly when date changes
+                        handleCellEdit(row.id, column.id, dateValue);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Validate on blur as well
+                      const dateValue = e.target.value;
+                      if (dateValue && !isNaN(new Date(dateValue).getTime())) {
+                        handleCellEdit(row.id, column.id, dateValue);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const dateValue = e.currentTarget.value;
+                        if (
+                          dateValue &&
+                          !isNaN(new Date(dateValue).getTime())
+                        ) {
+                          handleCellEdit(row.id, column.id, dateValue);
+                        }
+                      }
+                    }}
+                    onClick={(e) => {
+                      // Ensure the date picker popover can appear
+                      e.stopPropagation();
+                      console.log(
+                        "🔍 Date input clicked, attempting to show picker..."
+                      );
+
+                      // Try multiple approaches to show the date picker
+                      if (e.currentTarget.showPicker) {
+                        console.log("🔍 Using showPicker() method");
+                        try {
+                          e.currentTarget.showPicker();
+                        } catch (error) {
+                          console.log(
+                            "🔍 showPicker failed, using fallback:",
+                            error
+                          );
+                          // Fallback: ensure the input is focused and try to trigger the date picker
+                          e.currentTarget.focus();
+                          // Small delay to ensure focus is set
+                          setTimeout(() => {
+                            e.currentTarget.click();
+                          }, 10);
+                        }
+                      } else {
+                        console.log(
+                          "🔍 showPicker not available, using fallback"
+                        );
+                        // Fallback: ensure the input is focused and try to trigger the date picker
+                        e.currentTarget.focus();
+                        // Small delay to ensure focus is set
+                        setTimeout(() => {
+                          e.currentTarget.click();
+                        }, 10);
+                      }
+                    }}
+                    className={`h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 text-sm transition-colors duration-200 pr-8 cursor-pointer ${
+                      value
+                        ? "bg-royal-purple/5 border-royal-purple/40"
+                        : "bg-white hover:bg-royal-purple/5"
+                    } focus:bg-white focus:ring-2 focus:ring-royal-purple/20 ${
+                      !value ? "text-gray-400" : "text-gray-900"
+                    }`}
+                    placeholder={value ? "" : "Select date"}
+                    title={
+                      value
+                        ? `Current date: ${renderCellValue(value, columnDef)}`
+                        : "Click to select a date"
+                    }
+                    aria-label={`Date for ${columnDef.columnName}`}
+                    style={{ zIndex: 10 }}
+                    autoComplete="off"
+                    data-date-picker="true"
+                  />
+                  {/* Calendar icon indicator - clickable to open date picker */}
+                  {/* <div 
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer z-20"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Focus the input and try to show the date picker
+                      const input = e.currentTarget.parentElement?.querySelector('input[type="date"]') as HTMLInputElement;
+                      if (input) {
+                        input.focus();
+                        // Try to show the native date picker
+                        if (input.showPicker) {
+                          input.showPicker();
+                        } else {
+                          // Fallback: click the input to trigger the date picker
+                          input.click();
+                        }
+                      }
+                    }}
+                    title="Click to open date picker"
+                  >
+                    <svg
+                      className={`w-4 h-4 transition-colors duration-200 ${
+                        value ? "text-royal-purple" : "text-royal-purple/40"
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                    </svg>
+                  </div> */}
+                </div>
+                {/* Show pending update indicator */}
+                {pendingUpdates.has(`${row.id}.${column.id}`) && (
+                  <div className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                )}
+                {/* Show updating indicator */}
+                {updatingCell?.rowId === row.id &&
+                  updatingCell?.columnId === column.id && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded">
+                      <div className="w-4 h-4 border-2 border-royal-purple border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+              </div>
+            );
+          }
+
+          // For other column types, show the regular clickable cell
           return (
             <div
               className={`h-12 w-full px-2 flex items-center cursor-pointer transition-all duration-200 relative ${
