@@ -16,6 +16,8 @@ export interface FunctionArgument {
   isRest: boolean;
   complexity?: string;
   content?: string;
+  value?: string; // User input value for the argument
+  columnReference?: string; // Reference to another column (e.g., "A1", "B2", or column name)
 }
 
 export interface TypeScriptFunction {

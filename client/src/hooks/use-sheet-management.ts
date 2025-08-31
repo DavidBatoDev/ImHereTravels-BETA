@@ -12,12 +12,12 @@ import {
 } from "firebase/firestore";
 
 export function useSheetManagement() {
-  const [columns, setColumns] = useState<SheetColumn[]>(defaultBookingColumns);
+  const [columns, setColumns] = useState<SheetColumn[]>([]);
   const [data, setData] = useState<SheetData[]>([]);
   const [config, setConfig] = useState<SheetConfig>({
     id: "bookings-sheet",
     name: "Bookings Sheet",
-    columns: defaultBookingColumns,
+    columns: [],
     createdAt: new Date(),
     updatedAt: new Date(),
     version: 1,
@@ -38,10 +38,10 @@ export function useSheetManagement() {
           `✅ Received ${fetchedColumns.length} columns from Firestore`
         );
         setColumns(fetchedColumns);
-        setConfig((prev) => ({
-          ...prev,
+      setConfig((prev) => ({
+        ...prev,
           columns: fetchedColumns,
-          updatedAt: new Date(),
+        updatedAt: new Date(),
         }));
         setIsLoading(false);
         setError(null);
@@ -63,14 +63,16 @@ export function useSheetManagement() {
     console.log("🔍 Setting up real-time booking data subscription...");
 
     const unsubscribeBookings = onSnapshot(
-      query(collection(db, "bookings"), orderBy("createdAt", "desc")),
+      query(collection(db, "bookings"), orderBy("id", "asc")),
       (querySnapshot) => {
         const bookings = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as SheetData[];
 
-        console.log(`✅ Received ${bookings.length} bookings from Firestore`);
+        console.log(
+          `✅ Received ${bookings.length} bookings from Firestore ordered by ID`
+        );
         setData(bookings);
         setIsLoading(false);
         setError(null);
@@ -102,7 +104,7 @@ export function useSheetManagement() {
       );
 
       // Local state will be updated via real-time subscription
-      console.log(`✅ Column ${updatedColumn.name} updated successfully`);
+      console.log(`✅ Column ${updatedColumn.columnName} updated successfully`);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
@@ -198,14 +200,14 @@ export function useSheetManagement() {
       const defaultColumns =
         await bookingSheetColumnService.getDefaultColumns();
       setColumns(defaultColumns);
-      setConfig({
-        id: "bookings-sheet",
-        name: "Bookings Sheet",
+    setConfig({
+      id: "bookings-sheet",
+      name: "Bookings Sheet",
         columns: defaultColumns,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        version: 1,
-      });
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      version: 1,
+    });
 
       console.log("✅ Reset to default columns");
     } catch (error) {

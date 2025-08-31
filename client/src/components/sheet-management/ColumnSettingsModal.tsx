@@ -192,18 +192,125 @@ export default function ColumnSettingsModal({
                 </SelectContent>
               </Select>
               {formData.function && (
-                <div className="text-sm text-gray-500">
-                  Function:{" "}
-                  {
-                    availableFunctions.find((f) => f.id === formData.function)
-                      ?.functionName
-                  }
-                  <br />
-                  Parameters:{" "}
-                  {availableFunctions
-                    .find((f) => f.id === formData.function)
-                    ?.arguments?.map((arg) => `${arg.name}: ${arg.type}`)
-                    .join(", ")}
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-500">
+                    Function:{" "}
+                    {
+                      availableFunctions.find((f) => f.id === formData.function)
+                        ?.functionName
+                    }
+                    <br />
+                    Parameters:{" "}
+                    {availableFunctions
+                      .find((f) => f.id === formData.function)
+                      ?.arguments?.map((arg) => `${arg.name}: ${arg.type}`)
+                      .join(", ")}
+                  </div>
+
+                  {/* Function Arguments */}
+                  <div className="space-y-3">
+                    <Label>Function Arguments</Label>
+                    {availableFunctions
+                      .find((f) => f.id === formData.function)
+                      ?.arguments?.map((arg, index) => (
+                        <div key={index} className="space-y-2">
+                          <Label htmlFor={`arg-${index}`} className="text-sm">
+                            {arg.name} ({arg.type})
+                            {arg.hasDefault && " - Has default"}
+                            {arg.isOptional && " - Optional"}
+                          </Label>
+
+                          {/* Column Reference Selector */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                id={`use-column-ref-${index}`}
+                                checked={
+                                  !!formData.arguments?.[index]?.columnReference
+                                }
+                                onCheckedChange={(checked) => {
+                                  const newArgs = [
+                                    ...(formData.arguments || []),
+                                  ];
+                                  newArgs[index] = {
+                                    ...newArgs[index],
+                                    name: arg.name,
+                                    type: arg.type,
+                                    value: checked
+                                      ? ""
+                                      : newArgs[index]?.value || "",
+                                    columnReference: checked ? "" : undefined,
+                                    hasDefault: arg.hasDefault,
+                                    isOptional: arg.isOptional,
+                                  };
+                                  handleInputChange("arguments", newArgs);
+                                }}
+                              />
+                              <Label
+                                htmlFor={`use-column-ref-${index}`}
+                                className="text-sm"
+                              >
+                                Use Column Reference
+                              </Label>
+                            </div>
+
+                            {formData.arguments?.[index]?.columnReference !==
+                            undefined ? (
+                              // Column Reference Input
+                              <div className="space-y-2">
+                                <Label
+                                  htmlFor={`column-ref-${index}`}
+                                  className="text-xs text-gray-600"
+                                >
+                                  Select Column to Reference
+                                </Label>
+                                <p className="text-xs text-blue-600">
+                                  Column reference functionality will be
+                                  available when editing existing columns
+                                </p>
+                              </div>
+                            ) : (
+                              // Regular Value Input
+                              <Input
+                                id={`arg-${index}`}
+                                value={formData.arguments?.[index]?.value || ""}
+                                onChange={(e) => {
+                                  const newArgs = [
+                                    ...(formData.arguments || []),
+                                  ];
+                                  newArgs[index] = {
+                                    ...newArgs[index],
+                                    name: arg.name,
+                                    type: arg.type,
+                                    value: e.target.value,
+                                    columnReference: undefined,
+                                    hasDefault: arg.hasDefault,
+                                    isOptional: arg.isOptional,
+                                  };
+                                  handleInputChange("arguments", newArgs);
+                                }}
+                                placeholder={
+                                  arg.hasDefault
+                                    ? "Has default value"
+                                    : "Enter value"
+                                }
+                                className={
+                                  arg.isOptional
+                                    ? "border-gray-300"
+                                    : "border-red-300"
+                                }
+                              />
+                            )}
+                          </div>
+
+                          {arg.isOptional && (
+                            <p className="text-xs text-gray-500">
+                              This parameter is optional
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                  </div>
                 </div>
               )}
             </div>

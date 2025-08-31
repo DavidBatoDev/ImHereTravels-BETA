@@ -1,0 +1,396 @@
+import { db } from "@/lib/firebase";
+import {
+  doc,
+  updateDoc,
+  deleteDoc,
+  addDoc,
+  setDoc,
+  collection,
+  getDoc,
+  getDocs,
+  query,
+  orderBy,
+  where,
+  onSnapshot,
+  DocumentData,
+  Unsubscribe,
+} from "firebase/firestore";
+
+// ============================================================================
+// COLLECTION CONSTANTS
+// ============================================================================
+
+const COLLECTION_NAME = "bookings";
+
+// ============================================================================
+// BOOKING SERVICE INTERFACE
+// ============================================================================
+
+export interface BookingService {
+  // CRUD Operations
+  updateBooking(bookingId: string, updates: Record<string, any>): Promise<void>;
+  deleteBooking(bookingId: string): Promise<void>;
+  createBooking(bookingData: Record<string, any>): Promise<string>;
+  getBooking(bookingId: string): Promise<DocumentData | null>;
+  getAllBookings(): Promise<DocumentData[]>;
+
+  // Real-time Listeners
+  subscribeToBookings(
+    callback: (bookings: DocumentData[]) => void
+  ): Unsubscribe;
+  subscribeToBooking(
+    bookingId: string,
+    callback: (booking: DocumentData | null) => void
+  ): Unsubscribe;
+
+  // Utility Methods
+  updateBookingField(
+    bookingId: string,
+    fieldPath: string,
+    value: any
+  ): Promise<void>;
+
+  // Create or update a complete booking
+  createOrUpdateBooking(
+    bookingId: string,
+    bookingData: Record<string, any>
+  ): Promise<void>;
+
+  // Row number management
+  getNextRowNumber(): Promise<number>;
+  getRowNumberForId(bookingId: string): Promise<number>;
+
+  // Clear booking fields (keep document, clear data)
+  clearBookingFields(bookingId: string): Promise<void>;
+}
+
+// ============================================================================
+// BOOKING SERVICE IMPLEMENTATION
+// ============================================================================
+
+class BookingServiceImpl implements BookingService {
+  // ========================================================================
+  // CRUD OPERATIONS
+  // ========================================================================
+
+  async updateBooking(
+    bookingId: string,
+    updates: Record<string, any>
+  ): Promise<void> {
+    try {
+      const docRef = doc(db, COLLECTION_NAME, bookingId);
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: new Date(),
+      });
+      console.log(`✅ Updated booking ${bookingId}`);
+    } catch (error) {
+      console.error(
+        `❌ Failed to update booking ${bookingId}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      throw error;
+    }
+  }
+
+  async deleteBooking(bookingId: string): Promise<void> {
+    try {
+      const docRef = doc(db, COLLECTION_NAME, bookingId);
+      await deleteDoc(docRef);
+      console.log(`✅ Deleted booking ${bookingId}`);
+    } catch (error) {
+      console.error(
+        `❌ Failed to delete booking ${bookingId}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      throw error;
+    }
+  }
+
+  async createBooking(bookingData: Record<string, any>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+        ...bookingData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      console.log(`✅ Created booking with ID: ${docRef.id}`);
+      return docRef.id;
+    } catch (error) {
+      console.error(
+        `❌ Failed to create booking: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      throw error;
+    }
+  }
+
+  async getBooking(bookingId: string): Promise<DocumentData | null> {
+    try {
+      const docRef = doc(db, COLLECTION_NAME, bookingId);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      }
+
+      return null;
+    } catch (error) {
+      console.error(
+        `❌ Failed to get booking ${bookingId}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      throw error;
+    }
+  }
+
+  async getAllBookings(): Promise<DocumentData[]> {
+    try {
+      const querySnapshot = await getDocs(
+        query(collection(db, COLLECTION_NAME), orderBy("createdAt", "desc"))
+      );
+
+      return querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (error) {
+      console.error(
+        `❌ Failed to get all bookings: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      throw error;
+    }
+  }
+
+  // ========================================================================
+  // REAL-TIME LISTENERS
+  // ========================================================================
+
+  subscribeToBookings(
+    callback: (bookings: DocumentData[]) => void
+  ): Unsubscribe {
+    return onSnapshot(
+      query(collection(db, COLLECTION_NAME), orderBy("createdAt", "desc")),
+      (querySnapshot) => {
+        const bookings = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        callback(bookings);
+      },
+      (error) => {
+        console.error(`❌ Error listening to bookings: ${error.message}`);
+      }
+    );
+  }
+
+  subscribeToBooking(
+    bookingId: string,
+    callback: (booking: DocumentData | null) => void
+  ): Unsubscribe {
+    return onSnapshot(
+      doc(db, COLLECTION_NAME, bookingId),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          callback({ id: docSnap.id, ...docSnap.data() });
+        } else {
+          callback(null);
+        }
+      },
+      (error) => {
+        console.error(
+          `❌ Error listening to booking ${bookingId}: ${error.message}`
+        );
+      }
+    );
+  }
+
+  // ========================================================================
+  // UTILITY METHODS
+  // ========================================================================
+
+  async updateBookingField(
+    bookingId: string,
+    fieldPath: string,
+    value: any
+  ): Promise<void> {
+    try {
+      const docRef = doc(db, COLLECTION_NAME, bookingId);
+
+      // Check if document exists
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        // Create the document if it doesn't exist
+        await setDoc(docRef, {
+          id: bookingId,
+          [fieldPath]: value,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        console.log(
+          `✅ Created and updated field ${fieldPath} in new booking ${bookingId}`
+        );
+      } else {
+        // Update existing document
+        await updateDoc(docRef, {
+          [fieldPath]: value,
+          updatedAt: new Date(),
+        });
+        console.log(
+          `✅ Updated field ${fieldPath} in existing booking ${bookingId}`
+        );
+      }
+    } catch (error) {
+      console.error(
+        `❌ Failed to update field ${fieldPath} in booking ${bookingId}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      throw error;
+    }
+  }
+
+  async createOrUpdateBooking(
+    bookingId: string,
+    bookingData: Record<string, any>
+  ): Promise<void> {
+    try {
+      const docRef = doc(db, COLLECTION_NAME, bookingId);
+
+      // Check if document exists
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        // Create new document
+        await setDoc(docRef, {
+          ...bookingData,
+          id: bookingId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        console.log(`✅ Created new booking ${bookingId}`);
+      } else {
+        // Update existing document
+        await updateDoc(docRef, {
+          ...bookingData,
+          updatedAt: new Date(),
+        });
+        console.log(`✅ Updated existing booking ${bookingId}`);
+      }
+    } catch (error) {
+      console.error(
+        `❌ Failed to create/update booking ${bookingId}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      throw error;
+    }
+  }
+
+  // ========================================================================
+  // ROW NUMBER MANAGEMENT
+  // ========================================================================
+
+  async getNextRowNumber(): Promise<number> {
+    try {
+      const allBookings = await this.getAllBookings();
+
+      if (allBookings.length === 0) {
+        return 1; // First row
+      }
+
+      // Find the highest numeric ID
+      const numericIds = allBookings
+        .map((booking) => {
+          const id = parseInt(booking.id);
+          return isNaN(id) ? 0 : id;
+        })
+        .filter((id) => id > 0);
+
+      if (numericIds.length === 0) {
+        return 1; // No numeric IDs found
+      }
+
+      const maxId = Math.max(...numericIds);
+      return maxId + 1;
+    } catch (error) {
+      console.error(
+        `❌ Failed to get next row number: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      throw error;
+    }
+  }
+
+  async getRowNumberForId(bookingId: string): Promise<number> {
+    try {
+      const numericId = parseInt(bookingId);
+      if (isNaN(numericId)) {
+        throw new Error(`Invalid booking ID: ${bookingId}`);
+      }
+      return numericId;
+    } catch (error) {
+      console.error(
+        `❌ Failed to get row number for ID ${bookingId}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      throw error;
+    }
+  }
+
+  // ========================================================================
+  // FIELD CLEARING
+  // ========================================================================
+
+  async clearBookingFields(bookingId: string): Promise<void> {
+    try {
+      const docRef = doc(db, COLLECTION_NAME, bookingId);
+
+      // Get the current document to preserve id, createdAt, updatedAt
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        throw new Error(`Booking document ${bookingId} does not exist`);
+      }
+
+      const currentData = docSnap.data();
+
+      // Keep only essential fields: id, createdAt, updatedAt
+      const preservedFields = {
+        id: currentData.id,
+        createdAt: currentData.createdAt,
+        updatedAt: new Date(),
+      };
+
+      // Update the document with only preserved fields
+      await updateDoc(docRef, preservedFields);
+
+      console.log(
+        `✅ Cleared all fields from booking ${bookingId}, preserved essential fields`
+      );
+    } catch (error) {
+      console.error(
+        `❌ Failed to clear booking fields ${bookingId}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      throw error;
+    }
+  }
+}
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
+export const bookingService = new BookingServiceImpl();
+export default bookingService;
