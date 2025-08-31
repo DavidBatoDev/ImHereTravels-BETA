@@ -22,11 +22,15 @@ import {
   ChevronDown,
   ChevronRight,
   Edit,
+  Zap,
+  Layers,
+  Type,
+  Package,
 } from "lucide-react";
-import firebaseFunctionService from "@/services/firebase-function-service";
+import { typescriptFunctionService } from "@/services/firebase-function-service";
 import {
-  JSFile,
-  JSFolder,
+  TSFile,
+  TSFolder,
   CreateFileData,
   CreateFolderData,
 } from "@/types/functions";
@@ -34,24 +38,22 @@ import CreateItemModal from "./CreateItemModal";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import { useToast } from "@/hooks/use-toast";
 
-// Initialize Firebase function service
-firebaseFunctionService.initialize();
-
-// Mock files removed - now using function service
+// Initialize TypeScript function service
+typescriptFunctionService.initialize();
 
 export default function FunctionsCenter() {
   const { toast } = useToast();
-  const [folders, setFolders] = useState<JSFolder[]>([]);
-  const [files, setFiles] = useState<JSFile[]>([]);
-  const [selectedFolder, setSelectedFolder] = useState<JSFolder | null>(null);
-  const [activeFile, setActiveFile] = useState<JSFile | null>(null);
+  const [folders, setFolders] = useState<TSFolder[]>([]);
+  const [files, setFiles] = useState<TSFile[]>([]);
+  const [selectedFolder, setSelectedFolder] = useState<TSFolder | null>(null);
+  const [activeFile, setActiveFile] = useState<TSFile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [isCreateFileModalOpen, setIsCreateFileModalOpen] = useState(false);
   const [renameFileModal, setRenameFileModal] = useState<{
     isOpen: boolean;
-    file: JSFile | null;
+    file: TSFile | null;
   }>({ isOpen: false, file: null });
   const [deleteFolderModal, setDeleteFolderModal] = useState<{
     isOpen: boolean;
@@ -69,12 +71,12 @@ export default function FunctionsCenter() {
   const [isEditorLoading, setIsEditorLoading] = useState(false);
   const [editorValue, setEditorValue] = useState("");
 
-  // Load data from Firebase function service and set up real-time listeners
+  // Load data from TypeScript function service and set up real-time listeners
   useEffect(() => {
     const loadData = async () => {
       try {
-        const allFolders = await firebaseFunctionService.folders.getAll();
-        const allFiles = await firebaseFunctionService.files.getAll();
+        const allFolders = await typescriptFunctionService.folders.getAll();
+        const allFiles = await typescriptFunctionService.files.getAll();
 
         setFolders(allFolders);
         setFiles(allFiles);
@@ -92,13 +94,13 @@ export default function FunctionsCenter() {
     loadData();
 
     // Set up real-time listeners
-    const unsubscribeFolders = firebaseFunctionService.subscribeToFolders(
+    const unsubscribeFolders = typescriptFunctionService.subscribeToFolders(
       (folders) => {
         setFolders(folders);
       }
     );
 
-    const unsubscribeFiles = firebaseFunctionService.subscribeToFiles(
+    const unsubscribeFiles = typescriptFunctionService.subscribeToFiles(
       (files) => {
         setFiles(files);
       }
@@ -122,7 +124,7 @@ export default function FunctionsCenter() {
     file.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleFileSelect = async (file: JSFile) => {
+  const handleFileSelect = async (file: TSFile) => {
     if (activeFile?.id === file.id) return; // Prevent unnecessary re-renders
 
     setIsEditorLoading(true);
@@ -130,10 +132,10 @@ export default function FunctionsCenter() {
     setEditorValue(file.content);
     setIsEditing(false);
 
-    // Update active state using Firebase service
+    // Update active state using TypeScript service
     try {
-      await firebaseFunctionService.files.setActive(file.id);
-      const updatedFiles = await firebaseFunctionService.files.getAll();
+      await typescriptFunctionService.files.setActive(file.id);
+      const updatedFiles = await typescriptFunctionService.files.getAll();
       setFiles(updatedFiles);
     } catch (error) {
       console.error("Error setting file as active:", error);
@@ -167,21 +169,37 @@ export default function FunctionsCenter() {
     }
 
     try {
-      const newFile = await firebaseFunctionService.files.create({
-        name: fileName,
-        content: `// ${fileName}\n// Created on ${new Date().toLocaleDateString()}\n\n// Your code here\n`,
+      // Determine file extension based on name or default to .ts
+      const fileExtension = fileName.includes(".") ? "" : ".ts";
+      const fullFileName = fileName + fileExtension;
+
+      const newFile = await typescriptFunctionService.files.create({
+        name: fullFileName,
+        content: `// ${fullFileName}
+// Created on ${new Date().toLocaleDateString()}
+// TypeScript file with export default function
+
+export default function ${
+          fileName.replace(/[^a-zA-Z0-9]/g, "") || "exampleFunction"
+        }(
+  // Add your parameters here
+) {
+  // Your implementation here
+  return "Hello from TypeScript!";
+}`,
         folderId: selectedFolder.id,
         isActive: false,
+        fileType: "typescript",
       });
 
-      const updatedFiles = await firebaseFunctionService.files.getAll();
+      const updatedFiles = await typescriptFunctionService.files.getAll();
       setFiles(updatedFiles);
       setActiveFile(newFile);
       setIsEditing(true);
 
       toast({
         title: "Success",
-        description: `File "${fileName}" created successfully.`,
+        description: `TypeScript file "${fullFileName}" created successfully.`,
       });
     } catch (error) {
       console.error("Error creating file:", error);
@@ -195,14 +213,14 @@ export default function FunctionsCenter() {
 
   const handleCreateFolder = async (folderName: string) => {
     try {
-      const newFolder = await firebaseFunctionService.folders.create({
+      const newFolder = await typescriptFunctionService.folders.create({
         name: folderName,
         isCollapsed: false,
+        description: `TypeScript functions folder: ${folderName}`,
       });
 
-      const updatedFolders = await firebaseFunctionService.folders.getAll();
+      const updatedFolders = await typescriptFunctionService.folders.getAll();
       setFolders(updatedFolders);
-      // Automatically select the newly created folder
       setSelectedFolder(newFolder);
 
       toast({
@@ -219,62 +237,41 @@ export default function FunctionsCenter() {
     }
   };
 
-  const handleDeleteFolder = async (folderId: string) => {
+  const handleFolderSelect = (folder: TSFolder) => {
+    setSelectedFolder(folder);
+  };
+
+  const handleFolderToggle = async (folder: TSFolder) => {
     try {
-      const success = await firebaseFunctionService.folders.delete(folderId);
-      if (success) {
-        const updatedFolders = await firebaseFunctionService.folders.getAll();
-        const updatedFiles = await firebaseFunctionService.files.getAll();
-
+      const updatedFolder =
+        await typescriptFunctionService.folders.toggleCollapse(folder.id);
+      if (updatedFolder) {
+        const updatedFolders = await typescriptFunctionService.folders.getAll();
         setFolders(updatedFolders);
-        setFiles(updatedFiles);
-
-        // If the active file was in the deleted folder, clear it
-        if (activeFile && activeFile.folderId === folderId) {
-          setActiveFile(null);
-        }
-
-        // If the selected folder was deleted, clear it
-        if (selectedFolder && selectedFolder.id === folderId) {
-          setSelectedFolder(null);
-        }
-
-        toast({
-          title: "Success",
-          description: "Folder deleted successfully.",
-        });
       }
     } catch (error) {
-      console.error("Error deleting folder:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete folder. Please try again.",
-        variant: "destructive",
-      });
+      console.error("Error toggling folder:", error);
     }
   };
 
-  const handleRenameFile = (file: JSFile) => {
+  const handleRenameFile = (file: TSFile) => {
     setRenameFileModal({ isOpen: true, file });
   };
 
   const handleRenameFileSubmit = async (newName: string) => {
-    const file = renameFileModal.file;
-    if (!file || newName === file.name) return;
+    if (!renameFileModal.file) return;
 
     try {
-      const updatedFile = await firebaseFunctionService.files.update(file.id, {
-        name: newName,
-      });
+      const updatedFile = await typescriptFunctionService.files.update(
+        renameFileModal.file.id,
+        { name: newName }
+      );
 
       if (updatedFile) {
-        const updatedFiles = await firebaseFunctionService.files.getAll();
+        const updatedFiles = await typescriptFunctionService.files.getAll();
         setFiles(updatedFiles);
-
-        // Update active file if it's the renamed file
-        if (activeFile && activeFile.id === file.id) {
-          setActiveFile(updatedFile);
-        }
+        setActiveFile(updatedFile);
+        setRenameFileModal({ isOpen: false, file: null });
 
         toast({
           title: "Success",
@@ -291,23 +288,46 @@ export default function FunctionsCenter() {
     }
   };
 
+  const handleDeleteFolder = async (folderId: string) => {
+    try {
+      await typescriptFunctionService.folders.delete(folderId);
+      const updatedFolders = await typescriptFunctionService.folders.getAll();
+      const updatedFiles = await typescriptFunctionService.files.getAll();
+      setFolders(updatedFolders);
+      setFiles(updatedFiles);
+
+      if (selectedFolder?.id === folderId) {
+        setSelectedFolder(null);
+      }
+
+      toast({
+        title: "Success",
+        description: "Folder deleted successfully.",
+      });
+    } catch (error) {
+      console.error("Error deleting folder:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete folder. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteFile = async (fileId: string) => {
     try {
-      const success = await firebaseFunctionService.files.delete(fileId);
-      if (success) {
-        const updatedFiles = await firebaseFunctionService.files.getAll();
-        setFiles(updatedFiles);
+      await typescriptFunctionService.files.delete(fileId);
+      const updatedFiles = await typescriptFunctionService.files.getAll();
+      setFiles(updatedFiles);
 
-        // If the deleted file was active, clear it
-        if (activeFile && activeFile.id === fileId) {
-          setActiveFile(null);
-        }
-
-        toast({
-          title: "Success",
-          description: "File deleted successfully.",
-        });
+      if (activeFile?.id === fileId) {
+        setActiveFile(updatedFiles[0] || null);
       }
+
+      toast({
+        title: "Success",
+        description: "File deleted successfully.",
+      });
     } catch (error) {
       console.error("Error deleting file:", error);
       toast({
@@ -319,84 +339,147 @@ export default function FunctionsCenter() {
   };
 
   const handleSave = async () => {
-    if (activeFile) {
-      try {
-        // Update file content using Firebase service
-        const updatedFile = await firebaseFunctionService.files.updateContent(
-          activeFile.id,
-          activeFile.content
-        );
-        if (updatedFile) {
-          const updatedFiles = await firebaseFunctionService.files.getAll();
-          setFiles(updatedFiles);
-          setActiveFile(updatedFile);
-        }
-        setIsEditing(false);
+    if (!activeFile) return;
 
+    try {
+      const updatedFile = await typescriptFunctionService.files.updateContent(
+        activeFile.id,
+        editorValue
+      );
+
+      if (updatedFile) {
+        setActiveFile(updatedFile);
+        setIsEditing(false);
         toast({
           title: "Success",
           description: "File saved successfully.",
         });
-      } catch (error) {
-        console.error("Error saving file:", error);
-        toast({
-          title: "Error",
-          description: "Failed to save file. Please try again.",
-          variant: "destructive",
-        });
       }
+    } catch (error) {
+      console.error("Error saving file:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save file. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleRun = () => {
-    // Simulate running the function
-    console.log("Running function:", activeFile?.name);
-  };
-
-  const toggleFolder = async (folderId: string) => {
-    try {
-      // Toggle folder collapse using Firebase service
-      const updatedFolder =
-        await firebaseFunctionService.folders.toggleCollapse(folderId);
-      if (updatedFolder) {
-        const updatedFolders = await firebaseFunctionService.folders.getAll();
-        setFolders(updatedFolders);
-      }
-    } catch (error) {
-      console.error("Error toggling folder:", error);
-    }
-  };
-
-  const handleFolderSelect = (folder: JSFolder) => {
-    setSelectedFolder(folder);
-    // Clear active file when selecting a folder
-    setActiveFile(null);
-    // Toggle folder open/close state when selecting
-    toggleFolder(folder.id);
+    // This would execute the TypeScript function
+    toast({
+      title: "Run Function",
+      description: "Function execution feature coming soon!",
+    });
   };
 
   const getFileIcon = () => {
-    return <FileCode className="h-4 w-4 text-blue-500" />;
+    if (!activeFile) return <FileCode className="h-4 w-4 text-gray-500" />;
+
+    // Return different icons based on file type and export type
+    if (activeFile.fileType === "typescript") {
+      return <Type className="h-4 w-4 text-blue-600" />;
+    }
+
+    if (activeFile.hasExportDefault) {
+      switch (activeFile.exportType) {
+        case "function":
+          return <Code className="h-4 w-4 text-green-600" />;
+        case "class":
+          return <Package className="h-4 w-4 text-purple-600" />;
+        case "object":
+          return <Layers className="h-4 w-4 text-orange-600" />;
+        default:
+          return <Code className="h-4 w-4 text-gray-600" />;
+      }
+    }
+
+    return <FileCode className="h-4 w-4 text-gray-500" />;
+  };
+
+  const getComplexityBadge = (complexity: string) => {
+    const variants = {
+      simple: "default",
+      moderate: "secondary",
+      complex: "destructive",
+    } as const;
+
+    return (
+      <Badge
+        variant={variants[complexity as keyof typeof variants]}
+        className="text-xs"
+      >
+        {complexity}
+      </Badge>
+    );
+  };
+
+  const getFileTypeBadge = (fileType: string) => {
+    return (
+      <Badge variant="outline" className="text-xs">
+        {fileType === "typescript" ? "TS" : "JS"}
+      </Badge>
+    );
+  };
+
+  const getExportTypeBadge = (exportType: string) => {
+    if (!exportType || exportType === "none") return null;
+
+    const variants = {
+      function: "default",
+      class: "secondary",
+      object: "outline",
+      value: "destructive",
+    } as const;
+
+    return (
+      <Badge
+        variant={variants[exportType as keyof typeof variants]}
+        className="text-xs"
+      >
+        {exportType}
+      </Badge>
+    );
   };
 
   const handleEditorDidMount = useCallback(
-    (editor: any, monaco: any) => {
+    (editor: any) => {
       editorRef.current = editor;
 
-      // Configure JavaScript validation
-      monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-        noSemanticValidation: false,
-        noSyntaxValidation: false,
-      });
-
-      // Set compiler options for better JavaScript support
-      monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-        target: monaco.languages.typescript.ScriptTarget.ES2020,
-        allowNonTsExtensions: true,
-        moduleResolution:
-          monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-        module: monaco.languages.typescript.ModuleKind.CommonJS,
-        noEmit: true,
+      // Configure TypeScript language features
+      editor.updateOptions({
+        language: "typescript",
+        theme: "vs-light",
+        // TypeScript-specific options
+        suggest: {
+          includeCompletionsForModuleExports: true,
+          includeCompletionsWithInsertText: true,
+        },
+        typescript: {
+          suggest: {
+            includeCompletionsForModuleExports: true,
+          },
+        },
+        // Enhanced IntelliSense
+        quickSuggestions: {
+          other: true,
+          comments: true,
+          strings: true,
+        },
+        parameterHints: { enabled: true },
+        suggestOnTriggerCharacters: true,
+        acceptSuggestionOnCommitCharacter: true,
+        acceptSuggestionOnEnter: "on",
+        wordBasedSuggestions: true,
+        // TypeScript compiler options
+        compilerOptions: {
+          target: "ES2020",
+          module: "ESNext",
+          strict: true,
+          esModuleInterop: true,
+          skipLibCheck: true,
+          forceConsistentCasingInFileNames: true,
+        },
         typeRoots: ["node_modules/@types"],
       });
 
@@ -427,7 +510,9 @@ export default function FunctionsCenter() {
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">JS Files</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                TS Functions
+              </h2>
             </div>
             <div className="flex items-center space-x-1">
               <Button
@@ -435,13 +520,13 @@ export default function FunctionsCenter() {
                 variant={selectedFolder ? "outline" : "secondary"}
                 title={
                   selectedFolder
-                    ? "New File"
+                    ? "New TypeScript File"
                     : "Click a folder to select it and create files"
                 }
                 onClick={() => setIsCreateFileModalOpen(true)}
                 disabled={!selectedFolder}
               >
-                <FileCode className="h-4 w-4" />
+                <Type className="h-4 w-4" />
               </Button>
               <Button
                 size="sm"
@@ -456,7 +541,7 @@ export default function FunctionsCenter() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search files..."
+              placeholder="Search TypeScript files..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -472,7 +557,7 @@ export default function FunctionsCenter() {
                 <Folder className="mx-auto h-12 w-12 text-gray-400 mb-2" />
                 <p className="text-sm text-gray-500 mb-2">No folders yet</p>
                 <p className="text-xs text-gray-400">
-                  Create a folder to get started
+                  Create a folder to get started with TypeScript functions
                 </p>
               </div>
             ) : (
@@ -487,11 +572,19 @@ export default function FunctionsCenter() {
                     }`}
                     onClick={() => handleFolderSelect(folder)}
                   >
-                    {folder.isCollapsed ? (
-                      <ChevronRight className="h-4 w-4 text-gray-500" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
-                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFolderToggle(folder);
+                      }}
+                      className="p-1 hover:bg-gray-200 rounded"
+                    >
+                      {folder.isCollapsed ? (
+                        <ChevronRight className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-500" />
+                      )}
+                    </button>
                     <Folder className="h-4 w-4 text-gray-500" />
                     <span
                       className="text-sm font-medium text-gray-700 flex-1 cursor-pointer select-none"
@@ -502,9 +595,9 @@ export default function FunctionsCenter() {
                     >
                       {folder.name}
                     </span>
-                    <Badge variant="outline" className="ml-auto text-xs">
+                    <span className="ml-auto text-xs text-gray-500">
                       {getFilesForFolder(folder.id).length}
-                    </Badge>
+                    </span>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -537,7 +630,11 @@ export default function FunctionsCenter() {
                           onClick={() => handleFileSelect(file)}
                         >
                           <div className="flex items-center space-x-2">
-                            {getFileIcon()}
+                            {file.fileType === "typescript" ? (
+                              <Type className="h-4 w-4 text-blue-600" />
+                            ) : (
+                              <FileCode className="h-4 w-4 text-gray-500" />
+                            )}
                             <div className="flex-1 min-w-0">
                               <p
                                 className={`text-sm font-medium truncate select-none ${
@@ -548,7 +645,8 @@ export default function FunctionsCenter() {
                               >
                                 {file.name}
                               </p>
-                              <p className="text-xs text-gray-500">
+                              {/* Badges removed for cleaner file list */}
+                              <p className="text-xs text-gray-500 mt-1">
                                 Modified{" "}
                                 {file.lastModified.toLocaleDateString()}
                               </p>
@@ -596,12 +694,26 @@ export default function FunctionsCenter() {
         <div className="p-4 border-t border-gray-200">
           <div className="text-xs text-gray-500">
             <div className="flex items-center space-x-2">
-              <Code className="h-3 w-3" />
-              <span>JavaScript</span>
+              <Type className="h-3 w-3 text-blue-600" />
+              <span>TypeScript</span>
             </div>
             <div className="mt-1">
               {allFiles.length === 0 ? "No files" : `${allFiles.length} files`}
             </div>
+            {allFiles.length > 0 && (
+              <div className="mt-1 text-xs">
+                <div className="flex items-center space-x-1">
+                  <span>
+                    TS:{" "}
+                    {allFiles.filter((f) => f.fileType === "typescript").length}
+                  </span>
+                  <span>
+                    JS:{" "}
+                    {allFiles.filter((f) => f.fileType === "javascript").length}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -619,7 +731,25 @@ export default function FunctionsCenter() {
                     <h3 className="text-lg font-medium text-gray-900">
                       {activeFile.name}
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <div className="flex items-center space-x-2 mt-1">
+                      {getFileTypeBadge(activeFile.fileType)}
+                      {activeFile.hasExportDefault &&
+                        getExportTypeBadge(activeFile.exportType)}
+                      {getComplexityBadge(activeFile.complexity)}
+                      {activeFile.hasTypeAnnotations && (
+                        <Badge variant="outline" className="text-xs">
+                          <Type className="h-2 w-2 mr-1" />
+                          Types
+                        </Badge>
+                      )}
+                      {activeFile.hasExportDefault &&
+                        activeFile.arguments.length > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            {activeFile.arguments.length} params
+                          </Badge>
+                        )}
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">
                       Modified {activeFile.lastModified.toLocaleString()}
                     </p>
                   </div>
@@ -648,14 +778,16 @@ export default function FunctionsCenter() {
                 <div className="absolute inset-0 bg-white flex items-center justify-center z-10">
                   <div className="flex items-center space-x-2">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                    <span className="text-gray-600">Loading editor...</span>
+                    <span className="text-gray-600">
+                      Loading TypeScript editor...
+                    </span>
                   </div>
                 </div>
               )}
               <Editor
                 key={activeFile?.id || "empty"}
                 height="100%"
-                defaultLanguage="javascript"
+                defaultLanguage="typescript"
                 value={editorValue}
                 onChange={(value) => {
                   if (value !== undefined) {
@@ -695,7 +827,7 @@ export default function FunctionsCenter() {
                 // Add loading component
                 loading={
                   <div className="flex items-center justify-center h-full">
-                    Loading editor...
+                    Loading TypeScript editor...
                   </div>
                 }
               />
@@ -705,12 +837,13 @@ export default function FunctionsCenter() {
           /* Empty State */
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <Code className="mx-auto h-12 w-12 text-gray-400" />
+              <Type className="mx-auto h-12 w-12 text-blue-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">
-                No file selected
+                No TypeScript file selected
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                Select a file from the sidebar to view or edit its code.
+                Select a file from the sidebar to view or edit its TypeScript
+                code.
               </p>
             </div>
           </div>
@@ -751,7 +884,7 @@ export default function FunctionsCenter() {
         }
         onConfirm={() => handleDeleteFolder(deleteFolderModal.folderId)}
         title="Delete Folder"
-        description="Are you sure you want to delete this folder? All files in it will also be deleted."
+        description="Are you sure you want to delete this folder? All TypeScript files in it will also be deleted."
         itemName={deleteFolderModal.folderName}
         type="folder"
       />
@@ -762,8 +895,8 @@ export default function FunctionsCenter() {
           setDeleteFileModal({ isOpen: false, fileId: "", fileName: "" })
         }
         onConfirm={() => handleDeleteFile(deleteFileModal.fileId)}
-        title="Delete File"
-        description="Are you sure you want to delete this file?"
+        title="Delete TypeScript File"
+        description="Are you sure you want to delete this TypeScript file?"
         itemName={deleteFileModal.fileName}
         type="file"
       />

@@ -17,16 +17,19 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
-  JSFile,
-  JSFolder,
+  TSFile,
+  TSFolder,
+  TSArgument,
   CreateFileData,
   CreateFolderData,
+  FileAnalysisResult,
 } from "@/types/functions";
+import { astParser } from "./ast-parser";
 
 // Firestore collection names
 const COLLECTIONS = {
-  FOLDERS: "js_folders",
-  FILES: "js_files",
+  FOLDERS: "ts_folders", // Updated to reflect TypeScript focus
+  FILES: "ts_files", // Updated to reflect TypeScript focus
 } as const;
 
 // Convert Firestore timestamp to Date
@@ -37,10 +40,10 @@ const convertTimestamp = (timestamp: any): Date => {
   return new Date(timestamp);
 };
 
-// Convert Firestore document to JSFolder
+// Convert Firestore document to TSFolder
 const convertFolderDoc = (
   doc: QueryDocumentSnapshot<DocumentData>
-): JSFolder => {
+): TSFolder => {
   const data = doc.data();
   return {
     id: doc.id,
@@ -48,12 +51,19 @@ const convertFolderDoc = (
     isCollapsed: data.isCollapsed || false,
     createdAt: convertTimestamp(data.createdAt),
     updatedAt: convertTimestamp(data.updatedAt),
+    description: data.description,
+    fileCount: data.fileCount || 0,
   };
 };
 
-// Convert Firestore document to JSFile
-const convertFileDoc = (doc: QueryDocumentSnapshot<DocumentData>): JSFile => {
+// Convert Firestore document to TSFile
+const convertFileDoc = (doc: QueryDocumentSnapshot<DocumentData>): TSFile => {
   const data = doc.data();
+  const content = data.content || "";
+
+  // Parse the TS content using AST for comprehensive analysis
+  const analysis = parseTSContent(content);
+
   return {
     id: doc.id,
     name: data.name,
@@ -63,21 +73,58 @@ const convertFileDoc = (doc: QueryDocumentSnapshot<DocumentData>): JSFile => {
     folderId: data.folderId,
     createdAt: convertTimestamp(data.createdAt),
     updatedAt: convertTimestamp(data.updatedAt),
+    hasExportDefault: analysis.hasExportDefault,
+    arguments: analysis.arguments,
+    fileType: analysis.fileType,
+    hasTypeAnnotations: analysis.hasTypeAnnotations,
+    complexity: analysis.complexity,
+    exportType: analysis.exportType,
+    functionName: analysis.functionName || null,
+    parameterCount: analysis.parameterCount,
+    hasGenerics: analysis.hasGenerics,
+    hasUnionTypes: analysis.hasUnionTypes,
+    hasIntersectionTypes: analysis.hasIntersectionTypes,
+    hasDestructuring: analysis.hasDestructuring,
+    hasRestParameters: analysis.hasRestParameters,
   };
 };
 
-// Firebase Function Service
-export class FirebaseFunctionService {
+// Helper function to parse TS content for export default functions using AST
+const parseTSContent = (content: string): FileAnalysisResult => {
+  try {
+    // Use AST parser for comprehensive parsing and analysis
+    return astParser.parseContent(content);
+  } catch (error) {
+    console.error("Error parsing TS content with AST:", error);
+    return {
+      hasExportDefault: false,
+      arguments: [],
+      fileType: "javascript",
+      hasTypeAnnotations: false,
+      complexity: "simple",
+      exportType: "none",
+      parameterCount: 0,
+      hasGenerics: false,
+      hasUnionTypes: false,
+      hasIntersectionTypes: false,
+      hasDestructuring: false,
+      hasRestParameters: false,
+    };
+  }
+};
+
+// TypeScript Function Service
+export class TypeScriptFunctionService {
   // Initialize service (no-op for Firebase)
   initialize() {
     // Firebase is already initialized in lib/firebase.ts
-    console.log("Firebase Function Service initialized");
+    console.log("TypeScript Function Service initialized");
   }
 
   // Folder CRUD Operations
   folders = {
     // Get all folders
-    async getAll(): Promise<JSFolder[]> {
+    async getAll(): Promise<TSFolder[]> {
       try {
         const q = query(
           collection(db, COLLECTIONS.FOLDERS),
@@ -92,7 +139,7 @@ export class FirebaseFunctionService {
     },
 
     // Get folder by ID
-    async getById(id: string): Promise<JSFolder | undefined> {
+    async getById(id: string): Promise<TSFolder | undefined> {
       try {
         const docRef = doc(db, COLLECTIONS.FOLDERS, id);
         const docSnap = await getDoc(docRef);
@@ -110,7 +157,7 @@ export class FirebaseFunctionService {
     },
 
     // Create new folder
-    async create(folderData: CreateFolderData): Promise<JSFolder> {
+    async create(folderData: CreateFolderData): Promise<TSFolder> {
       try {
         const folderRef = await addDoc(collection(db, COLLECTIONS.FOLDERS), {
           ...folderData,
@@ -118,12 +165,14 @@ export class FirebaseFunctionService {
           updatedAt: serverTimestamp(),
         });
 
-        const newFolder: JSFolder = {
+        const newFolder: TSFolder = {
           id: folderRef.id,
           name: folderData.name,
           isCollapsed: folderData.isCollapsed || false,
           createdAt: new Date(),
           updatedAt: new Date(),
+          description: folderData.description,
+          fileCount: 0,
         };
 
         return newFolder;
@@ -137,7 +186,7 @@ export class FirebaseFunctionService {
     async update(
       id: string,
       updates: Partial<CreateFolderData>
-    ): Promise<JSFolder | null> {
+    ): Promise<TSFolder | null> {
       try {
         const folderRef = doc(db, COLLECTIONS.FOLDERS, id);
         await updateDoc(folderRef, {
@@ -189,7 +238,7 @@ export class FirebaseFunctionService {
     },
 
     // Toggle folder collapse state
-    async toggleCollapse(id: string): Promise<JSFolder | null> {
+    async toggleCollapse(id: string): Promise<TSFolder | null> {
       try {
         const folderRef = doc(db, COLLECTIONS.FOLDERS, id);
         const folderDoc = await getDoc(folderRef);
@@ -222,7 +271,7 @@ export class FirebaseFunctionService {
   // File CRUD Operations
   files = {
     // Get all files
-    async getAll(): Promise<JSFile[]> {
+    async getAll(): Promise<TSFile[]> {
       try {
         const q = query(
           collection(db, COLLECTIONS.FILES),
@@ -237,7 +286,7 @@ export class FirebaseFunctionService {
     },
 
     // Get file by ID
-    async getById(id: string): Promise<JSFile | undefined> {
+    async getById(id: string): Promise<TSFile | undefined> {
       try {
         const docRef = doc(db, COLLECTIONS.FILES, id);
         const docSnap = await getDoc(docRef);
@@ -253,7 +302,7 @@ export class FirebaseFunctionService {
     },
 
     // Get files by folder ID
-    async getByFolderId(folderId: string): Promise<JSFile[]> {
+    async getByFolderId(folderId: string): Promise<TSFile[]> {
       try {
         const q = query(
           collection(db, COLLECTIONS.FILES),
@@ -269,16 +318,32 @@ export class FirebaseFunctionService {
     },
 
     // Create new file
-    async create(fileData: CreateFileData): Promise<JSFile> {
+    async create(fileData: CreateFileData): Promise<TSFile> {
       try {
+        // Parse the TS content using AST for comprehensive analysis
+        const analysis = parseTSContent(fileData.content);
+
         const fileRef = await addDoc(collection(db, COLLECTIONS.FILES), {
           ...fileData,
+          hasExportDefault: analysis.hasExportDefault,
+          arguments: analysis.arguments,
+          fileType: analysis.fileType,
+          hasTypeAnnotations: analysis.hasTypeAnnotations,
+          complexity: analysis.complexity,
+          exportType: analysis.exportType,
+          functionName: analysis.functionName || null,
+          parameterCount: analysis.parameterCount,
+          hasGenerics: analysis.hasGenerics,
+          hasUnionTypes: analysis.hasUnionTypes,
+          hasIntersectionTypes: analysis.hasIntersectionTypes,
+          hasDestructuring: analysis.hasDestructuring,
+          hasRestParameters: analysis.hasRestParameters,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           lastModified: serverTimestamp(),
         });
 
-        const newFile: JSFile = {
+        const newFile: TSFile = {
           id: fileRef.id,
           name: fileData.name,
           content: fileData.content,
@@ -287,6 +352,19 @@ export class FirebaseFunctionService {
           folderId: fileData.folderId,
           createdAt: new Date(),
           updatedAt: new Date(),
+          hasExportDefault: analysis.hasExportDefault,
+          arguments: analysis.arguments,
+          fileType: analysis.fileType,
+          hasTypeAnnotations: analysis.hasTypeAnnotations,
+          complexity: analysis.complexity,
+          exportType: analysis.exportType,
+          functionName: analysis.functionName || null,
+          parameterCount: analysis.parameterCount,
+          hasGenerics: analysis.hasGenerics,
+          hasUnionTypes: analysis.hasUnionTypes,
+          hasIntersectionTypes: analysis.hasIntersectionTypes,
+          hasDestructuring: analysis.hasDestructuring,
+          hasRestParameters: analysis.hasRestParameters,
         };
 
         return newFile;
@@ -299,15 +377,40 @@ export class FirebaseFunctionService {
     // Update file
     async update(
       id: string,
-      updates: Partial<Omit<JSFile, "id" | "createdAt">>
-    ): Promise<JSFile | null> {
+      updates: Partial<Omit<TSFile, "id" | "createdAt">>
+    ): Promise<TSFile | null> {
       try {
+        // If content is being updated, parse it for comprehensive analysis
+        let analysis = null;
+        if (updates.content) {
+          analysis = parseTSContent(updates.content);
+        }
+
         const fileRef = doc(db, COLLECTIONS.FILES, id);
-        await updateDoc(fileRef, {
+        const updateData: any = {
           ...updates,
           updatedAt: serverTimestamp(),
           lastModified: serverTimestamp(),
-        });
+        };
+
+        // Add parsed content data if content was updated
+        if (analysis) {
+          updateData.hasExportDefault = analysis.hasExportDefault;
+          updateData.arguments = analysis.arguments;
+          updateData.fileType = analysis.fileType;
+          updateData.hasTypeAnnotations = analysis.hasTypeAnnotations;
+          updateData.complexity = analysis.complexity;
+          updateData.exportType = analysis.exportType;
+          updateData.functionName = analysis.functionName || null;
+          updateData.parameterCount = analysis.parameterCount;
+          updateData.hasGenerics = analysis.hasGenerics;
+          updateData.hasUnionTypes = analysis.hasUnionTypes;
+          updateData.hasIntersectionTypes = analysis.hasIntersectionTypes;
+          updateData.hasDestructuring = analysis.hasDestructuring;
+          updateData.hasRestParameters = analysis.hasRestParameters;
+        }
+
+        await updateDoc(fileRef, updateData);
 
         // Return updated file
         const updatedDoc = await getDoc(fileRef);
@@ -324,11 +427,27 @@ export class FirebaseFunctionService {
     },
 
     // Update file content
-    async updateContent(id: string, content: string): Promise<JSFile | null> {
+    async updateContent(id: string, content: string): Promise<TSFile | null> {
       try {
+        // Parse the TS content using AST for comprehensive analysis
+        const analysis = parseTSContent(content);
+
         const fileRef = doc(db, COLLECTIONS.FILES, id);
         await updateDoc(fileRef, {
           content,
+          hasExportDefault: analysis.hasExportDefault,
+          arguments: analysis.arguments,
+          fileType: analysis.fileType,
+          hasTypeAnnotations: analysis.hasTypeAnnotations,
+          complexity: analysis.complexity,
+          exportType: analysis.exportType,
+          functionName: analysis.functionName || null,
+          parameterCount: analysis.parameterCount,
+          hasGenerics: analysis.hasGenerics,
+          hasUnionTypes: analysis.hasUnionTypes,
+          hasIntersectionTypes: analysis.hasIntersectionTypes,
+          hasDestructuring: analysis.hasDestructuring,
+          hasRestParameters: analysis.hasRestParameters,
           updatedAt: serverTimestamp(),
           lastModified: serverTimestamp(),
         });
@@ -397,7 +516,7 @@ export class FirebaseFunctionService {
     },
 
     // Search files by name
-    async search(searchQuery: string): Promise<JSFile[]> {
+    async search(searchQuery: string): Promise<TSFile[]> {
       try {
         // Note: Firestore doesn't support full-text search natively
         // This is a simple prefix search implementation
@@ -420,10 +539,46 @@ export class FirebaseFunctionService {
         throw new Error("Failed to search files");
       }
     },
+
+    // Get files by complexity
+    async getByComplexity(
+      complexity: "simple" | "moderate" | "complex"
+    ): Promise<TSFile[]> {
+      try {
+        const q = query(
+          collection(db, COLLECTIONS.FILES),
+          where("complexity", "==", complexity),
+          orderBy("lastModified", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(convertFileDoc);
+      } catch (error) {
+        console.error("Error fetching files by complexity:", error);
+        throw new Error("Failed to fetch files by complexity");
+      }
+    },
+
+    // Get files by file type
+    async getByFileType(
+      fileType: "typescript" | "javascript"
+    ): Promise<TSFile[]> {
+      try {
+        const q = query(
+          collection(db, COLLECTIONS.FILES),
+          where("fileType", "==", fileType),
+          orderBy("lastModified", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(convertFileDoc);
+      } catch (error) {
+        console.error("Error fetching files by type:", error);
+        throw new Error("Failed to fetch files by type");
+      }
+    },
   };
 
   // Real-time listeners for live updates
-  subscribeToFolders(callback: (folders: JSFolder[]) => void) {
+  subscribeToFolders(callback: (folders: TSFolder[]) => void) {
     const q = query(
       collection(db, COLLECTIONS.FOLDERS),
       orderBy("createdAt", "desc")
@@ -435,7 +590,7 @@ export class FirebaseFunctionService {
     });
   }
 
-  subscribeToFiles(callback: (files: JSFile[]) => void) {
+  subscribeToFiles(callback: (files: TSFile[]) => void) {
     const q = query(
       collection(db, COLLECTIONS.FILES),
       orderBy("lastModified", "desc")
@@ -449,7 +604,7 @@ export class FirebaseFunctionService {
 
   subscribeToFilesByFolder(
     folderId: string,
-    callback: (files: JSFile[]) => void
+    callback: (files: TSFile[]) => void
   ) {
     const q = query(
       collection(db, COLLECTIONS.FILES),
@@ -465,7 +620,11 @@ export class FirebaseFunctionService {
 }
 
 // Export singleton instance
-export const firebaseFunctionService = new FirebaseFunctionService();
+export const typescriptFunctionService = new TypeScriptFunctionService();
+
+// Legacy aliases for backward compatibility
+export const firebaseFunctionService = typescriptFunctionService;
+export const jsFunctionService = typescriptFunctionService;
 
 // Export default for backward compatibility
-export default firebaseFunctionService;
+export default typescriptFunctionService;
