@@ -8,27 +8,39 @@ export type ColumnType =
   | "email"
   | "currency";
 
-export interface JSFunction {
+export interface FunctionArgument {
+  name: string;
+  type: string;
+  hasDefault: boolean;
+  isOptional: boolean;
+  isRest: boolean;
+  complexity?: string;
+  content?: string;
+}
+
+export interface TypeScriptFunction {
   id: string;
   name: string;
-  parameters: string[];
-  description?: string;
-  filePath: string;
+  functionName: string;
+  fileType: string;
+  exportType: string;
+  parameterCount: number;
+  arguments: FunctionArgument[];
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  lastModified: Date;
 }
 
 export interface SheetColumn {
   id: string;
   columnName: string; // Human-readable column name
-  dataType: ColumnType;
-  function?: JSFunction; // Only when dataType is "function"
-  parameters?: any[]; // Parameters for the function
-  includeInForms: boolean; // Whether to include in forms
+  dataType: ColumnType; // The data type of the column
+  function?: string; // ID of the TypeScript function (only for function type)
+  arguments?: FunctionArgument[]; // Arguments for the function (only for function type)
+  includeInForms: boolean; // Whether to include this column in forms
 
-  // Legacy fields for backward compatibility
-  name: string; // Keep for existing code
-  type: ColumnType; // Keep for existing code
-
-  // Column behavior and styling
+  // Display and behavior properties
   width?: number;
   minWidth?: number;
   maxWidth?: number;
@@ -63,6 +75,7 @@ export interface ColumnSettingsModalProps {
   onClose: () => void;
   onSave: (column: SheetColumn) => void;
   onDelete?: (columnId: string) => void;
+  availableFunctions?: TypeScriptFunction[]; // Available TS functions
 }
 
 export interface AddColumnModalProps {
@@ -70,4 +83,5 @@ export interface AddColumnModalProps {
   onClose: () => void;
   onAdd: (column: Omit<SheetColumn, "id">) => void;
   existingColumns: SheetColumn[];
+  availableFunctions?: TypeScriptFunction[]; // Available TS functions
 }

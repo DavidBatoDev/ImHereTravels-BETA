@@ -149,18 +149,17 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
       const newColumn = {
         ...column,
         order: maxOrder + 1,
-        // Ensure legacy fields are set for backward compatibility
-        name: column.columnName || column.name,
-        type: column.dataType || column.type,
       };
 
       const docRef = await addDoc(collection(db, COLLECTION_NAME), newColumn);
-      console.log(`✅ Created column: ${newColumn.name} with ID: ${docRef.id}`);
+      console.log(
+        `✅ Created column: ${column.columnName} with ID: ${docRef.id}`
+      );
 
       // Sync the new column to all existing bookings
       await this.syncColumnToAllBookings(
         docRef.id,
-        this.getDefaultValueForType(newColumn.type)
+        this.getDefaultValueForType(column.dataType)
       );
 
       return docRef.id;
@@ -370,10 +369,9 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
       bookingsSnapshot.docs.forEach((doc) => {
         const data = doc.data();
         if (!(columnId in data)) {
-          const dataType = column.dataType || column.type;
           batch.update(doc.ref, {
             [columnId]:
-              defaultValue ?? this.getDefaultValueForType(dataType),
+              defaultValue ?? this.getDefaultValueForType(column.dataType),
           });
           updatedCount++;
         }
@@ -438,16 +436,12 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
   } {
     const errors: string[] = [];
 
-    // Check for column name (either new or legacy)
-    const columnName = column.columnName || column.name;
-    if (!columnName || columnName.trim().length === 0) {
+    if (!column.columnName || column.columnName.trim().length === 0) {
       errors.push("Column name is required");
     }
 
-    // Check for data type (either new or legacy)
-    const dataType = column.dataType || column.type;
     if (
-      !dataType ||
+      !column.dataType ||
       ![
         "string",
         "number",
@@ -457,24 +451,13 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
         "email",
         "currency",
         "function",
-      ].includes(dataType)
+      ].includes(column.dataType)
     ) {
       errors.push("Valid column type is required");
     }
 
-    // Function-specific validation
-    if (dataType === "function") {
-      if (!column.function) {
-        errors.push("Function columns must have a selected JS function");
-      }
-      // Auto-set includeInForms to false for functions
-      if (column.includeInForms !== false) {
-        column.includeInForms = false;
-      }
-    }
-
     if (
-      dataType === "select" &&
+      column.dataType === "select" &&
       (!column.options || column.options.length === 0)
     ) {
       errors.push("Select columns must have options");

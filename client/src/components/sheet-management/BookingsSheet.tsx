@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -11,6 +11,7 @@ import {
   ColumnDef,
   SortingState,
   ColumnFiltersState,
+  VisibilityState,
 } from "@tanstack/react-table";
 import {
   Card,
@@ -28,7 +29,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -37,9 +45,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Settings, Plus, Filter, Search } from "lucide-react";
-import { SheetColumn, SheetData } from "@/types/sheet-management";
+import {
+  Settings,
+  Plus,
+  Eye,
+  EyeOff,
+  GripVertical,
+  Filter,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  MoreHorizontal,
+} from "lucide-react";
+import {
+  SheetColumn,
+  SheetData,
+  TypeScriptFunction,
+} from "@/types/sheet-management";
 import { useSheetManagement } from "@/hooks/use-sheet-management";
+import { typescriptFunctionsService } from "@/services/typescript-functions-service";
 import { demoBookingData } from "@/lib/demo-booking-data";
 import ColumnSettingsModal from "./ColumnSettingsModal";
 import AddColumnModal from "./AddColumnModal";
@@ -58,6 +82,7 @@ export default function BookingsSheet() {
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = useState("");
   const [editingCell, setEditingCell] = useState<{
     rowId: string;
@@ -71,6 +96,27 @@ export default function BookingsSheet() {
     column: SheetColumn | null;
   }>({ isOpen: false, column: null });
   const [addColumnModal, setAddColumnModal] = useState(false);
+  const [availableFunctions, setAvailableFunctions] = useState<
+    TypeScriptFunction[]
+  >([]);
+  const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
+
+  // Fetch TypeScript functions
+  useEffect(() => {
+    const fetchFunctions = async () => {
+      setIsLoadingFunctions(true);
+      try {
+        const functions = await typescriptFunctionsService.getAllFunctions();
+        setAvailableFunctions(functions);
+      } catch (error) {
+        console.error("Failed to fetch TypeScript functions:", error);
+      } finally {
+        setIsLoadingFunctions(false);
+      }
+    };
+
+    fetchFunctions();
+  }, []);
 
   // Initialize with demo data
   useMemo(() => {
@@ -84,7 +130,7 @@ export default function BookingsSheet() {
     return columns
       .sort((a, b) => a.order - b.order)
       .map((col) => ({
-        id: col.id,
+        id: col.id || `col-${col.order}`, // Ensure unique ID for table
         header: () => (
           <div
             className="flex items-center justify-between group h-12 w-full bg-royal-purple/10 text-royal-purple px-3 py-2 rounded"
@@ -94,8 +140,8 @@ export default function BookingsSheet() {
             }}
           >
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <span className="font-medium truncate" title={col.name}>
-                {col.name}
+              <span className="font-medium truncate" title={col.columnName}>
+                {col.columnName}
               </span>
             </div>
             <Button
@@ -108,25 +154,40 @@ export default function BookingsSheet() {
             </Button>
           </div>
         ),
-        accessorKey: col.id,
+        accessorKey: col.id || `col-${col.order}`,
         cell: ({ row, column }) => {
           const value = row.getValue(column.id);
-          const columnDef = columns.find((c) => c.id === column.id);
+          const columnDef = columns.find(
+            (c) =>
+              c.id === column.id ||
+              c.order === parseInt(column.id.replace("col-", ""))
+          );
 
           if (!columnDef) return null;
 
           if (
-            editingCell?.rowId === row.id &&
-            editingCell?.columnId === column.id
+            (editingCell?.rowId === row.id &&
+              editingCell?.columnId === column.id) ||
+            editingCell?.columnId === `col-${columnDef.order}`
           ) {
             return (
               <Input
                 value={editingValue}
                 onChange={(e) => setEditingValue(e.target.value)}
-                onBlur={() => handleCellEdit(row.id, column.id, editingValue)}
+                onBlur={() =>
+                  handleCellEdit(
+                    row.id,
+                    columnDef.id || `col-${columnDef.order}`,
+                    editingValue
+                  )
+                }
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    handleCellEdit(row.id, column.id, editingValue);
+                    handleCellEdit(
+                      row.id,
+                      columnDef.id || `col-${columnDef.order}`,
+                      editingValue
+                    );
                   } else if (e.key === "Escape") {
                     setEditingCell(null);
                   }
@@ -145,7 +206,10 @@ export default function BookingsSheet() {
                 maxWidth: `${columnDef.width || 150}px`,
               }}
               onClick={() => {
-                setEditingCell({ rowId: row.id, columnId: column.id });
+                setEditingCell({
+                  rowId: row.id,
+                  columnId: columnDef.id || `col-${columnDef.order}`,
+                });
                 setEditingValue(value?.toString() || "");
               }}
             >
@@ -170,10 +234,12 @@ export default function BookingsSheet() {
     state: {
       sorting,
       columnFilters,
+      columnVisibility,
       globalFilter,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -189,7 +255,10 @@ export default function BookingsSheet() {
   const renderCellValue = (value: any, column: SheetColumn) => {
     if (value === null || value === undefined) return "-";
 
-    switch (column.type) {
+    const dataType = column.dataType;
+    const columnId = column.id;
+
+    switch (dataType) {
       case "boolean":
         return value ? "Yes" : "No";
       case "date":
@@ -199,7 +268,7 @@ export default function BookingsSheet() {
       case "select":
         return value;
       case "function":
-        return column.id === "delete" ? (
+        return columnId === "delete" ? (
           <Button
             variant="destructive"
             size="sm"
@@ -234,6 +303,13 @@ export default function BookingsSheet() {
 
   const handleAddColumn = (newColumn: Omit<SheetColumn, "id">) => {
     addColumn(newColumn);
+  };
+
+  const toggleColumnVisibility = (columnId: string) => {
+    setColumnVisibility((prev) => ({
+      ...prev,
+      [columnId]: !prev[columnId],
+    }));
   };
 
   return (
@@ -300,11 +376,43 @@ export default function BookingsSheet() {
                 ))}
               </SelectContent>
             </Select>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-grey">
-                {columns.length} columns
-              </span>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                >
+                  <Eye className="h-4 w-4" />
+                  Columns
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {table.getAllLeafColumns().map((column) => {
+                  return (
+                    <DropdownMenuItem
+                      key={column.id}
+                      className="capitalize"
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={column.getIsVisible()}
+                          onChange={column.getToggleVisibilityHandler()}
+                          className="rounded"
+                        />
+                        <span>
+                          {column.id.replace("col-", "Column ") || column.id}
+                        </span>
+                      </div>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>
@@ -331,7 +439,11 @@ export default function BookingsSheet() {
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id} className="bg-light-grey/30">
                     {headerGroup.headers.map((header) => {
-                      const columnDef = columns.find((c) => c.id === header.id);
+                      const columnDef = columns.find(
+                        (c) =>
+                          c.id === header.id ||
+                          c.order === parseInt(header.id.replace("col-", ""))
+                      );
                       return (
                         <TableHead
                           key={header.id}
@@ -371,7 +483,10 @@ export default function BookingsSheet() {
                     >
                       {row.getVisibleCells().map((cell) => {
                         const columnDef = columns.find(
-                          (c) => c.id === cell.column.id
+                          (c) =>
+                            c.id === cell.column.id ||
+                            c.order ===
+                              parseInt(cell.column.id.replace("col-", ""))
                         );
                         return (
                           <TableCell
@@ -478,7 +593,7 @@ export default function BookingsSheet() {
                   disabled={!table.getCanPreviousPage()}
                 >
                   <span className="sr-only">Go to first page</span>
-                  <span className="text-xs font-bold">1</span>
+                  <ChevronUp className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
@@ -487,7 +602,7 @@ export default function BookingsSheet() {
                   disabled={!table.getCanPreviousPage()}
                 >
                   <span className="sr-only">Go to previous page</span>
-                  <span className="text-xs font-bold">‹</span>
+                  <ChevronDown className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
@@ -496,7 +611,7 @@ export default function BookingsSheet() {
                   disabled={!table.getCanNextPage()}
                 >
                   <span className="sr-only">Go to next page</span>
-                  <span className="text-xs font-bold">›</span>
+                  <ChevronUp className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
@@ -505,7 +620,7 @@ export default function BookingsSheet() {
                   disabled={!table.getCanNextPage()}
                 >
                   <span className="sr-only">Go to last page</span>
-                  <span className="text-xs font-bold">∞</span>
+                  <ChevronDown className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -520,6 +635,7 @@ export default function BookingsSheet() {
         onClose={() => setColumnSettingsModal({ isOpen: false, column: null })}
         onSave={handleColumnSave}
         onDelete={handleColumnDelete}
+        availableFunctions={availableFunctions}
       />
 
       <AddColumnModal
@@ -527,6 +643,7 @@ export default function BookingsSheet() {
         onClose={() => setAddColumnModal(false)}
         onAdd={handleAddColumn}
         existingColumns={columns}
+        availableFunctions={availableFunctions}
       />
     </div>
   );

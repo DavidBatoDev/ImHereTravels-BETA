@@ -21,9 +21,12 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { SheetColumn, ColumnType, JSFunction } from "@/types/sheet-management";
-import { jsFunctionsService } from "@/services/js-functions-service";
-import { Trash2, Settings, Code, AlertTriangle } from "lucide-react";
+import {
+  SheetColumn,
+  ColumnType,
+  TypeScriptFunction,
+} from "@/types/sheet-management";
+import { Trash2, Settings } from "lucide-react";
 
 interface ColumnSettingsModalProps {
   column: SheetColumn | null;
@@ -31,6 +34,7 @@ interface ColumnSettingsModalProps {
   onClose: () => void;
   onSave: (column: SheetColumn) => void;
   onDelete?: (columnId: string) => void;
+  availableFunctions?: TypeScriptFunction[];
 }
 
 const columnTypes: { value: ColumnType; label: string }[] = [
@@ -50,11 +54,10 @@ export default function ColumnSettingsModal({
   onClose,
   onSave,
   onDelete,
+  availableFunctions = [],
 }: ColumnSettingsModalProps) {
   const [formData, setFormData] = useState<Partial<SheetColumn>>({});
   const [optionsText, setOptionsText] = useState("");
-  const [jsFunctions, setJsFunctions] = useState<JSFunction[]>([]);
-  const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
 
   useEffect(() => {
     if (column) {
@@ -66,60 +69,21 @@ export default function ColumnSettingsModal({
     }
   }, [column]);
 
-  // Load JS functions when editing a function column
-  useEffect(() => {
-    if (isOpen && formData.dataType === "function") {
-      loadJSFunctions();
-    }
-  }, [isOpen, formData.dataType]);
-
-  const loadJSFunctions = async () => {
-    setIsLoadingFunctions(true);
-    try {
-      const functions = await jsFunctionsService.getAllFunctions();
-      setJsFunctions(functions);
-    } catch (error) {
-      console.error("Failed to load JS functions:", error);
-    } finally {
-      setIsLoadingFunctions(false);
-    }
-  };
-
   const handleInputChange = (field: keyof SheetColumn, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-
-    // Auto-set includeInForms to false when dataType is function
-    if (field === "dataType" && value === "function") {
-      setFormData((prev) => ({ ...prev, includeInForms: false }));
-    }
-  };
-
-  const handleFunctionChange = (functionId: string) => {
-    const selectedFunction = jsFunctions.find((f) => f.id === functionId);
-    setFormData((prev) => ({
-      ...prev,
-      function: selectedFunction || undefined,
-      parameters: selectedFunction
-        ? new Array(selectedFunction.parameters.length).fill("")
-        : [],
-    }));
-  };
-
-  const handleParameterChange = (index: number, value: any) => {
-    const newParameters = [...(formData.parameters || [])];
-    newParameters[index] = value;
-    setFormData((prev) => ({ ...prev, parameters: newParameters }));
   };
 
   const handleSave = () => {
     if (!formData.columnName || !formData.dataType) return;
 
+    // For function columns, automatically set includeInForms to false
+    if (formData.dataType === "function") {
+      formData.includeInForms = false;
+    }
+
     const updatedColumn: SheetColumn = {
       ...column!,
       ...formData,
-      // Ensure legacy fields are updated
-      name: formData.columnName || column!.name,
-      type: formData.dataType || column!.type,
       options:
         formData.dataType === "select"
           ? optionsText
@@ -142,29 +106,27 @@ export default function ColumnSettingsModal({
 
   const isFormValid = formData.columnName && formData.dataType;
 
-  if (!column) return null;
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            Edit Column: {column.columnName || column.name}
+            {column ? `Edit Column: ${column.columnName}` : "Add New Column"}
           </DialogTitle>
           <DialogDescription>
-            Modify column settings and configuration
+            Configure the column properties and behavior
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Basic Column Information */}
+          {/* Basic Settings */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="columnName">Column Name *</Label>
               <Input
                 id="columnName"
-                value={formData.columnName || column.columnName || column.name}
+                value={formData.columnName || ""}
                 onChange={(e) =>
                   handleInputChange("columnName", e.target.value)
                 }
@@ -174,13 +136,13 @@ export default function ColumnSettingsModal({
             <div className="space-y-2">
               <Label htmlFor="dataType">Data Type *</Label>
               <Select
-                value={formData.dataType || column.dataType || column.type}
+                value={formData.dataType || ""}
                 onValueChange={(value: ColumnType) =>
                   handleInputChange("dataType", value)
                 }
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select data type" />
                 </SelectTrigger>
                 <SelectContent>
                   {columnTypes.map((type) => (
@@ -193,89 +155,8 @@ export default function ColumnSettingsModal({
             </div>
           </div>
 
-          {/* Function Configuration (only when dataType is function) */}
-          {(formData.dataType === "function" ||
-            column.dataType === "function" ||
-            column.type === "function") && (
-            <div className="space-y-4 p-4 border border-royal-purple/20 rounded-lg bg-royal-purple/5">
-              <div className="flex items-center gap-2">
-                <Code className="h-5 w-5 text-royal-purple" />
-                <Label className="text-lg font-semibold">
-                  Function Configuration
-                </Label>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="function">Select JS Function *</Label>
-                  <Select
-                    value={formData.function?.id || column.function?.id || ""}
-                    onValueChange={handleFunctionChange}
-                    disabled={isLoadingFunctions}
-                  >
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={
-                          isLoadingFunctions
-                            ? "Loading functions..."
-                            : "Select a function"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {jsFunctions.map((func) => (
-                        <SelectItem key={func.id} value={func.id}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{func.name}</span>
-                            <span className="text-sm text-gray-500">
-                              {func.parameters.length} parameter(s) •{" "}
-                              {func.filePath}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {(formData.function || column.function) && (
-                    <p className="text-sm text-gray-600">
-                      Function: {(formData.function || column.function)?.name}{" "}
-                      from {(formData.function || column.function)?.filePath}
-                    </p>
-                  )}
-                </div>
-
-                {/* Parameters */}
-                {(formData.function || column.function) &&
-                  (formData.function || column.function)?.parameters.length >
-                    0 && (
-                    <div className="space-y-2">
-                      <Label>Function Parameters</Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {(formData.function || column.function)?.parameters.map(
-                          (param, index) => (
-                            <div key={index} className="space-y-1">
-                              <Label className="text-sm">{param}</Label>
-                              <Input
-                                value={formData.parameters?.[index] || ""}
-                                onChange={(e) =>
-                                  handleParameterChange(index, e.target.value)
-                                }
-                                placeholder={`Value for ${param}`}
-                              />
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )}
-              </div>
-            </div>
-          )}
-
           {/* Select Options */}
-          {(formData.dataType === "select" ||
-            column.dataType === "select" ||
-            column.type === "select") && (
+          {formData.dataType === "select" && (
             <div className="space-y-2">
               <Label htmlFor="options">Dropdown Options</Label>
               <Textarea
@@ -291,137 +172,187 @@ export default function ColumnSettingsModal({
             </div>
           )}
 
-          {/* Default Value */}
-          {formData.dataType !== "function" &&
-            column.dataType !== "function" &&
-            column.type !== "function" && (
-              <div className="space-y-2">
-                <Label htmlFor="defaultValue">Default Value</Label>
-                {formData.dataType === "boolean" ||
-                column.dataType === "boolean" ||
-                column.type === "boolean" ? (
-                  <Select
-                    value={formData.defaultValue?.toString() || ""}
-                    onValueChange={(value) =>
-                      handleInputChange("defaultValue", value === "true")
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select default value" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="true">Yes</SelectItem>
-                      <SelectItem value="false">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : formData.dataType === "date" ||
-                  column.dataType === "date" ||
-                  column.type === "date" ? (
-                  <Input
-                    id="defaultValue"
-                    type="date"
-                    value={formData.defaultValue || ""}
-                    onChange={(e) =>
-                      handleInputChange("defaultValue", e.target.value)
-                    }
-                  />
-                ) : (
-                  <Input
-                    id="defaultValue"
-                    value={formData.defaultValue || ""}
-                    onChange={(e) =>
-                      handleInputChange("defaultValue", e.target.value)
-                    }
-                    placeholder="Enter default value"
-                  />
-                )}
-              </div>
-            )}
-
-          {/* Column Settings */}
-          <div className="space-y-4 p-4 border border-royal-purple/20 rounded-lg bg-royal-purple/5">
-            <div className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-royal-purple" />
-              <Label className="text-lg font-semibold">Column Settings</Label>
+          {/* Function Selection */}
+          {formData.dataType === "function" && (
+            <div className="space-y-2">
+              <Label htmlFor="function">TypeScript Function *</Label>
+              <Select
+                value={formData.function || ""}
+                onValueChange={(value) => handleInputChange("function", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a TypeScript function" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableFunctions.map((func) => (
+                    <SelectItem key={func.id} value={func.id}>
+                      {func.functionName} ({func.parameterCount} params)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formData.function && (
+                <div className="text-sm text-gray-500">
+                  Function:{" "}
+                  {
+                    availableFunctions.find((f) => f.id === formData.function)
+                      ?.functionName
+                  }
+                  <br />
+                  Parameters:{" "}
+                  {availableFunctions
+                    .find((f) => f.id === formData.function)
+                    ?.arguments?.map((arg) => `${arg.name}: ${arg.type}`)
+                    .join(", ")}
+                </div>
+              )}
             </div>
+          )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="width">Column Width (px)</Label>
+          {/* Include In Forms Toggle */}
+          {formData.dataType !== "function" && (
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="includeInForms">Include in Forms</Label>
+                <p className="text-sm text-gray-500">
+                  Show this column in booking forms
+                </p>
+              </div>
+              <Switch
+                id="includeInForms"
+                checked={formData.includeInForms ?? true}
+                onCheckedChange={(checked) =>
+                  handleInputChange("includeInForms", checked)
+                }
+              />
+            </div>
+          )}
+
+          {/* Default Value */}
+          {formData.dataType !== "function" && (
+            <div className="space-y-2">
+              <Label htmlFor="defaultValue">Default Value</Label>
+              {formData.dataType === "boolean" ? (
+                <Select
+                  value={formData.defaultValue?.toString() || ""}
+                  onValueChange={(value) =>
+                    handleInputChange("defaultValue", value === "true")
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select default value" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Yes</SelectItem>
+                    <SelectItem value="false">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : formData.dataType === "date" ? (
                 <Input
-                  id="width"
-                  type="number"
-                  min="50"
-                  max="500"
-                  value={formData.width || column.width || 150}
+                  id="defaultValue"
+                  type="date"
+                  value={formData.defaultValue || ""}
                   onChange={(e) =>
-                    handleInputChange("width", parseInt(e.target.value) || 150)
+                    handleInputChange("defaultValue", e.target.value)
                   }
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="includeInForms">Include in Forms</Label>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="includeInForms"
-                    checked={
-                      formData.includeInForms ?? column.includeInForms ?? true
-                    }
-                    onCheckedChange={(checked) =>
-                      handleInputChange("includeInForms", checked)
-                    }
-                    disabled={
-                      column.dataType === "function" ||
-                      column.type === "function"
-                    }
-                  />
-                  <Label htmlFor="includeInForms">
-                    {column.dataType === "function" ||
-                    column.type === "function"
-                      ? "Always false for functions"
-                      : "Show in form inputs"}
-                  </Label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Warning for function columns */}
-          {(column.dataType === "function" || column.type === "function") && (
-            <div className="p-4 border border-amber-200 bg-amber-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-600" />
-                <Label className="text-amber-800 font-medium">
-                  Function Column Notice
-                </Label>
-              </div>
-              <p className="text-sm text-amber-700 mt-2">
-                This column contains a JavaScript function. Function columns
-                automatically have "Include in Forms" set to false and cannot be
-                edited in regular forms.
-              </p>
+              ) : (
+                <Input
+                  id="defaultValue"
+                  value={formData.defaultValue || ""}
+                  onChange={(e) =>
+                    handleInputChange("defaultValue", e.target.value)
+                  }
+                  placeholder="Enter default value"
+                />
+              )}
             </div>
           )}
+
+          {/* Validation */}
+          {(formData.dataType === "number" ||
+            formData.dataType === "string") && (
+            <div className="space-y-4">
+              <Label>Validation Rules</Label>
+              <div className="grid grid-cols-2 gap-4">
+                {formData.dataType === "number" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="min">Minimum Value</Label>
+                      <Input
+                        id="min"
+                        type="number"
+                        value={formData.validation?.min || ""}
+                        onChange={(e) =>
+                          handleInputChange("validation", {
+                            ...formData.validation,
+                            min: parseFloat(e.target.value) || undefined,
+                          })
+                        }
+                        placeholder="No minimum"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="max">Maximum Value</Label>
+                      <Input
+                        id="max"
+                        type="number"
+                        value={formData.validation?.max || ""}
+                        onChange={(e) =>
+                          handleInputChange("validation", {
+                            ...formData.validation,
+                            max: parseFloat(e.target.value) || undefined,
+                          })
+                        }
+                        placeholder="No maximum"
+                      />
+                    </div>
+                  </>
+                )}
+                {formData.dataType === "string" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="pattern">Pattern (Regex)</Label>
+                    <Input
+                      id="pattern"
+                      value={formData.validation?.pattern || ""}
+                      onChange={(e) =>
+                        handleInputChange("validation", {
+                          ...formData.validation,
+                          pattern: e.target.value || undefined,
+                        })
+                      }
+                      placeholder="e.g., ^[A-Za-z]+$"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Behavior Settings */}
         </div>
 
-        <DialogFooter>
-          {onDelete && (
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              className="mr-auto"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Column
+        <DialogFooter className="flex justify-between">
+          <div className="flex gap-2">
+            {column && onDelete && (
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Column
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
             </Button>
-          )}
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={!isFormValid}>
-            Save Changes
-          </Button>
+            <Button onClick={handleSave} disabled={!isFormValid}>
+              Save Changes
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

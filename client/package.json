@@ -18,6 +18,9 @@
     "migrate:010": "tsx migrations/migrate.ts 010",
     "migrate:012": "tsx migrations/migrate.ts 012",
     "migrate:013": "tsx migrations/migrate.ts 013",
+    "migrate:014": "tsx migrations/migrate.ts 014",
+    "migrate:015": "tsx migrations/migrate.ts 015",
+    "migrate:016": "tsx migrations/migrate.ts 016",
     "migrate:dry-run": "tsx migrations/migrate.ts dry-run",
     "migrate:dry-run002": "tsx migrations/migrate.ts dry-run002",
     "migrate:dry-run003": "tsx migrations/migrate.ts dry-run003",
@@ -29,6 +32,9 @@
     "migrate:dry-run010": "tsx migrations/migrate.ts dry-run010",
     "migrate:dry-run012": "tsx migrations/migrate.ts dry-run012",
     "migrate:dry-run013": "tsx migrations/migrate.ts dry-run013",
+    "migrate:dry-run014": "tsx migrations/migrate.ts dry-run014",
+    "migrate:dry-run015": "tsx migrations/migrate.ts dry-run015",
+    "migrate:dry-run016": "tsx migrations/migrate.ts dry-run016",
     "migrate:rollback": "tsx migrations/migrate.ts rollback",
     "migrate:rollback002": "tsx migrations/migrate.ts rollback002",
     "migrate:rollback003": "tsx migrations/migrate.ts rollback003",
@@ -40,6 +46,9 @@
     "migrate:rollback010": "tsx migrations/migrate.ts rollback010",
     "migrate:rollback012": "tsx migrations/migrate.ts rollback012",
     "migrate:rollback013": "tsx migrations/migrate.ts rollback013",
+    "migrate:rollback014": "tsx migrations/migrate.ts rollback014",
+    "migrate:rollback015": "tsx migrations/migrate.ts rollback015",
+    "migrate:rollback016": "tsx migrations/migrate.ts rollback016",
     "migrate:help": "tsx migrations/migrate.ts help"
   },
   "dependencies": {
@@ -101,7 +110,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@types/node": "^20.19.11",
+    "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",
@@ -110,6 +119,6 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
-    "typescript": "^5.9.2"
+    "typescript": "^5"
   }
 }
