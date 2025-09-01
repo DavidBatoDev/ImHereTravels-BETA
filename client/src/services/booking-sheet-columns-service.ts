@@ -185,11 +185,14 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
 
   async getColumn(columnId: string): Promise<SheetColumn | null> {
     try {
-      const docRef = doc(db, COLLECTION_NAME, columnId);
-      const docSnap = await getDoc(docRef);
+      // Column "id" is the logical field (e.g., returnDate), not necessarily the Firestore document id.
+      // We need to find the document where field "id" == columnId.
+      const qSnap = await getDocs(query(collection(db, COLLECTION_NAME), where("id", "==", columnId)));
+      const docSnap = qSnap.docs[0];
 
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as SheetColumn;
+      if (docSnap && docSnap.exists()) {
+        const data = docSnap.data() as SheetColumn;
+        return { ...data, docId: docSnap.id } as SheetColumn;
       }
 
       return null;
@@ -209,10 +212,10 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
         query(collection(db, COLLECTION_NAME), orderBy("order", "asc"))
       );
 
-      return querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as SheetColumn[];
+      return querySnapshot.docs.map((doc) => {
+        const data = doc.data() as SheetColumn;
+        return { ...data, docId: doc.id } as SheetColumn;
+      });
     } catch (error) {
       console.error(
         `❌ Failed to get all columns: ${
@@ -234,7 +237,7 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
       }
 
       // Validate updates
-      const existingColumn = await this.getColumn(columnId);
+  const existingColumn = await this.getColumn(columnId);
       if (!existingColumn) {
         throw new Error(`Column not found: ${columnId}`);
       }
@@ -253,8 +256,9 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
         }
       });
 
-      console.log(`🔍 Updating column ${columnId} with data:`, cleanUpdates);
-      const docRef = doc(db, COLLECTION_NAME, columnId);
+  console.log(`🔍 Updating column ${columnId} with data:`, cleanUpdates);
+  const targetId = existingColumn.docId ?? columnId;
+  const docRef = doc(db, COLLECTION_NAME, targetId);
       await updateDoc(docRef, cleanUpdates);
       console.log(`✅ Updated column: ${columnId}`);
     } catch (error) {
@@ -274,11 +278,14 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
         throw new Error(`Cannot delete default column: ${columnId}`);
       }
 
-      // Remove the column from all existing bookings
-      await this.removeColumnFromAllBookings(columnId);
+  // Remove the column from all existing bookings
+  await this.removeColumnFromAllBookings(columnId);
 
-      // Delete the column definition
-      const docRef = doc(db, COLLECTION_NAME, columnId);
+  // Delete the column definition
+  const existingColumn = await this.getColumn(columnId);
+  if (!existingColumn) throw new Error(`Column not found: ${columnId}`);
+  const targetId = existingColumn.docId ?? columnId;
+  const docRef = doc(db, COLLECTION_NAME, targetId);
       await deleteDoc(docRef);
       console.log(`✅ Deleted column: ${columnId}`);
     } catch (error) {
@@ -308,9 +315,16 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
   async reorderColumns(columnIds: string[]): Promise<void> {
     try {
       const batch = writeBatch(db);
+      // columnIds are logical ids; fetch docIds map first
+      const all = await this.getAllColumns();
+      const idToDocId = new Map<string, string>();
+      all.forEach((c) => {
+        if (c.id && c.docId) idToDocId.set(c.id, c.docId);
+      });
 
       columnIds.forEach((columnId, index) => {
-        const docRef = doc(db, COLLECTION_NAME, columnId);
+        const docId = idToDocId.get(columnId) ?? columnId;
+        const docRef = doc(db, COLLECTION_NAME, docId);
         batch.update(docRef, { order: index + 1 });
       });
 

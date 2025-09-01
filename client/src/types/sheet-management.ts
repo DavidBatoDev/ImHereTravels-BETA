@@ -36,6 +36,7 @@ export interface TypeScriptFunction {
 
 export interface SheetColumn {
   id: string;
+  docId?: string; // Firestore document ID (for metadata ops like reordering)
   columnName: string; // Human-readable column name
   dataType: ColumnType; // The data type of the column
   function?: string; // ID of the TypeScript function (only for function type)
