@@ -231,10 +231,7 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
     updates: Partial<SheetColumn>
   ): Promise<void> {
     try {
-      // Check if it's a default column
-      if (this.isDefaultColumn(columnId)) {
-        throw new Error(`Cannot modify default column: ${columnId}`);
-      }
+  // Temporarily allow updates to default columns (requested)
 
       // Validate updates
   const existingColumn = await this.getColumn(columnId);
