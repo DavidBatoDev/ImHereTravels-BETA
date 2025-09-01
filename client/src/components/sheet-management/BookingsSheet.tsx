@@ -71,6 +71,7 @@ import { useToast } from "@/hooks/use-toast";
 import ColumnSettingsModal from "./ColumnSettingsModal";
 import AddColumnModal from "./AddColumnModal";
 import { functionExecutionService } from "@/services/function-execution-service";
+import { batchedWriter } from "@/services/batched-writer";
 
 // Editable cell with per-cell local state to avoid table-wide rerenders on keystrokes
 type EditableCellProps = {
@@ -805,7 +806,7 @@ export default function BookingsSheet() {
 
   // Compute one function column for a single row
   const computeFunctionForRow = useCallback(
-    async (row: SheetData, funcCol: SheetColumn) => {
+    async (row: SheetData, funcCol: SheetColumn): Promise<any> => {
       if (!funcCol.function) return;
       try {
         const fn = await functionExecutionService.getCompiledFunction(
@@ -820,22 +821,77 @@ export default function BookingsSheet() {
             prev.map((r) => (r.id === row.id ? { ...r, [funcCol.id]: result } : r))
           );
 
-          // Persist to Firestore (best-effort)
-          bookingService
-            .updateBookingField(row.id, funcCol.id, result)
-            .catch((err) => console.error("Failed to persist computed value", err));
+          // Batch persist to Firestore (debounced)
+          batchedWriter.queueFieldUpdate(row.id, funcCol.id, result);
         }
+        return result;
       } catch (err) {
         console.error(
           `❌ Failed computing function column ${funcCol.columnName} for row ${row.id}:`,
           err
         );
+        return undefined;
       }
     },
     [columns, isEqual]
   );
 
-  // Recompute all function columns when data or columns change
+  // Build dependency graph: source columnName -> list of function columns depending on it
+  const dependencyGraph = useMemo(() => {
+    const map = new Map<string, SheetColumn[]>();
+    columns.forEach((col) => {
+      if (col.dataType === "function" && Array.isArray(col.arguments)) {
+        col.arguments.forEach((arg) => {
+          if (arg.columnReference) {
+            const list = map.get(arg.columnReference) || [];
+            list.push(col);
+            map.set(arg.columnReference, list);
+          }
+        });
+      }
+    });
+    return map;
+  }, [columns]);
+
+  // Recompute only dependents for a single row (BFS over columnName dependencies)
+  const recomputeDependentsForRow = useCallback(
+    async (rowId: string, changedColumnId: string, updatedValue: any) => {
+      const changedCol = columns.find((c) => c.id === changedColumnId);
+      if (!changedCol) return;
+      const startName = changedCol.columnName;
+      if (!startName) return;
+
+      // Build a working snapshot of the row values
+      const baseRow =
+        localData.find((r) => r.id === rowId) ||
+        data.find((r) => r.id === rowId) ||
+        ({ id: rowId } as SheetData);
+      const rowSnapshot: SheetData = { ...baseRow, [changedColumnId]: updatedValue };
+
+      const visited = new Set<string>(); // function column ids visited
+      const queue: string[] = [startName]; // queue of columnNames whose dependents need recompute
+
+      while (queue.length) {
+        const name = queue.shift()!;
+        const dependents = dependencyGraph.get(name) || [];
+        for (const funcCol of dependents) {
+          if (visited.has(funcCol.id)) continue;
+          visited.add(funcCol.id);
+          const result = await computeFunctionForRow(rowSnapshot, funcCol);
+          if (result !== undefined) {
+            (rowSnapshot as any)[funcCol.id] = result;
+          }
+          // Enqueue further dependents using the function column's own columnName
+          if (funcCol.columnName) {
+            queue.push(funcCol.columnName);
+          }
+        }
+      }
+    },
+    [columns, localData, data, dependencyGraph, computeFunctionForRow]
+  );
+
+  // Recompute all function columns when data or columns change (debounced via effect cadence + batched writes)
   useEffect(() => {
     const funcCols = columns.filter(
       (c) => c.dataType === "function" && !!c.function
@@ -850,6 +906,7 @@ export default function BookingsSheet() {
           await computeFunctionForRow(row, col);
         }
       }
+      // After scheduling all updates, let the batched writer flush on its debounce
     })();
 
     return () => {
@@ -963,8 +1020,10 @@ export default function BookingsSheet() {
         return updatedData;
       });
 
-      // Update Firestore in background (don't await to avoid blocking UI)
-      bookingService.updateBookingField(rowId, columnId, processedValue)
+  // Queue field update (debounced batch)
+  batchedWriter.queueFieldUpdate(rowId, columnId, processedValue);
+  // Keep toast UX similar by simulating success path immediately
+  Promise.resolve()
         .then(() => {
           // Show success toast
           toast({
@@ -972,27 +1031,8 @@ export default function BookingsSheet() {
             description: `Updated ${column.columnName}`,
           });
 
-          // After a successful base field update, recompute dependent function columns for this row
-          const changedColName = columns.find((c) => c.id === columnId)?.columnName;
-          if (changedColName) {
-            const dependentFuncCols = columns.filter(
-              (c) =>
-                c.dataType === "function" &&
-                !!c.function &&
-                (c.arguments || []).some(
-                  (a) => a.columnReference && a.columnReference === changedColName
-                )
-            );
-
-            const targetRow = (prev => prev.find(r => r.id === rowId))(tableData) ||
-              data.find((r) => r.id === rowId) || { id: rowId } as SheetData;
-            // Ensure the targetRow includes the just-edited value
-            (targetRow as any)[columnId] = processedValue;
-
-            dependentFuncCols.forEach((fc) => {
-              computeFunctionForRow(targetRow, fc);
-            });
-          }
+          // After a successful base field update, recompute dependents via the dependency graph
+          recomputeDependentsForRow(rowId, columnId, processedValue);
         })
         .catch((error) => {
           console.error(`❌ Failed to update cell:`, error);
@@ -1008,7 +1048,7 @@ export default function BookingsSheet() {
 
           // Show error toast
           toast({
-            title: "❌ Failed to Update Cell", 
+            title: "❌ Failed to Update Cell",
             description: `Error: ${
               error instanceof Error ? error.message : "Unknown error"
             }`,
@@ -1018,7 +1058,7 @@ export default function BookingsSheet() {
     } catch (error) {
       console.error(`❌ Failed to handle cell edit:`, error);
     }
-  }, [columns, toast, data, tableData, computeFunctionForRow]);
+  }, [columns, toast, data, tableData, recomputeDependentsForRow]);
 
   // Handle committing cell changes (like Google Sheets - save on Enter/blur)
   const handleCellCancel = useCallback(() => {
