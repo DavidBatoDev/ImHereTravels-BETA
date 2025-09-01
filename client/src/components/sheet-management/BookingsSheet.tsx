@@ -298,9 +298,14 @@ export default function BookingsSheet() {
     const rowNumberColumn: ColumnDef<SheetData> = {
       id: "rowNumber",
       header: () => (
-        <div className="flex items-center justify-center h-12 w-16 bg-royal-purple/10 text-royal-purple px-2 py-2 rounded">
-          <span className="font-medium text-xs">#</span>
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center justify-center h-12 w-16 bg-royal-purple/10 text-royal-purple px-2 py-2 rounded">
+              <span className="font-medium text-xs">#</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>Row</TooltipContent>
+        </Tooltip>
       ),
       accessorKey: "rowNumber",
       cell: ({ row }) => {
@@ -335,31 +340,36 @@ export default function BookingsSheet() {
       .map((col) => ({
         id: col.id, // Use exact column ID
         header: () => (
-          <div
-            className={`flex items-center justify-between group h-12 w-full px-3 py-2 rounded transition-all duration-200 ${
-              editingCell?.columnId === col.id
-                ? "bg-royal-purple/30 border border-royal-purple/50 shadow-sm"
-                : "bg-royal-purple/10"
-            } text-royal-purple`}
-            style={{
-              minWidth: `${col.width || 150}px`,
-              maxWidth: `${col.width || 150}px`,
-            }}
-          >
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <span className="font-medium truncate" title={col.columnName}>
-                {col.columnName}
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-royal-purple hover:bg-royal-purple/20 flex-shrink-0"
-              onClick={() => openColumnSettings(col)}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className={`flex items-center justify-between group h-12 w-full px-3 py-2 rounded transition-all duration-200 ${
+                  editingCell?.columnId === col.id
+                    ? "bg-royal-purple/30 border border-royal-purple/50 shadow-sm"
+                    : "bg-royal-purple/10"
+                } text-royal-purple`}
+                style={{
+                  minWidth: `${col.width || 150}px`,
+                  maxWidth: `${col.width || 150}px`,
+                }}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="font-medium truncate" title={col.columnName}>
+                    {col.columnName}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-royal-purple hover:bg-royal-purple/20 flex-shrink-0"
+                  onClick={() => openColumnSettings(col)}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>{col.columnName}</TooltipContent>
+          </Tooltip>
         ),
         accessorKey: col.id, // Use exact column ID
         cell: ({ row, column }) => {
