@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -71,6 +71,106 @@ import { useToast } from "@/hooks/use-toast";
 import ColumnSettingsModal from "./ColumnSettingsModal";
 import AddColumnModal from "./AddColumnModal";
 
+// Editable cell with per-cell local state to avoid table-wide rerenders on keystrokes
+type EditableCellProps = {
+  rowId: string;
+  columnId: string;
+  columnDef: SheetColumn;
+  value: any;
+  onCommit: (value: string) => void;
+  onCancel: () => void;
+};
+
+const EditableCell = memo(function EditableCell({
+  rowId,
+  columnId,
+  columnDef,
+  value,
+  onCommit,
+  onCancel,
+}: EditableCellProps) {
+  // Format initial value based on type (date, etc.)
+  const getInitial = useCallback(() => {
+    if (columnDef.dataType === "date") {
+      try {
+        let date: Date | null = null;
+        if (
+          value &&
+          typeof value === "object" &&
+          "toDate" in value &&
+          typeof (value as any).toDate === "function"
+        ) {
+          date = (value as any).toDate();
+        } else if (
+          value &&
+          typeof value === "object" &&
+          "seconds" in value &&
+          typeof (value as any).seconds === "number"
+        ) {
+          date = new Date((value as any).seconds * 1000);
+        } else if (value) {
+          date = new Date(value as string | number | Date);
+        }
+        if (date && !isNaN(date.getTime())) return date.toISOString().split("T")[0];
+      } catch {
+        // ignore
+      }
+      return "";
+    }
+    return value?.toString?.() ?? "";
+  }, [columnDef.dataType, value]);
+
+  const [local, setLocal] = useState<string>(getInitial);
+
+  // Keep local when row/col switches
+  useEffect(() => {
+    setLocal(getInitial());
+  }, [getInitial, rowId, columnId]);
+
+  const commit = useCallback(() => {
+    onCommit(local);
+  }, [local, onCommit]);
+
+  const cancel = useCallback(() => {
+    onCancel();
+  }, [onCancel]);
+
+  if (columnDef.dataType === "date") {
+    return (
+      <div className="relative editing-cell">
+        <Input
+          type="date"
+          value={local}
+          onChange={(e) => setLocal(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            else if (e.key === "Escape") cancel();
+          }}
+          autoFocus
+          className="h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative editing-cell">
+      <Input
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          else if (e.key === "Escape") cancel();
+        }}
+        autoFocus
+        className="h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+      />
+    </div>
+  );
+});
+
 export default function BookingsSheet() {
   const { toast } = useToast();
   const {
@@ -92,21 +192,10 @@ export default function BookingsSheet() {
     rowId: string;
     columnId: string;
   } | null>(null);
-  const [editingValue, setEditingValue] = useState("");
-  const [updatingCell, setUpdatingCell] = useState<{
-    rowId: string;
-    columnId: string;
-  } | null>(null);
+  // Remove global editing value to avoid table-wide rerenders
 
-  // Performance optimization: Debounced editing
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Local state for optimistic updates (prevents re-renders)
   const [localData, setLocalData] = useState<SheetData[]>([]);
-  const [pendingUpdates, setPendingUpdates] = useState<Map<string, any>>(
-    new Map()
-  );
-
-  // Force re-render state
-  const [forceUpdate, setForceUpdate] = useState(0);
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -121,7 +210,6 @@ export default function BookingsSheet() {
     const handleClickOutside = (event: MouseEvent) => {
       if (editingCell && !(event.target as Element).closest(".editing-cell")) {
         setEditingCell(null);
-        setEditingValue("");
       }
     };
 
@@ -176,42 +264,28 @@ export default function BookingsSheet() {
   //   }
   // }, [data.length, updateData]);
 
-  // Use localData for better performance (immediate UI updates)
+  // Use local data for optimistic updates, fallback to hook data
   const tableData = localData.length > 0 ? localData : data;
 
-  // Sync local data with hook data for performance optimization
+  // Initialize and sync local data with hook data
   useEffect(() => {
     setLocalData(data);
   }, [data]);
 
-  // Cleanup debounce timeout on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
+      // Cleanup function
     };
   }, []);
 
-  // Debug: Monitor data changes
+  // Monitor data changes (simplified for performance)
   useEffect(() => {
-    console.log(`📊 Data changed: ${data.length} rows`);
-    console.log(
-      `📊 Data order from Firestore:`,
-      data.map((row) => row.id).join(", ")
-    );
-    data.forEach((row, index) => {
-      console.log(
-        `  Row ${index}: ID=${row.id}, Keys=${Object.keys(row).join(", ")}`
-      );
-      // Log specific values for debugging
-      Object.keys(row).forEach((key) => {
-        if (key !== "id" && key !== "createdAt" && key !== "updatedAt") {
-          console.log(`    ${key}: ${row[key]} (type: ${typeof row[key]})`);
-        }
-      });
-    });
-  }, [data]);
+    // Only log when data length changes significantly
+    if (data.length > 0) {
+      console.log(`📊 BookingSheet loaded with ${data.length} rows`);
+    }
+  }, [data.length]);
 
   // Create table columns from sheet columns
   const tableColumns = useMemo<ColumnDef<SheetData>[]>(() => {
@@ -280,13 +354,6 @@ export default function BookingsSheet() {
         accessorKey: col.id, // Use exact column ID
         cell: ({ row, column }) => {
           const value = row.getValue(column.id);
-          console.log(
-            `🔍 Cell render: Row ${row.id}, Column ${column.id}, Value:`,
-            value,
-            `(type: ${typeof value}, isNull: ${value === null}, isUndefined: ${
-              value === undefined
-            })`
-          );
           const columnDef = columns.find((c) => c.id === column.id);
 
           if (!columnDef) return null;
@@ -295,69 +362,16 @@ export default function BookingsSheet() {
             editingCell?.rowId === row.id &&
             editingCell?.columnId === column.id
           ) {
-            const isUpdating =
-              updatingCell?.rowId === row.id &&
-              updatingCell?.columnId === column.id;
-
-            // Show date picker for date columns
-            if (columnDef.dataType === "date") {
-              return (
-                <div className="relative editing-cell">
-                  <Input
-                    type="date"
-                    value={editingValue}
-                    onChange={(e) => setEditingValue(e.target.value)}
-                    onBlur={() =>
-                      handleCellEdit(row.id, column.id, editingValue)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleCellEdit(row.id, column.id, editingValue);
-                      } else if (e.key === "Escape") {
-                        setEditingCell(null);
-                      }
-                    }}
-                    autoFocus
-                    disabled={isUpdating}
-                    className={`h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 ${
-                      isUpdating ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
-                  />
-                  {isUpdating && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                      <div className="w-4 h-4 border-2 border-royal-purple border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            // Show regular input for other column types
+            // Render memoized per-cell editor
             return (
-              <div className="relative editing-cell">
-                <Input
-                  value={editingValue}
-                  onChange={(e) => setEditingValue(e.target.value)}
-                  onBlur={() => handleCellEdit(row.id, column.id, editingValue)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleCellEdit(row.id, column.id, editingValue);
-                    } else if (e.key === "Escape") {
-                      setEditingCell(null);
-                    }
-                  }}
-                  autoFocus
-                  disabled={isUpdating}
-                  className={`h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 ${
-                    isUpdating ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                />
-                {isUpdating && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                    <div className="w-4 h-4 border-2 border-royal-purple border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                )}
-              </div>
+              <EditableCell
+                rowId={row.id}
+                columnId={column.id}
+                columnDef={columnDef}
+                value={value}
+                onCommit={(val) => handleCellEdit(row.id, column.id, val)}
+                onCancel={handleCellCancel}
+              />
             );
           }
 
@@ -399,25 +413,15 @@ export default function BookingsSheet() {
                     aria-label={`${columnDef.columnName}: ${
                       value ? "Yes" : "No"
                     }`}
-                    disabled={
-                      updatingCell?.rowId === row.id &&
-                      updatingCell?.columnId === column.id
-                    }
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        if (
-                          !updatingCell ||
-                          updatingCell.rowId !== row.id ||
-                          updatingCell.columnId !== column.id
-                        ) {
-                          const newValue = !value;
-                          handleCellEdit(
-                            row.id,
-                            column.id,
-                            newValue.toString()
-                          );
-                        }
+                        const newValue = !value;
+                        handleCellEdit(
+                          row.id,
+                          column.id,
+                          newValue.toString()
+                        );
                       }
                     }}
                   />
@@ -431,17 +435,6 @@ export default function BookingsSheet() {
                     {value ? "Yes" : "No"}
                   </span>
                 </div>
-                {/* Show pending update indicator */}
-                {pendingUpdates.has(`${row.id}.${column.id}`) && (
-                  <div className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                )}
-                {/* Show updating indicator */}
-                {updatingCell?.rowId === row.id &&
-                  updatingCell?.columnId === column.id && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded">
-                      <div className="w-4 h-4 border-2 border-royal-purple border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  )}
               </div>
             );
           }
@@ -454,9 +447,6 @@ export default function BookingsSheet() {
                   editingCell?.rowId === row.id &&
                   editingCell?.columnId === column.id
                     ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                    : updatingCell?.rowId === row.id &&
-                      updatingCell?.columnId === column.id
-                    ? "bg-gray-50"
                     : value
                     ? "bg-royal-purple/5 hover:bg-royal-purple/10"
                     : "hover:bg-royal-purple/5"
@@ -479,17 +469,10 @@ export default function BookingsSheet() {
                         // Update the cell value directly when selection changes
                         handleCellEdit(row.id, column.id, newValue);
                       }}
-                      disabled={
-                        updatingCell?.rowId === row.id &&
-                        updatingCell?.columnId === column.id
-                      }
                     >
                       <SelectTrigger
                         className={`h-8 border-royal-purple/20 focus:border-royal-purple text-sm transition-colors duration-200 focus:ring-2 focus:ring-royal-purple/20 ${
-                          updatingCell?.rowId === row.id &&
-                          updatingCell?.columnId === column.id
-                            ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed opacity-50"
-                            : value
+                          value
                             ? "bg-royal-purple/5 border-royal-purple/40 text-royal-purple font-medium"
                             : "bg-white hover:bg-royal-purple/5 text-gray-500"
                         }`}
@@ -497,10 +480,7 @@ export default function BookingsSheet() {
                         <SelectValue
                           placeholder="Select option"
                           className={
-                            updatingCell?.rowId === row.id &&
-                            updatingCell?.columnId === column.id
-                              ? "text-gray-400"
-                              : !value
+                            !value
                               ? "text-gray-400"
                               : "text-royal-purple"
                           }
@@ -528,17 +508,6 @@ export default function BookingsSheet() {
                     </div>
                   )}
                 </div>
-                {/* Show pending update indicator */}
-                {pendingUpdates.has(`${row.id}.${column.id}`) && (
-                  <div className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                )}
-                {/* Show updating indicator */}
-                {updatingCell?.rowId === row.id &&
-                  updatingCell?.columnId === column.id && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded">
-                      <div className="w-4 h-4 border-2 border-royal-purple border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  )}
               </div>
             );
           }
@@ -634,20 +603,12 @@ export default function BookingsSheet() {
                     onClick={(e) => {
                       // Ensure the date picker popover can appear
                       e.stopPropagation();
-                      console.log(
-                        "🔍 Date input clicked, attempting to show picker..."
-                      );
 
                       // Try multiple approaches to show the date picker
                       if (e.currentTarget.showPicker) {
-                        console.log("🔍 Using showPicker() method");
                         try {
                           e.currentTarget.showPicker();
                         } catch (error) {
-                          console.log(
-                            "🔍 showPicker failed, using fallback:",
-                            error
-                          );
                           // Fallback: ensure the input is focused and try to trigger the date picker
                           e.currentTarget.focus();
                           // Small delay to ensure focus is set
@@ -656,9 +617,6 @@ export default function BookingsSheet() {
                           }, 10);
                         }
                       } else {
-                        console.log(
-                          "🔍 showPicker not available, using fallback"
-                        );
                         // Fallback: ensure the input is focused and try to trigger the date picker
                         e.currentTarget.focus();
                         // Small delay to ensure focus is set
@@ -722,17 +680,6 @@ export default function BookingsSheet() {
                     </svg>
                   </div> */}
                 </div>
-                {/* Show pending update indicator */}
-                {pendingUpdates.has(`${row.id}.${column.id}`) && (
-                  <div className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                )}
-                {/* Show updating indicator */}
-                {updatingCell?.rowId === row.id &&
-                  updatingCell?.columnId === column.id && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded">
-                      <div className="w-4 h-4 border-2 border-royal-purple border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  )}
               </div>
             );
           }
@@ -750,50 +697,7 @@ export default function BookingsSheet() {
                 minWidth: `${columnDef.width || 150}px`,
                 maxWidth: `${columnDef.width || 150}px`,
               }}
-              onClick={() => {
-                setEditingCell({
-                  rowId: row.id,
-                  columnId: column.id, // Use the actual column.id from the table
-                });
-
-                // Format date for date picker input
-                if (columnDef.dataType === "date" && value) {
-                  try {
-                    let date: Date;
-
-                    // Check if it's a Firestore Timestamp
-                    if (
-                      value &&
-                      typeof value === "object" &&
-                      "toDate" in value &&
-                      typeof (value as any).toDate === "function"
-                    ) {
-                      date = (value as any).toDate();
-                    } else if (
-                      value &&
-                      typeof value === "object" &&
-                      "seconds" in value &&
-                      typeof (value as any).seconds === "number"
-                    ) {
-                      // Handle Firestore Timestamp with seconds
-                      date = new Date((value as any).seconds * 1000);
-                    } else {
-                      // Handle string dates or other formats
-                      date = new Date(value as string | number | Date);
-                    }
-
-                    if (!isNaN(date.getTime())) {
-                      setEditingValue(date.toISOString().split("T")[0]);
-                    } else {
-                      setEditingValue("");
-                    }
-                  } catch {
-                    setEditingValue("");
-                  }
-                } else {
-                  setEditingValue(value?.toString() || "");
-                }
-              }}
+              onClick={() => handleCellClick(row.id, column.id)}
             >
               <div
                 className="w-full truncate text-sm"
@@ -801,10 +705,6 @@ export default function BookingsSheet() {
               >
                 {renderCellValue(value, columnDef)}
               </div>
-              {/* Show pending update indicator */}
-              {pendingUpdates.has(`${row.id}.${column.id}`) && (
-                <div className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-              )}
             </div>
           );
         },
@@ -815,7 +715,7 @@ export default function BookingsSheet() {
 
     // Return row number column + data columns
     return [rowNumberColumn, ...dataColumns];
-  }, [columns, editingCell, editingValue, tableData, forceUpdate]);
+  }, [columns, editingCell]);
 
   const table = useReactTable({
     data: tableData,
@@ -843,7 +743,7 @@ export default function BookingsSheet() {
     },
   });
 
-  const renderCellValue = (value: any, column: SheetColumn) => {
+  const renderCellValue = useCallback((value: any, column: SheetColumn) => {
     if (value === null || value === undefined || value === "") return "-";
 
     const dataType = column.dataType;
@@ -906,110 +806,93 @@ export default function BookingsSheet() {
       default:
         return value.toString();
     }
-  };
+  }, []);
 
-  const handleCellEdit = async (
+  const handleCellEdit = useCallback(async (
     rowId: string,
     columnId: string,
     value: string
   ) => {
     try {
-      // Clear any existing debounce timeout
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
+      // Find the column to determine data type
+      const column = columns.find((col) => col.id === columnId);
+      if (!column) {
+        console.error(`❌ Column not found: ${columnId}`);
+        return;
       }
 
-      // Update local state immediately for instant UI feedback
-      const updatedLocalData = localData.map((row) =>
-        row.id === rowId ? { ...row, [columnId]: value } : row
-      );
-      setLocalData(updatedLocalData);
+      // Process the value based on column data type
+      let processedValue: any = value;
+      switch (column.dataType) {
+        case "number":
+        case "currency":
+          processedValue = parseFloat(value) || 0;
+          break;
+        case "boolean":
+          processedValue = value === "true" || value === "1";
+          break;
+        case "date":
+          processedValue = value ? new Date(value) : null;
+          break;
+        default:
+          processedValue = value;
+      }
 
-      // Add to pending updates
-      const updateKey = `${rowId}.${columnId}`;
-      setPendingUpdates((prev) => new Map(prev.set(updateKey, value)));
+      // 🚀 OPTIMISTIC UPDATE: Update local state immediately for instant UI feedback
+      setLocalData(prevData => {
+        const updatedData = prevData.map(row => 
+          row.id === rowId 
+            ? { ...row, [columnId]: processedValue }
+            : row
+        );
+        console.log(`🚀 Optimistic update: ${rowId}.${columnId} = ${processedValue}`);
+        return updatedData;
+      });
 
-      // Debounce the Firestore update
-      debounceTimeoutRef.current = setTimeout(async () => {
-        try {
-          setUpdatingCell({ rowId, columnId });
-
-          // Find the column to determine data type
-          const column = columns.find((col) => col.id === columnId);
-          if (!column) {
-            console.error(`❌ Column not found: ${columnId}`);
-            return;
-          }
-
-          // Process the value based on column data type
-          let processedValue: any = value;
-          switch (column.dataType) {
-            case "number":
-            case "currency":
-              processedValue = parseFloat(value) || 0;
-              break;
-            case "boolean":
-              processedValue = value === "true" || value === "1";
-              break;
-            case "date":
-              processedValue = value ? new Date(value) : null;
-              break;
-            default:
-              processedValue = value;
-          }
-
-          console.log(`📊 Processed value:`, processedValue);
-
-          // Update Firestore
-          await bookingService.updateBookingField(
-            rowId,
-            columnId,
-            processedValue
-          );
-          console.log(`✅ Firestore updated successfully`);
-
-          // Remove from pending updates
-          setPendingUpdates((prev) => {
-            const newMap = new Map(prev);
-            newMap.delete(updateKey);
-            return newMap;
-          });
-
+      // Update Firestore in background (don't await to avoid blocking UI)
+      bookingService.updateBookingField(rowId, columnId, processedValue)
+        .then(() => {
           // Show success toast
           toast({
-            title: "✅ Cell Updated Successfully",
-            description: `Updated ${column.columnName} in row ${rowId}`,
+            title: "✅ Cell Updated",
+            description: `Updated ${column.columnName}`,
           });
-        } catch (error) {
+        })
+        .catch((error) => {
           console.error(`❌ Failed to update cell:`, error);
-
-          // Remove from pending updates on error
-          setPendingUpdates((prev) => {
-            const newMap = new Map(prev);
-            newMap.delete(updateKey);
-            return newMap;
-          });
+          
+          // Revert optimistic update on error
+          setLocalData(prevData => 
+            prevData.map(row => 
+              row.id === rowId 
+                ? { ...row, [columnId]: data.find(d => d.id === rowId)?.[columnId] }
+                : row
+            )
+          );
 
           // Show error toast
           toast({
-            title: "❌ Failed to Update Cell",
+            title: "❌ Failed to Update Cell", 
             description: `Error: ${
               error instanceof Error ? error.message : "Unknown error"
             }`,
             variant: "destructive",
           });
-        } finally {
-          setUpdatingCell(null);
-        }
-      }, 500); // 500ms debounce delay
-
-      // Clear editing state immediately for better UX
-      setEditingCell(null);
-      setEditingValue("");
+        });
     } catch (error) {
       console.error(`❌ Failed to handle cell edit:`, error);
     }
-  };
+  }, [columns, toast, data]);
+
+  // Handle committing cell changes (like Google Sheets - save on Enter/blur)
+  const handleCellCancel = useCallback(() => {
+    setEditingCell(null);
+  }, []);
+
+  // Memoized cell click handler to prevent re-renders
+  const handleCellClick = useCallback((rowId: string, columnId: string) => {
+    setEditingCell({ rowId, columnId });
+  }, []);
 
   const openColumnSettings = (column: SheetColumn) => {
     setColumnSettingsModal({ isOpen: true, column });
@@ -1276,13 +1159,6 @@ export default function BookingsSheet() {
               `(${
                 10 - table.getFilteredRowModel().rows.length
               } empty rows for layout)`}
-            {pendingUpdates.size > 0 && (
-              <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse mr-1"></span>
-                {pendingUpdates.size} pending update
-                {pendingUpdates.size !== 1 ? "s" : ""}
-              </span>
-            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -1356,10 +1232,6 @@ export default function BookingsSheet() {
                       return aId - bId;
                     })
                     .map(({ row, index }) => {
-                      // Debug: log the actual row order
-                      console.log(
-                        `📋 Rendering row: ID=${row.id}, Display Index=${index}, Firestore ID=${row.id}`
-                      );
                       return (
                         <TableRow
                           key={`row-${row.id}`}
