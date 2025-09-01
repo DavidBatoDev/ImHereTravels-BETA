@@ -922,6 +922,14 @@ export default function BookingsSheet() {
             list.push(col);
             map.set(arg.columnReference, list);
           }
+          if (Array.isArray(arg.columnReferences)) {
+            arg.columnReferences.forEach((ref) => {
+              if (!ref) return;
+              const list = map.get(ref) || [];
+              list.push(col);
+              map.set(ref, list);
+            });
+          }
         });
       }
     });

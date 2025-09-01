@@ -54,8 +54,19 @@ class FunctionExecutionService {
     const argsMeta = column.arguments || [];
 
     return argsMeta.map((arg) => {
+      const t = (arg.type || "").toLowerCase();
+
+      // If multiple column references are supplied (array-like param)
+      if (Array.isArray(arg.columnReferences) && arg.columnReferences.length) {
+        const values = arg.columnReferences.map((refName) => {
+          const refCol = allColumns.find((c) => c.columnName === refName);
+          return refCol ? row[refCol.id] : undefined;
+        });
+        return values;
+      }
+
+      // Single column reference
       if (arg.columnReference !== undefined && arg.columnReference !== "") {
-        // Map columnReference (stored as columnName) to the column id and get the value from row
         const refCol = allColumns.find(
           (c) => c.columnName === arg.columnReference
         );
@@ -65,8 +76,20 @@ class FunctionExecutionService {
 
       // Literal value provided
       if (arg.value !== undefined) {
+        // If user passed array in UI it can already be string[]
+        if (Array.isArray(arg.value)) return arg.value;
+
+        // Comma-separated for array-like params
+        if (t.includes("[]") || t === "{}" || t.includes("array") || t.includes("string[]")) {
+          if (typeof arg.value === "string") {
+            return arg.value
+              .split(",")
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0);
+          }
+        }
+
         // Basic coercion based on declared arg.type
-        const t = (arg.type || "").toLowerCase();
         if (t.includes("number")) return Number(arg.value);
         if (t.includes("boolean")) return String(arg.value) === "true";
         return arg.value as any;

@@ -28,8 +28,12 @@ export interface FunctionArgument {
   isRest: boolean;
   complexity?: string;
   content?: string;
-  value?: string; // User input value for the argument
-  columnReference?: string; // Reference to another column (e.g., "A1", "B2", or column name)
+  // User-provided value for the argument. For array-like params (e.g., type "{}"), this can be a string[]
+  value?: string | string[];
+  // Single column reference (for scalar params)
+  columnReference?: string;
+  // Multiple column references (for array-like params)
+  columnReferences?: string[];
 }
 
 export interface TypeScriptFunction {

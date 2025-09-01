@@ -25,6 +25,7 @@ import {
   SheetColumn,
   ColumnType,
   TypeScriptFunction,
+  FunctionArgument,
 } from "@/types/sheet-management";
 import { Trash2, Settings } from "lucide-react";
 
@@ -83,6 +84,22 @@ export default function ColumnSettingsModal({
       formData.includeInForms = false;
     }
 
+    // Clean args
+    const cleanArgs = Array.isArray(formData.arguments)
+      ? (formData.arguments as any[]).map((arg) => {
+          const copy: any = { ...arg };
+          Object.keys(copy).forEach((k) => {
+            if (copy[k] === undefined) delete copy[k];
+          });
+          if (copy.columnReference === "") delete copy.columnReference;
+          if (Array.isArray(copy.columnReferences)) {
+            copy.columnReferences = copy.columnReferences.filter((x: string) => !!x);
+            if (copy.columnReferences.length === 0) delete copy.columnReferences;
+          }
+          return copy;
+        })
+      : undefined;
+
     const updatedColumn: SheetColumn = {
       ...column!,
       ...formData,
@@ -93,6 +110,7 @@ export default function ColumnSettingsModal({
               .map((s) => s.trim())
               .filter(Boolean)
           : undefined,
+      ...(cleanArgs ? { arguments: cleanArgs as any } : {}),
     };
 
     onSave(updatedColumn);
@@ -107,6 +125,10 @@ export default function ColumnSettingsModal({
   };
 
   const isFormValid = formData.columnName && formData.dataType;
+
+  const selectedFunction = (formData.function
+    ? availableFunctions.find((f) => f.id === formData.function)
+    : undefined) as TypeScriptFunction | undefined;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -236,28 +258,25 @@ export default function ColumnSettingsModal({
                   ))}
                 </SelectContent>
               </Select>
-              {formData.function && (
+
+              {selectedFunction && (
                 <div className="space-y-4">
                   <div className="text-sm text-gray-500">
-                    Function:{" "}
-                    {
-                      availableFunctions.find((f) => f.id === formData.function)
-                        ?.functionName
-                    }
+                    Function: {selectedFunction.functionName}
                     <br />
-                    Parameters:{" "}
-                    {availableFunctions
-                      .find((f) => f.id === formData.function)
-                      ?.arguments?.map((arg) => `${arg.name}: ${arg.type}`)
-                      .join(", ")}
+                    Parameters: {selectedFunction.arguments?.map((a) => `${a.name}: ${a.type}`).join(", ")}
                   </div>
 
-                  {/* Function Arguments */}
                   <div className="space-y-3">
                     <Label>Function Arguments</Label>
-                    {availableFunctions
-                      .find((f) => f.id === formData.function)
-                      ?.arguments?.map((arg, index) => (
+                    {selectedFunction.arguments?.map((arg, index) => {
+                      const t = (arg.type || "").toLowerCase();
+                      const isArrayArg = t === "{}" || t.includes("[]") || t.includes("array");
+                      const argState: any = (formData.arguments || [])[index] || {};
+                      const usingRefs = isArrayArg
+                        ? argState.columnReferences !== undefined
+                        : argState.columnReference !== undefined;
+                      return (
                         <div key={index} className="space-y-2">
                           <Label htmlFor={`arg-${index}`} className="text-sm">
                             {arg.name} ({arg.type})
@@ -265,138 +284,212 @@ export default function ColumnSettingsModal({
                             {arg.isOptional && " - Optional"}
                           </Label>
 
-                          {/* Column Reference Selector */}
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               <Switch
                                 id={`use-column-ref-${index}`}
-                                checked={
-                                  !!formData.arguments?.[index]?.columnReference
-                                }
+                                checked={!!usingRefs}
                                 onCheckedChange={(checked) => {
-                                  const newArgs = [
-                                    ...(formData.arguments || []),
-                                  ];
-                                  newArgs[index] = {
-                                    ...newArgs[index],
+                                  const newArgs = [...(formData.arguments || [])];
+                                  const current = (newArgs[index] || {}) as any;
+                                  const base: any = {
+                                    ...current,
                                     name: arg.name,
                                     type: arg.type,
-                                    value: checked
-                                      ? ""
-                                      : newArgs[index]?.value || "",
-                                    columnReference: checked ? "" : undefined,
                                     hasDefault: arg.hasDefault,
                                     isOptional: arg.isOptional,
                                   };
+                                  if (checked) {
+                                    if (isArrayArg) {
+                                      base.columnReferences = [] as string[];
+                                      delete base.columnReference;
+                                      base.value = "";
+                                    } else {
+                                      base.columnReference = "" as string;
+                                      delete base.columnReferences;
+                                      base.value = "";
+                                    }
+                                  } else {
+                                    delete base.columnReference;
+                                    delete base.columnReferences;
+                                    base.value = "";
+                                  }
+                                  newArgs[index] = base;
                                   handleInputChange("arguments", newArgs);
                                 }}
                               />
-                              <Label
-                                htmlFor={`use-column-ref-${index}`}
-                                className="text-sm"
-                              >
-                                Use Column Reference
+                              <Label htmlFor={`use-column-ref-${index}`} className="text-sm">
+                                {isArrayArg ? "Use Column Reference(s)" : "Use Column Reference"}
                               </Label>
                             </div>
 
-                            {formData.arguments?.[index]?.columnReference !==
-                            undefined ? (
-                              // Column Reference Input
-                              <div className="space-y-2">
-                                <Label
-                                  htmlFor={`column-ref-${index}`}
-                                  className="text-xs text-gray-600"
-                                >
-                                  Select Column to Reference
-                                </Label>
-                                <Select
-                                  value={
-                                    formData.arguments?.[index]
-                                      ?.columnReference || ""
-                                  }
-                                  onValueChange={(value) => {
-                                    const newArgs = [
-                                      ...(formData.arguments || []),
-                                    ];
+                            {usingRefs ? (
+                              isArrayArg ? (
+                                <div className="space-y-2">
+                                  <Label className="text-xs text-gray-600">Add Columns to Reference</Label>
+                                  <Select
+                                    value=""
+                                    onValueChange={(value) => {
+                                      const newArgs = [...(formData.arguments || [])];
+                                      const current = (newArgs[index] || {}) as any;
+                                      const list = Array.isArray(current.columnReferences)
+                                        ? [...current.columnReferences]
+                                        : ([] as string[]);
+                                      if (!list.includes(value)) list.push(value);
+                                      newArgs[index] = {
+                                        ...current,
+                                        name: arg.name,
+                                        type: arg.type,
+                                        columnReferences: list,
+                                        value: "",
+                                        hasDefault: arg.hasDefault,
+                                        isOptional: arg.isOptional,
+                                      } as any;
+                                      handleInputChange("arguments", newArgs);
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Choose a column to add" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {existingColumns
+                                        .filter((c) => c.id !== column?.id)
+                                        .map((col) => (
+                                          <SelectItem key={col.id} value={col.columnName}>
+                                            <div className="flex items-center justify-between">
+                                              <span>{col.columnName}</span>
+                                              <span className="text-xs text-gray-500 ml-2">{col.dataType}</span>
+                                            </div>
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <div className="flex flex-wrap gap-2">
+                                    {(argState.columnReferences || []).map((ref: string, i: number) => (
+                                      <div
+                                        key={`${ref}-${i}`}
+                                        className="flex items-center gap-1 rounded border px-2 py-1 text-xs"
+                                      >
+                                        <span>{ref}</span>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-5 px-1 text-red-600"
+                                          onClick={() => {
+                                            const newArgs = [...(formData.arguments || [])];
+                                            const current = (newArgs[index] || {}) as any;
+                                            const list: string[] = [...(current.columnReferences || [])];
+                                            list.splice(i, 1);
+                                            newArgs[index] = {
+                                              ...current,
+                                              columnReferences: list,
+                                            } as any;
+                                            handleInputChange("arguments", newArgs);
+                                          }}
+                                              >
+                                                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                                <span className="sr-only">Remove reference</span>
+                                              </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <p className="text-xs text-blue-600">This argument will use the values from selected columns</p>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <Label htmlFor={`column-ref-${index}`} className="text-xs text-gray-600">
+                                    Select Column to Reference
+                                  </Label>
+                                  <Select
+                                    value={argState.columnReference || ""}
+                                    onValueChange={(value) => {
+                                      const newArgs = [...(formData.arguments || [])];
+                                      newArgs[index] = {
+                                        ...argState,
+                                        name: arg.name,
+                                        type: arg.type,
+                                        value: "",
+                                        columnReference: value,
+                                        hasDefault: arg.hasDefault,
+                                        isOptional: arg.isOptional,
+                                      } as any;
+                                      handleInputChange("arguments", newArgs);
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Choose a column to reference" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {existingColumns
+                                        .filter((c) => c.id !== column?.id)
+                                        .map((col) => (
+                                          <SelectItem key={col.id} value={col.columnName}>
+                                            <div className="flex items-center justify-between">
+                                              <span>{col.columnName}</span>
+                                              <span className="text-xs text-gray-500 ml-2">{col.dataType}</span>
+                                            </div>
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <p className="text-xs text-blue-600">This argument will use the value from the selected column</p>
+                                </div>
+                              )
+                            ) : isArrayArg ? (
+                              <div className="space-y-1">
+                                <Textarea
+                                  id={`arg-${index}`}
+                                  value={(argState.value as string) || ""}
+                                  onChange={(e) => {
+                                    const newArgs = [...(formData.arguments || [])];
                                     newArgs[index] = {
-                                      ...newArgs[index],
+                                      ...argState,
                                       name: arg.name,
                                       type: arg.type,
-                                      value: "",
-                                      columnReference: value,
+                                      value: e.target.value,
+                                      columnReferences: undefined,
+                                      columnReference: undefined,
                                       hasDefault: arg.hasDefault,
                                       isOptional: arg.isOptional,
-                                    };
+                                    } as any;
                                     handleInputChange("arguments", newArgs);
                                   }}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Choose a column to reference" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {existingColumns
-                                      .filter((col) => col.id !== column?.id) // Exclude current column being edited
-                                      .map((col) => (
-                                        <SelectItem
-                                          key={col.id}
-                                          value={col.columnName}
-                                        >
-                                          <div className="flex items-center justify-between">
-                                            <span>{col.columnName}</span>
-                                            <span className="text-xs text-gray-500 ml-2">
-                                              {col.dataType}
-                                            </span>
-                                          </div>
-                                        </SelectItem>
-                                      ))}
-                                  </SelectContent>
-                                </Select>
-                                <p className="text-xs text-blue-600">
-                                  This argument will use the value from the
-                                  selected column
-                                </p>
+                                  placeholder="Enter comma-separated values"
+                                  rows={3}
+                                />
+                                <p className="text-xs text-gray-500">Separate multiple values with commas</p>
                               </div>
                             ) : (
-                              // Regular Value Input
                               <Input
                                 id={`arg-${index}`}
-                                value={formData.arguments?.[index]?.value || ""}
+                                value={argState.value || ""}
                                 onChange={(e) => {
-                                  const newArgs = [
-                                    ...(formData.arguments || []),
-                                  ];
+                                  const newArgs = [...(formData.arguments || [])];
                                   newArgs[index] = {
-                                    ...newArgs[index],
+                                    ...argState,
                                     name: arg.name,
                                     type: arg.type,
                                     value: e.target.value,
                                     columnReference: undefined,
+                                    columnReferences: undefined,
                                     hasDefault: arg.hasDefault,
                                     isOptional: arg.isOptional,
-                                  };
+                                  } as any;
                                   handleInputChange("arguments", newArgs);
                                 }}
-                                placeholder={
-                                  arg.hasDefault
-                                    ? "Has default value"
-                                    : "Enter value"
-                                }
-                                className={
-                                  arg.isOptional
-                                    ? "border-gray-300"
-                                    : "border-red-300"
-                                }
+                                placeholder={arg.hasDefault ? "Has default value" : "Enter value"}
+                                className={arg.isOptional ? "border-gray-300" : "border-red-300"}
                               />
                             )}
                           </div>
 
                           {arg.isOptional && (
-                            <p className="text-xs text-gray-500">
-                              This parameter is optional
-                            </p>
+                            <p className="text-xs text-gray-500">This parameter is optional</p>
                           )}
                         </div>
-                      ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -445,85 +538,19 @@ export default function ColumnSettingsModal({
                 <Input
                   id="defaultValue"
                   type="date"
-                  value={formData.defaultValue || ""}
-                  onChange={(e) =>
-                    handleInputChange("defaultValue", e.target.value)
-                  }
+                  value={(formData.defaultValue as any) || ""}
+                  onChange={(e) => handleInputChange("defaultValue", e.target.value)}
                 />
               ) : (
                 <Input
                   id="defaultValue"
-                  value={formData.defaultValue || ""}
-                  onChange={(e) =>
-                    handleInputChange("defaultValue", e.target.value)
-                  }
+                  value={(formData.defaultValue as any) || ""}
+                  onChange={(e) => handleInputChange("defaultValue", e.target.value)}
                   placeholder="Enter default value"
                 />
               )}
             </div>
           )}
-
-          {/* Validation */}
-          {(formData.dataType === "number" ||
-            formData.dataType === "string") && (
-            <div className="space-y-4">
-              <Label>Validation Rules</Label>
-              <div className="grid grid-cols-2 gap-4">
-                {formData.dataType === "number" && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="min">Minimum Value</Label>
-                      <Input
-                        id="min"
-                        type="number"
-                        value={formData.validation?.min || ""}
-                        onChange={(e) =>
-                          handleInputChange("validation", {
-                            ...formData.validation,
-                            min: parseFloat(e.target.value) || undefined,
-                          })
-                        }
-                        placeholder="No minimum"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="max">Maximum Value</Label>
-                      <Input
-                        id="max"
-                        type="number"
-                        value={formData.validation?.max || ""}
-                        onChange={(e) =>
-                          handleInputChange("validation", {
-                            ...formData.validation,
-                            max: parseFloat(e.target.value) || undefined,
-                          })
-                        }
-                        placeholder="No maximum"
-                      />
-                    </div>
-                  </>
-                )}
-                {formData.dataType === "string" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="pattern">Pattern (Regex)</Label>
-                    <Input
-                      id="pattern"
-                      value={formData.validation?.pattern || ""}
-                      onChange={(e) =>
-                        handleInputChange("validation", {
-                          ...formData.validation,
-                          pattern: e.target.value || undefined,
-                        })
-                      }
-                      placeholder="e.g., ^[A-Za-z]+$"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Behavior Settings */}
         </div>
 
         <DialogFooter className="flex justify-between">
