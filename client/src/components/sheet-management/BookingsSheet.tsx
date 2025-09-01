@@ -70,6 +70,7 @@ import { demoBookingData } from "@/lib/demo-booking-data";
 import { useToast } from "@/hooks/use-toast";
 import ColumnSettingsModal from "./ColumnSettingsModal";
 import AddColumnModal from "./AddColumnModal";
+import { functionExecutionService } from "@/services/function-execution-service";
 
 // Editable cell with per-cell local state to avoid table-wide rerenders on keystrokes
 type EditableCellProps = {
@@ -684,6 +685,55 @@ export default function BookingsSheet() {
             );
           }
 
+          // Function columns: render computed value, non-editable
+          if (columnDef.dataType === "function") {
+            if (columnDef.id === "delete") {
+              return (
+                <div
+                  className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
+                    editingCell?.rowId === row.id && editingCell?.columnId === column.id
+                      ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                      : "hover:bg-royal-purple/5"
+                  }`}
+                  style={{
+                    minWidth: `${columnDef.width || 150}px`,
+                    maxWidth: `${columnDef.width || 150}px`,
+                  }}
+                >
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="bg-crimson-red hover:bg-crimson-red/90"
+                    onClick={() => handleDeleteRow(row.id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
+                  editingCell?.rowId === row.id && editingCell?.columnId === column.id
+                    ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                    : "hover:bg-royal-purple/5"
+                }`}
+                style={{
+                  minWidth: `${columnDef.width || 150}px`,
+                  maxWidth: `${columnDef.width || 150}px`,
+                }}
+                // Non-editable
+                onClick={(e) => e.stopPropagation()}
+                title="Computed cell"
+              >
+                <div className="w-full truncate text-sm" title={value?.toString() || ""}>
+                  {renderCellValue(value, columnDef)}
+                </div>
+              </div>
+            );
+          }
+
           // For other column types, show the regular clickable cell
           return (
             <div
@@ -742,6 +792,70 @@ export default function BookingsSheet() {
       // No initial sorting - data comes pre-sorted from Firestore
     },
   });
+
+  // Helper: deep-ish equality via JSON fallback
+  const isEqual = useCallback((a: any, b: any) => {
+    if (a === b) return true;
+    try {
+      return JSON.stringify(a) === JSON.stringify(b);
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Compute one function column for a single row
+  const computeFunctionForRow = useCallback(
+    async (row: SheetData, funcCol: SheetColumn) => {
+      if (!funcCol.function) return;
+      try {
+        const fn = await functionExecutionService.getCompiledFunction(
+          funcCol.function
+        );
+        const args = functionExecutionService.buildArgs(funcCol, row, columns);
+        const result = await Promise.resolve(fn(...args));
+
+        if (!isEqual(row[funcCol.id], result)) {
+          // Optimistic local update
+          setLocalData((prev) =>
+            prev.map((r) => (r.id === row.id ? { ...r, [funcCol.id]: result } : r))
+          );
+
+          // Persist to Firestore (best-effort)
+          bookingService
+            .updateBookingField(row.id, funcCol.id, result)
+            .catch((err) => console.error("Failed to persist computed value", err));
+        }
+      } catch (err) {
+        console.error(
+          `❌ Failed computing function column ${funcCol.columnName} for row ${row.id}:`,
+          err
+        );
+      }
+    },
+    [columns, isEqual]
+  );
+
+  // Recompute all function columns when data or columns change
+  useEffect(() => {
+    const funcCols = columns.filter(
+      (c) => c.dataType === "function" && !!c.function
+    );
+    if (funcCols.length === 0 || tableData.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      for (const row of tableData) {
+        for (const col of funcCols) {
+          if (cancelled) return;
+          await computeFunctionForRow(row, col);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [columns, tableData, computeFunctionForRow]);
 
   const renderCellValue = useCallback((value: any, column: SheetColumn) => {
     if (value === null || value === undefined || value === "") return "-";
@@ -857,6 +971,28 @@ export default function BookingsSheet() {
             title: "✅ Cell Updated",
             description: `Updated ${column.columnName}`,
           });
+
+          // After a successful base field update, recompute dependent function columns for this row
+          const changedColName = columns.find((c) => c.id === columnId)?.columnName;
+          if (changedColName) {
+            const dependentFuncCols = columns.filter(
+              (c) =>
+                c.dataType === "function" &&
+                !!c.function &&
+                (c.arguments || []).some(
+                  (a) => a.columnReference && a.columnReference === changedColName
+                )
+            );
+
+            const targetRow = (prev => prev.find(r => r.id === rowId))(tableData) ||
+              data.find((r) => r.id === rowId) || { id: rowId } as SheetData;
+            // Ensure the targetRow includes the just-edited value
+            (targetRow as any)[columnId] = processedValue;
+
+            dependentFuncCols.forEach((fc) => {
+              computeFunctionForRow(targetRow, fc);
+            });
+          }
         })
         .catch((error) => {
           console.error(`❌ Failed to update cell:`, error);
@@ -882,7 +1018,7 @@ export default function BookingsSheet() {
     } catch (error) {
       console.error(`❌ Failed to handle cell edit:`, error);
     }
-  }, [columns, toast, data]);
+  }, [columns, toast, data, tableData, computeFunctionForRow]);
 
   // Handle committing cell changes (like Google Sheets - save on Enter/blur)
   const handleCellCancel = useCallback(() => {
