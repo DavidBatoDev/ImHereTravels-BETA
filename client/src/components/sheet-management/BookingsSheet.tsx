@@ -235,6 +235,28 @@ export default function BookingsSheet() {
   const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
   const [isRecomputing, setIsRecomputing] = useState(false);
 
+  // Helper: map column color to light background + hover classes for body cells
+  const getColumnTintClasses = useCallback(
+    (color: SheetColumn["color"] | undefined): string => {
+      const map: Record<string, { base: string; hover: string }> = {
+        purple: { base: "bg-royal-purple/5", hover: "hover:bg-royal-purple/10" },
+        blue: { base: "bg-blue-50", hover: "hover:bg-blue-50" },
+        green: { base: "bg-green-50", hover: "hover:bg-green-50" },
+        yellow: { base: "bg-yellow-50", hover: "hover:bg-yellow-50" },
+        orange: { base: "bg-orange-50", hover: "hover:bg-orange-50" },
+        red: { base: "bg-red-50", hover: "hover:bg-red-50" },
+        pink: { base: "bg-pink-50", hover: "hover:bg-pink-50" },
+        cyan: { base: "bg-cyan-50", hover: "hover:bg-cyan-50" },
+        gray: { base: "bg-gray-100", hover: "hover:bg-gray-100" },
+        none: { base: "", hover: "hover:bg-royal-purple/5" },
+      };
+      const key = color || "none";
+      const chosen = map[key] || map.none;
+      return `${chosen.base} ${chosen.hover}`.trim();
+    },
+    []
+  );
+
   // Fetch TypeScript functions
   useEffect(() => {
     const fetchFunctions = async () => {
@@ -346,7 +368,7 @@ export default function BookingsSheet() {
                 className={`flex items-center justify-between group h-12 w-full px-3 py-2 rounded transition-all duration-200 ${
                   editingCell?.columnId === col.id
                     ? "bg-royal-purple/30 border border-royal-purple/50 shadow-sm"
-                    : "bg-royal-purple/10"
+                    : "bg-transparent"
                 } text-royal-purple`}
                 style={{
                   minWidth: `${col.width || 150}px`,
@@ -401,13 +423,11 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                className={`h-12 w-full px-2 flex items-center justify-center transition-all duration-200 relative ${
+        className={`h-12 w-full px-2 flex items-center justify-center transition-all duration-200 relative ${
                   editingCell?.rowId === row.id &&
                   editingCell?.columnId === column.id
-                    ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                    : value
-                    ? "bg-royal-purple/5 hover:bg-royal-purple/10"
-                    : "hover:bg-royal-purple/5"
+          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+          : getColumnTintClasses(columnDef.color)
                 }`}
                 style={{
                   minWidth: `${columnDef.width || 150}px`,
@@ -472,13 +492,11 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
+        className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
                   editingCell?.rowId === row.id &&
                   editingCell?.columnId === column.id
-                    ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                    : value
-                    ? "bg-royal-purple/5 hover:bg-royal-purple/10"
-                    : "hover:bg-royal-purple/5"
+          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+          : getColumnTintClasses(columnDef.color)
                 }`}
                 style={{
                   minWidth: `${columnDef.width || 150}px`,
@@ -552,11 +570,11 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
+        className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
                   editingCell?.rowId === row.id &&
                   editingCell?.columnId === column.id
-                    ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                    : "hover:bg-royal-purple/5"
+          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+          : getColumnTintClasses(columnDef.color)
                 }`}
                 style={{
                   minWidth: `${columnDef.width || 150}px`,
@@ -732,10 +750,10 @@ export default function BookingsSheet() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
-                  className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
+          className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
                     editingCell?.rowId === row.id && editingCell?.columnId === column.id
-                      ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                      : "hover:bg-royal-purple/5"
+            ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+            : getColumnTintClasses(columnDef.color)
                   }`}
                   style={{
                     minWidth: `${columnDef.width || 150}px`,
@@ -761,10 +779,10 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
+        className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
                   editingCell?.rowId === row.id && editingCell?.columnId === column.id
-                    ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                    : "hover:bg-royal-purple/5"
+          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+          : getColumnTintClasses(columnDef.color)
                 }`}
                 style={{
                   minWidth: `${columnDef.width || 150}px`,
@@ -791,11 +809,11 @@ export default function BookingsSheet() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-              className={`h-12 w-full px-2 flex items-center cursor-pointer transition-all duration-200 relative ${
+        className={`h-12 w-full px-2 flex items-center cursor-pointer transition-all duration-200 relative ${
                 editingCell?.rowId === row.id &&
                 editingCell?.columnId === column.id
-                  ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                  : "hover:bg-royal-purple/5"
+          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+          : getColumnTintClasses(columnDef.color)
               }`}
               style={{
                 minWidth: `${columnDef.width || 150}px`,

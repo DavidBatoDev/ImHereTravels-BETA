@@ -8,6 +8,18 @@ export type ColumnType =
   | "email"
   | "currency";
 
+export type ColumnColor =
+  | "none"
+  | "purple"
+  | "blue"
+  | "green"
+  | "yellow"
+  | "orange"
+  | "red"
+  | "pink"
+  | "cyan"
+  | "gray";
+
 export interface FunctionArgument {
   name: string;
   type: string;
@@ -48,6 +60,7 @@ export interface SheetColumn {
   minWidth?: number;
   maxWidth?: number;
   options?: string[]; // For select type columns
+  color?: ColumnColor; // Optional column color theme
   defaultValue?: any;
   validation?: {
     min?: number;

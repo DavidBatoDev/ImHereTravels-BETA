@@ -157,6 +157,49 @@ export default function ColumnSettingsModal({
             </div>
           </div>
 
+          {/* Column Color */}
+          <div className="space-y-2">
+            <Label htmlFor="color">Column Color</Label>
+            <div className="flex items-center gap-3 flex-wrap">
+              {[
+                { value: "none", label: "None", bg: "bg-white", ring: "" },
+                { value: "purple", label: "Purple", bg: "bg-purple-600", ring: "ring-purple-600" },
+                { value: "blue", label: "Blue", bg: "bg-blue-600", ring: "ring-blue-600" },
+                { value: "green", label: "Green", bg: "bg-green-600", ring: "ring-green-600" },
+                { value: "yellow", label: "Yellow", bg: "bg-yellow-500", ring: "ring-yellow-500" },
+                { value: "orange", label: "Orange", bg: "bg-orange-500", ring: "ring-orange-500" },
+                { value: "red", label: "Red", bg: "bg-red-600", ring: "ring-red-600" },
+                { value: "pink", label: "Pink", bg: "bg-pink-600", ring: "ring-pink-600" },
+                { value: "cyan", label: "Cyan", bg: "bg-cyan-500", ring: "ring-cyan-500" },
+                { value: "gray", label: "Gray", bg: "bg-gray-500", ring: "ring-gray-500" },
+              ].map((c) => {
+                const selected = ((formData as any).color || "none") === c.value;
+                return (
+                  <button
+                    key={c.value}
+                    type="button"
+                    className={`relative h-8 w-8 rounded-full border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                      selected ? `ring-2 ${c.ring} ring-offset-2` : ""
+                    }`}
+                    onClick={() => handleInputChange("color" as any, c.value)}
+                    title={c.label}
+                    aria-pressed={selected}
+                  >
+                    {c.value === "none" ? (
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <span className="h-6 w-6 rounded-full border border-gray-300 bg-white" />
+                        <span className="absolute left-1 right-1 h-[2px] rotate-45 bg-gray-400" />
+                      </span>
+                    ) : (
+                      <span className={`absolute inset-1 rounded-full ${c.bg}`} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-500">Applies a light background tint to this column.</p>
+          </div>
+
           {/* Select Options */}
           {formData.dataType === "select" && (
             <div className="space-y-2">
