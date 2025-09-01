@@ -220,10 +220,10 @@ export default function BBCUsersManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-creative-midnight font-hk-grotesk">
-            Manage BBC Users
+            Manage BCC Users
           </h1>
           <p className="text-grey text-lg">
-            Manage BBC users, their roles, and access permissions
+            Manage BCC users, their roles, and access permissions
           </p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -233,16 +233,16 @@ export default function BBCUsersManagement() {
               className="bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200"
             >
               <UserPlus className="mr-2 h-4 w-4" />
-              Add BBC User
+              Add BCC User
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] border border-royal-purple/20">
             <DialogHeader>
               <DialogTitle className="text-creative-midnight">
-                Add New BBC User
+                Add New BCC User
               </DialogTitle>
               <DialogDescription className="text-grey">
-                Create a new BBC user account with appropriate permissions
+                Create a new BCC user account with appropriate permissions
               </DialogDescription>
             </DialogHeader>
             <CreateUserForm onSubmit={handleCreateUser} />
@@ -288,9 +288,9 @@ export default function BBCUsersManagement() {
       {/* Users Table */}
       <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
         <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-          <CardTitle className="text-creative-midnight">BBC Users</CardTitle>
+          <CardTitle className="text-creative-midnight">BCC Users</CardTitle>
           <CardDescription className="text-grey">
-            Manage BBC user accounts and their access levels
+            Manage BCC user accounts and their access levels
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6">
@@ -298,7 +298,7 @@ export default function BBCUsersManagement() {
             <TableHeader>
               <TableRow className="border-royal-purple/20">
                 <TableHead className="text-creative-midnight">User</TableHead>
-                <TableHead className="text-creative-midnight">BBC ID</TableHead>
+                <TableHead className="text-creative-midnight">BCC ID</TableHead>
                 <TableHead className="text-creative-midnight">Status</TableHead>
                 <TableHead className="text-creative-midnight">
                   Actions
@@ -321,7 +321,7 @@ export default function BBCUsersManagement() {
                     <div className="text-grey">
                       {searchTerm
                         ? "No users found matching your search."
-                        : "No BBC users found."}
+                        : "No BCC users found."}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -425,7 +425,7 @@ export default function BBCUsersManagement() {
         <DialogContent className="sm:max-w-[600px] border border-royal-purple/20">
           <DialogHeader>
             <DialogTitle className="text-creative-midnight">
-              Edit BBC User
+              Edit BCC User
             </DialogTitle>
             <DialogDescription className="text-grey">
               Update user information and permissions
