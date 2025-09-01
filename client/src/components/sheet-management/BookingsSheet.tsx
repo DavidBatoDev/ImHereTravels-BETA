@@ -57,6 +57,7 @@ import {
   ChevronUp,
   MoreHorizontal,
   Trash2,
+  HelpCircle,
 } from "lucide-react";
 import {
   SheetColumn,
@@ -72,6 +73,7 @@ import ColumnSettingsModal from "./ColumnSettingsModal";
 import AddColumnModal from "./AddColumnModal";
 import { functionExecutionService } from "@/services/function-execution-service";
 import { batchedWriter } from "@/services/batched-writer";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Editable cell with per-cell local state to avoid table-wide rerenders on keystrokes
 type EditableCellProps = {
@@ -231,6 +233,7 @@ export default function BookingsSheet() {
     TypeScriptFunction[]
   >([]);
   const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
+  const [isRecomputing, setIsRecomputing] = useState(false);
 
   // Fetch TypeScript functions
   useEffect(() => {
@@ -306,15 +309,20 @@ export default function BookingsSheet() {
         const isRowBeingEdited = editingCell?.rowId === row.id;
 
         return (
-          <div
-            className={`flex items-center justify-center h-12 w-16 px-2 text-sm font-mono transition-all duration-200 ${
-              isRowBeingEdited
-                ? "bg-royal-purple/20 text-royal-purple font-semibold border border-royal-purple/40"
-                : "text-grey"
-            }`}
-          >
-            {!isNaN(rowNumber) ? rowNumber : "-"}
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className={`flex items-center justify-center h-12 w-16 px-2 text-sm font-mono transition-all duration-200 ${
+                  isRowBeingEdited
+                    ? "bg-royal-purple/20 text-royal-purple font-semibold border border-royal-purple/40"
+                    : "text-grey"
+                }`}
+              >
+                {!isNaN(rowNumber) ? rowNumber : "-"}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>Row {(!isNaN(rowNumber) ? rowNumber : row.id)}</TooltipContent>
+          </Tooltip>
         );
       },
       enableSorting: false,
@@ -380,7 +388,9 @@ export default function BookingsSheet() {
           // For boolean columns, always show a checkbox
           if (columnDef.dataType === "boolean") {
             return (
-              <div
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
                 className={`h-12 w-full px-2 flex items-center justify-center transition-all duration-200 relative ${
                   editingCell?.rowId === row.id &&
                   editingCell?.columnId === column.id
@@ -438,13 +448,20 @@ export default function BookingsSheet() {
                   </span>
                 </div>
               </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {value ? "Yes" : "No"}
+                </TooltipContent>
+              </Tooltip>
             );
           }
 
           // For select columns, always show a dropdown
           if (columnDef.dataType === "select") {
             return (
-              <div
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
                 className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
                   editingCell?.rowId === row.id &&
                   editingCell?.columnId === column.id
@@ -511,13 +528,20 @@ export default function BookingsSheet() {
                   )}
                 </div>
               </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {value ? String(value) : "-"}
+                </TooltipContent>
+              </Tooltip>
             );
           }
 
           // For date columns, always show a date picker input
           if (columnDef.dataType === "date") {
             return (
-              <div
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
                 className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
                   editingCell?.rowId === row.id &&
                   editingCell?.columnId === column.id
@@ -683,6 +707,11 @@ export default function BookingsSheet() {
                   </div> */}
                 </div>
               </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {renderCellValue(value, columnDef)}
+                </TooltipContent>
+              </Tooltip>
             );
           }
 
@@ -690,7 +719,9 @@ export default function BookingsSheet() {
           if (columnDef.dataType === "function") {
             if (columnDef.id === "delete") {
               return (
-                <div
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
                   className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
                     editingCell?.rowId === row.id && editingCell?.columnId === column.id
                       ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
@@ -710,11 +741,16 @@ export default function BookingsSheet() {
                     Delete
                   </Button>
                 </div>
+                  </TooltipTrigger>
+                  <TooltipContent>Clear row fields</TooltipContent>
+                </Tooltip>
               );
             }
 
             return (
-              <div
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
                 className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
                   editingCell?.rowId === row.id && editingCell?.columnId === column.id
                     ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
@@ -732,12 +768,19 @@ export default function BookingsSheet() {
                   {renderCellValue(value, columnDef)}
                 </div>
               </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {value === undefined || value === null || value === "" ? "-" : String(value)}
+                </TooltipContent>
+              </Tooltip>
             );
           }
 
           // For other column types, show the regular clickable cell
           return (
-            <div
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
               className={`h-12 w-full px-2 flex items-center cursor-pointer transition-all duration-200 relative ${
                 editingCell?.rowId === row.id &&
                 editingCell?.columnId === column.id
@@ -752,11 +795,15 @@ export default function BookingsSheet() {
             >
               <div
                 className="w-full truncate text-sm"
-                title={value?.toString() || ""}
               >
                 {renderCellValue(value, columnDef)}
               </div>
             </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                {value === undefined || value === null || value === "" ? "-" : String(value)}
+              </TooltipContent>
+            </Tooltip>
           );
         },
 
@@ -1217,6 +1264,45 @@ export default function BookingsSheet() {
     }));
   };
 
+  // Manually recompute all function columns for all rows (useful after CSV/migration)
+  const handleRecomputeAllFunctions = async () => {
+    try {
+      setIsRecomputing(true);
+      const funcCols = columns.filter(
+        (c) => c.dataType === "function" && !!c.function
+      );
+      if (funcCols.length === 0 || (localData.length === 0 && data.length === 0)) {
+        toast({ title: "No Function Columns", description: "Nothing to recompute." });
+        return;
+      }
+
+      const rows = localData.length > 0 ? localData : data;
+      for (const row of rows) {
+        for (const col of funcCols) {
+          await computeFunctionForRow(row, col);
+        }
+      }
+
+      // Expedite persistence of the batched writes
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      batchedWriter.flush();
+
+      toast({
+        title: "Functions Recomputed",
+        description: `Processed ${rows.length} rows across ${funcCols.length} function column(s)`,
+      });
+    } catch (err) {
+      console.error("❌ Recompute all failed", err);
+      toast({
+        title: "Failed to Recompute",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRecomputing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1230,6 +1316,41 @@ export default function BookingsSheet() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleRecomputeAllFunctions}
+            disabled={isRecomputing}
+            className="flex items-center gap-2 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+            title="Recompute all function columns (use after CSV/migrated data)"
+          >
+            {isRecomputing ? (
+              <span className="animate-pulse">Recomputing…</span>
+            ) : (
+              <>
+                Recompute Functions
+              </>
+            )}
+          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-royal-purple hover:bg-royal-purple/10"
+                  aria-label="Help"
+                >
+                  <HelpCircle className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p className="text-sm">
+                  Use “Recompute Functions” after importing CSV or migrating data to backfill
+                  function columns. Day-to-day edits recompute automatically.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <Button
             variant="outline"
             onClick={() => setAddColumnModal(true)}
@@ -1339,7 +1460,8 @@ export default function BookingsSheet() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="rounded-md border border-royal-purple/20 overflow-x-auto">
-            <Table className="border border-royal-purple/20 min-w-full table-fixed">
+            <TooltipProvider>
+              <Table className="border border-royal-purple/20 min-w-full table-fixed">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id} className="bg-light-grey/30">
@@ -1536,7 +1658,8 @@ export default function BookingsSheet() {
                   return [...dataRows, ...emptyRows];
                 })()}
               </TableBody>
-            </Table>
+              </Table>
+            </TooltipProvider>
           </div>
 
           {/* Pagination */}
