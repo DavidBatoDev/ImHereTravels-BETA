@@ -37,15 +37,11 @@ export default function TestSheetManagementPage() {
   const handleAddTestColumn = async () => {
     try {
       await addColumn({
-        name: `Test Column ${Date.now()}`,
-        type: "string",
-        required: false,
+        columnName: `Test Column ${Date.now()}`,
+        dataType: "string",
+        includeInForms: true,
         width: 150,
         order: 0, // Will be auto-calculated
-        visible: true,
-        editable: true,
-        sortable: true,
-        filterable: true,
       });
     } catch (error) {
       console.error("Failed to add test column:", error);
@@ -158,19 +154,19 @@ export default function TestSheetManagementPage() {
                 <div className="flex items-center gap-3">
                   <Badge variant="outline">{column.order}</Badge>
                   <div>
-                    <p className="font-medium">{column.name}</p>
+                    <p className="font-medium">{column.columnName}</p>
                     <p className="text-sm text-gray-500">
-                      {column.type} •{" "}
-                      {column.required ? "Required" : "Optional"}
+                      {column.dataType} •{" "}
+                      {column.includeInForms ? "Included in Forms" : "Not in Forms"}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={column.visible ? "default" : "secondary"}>
-                    {column.visible ? "Visible" : "Hidden"}
+                  <Badge variant={column.includeInForms ? "default" : "secondary"}>
+                    {column.includeInForms ? "In Forms" : "Not in Forms"}
                   </Badge>
-                  <Badge variant={column.editable ? "default" : "secondary"}>
-                    {column.editable ? "Editable" : "Read-only"}
+                  <Badge variant="outline">
+                    {column.dataType}
                   </Badge>
                   <Button
                     size="sm"

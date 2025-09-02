@@ -10,10 +10,6 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 // Environment variables loaded via dotenv
 
 import {
-  runMigration as runMigration001,
-  rollbackMigration as rollbackMigration001,
-} from "./001-initial-tour-packages";
-import {
   runMigration as runMigration002,
   rollbackMigration as rollbackMigration002,
 } from "./002-additional-tour-packages";
@@ -80,20 +76,6 @@ async function main() {
 
   switch (command) {
     case "run":
-    case "001":
-      console.log("📊 Running migration: 001-initial-tour-packages");
-      const result = await runMigration001(dryRun);
-      console.log(`\n🎯 ${result.message}`);
-      if (result.details) {
-        console.log(
-          `📊 Details: ${result.details.created} created, ${result.details.skipped} skipped, ${result.details.errors.length} errors`
-        );
-        if (result.details.errors.length > 0) {
-          console.log("\n❌ Errors:");
-          result.details.errors.forEach((error) => console.log(`  - ${error}`));
-        }
-      }
-      break;
 
     case "002":
       console.log("📊 Running migration: 002-additional-tour-packages");
@@ -317,6 +299,7 @@ async function main() {
       }
       break;
 
+      
     case "016":
       console.log("📊 Running migration: 016-remove-column-required-field");
       const result016 = await runMigration016(dryRun);
@@ -337,23 +320,6 @@ async function main() {
       break;
 
     case "rollback":
-    case "undo":
-      console.log("🔄 Rolling back migration: 001-initial-tour-packages");
-      const rollbackResult = await rollbackMigration001();
-      console.log(`\n🎯 ${rollbackResult.message}`);
-      if (rollbackResult.details) {
-        console.log(
-          `📊 Details: ${rollbackResult.details.deleted} deleted, ${rollbackResult.details.errors.length} errors`
-        );
-        if (rollbackResult.details.errors.length > 0) {
-          console.log("\n❌ Errors:");
-          rollbackResult.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
-          );
-        }
-      }
-      break;
-
     case "rollback002":
       console.log("🔄 Rolling back migration: 002-additional-tour-packages");
       const rollbackResult002 = await rollbackMigration002();
@@ -600,19 +566,6 @@ async function main() {
       break;
 
     case "dry-run":
-    case "test":
-      console.log(
-        "🔍 Running migration in DRY RUN mode: 001-initial-tour-packages"
-      );
-      const dryRunResult = await runMigration001(true);
-      console.log(`\n🎯 ${dryRunResult.message}`);
-      if (dryRunResult.details) {
-        console.log(
-          `📊 Details: ${dryRunResult.details.created} would be created, ${dryRunResult.details.skipped} would be skipped`
-        );
-      }
-      break;
-
     case "dry-run002":
       console.log(
         "🔍 Running migration in DRY RUN mode: 002-additional-tour-packages"
