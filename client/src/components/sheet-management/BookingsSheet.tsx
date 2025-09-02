@@ -73,7 +73,12 @@ import ColumnSettingsModal from "./ColumnSettingsModal";
 import AddColumnModal from "./AddColumnModal";
 import { functionExecutionService } from "@/services/function-execution-service";
 import { batchedWriter } from "@/services/batched-writer";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Editable cell with per-cell local state to avoid table-wide rerenders on keystrokes
 type EditableCellProps = {
@@ -115,7 +120,8 @@ const EditableCell = memo(function EditableCell({
         } else if (value) {
           date = new Date(value as string | number | Date);
         }
-        if (date && !isNaN(date.getTime())) return date.toISOString().split("T")[0];
+        if (date && !isNaN(date.getTime()))
+          return date.toISOString().split("T")[0];
       } catch {
         // ignore
       }
@@ -239,7 +245,10 @@ export default function BookingsSheet() {
   const getColumnTintClasses = useCallback(
     (color: SheetColumn["color"] | undefined): string => {
       const map: Record<string, { base: string; hover: string }> = {
-        purple: { base: "bg-royal-purple/5", hover: "hover:bg-royal-purple/10" },
+        purple: {
+          base: "bg-royal-purple/5",
+          hover: "hover:bg-royal-purple/10",
+        },
         blue: { base: "bg-blue-50", hover: "hover:bg-blue-50" },
         green: { base: "bg-green-50", hover: "hover:bg-green-50" },
         yellow: { base: "bg-yellow-50", hover: "hover:bg-yellow-50" },
@@ -348,7 +357,9 @@ export default function BookingsSheet() {
                 {!isNaN(rowNumber) ? rowNumber : "-"}
               </div>
             </TooltipTrigger>
-            <TooltipContent>Row {(!isNaN(rowNumber) ? rowNumber : row.id)}</TooltipContent>
+            <TooltipContent>
+              Row {!isNaN(rowNumber) ? rowNumber : row.id}
+            </TooltipContent>
           </Tooltip>
         );
       },
@@ -423,65 +434,63 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-        className={`h-12 w-full px-2 flex items-center justify-center transition-all duration-200 relative ${
-                  editingCell?.rowId === row.id &&
-                  editingCell?.columnId === column.id
-          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-          : getColumnTintClasses(columnDef.color)
-                }`}
-                style={{
-                  minWidth: `${columnDef.width || 150}px`,
-                  maxWidth: `${columnDef.width || 150}px`,
-                  position: "relative",
-                  zIndex: 5,
-                }}
-              >
-                <div className="relative flex items-center justify-center w-full gap-2">
-                  <input
-                    type="checkbox"
-                    checked={!!value}
-                    onChange={(e) => {
-                      // Update the cell value directly when checkbox changes
-                      handleCellEdit(
-                        row.id,
-                        column.id,
-                        e.target.checked.toString()
-                      );
-                    }}
-                    className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-royal-purple/40"
-                    title={
-                      value ? "Uncheck to set to No" : "Check to set to Yes"
-                    }
-                    aria-label={`${columnDef.columnName}: ${
-                      value ? "Yes" : "No"
+                    className={`h-12 w-full px-2 flex items-center justify-center transition-all duration-200 relative ${
+                      editingCell?.rowId === row.id &&
+                      editingCell?.columnId === column.id
+                        ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                        : getColumnTintClasses(columnDef.color)
                     }`}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        const newValue = !value;
-                        handleCellEdit(
-                          row.id,
-                          column.id,
-                          newValue.toString()
-                        );
-                      }
+                    style={{
+                      minWidth: `${columnDef.width || 150}px`,
+                      maxWidth: `${columnDef.width || 150}px`,
+                      position: "relative",
+                      zIndex: 5,
                     }}
-                  />
-                  <span
-                    className={`text-sm font-medium transition-colors duration-200 select-none ${
-                      value
-                        ? "text-royal-purple font-semibold"
-                        : "text-gray-500"
-                    }`}
                   >
-                    {value ? "Yes" : "No"}
-                  </span>
-                </div>
-              </div>
+                    <div className="relative flex items-center justify-center w-full gap-2">
+                      <input
+                        type="checkbox"
+                        checked={!!value}
+                        onChange={(e) => {
+                          // Update the cell value directly when checkbox changes
+                          handleCellEdit(
+                            row.id,
+                            column.id,
+                            e.target.checked.toString()
+                          );
+                        }}
+                        className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-royal-purple/40"
+                        title={
+                          value ? "Uncheck to set to No" : "Check to set to Yes"
+                        }
+                        aria-label={`${columnDef.columnName}: ${
+                          value ? "Yes" : "No"
+                        }`}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            const newValue = !value;
+                            handleCellEdit(
+                              row.id,
+                              column.id,
+                              newValue.toString()
+                            );
+                          }
+                        }}
+                      />
+                      <span
+                        className={`text-sm font-medium transition-colors duration-200 select-none ${
+                          value
+                            ? "text-royal-purple font-semibold"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        {value ? "Yes" : "No"}
+                      </span>
+                    </div>
+                  </div>
                 </TooltipTrigger>
-                <TooltipContent>
-                  {value ? "Yes" : "No"}
-                </TooltipContent>
+                <TooltipContent>{value ? "Yes" : "No"}</TooltipContent>
               </Tooltip>
             );
           }
@@ -492,74 +501,70 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-        className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                  editingCell?.rowId === row.id &&
-                  editingCell?.columnId === column.id
-          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-          : getColumnTintClasses(columnDef.color)
-                }`}
-                style={{
-                  minWidth: `${columnDef.width || 150}px`,
-                  maxWidth: `${columnDef.width || 150}px`,
-                  position: "relative",
-                  zIndex: 5,
-                }}
-              >
-                <div
-                  className="relative w-full"
-                  style={{ position: "relative", zIndex: 15 }}
-                >
-                  {columnDef.options && columnDef.options.length > 0 ? (
-                    <Select
-                      value={value?.toString() || ""}
-                      onValueChange={(newValue) => {
-                        // Update the cell value directly when selection changes
-                        handleCellEdit(row.id, column.id, newValue);
-                      }}
+                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
+                      editingCell?.rowId === row.id &&
+                      editingCell?.columnId === column.id
+                        ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                        : getColumnTintClasses(columnDef.color)
+                    }`}
+                    style={{
+                      minWidth: `${columnDef.width || 150}px`,
+                      maxWidth: `${columnDef.width || 150}px`,
+                      position: "relative",
+                      zIndex: 5,
+                    }}
+                  >
+                    <div
+                      className="relative w-full"
+                      style={{ position: "relative", zIndex: 15 }}
                     >
-                      <SelectTrigger
-                        className={`h-8 border-royal-purple/20 focus:border-royal-purple text-sm transition-colors duration-200 focus:ring-2 focus:ring-royal-purple/20 ${
-                          value
-                            ? "bg-royal-purple/5 border-royal-purple/40 text-royal-purple font-medium"
-                            : "bg-white hover:bg-royal-purple/5 text-gray-500"
-                        }`}
-                      >
-                        <SelectValue
-                          placeholder="Select option"
-                          className={
-                            !value
-                              ? "text-gray-400"
-                              : "text-royal-purple"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border border-royal-purple/20 shadow-lg max-h-60 z-50">
-                        {columnDef.options.map((option) => (
-                          <SelectItem
-                            key={option}
-                            value={option}
-                            className={`text-sm transition-colors duration-200 ${
-                              option === value
-                                ? "bg-royal-purple/20 text-royal-purple font-medium"
-                                : "hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
+                      {columnDef.options && columnDef.options.length > 0 ? (
+                        <Select
+                          value={value?.toString() || ""}
+                          onValueChange={(newValue) => {
+                            // Update the cell value directly when selection changes
+                            handleCellEdit(row.id, column.id, newValue);
+                          }}
+                        >
+                          <SelectTrigger
+                            className={`h-8 border-royal-purple/20 focus:border-royal-purple text-sm transition-colors duration-200 focus:ring-2 focus:ring-royal-purple/20 ${
+                              value
+                                ? "bg-royal-purple/5 border-royal-purple/40 text-royal-purple font-medium"
+                                : "bg-white hover:bg-royal-purple/5 text-gray-500"
                             }`}
                           >
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="h-8 w-full flex items-center justify-center text-sm text-gray-400 bg-gray-50 border border-gray-200 rounded cursor-not-allowed">
-                      No options available
+                            <SelectValue
+                              placeholder="Select option"
+                              className={
+                                !value ? "text-gray-400" : "text-royal-purple"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white border border-royal-purple/20 shadow-lg max-h-60 z-50">
+                            {columnDef.options.map((option) => (
+                              <SelectItem
+                                key={option}
+                                value={option}
+                                className={`text-sm transition-colors duration-200 ${
+                                  option === value
+                                    ? "bg-royal-purple/20 text-royal-purple font-medium"
+                                    : "hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
+                                }`}
+                              >
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="h-8 w-full flex items-center justify-center text-sm text-gray-400 bg-gray-50 border border-gray-200 rounded cursor-not-allowed">
+                          No options available
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
                 </TooltipTrigger>
-                <TooltipContent>
-                  {value ? String(value) : "-"}
-                </TooltipContent>
+                <TooltipContent>{value ? String(value) : "-"}</TooltipContent>
               </Tooltip>
             );
           }
@@ -570,135 +575,146 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-        className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                  editingCell?.rowId === row.id &&
-                  editingCell?.columnId === column.id
-          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-          : getColumnTintClasses(columnDef.color)
-                }`}
-                style={{
-                  minWidth: `${columnDef.width || 150}px`,
-                  maxWidth: `${columnDef.width || 150}px`,
-                  position: "relative",
-                  zIndex: 5,
-                }}
-              >
-                <div
-                  className="relative w-full"
-                  style={{ position: "relative", zIndex: 15 }}
-                >
-                  <Input
-                    type="date"
-                    min="1900-01-01"
-                    max="2100-12-31"
-                    value={(() => {
-                      // Format current value for date picker
-                      if (value) {
-                        try {
-                          let date: Date;
-
-                          // Check if it's a Firestore Timestamp
-                          if (
-                            value &&
-                            typeof value === "object" &&
-                            "toDate" in value &&
-                            typeof (value as any).toDate === "function"
-                          ) {
-                            date = (value as any).toDate();
-                          } else if (
-                            value &&
-                            typeof value === "object" &&
-                            "seconds" in value &&
-                            typeof (value as any).seconds === "number"
-                          ) {
-                            // Handle Firestore Timestamp with seconds
-                            date = new Date((value as any).seconds * 1000);
-                          } else {
-                            // Handle string dates or other formats
-                            date = new Date(value as string | number | Date);
-                          }
-
-                          if (!isNaN(date.getTime())) {
-                            return date.toISOString().split("T")[0];
-                          }
-                        } catch {
-                          // Fallback to empty string
-                        }
-                      }
-                      return "";
-                    })()}
-                    onChange={(e) => {
-                      // Validate the date before updating
-                      const dateValue = e.target.value;
-                      if (dateValue && !isNaN(new Date(dateValue).getTime())) {
-                        // Update the cell value directly when date changes
-                        handleCellEdit(row.id, column.id, dateValue);
-                      }
-                    }}
-                    onBlur={(e) => {
-                      // Validate on blur as well
-                      const dateValue = e.target.value;
-                      if (dateValue && !isNaN(new Date(dateValue).getTime())) {
-                        handleCellEdit(row.id, column.id, dateValue);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const dateValue = e.currentTarget.value;
-                        if (
-                          dateValue &&
-                          !isNaN(new Date(dateValue).getTime())
-                        ) {
-                          handleCellEdit(row.id, column.id, dateValue);
-                        }
-                      }
-                    }}
-                    onClick={(e) => {
-                      // Ensure the date picker popover can appear
-                      e.stopPropagation();
-
-                      // Try multiple approaches to show the date picker
-                      if (e.currentTarget.showPicker) {
-                        try {
-                          e.currentTarget.showPicker();
-                        } catch (error) {
-                          // Fallback: ensure the input is focused and try to trigger the date picker
-                          e.currentTarget.focus();
-                          // Small delay to ensure focus is set
-                          setTimeout(() => {
-                            e.currentTarget.click();
-                          }, 10);
-                        }
-                      } else {
-                        // Fallback: ensure the input is focused and try to trigger the date picker
-                        e.currentTarget.focus();
-                        // Small delay to ensure focus is set
-                        setTimeout(() => {
-                          e.currentTarget.click();
-                        }, 10);
-                      }
-                    }}
-                    className={`h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 text-sm transition-colors duration-200 pr-8 cursor-pointer ${
-                      value
-                        ? "bg-royal-purple/5 border-royal-purple/40"
-                        : "bg-white hover:bg-royal-purple/5"
-                    } focus:bg-white focus:ring-2 focus:ring-royal-purple/20 ${
-                      !value ? "text-gray-400" : "text-gray-900"
+                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
+                      editingCell?.rowId === row.id &&
+                      editingCell?.columnId === column.id
+                        ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                        : getColumnTintClasses(columnDef.color)
                     }`}
-                    placeholder={value ? "" : "Select date"}
-                    title={
-                      value
-                        ? `Current date: ${renderCellValue(value, columnDef)}`
-                        : "Click to select a date"
-                    }
-                    aria-label={`Date for ${columnDef.columnName}`}
-                    style={{ zIndex: 10 }}
-                    autoComplete="off"
-                    data-date-picker="true"
-                  />
-                  {/* Calendar icon indicator - clickable to open date picker */}
-                  {/* <div 
+                    style={{
+                      minWidth: `${columnDef.width || 150}px`,
+                      maxWidth: `${columnDef.width || 150}px`,
+                      position: "relative",
+                      zIndex: 5,
+                    }}
+                  >
+                    <div
+                      className="relative w-full"
+                      style={{ position: "relative", zIndex: 15 }}
+                    >
+                      <Input
+                        type="date"
+                        min="1900-01-01"
+                        max="2100-12-31"
+                        value={(() => {
+                          // Format current value for date picker
+                          if (value) {
+                            try {
+                              let date: Date;
+
+                              // Check if it's a Firestore Timestamp
+                              if (
+                                value &&
+                                typeof value === "object" &&
+                                "toDate" in value &&
+                                typeof (value as any).toDate === "function"
+                              ) {
+                                date = (value as any).toDate();
+                              } else if (
+                                value &&
+                                typeof value === "object" &&
+                                "seconds" in value &&
+                                typeof (value as any).seconds === "number"
+                              ) {
+                                // Handle Firestore Timestamp with seconds
+                                date = new Date((value as any).seconds * 1000);
+                              } else {
+                                // Handle string dates or other formats
+                                date = new Date(
+                                  value as string | number | Date
+                                );
+                              }
+
+                              if (!isNaN(date.getTime())) {
+                                return date.toISOString().split("T")[0];
+                              }
+                            } catch {
+                              // Fallback to empty string
+                            }
+                          }
+                          return "";
+                        })()}
+                        onChange={(e) => {
+                          // Validate the date before updating
+                          const dateValue = e.target.value;
+                          if (
+                            dateValue &&
+                            !isNaN(new Date(dateValue).getTime())
+                          ) {
+                            // Update the cell value directly when date changes
+                            handleCellEdit(row.id, column.id, dateValue);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // Validate on blur as well
+                          const dateValue = e.target.value;
+                          if (
+                            dateValue &&
+                            !isNaN(new Date(dateValue).getTime())
+                          ) {
+                            handleCellEdit(row.id, column.id, dateValue);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const dateValue = e.currentTarget.value;
+                            if (
+                              dateValue &&
+                              !isNaN(new Date(dateValue).getTime())
+                            ) {
+                              handleCellEdit(row.id, column.id, dateValue);
+                            }
+                          }
+                        }}
+                        onClick={(e) => {
+                          // Ensure the date picker popover can appear
+                          e.stopPropagation();
+
+                          // Try multiple approaches to show the date picker
+                          if (e.currentTarget.showPicker) {
+                            try {
+                              e.currentTarget.showPicker();
+                            } catch (error) {
+                              // Fallback: ensure the input is focused and try to trigger the date picker
+                              e.currentTarget.focus();
+                              // Small delay to ensure focus is set
+                              setTimeout(() => {
+                                e.currentTarget.click();
+                              }, 10);
+                            }
+                          } else {
+                            // Fallback: ensure the input is focused and try to trigger the date picker
+                            e.currentTarget.focus();
+                            // Small delay to ensure focus is set
+                            setTimeout(() => {
+                              e.currentTarget.click();
+                            }, 10);
+                          }
+                        }}
+                        className={`h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 text-sm transition-colors duration-200 pr-8 cursor-pointer ${
+                          value
+                            ? "bg-royal-purple/5 border-royal-purple/40"
+                            : "bg-white hover:bg-royal-purple/5"
+                        } focus:bg-white focus:ring-2 focus:ring-royal-purple/20 ${
+                          !value ? "text-gray-400" : "text-gray-900"
+                        }`}
+                        placeholder={value ? "" : "Select date"}
+                        title={
+                          value
+                            ? `Current date: ${renderCellValue(
+                                value,
+                                columnDef
+                              )}`
+                            : "Click to select a date"
+                        }
+                        aria-label={`Date for ${columnDef.columnName}`}
+                        style={{ zIndex: 10 }}
+                        autoComplete="off"
+                        data-date-picker="true"
+                      />
+                      {/* Calendar icon indicator - clickable to open date picker */}
+                      {/* <div 
                     className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer z-20"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -733,8 +749,8 @@ export default function BookingsSheet() {
                     />
                     </svg>
                   </div> */}
-                </div>
-              </div>
+                    </div>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent>
                   {renderCellValue(value, columnDef)}
@@ -750,25 +766,26 @@ export default function BookingsSheet() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
-          className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                    editingCell?.rowId === row.id && editingCell?.columnId === column.id
-            ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-            : getColumnTintClasses(columnDef.color)
-                  }`}
-                  style={{
-                    minWidth: `${columnDef.width || 150}px`,
-                    maxWidth: `${columnDef.width || 150}px`,
-                  }}
-                >
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="bg-crimson-red hover:bg-crimson-red/90"
-                    onClick={() => handleDeleteRow(row.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
+                      className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
+                        editingCell?.rowId === row.id &&
+                        editingCell?.columnId === column.id
+                          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                          : getColumnTintClasses(columnDef.color)
+                      }`}
+                      style={{
+                        minWidth: `${columnDef.width || 150}px`,
+                        maxWidth: `${columnDef.width || 150}px`,
+                      }}
+                    >
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="bg-crimson-red hover:bg-crimson-red/90"
+                        onClick={() => handleDeleteRow(row.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </TooltipTrigger>
                   <TooltipContent>Clear row fields</TooltipContent>
                 </Tooltip>
@@ -779,26 +796,32 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-        className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                  editingCell?.rowId === row.id && editingCell?.columnId === column.id
-          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-          : getColumnTintClasses(columnDef.color)
-                }`}
-                style={{
-                  minWidth: `${columnDef.width || 150}px`,
-                  maxWidth: `${columnDef.width || 150}px`,
-                }}
-                // Non-editable
-                onClick={(e) => e.stopPropagation()}
-                title="Computed cell"
-              >
-                <div className="w-full truncate text-sm" title={value?.toString() || ""}>
-                  {renderCellValue(value, columnDef)}
-                </div>
-              </div>
+                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
+                      editingCell?.rowId === row.id &&
+                      editingCell?.columnId === column.id
+                        ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                        : getColumnTintClasses(columnDef.color)
+                    }`}
+                    style={{
+                      minWidth: `${columnDef.width || 150}px`,
+                      maxWidth: `${columnDef.width || 150}px`,
+                    }}
+                    // Non-editable
+                    onClick={(e) => e.stopPropagation()}
+                    title="Computed cell"
+                  >
+                    <div
+                      className="w-full truncate text-sm"
+                      title={value?.toString() || ""}
+                    >
+                      {renderCellValue(value, columnDef)}
+                    </div>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {value === undefined || value === null || value === "" ? "-" : String(value)}
+                  {value === undefined || value === null || value === ""
+                    ? "-"
+                    : String(value)}
                 </TooltipContent>
               </Tooltip>
             );
@@ -809,27 +832,27 @@ export default function BookingsSheet() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-        className={`h-12 w-full px-2 flex items-center cursor-pointer transition-all duration-200 relative ${
-                editingCell?.rowId === row.id &&
-                editingCell?.columnId === column.id
-          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-          : getColumnTintClasses(columnDef.color)
-              }`}
-              style={{
-                minWidth: `${columnDef.width || 150}px`,
-                maxWidth: `${columnDef.width || 150}px`,
-              }}
-              onClick={() => handleCellClick(row.id, column.id)}
-            >
-              <div
-                className="w-full truncate text-sm"
-              >
-                {renderCellValue(value, columnDef)}
-              </div>
-            </div>
+                  className={`h-12 w-full px-2 flex items-center cursor-pointer transition-all duration-200 relative ${
+                    editingCell?.rowId === row.id &&
+                    editingCell?.columnId === column.id
+                      ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                      : getColumnTintClasses(columnDef.color)
+                  }`}
+                  style={{
+                    minWidth: `${columnDef.width || 150}px`,
+                    maxWidth: `${columnDef.width || 150}px`,
+                  }}
+                  onClick={() => handleCellClick(row.id, column.id)}
+                >
+                  <div className="w-full truncate text-sm">
+                    {renderCellValue(value, columnDef)}
+                  </div>
+                </div>
               </TooltipTrigger>
               <TooltipContent>
-                {value === undefined || value === null || value === "" ? "-" : String(value)}
+                {value === undefined || value === null || value === ""
+                  ? "-"
+                  : String(value)}
               </TooltipContent>
             </Tooltip>
           );
@@ -893,7 +916,9 @@ export default function BookingsSheet() {
         if (!isEqual(row[funcCol.id], result)) {
           // Optimistic local update
           setLocalData((prev) =>
-            prev.map((r) => (r.id === row.id ? { ...r, [funcCol.id]: result } : r))
+            prev.map((r) =>
+              r.id === row.id ? { ...r, [funcCol.id]: result } : r
+            )
           );
 
           // Batch persist to Firestore (debounced)
@@ -949,7 +974,10 @@ export default function BookingsSheet() {
         localData.find((r) => r.id === rowId) ||
         data.find((r) => r.id === rowId) ||
         ({ id: rowId } as SheetData);
-      const rowSnapshot: SheetData = { ...baseRow, [changedColumnId]: updatedValue };
+      const rowSnapshot: SheetData = {
+        ...baseRow,
+        [changedColumnId]: updatedValue,
+      };
 
       const visited = new Set<string>(); // function column ids visited
       const queue: string[] = [startName]; // queue of columnNames whose dependents need recompute
@@ -1062,86 +1090,88 @@ export default function BookingsSheet() {
     }
   }, []);
 
-  const handleCellEdit = useCallback(async (
-    rowId: string,
-    columnId: string,
-    value: string
-  ) => {
-    try {
-      // Find the column to determine data type
-      const column = columns.find((col) => col.id === columnId);
-      if (!column) {
-        console.error(`❌ Column not found: ${columnId}`);
-        return;
-      }
+  const handleCellEdit = useCallback(
+    async (rowId: string, columnId: string, value: string) => {
+      try {
+        // Find the column to determine data type
+        const column = columns.find((col) => col.id === columnId);
+        if (!column) {
+          console.error(`❌ Column not found: ${columnId}`);
+          return;
+        }
 
-      // Process the value based on column data type
-      let processedValue: any = value;
-      switch (column.dataType) {
-        case "number":
-        case "currency":
-          processedValue = parseFloat(value) || 0;
-          break;
-        case "boolean":
-          processedValue = value === "true" || value === "1";
-          break;
-        case "date":
-          processedValue = value ? new Date(value) : null;
-          break;
-        default:
-          processedValue = value;
-      }
+        // Process the value based on column data type
+        let processedValue: any = value;
+        switch (column.dataType) {
+          case "number":
+          case "currency":
+            processedValue = parseFloat(value) || 0;
+            break;
+          case "boolean":
+            processedValue = value === "true" || value === "1";
+            break;
+          case "date":
+            processedValue = value ? new Date(value) : null;
+            break;
+          default:
+            processedValue = value;
+        }
 
-      // 🚀 OPTIMISTIC UPDATE: Update local state immediately for instant UI feedback
-      setLocalData(prevData => {
-        const updatedData = prevData.map(row => 
-          row.id === rowId 
-            ? { ...row, [columnId]: processedValue }
-            : row
-        );
-        console.log(`🚀 Optimistic update: ${rowId}.${columnId} = ${processedValue}`);
-        return updatedData;
-      });
-
-  // Queue field update (debounced batch)
-  batchedWriter.queueFieldUpdate(rowId, columnId, processedValue);
-  // Keep toast UX similar by simulating success path immediately
-  Promise.resolve()
-        .then(() => {
-          // Show success toast
-          toast({
-            title: "✅ Cell Updated",
-            description: `Updated ${column.columnName}`,
-          });
-
-          // After a successful base field update, recompute dependents via the dependency graph
-          recomputeDependentsForRow(rowId, columnId, processedValue);
-        })
-        .catch((error) => {
-          console.error(`❌ Failed to update cell:`, error);
-          
-          // Revert optimistic update on error
-          setLocalData(prevData => 
-            prevData.map(row => 
-              row.id === rowId 
-                ? { ...row, [columnId]: data.find(d => d.id === rowId)?.[columnId] }
-                : row
-            )
+        // 🚀 OPTIMISTIC UPDATE: Update local state immediately for instant UI feedback
+        setLocalData((prevData) => {
+          const updatedData = prevData.map((row) =>
+            row.id === rowId ? { ...row, [columnId]: processedValue } : row
           );
-
-          // Show error toast
-          toast({
-            title: "❌ Failed to Update Cell",
-            description: `Error: ${
-              error instanceof Error ? error.message : "Unknown error"
-            }`,
-            variant: "destructive",
-          });
+          console.log(
+            `🚀 Optimistic update: ${rowId}.${columnId} = ${processedValue}`
+          );
+          return updatedData;
         });
-    } catch (error) {
-      console.error(`❌ Failed to handle cell edit:`, error);
-    }
-  }, [columns, toast, data, tableData, recomputeDependentsForRow]);
+
+        // Queue field update (debounced batch)
+        batchedWriter.queueFieldUpdate(rowId, columnId, processedValue);
+        // Keep toast UX similar by simulating success path immediately
+        Promise.resolve()
+          .then(() => {
+            // Show success toast
+            toast({
+              title: "✅ Cell Updated",
+              description: `Updated ${column.columnName}`,
+            });
+
+            // After a successful base field update, recompute dependents via the dependency graph
+            recomputeDependentsForRow(rowId, columnId, processedValue);
+          })
+          .catch((error) => {
+            console.error(`❌ Failed to update cell:`, error);
+
+            // Revert optimistic update on error
+            setLocalData((prevData) =>
+              prevData.map((row) =>
+                row.id === rowId
+                  ? {
+                      ...row,
+                      [columnId]: data.find((d) => d.id === rowId)?.[columnId],
+                    }
+                  : row
+              )
+            );
+
+            // Show error toast
+            toast({
+              title: "❌ Failed to Update Cell",
+              description: `Error: ${
+                error instanceof Error ? error.message : "Unknown error"
+              }`,
+              variant: "destructive",
+            });
+          });
+      } catch (error) {
+        console.error(`❌ Failed to handle cell edit:`, error);
+      }
+    },
+    [columns, toast, data, tableData, recomputeDependentsForRow]
+  );
 
   // Handle committing cell changes (like Google Sheets - save on Enter/blur)
   const handleCellCancel = useCallback(() => {
@@ -1307,8 +1337,14 @@ export default function BookingsSheet() {
       const funcCols = columns.filter(
         (c) => c.dataType === "function" && !!c.function
       );
-      if (funcCols.length === 0 || (localData.length === 0 && data.length === 0)) {
-        toast({ title: "No Function Columns", description: "Nothing to recompute." });
+      if (
+        funcCols.length === 0 ||
+        (localData.length === 0 && data.length === 0)
+      ) {
+        toast({
+          title: "No Function Columns",
+          description: "Nothing to recompute.",
+        });
         return;
       }
 
@@ -1320,7 +1356,6 @@ export default function BookingsSheet() {
       }
 
       // Expedite persistence of the batched writes
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       batchedWriter.flush();
 
       toast({
@@ -1362,9 +1397,7 @@ export default function BookingsSheet() {
             {isRecomputing ? (
               <span className="animate-pulse">Recomputing…</span>
             ) : (
-              <>
-                Recompute Functions
-              </>
+              <>Recompute Functions</>
             )}
           </Button>
           <TooltipProvider>
@@ -1381,8 +1414,9 @@ export default function BookingsSheet() {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-xs">
                 <p className="text-sm">
-                  Use “Recompute Functions” after importing CSV or migrating data to backfill
-                  function columns. Day-to-day edits recompute automatically.
+                  Use “Recompute Functions” after importing CSV or migrating
+                  data to backfill function columns. Day-to-day edits recompute
+                  automatically.
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -1498,20 +1532,43 @@ export default function BookingsSheet() {
           <div className="rounded-md border border-royal-purple/20 overflow-x-auto">
             <TooltipProvider>
               <Table className="border border-royal-purple/20 min-w-full table-fixed">
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id} className="bg-light-grey/30">
-                    {headerGroup.headers.map((header) => {
-                      // Handle row number column header
-                      if (header.id === "rowNumber") {
+                <TableHeader>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id} className="bg-light-grey/30">
+                      {headerGroup.headers.map((header) => {
+                        // Handle row number column header
+                        if (header.id === "rowNumber") {
+                          return (
+                            <TableHead
+                              key={header.id}
+                              className="relative border border-royal-purple/20 p-0"
+                              style={{
+                                minWidth: "64px",
+                                maxWidth: "64px",
+                                width: "64px",
+                              }}
+                            >
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext()
+                                  )}
+                            </TableHead>
+                          );
+                        }
+
+                        const columnDef = columns.find(
+                          (c) => c.id === header.id
+                        );
                         return (
                           <TableHead
                             key={header.id}
                             className="relative border border-royal-purple/20 p-0"
                             style={{
-                              minWidth: "64px",
-                              maxWidth: "64px",
-                              width: "64px",
+                              minWidth: `${columnDef?.width || 150}px`,
+                              maxWidth: `${columnDef?.width || 150}px`,
+                              width: `${columnDef?.width || 150}px`,
                             }}
                           >
                             {header.isPlaceholder
@@ -1522,178 +1579,157 @@ export default function BookingsSheet() {
                                 )}
                           </TableHead>
                         );
-                      }
+                      })}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    const visibleRows = table.getRowModel().rows;
+                    const minRows = 10;
+                    const rowsToShow = Math.max(visibleRows.length, minRows);
 
-                      const columnDef = columns.find((c) => c.id === header.id);
-                      return (
-                        <TableHead
-                          key={header.id}
-                          className="relative border border-royal-purple/20 p-0"
-                          style={{
-                            minWidth: `${columnDef?.width || 150}px`,
-                            maxWidth: `${columnDef?.width || 150}px`,
-                            width: `${columnDef?.width || 150}px`,
-                          }}
-                        >
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {(() => {
-                  const visibleRows = table.getRowModel().rows;
-                  const minRows = 10;
-                  const rowsToShow = Math.max(visibleRows.length, minRows);
+                    // Show actual data rows with stable ordering by numeric ID
+                    const dataRows = visibleRows
+                      .map((row, index) => ({ row, index }))
+                      .sort((a, b) => {
+                        // Sort by numeric ID to maintain stable order
+                        const aId = parseInt(a.row.id);
+                        const bId = parseInt(b.row.id);
+                        if (isNaN(aId) && isNaN(bId)) return 0;
+                        if (isNaN(aId)) return 1;
+                        if (isNaN(bId)) return -1;
+                        return aId - bId;
+                      })
+                      .map(({ row, index }) => {
+                        return (
+                          <TableRow
+                            key={`row-${row.id}`}
+                            data-state={row.getIsSelected() && "selected"}
+                            className={`border-b border-royal-purple/20 transition-colors duration-200 ${
+                              index % 2 === 0 ? "bg-white" : "bg-light-grey/20"
+                            } hover:bg-royal-purple/5`}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
 
-                  // Show actual data rows with stable ordering by numeric ID
-                  const dataRows = visibleRows
-                    .map((row, index) => ({ row, index }))
-                    .sort((a, b) => {
-                      // Sort by numeric ID to maintain stable order
-                      const aId = parseInt(a.row.id);
-                      const bId = parseInt(b.row.id);
-                      if (isNaN(aId) && isNaN(bId)) return 0;
-                      if (isNaN(aId)) return 1;
-                      if (isNaN(bId)) return -1;
-                      return aId - bId;
-                    })
-                    .map(({ row, index }) => {
-                      return (
+                              // Show context menu toast
+                              toast({
+                                title: "🖱️ Context Menu Opened",
+                                description: `Row ${row.id} - Right-click for options`,
+                                variant: "default",
+                              });
+
+                              setContextMenu({
+                                isOpen: true,
+                                rowId: row.id,
+                                x: e.clientX,
+                                y: e.clientY,
+                              });
+                            }}
+                          >
+                            {row.getVisibleCells().map((cell) => {
+                              const columnDef = columns.find(
+                                (c) => c.id === cell.column.id
+                              );
+                              return (
+                                <TableCell
+                                  key={cell.id}
+                                  className="border border-royal-purple/20 p-0"
+                                  style={{
+                                    minWidth: `${columnDef?.width || 150}px`,
+                                    maxWidth: `${columnDef?.width || 150}px`,
+                                    width: `${columnDef?.width || 150}px`,
+                                  }}
+                                >
+                                  {flexRender(
+                                    cell.column.columnDef.cell,
+                                    cell.getContext()
+                                  )}
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        );
+                      });
+
+                    // Add empty rows to reach minimum
+                    const emptyRows = [];
+                    for (let i = visibleRows.length; i < rowsToShow; i++) {
+                      const isFirstEmptyRow = i === visibleRows.length;
+                      emptyRows.push(
                         <TableRow
-                          key={`row-${row.id}`}
-                          data-state={row.getIsSelected() && "selected"}
-                          className={`border-b border-royal-purple/20 transition-colors duration-200 ${
-                            index % 2 === 0 ? "bg-white" : "bg-light-grey/20"
-                          } hover:bg-royal-purple/5`}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-
-                            // Show context menu toast
-                            toast({
-                              title: "🖱️ Context Menu Opened",
-                              description: `Row ${row.id} - Right-click for options`,
-                              variant: "default",
-                            });
-
-                            setContextMenu({
-                              isOpen: true,
-                              rowId: row.id,
-                              x: e.clientX,
-                              y: e.clientY,
-                            });
-                          }}
+                          key={`empty-${i}`}
+                          className={`border-b border-royal-purple/20 ${
+                            i % 2 === 0 ? "bg-white" : "bg-light-grey/20"
+                          } ${isFirstEmptyRow ? "opacity-100" : "opacity-60"}`}
                         >
-                          {row.getVisibleCells().map((cell) => {
-                            const columnDef = columns.find(
-                              (c) => c.id === cell.column.id
-                            );
-                            return (
-                              <TableCell
-                                key={cell.id}
-                                className="border border-royal-purple/20 p-0"
-                                style={{
-                                  minWidth: `${columnDef?.width || 150}px`,
-                                  maxWidth: `${columnDef?.width || 150}px`,
-                                  width: `${columnDef?.width || 150}px`,
-                                }}
-                              >
-                                {flexRender(
-                                  cell.column.columnDef.cell,
-                                  cell.getContext()
-                                )}
-                              </TableCell>
-                            );
-                          })}
-                        </TableRow>
-                      );
-                    });
+                          {table
+                            .getAllLeafColumns()
+                            .map((column, columnIndex) => {
+                              // Handle row number column
+                              if (column.id === "rowNumber") {
+                                // Calculate the actual row number for empty rows
+                                const actualRowNumber =
+                                  visibleRows.length +
+                                  (i - visibleRows.length + 1);
+                                return (
+                                  <TableCell
+                                    key={column.id}
+                                    className="border border-royal-purple/20 p-0"
+                                    style={{
+                                      minWidth: "64px",
+                                      maxWidth: "64px",
+                                      width: "64px",
+                                    }}
+                                  >
+                                    <div className="h-12 w-16 px-2 flex items-center justify-center text-sm text-grey/30 font-mono">
+                                      {actualRowNumber}
+                                    </div>
+                                  </TableCell>
+                                );
+                              }
 
-                  // Add empty rows to reach minimum
-                  const emptyRows = [];
-                  for (let i = visibleRows.length; i < rowsToShow; i++) {
-                    const isFirstEmptyRow = i === visibleRows.length;
-                    emptyRows.push(
-                      <TableRow
-                        key={`empty-${i}`}
-                        className={`border-b border-royal-purple/20 ${
-                          i % 2 === 0 ? "bg-white" : "bg-light-grey/20"
-                        } ${isFirstEmptyRow ? "opacity-100" : "opacity-60"}`}
-                      >
-                        {table
-                          .getAllLeafColumns()
-                          .map((column, columnIndex) => {
-                            // Handle row number column
-                            if (column.id === "rowNumber") {
-                              // Calculate the actual row number for empty rows
-                              const actualRowNumber =
-                                visibleRows.length +
-                                (i - visibleRows.length + 1);
+                              const columnDef = columns.find(
+                                (c) => c.id === column.id
+                              );
                               return (
                                 <TableCell
                                   key={column.id}
                                   className="border border-royal-purple/20 p-0"
                                   style={{
-                                    minWidth: "64px",
-                                    maxWidth: "64px",
-                                    width: "64px",
+                                    minWidth: `${columnDef?.width || 150}px`,
+                                    maxWidth: `${columnDef?.width || 150}px`,
+                                    width: `${columnDef?.width || 150}px`,
                                   }}
                                 >
-                                  <div className="h-12 w-16 px-2 flex items-center justify-center text-sm text-grey/30 font-mono">
-                                    {actualRowNumber}
+                                  <div className="h-12 w-full px-2 flex items-center">
+                                    {isFirstEmptyRow && columnIndex === 1 ? (
+                                      // Plus button in second column (after row number) of first empty row
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleAddNewRow()}
+                                        className="h-8 w-8 p-0 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                                        title="Add new booking"
+                                      >
+                                        <Plus className="h-4 w-4" />
+                                      </Button>
+                                    ) : (
+                                      <div className="w-full text-sm text-grey/30">
+                                        {/* Empty cell - shows table structure */}
+                                      </div>
+                                    )}
                                   </div>
                                 </TableCell>
                               );
-                            }
+                            })}
+                        </TableRow>
+                      );
+                    }
 
-                            const columnDef = columns.find(
-                              (c) => c.id === column.id
-                            );
-                            return (
-                              <TableCell
-                                key={column.id}
-                                className="border border-royal-purple/20 p-0"
-                                style={{
-                                  minWidth: `${columnDef?.width || 150}px`,
-                                  maxWidth: `${columnDef?.width || 150}px`,
-                                  width: `${columnDef?.width || 150}px`,
-                                }}
-                              >
-                                <div className="h-12 w-full px-2 flex items-center">
-                                  {isFirstEmptyRow && columnIndex === 1 ? (
-                                    // Plus button in second column (after row number) of first empty row
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleAddNewRow()}
-                                      className="h-8 w-8 p-0 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-                                      title="Add new booking"
-                                    >
-                                      <Plus className="h-4 w-4" />
-                                    </Button>
-                                  ) : (
-                                    <div className="w-full text-sm text-grey/30">
-                                      {/* Empty cell - shows table structure */}
-                                    </div>
-                                  )}
-                                </div>
-                              </TableCell>
-                            );
-                          })}
-                      </TableRow>
-                    );
-                  }
-
-                  return [...dataRows, ...emptyRows];
-                })()}
-              </TableBody>
+                    return [...dataRows, ...emptyRows];
+                  })()}
+                </TableBody>
               </Table>
             </TooltipProvider>
           </div>

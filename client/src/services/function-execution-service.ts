@@ -34,8 +34,8 @@ class FunctionExecutionService {
       `${transpiled}; return module.exports?.default ?? exports?.default ?? module.exports;`
     ) as (exports: any, module: any) => CompiledFn;
 
-    const module = { exports: {} as any };
-    const compiled = factory(module.exports, module);
+    const moduleObj = { exports: {} as any };
+    const compiled = factory(moduleObj.exports, moduleObj);
 
     if (typeof compiled !== "function") {
       throw new Error(`Default export is not a function in file ${fileId}`);
@@ -80,7 +80,12 @@ class FunctionExecutionService {
         if (Array.isArray(arg.value)) return arg.value;
 
         // Comma-separated for array-like params
-        if (t.includes("[]") || t === "{}" || t.includes("array") || t.includes("string[]")) {
+        if (
+          t.includes("[]") ||
+          t === "{}" ||
+          t.includes("array") ||
+          t.includes("string[]")
+        ) {
           if (typeof arg.value === "string") {
             return arg.value
               .split(",")
