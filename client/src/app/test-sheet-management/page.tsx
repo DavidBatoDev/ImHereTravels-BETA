@@ -157,17 +157,19 @@ export default function TestSheetManagementPage() {
                     <p className="font-medium">{column.columnName}</p>
                     <p className="text-sm text-gray-500">
                       {column.dataType} •{" "}
-                      {column.includeInForms ? "Included in Forms" : "Not in Forms"}
+                      {column.includeInForms
+                        ? "Included in Forms"
+                        : "Not in Forms"}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={column.includeInForms ? "default" : "secondary"}>
+                  <Badge
+                    variant={column.includeInForms ? "default" : "secondary"}
+                  >
                     {column.includeInForms ? "In Forms" : "Not in Forms"}
                   </Badge>
-                  <Badge variant="outline">
-                    {column.dataType}
-                  </Badge>
+                  <Badge variant="outline">{column.dataType}</Badge>
                   <Button
                     size="sm"
                     variant="outline"
