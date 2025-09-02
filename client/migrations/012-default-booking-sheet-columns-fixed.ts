@@ -46,7 +46,6 @@ const COLLECTION_NAME = "bookingSheetColumns";
 
 const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
   {
-    id: "bookingId",
     name: "Booking ID",
     type: "string",
     required: true,
@@ -58,7 +57,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "bookingCode",
+
     name: "Booking Code",
     type: "string",
     required: true,
@@ -70,7 +69,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "tourCode",
+
     name: "Tour Code",
     type: "string",
     required: true,
@@ -82,7 +81,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "reservationDate",
+
     name: "Reservation Date",
     type: "date",
     required: true,
@@ -94,7 +93,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "bookingType",
+
     name: "Booking Type",
     type: "select",
     required: true,
@@ -107,7 +106,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "bookingStatus",
+
     name: "Booking Status",
     type: "select",
     required: true,
@@ -120,7 +119,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "daysBetweenBookingAndTour",
+
     name: "Days Between Booking and Tour Date",
     type: "number",
     required: false,
@@ -132,7 +131,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "groupId",
+
     name: "Group ID / Group ID Generator",
     type: "string",
     required: false,
@@ -144,7 +143,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "isMainBooker",
+
     name: "Is Main Booker?",
     type: "boolean",
     required: false,
@@ -156,7 +155,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "delete",
+
     name: "Delete",
     type: "function",
     required: false,
@@ -168,7 +167,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: false,
   },
   {
-    id: "travellerInitials",
+
     name: "Traveller Initials",
     type: "string",
     required: true,
@@ -180,7 +179,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "firstName",
+
     name: "First Name",
     type: "string",
     required: true,
@@ -192,7 +191,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "lastName",
+
     name: "Last Name",
     type: "string",
     required: true,
@@ -204,7 +203,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "fullName",
+
     name: "Full Name",
     type: "string",
     required: false,
@@ -216,7 +215,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "emailAddress",
+
     name: "Email Address",
     type: "email",
     required: true,
@@ -228,7 +227,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "tourPackageNameUniqueCounter",
+
     name: "Tour Package Name Unique Counter",
     type: "number",
     required: false,
@@ -240,7 +239,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "tourPackageName",
+
     name: "Tour Package Name",
     type: "string",
     required: true,
@@ -252,7 +251,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "formattedDate",
+
     name: "Formatted Date",
     type: "string",
     required: false,
@@ -264,7 +263,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "tourDate",
+
     name: "Tour Date",
     type: "date",
     required: true,
@@ -276,7 +275,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "returnDate",
+
     name: "Return Date",
     type: "date",
     required: false,
@@ -288,7 +287,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "tourDuration",
+
     name: "Tour Duration",
     type: "number",
     required: false,
@@ -300,7 +299,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "useDiscountedTourCost",
+
     name: "Use Discounted Tour Cost?",
     type: "boolean",
     required: false,
@@ -312,7 +311,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "originalTourCost",
+
     name: "Original Tour Cost",
     type: "currency",
     required: true,
@@ -324,7 +323,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "discountedTourCost",
+
     name: "Discounted Tour Cost",
     type: "currency",
     required: false,
@@ -336,7 +335,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "reservationEmail",
+
     name: "Reservation Email",
     type: "email",
     required: false,
@@ -348,7 +347,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "includeBccReservation",
+
     name: "Include BCC (Reservation)",
     type: "boolean",
     required: false,
@@ -360,7 +359,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "generateEmailDraft",
+
     name: "Generate Email Draft",
     type: "boolean",
     required: false,
@@ -372,7 +371,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "emailDraftLink",
+
     name: "Email Draft Link",
     type: "string",
     required: false,
@@ -384,7 +383,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "subjectLineReservation",
+
     name: "Subject Line (Reservation)",
     type: "string",
     required: false,
@@ -396,7 +395,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "sendEmail",
+
     name: "Send Email?",
     type: "boolean",
     required: false,
@@ -408,7 +407,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "sentEmailLink",
+
     name: "Sent Email Link",
     type: "string",
     required: false,
@@ -420,7 +419,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "reservationEmailSentDate",
+
     name: "Reservation Email Sent Date",
     type: "date",
     required: false,
@@ -432,7 +431,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "paymentCondition",
+
     name: "Payment Condition",
     type: "select",
     required: false,
@@ -445,7 +444,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "eligible2ndOfMonths",
+
     name: "Eligible 2nd-of-Months",
     type: "boolean",
     required: false,
@@ -457,7 +456,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "availablePaymentTerms",
+
     name: "Available Payment Terms",
     type: "string",
     required: false,
@@ -469,7 +468,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "paymentPlan",
+
     name: "Payment Plan",
     type: "select",
     required: false,
@@ -482,7 +481,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "paymentMethod",
+
     name: "Payment Method",
     type: "select",
     required: false,
@@ -495,7 +494,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     filterable: true,
   },
   {
-    id: "enablePaymentReminder",
+
     name: "Enable Payment Reminder",
     type: "boolean",
     required: false,
