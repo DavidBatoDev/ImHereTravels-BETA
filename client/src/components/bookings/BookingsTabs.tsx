@@ -3,6 +3,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BookingsList from "./BookingsList";
 import BookingsSheet from "../sheet-management/BookingsSheet";
+import BookingsColumnsTab from "./BookingsColumnsTab";
 
 export default function BookingsTabs() {
   return (
@@ -21,7 +22,7 @@ export default function BookingsTabs() {
 
       {/* Tabs */}
       <Tabs defaultValue="list" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-light-grey border border-royal-purple/20">
+        <TabsList className="grid w-full grid-cols-3 bg-light-grey border border-royal-purple/20">
           <TabsTrigger
             value="list"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
@@ -34,6 +35,12 @@ export default function BookingsTabs() {
           >
             Sheet Management
           </TabsTrigger>
+          <TabsTrigger
+            value="columns"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            Columns
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="mt-6">
@@ -42,6 +49,10 @@ export default function BookingsTabs() {
 
         <TabsContent value="sheet" className="mt-6">
           <BookingsSheet />
+        </TabsContent>
+
+        <TabsContent value="columns" className="mt-6">
+          <BookingsColumnsTab />
         </TabsContent>
       </Tabs>
     </div>

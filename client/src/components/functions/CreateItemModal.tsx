@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Folder, FileCode } from "lucide-react";
+import { Folder, Type } from "lucide-react";
 
 interface CreateItemModalProps {
   isOpen: boolean;
@@ -68,38 +68,49 @@ export default function CreateItemModal({
 
   const getTitle = () => {
     if (isRenaming) {
-      return type === "folder" ? "Rename Folder" : "Rename File";
+      return type === "folder" ? "Rename Folder" : "Rename TypeScript File";
     }
-    return type === "folder" ? "Create New Folder" : "Create New File";
+    return type === "folder"
+      ? "Create New Folder"
+      : "Create New TypeScript File";
   };
 
   const getDescription = () => {
     if (isRenaming) {
       return `Enter a new name for this ${
-        type === "folder" ? "folder" : "JavaScript file"
+        type === "folder" ? "folder" : "TypeScript file"
       }.`;
     }
     if (type === "folder") {
-      return "Enter a name for your new folder.";
+      return "Enter a name for your new TypeScript functions folder.";
     }
-    return `Enter a name for your new JavaScript file. It will be created in "${selectedFolderName}".`;
+    return `Enter a name for your new TypeScript file. It will be created in "${selectedFolderName}".`;
   };
 
   const getIcon = () => {
     return type === "folder" ? (
       <Folder className="h-5 w-5 text-blue-500" />
     ) : (
-      <FileCode className="h-5 w-5 text-green-500" />
+      <Type className="h-5 w-5 text-blue-600" />
     );
   };
 
   const getPlaceholder = () => {
-    return type === "folder" ? "e.g., My Functions" : "e.g., newFile.js";
+    return type === "folder"
+      ? "e.g., My TypeScript Functions"
+      : "e.g., newFunction.ts";
   };
 
   const validateName = (value: string) => {
-    if (type === "file" && !value.endsWith(".js")) {
-      return "File name must end with .js";
+    if (type === "file") {
+      // Allow .ts or .js extensions, but prefer .ts
+      if (!value.endsWith(".ts") && !value.endsWith(".js")) {
+        return "File name must end with .ts (recommended) or .js";
+      }
+      // If no extension provided, suggest .ts
+      if (!value.includes(".")) {
+        return "File name should include an extension (.ts recommended)";
+      }
     }
     if (value.length < 1) {
       return "Name is required";
@@ -126,7 +137,7 @@ export default function CreateItemModal({
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="name">
-                {type === "folder" ? "Folder Name" : "File Name"}
+                {type === "folder" ? "Folder Name" : "TypeScript File Name"}
               </Label>
               <Input
                 id="name"
@@ -137,6 +148,11 @@ export default function CreateItemModal({
                 className={error ? "border-red-500" : ""}
               />
               {error && <p className="text-sm text-red-500">{error}</p>}
+              {type === "file" && !error && name && (
+                <p className="text-sm text-blue-600">
+                  💡 Tip: Use .ts extension for better TypeScript support
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>

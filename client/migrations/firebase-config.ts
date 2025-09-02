@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import path from "path";
 
 // Load .env.local file
-dotenv.config({ path: path.resolve(process.cwd(), "..", ".env.local") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
 // Import Firebase functions
 import { initializeApp } from "firebase/app";

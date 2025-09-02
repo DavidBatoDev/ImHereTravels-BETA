@@ -1,219 +1,82 @@
 import { Timestamp } from "firebase/firestore";
-import type { EmailStatus, ReminderStatus } from "./communications";
-
-// ============================================================================
-// BOOKING CORE TYPES
-// ============================================================================
 
 export interface Booking {
-  id: string; // Auto-generated Firestore ID
-  bookingId: string; // TR-EC-20250712-JD-01 format
-  traveler: Traveler;
-  tour: TourBooking;
-  reservation: Reservation;
-  payment: Payment;
-  group?: GroupBooking;
-  schedule: PaymentScheduleMap;
-  communications: BookingCommunications;
-  // NEW V2 FIELDS
-  status: string; // Reference to referenceData/bookingStatus
-  customerType: string; // Reference to referenceData/customerType
-  customerStatus: string; // Reference to referenceData/customerStatus
-  metadata: BookingMetadata;
-}
+  // Core booking fields (matching default columns)
+  id: string;
+  bookingId: string;
+  bookingCode: string;
+  tourCode: string;
+  reservationDate: Date;
+  bookingType: "Individual" | "Group" | "Corporate";
+  bookingStatus: "Confirmed" | "Pending" | "Cancelled" | "Completed";
+  daysBetweenBookingAndTour: number;
+  groupId?: string;
+  isMainBooker: boolean;
 
-export interface Traveler {
+  // Traveller information
+  travellerInitials: string;
   firstName: string;
   lastName: string;
-  email: string;
-  phone?: string;
-}
+  fullName: string;
+  emailAddress: string;
 
-export interface TourBooking {
-  packageId: string; // Reference to tourPackages
-  name: string;
-  date: Timestamp;
-  returnDate: Timestamp;
-  duration: number; // Days
-}
+  // Tour package details
+  tourPackageNameUniqueCounter: number;
+  tourPackageName: string;
+  formattedDate: string;
+  tourDate: Date;
+  returnDate?: Date;
+  tourDuration: number;
 
-export interface Reservation {
-  date: Timestamp;
-  source: "Webform" | "Manual" | "Partner";
-  bookingType: "single" | "duo" | "group";
-}
+  // Pricing
+  useDiscountedTourCost: boolean;
+  originalTourCost: number;
+  discountedTourCost?: number;
 
-// ============================================================================
-// PAYMENT TYPES
-// ============================================================================
+  // Email management - Reservation
+  reservationEmail?: string;
+  includeBccReservation: boolean;
+  generateEmailDraft: boolean;
+  emailDraftLink?: string;
+  subjectLineReservation?: string;
+  sendEmail: boolean;
+  sentEmailLink?: string;
+  reservationEmailSentDate?: Date;
 
-export interface Payment {
-  condition: "Invalid" | "Last Minute" | "Standard";
-  terms: string; // Reference to PaymentTermConfiguration.termType
-  plan: string; // Reference to PaymentTermConfiguration.termType
-  method?: "stripe" | "revolut" | "bank";
-  originalCost: number;
-  discountedCost?: number;
-  reservationFee: number;
+  // Payment terms
+  paymentCondition?: "Full Payment" | "Partial Payment" | "Installment";
+  eligible2ndOfMonths: boolean;
+  availablePaymentTerms?: string;
+  paymentPlan?: "Monthly" | "Quarterly" | "Custom";
+  paymentMethod?: "Credit Card" | "Bank Transfer" | "Cash" | "PayPal";
+  enablePaymentReminder: boolean;
+  paymentProgress: number;
+
+  // Payment details
+  fullPayment?: number;
+  fullPaymentDueDate?: Date;
+  fullPaymentAmount?: number;
+  fullPaymentDatePaid?: Date;
+  paymentTerm1?: string; // Due Date, Amount, Date Paid, Reminder, Email Link, Calendar Event ID/Link
+  paymentTerm2?: string;
+  paymentTerm3?: string;
+  paymentTerm4?: string;
+  reservationFee?: number;
   paid: number;
   remainingBalance: number;
-  enableReminders: boolean;
-  cancellationReason?:
-    | "Tour Date too close"
-    | "Fully booked"
-    | "Tour Date Cancelled";
-}
+  manualCredit?: number;
+  creditFrom?: string;
 
-export interface PaymentSchedule {
-  amount: number;
-  dueDate: Timestamp;
-  scheduledReminder: Timestamp;
-  calendarEventId?: string;
-  paid: boolean;
-  paidDate?: Timestamp;
-}
+  // Cancellation management
+  reasonForCancellation?: string;
+  includeBccCancellation: boolean;
+  generateCancellationEmailDraft: boolean;
+  cancellationEmailDraftLink?: string;
+  subjectLineCancellation?: string;
+  sendCancellationEmail: boolean;
+  sentCancellationEmailLink?: string;
+  cancellationEmailSentDate?: Date;
 
-export interface PaymentScheduleMap {
-  [key: string]: PaymentSchedule; // Dynamic keys based on payment terms
-}
-
-export type PaymentPlan = string; // Reference to PaymentTermConfiguration.termType
-
-export interface PaymentCalculationResult {
-  originalCost: number;
-  discountedCost: number;
-  reservationFee: number;
-  remainingBalance: number;
-  schedule: PaymentScheduleMap;
-}
-
-// ============================================================================
-// GROUP BOOKING TYPES
-// ============================================================================
-
-export interface GroupBooking {
-  id?: string; // DB-JD-5837-001 format
-  isMainBooker: boolean;
-  members: string[]; // References to other bookings
-}
-
-// ============================================================================
-// COMMUNICATIONS TYPES
-// ============================================================================
-
-export interface BookingCommunications {
-  reservation: EmailStatus;
-  cancellation?: EmailStatus;
-  adventureKit?: EmailStatus;
-  reminders: {
-    P1?: ReminderStatus;
-    P2?: ReminderStatus;
-    P3?: ReminderStatus;
-    P4?: ReminderStatus;
-  };
-}
-
-// ============================================================================
-// METADATA TYPES
-// ============================================================================
-
-export interface BookingMetadata {
-  createdBy: string; // Reference to users
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  lastActivity: Timestamp;
-}
-
-// ============================================================================
-// ACTIVITY LOG TYPES
-// ============================================================================
-
-export interface BookingActivity {
-  id: string; // Auto-generated
-  action:
-    | "created"
-    | "updated"
-    | "payment-received"
-    | "email-sent"
-    | "cancelled";
-  field?: string; // For updates
-  oldValue?: unknown;
-  newValue?: unknown;
-  performedBy: string; // Reference to users
-  timestamp: Timestamp;
-  notes?: string;
-}
-
-// ============================================================================
-// FORM TYPES
-// ============================================================================
-
-export interface BookingFormData {
-  traveler: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone?: string;
-  };
-  tour: {
-    packageId: string;
-    date: string;
-    returnDate: string;
-  };
-  reservation: {
-    source: "Webform" | "Manual" | "Partner";
-    bookingType: "single" | "duo" | "group";
-  };
-  payment: {
-    condition: "Invalid" | "Last Minute" | "Standard";
-    terms: "Invalid" | "Full" | "P1" | "P2" | "P3" | "P4" | "Cancelled";
-    plan: "Full" | "P1" | "P2" | "P3" | "P4";
-    enableReminders: boolean;
-  };
-  // NEW V2 FIELDS
-  status?: string;
-  customerType?: string;
-  customerStatus?: string;
-}
-
-// ============================================================================
-// STATUS TYPES
-// ============================================================================
-
-export type BookingStatus =
-  | "pending"
-  | "confirmed"
-  | "paid"
-  | "cancelled"
-  | "completed";
-
-export type PaymentStatus =
-  | "pending"
-  | "partial"
-  | "paid"
-  | "overdue"
-  | "cancelled";
-
-// ============================================================================
-// FILTER AND SEARCH TYPES
-// ============================================================================
-
-export interface BookingFilters {
-  status?: BookingStatus;
-  paymentStatus?: PaymentStatus;
-  dateRange?: {
-    start: Date;
-    end: Date;
-  };
-  tourPackage?: string;
-  traveler?: string;
-}
-
-export interface SearchParams {
-  query: string;
-  filters: BookingFilters;
-  sortBy: string;
-  sortOrder: "asc" | "desc";
-  page: number;
-  limit: number;
+  // Dynamic fields for any additional columns
+  [key: string]: any;
 }

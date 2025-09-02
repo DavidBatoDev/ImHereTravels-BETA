@@ -61,8 +61,8 @@ const navigation = [
     description: "Customer messages",
   },
   {
-    name: "BBC Users",
-    href: "/bbc-users",
+    name: "BCC Users",
+    href: "/bcc-users",
     icon: User,
     description: "User management",
   },

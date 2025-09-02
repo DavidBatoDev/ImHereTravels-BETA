@@ -10,10 +10,6 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 // Environment variables loaded via dotenv
 
 import {
-  runMigration as runMigration001,
-  rollbackMigration as rollbackMigration001,
-} from "./001-initial-tour-packages";
-import {
   runMigration as runMigration002,
   rollbackMigration as rollbackMigration002,
 } from "./002-additional-tour-packages";
@@ -45,6 +41,26 @@ import {
   runMigration as runMigration010,
   rollbackMigration as rollbackMigration010,
 } from "./010-scheduled-reminder-email-template";
+import {
+  runMigration as runMigration012,
+  rollbackMigration as rollbackMigration012,
+} from "./012-default-booking-sheet-columns";
+import {
+  runMigration as runMigration013,
+  rollbackMigration as rollbackMigration013,
+} from "./013-sample-booking-with-all-columns";
+import {
+  runMigration as runMigration014,
+  rollbackMigration as rollbackMigration014,
+} from "./014-update-column-interface";
+import {
+  runMigration as runMigration015,
+  rollbackMigration as rollbackMigration015,
+} from "./015-remove-column-behavior-fields";
+import {
+  runMigration as runMigration016,
+  rollbackMigration as rollbackMigration016,
+} from "./016-remove-column-required-field";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -60,20 +76,6 @@ async function main() {
 
   switch (command) {
     case "run":
-    case "001":
-      console.log("📊 Running migration: 001-initial-tour-packages");
-      const result = await runMigration001(dryRun);
-      console.log(`\n🎯 ${result.message}`);
-      if (result.details) {
-        console.log(
-          `📊 Details: ${result.details.created} created, ${result.details.skipped} skipped, ${result.details.errors.length} errors`
-        );
-        if (result.details.errors.length > 0) {
-          console.log("\n❌ Errors:");
-          result.details.errors.forEach((error) => console.log(`  - ${error}`));
-        }
-      }
-      break;
 
     case "002":
       console.log("📊 Running migration: 002-additional-tour-packages");
@@ -221,24 +223,103 @@ async function main() {
       }
       break;
 
-    case "rollback":
-    case "undo":
-      console.log("🔄 Rolling back migration: 001-initial-tour-packages");
-      const rollbackResult = await rollbackMigration001();
-      console.log(`\n🎯 ${rollbackResult.message}`);
-      if (rollbackResult.details) {
+    case "012":
+      console.log("📊 Running migration: 012-default-booking-sheet-columns");
+      const result012 = await runMigration012(dryRun);
+      console.log(`\n🎯 ${result012.message}`);
+      if (result012.details) {
         console.log(
-          `📊 Details: ${rollbackResult.details.deleted} deleted, ${rollbackResult.details.errors.length} errors`
+          `📊 Details: ${result012.details.created} created, ${result012.details.skipped} skipped, ${result012.details.errors.length} errors`
         );
-        if (rollbackResult.details.errors.length > 0) {
+        if (result012.details.errors.length > 0) {
           console.log("\n❌ Errors:");
-          rollbackResult.details.errors.forEach((error) =>
+          result012.details.errors.forEach((error) =>
             console.log(`  - ${error}`)
           );
         }
       }
       break;
 
+    case "013":
+      console.log("📊 Running migration: 013-sample-booking-with-all-columns");
+      const result013 = await runMigration013(dryRun);
+      console.log(`\n🎯 ${result013.message}`);
+      if (result013.details) {
+        console.log(
+          `📊 Details: ${
+            result013.details.columnsFound
+          } columns found, booking ${
+            result013.details.bookingCreated ? "created" : "not created"
+          }, ${result013.details.errors.length} errors`
+        );
+        if (result013.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result013.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
+    case "014":
+      console.log("📊 Running migration: 014-update-column-interface");
+      const result014 = await runMigration014(dryRun);
+      console.log(`\n🎯 ${result014.message}`);
+      if (result014.details) {
+        console.log(
+          `📊 Details: ${result014.details.updatedCount} updated, ${result014.details.skippedCount} skipped, ${result014.details.errorCount} errors`
+        );
+        if (result014.details.errorCount > 0) {
+          console.log("\n❌ Errors:");
+          result014.details.migrationResults
+            .filter((r: any) => r.status === "error")
+            .forEach((error: any) =>
+              console.log(`  - ${error.id}: ${error.error}`)
+            );
+        }
+      }
+      break;
+
+    case "015":
+      console.log("📊 Running migration: 015-remove-column-behavior-fields");
+      const result015 = await runMigration015(dryRun);
+      console.log(`\n🎯 ${result015.message}`);
+      if (result015.details) {
+        console.log(
+          `📊 Details: ${result015.details.updatedCount} updated, ${result015.details.skippedCount} skipped, ${result015.details.errorCount} errors`
+        );
+        if (result015.details.errorCount > 0) {
+          console.log("\n❌ Errors:");
+          result015.details.migrationResults
+            .filter((r: any) => r.status === "error")
+            .forEach((error: any) =>
+              console.log(`  - ${error.id}: ${error.error}`)
+            );
+        }
+      }
+      break;
+
+      
+    case "016":
+      console.log("📊 Running migration: 016-remove-column-required-field");
+      const result016 = await runMigration016(dryRun);
+      console.log(`\n🎯 ${result016.message}`);
+      if (result016.details) {
+        console.log(
+          `📊 Details: ${result016.details.updatedCount} updated, ${result016.details.skippedCount} skipped, ${result016.details.errorCount} errors`
+        );
+        if (result016.details.errorCount > 0) {
+          console.log("\n❌ Errors:");
+          result016.details.migrationResults
+            .filter((r: any) => r.status === "error")
+            .forEach((error: any) =>
+              console.log(`  - ${error.id}: ${error.error}`)
+            );
+        }
+      }
+      break;
+
+    case "rollback":
     case "rollback002":
       console.log("🔄 Rolling back migration: 002-additional-tour-packages");
       const rollbackResult002 = await rollbackMigration002();
@@ -385,20 +466,106 @@ async function main() {
       }
       break;
 
-    case "dry-run":
-    case "test":
+    case "rollback012":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 001-initial-tour-packages"
+        "🔄 Rolling back migration: 012-default-booking-sheet-columns"
       );
-      const dryRunResult = await runMigration001(true);
-      console.log(`\n🎯 ${dryRunResult.message}`);
-      if (dryRunResult.details) {
+      const rollbackResult012 = await rollbackMigration012();
+      console.log(`\n🎯 ${rollbackResult012.message}`);
+      if (rollbackResult012.details) {
         console.log(
-          `📊 Details: ${dryRunResult.details.created} would be created, ${dryRunResult.details.skipped} would be skipped`
+          `📊 Details: ${rollbackResult012.details.deleted} deleted, ${rollbackResult012.details.errors.length} errors`
         );
+        if (rollbackResult012.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult012.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
       }
       break;
 
+    case "rollback013":
+      console.log(
+        "🔄 Rolling back migration: 013-sample-booking-with-all-columns"
+      );
+      const rollbackResult013 = await rollbackMigration013();
+      console.log(`\n🎯 ${rollbackResult013.message}`);
+      if (rollbackResult013.details) {
+        console.log(
+          `📊 Details: ${rollbackResult013.details.deleted} deleted, ${rollbackResult013.details.errors.length} errors`
+        );
+        if (rollbackResult013.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult013.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
+    case "rollback014":
+      console.log("🔄 Rolling back migration: 014-update-column-interface");
+      const rollbackResult014 = await rollbackMigration014();
+      console.log(`\n🎯 ${rollbackResult014.message}`);
+      if (rollbackResult014.details) {
+        console.log(
+          `📊 Details: ${rollbackResult014.details.rollbackCount} rolled back, ${rollbackResult014.details.errorCount} errors`
+        );
+        if (rollbackResult014.details.errorCount > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult014.details.rollbackResults
+            .filter((r: any) => r.status === "error")
+            .forEach((error: any) =>
+              console.log(`  - ${error.id}: ${error.error}`)
+            );
+        }
+      }
+      break;
+
+    case "rollback015":
+      console.log(
+        "🔄 Rolling back migration: 015-remove-column-behavior-fields"
+      );
+      const rollbackResult015 = await rollbackMigration015();
+      console.log(`\n🎯 ${rollbackResult015.message}`);
+      if (rollbackResult015.details) {
+        console.log(
+          `📊 Details: ${rollbackResult015.details.rollbackCount} rolled back, ${rollbackResult015.details.errorCount} errors`
+        );
+        if (rollbackResult015.details.errorCount > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult015.details.rollbackResults
+            .filter((r: any) => r.status === "error")
+            .forEach((error: any) =>
+              console.log(`  - ${error.id}: ${error.error}`)
+            );
+        }
+      }
+      break;
+
+    case "rollback016":
+      console.log(
+        "🔄 Rolling back migration: 016-remove-column-required-field"
+      );
+      const rollbackResult016 = await rollbackMigration016();
+      console.log(`\n🎯 ${rollbackResult016.message}`);
+      if (rollbackResult016.details) {
+        console.log(
+          `📊 Details: ${rollbackResult016.details.rollbackCount} rolled back, ${rollbackResult016.details.errorCount} errors`
+        );
+        if (rollbackResult016.details.errorCount > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult016.details.rollbackResults
+            .filter((r: any) => r.status === "error")
+            .forEach((error: any) =>
+              console.log(`  - ${error.id}: ${error.error}`)
+            );
+        }
+      }
+      break;
+
+    case "dry-run":
     case "dry-run002":
       console.log(
         "🔍 Running migration in DRY RUN mode: 002-additional-tour-packages"
@@ -501,6 +668,71 @@ async function main() {
       }
       break;
 
+    case "dry-run012":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 012-default-booking-sheet-columns"
+      );
+      const dryRunResult012 = await runMigration012(true);
+      console.log(`\n🎯 ${dryRunResult012.message}`);
+      if (dryRunResult012.details) {
+        console.log(
+          `📊 Details: ${dryRunResult012.details.created} would be created, ${dryRunResult012.details.skipped} would be skipped`
+        );
+      }
+      break;
+
+    case "dry-run013":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 013-sample-booking-with-all-columns"
+      );
+      const dryRunResult013 = await runMigration013(true);
+      console.log(`\n🎯 ${dryRunResult013.message}`);
+      if (dryRunResult013.details) {
+        console.log(
+          `📊 Details: ${dryRunResult013.details.columnsFound} columns found, would create sample booking`
+        );
+      }
+      break;
+
+    case "dry-run014":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 014-update-column-interface"
+      );
+      const dryRunResult014 = await runMigration014(true);
+      console.log(`\n🎯 ${dryRunResult014.message}`);
+      if (dryRunResult014.details) {
+        console.log(
+          `📊 Details: ${dryRunResult014.details.updatedCount} would be updated, ${dryRunResult014.details.skippedCount} would be skipped`
+        );
+      }
+      break;
+
+    case "dry-run015":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 015-remove-column-behavior-fields"
+      );
+      const dryRunResult015 = await runMigration015(true);
+      console.log(`\n🎯 ${dryRunResult015.message}`);
+      if (dryRunResult015.details) {
+        console.log(
+          `📊 Details: ${dryRunResult015.details.updatedCount} would be updated, ${dryRunResult015.details.skippedCount} would be skipped`
+        );
+      }
+      break;
+
+    case "dry-run016":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 016-remove-column-required-field"
+      );
+      const dryRunResult016 = await runMigration016(true);
+      console.log(`\n🎯 ${dryRunResult016.message}`);
+      if (dryRunResult016.details) {
+        console.log(
+          `📊 Details: ${dryRunResult016.details.updatedCount} would be updated, ${dryRunResult016.details.skippedCount} would be skipped`
+        );
+      }
+      break;
+
     case "help":
     case "--help":
     case "-h":
@@ -528,6 +760,11 @@ function showHelp() {
   008                Run the migration to create cancellation email templates
   009                Run the migration to create initial payment reminder template
   010                Run the migration to create scheduled reminder email template
+  012                Run the migration to create default booking sheet columns
+  013                Run the migration to create sample booking with all columns
+  014                Run the migration to update column interface (name->columnName, type->dataType)
+  015                Run the migration to remove column behavior fields (visible, editable, sortable, filterable)
+  016                Run the migration to remove column required field
   rollback, undo     Rollback the migration 001 (delete created tours)
   rollback002        Rollback the migration 002 (delete created tours)
   rollback003        Rollback the migration 003 (delete created tours)
@@ -537,6 +774,11 @@ function showHelp() {
   rollback008        Rollback the migration 008 (delete cancellation email template)
   rollback009        Rollback the migration 009 (delete initial payment reminder template)
   rollback010        Rollback the migration 010 (delete scheduled reminder email template)
+  rollback012        Rollback the migration 012 (delete default booking sheet columns)
+  rollback013        Rollback the migration 013 (delete sample booking)
+  rollback014        Rollback the migration 014 (restore old column interface)
+  rollback015        Rollback the migration 015 (restore column behavior fields)
+  rollback016        Rollback the migration 016 (restore column required field)
   dry-run, test     Test the migration 001 without making changes
   dry-run002        Test the migration 002 without making changes
   dry-run003        Test the migration 003 without making changes
@@ -546,6 +788,11 @@ function showHelp() {
   dry-run008        Test the migration 008 without making changes
   dry-run009        Test the migration 009 without making changes
   dry-run010        Test the migration 010 without making changes
+  dry-run012        Test the migration 012 without making changes
+  dry-run013        Test the migration 013 without making changes
+  dry-run014        Test the migration 014 without making changes
+  dry-run015        Test the migration 015 without making changes
+  dry-run016        Test the migration 016 without making changes
   help               Show this help message
 
 📝 Examples:
@@ -559,6 +806,11 @@ function showHelp() {
   tsx migrations/migrate.ts 008        # Run migration 008 (cancellation email templates)
   tsx migrations/migrate.ts 009        # Run migration 009 (initial payment reminder template)
   tsx migrations/migrate.ts 010        # Run migration 010 (scheduled reminder email template)
+  tsx migrations/migrate.ts 012        # Run migration 012 (default booking sheet columns)
+  tsx migrations/migrate.ts 013        # Run migration 013 (sample booking with all columns)
+  tsx migrations/migrate.ts 014        # Run migration 014 (update column interface)
+  tsx migrations/migrate.ts 015        # Run migration 015 (remove column behavior fields)
+  tsx migrations/migrate.ts 016        # Run migration 016 (remove column required field)
   tsx migrations/migrate.ts dry-run    # Test migration 001 without changes
   tsx migrations/migrate.ts dry-run002 # Test migration 002 without changes
   tsx migrations/migrate.ts dry-run003 # Test migration 003 without changes
@@ -575,6 +827,9 @@ function showHelp() {
   tsx migrations/migrate.ts rollback008 # Undo migration 008
   tsx migrations/migrate.ts rollback009 # Undo migration 009
   tsx migrations/migrate.ts rollback010 # Undo migration 010
+  tsx migrations/migrate.ts rollback012 # Undo migration 012
+  tsx migrations/migrate.ts rollback013 # Undo migration 013
+  tsx migrations/migrate.ts rollback014 # Undo migration 014
 
 🔧 Options:
 
@@ -634,9 +889,32 @@ function showHelp() {
   Migration 010 - Scheduled Reminder Email Template:
   - Adds a tour reminder email template for travelers before departure
   - Supports different booking types (Individual, Duo, Group)
+
+  Migration 012 - Default Booking Sheet Columns:
+  - Creates the initial set of 60+ columns for the booking sheet
+  - Includes all core booking fields, traveler info, tour details, payment terms, etc.
+  - Sets up the foundation for the hybrid column approach
+
+  Migration 013 - Sample Booking with All Columns:
+  - Creates a sample booking document with values for all defined columns
+  - Demonstrates the hybrid column system in action
+  - Provides test data for the sheet management interface
+
+  Migration 014 - Update Column Interface:
+  - Updates existing columns from old interface (name, type) to new interface
+  - New fields: columnName, dataType, function, arguments, includeInForms
+  - Automatically sets includeInForms=false for function columns
+  - Enables integration with TypeScript functions from ts_files collection
   - Conditional rendering for group-specific information
   - Dynamic content based on booking details and special instructions
   - Professional layout with tour details table and important reminders
+
+  Migration 012 - Default Booking Sheet Columns:
+  - Populates the bookingSheetColumns collection with 60 default columns
+  - Establishes the foundation for the hybrid booking system
+  - Includes core booking fields, traveller information, tour details, pricing
+  - Covers email management, payment terms, and cancellation handling
+  - Sets up column metadata with types, validation, and behavior rules
 
   Each tour includes:
   - Complete itinerary with day-by-day activities
