@@ -160,7 +160,7 @@ const EditableCell = memo(function EditableCell({
             } else if (e.key === "Escape") cancel();
           }}
           autoFocus
-          className="h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+          className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none"
         />
       </div>
     );
@@ -179,7 +179,7 @@ const EditableCell = memo(function EditableCell({
           } else if (e.key === "Escape") cancel();
         }}
         autoFocus
-        className="h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+        className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none"
       />
     </div>
   );
@@ -356,7 +356,7 @@ export default function BookingsSheet() {
               <div
                 className={`flex items-center justify-center h-12 w-16 px-2 text-sm font-mono transition-all duration-200 ${
                   isRowBeingEdited
-                    ? "bg-royal-purple/20 text-royal-purple font-semibold border border-royal-purple/40"
+                    ? "bg-royal-purple/20 text-royal-purple font-semibold border-2 border-royal-purple"
                     : "text-grey"
                 }`}
               >
@@ -384,7 +384,7 @@ export default function BookingsSheet() {
               <div
                 className={`flex items-center justify-between group h-12 w-full px-3 py-2 rounded transition-all duration-200 ${
                   editingCell?.columnId === col.id
-                    ? "bg-royal-purple/30 border border-royal-purple/50 shadow-sm"
+                    ? "bg-royal-purple/30 border-2 border-royal-purple shadow-sm"
                     : "bg-transparent"
                 } text-royal-purple`}
                 style={{
@@ -443,7 +443,7 @@ export default function BookingsSheet() {
                     className={`h-12 w-full px-2 flex items-center justify-center transition-all duration-200 relative ${
                       editingCell?.rowId === row.id &&
                       editingCell?.columnId === column.id
-                        ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                        ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
                         : getColumnTintClasses(columnDef.color)
                     }`}
                     style={{
@@ -510,7 +510,7 @@ export default function BookingsSheet() {
                     className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
                       editingCell?.rowId === row.id &&
                       editingCell?.columnId === column.id
-                        ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                        ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
                         : getColumnTintClasses(columnDef.color)
                     }`}
                     style={{
@@ -533,7 +533,7 @@ export default function BookingsSheet() {
                           }}
                         >
                           <SelectTrigger
-                            className={`h-8 border-royal-purple/20 focus:border-royal-purple text-sm transition-colors duration-200 focus:ring-2 focus:ring-royal-purple/20 ${
+                            className={`h-8 border-2 border-royal-purple/20 focus:border-royal-purple text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none ${
                               value
                                 ? "bg-royal-purple/5 border-royal-purple/40 text-royal-purple font-medium"
                                 : "bg-white hover:bg-royal-purple/5 text-gray-500"
@@ -584,7 +584,7 @@ export default function BookingsSheet() {
                     className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
                       editingCell?.rowId === row.id &&
                       editingCell?.columnId === column.id
-                        ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                        ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
                         : getColumnTintClasses(columnDef.color)
                     }`}
                     style={{
@@ -698,11 +698,11 @@ export default function BookingsSheet() {
                             }, 10);
                           }
                         }}
-                        className={`h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 text-sm transition-colors duration-200 pr-8 cursor-pointer ${
+                        className={`h-8 border-2 border-royal-purple/20 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 text-sm transition-colors duration-200 pr-8 cursor-pointer rounded-none ${
                           value
                             ? "bg-royal-purple/5 border-royal-purple/40"
                             : "bg-white hover:bg-royal-purple/5"
-                        } focus:bg-white focus:ring-2 focus:ring-royal-purple/20 ${
+                        } focus:bg-white ${
                           !value ? "text-gray-400" : "text-gray-900"
                         }`}
                         placeholder={value ? "" : "Select date"}
@@ -775,7 +775,7 @@ export default function BookingsSheet() {
                       className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
                         editingCell?.rowId === row.id &&
                         editingCell?.columnId === column.id
-                          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                          ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
                           : getColumnTintClasses(columnDef.color)
                       }`}
                       style={{
@@ -805,7 +805,7 @@ export default function BookingsSheet() {
                     className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
                       editingCell?.rowId === row.id &&
                       editingCell?.columnId === column.id
-                        ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                        ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
                         : getColumnTintClasses(columnDef.color)
                     }`}
                     style={{
@@ -848,7 +848,7 @@ export default function BookingsSheet() {
                   className={`h-12 w-full px-2 flex items-center cursor-pointer transition-all duration-200 relative ${
                     editingCell?.rowId === row.id &&
                     editingCell?.columnId === column.id
-                      ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
+                      ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
                       : getColumnTintClasses(columnDef.color)
                   }`}
                   style={{
@@ -1445,7 +1445,7 @@ export default function BookingsSheet() {
                 placeholder="Search all columns..."
                 value={globalFilter ?? ""}
                 onChange={(e) => setGlobalFilter(e.target.value)}
-                className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0"
               />
             </div>
             <Select
@@ -1458,7 +1458,7 @@ export default function BookingsSheet() {
                 table.setPageSize(newPageSize);
               }}
             >
-              <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
+              <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1748,7 +1748,7 @@ export default function BookingsSheet() {
                     table.setPageSize(Number(value));
                   }}
                 >
-                  <SelectTrigger className="h-8 w-[70px] border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
+                  <SelectTrigger className="h-8 w-[70px] border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0">
                     <SelectValue
                       placeholder={table.getState().pagination.pageSize}
                     />
