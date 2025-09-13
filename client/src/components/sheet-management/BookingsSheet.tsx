@@ -210,6 +210,7 @@ export default function BookingsSheet() {
 
   // Local state for optimistic updates (prevents re-renders)
   const [localData, setLocalData] = useState<SheetData[]>([]);
+  // Removed per-cell loading state per request
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -815,12 +816,19 @@ export default function BookingsSheet() {
                     onClick={(e) => e.stopPropagation()}
                     title="Computed cell"
                   >
-                    <div
-                      className="w-full truncate text-sm"
-                      title={value?.toString() || ""}
-                    >
-                      {renderCellValue(value, columnDef)}
-                    </div>
+                    {(() => {
+                      const key = `${row.id}:${columnDef.id}`;
+                      return (
+                        <div
+                          className="w-full truncate text-sm flex items-center gap-2"
+                          title={value?.toString() || ""}
+                        >
+                          <span className={undefined}>
+                            {renderCellValue(value, columnDef)}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -983,12 +991,13 @@ export default function BookingsSheet() {
       };
 
       const directDependents = dependencyGraph.get(changedCol.columnName) || [];
-      for (const funcCol of directDependents) {
-        await computeFunctionForRow(rowSnapshot, funcCol);
-      }
-      // Flush batched writes sooner for responsive UX
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      batchedWriter.flush();
+      // Compute all direct dependents in parallel for speed
+      await Promise.all(
+        directDependents.map((funcCol) =>
+          computeFunctionForRow(rowSnapshot, funcCol)
+        )
+      );
+      // Do not force flush; allow debounced batch to commit to keep UI snappy
     },
     [columns, localData, data, dependencyGraph, computeFunctionForRow]
   );
@@ -1162,6 +1171,13 @@ export default function BookingsSheet() {
             processedValue = value;
         }
 
+        // Do not update if value didn't change
+        const currentRow = (localData.find((r) => r.id === rowId) ||
+          data.find((r) => r.id === rowId)) as SheetData | undefined;
+        if (currentRow && isEqual(currentRow[columnId], processedValue)) {
+          return;
+        }
+
         // 🚀 OPTIMISTIC UPDATE: Update local state immediately for instant UI feedback
         setLocalData((prevData) => {
           const updatedData = prevData.map((row) =>
@@ -1175,19 +1191,9 @@ export default function BookingsSheet() {
 
         // Queue field update (debounced batch)
         batchedWriter.queueFieldUpdate(rowId, columnId, processedValue);
-        // Keep toast UX similar by simulating success path immediately
-        Promise.resolve()
-          .then(() => {
-            // Show success toast
-            toast({
-              title: "✅ Cell Updated",
-              description: `Updated ${column.columnName}`,
-            });
-
-            // After a successful base field update, recompute only direct dependents
-            recomputeDirectDependentsForRow(rowId, columnId, processedValue);
-          })
-          .catch((error) => {
+        // Recompute only direct dependents (no success toast to keep UI snappy)
+        recomputeDirectDependentsForRow(rowId, columnId, processedValue).catch(
+          (error) => {
             console.error(`❌ Failed to update cell:`, error);
 
             // Revert optimistic update on error
@@ -1210,7 +1216,8 @@ export default function BookingsSheet() {
               }`,
               variant: "destructive",
             });
-          });
+          }
+        );
       } catch (error) {
         console.error(`❌ Failed to handle cell edit:`, error);
       }

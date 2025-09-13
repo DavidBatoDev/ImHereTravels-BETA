@@ -67,6 +67,11 @@ class FunctionExecutionService {
     allColumns: SheetColumn[]
   ): any[] {
     const argsMeta = column.arguments || [];
+    // Pre-index columns by name to avoid repeated linear scans
+    const columnsByName = new Map<string, SheetColumn>();
+    for (const c of allColumns) {
+      if (c.columnName) columnsByName.set(c.columnName, c);
+    }
 
     return argsMeta.map((arg) => {
       const t = (arg.type || "").toLowerCase();
@@ -74,7 +79,7 @@ class FunctionExecutionService {
       // If multiple column references are supplied (array-like param)
       if (Array.isArray(arg.columnReferences) && arg.columnReferences.length) {
         const values = arg.columnReferences.map((refName) => {
-          const refCol = allColumns.find((c) => c.columnName === refName);
+          const refCol = refName ? columnsByName.get(refName) : undefined;
           return refCol ? row[refCol.id] : undefined;
         });
         return values;
@@ -82,9 +87,7 @@ class FunctionExecutionService {
 
       // Single column reference
       if (arg.columnReference !== undefined && arg.columnReference !== "") {
-        const refCol = allColumns.find(
-          (c) => c.columnName === arg.columnReference
-        );
+        const refCol = columnsByName.get(arg.columnReference);
         const value = refCol ? row[refCol.id] : undefined;
         return value;
       }
