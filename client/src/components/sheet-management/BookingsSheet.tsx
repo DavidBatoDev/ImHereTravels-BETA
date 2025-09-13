@@ -206,6 +206,10 @@ export default function BookingsSheet() {
     rowId: string;
     columnId: string;
   } | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{
+    rowId: string;
+    columnId: string;
+  } | null>(null);
   // Remove global editing value to avoid table-wide rerenders
 
   // Local state for optimistic updates (prevents re-renders)
@@ -383,6 +387,7 @@ export default function BookingsSheet() {
             <TooltipTrigger asChild>
               <div
                 className={`flex items-center justify-between group h-12 w-full px-3 py-2 rounded transition-all duration-200 ${
+                  selectedCell?.columnId === col.id ||
                   editingCell?.columnId === col.id
                     ? "bg-royal-purple/30 border-2 border-royal-purple shadow-sm"
                     : "bg-transparent"
@@ -441,11 +446,14 @@ export default function BookingsSheet() {
                 <TooltipTrigger asChild>
                   <div
                     className={`h-12 w-full px-2 flex items-center justify-center transition-all duration-200 relative ${
-                      editingCell?.rowId === row.id &&
-                      editingCell?.columnId === column.id
+                      (selectedCell?.rowId === row.id &&
+                        selectedCell?.columnId === column.id) ||
+                      (editingCell?.rowId === row.id &&
+                        editingCell?.columnId === column.id)
                         ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
                         : getColumnTintClasses(columnDef.color)
                     }`}
+                    onClick={() => handleCellClick(row.id, column.id)}
                     style={{
                       minWidth: `${columnDef.width || 150}px`,
                       maxWidth: `${columnDef.width || 150}px`,
@@ -508,11 +516,17 @@ export default function BookingsSheet() {
                 <TooltipTrigger asChild>
                   <div
                     className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                      editingCell?.rowId === row.id &&
-                      editingCell?.columnId === column.id
+                      (selectedCell?.rowId === row.id &&
+                        selectedCell?.columnId === column.id) ||
+                      (editingCell?.rowId === row.id &&
+                        editingCell?.columnId === column.id)
                         ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
                         : getColumnTintClasses(columnDef.color)
                     }`}
+                    onClick={() => handleCellClick(row.id, column.id)}
+                    onDoubleClick={() =>
+                      handleCellDoubleClick(row.id, column.id)
+                    }
                     style={{
                       minWidth: `${columnDef.width || 150}px`,
                       maxWidth: `${columnDef.width || 150}px`,
@@ -582,11 +596,17 @@ export default function BookingsSheet() {
                 <TooltipTrigger asChild>
                   <div
                     className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                      editingCell?.rowId === row.id &&
-                      editingCell?.columnId === column.id
+                      (selectedCell?.rowId === row.id &&
+                        selectedCell?.columnId === column.id) ||
+                      (editingCell?.rowId === row.id &&
+                        editingCell?.columnId === column.id)
                         ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
                         : getColumnTintClasses(columnDef.color)
                     }`}
+                    onClick={() => handleCellClick(row.id, column.id)}
+                    onDoubleClick={() =>
+                      handleCellDoubleClick(row.id, column.id)
+                    }
                     style={{
                       minWidth: `${columnDef.width || 150}px`,
                       maxWidth: `${columnDef.width || 150}px`,
@@ -773,11 +793,14 @@ export default function BookingsSheet() {
                   <TooltipTrigger asChild>
                     <div
                       className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                        editingCell?.rowId === row.id &&
-                        editingCell?.columnId === column.id
+                        (selectedCell?.rowId === row.id &&
+                          selectedCell?.columnId === column.id) ||
+                        (editingCell?.rowId === row.id &&
+                          editingCell?.columnId === column.id)
                           ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
                           : getColumnTintClasses(columnDef.color)
                       }`}
+                      onClick={() => handleCellClick(row.id, column.id)}
                       style={{
                         minWidth: `${columnDef.width || 150}px`,
                         maxWidth: `${columnDef.width || 150}px`,
@@ -803,8 +826,10 @@ export default function BookingsSheet() {
                 <TooltipTrigger asChild>
                   <div
                     className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                      editingCell?.rowId === row.id &&
-                      editingCell?.columnId === column.id
+                      (selectedCell?.rowId === row.id &&
+                        selectedCell?.columnId === column.id) ||
+                      (editingCell?.rowId === row.id &&
+                        editingCell?.columnId === column.id)
                         ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
                         : getColumnTintClasses(columnDef.color)
                     }`}
@@ -814,6 +839,9 @@ export default function BookingsSheet() {
                     }}
                     // Non-editable
                     onClick={(e) => e.stopPropagation()}
+                    onDoubleClick={() =>
+                      handleCellDoubleClick(row.id, column.id)
+                    }
                     title="Computed cell"
                   >
                     {(() => {
@@ -846,8 +874,10 @@ export default function BookingsSheet() {
               <TooltipTrigger asChild>
                 <div
                   className={`h-12 w-full px-2 flex items-center cursor-pointer transition-all duration-200 relative ${
-                    editingCell?.rowId === row.id &&
-                    editingCell?.columnId === column.id
+                    (selectedCell?.rowId === row.id &&
+                      selectedCell?.columnId === column.id) ||
+                    (editingCell?.rowId === row.id &&
+                      editingCell?.columnId === column.id)
                       ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
                       : getColumnTintClasses(columnDef.color)
                   }`}
@@ -856,6 +886,7 @@ export default function BookingsSheet() {
                     maxWidth: `${columnDef.width || 150}px`,
                   }}
                   onClick={() => handleCellClick(row.id, column.id)}
+                  onDoubleClick={() => handleCellDoubleClick(row.id, column.id)}
                 >
                   <div className="w-full truncate text-sm">
                     {renderCellValue(value, columnDef)}
@@ -877,7 +908,7 @@ export default function BookingsSheet() {
 
     // Return row number column + data columns
     return [rowNumberColumn, ...dataColumns];
-  }, [columns, editingCell]);
+  }, [columns, editingCell, selectedCell]);
 
   const table = useReactTable({
     data: tableData,
@@ -1230,10 +1261,22 @@ export default function BookingsSheet() {
     setEditingCell(null);
   }, []);
 
-  // Memoized cell click handler to prevent re-renders
+  // Memoized cell click handler: select only (fast), don't enter edit on single click
   const handleCellClick = useCallback((rowId: string, columnId: string) => {
-    setEditingCell({ rowId, columnId });
+    setSelectedCell((prev) => {
+      if (prev && prev.rowId === rowId && prev.columnId === columnId)
+        return prev;
+      return { rowId, columnId };
+    });
   }, []);
+
+  // Double click enters edit mode (heavy UI only when needed)
+  const handleCellDoubleClick = useCallback(
+    (rowId: string, columnId: string) => {
+      setEditingCell({ rowId, columnId });
+    },
+    []
+  );
 
   const openColumnSettings = (column: SheetColumn) => {
     setColumnSettingsModal({ isOpen: true, column });
