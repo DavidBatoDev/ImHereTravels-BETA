@@ -7,6 +7,21 @@ type CompiledFn = (...args: any[]) => any;
 class FunctionExecutionService {
   private cache: Map<string, CompiledFn> = new Map();
 
+  // Invalidate a single compiled function by its ts_file id
+  invalidate(fileId: string): void {
+    this.cache.delete(fileId);
+  }
+
+  // Invalidate multiple compiled functions at once
+  invalidateMany(fileIds: string[]): void {
+    for (const id of fileIds) this.cache.delete(id);
+  }
+
+  // Clear all compiled function cache (use sparingly)
+  clearAll(): void {
+    this.cache.clear();
+  }
+
   // Fetch, transpile, and cache the function by ts_file id
   async getCompiledFunction(fileId: string): Promise<CompiledFn> {
     if (this.cache.has(fileId)) return this.cache.get(fileId)!;
@@ -34,8 +49,8 @@ class FunctionExecutionService {
       `${transpiled}; return module.exports?.default ?? exports?.default ?? module.exports;`
     ) as (exports: any, module: any) => CompiledFn;
 
-    const moduleObj = { exports: {} as any };
-    const compiled = factory(moduleObj.exports, moduleObj);
+    const module = { exports: {} as any };
+    const compiled = factory(module.exports, module);
 
     if (typeof compiled !== "function") {
       throw new Error(`Default export is not a function in file ${fileId}`);

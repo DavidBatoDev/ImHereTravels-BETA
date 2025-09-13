@@ -13,6 +13,7 @@ import { setGlobalOptions } from "firebase-functions";
 export { helloWorld } from "./hello-world";
 export { sendVerificationEmail } from "./send-verification-email";
 export { verifyEmail } from "./verify-email";
+export { onTypeScriptFunctionUpdated } from "./recompute-on-function-update";
 
 // Export email utilities
 export { EmailTemplateLoader } from "./email-template-loader";

@@ -154,8 +154,10 @@ const EditableCell = memo(function EditableCell({
           onChange={(e) => setLocal(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => {
-            if (e.key === "Enter") commit();
-            else if (e.key === "Escape") cancel();
+            if (e.key === "Enter") {
+              commit();
+              onCancel();
+            } else if (e.key === "Escape") cancel();
           }}
           autoFocus
           className="h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
@@ -171,8 +173,10 @@ const EditableCell = memo(function EditableCell({
         onChange={(e) => setLocal(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-          else if (e.key === "Escape") cancel();
+          if (e.key === "Enter") {
+            commit();
+            onCancel();
+          } else if (e.key === "Escape") cancel();
         }}
         autoFocus
         className="h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
@@ -215,7 +219,7 @@ export default function BookingsSheet() {
     y: number;
   }>({ isOpen: false, rowId: null, x: 0, y: 0 });
 
-  // Handle clicking outside to close editing
+  // Handle clicking outside to close editing (use click so input onBlur commits first)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (editingCell && !(event.target as Element).closest(".editing-cell")) {
@@ -223,9 +227,9 @@ export default function BookingsSheet() {
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("click", handleClickOutside);
     };
   }, [editingCell]);
 
@@ -239,7 +243,8 @@ export default function BookingsSheet() {
     TypeScriptFunction[]
   >([]);
   const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
-  const [isRecomputing, setIsRecomputing] = useState(false);
+  // Active subscriptions to function changes keyed by function id
+  const functionSubscriptionsRef = useRef<Map<string, () => void>>(new Map());
 
   // Helper: map column color to light background + hover classes for body cells
   const getColumnTintClasses = useCallback(
@@ -961,13 +966,11 @@ export default function BookingsSheet() {
     return map;
   }, [columns]);
 
-  // Recompute only dependents for a single row (BFS over columnName dependencies)
-  const recomputeDependentsForRow = useCallback(
+  // Recompute only direct dependent function columns for a single row
+  const recomputeDirectDependentsForRow = useCallback(
     async (rowId: string, changedColumnId: string, updatedValue: any) => {
       const changedCol = columns.find((c) => c.id === changedColumnId);
-      if (!changedCol) return;
-      const startName = changedCol.columnName;
-      if (!startName) return;
+      if (!changedCol || !changedCol.columnName) return;
 
       // Build a working snapshot of the row values
       const baseRow =
@@ -979,51 +982,93 @@ export default function BookingsSheet() {
         [changedColumnId]: updatedValue,
       };
 
-      const visited = new Set<string>(); // function column ids visited
-      const queue: string[] = [startName]; // queue of columnNames whose dependents need recompute
-
-      while (queue.length) {
-        const name = queue.shift()!;
-        const dependents = dependencyGraph.get(name) || [];
-        for (const funcCol of dependents) {
-          if (visited.has(funcCol.id)) continue;
-          visited.add(funcCol.id);
-          const result = await computeFunctionForRow(rowSnapshot, funcCol);
-          if (result !== undefined) {
-            (rowSnapshot as any)[funcCol.id] = result;
-          }
-          // Enqueue further dependents using the function column's own columnName
-          if (funcCol.columnName) {
-            queue.push(funcCol.columnName);
-          }
-        }
+      const directDependents = dependencyGraph.get(changedCol.columnName) || [];
+      for (const funcCol of directDependents) {
+        await computeFunctionForRow(rowSnapshot, funcCol);
       }
+      // Flush batched writes sooner for responsive UX
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      batchedWriter.flush();
     },
     [columns, localData, data, dependencyGraph, computeFunctionForRow]
   );
 
-  // Recompute all function columns when data or columns change (debounced via effect cadence + batched writes)
-  useEffect(() => {
-    const funcCols = columns.filter(
-      (c) => c.dataType === "function" && !!c.function
-    );
-    if (funcCols.length === 0 || tableData.length === 0) return;
+  // Recompute for columns bound to a specific function id (and their dependents)
+  const recomputeForFunction = useCallback(
+    async (funcId: string) => {
+      const impactedColumns = columns.filter(
+        (c) => c.dataType === "function" && c.function === funcId
+      );
+      if (impactedColumns.length === 0) return;
 
-    let cancelled = false;
-    (async () => {
-      for (const row of tableData) {
-        for (const col of funcCols) {
-          if (cancelled) return;
-          await computeFunctionForRow(row, col);
+      const rows = localData.length > 0 ? localData : data;
+      for (const row of rows) {
+        for (const funcCol of impactedColumns) {
+          await computeFunctionForRow(row, funcCol);
         }
       }
-      // After scheduling all updates, let the batched writer flush on its debounce
-    })();
+      // Expedite persistence
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      batchedWriter.flush();
+    },
+    [columns, localData, data, computeFunctionForRow]
+  );
 
+  // Subscribe to changes for only the functions referenced by current columns
+  useEffect(() => {
+    const inUseFunctionIds = new Set(
+      columns
+        .filter((c) => c.dataType === "function" && !!c.function)
+        .map((c) => c.function as string)
+    );
+
+    // Add new subscriptions for newly referenced functions
+    inUseFunctionIds.forEach((funcId) => {
+      if (!functionSubscriptionsRef.current.has(funcId)) {
+        const unsubscribe =
+          typescriptFunctionsService.subscribeToFunctionChanges(
+            funcId,
+            (updated) => {
+              if (!updated) return;
+              // Invalidate compiled function cache so next compute uses fresh code
+              functionExecutionService.invalidate(funcId);
+              // Recompute only affected columns and their dependents
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
+              recomputeForFunction(funcId);
+            }
+          );
+        functionSubscriptionsRef.current.set(funcId, unsubscribe);
+      }
+    });
+
+    // Remove subscriptions for functions no longer referenced
+    for (const [
+      funcId,
+      unsubscribe,
+    ] of functionSubscriptionsRef.current.entries()) {
+      if (!inUseFunctionIds.has(funcId)) {
+        try {
+          unsubscribe();
+        } catch {}
+        functionSubscriptionsRef.current.delete(funcId);
+      }
+    }
+
+    // Cleanup on unmount: ensure all remaining subscriptions are torn down
     return () => {
-      cancelled = true;
+      for (const [
+        ,
+        unsubscribe,
+      ] of functionSubscriptionsRef.current.entries()) {
+        try {
+          unsubscribe();
+        } catch {}
+      }
+      functionSubscriptionsRef.current.clear();
     };
-  }, [columns, tableData, computeFunctionForRow]);
+  }, [columns, recomputeForFunction]);
+
+  // Removed sheet-wide recomputation to avoid rerunning entire sheet on edits
 
   const renderCellValue = useCallback((value: any, column: SheetColumn) => {
     if (value === null || value === undefined || value === "") return "-";
@@ -1139,8 +1184,8 @@ export default function BookingsSheet() {
               description: `Updated ${column.columnName}`,
             });
 
-            // After a successful base field update, recompute dependents via the dependency graph
-            recomputeDependentsForRow(rowId, columnId, processedValue);
+            // After a successful base field update, recompute only direct dependents
+            recomputeDirectDependentsForRow(rowId, columnId, processedValue);
           })
           .catch((error) => {
             console.error(`❌ Failed to update cell:`, error);
@@ -1170,7 +1215,7 @@ export default function BookingsSheet() {
         console.error(`❌ Failed to handle cell edit:`, error);
       }
     },
-    [columns, toast, data, tableData, recomputeDependentsForRow]
+    [columns, toast, data, tableData, recomputeDirectDependentsForRow]
   );
 
   // Handle committing cell changes (like Google Sheets - save on Enter/blur)
@@ -1330,49 +1375,7 @@ export default function BookingsSheet() {
     }));
   };
 
-  // Manually recompute all function columns for all rows (useful after CSV/migration)
-  const handleRecomputeAllFunctions = async () => {
-    try {
-      setIsRecomputing(true);
-      const funcCols = columns.filter(
-        (c) => c.dataType === "function" && !!c.function
-      );
-      if (
-        funcCols.length === 0 ||
-        (localData.length === 0 && data.length === 0)
-      ) {
-        toast({
-          title: "No Function Columns",
-          description: "Nothing to recompute.",
-        });
-        return;
-      }
-
-      const rows = localData.length > 0 ? localData : data;
-      for (const row of rows) {
-        for (const col of funcCols) {
-          await computeFunctionForRow(row, col);
-        }
-      }
-
-      // Expedite persistence of the batched writes
-      batchedWriter.flush();
-
-      toast({
-        title: "Functions Recomputed",
-        description: `Processed ${rows.length} rows across ${funcCols.length} function column(s)`,
-      });
-    } catch (err) {
-      console.error("❌ Recompute all failed", err);
-      toast({
-        title: "Failed to Recompute",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRecomputing(false);
-    }
-  };
+  // Removed manual recompute handler and button per request
 
   return (
     <div className="space-y-6">
@@ -1387,19 +1390,7 @@ export default function BookingsSheet() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleRecomputeAllFunctions}
-            disabled={isRecomputing}
-            className="flex items-center gap-2 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-            title="Recompute all function columns (use after CSV/migrated data)"
-          >
-            {isRecomputing ? (
-              <span className="animate-pulse">Recomputing…</span>
-            ) : (
-              <>Recompute Functions</>
-            )}
-          </Button>
+          {/* Recompute button removed */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1414,9 +1405,8 @@ export default function BookingsSheet() {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-xs">
                 <p className="text-sm">
-                  Use “Recompute Functions” after importing CSV or migrating
-                  data to backfill function columns. Day-to-day edits recompute
-                  automatically.
+                  Function columns recompute only when their inputs or
+                  underlying functions change.
                 </p>
               </TooltipContent>
             </Tooltip>
