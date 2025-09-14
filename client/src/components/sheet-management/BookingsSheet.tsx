@@ -2047,9 +2047,7 @@ export default function BookingsSheet() {
                               // Handle row number column
                               if (column.id === "rowNumber") {
                                 // Calculate the actual row number for empty rows
-                                const actualRowNumber =
-                                  visibleRows.length +
-                                  (i - visibleRows.length + 1);
+                                const actualRowNumber = i;
                                 return (
                                   <TableCell
                                     key={column.id}
