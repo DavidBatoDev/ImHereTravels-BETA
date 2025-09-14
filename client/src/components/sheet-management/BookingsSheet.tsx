@@ -540,43 +540,53 @@ export default function BookingsSheet() {
                       style={{ position: "relative", zIndex: 15 }}
                     >
                       {columnDef.options && columnDef.options.length > 0 ? (
-                        <Select
-                          value={value?.toString() || ""}
-                          onValueChange={(newValue) => {
-                            // Update the cell value directly when selection changes
-                            handleCellEdit(row.id, column.id, newValue);
-                          }}
-                        >
-                          <SelectTrigger
-                            className={`h-8 border-2 border-royal-purple/20 focus:border-royal-purple text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none ${
-                              value
-                                ? "bg-royal-purple/5 border-royal-purple/40 text-royal-purple font-medium"
-                                : "bg-white hover:bg-royal-purple/5 text-gray-500"
-                            }`}
+                        <div className="relative">
+                          <Select
+                            value={value?.toString() || ""}
+                            onValueChange={(newValue) => {
+                              // Update the cell value directly when selection changes
+                              handleCellEdit(row.id, column.id, newValue);
+                            }}
                           >
-                            <SelectValue
-                              placeholder="Select option"
-                              className={
-                                !value ? "text-gray-400" : "text-royal-purple"
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white border border-royal-purple/20 shadow-lg max-h-60 z-50">
-                            {columnDef.options.map((option) => (
-                              <SelectItem
-                                key={option}
-                                value={option}
-                                className={`text-sm transition-colors duration-200 ${
-                                  option === value
-                                    ? "bg-royal-purple/20 text-royal-purple font-medium"
-                                    : "hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
-                                }`}
-                              >
-                                {option}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                            <SelectTrigger
+                              className={`h-8 border-2 border-royal-purple/20 focus:border-royal-purple text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none ${
+                                value
+                                  ? "bg-royal-purple/5 border-royal-purple/40 text-royal-purple font-medium"
+                                  : "bg-white hover:bg-royal-purple/5 text-gray-500"
+                              }`}
+                            >
+                              <SelectValue
+                                placeholder="Select option"
+                                className={
+                                  !value ? "text-gray-400" : "text-royal-purple"
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white border border-royal-purple/20 shadow-lg max-h-60 z-50">
+                              {columnDef.options.map((option) => (
+                                <SelectItem
+                                  key={option}
+                                  value={option}
+                                  className={`text-sm transition-colors duration-200 ${
+                                    option === value
+                                      ? "bg-royal-purple/20 text-royal-purple font-medium"
+                                      : "hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
+                                  }`}
+                                >
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {/* Single-click blocker to prevent opening on first click */}
+                          <div
+                            className="absolute inset-0"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
+                          />
+                        </div>
                       ) : (
                         <div className="h-8 w-full flex items-center justify-center text-sm text-gray-400 bg-gray-50 border border-gray-200 rounded cursor-not-allowed">
                           No options available
@@ -1513,6 +1523,26 @@ export default function BookingsSheet() {
           e.preventDefault();
           clearSelection();
         }
+      } else if (selectedCell && !overlayEditing) {
+        // Check if it's a printable character (not special keys like Escape, Tab, etc.)
+        const isPrintableChar =
+          e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+
+        if (isPrintableChar) {
+          const selectedCol = columns.find(
+            (c) => c.id === selectedCell.columnId
+          );
+          const isEditableType =
+            selectedCol?.dataType === "string" ||
+            selectedCol?.dataType === "number" ||
+            selectedCol?.dataType === "currency";
+
+          if (isEditableType) {
+            e.preventDefault();
+            setOverlayEditValue(e.key);
+            setOverlayEditing(true);
+          }
+        }
       }
     };
     window.addEventListener("pointerdown", onGlobalPointerDown, true);
@@ -1521,7 +1551,13 @@ export default function BookingsSheet() {
       window.removeEventListener("pointerdown", onGlobalPointerDown, true);
       window.removeEventListener("keydown", onKeyDown, true);
     };
-  }, [overlayEditing, selectedCell, handleOverlayCommit, clearSelection]);
+  }, [
+    overlayEditing,
+    selectedCell,
+    handleOverlayCommit,
+    clearSelection,
+    columns,
+  ]);
 
   const selectedDisplayValue = useMemo(() => {
     if (!selectedCell) return null;
@@ -2195,6 +2231,26 @@ export default function BookingsSheet() {
                                 clipRule="evenodd"
                               />
                             </svg>
+                          </button>
+                        )}
+                        {selectedType === "select" && (
+                          <button
+                            type="button"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded hover:bg-royal-purple/10 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              try {
+                                const trigger =
+                                  lastSelectedCellEl.current?.querySelector(
+                                    '[role="combobox"],button'
+                                  ) as HTMLElement | null;
+                                if (trigger) trigger.click();
+                              } catch {}
+                            }}
+                            aria-label="Open options"
+                            title="Open options"
+                          >
+                            <ChevronDown className="h-4 w-4 text-royal-purple" />
                           </button>
                         )}
                       </div>
