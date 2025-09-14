@@ -297,6 +297,72 @@ export async function getAllTours(): Promise<TourPackage[]> {
   }
 }
 
+export async function getAllTourPackages(): Promise<void> {
+  try {
+    console.log("🏖️ Fetching all tour packages...");
+
+    const querySnapshot = await getDocs(collection(db, TOURS_COLLECTION));
+    const tours: TourPackage[] = [];
+
+    querySnapshot.forEach((doc) => {
+      const tourData = { id: doc.id, ...doc.data() } as TourPackage;
+      tours.push(tourData);
+    });
+
+    console.log(`📊 Found ${tours.length} tour packages`);
+    console.log("=".repeat(60));
+
+    // Convert Firestore Timestamps to readable dates for JSON output
+    const toursWithReadableDates = tours.map((tour) => ({
+      ...tour,
+      travelDates: tour.travelDates.map((td) => ({
+        ...td,
+        startDate:
+          td.startDate?.toDate?.() || new Date(td.startDate.seconds * 1000),
+        endDate: td.endDate?.toDate?.() || new Date(td.endDate.seconds * 1000),
+      })),
+      metadata: {
+        ...tour.metadata,
+        createdAt:
+          tour.metadata.createdAt?.toDate?.() ||
+          new Date(tour.metadata.createdAt.seconds * 1000),
+        updatedAt:
+          tour.metadata.updatedAt?.toDate?.() ||
+          new Date(tour.metadata.updatedAt.seconds * 1000),
+      },
+      pricingHistory:
+        tour.pricingHistory?.map((ph) => ({
+          ...ph,
+          date: ph.date?.toDate?.() || new Date(ph.date.seconds * 1000),
+        })) || [],
+    }));
+
+    // Log the complete JSON structure
+    console.log("📋 ALL TOUR PACKAGES (JSON FORMAT):");
+    console.log(JSON.stringify(toursWithReadableDates, null, 2));
+
+    console.log("=".repeat(60));
+    console.log("✅ Tour packages logged successfully!");
+
+    // Also log a summary
+    console.log("\n📈 TOUR PACKAGES SUMMARY:");
+    tours.forEach((tour, index) => {
+      console.log(`${index + 1}. ${tour.name} (${tour.tourCode})`);
+      console.log(`   Location: ${tour.location}`);
+      console.log(`   Duration: ${tour.duration} days`);
+      console.log(`   Status: ${tour.status}`);
+      console.log(
+        `   Price: ${tour.pricing.currency} ${tour.pricing.original}`
+      );
+      console.log(`   Travel Dates: ${tour.travelDates.length} available`);
+      console.log("");
+    });
+  } catch (error) {
+    console.error("❌ Error getting all tour packages:", error);
+    throw new Error("Failed to fetch all tour packages");
+  }
+}
+
 // ============================================================================
 // UPDATE OPERATIONS
 // ============================================================================
