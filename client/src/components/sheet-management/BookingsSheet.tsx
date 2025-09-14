@@ -1283,7 +1283,7 @@ export default function BookingsSheet() {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastSelectedCellEl = useRef<HTMLElement | null>(null);
   const [overlayEditing, setOverlayEditing] = useState(false);
-  const [overlayEditValue, setOverlayEditValue] = useState("");
+  const overlayInitialValueRef = useRef<string>("");
   const overlayEditingCellRef = useRef<{
     rowId: string;
     columnId: string;
@@ -1394,7 +1394,7 @@ export default function BookingsSheet() {
       data.find((r) => r.id === selectedCell.rowId)) as any;
     const colDef = columns.find((c) => c.id === selectedCell.columnId);
     const raw = row && colDef ? row[colDef.id] : undefined;
-    setOverlayEditValue(String(raw ?? ""));
+    overlayInitialValueRef.current = String(raw ?? "");
     setOverlayEditing(true);
     overlayEditingCellRef.current = {
       rowId: selectedCell.rowId,
@@ -1415,7 +1415,7 @@ export default function BookingsSheet() {
         data.find((r) => r.id === rowId)) as any;
       const colDef = columns.find((c) => c.id === columnId);
       const raw = row && colDef ? row[colDef.id] : undefined;
-      setOverlayEditValue(String(raw ?? ""));
+      overlayInitialValueRef.current = String(raw ?? "");
       setOverlayEditing(true);
       overlayEditingCellRef.current = { rowId, columnId };
     },
@@ -1425,28 +1425,26 @@ export default function BookingsSheet() {
   const handleOverlayCommit = useCallback(async () => {
     const targetCell = overlayEditingCellRef.current || selectedCell;
     if (!targetCell) return;
-    let valueToSend = overlayEditValue;
+    const currentValue = overlayTextareaRef.current?.value ?? "";
+    let valueToSend = currentValue;
     const colDef = columns.find((c) => c.id === targetCell.columnId);
     if (colDef) {
       switch (colDef.dataType) {
         case "number":
         case "currency": {
           // Strip thousands separators, currency symbols, and spaces
-          const normalized = (overlayEditValue || "").replace(
-            /[^0-9.\-]+/g,
-            ""
-          );
+          const normalized = (currentValue || "").replace(/[^0-9.\-]+/g, "");
           valueToSend = normalized;
           break;
         }
         case "boolean": {
-          const t = (overlayEditValue || "").trim().toLowerCase();
+          const t = (currentValue || "").trim().toLowerCase();
           const truthy = ["true", "1", "yes", "y", "on"];
           valueToSend = truthy.includes(t) ? "true" : "false";
           break;
         }
         case "date": {
-          const d = new Date(overlayEditValue);
+          const d = new Date(currentValue);
           if (!isNaN(d.getTime())) {
             valueToSend = d.toISOString().split("T")[0];
           }
@@ -1459,7 +1457,7 @@ export default function BookingsSheet() {
     await handleCellEdit(targetCell.rowId, targetCell.columnId, valueToSend);
     clearSelection();
     overlayEditingCellRef.current = null;
-  }, [selectedCell, overlayEditValue, handleCellEdit, clearSelection, columns]);
+  }, [selectedCell, handleCellEdit, clearSelection, columns]);
 
   const handleOverlayKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1539,7 +1537,7 @@ export default function BookingsSheet() {
 
           if (isEditableType) {
             e.preventDefault();
-            setOverlayEditValue(e.key);
+            overlayInitialValueRef.current = e.key;
             setOverlayEditing(true);
           }
         }
@@ -2179,8 +2177,7 @@ export default function BookingsSheet() {
                     <textarea
                       autoFocus
                       ref={overlayTextareaRef}
-                      value={overlayEditValue}
-                      onChange={(e) => setOverlayEditValue(e.target.value)}
+                      defaultValue={overlayInitialValueRef.current}
                       onBlur={handleOverlayCommit}
                       onKeyDown={handleOverlayKeyDown}
                       className="w-full h-full resize-none outline-none focus:outline-none focus:ring-0 px-2 py-1 text-sm bg-white"
