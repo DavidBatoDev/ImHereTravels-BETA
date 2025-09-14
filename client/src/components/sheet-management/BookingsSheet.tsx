@@ -1308,6 +1308,43 @@ export default function BookingsSheet() {
     }
   }, []);
 
+  const handleOverlayCommit = useCallback(async () => {
+    const targetCell = overlayEditingCellRef.current || selectedCell;
+    if (!targetCell) return;
+    const currentValue = overlayTextareaRef.current?.value ?? "";
+    let valueToSend = currentValue;
+    const colDef = columns.find((c) => c.id === targetCell.columnId);
+    if (colDef) {
+      switch (colDef.dataType) {
+        case "number":
+        case "currency": {
+          // Strip thousands separators, currency symbols, and spaces
+          const normalized = (currentValue || "").replace(/[^0-9.\-]+/g, "");
+          valueToSend = normalized;
+          break;
+        }
+        case "boolean": {
+          const t = (currentValue || "").trim().toLowerCase();
+          const truthy = ["true", "1", "yes", "y", "on"];
+          valueToSend = truthy.includes(t) ? "true" : "false";
+          break;
+        }
+        case "date": {
+          const d = new Date(currentValue);
+          if (!isNaN(d.getTime())) {
+            valueToSend = d.toISOString().split("T")[0];
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    }
+    await handleCellEdit(targetCell.rowId, targetCell.columnId, valueToSend);
+    clearSelection();
+    overlayEditingCellRef.current = null;
+  }, [selectedCell, handleCellEdit, clearSelection, columns]);
+
   const handlePointerDownSelect = useCallback(
     (e: React.PointerEvent) => {
       const target = e.target as HTMLElement | null;
@@ -1331,6 +1368,20 @@ export default function BookingsSheet() {
       const columnId = cellEl.dataset.colId;
       const cellType = cellEl.dataset.type;
       if (rowId && columnId) {
+        // If we're currently editing and selecting a different cell, commit the edit first
+        if (overlayEditing) {
+          const current = overlayEditingCellRef.current || selectedCell;
+          if (
+            !current ||
+            current.rowId !== rowId ||
+            current.columnId !== columnId
+          ) {
+            // Commit the current edit before switching to new cell
+            handleOverlayCommit();
+            // Don't return here - continue to select the new cell
+          }
+        }
+
         // Immediate boolean toggle: click on checkbox cell toggles without overlay edit
         if (cellType === "boolean") {
           // Toggle immediately via data state, do not change selection
@@ -1385,7 +1436,14 @@ export default function BookingsSheet() {
         setOverlayEditing(false);
       }
     },
-    [localData, data, columns, handleCellEdit]
+    [
+      localData,
+      data,
+      columns,
+      handleCellEdit,
+      overlayEditing,
+      handleOverlayCommit,
+    ]
   );
 
   const handleOverlayDoubleClick = useCallback(() => {
@@ -1421,43 +1479,6 @@ export default function BookingsSheet() {
     },
     [selectedCell, localData, data, columns]
   );
-
-  const handleOverlayCommit = useCallback(async () => {
-    const targetCell = overlayEditingCellRef.current || selectedCell;
-    if (!targetCell) return;
-    const currentValue = overlayTextareaRef.current?.value ?? "";
-    let valueToSend = currentValue;
-    const colDef = columns.find((c) => c.id === targetCell.columnId);
-    if (colDef) {
-      switch (colDef.dataType) {
-        case "number":
-        case "currency": {
-          // Strip thousands separators, currency symbols, and spaces
-          const normalized = (currentValue || "").replace(/[^0-9.\-]+/g, "");
-          valueToSend = normalized;
-          break;
-        }
-        case "boolean": {
-          const t = (currentValue || "").trim().toLowerCase();
-          const truthy = ["true", "1", "yes", "y", "on"];
-          valueToSend = truthy.includes(t) ? "true" : "false";
-          break;
-        }
-        case "date": {
-          const d = new Date(currentValue);
-          if (!isNaN(d.getTime())) {
-            valueToSend = d.toISOString().split("T")[0];
-          }
-          break;
-        }
-        default:
-          break;
-      }
-    }
-    await handleCellEdit(targetCell.rowId, targetCell.columnId, valueToSend);
-    clearSelection();
-    overlayEditingCellRef.current = null;
-  }, [selectedCell, handleCellEdit, clearSelection, columns]);
 
   const handleOverlayKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
