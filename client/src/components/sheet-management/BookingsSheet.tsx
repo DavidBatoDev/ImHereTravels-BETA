@@ -75,7 +75,6 @@ import {
 import { useSheetManagement } from "@/hooks/use-sheet-management";
 import { typescriptFunctionsService } from "@/services/typescript-functions-service";
 import { bookingService } from "@/services/booking-service";
-import { demoBookingData } from "@/lib/demo-booking-data";
 import { useToast } from "@/hooks/use-toast";
 import { useColumnLogger } from "@/hooks/use-column-logger";
 import ColumnSettingsModal from "./ColumnSettingsModal";
@@ -315,9 +314,6 @@ export default function BookingsSheet() {
 
     fetchFunctions();
 
-    // Initialize demo data in Firestore if needed
-    initializeDemoData();
-
     // Show ready toast
     toast({
       title: "🚀 Bookings Sheet Ready",
@@ -325,13 +321,6 @@ export default function BookingsSheet() {
       variant: "default",
     });
   }, []);
-
-  // Initialize with demo data (now handled by Firestore)
-  // useMemo(() => {
-  //   if (data.length === 0) {
-  //     updateData(demoBookingData);
-  //   }
-  // }, [data.length, updateData]);
 
   // Use local data for optimistic updates, fallback to hook data
   const tableData = localData.length > 0 ? localData : data;
@@ -1672,53 +1661,6 @@ export default function BookingsSheet() {
 
   const handleAddColumn = (newColumn: Omit<SheetColumn, "id">) => {
     addColumn(newColumn);
-  };
-
-  // Initialize demo data in Firestore if needed
-  const initializeDemoData = async () => {
-    try {
-      // Check if we have any data in Firestore
-      const existingBookings = await bookingService.getAllBookings();
-
-      if (existingBookings.length === 0) {
-        console.log("📝 No existing bookings found, initializing demo data...");
-
-        // Create demo bookings in Firestore with numeric IDs
-        for (let i = 0; i < demoBookingData.length; i++) {
-          const demoBooking = demoBookingData[i];
-          const rowNumber = (i + 1).toString(); // Use 1, 2, 3, etc.
-
-          await bookingService.createOrUpdateBooking(rowNumber, {
-            ...demoBooking,
-            id: rowNumber,
-          });
-        }
-
-        console.log("✅ Demo data initialized in Firestore");
-
-        // Show success toast
-        toast({
-          title: "📊 Demo Data Initialized",
-          description: `${demoBookingData.length} demo bookings created successfully`,
-          variant: "default",
-        });
-      } else {
-        console.log(
-          `📊 Found ${existingBookings.length} existing bookings in Firestore`
-        );
-      }
-    } catch (error) {
-      console.error("❌ Failed to initialize demo data:", error);
-
-      // Show error toast
-      toast({
-        title: "❌ Failed to Initialize Demo Data",
-        description: `Error: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        variant: "destructive",
-      });
-    }
   };
 
   // Handle adding a new row
