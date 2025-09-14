@@ -61,6 +61,25 @@ import {
   runMigration as runMigration016,
   rollbackMigration as rollbackMigration016,
 } from "./016-remove-column-required-field";
+import {
+  runMigration as runMigration017,
+  rollbackMigration as rollbackMigration017,
+} from "./017-update-payment-columns";
+import {
+  runMigration as runMigration018,
+  rollbackMigration as rollbackMigration018,
+  dryRun as dryRun018,
+} from "./018-update-booking-field-names";
+import {
+  runMigration as runMigration019,
+  rollbackMigration as rollbackMigration019,
+  dryRun as dryRun019,
+} from "./019-update-column-ids";
+import {
+  runMigration as runMigration020,
+  rollbackMigration as rollbackMigration020,
+  dryRun as dryRun020,
+} from "./020-rebuild-columns-with-custom-ids";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -299,7 +318,6 @@ async function main() {
       }
       break;
 
-      
     case "016":
       console.log("📊 Running migration: 016-remove-column-required-field");
       const result016 = await runMigration016(dryRun);
@@ -316,6 +334,52 @@ async function main() {
               console.log(`  - ${error.id}: ${error.error}`)
             );
         }
+      }
+      break;
+
+    case "017":
+      console.log("📊 Running migration: 017-update-payment-columns");
+      const result017 = await runMigration017(dryRun);
+      console.log(`\n🎯 ${result017.message}`);
+      if (result017.details) {
+        console.log(
+          `📊 Details: ${result017.details.deletedCount} deleted, ${result017.details.addedCount} added, ${result017.details.updatedCount} updated, ${result017.details.errorCount} errors`
+        );
+        if (result017.details.errorCount > 0) {
+          console.log("\n❌ Errors:");
+          result017.details.migrationResults
+            .filter((r: any) => r.status === "error")
+            .forEach((error: any) =>
+              console.log(`  - ${error.id}: ${error.error}`)
+            );
+        }
+      }
+      break;
+
+    case "018":
+      console.log("📊 Running migration: 018-update-booking-field-names");
+      if (dryRun) {
+        await dryRun018();
+      } else {
+        await runMigration018();
+      }
+      break;
+
+    case "019":
+      console.log("📊 Running migration: 019-update-column-ids");
+      if (dryRun) {
+        await dryRun019();
+      } else {
+        await runMigration019();
+      }
+      break;
+
+    case "020":
+      console.log("📊 Running migration: 020-rebuild-columns-with-custom-ids");
+      if (dryRun) {
+        await dryRun020();
+      } else {
+        await runMigration020();
       }
       break;
 
@@ -565,6 +629,42 @@ async function main() {
       }
       break;
 
+    case "rollback017":
+      console.log("🔄 Rolling back migration: 017-update-payment-columns");
+      const rollbackResult017 = await rollbackMigration017();
+      console.log(`\n🎯 ${rollbackResult017.message}`);
+      if (rollbackResult017.details) {
+        console.log(
+          `📊 Details: ${rollbackResult017.details.rollbackCount} rolled back, ${rollbackResult017.details.errorCount} errors`
+        );
+        if (rollbackResult017.details.errorCount > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult017.details.rollbackResults
+            .filter((r: any) => r.status === "error")
+            .forEach((error: any) =>
+              console.log(`  - ${error.id}: ${error.error}`)
+            );
+        }
+      }
+      break;
+
+    case "rollback018":
+      console.log("🔄 Rolling back migration: 018-update-booking-field-names");
+      await rollbackMigration018();
+      break;
+
+    case "rollback019":
+      console.log("🔄 Rolling back migration: 019-update-column-ids");
+      await rollbackMigration019();
+      break;
+
+    case "rollback020":
+      console.log(
+        "🔄 Rolling back migration: 020-rebuild-columns-with-custom-ids"
+      );
+      await rollbackMigration020();
+      break;
+
     case "dry-run":
     case "dry-run002":
       console.log(
@@ -733,6 +833,40 @@ async function main() {
       }
       break;
 
+    case "dry-run017":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 017-update-payment-columns"
+      );
+      const dryRunResult017 = await runMigration017(true);
+      console.log(`\n🎯 ${dryRunResult017.message}`);
+      if (dryRunResult017.details) {
+        console.log(
+          `📊 Details: ${dryRunResult017.details.deletedCount} would be deleted, ${dryRunResult017.details.addedCount} would be added, ${dryRunResult017.details.updatedCount} would be updated`
+        );
+      }
+      break;
+
+    case "dry-run018":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 018-update-booking-field-names"
+      );
+      await dryRun018();
+      break;
+
+    case "dry-run019":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 019-update-column-ids"
+      );
+      await dryRun019();
+      break;
+
+    case "dry-run020":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 020-rebuild-columns-with-custom-ids"
+      );
+      await dryRun020();
+      break;
+
     case "help":
     case "--help":
     case "-h":
@@ -765,6 +899,10 @@ function showHelp() {
   014                Run the migration to update column interface (name->columnName, type->dataType)
   015                Run the migration to remove column behavior fields (visible, editable, sortable, filterable)
   016                Run the migration to remove column required field
+  017                Run the migration to update payment columns structure
+  018                Run the migration to update booking field names from col-<n> to Firestore column IDs
+  019                Run the migration to update column id fields to use actual Firestore document IDs
+  020                Run the migration to rebuild columns with custom IDs based on column names
   rollback, undo     Rollback the migration 001 (delete created tours)
   rollback002        Rollback the migration 002 (delete created tours)
   rollback003        Rollback the migration 003 (delete created tours)
@@ -779,6 +917,10 @@ function showHelp() {
   rollback014        Rollback the migration 014 (restore old column interface)
   rollback015        Rollback the migration 015 (restore column behavior fields)
   rollback016        Rollback the migration 016 (restore column required field)
+  rollback017        Rollback the migration 017 (restore old payment columns structure)
+  rollback018        Rollback the migration 018 (restore col-<n> field names)
+  rollback019        Rollback the migration 019 (restore col-<n> id fields)
+  rollback020        Rollback the migration 020 (delete columns with custom IDs)
   dry-run, test     Test the migration 001 without making changes
   dry-run002        Test the migration 002 without making changes
   dry-run003        Test the migration 003 without making changes
@@ -793,6 +935,10 @@ function showHelp() {
   dry-run014        Test the migration 014 without making changes
   dry-run015        Test the migration 015 without making changes
   dry-run016        Test the migration 016 without making changes
+  dry-run017        Test the migration 017 without making changes
+  dry-run018        Test the migration 018 without making changes
+  dry-run019        Test the migration 019 without making changes
+  dry-run020        Test the migration 020 without making changes
   help               Show this help message
 
 📝 Examples:

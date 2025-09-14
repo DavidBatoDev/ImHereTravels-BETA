@@ -438,7 +438,7 @@ export default function BookingsSheet() {
             <TooltipContent>{col.columnName}</TooltipContent>
           </Tooltip>
         ),
-        accessorKey: col.id, // Use exact column ID
+        accessorKey: col.id, // Use column ID as accessor key
         cell: ({ row, column }) => {
           const value = row.getValue(column.id);
           const columnDef = columns.find((c) => c.id === column.id);

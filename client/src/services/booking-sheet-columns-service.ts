@@ -5,6 +5,7 @@ import {
   getDocs,
   getDoc,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -23,6 +24,34 @@ import { SheetColumn } from "@/types/sheet-management";
 // ============================================================================
 
 const COLLECTION_NAME = "bookingSheetColumns";
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Convert a column name to a camelCase ID
+ * Examples:
+ * - "First Name" → "firstName"
+ * - "Booking ID" → "bookingId"
+ * - "P1 Due Date" → "p1DueDate"
+ * - "Include BCC (Reservation)" → "includeBccReservation"
+ */
+function generateCustomId(columnName: string): string {
+  return columnName
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "") // Remove special characters except spaces
+    .replace(/\s+/g, " ") // Normalize multiple spaces to single space
+    .trim()
+    .split(" ")
+    .map((word, index) => {
+      if (index === 0) {
+        return word; // First word stays lowercase
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1); // Capitalize first letter of subsequent words
+    })
+    .join("");
+}
 
 // ============================================================================
 // COLUMN SERVICE INTERFACE
@@ -143,6 +172,17 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
         throw new Error(`Invalid column data: ${validation.errors.join(", ")}`);
       }
 
+      // Generate custom ID from column name
+      const customId = generateCustomId(column.columnName);
+
+      // Check if a column with this ID already exists
+      const existingColumn = await this.getColumn(customId);
+      if (existingColumn) {
+        throw new Error(
+          `Column with ID '${customId}' already exists. Please choose a different name.`
+        );
+      }
+
       // Get the next order number
       const existingColumns = await this.getAllColumns();
       const maxOrder = Math.max(...existingColumns.map((col) => col.order), 0);
@@ -157,22 +197,27 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
 
       const newColumn = {
         ...cleanColumn,
+        id: customId, // Use custom ID
         order: maxOrder + 1,
       };
 
       console.log(`🔍 Creating column with data:`, newColumn);
-      const docRef = await addDoc(collection(db, COLLECTION_NAME), newColumn);
+
+      // Create the column document with custom ID as the document ID
+      const docRef = doc(db, COLLECTION_NAME, customId);
+      await setDoc(docRef, newColumn);
+
       console.log(
-        `✅ Created column: ${column.columnName} with ID: ${docRef.id}`
+        `✅ Created column: ${column.columnName} with custom ID: ${customId}`
       );
 
       // Sync the new column to all existing bookings
       await this.syncColumnToAllBookings(
-        docRef.id,
+        customId,
         this.getDefaultValueForType(column.dataType)
       );
 
-      return docRef.id;
+      return customId;
     } catch (error) {
       console.error(
         `❌ Failed to create column: ${
@@ -187,7 +232,9 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
     try {
       // Column "id" is the logical field (e.g., returnDate), not necessarily the Firestore document id.
       // We need to find the document where field "id" == columnId.
-      const qSnap = await getDocs(query(collection(db, COLLECTION_NAME), where("id", "==", columnId)));
+      const qSnap = await getDocs(
+        query(collection(db, COLLECTION_NAME), where("id", "==", columnId))
+      );
       const docSnap = qSnap.docs[0];
 
       if (docSnap && docSnap.exists()) {
@@ -231,31 +278,57 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
     updates: Partial<SheetColumn>
   ): Promise<void> {
     try {
-  // Temporarily allow updates to default columns (requested)
+      // Temporarily allow updates to default columns (requested)
 
       // Validate updates
-  const existingColumn = await this.getColumn(columnId);
+      const existingColumn = await this.getColumn(columnId);
       if (!existingColumn) {
         throw new Error(`Column not found: ${columnId}`);
       }
 
-      const updatedColumn = { ...existingColumn, ...updates };
-      const validation = this.validateColumn(updatedColumn);
-      if (!validation.isValid) {
-        throw new Error(`Invalid column data: ${validation.errors.join(", ")}`);
+      // Prepare updates, excluding id field and handling columnName changes
+      const cleanUpdates = { ...updates };
+
+      // Remove id field from updates - we never change the ID
+      delete cleanUpdates.id;
+
+      // Handle columnName changes - track history
+      if (
+        updates.columnName &&
+        updates.columnName !== existingColumn.columnName
+      ) {
+        const now = new Date().toISOString();
+        const nameHistoryEntry = {
+          oldName: existingColumn.columnName,
+          newName: updates.columnName,
+          timestamp: now,
+        };
+
+        // Get existing history or create new array
+        const existingHistory = existingColumn.columnNameHistory || [];
+        cleanUpdates.columnNameHistory = [...existingHistory, nameHistoryEntry];
+
+        console.log(
+          `📝 Column name changed: "${existingColumn.columnName}" → "${updates.columnName}"`
+        );
       }
 
-      // Clean the updates to remove undefined values
-      const cleanUpdates = { ...updates };
+      // Remove undefined values
       Object.keys(cleanUpdates).forEach((key) => {
         if (cleanUpdates[key] === undefined) {
           delete cleanUpdates[key];
         }
       });
 
-  console.log(`🔍 Updating column ${columnId} with data:`, cleanUpdates);
-  const targetId = existingColumn.docId ?? columnId;
-  const docRef = doc(db, COLLECTION_NAME, targetId);
+      const updatedColumn = { ...existingColumn, ...cleanUpdates };
+      const validation = this.validateColumn(updatedColumn);
+      if (!validation.isValid) {
+        throw new Error(`Invalid column data: ${validation.errors.join(", ")}`);
+      }
+
+      console.log(`🔍 Updating column ${columnId} with data:`, cleanUpdates);
+      const targetId = existingColumn.docId ?? columnId;
+      const docRef = doc(db, COLLECTION_NAME, targetId);
       await updateDoc(docRef, cleanUpdates);
       console.log(`✅ Updated column: ${columnId}`);
     } catch (error) {
@@ -275,14 +348,14 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
         throw new Error(`Cannot delete default column: ${columnId}`);
       }
 
-  // Remove the column from all existing bookings
-  await this.removeColumnFromAllBookings(columnId);
+      // Remove the column from all existing bookings
+      await this.removeColumnFromAllBookings(columnId);
 
-  // Delete the column definition
-  const existingColumn = await this.getColumn(columnId);
-  if (!existingColumn) throw new Error(`Column not found: ${columnId}`);
-  const targetId = existingColumn.docId ?? columnId;
-  const docRef = doc(db, COLLECTION_NAME, targetId);
+      // Delete the column definition
+      const existingColumn = await this.getColumn(columnId);
+      if (!existingColumn) throw new Error(`Column not found: ${columnId}`);
+      const targetId = existingColumn.docId ?? columnId;
+      const docRef = doc(db, COLLECTION_NAME, targetId);
       await deleteDoc(docRef);
       console.log(`✅ Deleted column: ${columnId}`);
     } catch (error) {
@@ -409,9 +482,13 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
 
       if (updatedCount > 0) {
         await batch.commit();
-        console.log(`✅ Synced column ${columnId} to ${updatedCount} bookings`);
+        console.log(
+          `✅ Synced column ${column.id} (${column.columnName}) to ${updatedCount} bookings`
+        );
       } else {
-        console.log(`ℹ️  Column ${columnId} already exists in all bookings`);
+        console.log(
+          `ℹ️  Column ${column.id} (${column.columnName}) already exists in all bookings`
+        );
       }
     } catch (error) {
       console.error(
@@ -425,6 +502,11 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
 
   async removeColumnFromAllBookings(columnId: string): Promise<void> {
     try {
+      const column = await this.getColumn(columnId);
+      if (!column) {
+        throw new Error(`Column not found: ${columnId}`);
+      }
+
       const batch = writeBatch(db);
       const bookingsSnapshot = await getDocs(collection(db, "bookings"));
 
@@ -441,10 +523,12 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
       if (updatedCount > 0) {
         await batch.commit();
         console.log(
-          `✅ Removed column ${columnId} from ${updatedCount} bookings`
+          `✅ Removed column ${column.id} (${column.columnName}) from ${updatedCount} bookings`
         );
       } else {
-        console.log(`ℹ️  Column ${columnId} not found in any bookings`);
+        console.log(
+          `ℹ️  Column ${column.id} (${column.columnName}) not found in any bookings`
+        );
       }
     } catch (error) {
       console.error(

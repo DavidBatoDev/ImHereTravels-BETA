@@ -195,20 +195,12 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     order: 24,
   },
   {
-    columnName: "Reservation Email",
-    dataType: "email",
-    includeInForms: true,
-
-    width: 200,
-    order: 25,
-  },
-  {
     columnName: "Include BCC (Reservation)",
     dataType: "boolean",
     includeInForms: true,
 
     width: 180,
-    order: 26,
+    order: 25,
   },
   {
     columnName: "Generate Email Draft",
@@ -216,7 +208,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 160,
-    order: 27,
+    order: 26,
   },
   {
     columnName: "Email Draft Link",
@@ -224,7 +216,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
 
     width: 160,
-    order: 28,
+    order: 27,
   },
   {
     columnName: "Subject Line (Reservation)",
@@ -232,7 +224,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 200,
-    order: 29,
+    order: 28,
   },
   {
     columnName: "Send Email?",
@@ -240,7 +232,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 120,
-    order: 30,
+    order: 29,
   },
   {
     columnName: "Sent Email Link",
@@ -248,7 +240,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
 
     width: 160,
-    order: 31,
+    order: 30,
   },
   {
     columnName: "Reservation Email Sent Date",
@@ -256,7 +248,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
 
     width: 200,
-    order: 32,
+    order: 31,
   },
   {
     columnName: "Payment Condition",
@@ -265,7 +257,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
 
     width: 140,
     options: ["Full Payment", "Partial Payment", "Installment"],
-    order: 33,
+    order: 32,
   },
   {
     columnName: "Eligible 2nd-of-Months",
@@ -273,7 +265,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 180,
-    order: 34,
+    order: 33,
   },
   {
     columnName: "Available Payment Terms",
@@ -281,7 +273,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 180,
-    order: 35,
+    order: 34,
   },
   {
     columnName: "Payment Plan",
@@ -290,7 +282,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
 
     width: 140,
     options: ["Monthly", "Quarterly", "Custom"],
-    order: 36,
+    order: 35,
   },
   {
     columnName: "Payment Method",
@@ -299,7 +291,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
 
     width: 140,
     options: ["Credit Card", "Bank Transfer", "Cash", "PayPal"],
-    order: 37,
+    order: 36,
   },
   {
     columnName: "Enable Payment Reminder",
@@ -307,7 +299,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 160,
-    order: 38,
+    order: 37,
   },
   {
     columnName: "Payment Progress",
@@ -315,15 +307,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
 
     width: 140,
-    order: 39,
-  },
-  {
-    columnName: "Full Payment",
-    dataType: "currency",
-    includeInForms: true,
-
-    width: 140,
-    order: 40,
+    order: 38,
   },
   {
     columnName: "Full Payment Due Date",
@@ -331,7 +315,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 160,
-    order: 41,
+    order: 39,
   },
   {
     columnName: "Full Payment Amount",
@@ -339,7 +323,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 160,
-    order: 42,
+    order: 40,
   },
   {
     columnName: "Full Payment Date Paid",
@@ -347,40 +331,210 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 160,
-    order: 43,
+    order: 41,
   },
+  // P1 Payment Term columns
   {
-    columnName:
-      "Payment Term 1 (Due Date, Amount, Date Paid, Reminder, Email Link, Calendar Event ID/Link)",
-    dataType: "string",
+    columnName: "P1 Scheduled Reminder Date",
+    dataType: "date",
     includeInForms: true,
-
-    width: 300,
+    width: 180,
     order: 44,
   },
   {
-    columnName: "Payment Term 2 (same structure)",
+    columnName: "P1 Scheduled Email Link",
     dataType: "string",
-    includeInForms: true,
-
-    width: 300,
+    includeInForms: false,
+    width: 180,
     order: 45,
   },
   {
-    columnName: "Payment Term 3 (same structure)",
+    columnName: "P1 Calendar Event ID",
     dataType: "string",
-    includeInForms: true,
-
-    width: 300,
+    includeInForms: false,
+    width: 160,
     order: 46,
   },
   {
-    columnName: "Payment Term 4 (same structure)",
+    columnName: "P1 Calendar Event Link",
     dataType: "string",
-    includeInForms: true,
-
-    width: 300,
+    includeInForms: false,
+    width: 160,
     order: 47,
+  },
+  {
+    columnName: "P1 Due Date",
+    dataType: "date",
+    includeInForms: true,
+    width: 120,
+    order: 48,
+  },
+  {
+    columnName: "P1 Amount",
+    dataType: "currency",
+    includeInForms: true,
+    width: 120,
+    order: 49,
+  },
+  {
+    columnName: "P1 Date Paid",
+    dataType: "date",
+    includeInForms: true,
+    width: 120,
+    order: 50,
+  },
+
+  // P2 Payment Term columns
+  {
+    columnName: "P2 Scheduled Reminder Date",
+    dataType: "date",
+    includeInForms: true,
+    width: 180,
+    order: 51,
+  },
+  {
+    columnName: "P2 Scheduled Email Link",
+    dataType: "string",
+    includeInForms: false,
+    width: 180,
+    order: 52,
+  },
+  {
+    columnName: "P2 Calendar Event ID",
+    dataType: "string",
+    includeInForms: false,
+    width: 160,
+    order: 53,
+  },
+  {
+    columnName: "P2 Calendar Event Link",
+    dataType: "string",
+    includeInForms: false,
+    width: 160,
+    order: 54,
+  },
+  {
+    columnName: "P2 Due Date",
+    dataType: "date",
+    includeInForms: true,
+    width: 120,
+    order: 55,
+  },
+  {
+    columnName: "P2 Amount",
+    dataType: "currency",
+    includeInForms: true,
+    width: 120,
+    order: 56,
+  },
+  {
+    columnName: "P2 Date Paid",
+    dataType: "date",
+    includeInForms: true,
+    width: 120,
+    order: 57,
+  },
+
+  // P3 Payment Term columns
+  {
+    columnName: "P3 Scheduled Reminder Date",
+    dataType: "date",
+    includeInForms: true,
+    width: 180,
+    order: 58,
+  },
+  {
+    columnName: "P3 Scheduled Email Link",
+    dataType: "string",
+    includeInForms: false,
+    width: 180,
+    order: 59,
+  },
+  {
+    columnName: "P3 Calendar Event ID",
+    dataType: "string",
+    includeInForms: false,
+    width: 160,
+    order: 60,
+  },
+  {
+    columnName: "P3 Calendar Event Link",
+    dataType: "string",
+    includeInForms: false,
+    width: 160,
+    order: 61,
+  },
+  {
+    columnName: "P3 Due Date",
+    dataType: "date",
+    includeInForms: true,
+    width: 120,
+    order: 62,
+  },
+  {
+    columnName: "P3 Amount",
+    dataType: "currency",
+    includeInForms: true,
+    width: 120,
+    order: 63,
+  },
+  {
+    columnName: "P3 Date Paid",
+    dataType: "date",
+    includeInForms: true,
+    width: 120,
+    order: 64,
+  },
+
+  // P4 Payment Term columns
+  {
+    columnName: "P4 Scheduled Reminder Date",
+    dataType: "date",
+    includeInForms: true,
+    width: 180,
+    order: 65,
+  },
+  {
+    columnName: "P4 Scheduled Email Link",
+    dataType: "string",
+    includeInForms: false,
+    width: 180,
+    order: 66,
+  },
+  {
+    columnName: "P4 Calendar Event ID",
+    dataType: "string",
+    includeInForms: false,
+    width: 160,
+    order: 67,
+  },
+  {
+    columnName: "P4 Calendar Event Link",
+    dataType: "string",
+    includeInForms: false,
+    width: 160,
+    order: 68,
+  },
+  {
+    columnName: "P4 Due Date",
+    dataType: "date",
+    includeInForms: true,
+    width: 120,
+    order: 69,
+  },
+  {
+    columnName: "P4 Amount",
+    dataType: "currency",
+    includeInForms: true,
+    width: 120,
+    order: 70,
+  },
+  {
+    columnName: "P4 Date Paid",
+    dataType: "date",
+    includeInForms: true,
+    width: 120,
+    order: 71,
   },
   {
     columnName: "Reservation Fee",
@@ -388,7 +542,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 140,
-    order: 48,
+    order: 72,
   },
   {
     columnName: "Paid",
@@ -396,7 +550,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 100,
-    order: 49,
+    order: 73,
   },
   {
     columnName: "Remaining Balance",
@@ -404,7 +558,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
 
     width: 140,
-    order: 50,
+    order: 74,
   },
   {
     columnName: "Manual Credit",
@@ -412,7 +566,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 140,
-    order: 51,
+    order: 75,
   },
   {
     columnName: "Credit From",
@@ -420,7 +574,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 120,
-    order: 52,
+    order: 76,
   },
   {
     columnName: "Reason for Cancellation",
@@ -428,7 +582,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 200,
-    order: 53,
+    order: 77,
   },
   {
     columnName: "Include BCC (Cancellation)",
@@ -436,7 +590,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 180,
-    order: 54,
+    order: 78,
   },
   {
     columnName: "Generate Cancellation Email Draft",
@@ -444,7 +598,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 200,
-    order: 55,
+    order: 79,
   },
   {
     columnName: "Cancellation Email Draft Link",
@@ -452,7 +606,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
 
     width: 200,
-    order: 56,
+    order: 80,
   },
   {
     columnName: "Subject Line (Cancellation)",
@@ -460,7 +614,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 200,
-    order: 57,
+    order: 81,
   },
   {
     columnName: "Send Cancellation Email?",
@@ -468,7 +622,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
 
     width: 180,
-    order: 58,
+    order: 82,
   },
   {
     columnName: "Sent Cancellation Email Link",
@@ -476,7 +630,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
 
     width: 200,
-    order: 59,
+    order: 83,
   },
   {
     columnName: "Cancellation Email Sent Date",
@@ -484,6 +638,6 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
 
     width: 200,
-    order: 60,
+    order: 84,
   },
 ];
