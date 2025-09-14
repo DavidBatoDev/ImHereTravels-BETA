@@ -63,19 +63,29 @@ export function useSheetManagement() {
     console.log("🔍 Setting up real-time booking data subscription...");
 
     const unsubscribeBookings = onSnapshot(
-      query(collection(db, "bookings"), orderBy("id", "asc")),
+      query(collection(db, "bookings")),
       (querySnapshot) => {
         const bookings = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as SheetData[];
 
+        // Sort bookings numerically by ID to fix the "10" appearing after "1" issue
+        const sortedBookings = bookings.sort((a, b) => {
+          const aId = parseInt(a.id);
+          const bId = parseInt(b.id);
+          if (isNaN(aId) && isNaN(bId)) return 0;
+          if (isNaN(aId)) return 1;
+          if (isNaN(bId)) return -1;
+          return aId - bId;
+        });
+
         console.log(
-          `✅ Received ${bookings.length} bookings from Firestore ordered by ID`
+          `✅ Received ${sortedBookings.length} bookings from Firestore sorted numerically by ID`
         );
 
         // Debug: Log each booking to see what fields are present
-        bookings.forEach((booking, index) => {
+        sortedBookings.forEach((booking, index) => {
           const fieldCount = Object.keys(booking).length;
           const nonEssentialFields = Object.keys(booking).filter(
             (key) => key !== "id" && key !== "createdAt" && key !== "updatedAt"
@@ -100,7 +110,7 @@ export function useSheetManagement() {
           }
         });
 
-        setData(bookings);
+        setData(sortedBookings);
         setIsLoading(false);
         setError(null);
       },

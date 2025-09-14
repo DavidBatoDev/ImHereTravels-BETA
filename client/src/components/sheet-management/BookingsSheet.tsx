@@ -261,6 +261,7 @@ export default function BookingsSheet() {
     TypeScriptFunction[]
   >([]);
   const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
+  const [isAddingRow, setIsAddingRow] = useState(false);
   // Active subscriptions to function changes keyed by function id
   const functionSubscriptionsRef = useRef<Map<string, () => void>>(new Map());
 
@@ -1714,6 +1715,8 @@ export default function BookingsSheet() {
   // Handle adding a new row
   const handleAddNewRow = async () => {
     try {
+      setIsAddingRow(true);
+
       // Get the next available row number
       const nextRowNumber = await bookingService.getNextRowNumber();
       const newRowId = nextRowNumber.toString();
@@ -1750,6 +1753,8 @@ export default function BookingsSheet() {
         }`,
         variant: "destructive",
       });
+    } finally {
+      setIsAddingRow(false);
     }
   };
 
@@ -2000,8 +2005,16 @@ export default function BookingsSheet() {
                 <TableBody>
                   {(() => {
                     const visibleRows = table.getRowModel().rows;
-                    const minRows = 10;
-                    const rowsToShow = Math.max(visibleRows.length, minRows);
+                    const pageSize = table.getState().pagination.pageSize;
+                    const currentPage = table.getState().pagination.pageIndex;
+                    const startIndex = currentPage * pageSize;
+                    const endIndex = startIndex + pageSize;
+
+                    // Only show add button if we have space for more rows on the current page
+                    const hasSpaceForMoreRows = visibleRows.length < pageSize;
+                    const rowsToShow = hasSpaceForMoreRows
+                      ? pageSize
+                      : visibleRows.length;
 
                     // Show actual data rows with stable ordering by numeric ID
                     const dataRows = visibleRows
@@ -2070,6 +2083,10 @@ export default function BookingsSheet() {
                     const emptyRows = [];
                     for (let i = visibleRows.length; i < rowsToShow; i++) {
                       const isFirstEmptyRow = i === visibleRows.length;
+                      const isFirstEmptyRowAfterData = i === visibleRows.length; // Add button should be on the first empty row after data
+                      const isEmptyRow = i >= visibleRows.length;
+                      const shouldShowAddButton =
+                        hasSpaceForMoreRows && isFirstEmptyRowAfterData;
                       emptyRows.push(
                         <TableRow
                           key={`empty-${i}`}
@@ -2115,14 +2132,21 @@ export default function BookingsSheet() {
                                   }}
                                 >
                                   <div className="h-12 w-full px-2 flex items-center">
-                                    {isFirstEmptyRow && columnIndex === 1 ? (
-                                      // Plus button in second column (after row number) of first empty row
+                                    {isEmptyRow &&
+                                    shouldShowAddButton &&
+                                    columnIndex === 1 ? (
+                                      // Plus button only in the last empty row, second column (after row number)
                                       <Button
                                         variant="outline"
                                         size="sm"
                                         onClick={() => handleAddNewRow()}
-                                        className="h-8 w-8 p-0 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-                                        title="Add new booking"
+                                        disabled={isAddingRow}
+                                        className="h-8 w-8 p-0 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={
+                                          isAddingRow
+                                            ? "Adding new row..."
+                                            : "Add new booking"
+                                        }
                                       >
                                         <Plus className="h-4 w-4" />
                                       </Button>
@@ -2417,6 +2441,25 @@ export default function BookingsSheet() {
             setContextMenu({ isOpen: false, rowId: null, x: 0, y: 0 })
           }
         />
+      )}
+
+      {/* Loading Modal for Adding Row */}
+      {isAddingRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
+            <div className="flex items-center space-x-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-royal-purple"></div>
+              <div>
+                <h3 className="text-lg font-semibold text-creative-midnight">
+                  Adding New Row
+                </h3>
+                <p className="text-sm text-grey">
+                  Please wait while we create your new booking row...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
