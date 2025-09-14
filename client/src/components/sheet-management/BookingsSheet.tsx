@@ -160,7 +160,12 @@ const EditableCell = memo(function EditableCell({
             } else if (e.key === "Escape") cancel();
           }}
           autoFocus
-          className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none"
+          className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none appearance-none"
+          style={{
+            WebkitAppearance: "none",
+            MozAppearance: "textfield",
+            appearance: "none" as any,
+          }}
         />
       </div>
     );
@@ -445,15 +450,13 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className={`h-12 w-full px-2 flex items-center justify-center transition-all duration-200 relative ${
-                      (selectedCell?.rowId === row.id &&
-                        selectedCell?.columnId === column.id) ||
-                      (editingCell?.rowId === row.id &&
-                        editingCell?.columnId === column.id)
-                        ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
-                        : getColumnTintClasses(columnDef.color)
-                    }`}
-                    onClick={() => handleCellClick(row.id, column.id)}
+                    className={`h-12 w-full px-2 flex items-center justify-center transition-all duration-200 relative ${getColumnTintClasses(
+                      columnDef.color
+                    )}`}
+                    data-cell="1"
+                    data-row-id={row.id}
+                    data-col-id={column.id}
+                    data-type="boolean"
                     style={{
                       minWidth: `${columnDef.width || 150}px`,
                       maxWidth: `${columnDef.width || 150}px`,
@@ -515,15 +518,13 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                      (selectedCell?.rowId === row.id &&
-                        selectedCell?.columnId === column.id) ||
-                      (editingCell?.rowId === row.id &&
-                        editingCell?.columnId === column.id)
-                        ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
-                        : getColumnTintClasses(columnDef.color)
-                    }`}
-                    onClick={() => handleCellClick(row.id, column.id)}
+                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${getColumnTintClasses(
+                      columnDef.color
+                    )}`}
+                    data-cell="1"
+                    data-row-id={row.id}
+                    data-col-id={column.id}
+                    data-type="select"
                     onDoubleClick={() =>
                       handleCellDoubleClick(row.id, column.id)
                     }
@@ -595,15 +596,13 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                      (selectedCell?.rowId === row.id &&
-                        selectedCell?.columnId === column.id) ||
-                      (editingCell?.rowId === row.id &&
-                        editingCell?.columnId === column.id)
-                        ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
-                        : getColumnTintClasses(columnDef.color)
-                    }`}
-                    onClick={() => handleCellClick(row.id, column.id)}
+                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${getColumnTintClasses(
+                      columnDef.color
+                    )}`}
+                    data-cell="1"
+                    data-row-id={row.id}
+                    data-col-id={column.id}
+                    data-type="date"
                     onDoubleClick={() =>
                       handleCellDoubleClick(row.id, column.id)
                     }
@@ -698,9 +697,9 @@ export default function BookingsSheet() {
                           e.stopPropagation();
 
                           // Try multiple approaches to show the date picker
-                          if (e.currentTarget.showPicker) {
+                          if ((e.currentTarget as any).showPicker) {
                             try {
-                              e.currentTarget.showPicker();
+                              (e.currentTarget as any).showPicker();
                             } catch (error) {
                               // Fallback: ensure the input is focused and try to trigger the date picker
                               e.currentTarget.focus();
@@ -724,7 +723,7 @@ export default function BookingsSheet() {
                             : "bg-white hover:bg-royal-purple/5"
                         } focus:bg-white ${
                           !value ? "text-gray-400" : "text-gray-900"
-                        }`}
+                        } appearance-none`}
                         placeholder={value ? "" : "Select date"}
                         title={
                           value
@@ -735,46 +734,53 @@ export default function BookingsSheet() {
                             : "Click to select a date"
                         }
                         aria-label={`Date for ${columnDef.columnName}`}
-                        style={{ zIndex: 10 }}
+                        style={{
+                          zIndex: 10,
+                          WebkitAppearance: "none",
+                          MozAppearance: "textfield",
+                          appearance: "none" as any,
+                        }}
                         autoComplete="off"
                         data-date-picker="true"
                       />
                       {/* Calendar icon indicator - clickable to open date picker */}
-                      {/* <div 
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer z-20"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Focus the input and try to show the date picker
-                      const input = e.currentTarget.parentElement?.querySelector('input[type="date"]') as HTMLInputElement;
-                      if (input) {
-                        input.focus();
-                        // Try to show the native date picker
-                        if (input.showPicker) {
-                          input.showPicker();
-                        } else {
-                          // Fallback: click the input to trigger the date picker
-                          input.click();
-                        }
-                      }
-                    }}
-                    title="Click to open date picker"
-                  >
-                    <svg
-                      className={`w-4 h-4 transition-colors duration-200 ${
-                        value ? "text-royal-purple" : "text-royal-purple/40"
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                    </svg>
-                  </div> */}
+                      <div
+                        className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer z-20"
+                        onPointerDown={(e) => {
+                          // prevent selection logic on container
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const input =
+                            e.currentTarget.parentElement?.querySelector(
+                              'input[type="date"]'
+                            ) as HTMLInputElement | null;
+                          if (input) {
+                            if ((input as any).showPicker) {
+                              (input as any).showPicker();
+                            } else {
+                              input.focus();
+                              setTimeout(() => input.click(), 10);
+                            }
+                          }
+                        }}
+                        title="Open date picker"
+                        aria-label="Open date picker"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 text-royal-purple"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM18 9H2v7a2 2 0 002 2h12a2 2 0 002-2V9z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </TooltipTrigger>
@@ -792,15 +798,13 @@ export default function BookingsSheet() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
-                      className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                        (selectedCell?.rowId === row.id &&
-                          selectedCell?.columnId === column.id) ||
-                        (editingCell?.rowId === row.id &&
-                          editingCell?.columnId === column.id)
-                          ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
-                          : getColumnTintClasses(columnDef.color)
-                      }`}
-                      onClick={() => handleCellClick(row.id, column.id)}
+                      className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${getColumnTintClasses(
+                        columnDef.color
+                      )}`}
+                      data-cell="1"
+                      data-row-id={row.id}
+                      data-col-id={column.id}
+                      data-type="function"
                       style={{
                         minWidth: `${columnDef.width || 150}px`,
                         maxWidth: `${columnDef.width || 150}px`,
@@ -825,14 +829,13 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                      (selectedCell?.rowId === row.id &&
-                        selectedCell?.columnId === column.id) ||
-                      (editingCell?.rowId === row.id &&
-                        editingCell?.columnId === column.id)
-                        ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
-                        : getColumnTintClasses(columnDef.color)
-                    }`}
+                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${getColumnTintClasses(
+                      columnDef.color
+                    )}`}
+                    data-cell="1"
+                    data-row-id={row.id}
+                    data-col-id={column.id}
+                    data-type="function"
                     style={{
                       minWidth: `${columnDef.width || 150}px`,
                       maxWidth: `${columnDef.width || 150}px`,
@@ -873,19 +876,16 @@ export default function BookingsSheet() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className={`h-12 w-full px-2 flex items-center cursor-pointer transition-all duration-200 relative ${
-                    (selectedCell?.rowId === row.id &&
-                      selectedCell?.columnId === column.id) ||
-                    (editingCell?.rowId === row.id &&
-                      editingCell?.columnId === column.id)
-                      ? "bg-royal-purple/20 border-2 border-royal-purple shadow-sm"
-                      : getColumnTintClasses(columnDef.color)
-                  }`}
+                  className={`h-12 w-full px-2 flex items-center cursor-pointer transition-all duration-200 relative ${getColumnTintClasses(
+                    columnDef.color
+                  )}`}
                   style={{
                     minWidth: `${columnDef.width || 150}px`,
                     maxWidth: `${columnDef.width || 150}px`,
                   }}
-                  onClick={() => handleCellClick(row.id, column.id)}
+                  data-cell="1"
+                  data-row-id={row.id}
+                  data-col-id={column.id}
                   onDoubleClick={() => handleCellDoubleClick(row.id, column.id)}
                 >
                   <div className="w-full truncate text-sm">
@@ -908,7 +908,7 @@ export default function BookingsSheet() {
 
     // Return row number column + data columns
     return [rowNumberColumn, ...dataColumns];
-  }, [columns, editingCell, selectedCell]);
+  }, [columns, editingCell]);
 
   const table = useReactTable({
     data: tableData,
@@ -1270,6 +1270,306 @@ export default function BookingsSheet() {
     });
   }, []);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastSelectedCellEl = useRef<HTMLElement | null>(null);
+  const [overlayEditing, setOverlayEditing] = useState(false);
+  const [overlayEditValue, setOverlayEditValue] = useState("");
+  const overlayEditingCellRef = useRef<{
+    rowId: string;
+    columnId: string;
+  } | null>(null);
+  const overlayTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const [selectionBox, setSelectionBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const clearSelection = useCallback(() => {
+    setOverlayEditing(false);
+    setSelectionBox(null);
+    setSelectedCell(null as any);
+    if (lastSelectedCellEl.current) {
+      lastSelectedCellEl.current.style.backgroundColor = "";
+      lastSelectedCellEl.current.style.visibility = "";
+      lastSelectedCellEl.current = null;
+    }
+  }, []);
+
+  const handlePointerDownSelect = useCallback(
+    (e: React.PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      // If clicking on the floating overlay, let its handlers manage
+      if (overlayRef.current && overlayRef.current.contains(target)) {
+        return;
+      }
+      const cellEl = target.closest('[data-cell="1"]') as HTMLElement | null;
+      // Clicked somewhere inside the container but not on a cell -> commit/clear
+      if (!cellEl) {
+        if (overlayEditing) {
+          // Commit then unselect
+          handleOverlayCommit();
+        } else if (selectedCell) {
+          clearSelection();
+        }
+        return;
+      }
+      const rowId = cellEl.dataset.rowId;
+      const columnId = cellEl.dataset.colId;
+      const cellType = cellEl.dataset.type;
+      if (rowId && columnId) {
+        // Immediate boolean toggle: click on checkbox cell toggles without overlay edit
+        if (cellType === "boolean") {
+          // Toggle immediately via data state, do not change selection
+          const row = (localData.find((r) => r.id === rowId) ||
+            data.find((r) => r.id === rowId)) as any;
+          const current = row ? !!row[columnId as any] : false;
+          handleCellEdit(rowId, columnId, (!current).toString());
+          return;
+        }
+        setSelectedCell((prev) => {
+          if (prev && prev.rowId === rowId && prev.columnId === columnId)
+            return prev;
+          return { rowId, columnId };
+        });
+
+        const container = containerRef.current;
+        if (container) {
+          const cellRect = cellEl.getBoundingClientRect();
+          const contRect = container.getBoundingClientRect();
+          setSelectionBox({
+            top: cellRect.top - contRect.top,
+            left: cellRect.left - contRect.left,
+            width: cellRect.width,
+            height: cellRect.height,
+          });
+        }
+
+        // Visually whiten/hide only for text-like cells; keep interactive cells visible
+        if (
+          lastSelectedCellEl.current &&
+          lastSelectedCellEl.current !== cellEl
+        ) {
+          lastSelectedCellEl.current.style.backgroundColor = "";
+          lastSelectedCellEl.current.style.visibility = "";
+        }
+        const shouldHide = !(
+          cellType === "boolean" ||
+          cellType === "select" ||
+          cellType === "date" ||
+          cellType === "function"
+        );
+        if (shouldHide) {
+          cellEl.style.backgroundColor = "#ffffff";
+          cellEl.style.visibility = "hidden";
+        } else {
+          cellEl.style.backgroundColor = "";
+          cellEl.style.visibility = "";
+        }
+        lastSelectedCellEl.current = cellEl;
+
+        // Close overlay editing if selecting a new cell
+        setOverlayEditing(false);
+      }
+    },
+    [localData, data, columns, handleCellEdit]
+  );
+
+  const handleOverlayDoubleClick = useCallback(() => {
+    if (!selectedCell) return;
+    const row = (localData.find((r) => r.id === selectedCell.rowId) ||
+      data.find((r) => r.id === selectedCell.rowId)) as any;
+    const colDef = columns.find((c) => c.id === selectedCell.columnId);
+    const raw = row && colDef ? row[colDef.id] : undefined;
+    setOverlayEditValue(String(raw ?? ""));
+    setOverlayEditing(true);
+    overlayEditingCellRef.current = {
+      rowId: selectedCell.rowId,
+      columnId: selectedCell.columnId,
+    };
+  }, [selectedCell, localData, data, columns]);
+
+  const handleContainerDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const cellEl = target.closest('[data-cell="1"]') as HTMLElement | null;
+      if (!cellEl) return;
+      const rowId = cellEl.dataset.rowId || selectedCell?.rowId;
+      const columnId = cellEl.dataset.colId || selectedCell?.columnId;
+      if (!rowId || !columnId) return;
+      const row = (localData.find((r) => r.id === rowId) ||
+        data.find((r) => r.id === rowId)) as any;
+      const colDef = columns.find((c) => c.id === columnId);
+      const raw = row && colDef ? row[colDef.id] : undefined;
+      setOverlayEditValue(String(raw ?? ""));
+      setOverlayEditing(true);
+      overlayEditingCellRef.current = { rowId, columnId };
+    },
+    [selectedCell, localData, data, columns]
+  );
+
+  const handleOverlayCommit = useCallback(async () => {
+    const targetCell = overlayEditingCellRef.current || selectedCell;
+    if (!targetCell) return;
+    let valueToSend = overlayEditValue;
+    const colDef = columns.find((c) => c.id === targetCell.columnId);
+    if (colDef) {
+      switch (colDef.dataType) {
+        case "number":
+        case "currency": {
+          // Strip thousands separators, currency symbols, and spaces
+          const normalized = (overlayEditValue || "").replace(
+            /[^0-9.\-]+/g,
+            ""
+          );
+          valueToSend = normalized;
+          break;
+        }
+        case "boolean": {
+          const t = (overlayEditValue || "").trim().toLowerCase();
+          const truthy = ["true", "1", "yes", "y", "on"];
+          valueToSend = truthy.includes(t) ? "true" : "false";
+          break;
+        }
+        case "date": {
+          const d = new Date(overlayEditValue);
+          if (!isNaN(d.getTime())) {
+            valueToSend = d.toISOString().split("T")[0];
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    }
+    await handleCellEdit(targetCell.rowId, targetCell.columnId, valueToSend);
+    clearSelection();
+    overlayEditingCellRef.current = null;
+  }, [selectedCell, overlayEditValue, handleCellEdit, clearSelection, columns]);
+
+  const handleOverlayKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleOverlayCommit();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setOverlayEditing(false);
+      }
+    },
+    [handleOverlayCommit]
+  );
+
+  useEffect(() => {
+    // When entering edit mode, ensure the overlay doesn't obstruct and the cell is visible
+    if (editingCell) {
+      if (lastSelectedCellEl.current) {
+        lastSelectedCellEl.current.style.visibility = "";
+        lastSelectedCellEl.current.style.backgroundColor = "";
+      }
+    }
+  }, [editingCell]);
+
+  useEffect(() => {
+    if (overlayEditing && overlayTextareaRef.current) {
+      const el = overlayTextareaRef.current;
+      // Focus and move caret to the end of the value
+      try {
+        el.focus();
+        const len = el.value.length;
+        if (typeof (el as any).setSelectionRange === "function") {
+          (el as any).setSelectionRange(len, len);
+        }
+      } catch {}
+    }
+  }, [overlayEditing]);
+
+  useEffect(() => {
+    const onGlobalPointerDown = (e: PointerEvent) => {
+      const container = containerRef.current;
+      if (!container) return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const insideContainer = container.contains(target);
+      if (!insideContainer) {
+        if (overlayEditing) {
+          // Commit then unselect
+          handleOverlayCommit();
+        } else if (selectedCell) {
+          clearSelection();
+        }
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        if (overlayEditing) {
+          e.preventDefault();
+          handleOverlayCommit();
+        } else if (selectedCell) {
+          e.preventDefault();
+          clearSelection();
+        }
+      }
+    };
+    window.addEventListener("pointerdown", onGlobalPointerDown, true);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.removeEventListener("pointerdown", onGlobalPointerDown, true);
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [overlayEditing, selectedCell, handleOverlayCommit, clearSelection]);
+
+  const selectedDisplayValue = useMemo(() => {
+    if (!selectedCell) return null;
+    const row = (localData.find((r) => r.id === selectedCell.rowId) ||
+      data.find((r) => r.id === selectedCell.rowId)) as any;
+    if (!row) return null;
+    const colDef = columns.find((c) => c.id === selectedCell.columnId);
+    if (!colDef) return null;
+    const raw = row[colDef.id];
+    if (raw === undefined || raw === null || raw === "") return "-";
+    try {
+      if (colDef.dataType === "boolean") {
+        const boolVal = !!raw;
+        return boolVal ? "Yes" : "No";
+      }
+      if (colDef.dataType === "date") {
+        let date: Date | null = null;
+        if (raw && typeof raw === "object") {
+          if (typeof (raw as any).toDate === "function") {
+            date = (raw as any).toDate();
+          } else if (typeof (raw as any).seconds === "number") {
+            date = new Date((raw as any).seconds * 1000);
+          }
+        }
+        if (!date && (typeof raw === "string" || typeof raw === "number")) {
+          const d = new Date(raw as any);
+          if (!isNaN(d.getTime())) date = d;
+        }
+        if (date && !isNaN(date.getTime())) {
+          return date.toISOString().split("T")[0];
+        }
+        return "-";
+      }
+      return String(raw);
+    } catch {
+      return "-";
+    }
+  }, [selectedCell, localData, data, columns]);
+
+  const selectedColDef = useMemo(
+    () =>
+      selectedCell
+        ? columns.find((c) => c.id === selectedCell.columnId)
+        : undefined,
+    [selectedCell, columns]
+  );
+  const selectedType = selectedColDef?.dataType;
+
   // Double click enters edit mode (heavy UI only when needed)
   const handleCellDoubleClick = useCallback(
     (rowId: string, columnId: string) => {
@@ -1428,7 +1728,7 @@ export default function BookingsSheet() {
   // Removed manual recompute handler and button per request
 
   return (
-    <div className="space-y-6">
+    <div className="booking-sheet space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -1569,7 +1869,11 @@ export default function BookingsSheet() {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="rounded-md border border-royal-purple/20 overflow-x-auto">
+          <div
+            ref={containerRef}
+            className="relative rounded-md border border-royal-purple/20 overflow-x-auto"
+            onPointerDownCapture={handlePointerDownSelect}
+          >
             <TooltipProvider>
               <Table className="border border-royal-purple/20 min-w-full table-fixed">
                 <TableHeader>
@@ -1772,6 +2076,132 @@ export default function BookingsSheet() {
                 </TableBody>
               </Table>
             </TooltipProvider>
+            {selectionBox &&
+              !(
+                editingCell &&
+                selectedCell &&
+                editingCell.rowId === selectedCell.rowId &&
+                editingCell.columnId === selectedCell.columnId
+              ) && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: selectionBox.top,
+                    left: selectionBox.left,
+                    width: selectionBox.width,
+                    height: selectionBox.height,
+                    pointerEvents: selectedType === "boolean" ? "none" : "auto",
+                    zIndex: 50,
+                  }}
+                  className={`border-2 border-royal-purple shadow-sm ${
+                    selectedType === "boolean" ? "bg-transparent" : "bg-white"
+                  }`}
+                  ref={overlayRef}
+                  onClick={(e) => {
+                    // Intercept single clicks for non-text cells so legacy click doesn't open controls
+                    if (
+                      selectedType === "date" ||
+                      selectedType === "select" ||
+                      selectedType === "boolean"
+                    ) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return;
+                    }
+                    handleOverlayDoubleClick();
+                  }}
+                  onDoubleClick={() => {
+                    if (selectedType === "date") {
+                      try {
+                        const input = lastSelectedCellEl.current?.querySelector(
+                          'input[type="date"]'
+                        ) as HTMLInputElement | null;
+                        if (input) {
+                          if ((input as any).showPicker) {
+                            (input as any).showPicker();
+                          } else {
+                            input.focus();
+                            setTimeout(() => input.click(), 0);
+                          }
+                        }
+                      } catch {}
+                      return;
+                    }
+                    if (selectedType === "select") {
+                      try {
+                        const trigger =
+                          lastSelectedCellEl.current?.querySelector(
+                            '[role="combobox"],button'
+                          ) as HTMLElement | null;
+                        if (trigger) trigger.click();
+                      } catch {}
+                      return;
+                    }
+                  }}
+                >
+                  {overlayEditing ? (
+                    <textarea
+                      autoFocus
+                      ref={overlayTextareaRef}
+                      value={overlayEditValue}
+                      onChange={(e) => setOverlayEditValue(e.target.value)}
+                      onBlur={handleOverlayCommit}
+                      onKeyDown={handleOverlayKeyDown}
+                      className="w-full h-full resize-none outline-none focus:outline-none focus:ring-0 px-2 py-1 text-sm bg-white"
+                      style={{
+                        fontFamily: "inherit",
+                        lineHeight: 1.2,
+                      }}
+                    />
+                  ) : (
+                    selectedDisplayValue !== null && (
+                      <div className="absolute inset-0 flex items-center px-2 text-sm select-none">
+                        <span className="truncate w-full">
+                          {selectedDisplayValue}
+                        </span>
+                        {selectedType === "date" && (
+                          <button
+                            type="button"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded hover:bg-royal-purple/10 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              try {
+                                const input =
+                                  lastSelectedCellEl.current?.querySelector(
+                                    'input[type="date"]'
+                                  ) as HTMLInputElement | null;
+                                if (input) {
+                                  if ((input as any).showPicker) {
+                                    (input as any).showPicker();
+                                  } else {
+                                    input.focus();
+                                    setTimeout(() => input.click(), 0);
+                                  }
+                                }
+                              } catch {}
+                            }}
+                            aria-label="Open date picker"
+                            title="Open date picker"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4 text-royal-purple"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM18 9H2v7a2 2 0 002 2h12a2 2 0 002-2V9z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
           </div>
 
           {/* Pagination */}

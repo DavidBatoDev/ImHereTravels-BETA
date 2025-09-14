@@ -234,3 +234,19 @@
 .overlay-bg-storage {
   margin: 0 !important;
 }
+
+/* Booking sheet: hide native date input icons */
+.booking-sheet input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none !important;
+}
+.booking-sheet input[type="date"]::-webkit-clear-button {
+  display: none !important;
+}
+.booking-sheet input[type="date"]::-ms-clear {
+  display: none !important;
+}
+.booking-sheet input[type="date"] {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+}
