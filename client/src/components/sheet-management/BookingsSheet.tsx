@@ -78,7 +78,6 @@ import { bookingService } from "@/services/booking-service";
 import { useToast } from "@/hooks/use-toast";
 import { useColumnLogger } from "@/hooks/use-column-logger";
 import ColumnSettingsModal from "./ColumnSettingsModal";
-import AddColumnModal from "./AddColumnModal";
 import { functionExecutionService } from "@/services/function-execution-service";
 import { batchedWriter } from "@/services/batched-writer";
 import {
@@ -205,7 +204,6 @@ export default function BookingsSheet() {
     data,
     updateColumn,
     deleteColumn,
-    addColumn,
     updateData,
     updateRow,
     deleteRow,
@@ -264,7 +262,6 @@ export default function BookingsSheet() {
     isOpen: boolean;
     column: SheetColumn | null;
   }>({ isOpen: false, column: null });
-  const [addColumnModal, setAddColumnModal] = useState(false);
   const [availableFunctions, setAvailableFunctions] = useState<
     TypeScriptFunction[]
   >([]);
@@ -278,18 +275,45 @@ export default function BookingsSheet() {
     (color: SheetColumn["color"] | undefined): string => {
       const map: Record<string, { base: string; hover: string }> = {
         purple: {
-          base: "bg-royal-purple/5",
-          hover: "hover:bg-royal-purple/10",
+          base: "bg-royal-purple/8 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-royal-purple/15",
         },
-        blue: { base: "bg-blue-50", hover: "hover:bg-blue-50" },
-        green: { base: "bg-green-50", hover: "hover:bg-green-50" },
-        yellow: { base: "bg-yellow-50", hover: "hover:bg-yellow-50" },
-        orange: { base: "bg-orange-50", hover: "hover:bg-orange-50" },
-        red: { base: "bg-red-50", hover: "hover:bg-red-50" },
-        pink: { base: "bg-pink-50", hover: "hover:bg-pink-50" },
-        cyan: { base: "bg-cyan-50", hover: "hover:bg-cyan-50" },
-        gray: { base: "bg-gray-100", hover: "hover:bg-gray-100" },
-        none: { base: "", hover: "hover:bg-royal-purple/5" },
+        blue: {
+          base: "bg-blue-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-blue-200",
+        },
+        green: {
+          base: "bg-green-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-green-200",
+        },
+        yellow: {
+          base: "bg-yellow-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-yellow-200",
+        },
+        orange: {
+          base: "bg-orange-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-orange-200",
+        },
+        red: {
+          base: "bg-red-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-red-200",
+        },
+        pink: {
+          base: "bg-pink-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-pink-200",
+        },
+        cyan: {
+          base: "bg-cyan-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-cyan-200",
+        },
+        gray: {
+          base: "bg-gray-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-gray-200",
+        },
+        none: {
+          base: "border-l border-r border-royal-purple/40",
+          hover: "hover:bg-royal-purple/8",
+        },
       };
       const key = color || "none";
       const chosen = map[key] || map.none;
@@ -558,8 +582,8 @@ export default function BookingsSheet() {
                             <SelectTrigger
                               className={`h-8 border-2 border-royal-purple/20 focus:border-royal-purple text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none ${
                                 value
-                                  ? "bg-royal-purple/5 border-royal-purple/40 text-royal-purple font-medium"
-                                  : "bg-white hover:bg-royal-purple/5 text-gray-500"
+                                  ? "bg-royal-purple/15 border-royal-purple/40 text-royal-purple font-medium"
+                                  : "bg-white hover:bg-royal-purple/15 text-gray-500"
                               }`}
                             >
                               <SelectValue
@@ -736,8 +760,8 @@ export default function BookingsSheet() {
                         }}
                         className={`h-8 border-2 border-royal-purple/20 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 text-sm transition-colors duration-200 pr-8 cursor-pointer rounded-none ${
                           value
-                            ? "bg-royal-purple/5 border-royal-purple/40"
-                            : "bg-white hover:bg-royal-purple/5"
+                            ? "bg-royal-purple/15 border-royal-purple/40"
+                            : "bg-white hover:bg-royal-purple/15"
                         } focus:bg-white ${
                           !value ? "text-gray-400" : "text-gray-900"
                         } appearance-none`}
@@ -1659,10 +1683,6 @@ export default function BookingsSheet() {
     deleteColumn(columnId);
   };
 
-  const handleAddColumn = (newColumn: Omit<SheetColumn, "id">) => {
-    addColumn(newColumn);
-  };
-
   // Handle adding a new row
   const handleAddNewRow = async () => {
     try {
@@ -1787,14 +1807,6 @@ export default function BookingsSheet() {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <Button
-            variant="outline"
-            onClick={() => setAddColumnModal(true)}
-            className="flex items-center gap-2 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-          >
-            <Plus className="h-4 w-4" />
-            Add Column
-          </Button>
         </div>
       </div>
 
@@ -1897,11 +1909,11 @@ export default function BookingsSheet() {
         <CardContent className="p-0">
           <div
             ref={containerRef}
-            className="relative rounded-md border border-royal-purple/20 overflow-x-auto"
+            className="relative rounded-md border border-royal-purple/40 overflow-x-auto"
             onPointerDownCapture={handlePointerDownSelect}
           >
             <TooltipProvider>
-              <Table className="border border-royal-purple/20 min-w-full table-fixed">
+              <Table className="border border-royal-purple/40 min-w-full table-fixed">
                 <TableHeader>
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id} className="bg-light-grey/30">
@@ -1911,7 +1923,7 @@ export default function BookingsSheet() {
                           return (
                             <TableHead
                               key={header.id}
-                              className="relative border border-royal-purple/20 p-0"
+                              className="relative border border-royal-purple/40 p-0"
                               style={{
                                 minWidth: "64px",
                                 maxWidth: "64px",
@@ -1934,7 +1946,7 @@ export default function BookingsSheet() {
                         return (
                           <TableHead
                             key={header.id}
-                            className="relative border border-royal-purple/20 p-0"
+                            className="relative border border-royal-purple/40 p-0"
                             style={{
                               minWidth: `${columnDef?.width || 150}px`,
                               maxWidth: `${columnDef?.width || 150}px`,
@@ -2012,7 +2024,7 @@ export default function BookingsSheet() {
                               return (
                                 <TableCell
                                   key={cell.id}
-                                  className="border border-royal-purple/20 p-0"
+                                  className="border border-royal-purple/40 p-0"
                                   style={{
                                     minWidth: `${columnDef?.width || 150}px`,
                                     maxWidth: `${columnDef?.width || 150}px`,
@@ -2055,7 +2067,7 @@ export default function BookingsSheet() {
                                 return (
                                   <TableCell
                                     key={column.id}
-                                    className="border border-royal-purple/20 p-0"
+                                    className="border border-royal-purple/40 p-0"
                                     style={{
                                       minWidth: "64px",
                                       maxWidth: "64px",
@@ -2075,7 +2087,7 @@ export default function BookingsSheet() {
                               return (
                                 <TableCell
                                   key={column.id}
-                                  className="border border-royal-purple/20 p-0"
+                                  className="border border-royal-purple/40 p-0"
                                   style={{
                                     minWidth: `${columnDef?.width || 150}px`,
                                     maxWidth: `${columnDef?.width || 150}px`,
@@ -2092,7 +2104,7 @@ export default function BookingsSheet() {
                                         size="sm"
                                         onClick={() => handleAddNewRow()}
                                         disabled={isAddingRow}
-                                        className="h-8 w-8 p-0 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="h-8 w-8 p-0 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/20 hover:border-royal-purple transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                         title={
                                           isAddingRow
                                             ? "Adding new row..."
@@ -2353,14 +2365,6 @@ export default function BookingsSheet() {
         onDelete={handleColumnDelete}
         availableFunctions={availableFunctions}
         existingColumns={columns}
-      />
-
-      <AddColumnModal
-        isOpen={addColumnModal}
-        onClose={() => setAddColumnModal(false)}
-        onAdd={handleAddColumn}
-        existingColumns={columns}
-        availableFunctions={availableFunctions}
       />
 
       {/* Context Menu */}
