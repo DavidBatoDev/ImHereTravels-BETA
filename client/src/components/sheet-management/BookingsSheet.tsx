@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+  memo,
+  startTransition,
+} from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -1391,46 +1399,53 @@ export default function BookingsSheet() {
           handleCellEdit(rowId, columnId, (!current).toString());
           return;
         }
-        setSelectedCell((prev) => {
-          if (prev && prev.rowId === rowId && prev.columnId === columnId)
-            return prev;
-          return { rowId, columnId };
+        // Defer selection state to next frame to let layout settle before overlay render
+        requestAnimationFrame(() => {
+          setSelectedCell((prev) => {
+            if (prev && prev.rowId === rowId && prev.columnId === columnId)
+              return prev;
+            return { rowId, columnId };
+          });
         });
 
         const container = containerRef.current;
         if (container) {
           const cellRect = cellEl.getBoundingClientRect();
           const contRect = container.getBoundingClientRect();
-          setSelectionBox({
-            top: cellRect.top - contRect.top,
-            left: cellRect.left - contRect.left,
-            width: cellRect.width,
-            height: cellRect.height,
+          requestAnimationFrame(() => {
+            setSelectionBox({
+              top: cellRect.top - contRect.top,
+              left: cellRect.left - contRect.left,
+              width: cellRect.width,
+              height: cellRect.height,
+            });
           });
         }
 
-        // Visually whiten/hide only for text-like cells; keep interactive cells visible
-        if (
-          lastSelectedCellEl.current &&
-          lastSelectedCellEl.current !== cellEl
-        ) {
-          lastSelectedCellEl.current.style.backgroundColor = "";
-          lastSelectedCellEl.current.style.visibility = "";
-        }
-        const shouldHide = !(
-          cellType === "boolean" ||
-          cellType === "select" ||
-          cellType === "date" ||
-          cellType === "function"
-        );
-        if (shouldHide) {
-          cellEl.style.backgroundColor = "#ffffff";
-          cellEl.style.visibility = "hidden";
-        } else {
-          cellEl.style.backgroundColor = "";
-          cellEl.style.visibility = "";
-        }
-        lastSelectedCellEl.current = cellEl;
+        // Batch style changes to avoid layout thrash
+        requestAnimationFrame(() => {
+          if (
+            lastSelectedCellEl.current &&
+            lastSelectedCellEl.current !== cellEl
+          ) {
+            lastSelectedCellEl.current.style.backgroundColor = "";
+            lastSelectedCellEl.current.style.visibility = "";
+          }
+          const shouldHide = !(
+            cellType === "boolean" ||
+            cellType === "select" ||
+            cellType === "date" ||
+            cellType === "function"
+          );
+          if (shouldHide) {
+            cellEl.style.backgroundColor = "#ffffff";
+            cellEl.style.visibility = "hidden";
+          } else {
+            cellEl.style.backgroundColor = "";
+            cellEl.style.visibility = "";
+          }
+          lastSelectedCellEl.current = cellEl;
+        });
 
         // Close overlay editing if selecting a new cell
         setOverlayEditing(false);
