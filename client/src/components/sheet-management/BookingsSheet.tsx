@@ -77,6 +77,7 @@ import { typescriptFunctionsService } from "@/services/typescript-functions-serv
 import { bookingService } from "@/services/booking-service";
 import { demoBookingData } from "@/lib/demo-booking-data";
 import { useToast } from "@/hooks/use-toast";
+import { useColumnLogger } from "@/hooks/use-column-logger";
 import ColumnSettingsModal from "./ColumnSettingsModal";
 import AddColumnModal from "./AddColumnModal";
 import { functionExecutionService } from "@/services/function-execution-service";
@@ -210,6 +211,14 @@ export default function BookingsSheet() {
     updateRow,
     deleteRow,
   } = useSheetManagement();
+
+  // Log columns when they change (compact format for performance)
+  useColumnLogger(columns, {
+    logOnChange: true,
+    compact: true,
+    logOrderChanges: true,
+    prefix: "📊 BookingsSheet",
+  });
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
