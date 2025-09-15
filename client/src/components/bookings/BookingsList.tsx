@@ -24,7 +24,7 @@ import {
   Eye,
   Edit,
   Calendar,
-  DollarSign,
+  Banknote,
   User,
   MapPin,
 } from "lucide-react";
@@ -259,7 +259,7 @@ export default function BookingsList() {
                     </td>
                     <td className="py-4 px-6 border-r border-royal-purple/20">
                       <div className="flex items-center">
-                        <DollarSign className="mr-1 h-4 w-4 text-royal-purple" />
+                        <Banknote className="mr-1 h-4 w-4 text-royal-purple" />
                         <span
                           className={
                             booking.remainingBalance > 0
@@ -318,12 +318,12 @@ export default function BookingsList() {
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-3 bg-spring-green/20 rounded-xl">
-                <DollarSign className="h-6 w-6 text-spring-green" />
+                <Banknote className="h-6 w-6 text-spring-green" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-grey">Total Revenue</p>
                 <p className="text-2xl font-bold text-creative-midnight">
-                  $
+                  €
                   {mockBookings
                     .reduce((sum, booking) => sum + booking.totalAmount, 0)
                     .toLocaleString()}

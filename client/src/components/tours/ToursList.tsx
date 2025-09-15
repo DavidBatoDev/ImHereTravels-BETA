@@ -38,7 +38,7 @@ import {
   Edit,
   MapPin,
   Clock,
-  DollarSign,
+  Banknote,
   Users,
   Star,
   Archive,
@@ -357,12 +357,12 @@ export default function ToursList() {
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="p-3 bg-sunglow-yellow/20 rounded-xl">
-                  <DollarSign className="h-6 w-6 text-vivid-orange" />
+                  <Banknote className="h-6 w-6 text-vivid-orange" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-grey">Avg. Price</p>
                   <p className="text-2xl font-bold text-creative-midnight">
-                    $
+                    €
                     {tours.length > 0
                       ? Math.round(
                           tours.reduce(

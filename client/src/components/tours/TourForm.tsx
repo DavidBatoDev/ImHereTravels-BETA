@@ -8,7 +8,7 @@ import {
   FileText,
   MapPin,
   Clock,
-  DollarSign,
+  Banknote,
   Star,
   Calendar,
   Plus,
@@ -1592,7 +1592,7 @@ export default function TourForm({
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center gap-2 text-creative-midnight">
                     <div className="p-2 bg-vivid-orange/10 rounded-full">
-                      <DollarSign className="h-5 w-5 text-vivid-orange" />
+                      <Banknote className="h-5 w-5 text-vivid-orange" />
                     </div>
                     Pricing
                   </CardTitle>

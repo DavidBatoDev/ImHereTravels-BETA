@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Calendar,
-  DollarSign,
+  Banknote,
   TrendingUp,
   Clock,
   AlertTriangle,
@@ -112,12 +112,12 @@ export default function DashboardOverview() {
               Revenue Today
             </CardTitle>
             <div className="p-2 bg-spring-green/20 rounded-lg">
-              <DollarSign className="h-4 w-4 text-spring-green" />
+              <Banknote className="h-4 w-4 text-spring-green" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-creative-midnight">
-              ${metrics.revenueToday.toLocaleString()}
+              €{metrics.revenueToday.toLocaleString()}
             </div>
             <p className="text-xs text-grey">+12% from yesterday</p>
           </CardContent>
@@ -265,7 +265,7 @@ export default function DashboardOverview() {
                 <p className="text-sm font-medium text-creative-midnight">
                   Payment received
                 </p>
-                <p className="text-xs text-grey">Sarah Wilson - $1,200</p>
+                <p className="text-xs text-grey">Sarah Wilson - €1,200</p>
               </div>
               <span className="text-xs text-grey/80 bg-white px-2 py-1 rounded-full border border-royal-purple/20">
                 15 minutes ago

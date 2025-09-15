@@ -16,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   MapPin,
   Clock,
-  DollarSign,
+  Banknote,
   Users,
   Star,
   Calendar,
@@ -129,7 +129,7 @@ export default function TourDetails({
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <div className="p-3 bg-royal-purple/10 rounded-full">
-                      <DollarSign className="w-6 h-6 text-royal-purple" />
+                      <Banknote className="w-6 h-6 text-royal-purple" />
                     </div>
                     <div>
                       <p className="text-sm text-grey font-medium">Price</p>

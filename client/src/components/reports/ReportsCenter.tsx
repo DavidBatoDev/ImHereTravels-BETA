@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Download,
   Calendar,
-  DollarSign,
+  Banknote,
   TrendingUp,
   BarChart3,
   PieChart,
@@ -111,7 +111,7 @@ export default function ReportsCenter() {
       <Tabs defaultValue="financial" className="space-y-6">
         <TabsList>
           <TabsTrigger value="financial" className="flex items-center">
-            <DollarSign className="mr-2 h-4 w-4" />
+            <Banknote className="mr-2 h-4 w-4" />
             Financial Reports
           </TabsTrigger>
           <TabsTrigger value="bookings" className="flex items-center">
@@ -132,11 +132,11 @@ export default function ReportsCenter() {
                 <CardTitle className="text-sm font-medium">
                   Total Revenue
                 </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <Banknote className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  ${mockFinancialData.totalRevenue.toLocaleString()}
+                  €{mockFinancialData.totalRevenue.toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   +{mockFinancialData.monthlyGrowth}% from last month

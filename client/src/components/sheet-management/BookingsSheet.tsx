@@ -1196,7 +1196,7 @@ export default function BookingsSheet() {
           return "Invalid Date";
         }
       case "currency":
-        return `$${parseFloat(value).toLocaleString()}`;
+        return `€${parseFloat(value).toLocaleString()}`;
       case "select":
         return value;
       case "function":
