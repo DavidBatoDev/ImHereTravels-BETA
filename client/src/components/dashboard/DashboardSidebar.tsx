@@ -131,7 +131,7 @@ export default function DashboardSidebar({
           className="fixed inset-0 bg-black/60 backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
-        <div className="fixed inset-y-0 left-0 flex w-72 flex-col bg-white shadow-2xl">
+        <div className="fixed inset-y-0 left-0 flex w-72 flex-col bg-background border-r border-border shadow-2xl">
           <div className="flex h-20 items-center justify-between px-6 bg-primary">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-white/20 rounded-xl p-2 backdrop-blur-sm">
@@ -162,10 +162,10 @@ export default function DashboardSidebar({
                 return (
                   <div key={`separator-${index}`} className="relative py-2">
                     <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-royal-purple/20" />
+                      <div className="w-full border-t border-border" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-white px-2 text-royal-purple/60 font-medium">
+                      <span className="bg-background px-2 text-muted-foreground font-medium">
                         Section
                       </span>
                     </div>
@@ -182,7 +182,7 @@ export default function DashboardSidebar({
                     "group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ease-in-out",
                     isActive
                       ? "bg-primary text-white shadow-lg shadow-primary/25"
-                      : "text-creative-midnight hover:bg-royal-purple/10 hover:text-royal-purple hover:shadow-md"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground hover:shadow-md"
                   )}
                   onClick={() => setSidebarOpen(false)}
                 >
@@ -191,7 +191,7 @@ export default function DashboardSidebar({
                       "mr-3 p-2 rounded-lg transition-all duration-200",
                       isActive
                         ? "bg-white/20 backdrop-blur-sm"
-                        : "bg-royal-purple/10 group-hover:bg-royal-purple/20"
+                        : "bg-muted group-hover:bg-muted/80"
                     )}
                   >
                     <item.icon
@@ -199,7 +199,7 @@ export default function DashboardSidebar({
                         "h-5 w-5 flex-shrink-0 transition-colors duration-200",
                         isActive
                           ? "text-white"
-                          : "text-royal-purple group-hover:text-royal-purple"
+                          : "text-muted-foreground group-hover:text-accent-foreground"
                       )}
                     />
                   </div>
@@ -208,7 +208,7 @@ export default function DashboardSidebar({
                     <div
                       className={cn(
                         "text-xs opacity-75 transition-opacity duration-200",
-                        isActive ? "text-white/80" : "text-grey"
+                        isActive ? "text-white/80" : "text-muted-foreground"
                       )}
                     >
                       {item.description}
@@ -221,26 +221,26 @@ export default function DashboardSidebar({
               );
             })}
           </nav>
-          <div className="border-t border-royal-purple/20 p-6 bg-light-grey">
+          <div className="border-t border-border p-6 bg-muted">
             <div className="flex items-center mb-4">
               <div className="flex-shrink-0">
                 {userProfile?.profile?.avatar ? (
                   <img
                     src={userProfile.profile.avatar}
                     alt="Profile"
-                    className="h-12 w-12 rounded-xl object-cover ring-2 ring-royal-purple/20 shadow-md"
+                    className="h-12 w-12 rounded-xl object-cover ring-2 ring-border shadow-md"
                   />
                 ) : (
-                  <div className="h-12 w-12 rounded-xl bg-royal-purple flex items-center justify-center shadow-md">
+                  <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center shadow-md">
                     <User className="h-6 w-6 text-white" />
                   </div>
                 )}
               </div>
               <div className="ml-4 flex-1">
-                <p className="text-sm font-semibold text-creative-midnight">
+                <p className="text-sm font-semibold text-foreground">
                   {userProfile?.profile?.firstName || "User"}
                 </p>
-                <p className="text-xs text-grey">
+                <p className="text-xs text-muted-foreground">
                   {userProfile?.email || "user@imheretravels.com"}
                 </p>
                 <div className="inline-flex items-center px-2 py-1 rounded-full bg-spring-green/20 text-xs font-medium text-spring-green mt-1">
@@ -264,21 +264,19 @@ export default function DashboardSidebar({
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
-        <div className="flex min-h-0 flex-1 flex-col bg-white shadow">
-          {/* <div className="flex items-center px-6 py-3 bg-primary"> */}
-          <div className="flex items-center px-6 py-3 bg-slate-100">
+        <div className="flex min-h-0 flex-1 flex-col bg-background border-r border-border shadow">
+          <div className="flex items-center px-6 py-3 bg-primary">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-white/20 rounded-xl p-2 backdrop-blur-sm">
                 <Image
-                  src="/logos/Logo_Red.svg"
+                  src="/logos/Logo_White.svg"
                   alt="ImHereTravels Logo"
                   width={24}
                   height={24}
                   className="w-full h-full"
                 />
               </div>
-              {/* <h1 className="text-xl font-bold text-white font-hk-grotesk"> */}
-              <h1 className="text-xl font-bold text-creative-midnight font-hk-grotesk">
+              <h1 className="text-xl font-bold text-white font-hk-grotesk">
                 ImHereTravels
               </h1>
             </div>
@@ -292,10 +290,10 @@ export default function DashboardSidebar({
                     className="relative py-2"
                   >
                     <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-royal-purple/20" />
+                      <div className="w-full border-t border-border" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-white px-2 text-royal-purple/60 font-medium">
+                      <span className="bg-background px-2 text-muted-foreground font-medium">
                         Section
                       </span>
                     </div>
@@ -311,8 +309,8 @@ export default function DashboardSidebar({
                   className={cn(
                     "group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ease-in-out",
                     isActive
-                      ? "bg-primary text-white shadow-lg shadow-primary-red/25"
-                      : "text-creative-midnight hover:bg-royal-purple/10 hover:text-royal-purple hover:shadow-md"
+                      ? "bg-primary text-white shadow-lg shadow-primary/25"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground hover:shadow-md"
                   )}
                 >
                   <div
@@ -320,7 +318,7 @@ export default function DashboardSidebar({
                       "mr-3 p-2 rounded-lg transition-all duration-200",
                       isActive
                         ? "bg-white/20 backdrop-blur-sm"
-                        : "bg-royal-purple/10 group-hover:bg-royal-purple/20"
+                        : "bg-muted group-hover:bg-muted/80"
                     )}
                   >
                     <item.icon
@@ -328,7 +326,7 @@ export default function DashboardSidebar({
                         "h-5 w-5 flex-shrink-0 transition-colors duration-200",
                         isActive
                           ? "text-white"
-                          : "text-royal-purple group-hover:text-royal-purple"
+                          : "text-muted-foreground group-hover:text-accent-foreground"
                       )}
                     />
                   </div>
@@ -337,7 +335,7 @@ export default function DashboardSidebar({
                     <div
                       className={cn(
                         "text-xs opacity-75 transition-opacity duration-200",
-                        isActive ? "text-white/80" : "text-grey"
+                        isActive ? "text-white/80" : "text-muted-foreground"
                       )}
                     >
                       {item.description}
@@ -350,26 +348,26 @@ export default function DashboardSidebar({
               );
             })}
           </nav>
-          <div className="border-t border-royal-purple/20 p-6 bg-light-grey">
+          <div className="border-t border-border p-6 bg-muted">
             <div className="flex items-center mb-4">
               <div className="flex-shrink-0">
                 {userProfile?.profile?.avatar ? (
                   <img
                     src={userProfile.profile.avatar}
                     alt="Profile"
-                    className="h-12 w-12 rounded-xl object-cover ring-2 ring-royal-purple/20 shadow-md"
+                    className="h-12 w-12 rounded-xl object-cover ring-2 ring-border shadow-md"
                   />
                 ) : (
-                  <div className="h-12 w-12 rounded-xl bg-royal-purple flex items-center justify-center shadow-md">
+                  <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center shadow-md">
                     <User className="h-6 w-6 text-white" />
                   </div>
                 )}
               </div>
               <div className="ml-4 flex-1">
-                <p className="text-sm font-semibold text-creative-midnight">
+                <p className="text-sm font-semibold text-foreground">
                   {userProfile?.profile?.firstName || "User"}
                 </p>
-                <p className="text-xs text-grey">
+                <p className="text-xs text-muted-foreground">
                   {userProfile?.email || "user@imheretravels.com"}
                 </p>
                 <div className="inline-flex items-center px-2 py-1 rounded-full bg-spring-green/20 text-xs font-medium text-spring-green mt-1">
@@ -394,16 +392,16 @@ export default function DashboardSidebar({
       {/* Logout Confirmation Modal */}
       {showLogoutModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-royal-purple/10">
+          <div className="bg-background rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border">
             <div className="flex items-center space-x-4 mb-6">
               <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center">
                 <AlertTriangle className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-creative-midnight font-hk-grotesk">
+                <h3 className="text-xl font-bold text-foreground font-hk-grotesk">
                   Confirm Logout
                 </h3>
-                <p className="text-sm text-grey">
+                <p className="text-sm text-muted-foreground">
                   Are you sure you want to sign out?
                 </p>
               </div>
@@ -411,7 +409,7 @@ export default function DashboardSidebar({
             <div className="flex space-x-3">
               <Button
                 variant="outline"
-                className="flex-1 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 rounded-xl transition-all duration-200"
+                className="flex-1 border-border text-primary hover:bg-primary/10 rounded-xl transition-all duration-200"
                 onClick={() => setShowLogoutModal(false)}
                 disabled={isLoading}
               >
