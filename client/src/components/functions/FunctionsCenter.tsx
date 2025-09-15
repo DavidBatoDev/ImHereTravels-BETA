@@ -39,12 +39,14 @@ import CreateItemModal from "./CreateItemModal";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import TestConsole from "./TestConsole";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "next-themes";
 
 // Initialize TypeScript function service
 typescriptFunctionService.initialize();
 
 export default function FunctionsCenter() {
   const { toast } = useToast();
+  const { resolvedTheme } = useTheme();
   const [folders, setFolders] = useState<TSFolder[]>([]);
   const [files, setFiles] = useState<TSFile[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<TSFolder | null>(null);
@@ -409,7 +411,8 @@ export default function ${
   };
 
   const getFileIcon = () => {
-    if (!activeFile) return <FileCode className="h-4 w-4 text-gray-500" />;
+    if (!activeFile)
+      return <FileCode className="h-4 w-4 text-muted-foreground" />;
 
     // Return different icons based on file type and export type
     if (activeFile.fileType === "typescript") {
@@ -429,7 +432,7 @@ export default function ${
       }
     }
 
-    return <FileCode className="h-4 w-4 text-gray-500" />;
+    return <FileCode className="h-4 w-4 text-muted-foreground" />;
   };
 
   const getComplexityBadge = (complexity: string) => {
@@ -484,7 +487,7 @@ export default function ${
       // Configure TypeScript language features
       editor.updateOptions({
         language: "typescript",
-        theme: "vs-light",
+        theme: resolvedTheme === "dark" ? "vs-dark" : "vs-light",
         // TypeScript-specific options
         suggest: {
           includeCompletionsForModuleExports: true,
@@ -540,12 +543,12 @@ export default function ${
   return (
     <div className="flex h-[calc(100vh-120px)]">
       {/* Sidebar */}
-      <div className="w-80 border-r border-gray-200 bg-gray-50 flex flex-col">
+      <div className="w-80 border-r border-border bg-muted flex flex-col">
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-foreground">
                 TS Functions
               </h2>
             </div>
@@ -574,7 +577,7 @@ export default function ${
             </div>
           </div>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search TypeScript files..."
               value={searchTerm}
@@ -589,9 +592,11 @@ export default function ${
           <div className="p-2">
             {folders.length === 0 ? (
               <div className="text-center py-8">
-                <Folder className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-                <p className="text-sm text-gray-500 mb-2">No folders yet</p>
-                <p className="text-xs text-gray-400">
+                <Folder className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground mb-2">
+                  No folders yet
+                </p>
+                <p className="text-xs text-muted-foreground">
                   Create a folder to get started with TypeScript functions
                 </p>
               </div>
@@ -602,8 +607,8 @@ export default function ${
                   <div
                     className={`flex items-center space-x-2 p-2 rounded-lg cursor-pointer transition-colors ${
                       selectedFolder?.id === folder.id
-                        ? "bg-blue-50 border border-blue-200"
-                        : "hover:bg-gray-100"
+                        ? "bg-blue-50 border border-blue-200 dark:bg-primary/10 dark:border-primary/20"
+                        : "hover:bg-muted/50"
                     }`}
                     onClick={() => handleFolderSelect(folder)}
                   >
@@ -615,14 +620,14 @@ export default function ${
                       className="p-1 hover:bg-gray-200 rounded"
                     >
                       {folder.isCollapsed ? (
-                        <ChevronRight className="h-4 w-4 text-gray-500" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 text-gray-500" />
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       )}
                     </button>
-                    <Folder className="h-4 w-4 text-gray-500" />
+                    <Folder className="h-4 w-4 text-muted-foreground" />
                     <span
-                      className="text-sm font-medium text-gray-700 flex-1 cursor-pointer select-none"
+                      className="text-sm font-medium text-foreground flex-1 cursor-pointer select-none"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleFolderSelect(folder);
@@ -630,13 +635,13 @@ export default function ${
                     >
                       {folder.name}
                     </span>
-                    <span className="ml-auto text-xs text-gray-500">
+                    <span className="ml-auto text-xs text-muted-foreground">
                       {getFilesForFolder(folder.id).length}
                     </span>
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500"
                       onClick={(e) => {
                         e.stopPropagation();
                         setDeleteFolderModal({
@@ -659,8 +664,8 @@ export default function ${
                           key={file.id}
                           className={`p-2 rounded-lg cursor-pointer transition-colors ${
                             file.isActive
-                              ? "bg-blue-100 border border-blue-200"
-                              : "hover:bg-gray-100"
+                              ? "bg-blue-100 border border-blue-200 dark:bg-primary/10 dark:border-primary/20"
+                              : "hover:bg-muted/50"
                           }`}
                           onClick={() => handleFileSelect(file)}
                         >
@@ -668,20 +673,20 @@ export default function ${
                             {file.fileType === "typescript" ? (
                               <Type className="h-4 w-4 text-blue-600" />
                             ) : (
-                              <FileCode className="h-4 w-4 text-gray-500" />
+                              <FileCode className="h-4 w-4 text-muted-foreground" />
                             )}
                             <div className="flex-1 min-w-0">
                               <p
                                 className={`text-sm font-medium truncate select-none ${
                                   file.isActive
-                                    ? "text-blue-900"
-                                    : "text-gray-900"
+                                    ? "text-blue-900 dark:text-primary"
+                                    : "text-foreground"
                                 }`}
                               >
                                 {file.name}
                               </p>
                               {/* Badges removed for cleaner file list */}
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs text-muted-foreground mt-1">
                                 Modified{" "}
                                 {file.lastModified.toLocaleDateString()}
                               </p>
@@ -689,7 +694,7 @@ export default function ${
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-6 w-6 p-0 text-gray-400 hover:text-blue-500"
+                              className="h-6 w-6 p-0 text-muted-foreground hover:text-blue-500"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleRenameFile(file);
@@ -701,7 +706,7 @@ export default function ${
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                              className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDeleteFileModal({
@@ -726,8 +731,8 @@ export default function ${
         </div>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-200">
-          <div className="text-xs text-gray-500">
+        <div className="p-4 border-t border-border">
+          <div className="text-xs text-muted-foreground">
             <div className="flex items-center space-x-2">
               <Type className="h-3 w-3 text-blue-600" />
               <span>TypeScript</span>
@@ -760,12 +765,12 @@ export default function ${
           {activeFile ? (
             <>
               {/* Editor Header */}
-              <div className="border-b border-gray-200 bg-white px-6 py-3">
+              <div className="border-b border-border bg-background px-6 py-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     {getFileIcon()}
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900">
+                      <h3 className="text-lg font-medium text-foreground">
                         {activeFile.name}
                       </h3>
                       <div className="flex items-center space-x-2 mt-1">
@@ -786,7 +791,7 @@ export default function ${
                             </Badge>
                           )}
                       </div>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">
                         Modified {activeFile.lastModified.toLocaleString()}
                       </p>
                     </div>
@@ -799,7 +804,9 @@ export default function ${
                         setIsTestConsoleVisible(!isTestConsoleVisible)
                       }
                       className={
-                        isTestConsoleVisible ? "bg-blue-50 border-blue-200" : ""
+                        isTestConsoleVisible
+                          ? "bg-blue-50 border-blue-200 dark:bg-primary/10 dark:border-primary/20"
+                          : ""
                       }
                     >
                       <Terminal className="mr-2 h-4 w-4" />
@@ -827,9 +834,9 @@ export default function ${
               </div>
 
               {/* Code Editor with Integrated Test Console */}
-              <div className="flex-1 bg-white overflow-hidden relative">
+              <div className="flex-1 bg-background overflow-hidden relative">
                 {isEditorLoading && (
-                  <div className="absolute inset-0 bg-white flex items-center justify-center z-10">
+                  <div className="absolute inset-0 bg-background flex items-center justify-center z-10">
                     <div className="flex items-center space-x-2">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                       <span className="text-gray-600">
@@ -864,7 +871,7 @@ export default function ${
                         }
                       }}
                       onMount={handleEditorDidMount}
-                      theme="vs-light"
+                      theme={resolvedTheme === "dark" ? "vs-dark" : "vs-light"}
                       options={{
                         readOnly: !isEditing,
                         minimap: { enabled: false },
@@ -898,7 +905,7 @@ export default function ${
 
                   {/* Test Console - Fixed width to prevent overflow */}
                   <div
-                    className={`absolute right-0 top-0 h-full border-l border-gray-200 bg-gray-50 transition-transform duration-300 ease-in-out ${
+                    className={`absolute right-0 top-0 h-full border-l border-border bg-muted transition-transform duration-300 ease-in-out ${
                       isTestConsoleVisible
                         ? "w-1/3 translate-x-0"
                         : "w-1/3 translate-x-full"
@@ -914,10 +921,10 @@ export default function ${
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <Type className="mx-auto h-12 w-12 text-blue-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                <h3 className="mt-2 text-sm font-medium text-foreground">
                   No TypeScript file selected
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Select a file from the sidebar to view or edit its TypeScript
                   code.
                 </p>

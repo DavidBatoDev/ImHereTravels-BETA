@@ -264,7 +264,7 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-32">
-          <div className="text-center text-gray-500">
+          <div className="text-center text-muted-foreground">
             <Code className="mx-auto h-6 w-6 mb-1" />
             <p className="text-xs">Select a function to test</p>
           </div>
@@ -287,17 +287,17 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-32">
-          <div className="text-center text-gray-500">
+          <div className="text-center text-muted-foreground">
             <AlertCircle className="mx-auto h-8 w-8 mb-2 text-amber-500" />
-            <p className="text-sm font-medium text-gray-700 mb-1">
+            <p className="text-sm font-medium text-foreground mb-1">
               No Export Default Function
             </p>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-muted-foreground mb-3">
               This file doesn't have an export default function to test.
             </p>
             <div className="text-xs text-gray-400 space-y-1">
               <p>To test a function, add:</p>
-              <div className="bg-gray-100 p-2 rounded text-left font-mono">
+              <div className="bg-muted/50 p-2 rounded text-left font-mono">
                 <div>export default function myFunction() {`{`}</div>
                 <div className="ml-2">// Your code here</div>
                 <div className="ml-2">return "Hello World";</div>
@@ -343,9 +343,9 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
           <div className="space-y-2">
             <button
               onClick={() => setShowParameters(!showParameters)}
-              className="flex items-center justify-between w-full text-left hover:bg-gray-50 p-1 rounded"
+              className="flex items-center justify-between w-full text-left hover:bg-muted p-1 rounded"
             >
-              <h4 className="text-xs font-medium text-gray-700 flex items-center space-x-1">
+              <h4 className="text-xs font-medium text-foreground flex items-center space-x-1">
                 <Type className="h-3 w-3" />
                 <span>Params</span>
                 <Badge variant="outline" className="text-xs px-1 py-0">
@@ -353,9 +353,9 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
                 </Badge>
               </h4>
               {showParameters ? (
-                <ChevronDown className="h-3 w-3 text-gray-500" />
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
               ) : (
-                <ChevronRight className="h-3 w-3 text-gray-500" />
+                <ChevronRight className="h-3 w-3 text-muted-foreground" />
               )}
             </button>
             {showParameters && (
@@ -373,7 +373,7 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
                             opt
                           </Badge>
                         )}
-                        <span className="text-gray-500 ml-1 text-xs">
+                        <span className="text-muted-foreground ml-1 text-xs">
                           (
                           {arg.type.length > 10
                             ? arg.type.substring(0, 10) + "..."
@@ -417,16 +417,16 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
         <div className="space-y-1">
           <button
             onClick={() => setShowCustomCode(!showCustomCode)}
-            className="flex items-center justify-between w-full text-left hover:bg-gray-50 p-1 rounded"
+            className="flex items-center justify-between w-full text-left hover:bg-muted p-1 rounded"
           >
-            <h4 className="text-xs font-medium text-gray-700 flex items-center space-x-1">
+            <h4 className="text-xs font-medium text-foreground flex items-center space-x-1">
               <Code className="h-3 w-3" />
               <span>Code</span>
             </h4>
             {showCustomCode ? (
-              <ChevronDown className="h-3 w-3 text-gray-500" />
+              <ChevronDown className="h-3 w-3 text-muted-foreground" />
             ) : (
-              <ChevronRight className="h-3 w-3 text-gray-500" />
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
             )}
           </button>
           {showCustomCode && (
@@ -459,9 +459,9 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
           <div className="space-y-1">
             <button
               onClick={() => setShowResults(!showResults)}
-              className="flex items-center justify-between w-full text-left hover:bg-gray-50 p-1 rounded"
+              className="flex items-center justify-between w-full text-left hover:bg-muted p-1 rounded"
             >
-              <h4 className="text-xs font-medium text-gray-700 flex items-center space-x-1">
+              <h4 className="text-xs font-medium text-foreground flex items-center space-x-1">
                 <Terminal className="h-3 w-3" />
                 <span>Results</span>
                 <Badge variant="outline" className="text-xs px-1 py-0">
@@ -469,14 +469,14 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
                 </Badge>
               </h4>
               {showResults ? (
-                <ChevronDown className="h-3 w-3 text-gray-500" />
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
               ) : (
-                <ChevronRight className="h-3 w-3 text-gray-500" />
+                <ChevronRight className="h-3 w-3 text-muted-foreground" />
               )}
             </button>
             {showResults && (
               <div className="pl-3">
-                <ScrollArea className="h-24 border rounded p-1 bg-gray-50">
+                <ScrollArea className="h-24 border rounded p-1 bg-muted">
                   <div className="space-y-1">
                     {testResults.map((result, index) => (
                       <div
@@ -497,11 +497,11 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
                             <span className="font-medium text-xs">
                               {result.success ? "✓" : "✗"}
                             </span>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               {result.executionTime.toFixed(0)}ms
                             </span>
                           </div>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-muted-foreground">
                             {result.timestamp
                               .toLocaleTimeString()
                               .substring(0, 5)}

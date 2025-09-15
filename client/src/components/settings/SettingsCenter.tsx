@@ -67,17 +67,17 @@ export default function SettingsCenter() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-creative-midnight font-hk-grotesk">
+          <h1 className="text-3xl font-bold text-foreground font-hk-grotesk">
             Settings
           </h1>
-          <p className="text-grey text-lg">
+          <p className="text-muted-foreground text-lg">
             Manage system configuration and preferences
           </p>
         </div>
         <div className="flex space-x-2">
           <Button
             variant="outline"
-            className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+            className="border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
           >
             <RefreshCw className="mr-2 h-4 w-4" />
             Reset to Defaults
@@ -93,7 +93,7 @@ export default function SettingsCenter() {
         defaultValue={canManageUsers ? "users" : "email"}
         className="space-y-6"
       >
-        <TabsList className="bg-light-grey border border-royal-purple/20">
+        <TabsList className="bg-muted border border-royal-purple/20 dark:border-border">
           {canManageUsers && (
             <TabsTrigger
               value="users"
@@ -133,19 +133,19 @@ export default function SettingsCenter() {
         )}
 
         <TabsContent value="email" className="space-y-6">
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
-            <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-              <CardTitle className="text-creative-midnight">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
+            <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+              <CardTitle className="text-foreground">
                 SMTP Configuration
               </CardTitle>
-              <CardDescription className="text-grey">
+              <CardDescription className="text-muted-foreground">
                 Configure email server settings
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 p-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="smtpHost" className="text-creative-midnight">
+                  <Label htmlFor="smtpHost" className="text-foreground">
                     SMTP Host
                   </Label>
                   <Input
@@ -157,11 +157,11 @@ export default function SettingsCenter() {
                         smtpHost: e.target.value,
                       })
                     }
-                    className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                    className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="smtpPort" className="text-creative-midnight">
+                  <Label htmlFor="smtpPort" className="text-foreground">
                     SMTP Port
                   </Label>
                   <Input
@@ -173,13 +173,13 @@ export default function SettingsCenter() {
                         smtpPort: e.target.value,
                       })
                     }
-                    className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                    className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="smtpUser" className="text-creative-midnight">
+                  <Label htmlFor="smtpUser" className="text-foreground">
                     SMTP Username
                   </Label>
                   <Input
@@ -191,14 +191,11 @@ export default function SettingsCenter() {
                         smtpUser: e.target.value,
                       })
                     }
-                    className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                    className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label
-                    htmlFor="smtpPassword"
-                    className="text-creative-midnight"
-                  >
+                  <Label htmlFor="smtpPassword" className="text-foreground">
                     SMTP Password
                   </Label>
                   <Input
@@ -211,13 +208,13 @@ export default function SettingsCenter() {
                         smtpPassword: e.target.value,
                       })
                     }
-                    className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                    className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="fromName" className="text-creative-midnight">
+                  <Label htmlFor="fromName" className="text-foreground">
                     From Name
                   </Label>
                   <Input
@@ -229,11 +226,11 @@ export default function SettingsCenter() {
                         fromName: e.target.value,
                       })
                     }
-                    className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                    className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="fromEmail" className="text-creative-midnight">
+                  <Label htmlFor="fromEmail" className="text-foreground">
                     From Email
                   </Label>
                   <Input
@@ -246,7 +243,7 @@ export default function SettingsCenter() {
                         fromEmail: e.target.value,
                       })
                     }
-                    className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                    className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                   />
                 </div>
               </div>
@@ -258,22 +255,22 @@ export default function SettingsCenter() {
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
-            <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-              <CardTitle className="text-creative-midnight">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
+            <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+              <CardTitle className="text-foreground">
                 Security Settings
               </CardTitle>
-              <CardDescription className="text-grey">
+              <CardDescription className="text-muted-foreground">
                 Configure security and authentication settings
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="twoFactor" className="text-creative-midnight">
+                  <Label htmlFor="twoFactor" className="text-foreground">
                     Two-Factor Authentication
                   </Label>
-                  <p className="text-sm text-grey">
+                  <p className="text-sm text-muted-foreground">
                     Require 2FA for all admin accounts
                   </p>
                 </div>
@@ -290,10 +287,7 @@ export default function SettingsCenter() {
               </div>
 
               <div className="space-y-2">
-                <Label
-                  htmlFor="sessionTimeout"
-                  className="text-creative-midnight"
-                >
+                <Label htmlFor="sessionTimeout" className="text-foreground">
                   Session Timeout (minutes)
                 </Label>
                 <Input
@@ -306,15 +300,12 @@ export default function SettingsCenter() {
                       sessionTimeout: parseInt(e.target.value),
                     })
                   }
-                  className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                  className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label
-                  htmlFor="passwordExpiry"
-                  className="text-creative-midnight"
-                >
+                <Label htmlFor="passwordExpiry" className="text-foreground">
                   Password Expiry (days)
                 </Label>
                 <Input
@@ -327,15 +318,12 @@ export default function SettingsCenter() {
                       passwordExpiry: parseInt(e.target.value),
                     })
                   }
-                  className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                  className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label
-                  htmlFor="failedAttempts"
-                  className="text-creative-midnight"
-                >
+                <Label htmlFor="failedAttempts" className="text-foreground">
                   Failed Login Attempts
                 </Label>
                 <Input
@@ -348,47 +336,51 @@ export default function SettingsCenter() {
                       failedLoginAttempts: parseInt(e.target.value),
                     })
                   }
-                  className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                  className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                 />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
-            <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-              <CardTitle className="text-creative-midnight">API Keys</CardTitle>
-              <CardDescription className="text-grey">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
+            <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+              <CardTitle className="text-foreground">API Keys</CardTitle>
+              <CardDescription className="text-muted-foreground">
                 Manage API keys for external integrations
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border border-royal-purple/20 rounded-lg bg-light-grey/30">
+                <div className="flex items-center justify-between p-4 border border-royal-purple/20 dark:border-border rounded-lg bg-muted/30">
                   <div>
-                    <h3 className="font-medium text-creative-midnight">
+                    <h3 className="font-medium text-foreground">
                       Stripe API Key
                     </h3>
-                    <p className="text-sm text-grey">sk_live_...abc123</p>
+                    <p className="text-sm text-muted-foreground">
+                      sk_live_...abc123
+                    </p>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                    className="border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
                   >
                     Regenerate
                   </Button>
                 </div>
-                <div className="flex items-center justify-between p-4 border border-royal-purple/20 rounded-lg bg-light-grey/30">
+                <div className="flex items-center justify-between p-4 border border-royal-purple/20 dark:border-border rounded-lg bg-muted/30">
                   <div>
-                    <h3 className="font-medium text-creative-midnight">
+                    <h3 className="font-medium text-foreground">
                       Email Service Key
                     </h3>
-                    <p className="text-sm text-grey">em_...xyz789</p>
+                    <p className="text-sm text-muted-foreground">
+                      em_...xyz789
+                    </p>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                    className="border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
                   >
                     Regenerate
                   </Button>
@@ -399,12 +391,12 @@ export default function SettingsCenter() {
         </TabsContent>
 
         <TabsContent value="system" className="space-y-6">
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
-            <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-              <CardTitle className="text-creative-midnight">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
+            <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+              <CardTitle className="text-foreground">
                 Notification Preferences
               </CardTitle>
-              <CardDescription className="text-grey">
+              <CardDescription className="text-muted-foreground">
                 Configure system notification settings
               </CardDescription>
             </CardHeader>
@@ -413,11 +405,11 @@ export default function SettingsCenter() {
                 <div>
                   <Label
                     htmlFor="emailNotifications"
-                    className="text-creative-midnight"
+                    className="text-foreground"
                   >
                     Email Notifications
                   </Label>
-                  <p className="text-sm text-grey">
+                  <p className="text-sm text-muted-foreground">
                     Receive email notifications
                   </p>
                 </div>
@@ -435,13 +427,10 @@ export default function SettingsCenter() {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <Label
-                    htmlFor="paymentReminders"
-                    className="text-creative-midnight"
-                  >
+                  <Label htmlFor="paymentReminders" className="text-foreground">
                     Payment Reminders
                   </Label>
-                  <p className="text-sm text-grey">
+                  <p className="text-sm text-muted-foreground">
                     Automated payment reminders
                   </p>
                 </div>
@@ -461,11 +450,11 @@ export default function SettingsCenter() {
                 <div>
                   <Label
                     htmlFor="bookingConfirmations"
-                    className="text-creative-midnight"
+                    className="text-foreground"
                   >
                     Booking Confirmations
                   </Label>
-                  <p className="text-sm text-grey">
+                  <p className="text-sm text-muted-foreground">
                     Automatic booking confirmations
                   </p>
                 </div>
@@ -483,13 +472,10 @@ export default function SettingsCenter() {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <Label
-                    htmlFor="systemAlerts"
-                    className="text-creative-midnight"
-                  >
+                  <Label htmlFor="systemAlerts" className="text-foreground">
                     System Alerts
                   </Label>
-                  <p className="text-sm text-grey">
+                  <p className="text-sm text-muted-foreground">
                     Critical system notifications
                   </p>
                 </div>
@@ -507,13 +493,12 @@ export default function SettingsCenter() {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <Label
-                    htmlFor="dailyReports"
-                    className="text-creative-midnight"
-                  >
+                  <Label htmlFor="dailyReports" className="text-foreground">
                     Daily Reports
                   </Label>
-                  <p className="text-sm text-grey">Daily summary reports</p>
+                  <p className="text-sm text-muted-foreground">
+                    Daily summary reports
+                  </p>
                 </div>
                 <Switch
                   id="dailyReports"
@@ -529,51 +514,53 @@ export default function SettingsCenter() {
             </CardContent>
           </Card>
 
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
-            <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-              <CardTitle className="text-creative-midnight">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
+            <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+              <CardTitle className="text-foreground">
                 System Information
               </CardTitle>
-              <CardDescription className="text-grey">
+              <CardDescription className="text-muted-foreground">
                 System details and status
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-creative-midnight">
+                  <span className="text-sm font-medium text-foreground">
                     System Version
                   </span>
-                  <span className="text-sm text-grey">v1.0.0</span>
+                  <span className="text-sm text-muted-foreground">v1.0.0</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-creative-midnight">
+                  <span className="text-sm font-medium text-foreground">
                     Database Status
                   </span>
                   <span className="text-sm text-spring-green">Connected</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-creative-midnight">
+                  <span className="text-sm font-medium text-foreground">
                     Last Backup
                   </span>
-                  <span className="text-sm text-grey">2 hours ago</span>
+                  <span className="text-sm text-muted-foreground">
+                    2 hours ago
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-creative-midnight">
+                  <span className="text-sm font-medium text-foreground">
                     Storage Used
                   </span>
-                  <span className="text-sm text-grey">2.3 GB / 10 GB</span>
+                  <span className="text-sm text-muted-foreground">
+                    2.3 GB / 10 GB
+                  </span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
-            <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-              <CardTitle className="text-creative-midnight">
-                Data Management
-              </CardTitle>
-              <CardDescription className="text-grey">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
+            <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+              <CardTitle className="text-foreground">Data Management</CardTitle>
+              <CardDescription className="text-muted-foreground">
                 Manage data backup and export
               </CardDescription>
             </CardHeader>
@@ -581,21 +568,21 @@ export default function SettingsCenter() {
               <div className="space-y-4">
                 <Button
                   variant="outline"
-                  className="w-full border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                  className="w-full border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
                 >
                   <Database className="mr-2 h-4 w-4" />
                   Create Backup
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                  className="w-full border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
                 >
                   <Key className="mr-2 h-4 w-4" />
                   Export Data
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                  className="w-full border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Restore from Backup

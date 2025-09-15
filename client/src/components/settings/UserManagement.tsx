@@ -178,13 +178,13 @@ export default function UserManagement() {
 
   if (!canManageUsers) {
     return (
-      <Card className="border border-royal-purple/20 shadow">
-        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
+      <Card className="border border-royal-purple/20 dark:border-border shadow">
+        <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
           <CardTitle className="flex items-center gap-2 text-crimson-red">
             <Shield className="h-5 w-5" />
             Access Denied
           </CardTitle>
-          <CardDescription className="text-grey">
+          <CardDescription className="text-muted-foreground">
             You don&apos;t have permission to manage users.
           </CardDescription>
         </CardHeader>
@@ -197,10 +197,10 @@ export default function UserManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-creative-midnight font-hk-grotesk">
+          <h2 className="text-2xl font-semibold text-foreground font-hk-grotesk">
             User Management
           </h2>
-          <p className="text-grey text-lg">
+          <p className="text-muted-foreground text-lg">
             Manage user accounts, permissions, and approval status
           </p>
         </div>
@@ -209,7 +209,7 @@ export default function UserManagement() {
             variant="outline"
             onClick={fetchUsers}
             disabled={loading}
-            className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+            className="border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
           >
             <RefreshCw
               className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
@@ -220,14 +220,14 @@ export default function UserManagement() {
       </div>
 
       {/* Filters */}
-      <Card className="border border-royal-purple/20 shadow">
-        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-          <CardTitle className="text-creative-midnight">Filters</CardTitle>
+      <Card className="border border-royal-purple/20 dark:border-border shadow">
+        <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+          <CardTitle className="text-foreground">Filters</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div className="space-y-2">
-              <Label htmlFor="search" className="text-creative-midnight">
+              <Label htmlFor="search" className="text-foreground">
                 Search Users
               </Label>
               <div className="relative">
@@ -237,16 +237,16 @@ export default function UserManagement() {
                   placeholder="Search by name or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                  className="pl-10 border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="role-filter" className="text-creative-midnight">
+              <Label htmlFor="role-filter" className="text-foreground">
                 Role
               </Label>
               <Select value={filterRole} onValueChange={setFilterRole}>
-                <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
+                <SelectTrigger className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -257,14 +257,11 @@ export default function UserManagement() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label
-                htmlFor="approval-filter"
-                className="text-creative-midnight"
-              >
+              <Label htmlFor="approval-filter" className="text-foreground">
                 Approval Status
               </Label>
               <Select value={filterApproval} onValueChange={setFilterApproval}>
-                <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
+                <SelectTrigger className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -287,10 +284,10 @@ export default function UserManagement() {
       </Card>
 
       {/* Users Table */}
-      <Card className="border border-royal-purple/20 shadow">
-        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-          <CardTitle className="text-creative-midnight">Users</CardTitle>
-          <CardDescription className="text-grey">
+      <Card className="border border-royal-purple/20 dark:border-border shadow">
+        <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+          <CardTitle className="text-foreground">Users</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Manage user permissions and approval status
           </CardDescription>
         </CardHeader>
@@ -298,23 +295,19 @@ export default function UserManagement() {
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <RefreshCw className="h-6 w-6 animate-spin text-royal-purple" />
-              <span className="ml-2 text-grey">Loading users...</span>
+              <span className="ml-2 text-muted-foreground">
+                Loading users...
+              </span>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-royal-purple/20">
-                    <TableHead className="text-creative-midnight">
-                      User
-                    </TableHead>
-                    <TableHead className="text-creative-midnight">
-                      Role
-                    </TableHead>
-                    <TableHead className="text-creative-midnight">
-                      Approved
-                    </TableHead>
-                    <TableHead className="text-creative-midnight">
+                  <TableRow className="border-royal-purple/20 dark:border-border">
+                    <TableHead className="text-foreground">User</TableHead>
+                    <TableHead className="text-foreground">Role</TableHead>
+                    <TableHead className="text-foreground">Approved</TableHead>
+                    <TableHead className="text-foreground">
                       Permissions
                     </TableHead>
                   </TableRow>
@@ -323,7 +316,7 @@ export default function UserManagement() {
                   {filteredUsers.map((user) => (
                     <TableRow
                       key={user.id}
-                      className="border-b border-royal-purple/20 transition-colors duration-200 hover:bg-royal-purple/5"
+                      className="border-b border-royal-purple/20 dark:border-border transition-colors duration-200 hover:bg-royal-purple/5"
                     >
                       <TableCell>
                         <div className="flex items-center space-x-3">
@@ -335,10 +328,10 @@ export default function UserManagement() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-medium text-creative-midnight">
+                            <div className="font-medium text-foreground">
                               {user.profile?.firstName} {user.profile?.lastName}
                             </div>
-                            <div className="text-sm text-grey">
+                            <div className="text-sm text-muted-foreground">
                               {user.email}
                             </div>
                           </div>
@@ -367,7 +360,7 @@ export default function UserManagement() {
                             }
                             disabled={updatingUser === user.id}
                           />
-                          <Label className="text-sm text-creative-midnight">
+                          <Label className="text-sm text-foreground">
                             {user.isApproved ? "Approved" : "Pending"}
                           </Label>
                         </div>
@@ -384,10 +377,10 @@ export default function UserManagement() {
 
                           <div className="grid grid-cols-2 gap-3">
                             {/* Bookings Permission */}
-                            <div className="flex items-center justify-between p-2 bg-light-grey/30 rounded-md border border-royal-purple/20">
+                            <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-royal-purple/20 dark:border-border">
                               <div className="flex items-center space-x-2">
                                 <Calendar className="h-4 w-4 text-royal-purple" />
-                                <Label className="text-xs font-medium text-creative-midnight">
+                                <Label className="text-xs font-medium text-foreground">
                                   Bookings
                                 </Label>
                               </div>
@@ -411,10 +404,10 @@ export default function UserManagement() {
                             </div>
 
                             {/* Tours Permission */}
-                            <div className="flex items-center justify-between p-2 bg-light-grey/30 rounded-md border border-royal-purple/20">
+                            <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-royal-purple/20 dark:border-border">
                               <div className="flex items-center space-x-2">
                                 <MapPin className="h-4 w-4 text-spring-green" />
-                                <Label className="text-xs font-medium text-creative-midnight">
+                                <Label className="text-xs font-medium text-foreground">
                                   Tours
                                 </Label>
                               </div>
@@ -438,10 +431,10 @@ export default function UserManagement() {
                             </div>
 
                             {/* Communications Permission */}
-                            <div className="flex items-center justify-between p-2 bg-light-grey/30 rounded-md border border-royal-purple/20">
+                            <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-royal-purple/20 dark:border-border">
                               <div className="flex items-center space-x-2">
                                 <MessageSquare className="h-4 w-4 text-royal-purple" />
-                                <Label className="text-xs font-medium text-creative-midnight">
+                                <Label className="text-xs font-medium text-foreground">
                                   Communications
                                 </Label>
                               </div>
@@ -465,10 +458,10 @@ export default function UserManagement() {
                             </div>
 
                             {/* Reports Permission */}
-                            <div className="flex items-center justify-between p-2 bg-light-grey/30 rounded-md border border-royal-purple/20">
+                            <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-royal-purple/20 dark:border-border">
                               <div className="flex items-center space-x-2">
                                 <BarChart3 className="h-4 w-4 text-royal-purple" />
-                                <Label className="text-xs font-medium text-creative-midnight">
+                                <Label className="text-xs font-medium text-foreground">
                                   Reports
                                 </Label>
                               </div>
@@ -492,10 +485,10 @@ export default function UserManagement() {
                             </div>
 
                             {/* Financials Permission */}
-                            <div className="flex items-center justify-between p-2 bg-light-grey/30 rounded-md border border-royal-purple/20">
+                            <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-royal-purple/20 dark:border-border">
                               <div className="flex items-center space-x-2">
                                 <CreditCard className="h-4 w-4 text-spring-green" />
-                                <Label className="text-xs font-medium text-creative-midnight">
+                                <Label className="text-xs font-medium text-foreground">
                                   Financials
                                 </Label>
                               </div>
@@ -519,10 +512,10 @@ export default function UserManagement() {
                             </div>
 
                             {/* User Management Permission */}
-                            <div className="flex items-center justify-between p-2 bg-light-grey/30 rounded-md border border-royal-purple/20">
+                            <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-royal-purple/20 dark:border-border">
                               <div className="flex items-center space-x-2">
                                 <Users className="h-4 w-4 text-crimson-red" />
-                                <Label className="text-xs font-medium text-creative-midnight">
+                                <Label className="text-xs font-medium text-foreground">
                                   User Management
                                 </Label>
                               </div>
