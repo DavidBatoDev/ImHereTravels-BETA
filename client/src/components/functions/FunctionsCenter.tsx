@@ -81,9 +81,15 @@ export default function FunctionsCenter() {
         setFolders(allFolders);
         setFiles(allFiles);
 
-        // Set first file as active if available
-        if (allFiles.length > 0) {
+        // Find and set the actually active file from database
+        const activeFileFromDB = allFiles.find((file) => file.isActive);
+        if (activeFileFromDB) {
+          setActiveFile(activeFileFromDB);
+          setEditorValue(activeFileFromDB.content);
+        } else if (allFiles.length > 0) {
+          // Fallback to first file if no file is marked as active
           setActiveFile(allFiles[0]);
+          setEditorValue(allFiles[0].content);
         }
       } catch (error) {
         console.error("Error loading data:", error);
@@ -103,6 +109,16 @@ export default function FunctionsCenter() {
     const unsubscribeFiles = typescriptFunctionService.subscribeToFiles(
       (files) => {
         setFiles(files);
+
+        // Update active file if the currently active file changed
+        const activeFileFromDB = files.find((file) => file.isActive);
+        if (
+          activeFileFromDB &&
+          (!activeFile || activeFile.id !== activeFileFromDB.id)
+        ) {
+          setActiveFile(activeFileFromDB);
+          setEditorValue(activeFileFromDB.content);
+        }
       }
     );
 
@@ -132,13 +148,29 @@ export default function FunctionsCenter() {
     setEditorValue(file.content);
     setIsEditing(false);
 
+    // Immediately update the files state to reflect the active change in UI
+    setFiles((prevFiles) =>
+      prevFiles.map((f) => ({
+        ...f,
+        isActive: f.id === file.id,
+      }))
+    );
+
     // Update active state using TypeScript service
     try {
       await typescriptFunctionService.files.setActive(file.id);
+      // Refetch to ensure consistency with database
       const updatedFiles = await typescriptFunctionService.files.getAll();
       setFiles(updatedFiles);
     } catch (error) {
       console.error("Error setting file as active:", error);
+      // Revert the optimistic update on error
+      setFiles((prevFiles) =>
+        prevFiles.map((f) => ({
+          ...f,
+          isActive: f.id === activeFile?.id,
+        }))
+      );
     }
 
     // Small delay to ensure smooth transition
