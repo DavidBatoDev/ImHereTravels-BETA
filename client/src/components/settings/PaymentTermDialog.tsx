@@ -378,12 +378,12 @@ export function PaymentTermDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto border border-royal-purple/20">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto border border-royal-purple/20 dark:border-border">
         <DialogHeader className="space-y-1">
-          <DialogTitle className="text-xl text-creative-midnight">
+          <DialogTitle className="text-xl text-foreground">
             {isCreating ? "Create Payment Plan" : "Edit Payment Plan"}
           </DialogTitle>
-          <DialogDescription className="text-sm text-grey">
+          <DialogDescription className="text-sm text-muted-foreground">
             {isCreating
               ? "Configure a new payment plan with specific terms and conditions."
               : "Update the payment plan configuration and terms."}
@@ -398,7 +398,7 @@ export function PaymentTermDialog({
                 <h3 className="text-base font-semibold text-primary">
                   Basic Information
                 </h3>
-                <div className="flex-1 border-t border-royal-purple/20"></div>
+                <div className="flex-1 border-t border-royal-purple/20 dark:border-border"></div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -407,14 +407,14 @@ export function PaymentTermDialog({
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-creative-midnight">
+                      <FormLabel className="text-sm font-medium text-foreground">
                         Name
                       </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="Payment plan name"
                           {...field}
-                          className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                          className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                         />
                       </FormControl>
                       <FormMessage />
@@ -427,7 +427,7 @@ export function PaymentTermDialog({
                   name="color"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-creative-midnight">
+                      <FormLabel className="text-sm font-medium text-foreground">
                         Color
                       </FormLabel>
                       <FormControl>
@@ -460,13 +460,13 @@ export function PaymentTermDialog({
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-medium text-creative-midnight">
+                    <FormLabel className="text-sm font-medium text-foreground">
                       Description
                     </FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="Explain when this payment plan applies"
-                        className="resize-none border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                        className="resize-none border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                         rows={2}
                         {...field}
                       />
@@ -483,7 +483,7 @@ export function PaymentTermDialog({
                 <h3 className="text-base font-semibold text-primary">
                   Payment Plan Type
                 </h3>
-                <div className="flex-1 border-t border-royal-purple/20"></div>
+                <div className="flex-1 border-t border-royal-purple/20 dark:border-border"></div>
               </div>
 
               <FormField
@@ -491,7 +491,7 @@ export function PaymentTermDialog({
                 name="paymentPlanType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-medium text-creative-midnight">
+                    <FormLabel className="text-sm font-medium text-foreground">
                       Select Payment Plan Type
                     </FormLabel>
                     <FormControl>
@@ -499,7 +499,7 @@ export function PaymentTermDialog({
                         onValueChange={field.onChange}
                         defaultValue={field.value}
                       >
-                        <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
+                        <SelectTrigger className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20">
                           <SelectValue placeholder="Select a payment plan type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -511,7 +511,7 @@ export function PaymentTermDialog({
                               >
                                 Invalid Booking
                               </Badge>
-                              <span className="text-sm text-grey">
+                              <span className="text-sm text-muted-foreground">
                                 Tour date within 2 days
                               </span>
                             </div>
@@ -524,7 +524,7 @@ export function PaymentTermDialog({
                               >
                                 Full Payment (2 Days)
                               </Badge>
-                              <span className="text-sm text-grey">
+                              <span className="text-sm text-muted-foreground">
                                 2-30 days away
                               </span>
                             </div>
@@ -537,7 +537,7 @@ export function PaymentTermDialog({
                               >
                                 P1 - Single Instalment
                               </Badge>
-                              <span className="text-sm text-grey">
+                              <span className="text-sm text-muted-foreground">
                                 30-60 days away
                               </span>
                             </div>
@@ -550,7 +550,7 @@ export function PaymentTermDialog({
                               >
                                 P2 - Two Instalments
                               </Badge>
-                              <span className="text-sm text-grey">
+                              <span className="text-sm text-muted-foreground">
                                 60-90 days away
                               </span>
                             </div>
@@ -563,7 +563,7 @@ export function PaymentTermDialog({
                               >
                                 P3 - Three Instalments
                               </Badge>
-                              <span className="text-sm text-grey">
+                              <span className="text-sm text-muted-foreground">
                                 90-120 days away
                               </span>
                             </div>
@@ -576,7 +576,7 @@ export function PaymentTermDialog({
                               >
                                 P4 - Four Instalments
                               </Badge>
-                              <span className="text-sm text-grey">
+                              <span className="text-sm text-muted-foreground">
                                 120+ days away
                               </span>
                             </div>
@@ -589,7 +589,7 @@ export function PaymentTermDialog({
                               >
                                 Custom Plan
                               </Badge>
-                              <span className="text-sm text-grey">
+                              <span className="text-sm text-muted-foreground">
                                 Custom configuration
                               </span>
                             </div>
@@ -597,7 +597,7 @@ export function PaymentTermDialog({
                         </SelectContent>
                       </Select>
                     </FormControl>
-                    <FormDescription className="text-xs text-grey">
+                    <FormDescription className="text-xs text-muted-foreground">
                       {
                         PAYMENT_PLAN_TYPE_DESCRIPTIONS[
                           field.value as PaymentPlanType
@@ -616,7 +616,7 @@ export function PaymentTermDialog({
                 <h3 className="text-base font-semibold text-primary">
                   Payment Configuration
                 </h3>
-                <div className="flex-1 border-t border-royal-purple/20"></div>
+                <div className="flex-1 border-t border-royal-purple/20 dark:border-border"></div>
               </div>
 
               {/* Deposit Percentage - Only visible for installment and custom plans */}
@@ -628,7 +628,7 @@ export function PaymentTermDialog({
                   name="depositPercentage"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-creative-midnight">
+                      <FormLabel className="text-sm font-medium text-foreground">
                         Deposit Percentage
                       </FormLabel>
                       <FormControl>
@@ -639,16 +639,18 @@ export function PaymentTermDialog({
                             min="0"
                             max="100"
                             step="0.01"
-                            className="w-32 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                            className="w-32 border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                             {...field}
                             onChange={(e) =>
                               field.onChange(parseFloat(e.target.value) || 0)
                             }
                           />
-                          <span className="text-sm text-grey">%</span>
+                          <span className="text-sm text-muted-foreground">
+                            %
+                          </span>
                         </div>
                       </FormControl>
-                      <FormDescription className="text-xs text-grey">
+                      <FormDescription className="text-xs text-muted-foreground">
                         Deposit percentage required upfront (only for
                         installment plans)
                       </FormDescription>
@@ -665,7 +667,7 @@ export function PaymentTermDialog({
                   name="daysRequired"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-creative-midnight">
+                      <FormLabel className="text-sm font-medium text-foreground">
                         Invalid Booking Threshold (Days)
                       </FormLabel>
                       <FormControl>
@@ -673,14 +675,14 @@ export function PaymentTermDialog({
                           type="number"
                           placeholder="2"
                           min="0"
-                          className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                          className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                           {...field}
                           onChange={(e) =>
                             field.onChange(parseInt(e.target.value) || 0)
                           }
                         />
                       </FormControl>
-                      <FormDescription className="text-xs text-grey">
+                      <FormDescription className="text-xs text-muted-foreground">
                         Number of days before tour date when booking becomes
                         invalid
                       </FormDescription>
@@ -696,7 +698,7 @@ export function PaymentTermDialog({
                   name="daysRequired"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-creative-midnight">
+                      <FormLabel className="text-sm font-medium text-foreground">
                         Payment Due Within (Days)
                       </FormLabel>
                       <FormControl>
@@ -704,14 +706,14 @@ export function PaymentTermDialog({
                           type="number"
                           placeholder="2"
                           min="1"
-                          className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                          className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                           {...field}
                           onChange={(e) =>
                             field.onChange(parseInt(e.target.value) || 1)
                           }
                         />
                       </FormControl>
-                      <FormDescription className="text-xs text-grey">
+                      <FormDescription className="text-xs text-muted-foreground">
                         Number of days after booking when full payment is
                         required
                       </FormDescription>
@@ -728,7 +730,7 @@ export function PaymentTermDialog({
                     name="monthsRequired"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium text-creative-midnight">
+                        <FormLabel className="text-sm font-medium text-foreground">
                           Number of Monthly Payments
                         </FormLabel>
                         <FormControl>
@@ -737,14 +739,14 @@ export function PaymentTermDialog({
                             placeholder="2"
                             min="1"
                             max="12"
-                            className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                            className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                             {...field}
                             onChange={(e) =>
                               field.onChange(parseInt(e.target.value) || 1)
                             }
                           />
                         </FormControl>
-                        <FormDescription className="text-xs text-grey">
+                        <FormDescription className="text-xs text-muted-foreground">
                           Number of monthly payments on the 2nd of each month
                           (excluding deposit)
                         </FormDescription>
@@ -757,19 +759,19 @@ export function PaymentTermDialog({
                   {watchMonthsRequired && watchMonthsRequired > 0 && (
                     <div className="space-y-3">
                       <div className="flex items-center space-x-2">
-                        <h4 className="text-sm font-medium text-creative-midnight">
+                        <h4 className="text-sm font-medium text-foreground">
                           Monthly Payment Distribution
                         </h4>
-                        <div className="flex-1 border-t border-royal-purple/20"></div>
+                        <div className="flex-1 border-t border-royal-purple/20 dark:border-border"></div>
                       </div>
 
-                      <div className="bg-light-grey/30 rounded-lg p-3 space-y-3 border border-royal-purple/20">
+                      <div className="bg-muted/30 rounded-lg p-3 space-y-3 border border-royal-purple/20 dark:border-border">
                         <div className="flex items-center justify-between">
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                            className="border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
                             onClick={() => {
                               const remainingPercentage =
                                 100 - watchDepositPercentage;
@@ -812,7 +814,7 @@ export function PaymentTermDialog({
                                 .watch("monthlyPercentages")
                                 ?.reduce((sum, p) => sum + (p || 0), 0) || 0}
                               %
-                              <span className="text-grey">
+                              <span className="text-muted-foreground">
                                 {" "}
                                 (Target: {100 - watchDepositPercentage}%)
                               </span>
@@ -830,7 +832,7 @@ export function PaymentTermDialog({
                                 name={`monthlyPercentages.${index}` as any}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-xs font-medium text-creative-midnight">
+                                    <FormLabel className="text-xs font-medium text-foreground">
                                       {index + 1}
                                       {index === 0
                                         ? "st"
@@ -849,7 +851,7 @@ export function PaymentTermDialog({
                                           min="0"
                                           max="100"
                                           step="0.01"
-                                          className="h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                                          className="h-8 border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                                           {...field}
                                           onChange={(e) => {
                                             const value =
@@ -868,7 +870,7 @@ export function PaymentTermDialog({
                                             );
                                           }}
                                         />
-                                        <span className="text-xs text-grey">
+                                        <span className="text-xs text-muted-foreground">
                                           %
                                         </span>
                                       </div>
@@ -893,13 +895,13 @@ export function PaymentTermDialog({
               )}
             </div>
 
-            <DialogFooter className="pt-4 border-t border-royal-purple/20">
+            <DialogFooter className="pt-4 border-t border-royal-purple/20 dark:border-border">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={loading}
-                className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                className="border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
               >
                 Cancel
               </Button>

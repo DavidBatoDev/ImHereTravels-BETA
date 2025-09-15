@@ -1913,7 +1913,7 @@ export default function TemplateDialog({
                             data-preview-container
                           >
                             <div
-                              className="bg-white rounded shadow-sm"
+                              className="rounded shadow-sm"
                               style={{
                                 transform: `scale(calc(var(--preview-scale, 1) * ${previewZoom}))`,
                                 transformOrigin:
@@ -1938,7 +1938,7 @@ export default function TemplateDialog({
                                         )
                                       : htmlContent,
                                 }}
-                                className="w-full h-full"
+                                className="w-full h-full text-black"
                               />
                             </div>
                           </div>
@@ -2072,7 +2072,7 @@ export default function TemplateDialog({
                           data-preview-container
                         >
                           <div
-                            className="bg-white rounded shadow-sm overflow-hidden"
+                            className="rounded shadow-sm overflow-hidden"
                             style={{
                               transform: `scale(calc(var(--preview-scale, 1) * ${previewZoom}))`,
                               transformOrigin:
@@ -2114,7 +2114,7 @@ export default function TemplateDialog({
                                       dangerouslySetInnerHTML={{
                                         __html: processedHtml,
                                       }}
-                                      className="w-full h-full"
+                                      className="w-full h-full text-black"
                                     />
                                   );
                                 } else {
@@ -2123,7 +2123,7 @@ export default function TemplateDialog({
                                       dangerouslySetInnerHTML={{
                                         __html: htmlContent,
                                       }}
-                                      className="w-full h-full"
+                                      className="w-full h-full text-black"
                                     />
                                   );
                                 }
