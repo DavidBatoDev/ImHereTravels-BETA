@@ -132,25 +132,18 @@ export default function DashboardSidebar({
           onClick={() => setSidebarOpen(false)}
         />
         <div className="fixed inset-y-0 left-0 flex w-72 flex-col bg-background border-r border-border shadow-2xl">
-          <div className="flex h-20 items-center justify-between px-6 bg-royal-purple dark:bg-primary">
+          <div className="flex h-20 items-center justify-between px-6 bg-muted border-b border-border">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl p-2 backdrop-blur-sm">
-                <Image
-                  src="/logos/Logo_White.svg"
-                  alt="ImHereTravels Logo"
-                  width={24}
-                  height={24}
-                  className="w-full h-full dark:block hidden"
-                />
+              <div className="w-10 h-10 bg-background rounded-xl p-2 border border-border">
                 <Image
                   src="/logos/Logo_Red.svg"
                   alt="ImHereTravels Logo"
                   width={24}
                   height={24}
-                  className="w-full h-full dark:hidden block"
+                  className="w-full h-full"
                 />
               </div>
-              <h1 className="text-xl font-bold text-white font-hk-grotesk">
+              <h1 className="text-xl font-bold text-foreground font-hk-grotesk">
                 ImHereTravels
               </h1>
             </div>
@@ -158,7 +151,7 @@ export default function DashboardSidebar({
               variant="ghost"
               size="sm"
               onClick={() => setSidebarOpen(false)}
-              className="text-white hover:bg-white/20 hover:text-white"
+              className="text-muted-foreground hover:bg-background hover:text-foreground"
             >
               <X className="h-5 w-5" />
             </Button>
@@ -272,25 +265,18 @@ export default function DashboardSidebar({
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
         <div className="flex min-h-0 flex-1 flex-col bg-background border-r border-border shadow">
-          <div className="flex items-center px-6 py-3 bg-royal-purple dark:bg-primary">
+          <div className="flex items-center px-6 py-3 bg-muted border-b border-border">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl p-2 backdrop-blur-sm">
-                <Image
-                  src="/logos/Logo_White.svg"
-                  alt="ImHereTravels Logo"
-                  width={24}
-                  height={24}
-                  className="w-full h-full dark:block hidden"
-                />
+              <div className="w-10 h-10 bg-background rounded-xl p-2 border border-border">
                 <Image
                   src="/logos/Logo_Red.svg"
                   alt="ImHereTravels Logo"
                   width={24}
                   height={24}
-                  className="w-full h-full dark:hidden block"
+                  className="w-full h-full"
                 />
               </div>
-              <h1 className="text-xl font-bold text-white font-hk-grotesk">
+              <h1 className="text-xl font-bold text-foreground font-hk-grotesk">
                 ImHereTravels
               </h1>
             </div>
