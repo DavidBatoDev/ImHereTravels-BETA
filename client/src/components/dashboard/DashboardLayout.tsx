@@ -6,6 +6,7 @@ import { Menu } from "lucide-react";
 import AuthGuard from "@/components/auth/AuthGuard";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useSidebar } from "@/contexts/SidebarContext";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { sidebarCollapsed, setSidebarCollapsed } = useSidebar();
 
   return (
     <AuthGuard>
@@ -21,10 +23,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <DashboardSidebar
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
+          sidebarCollapsed={sidebarCollapsed}
+          setSidebarCollapsed={setSidebarCollapsed}
         />
 
         {/* Main content */}
-        <div className="lg:pl-64">
+        <div
+          className={`transition-all duration-300 ${
+            sidebarCollapsed ? "lg:pl-20" : "lg:pl-64"
+          }`}
+        >
           {/* Mobile header - only for sidebar toggle */}
           <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm lg:hidden">
             <Button

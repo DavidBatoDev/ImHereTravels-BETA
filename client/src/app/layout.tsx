@@ -3,6 +3,7 @@ import { DM_Sans, Work_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/ui/theme-provider";
+import { SidebarProvider } from "@/contexts/SidebarContext";
 
 // Configure DM Sans for body text and CTAs
 const dmSans = DM_Sans({
@@ -55,8 +56,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster />
+          <SidebarProvider>
+            {children}
+            <Toaster />
+          </SidebarProvider>
         </ThemeProvider>
       </body>
     </html>
