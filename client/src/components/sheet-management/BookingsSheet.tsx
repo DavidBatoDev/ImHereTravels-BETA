@@ -1884,7 +1884,10 @@ export default function BookingsSheet() {
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent
+                align="end"
+                className="w-48 max-h-80 overflow-y-auto scrollbar-hide"
+              >
                 <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {table.getAllLeafColumns().map((column) => {

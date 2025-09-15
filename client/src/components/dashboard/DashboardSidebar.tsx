@@ -163,7 +163,7 @@ export default function DashboardSidebar({
               <X className="h-5 w-5" />
             </Button>
           </div>
-          <nav className="flex-1 space-y-2 px-4 py-6">
+          <nav className="flex-1 space-y-2 px-4 py-6 overflow-y-auto scrollbar-hide">
             {navigation.map((item, index) => {
               if (item.type === "separator") {
                 return (
@@ -295,7 +295,7 @@ export default function DashboardSidebar({
               </h1>
             </div>
           </div>
-          <nav className="flex-1 space-y-2 px-4 py-6">
+          <nav className="flex-1 space-y-2 px-4 py-6 overflow-y-auto scrollbar-hide">
             {navigation.map((item, index) => {
               if (item.type === "separator") {
                 return (
