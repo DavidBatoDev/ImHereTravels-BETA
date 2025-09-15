@@ -26,6 +26,7 @@ import {
   Layers,
   Type,
   Package,
+  Terminal,
 } from "lucide-react";
 import { typescriptFunctionService } from "@/services/firebase-function-service";
 import {
@@ -36,6 +37,7 @@ import {
 } from "@/types/functions";
 import CreateItemModal from "./CreateItemModal";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
+import TestConsole from "./TestConsole";
 import { useToast } from "@/hooks/use-toast";
 
 // Initialize TypeScript function service
@@ -65,6 +67,7 @@ export default function FunctionsCenter() {
     fileId: string;
     fileName: string;
   }>({ isOpen: false, fileId: "", fileName: "" });
+  const [isTestConsoleVisible, setIsTestConsoleVisible] = useState(false);
 
   // Add editor instance ref and loading state
   const editorRef = useRef<any>(null);
@@ -750,136 +753,178 @@ export default function ${
         </div>
       </div>
 
-      {/* Main Content - Code Editor */}
-      <div className="flex-1 flex flex-col">
-        {activeFile ? (
-          <>
-            {/* Editor Header */}
-            <div className="border-b border-gray-200 bg-white px-6 py-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  {getFileIcon()}
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">
-                      {activeFile.name}
-                    </h3>
-                    <div className="flex items-center space-x-2 mt-1">
-                      {getFileTypeBadge(activeFile.fileType)}
-                      {activeFile.hasExportDefault &&
-                        getExportTypeBadge(activeFile.exportType)}
-                      {getComplexityBadge(activeFile.complexity)}
-                      {activeFile.hasTypeAnnotations && (
-                        <Badge variant="outline" className="text-xs">
-                          <Type className="h-2 w-2 mr-1" />
-                          Types
-                        </Badge>
-                      )}
-                      {activeFile.hasExportDefault &&
-                        activeFile.arguments.length > 0 && (
+      {/* Main Content - Split Layout */}
+      <div className="flex-1 flex">
+        {/* Code Editor Section */}
+        <div className="flex-1 flex flex-col">
+          {activeFile ? (
+            <>
+              {/* Editor Header */}
+              <div className="border-b border-gray-200 bg-white px-6 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    {getFileIcon()}
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">
+                        {activeFile.name}
+                      </h3>
+                      <div className="flex items-center space-x-2 mt-1">
+                        {getFileTypeBadge(activeFile.fileType)}
+                        {activeFile.hasExportDefault &&
+                          getExportTypeBadge(activeFile.exportType)}
+                        {getComplexityBadge(activeFile.complexity)}
+                        {activeFile.hasTypeAnnotations && (
                           <Badge variant="outline" className="text-xs">
-                            {activeFile.arguments.length} params
+                            <Type className="h-2 w-2 mr-1" />
+                            Types
                           </Badge>
                         )}
+                        {activeFile.hasExportDefault &&
+                          activeFile.arguments.length > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              {activeFile.arguments.length} params
+                            </Badge>
+                          )}
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Modified {activeFile.lastModified.toLocaleString()}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Modified {activeFile.lastModified.toLocaleString()}
-                    </p>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button variant="outline" size="sm" onClick={toggleEditMode}>
-                    {isEditing ? "View" : "Edit"}
-                  </Button>
-                  {isEditing && (
-                    <Button size="sm" onClick={handleSave}>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setIsTestConsoleVisible(!isTestConsoleVisible)
+                      }
+                      className={
+                        isTestConsoleVisible ? "bg-blue-50 border-blue-200" : ""
+                      }
+                    >
+                      <Terminal className="mr-2 h-4 w-4" />
+                      {isTestConsoleVisible ? "Hide Console" : "Show Console"}
                     </Button>
-                  )}
-                  <Button size="sm" onClick={handleRun}>
-                    <Play className="mr-2 h-4 w-4" />
-                    Run
-                  </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleEditMode}
+                    >
+                      {isEditing ? "View" : "Edit"}
+                    </Button>
+                    {isEditing && (
+                      <Button size="sm" onClick={handleSave}>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save
+                      </Button>
+                    )}
+                    <Button size="sm" onClick={handleRun}>
+                      <Play className="mr-2 h-4 w-4" />
+                      Run
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Code Editor */}
-            <div className="flex-1 bg-white overflow-hidden relative">
-              {isEditorLoading && (
-                <div className="absolute inset-0 bg-white flex items-center justify-center z-10">
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                    <span className="text-gray-600">
-                      Loading TypeScript editor...
-                    </span>
+              {/* Code Editor with Integrated Test Console */}
+              <div className="flex-1 bg-white overflow-hidden relative">
+                {isEditorLoading && (
+                  <div className="absolute inset-0 bg-white flex items-center justify-center z-10">
+                    <div className="flex items-center space-x-2">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <span className="text-gray-600">
+                        Loading TypeScript editor...
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Editor and Console Layout */}
+                <div className="flex h-full overflow-hidden relative">
+                  {/* Code Editor */}
+                  <div
+                    className={`transition-all duration-300 ease-in-out ${
+                      isTestConsoleVisible ? "w-2/3" : "w-full"
+                    }`}
+                  >
+                    <Editor
+                      key={activeFile?.id || "empty"}
+                      height="100%"
+                      defaultLanguage="typescript"
+                      value={editorValue}
+                      onChange={(value) => {
+                        if (value !== undefined) {
+                          setEditorValue(value);
+                          if (activeFile) {
+                            setActiveFile({
+                              ...activeFile,
+                              content: value,
+                            });
+                          }
+                        }
+                      }}
+                      onMount={handleEditorDidMount}
+                      theme="vs-light"
+                      options={{
+                        readOnly: !isEditing,
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        lineNumbers: "on",
+                        roundedSelection: false,
+                        scrollBeyondLastLine: false,
+                        automaticLayout: true,
+                        wordWrap: "on",
+                        suggestOnTriggerCharacters: true,
+                        quickSuggestions: true,
+                        parameterHints: { enabled: true },
+                        formatOnPaste: true,
+                        formatOnType: true,
+                        // Add these options to reduce flashing
+                        renderWhitespace: "none",
+                        renderLineHighlight: "all",
+                        smoothScrolling: true,
+                        // Prevent cursor jumping
+                        cursorBlinking: "smooth",
+                        cursorSmoothCaretAnimation: "on",
+                      }}
+                      // Add loading component
+                      loading={
+                        <div className="flex items-center justify-center h-full">
+                          Loading TypeScript editor...
+                        </div>
+                      }
+                    />
+                  </div>
+
+                  {/* Test Console - Fixed width to prevent overflow */}
+                  <div
+                    className={`absolute right-0 top-0 h-full border-l border-gray-200 bg-gray-50 transition-transform duration-300 ease-in-out ${
+                      isTestConsoleVisible
+                        ? "w-1/3 translate-x-0"
+                        : "w-1/3 translate-x-full"
+                    }`}
+                  >
+                    <TestConsole activeFile={activeFile} />
                   </div>
                 </div>
-              )}
-              <Editor
-                key={activeFile?.id || "empty"}
-                height="100%"
-                defaultLanguage="typescript"
-                value={editorValue}
-                onChange={(value) => {
-                  if (value !== undefined) {
-                    setEditorValue(value);
-                    if (activeFile) {
-                      setActiveFile({
-                        ...activeFile,
-                        content: value,
-                      });
-                    }
-                  }
-                }}
-                onMount={handleEditorDidMount}
-                theme="vs-light"
-                options={{
-                  readOnly: !isEditing,
-                  minimap: { enabled: false },
-                  fontSize: 14,
-                  lineNumbers: "on",
-                  roundedSelection: false,
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true,
-                  wordWrap: "on",
-                  suggestOnTriggerCharacters: true,
-                  quickSuggestions: true,
-                  parameterHints: { enabled: true },
-                  formatOnPaste: true,
-                  formatOnType: true,
-                  // Add these options to reduce flashing
-                  renderWhitespace: "none",
-                  renderLineHighlight: "all",
-                  smoothScrolling: true,
-                  // Prevent cursor jumping
-                  cursorBlinking: "smooth",
-                  cursorSmoothCaretAnimation: "on",
-                }}
-                // Add loading component
-                loading={
-                  <div className="flex items-center justify-center h-full">
-                    Loading TypeScript editor...
-                  </div>
-                }
-              />
+              </div>
+            </>
+          ) : (
+            /* Empty State */
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <Type className="mx-auto h-12 w-12 text-blue-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                  No TypeScript file selected
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Select a file from the sidebar to view or edit its TypeScript
+                  code.
+                </p>
+              </div>
             </div>
-          </>
-        ) : (
-          /* Empty State */
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <Type className="mx-auto h-12 w-12 text-blue-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">
-                No TypeScript file selected
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Select a file from the sidebar to view or edit its TypeScript
-                code.
-              </p>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Create Item Modals */}
