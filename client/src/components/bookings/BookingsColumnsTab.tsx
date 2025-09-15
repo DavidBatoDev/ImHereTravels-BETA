@@ -214,8 +214,8 @@ export default function BookingsColumnsTab() {
       <Card>
         <CardHeader className="flex justify-between gap-2 sm:flex-row flex-col sm:items-center items-start">
           <div>
-            <CardTitle>Column Management</CardTitle>
-            <p className="text-sm text-grey">
+            <CardTitle className="text-foreground">Column Management</CardTitle>
+            <p className="text-sm text-muted-foreground">
               Drag and drop to reorder columns. Click settings to configure
               individual columns.
             </p>
@@ -250,8 +250,8 @@ export default function BookingsColumnsTab() {
                 items={ids}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="rounded-md border-2 border-royal-purple/30 bg-white overflow-hidden">
-                  <div className="grid grid-cols-[48px_60px_1fr_100px_80px_100px] gap-0 bg-light-grey/50 border-b-2 border-royal-purple/30 text-royal-purple text-xs font-medium uppercase tracking-wide">
+                <div className="rounded-md border-2 border-royal-purple/30 dark:border-border bg-white dark:bg-background overflow-hidden">
+                  <div className="grid grid-cols-[48px_60px_1fr_100px_80px_100px] gap-0 bg-muted/50 border-b-2 border-royal-purple/30 dark:border-border text-royal-purple text-xs font-medium uppercase tracking-wide">
                     <div className="p-2 text-center border-r border-royal-purple/20">
                       Move
                     </div>
@@ -280,11 +280,11 @@ export default function BookingsColumnsTab() {
                                 : "cursor-default"
                             }`}
                           >
-                            <div className="p-2 flex items-center justify-center text-grey select-none border-r border-royal-purple/20">
+                            <div className="p-2 flex items-center justify-center text-muted-foreground select-none border-r border-royal-purple/20 dark:border-border">
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <div
-                                    className="p-1 rounded hover:bg-light-grey cursor-grab active:cursor-grabbing"
+                                    className="p-1 rounded hover:bg-muted cursor-grab active:cursor-grabbing"
                                     aria-label={`Drag ${col.columnName} to reorder`}
                                     {...listeners}
                                   >
@@ -294,7 +294,7 @@ export default function BookingsColumnsTab() {
                                 <TooltipContent>Drag to reorder</TooltipContent>
                               </Tooltip>
                             </div>
-                            <div className="p-2 flex items-center justify-center border-r border-royal-purple/20">
+                            <div className="p-2 flex items-center justify-center border-r border-royal-purple/20 dark:border-border">
                               <Badge
                                 variant="outline"
                                 className="text-xs font-mono"
@@ -302,21 +302,21 @@ export default function BookingsColumnsTab() {
                                 {col.order}
                               </Badge>
                             </div>
-                            <div className="p-3 border-r border-royal-purple/20">
+                            <div className="p-3 border-r border-royal-purple/20 dark:border-border">
                               <div
-                                className="font-medium text-creative-midnight truncate"
+                                className="font-medium text-foreground truncate"
                                 title={col.columnName}
                               >
                                 {col.columnName}
                               </div>
-                              <div className="text-xs text-grey mt-0.5">
+                              <div className="text-xs text-muted-foreground mt-0.5">
                                 ID: {col.id}
                               </div>
                             </div>
-                            <div className="p-3 text-sm text-grey border-r border-royal-purple/20">
+                            <div className="p-3 text-sm text-muted-foreground border-r border-royal-purple/20 dark:border-border">
                               {col.dataType}
                             </div>
-                            <div className="p-3 flex items-center border-r border-royal-purple/20">
+                            <div className="p-3 flex items-center border-r border-royal-purple/20 dark:border-border">
                               <div
                                 className={`w-6 h-6 rounded-full border-2 ${getColumnColorClasses(
                                   col.color
@@ -367,7 +367,7 @@ export default function BookingsColumnsTab() {
                       </SortableRow>
                     ))}
                     {columns.length === 0 && (
-                      <div className="p-6 text-center text-grey">
+                      <div className="p-6 text-center text-muted-foreground">
                         No columns found.
                       </div>
                     )}

@@ -973,7 +973,7 @@ export default function TourForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] p-0 bg-gradient-to-br from-white to-light-grey">
+      <DialogContent className="max-w-6xl max-h-[95vh] p-0 bg-background">
         <DialogHeader className="px-8 pt-8 pb-6 bg-gradient-to-r from-crimson-red to-light-red text-white rounded-t-lg">
           <DialogTitle className="text-3xl font-bold text-white mb-2">
             {tour ? "Edit Tour Package" : "Create New Tour Package"}
@@ -1004,15 +1004,15 @@ export default function TourForm({
               className="p-8 space-y-8"
             >
               {/* Cover Image Section */}
-              <Card className="bg-white border-2 border-light-grey hover:border-crimson-red transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-crimson-red transition-colors duration-200">
                 <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                     <div className="p-2 bg-crimson-red/10 rounded-full">
                       <ImageIcon className="h-5 w-5 text-crimson-red" />
                     </div>
                     Cover Image
                   </CardTitle>
-                  <CardDescription className="text-grey">
+                  <CardDescription className="text-muted-foreground">
                     Upload a high-quality cover image for this tour
                     (recommended: 1200x800px) or use an image URL
                   </CardDescription>
@@ -1033,7 +1033,7 @@ export default function TourForm({
                     </div>
 
                     {/* Toggle Switch */}
-                    <div className="flex items-center justify-between p-4 bg-light-grey/30 rounded-lg border-2 border-light-grey">
+                    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border-2 border-border">
                       <div className="flex items-center space-x-3">
                         <Switch
                           id="cover-toggle"
@@ -1043,7 +1043,7 @@ export default function TourForm({
                         />
                         <Label
                           htmlFor="cover-toggle"
-                          className="text-sm font-medium text-creative-midnight"
+                          className="text-sm font-medium text-foreground"
                         >
                           {useCoverUrl ? "Use Image URL" : "Upload Image File"}
                         </Label>
@@ -1074,7 +1074,7 @@ export default function TourForm({
                           }`}
                         >
                           <Upload className="h-5 w-5 text-crimson-red" />
-                          <span className="font-medium text-creative-midnight">
+                          <span className="font-medium text-foreground">
                             Choose Cover Image
                           </span>
                         </Label>
@@ -1086,7 +1086,7 @@ export default function TourForm({
                       <div className="space-y-3">
                         <Label
                           htmlFor="cover-url"
-                          className="text-sm font-medium text-creative-midnight"
+                          className="text-sm font-medium text-foreground"
                         >
                           Image URL
                         </Label>
@@ -1099,9 +1099,9 @@ export default function TourForm({
                             handleCoverImageUrlChange(e.target.value)
                           }
                           disabled={isSubmitting}
-                          className="w-full border-2 border-light-grey focus:border-crimson-red"
+                          className="w-full border-2 border-border focus:border-crimson-red"
                         />
-                        <p className="text-xs text-grey">
+                        <p className="text-xs text-muted-foreground">
                           Enter a direct link to an image (JPG, PNG, WebP, etc.)
                         </p>
                       </div>
@@ -1113,7 +1113,7 @@ export default function TourForm({
                         <img
                           src={uploadedCover}
                           alt="Cover preview"
-                          className="w-full h-48 object-cover rounded-lg border-2 border-light-grey"
+                          className="w-full h-48 object-cover rounded-lg border-2 border-border"
                         />
                         <Button
                           type="button"
@@ -1131,9 +1131,9 @@ export default function TourForm({
               </Card>
 
               {/* Basic Information */}
-              <Card className="bg-white border-2 border-light-grey hover:border-royal-purple transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-royal-purple transition-colors duration-200">
                 <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                     <div className="p-2 bg-royal-purple/10 rounded-full">
                       <FileText className="h-5 w-5 text-royal-purple" />
                     </div>
@@ -1147,14 +1147,14 @@ export default function TourForm({
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-creative-midnight font-medium">
+                          <FormLabel className="text-foreground font-medium">
                             Tour Name
                           </FormLabel>
                           <FormControl>
                             <Input
                               placeholder="Enter tour name"
                               {...field}
-                              className="border-2 border-light-grey focus:border-royal-purple"
+                              className="border-2 border-border focus:border-royal-purple"
                             />
                           </FormControl>
                           <FormMessage />
@@ -1167,7 +1167,7 @@ export default function TourForm({
                       name="tourCode"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-creative-midnight font-medium">
+                          <FormLabel className="text-foreground font-medium">
                             Tour Code
                           </FormLabel>
                           <Select
@@ -1175,7 +1175,7 @@ export default function TourForm({
                             value={field.value}
                           >
                             <FormControl>
-                              <SelectTrigger className="border-2 border-light-grey focus:border-royal-purple">
+                              <SelectTrigger className="border-2 border-border focus:border-royal-purple">
                                 <SelectValue placeholder="Select tour code" />
                               </SelectTrigger>
                             </FormControl>
@@ -1218,7 +1218,7 @@ export default function TourForm({
                               </SelectItem>
                             </SelectContent>
                           </Select>
-                          <FormDescription className="text-grey">
+                          <FormDescription className="text-muted-foreground">
                             Unique identifier for the tour package
                           </FormDescription>
                           <FormMessage />
@@ -1233,17 +1233,17 @@ export default function TourForm({
                       name="slug"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-creative-midnight font-medium">
+                          <FormLabel className="text-foreground font-medium">
                             URL Slug
                           </FormLabel>
                           <FormControl>
                             <Input
                               placeholder="tour-url-slug"
                               {...field}
-                              className="border-2 border-light-grey focus:border-royal-purple"
+                              className="border-2 border-border focus:border-royal-purple"
                             />
                           </FormControl>
-                          <FormDescription className="text-grey">
+                          <FormDescription className="text-muted-foreground">
                             URL-friendly identifier for the tour
                           </FormDescription>
                           <FormMessage />
@@ -1256,17 +1256,17 @@ export default function TourForm({
                       name="url"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-creative-midnight font-medium">
+                          <FormLabel className="text-foreground font-medium">
                             Direct URL
                           </FormLabel>
                           <FormControl>
                             <Input
                               placeholder="https://imheretravels.com/tour-name"
                               {...field}
-                              className="border-2 border-light-grey focus:border-royal-purple"
+                              className="border-2 border-border focus:border-royal-purple"
                             />
                           </FormControl>
-                          <FormDescription className="text-grey">
+                          <FormDescription className="text-muted-foreground">
                             Direct link to tour page (optional)
                           </FormDescription>
                           <FormMessage />
@@ -1280,7 +1280,7 @@ export default function TourForm({
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-creative-midnight font-medium">
+                        <FormLabel className="text-foreground font-medium">
                           Description
                         </FormLabel>
                         <FormControl>
@@ -1288,7 +1288,7 @@ export default function TourForm({
                             placeholder="Describe the tour package..."
                             rows={4}
                             {...field}
-                            className="border-2 border-light-grey focus:border-royal-purple resize-none"
+                            className="border-2 border-border focus:border-royal-purple resize-none"
                           />
                         </FormControl>
                         <FormMessage />
@@ -1302,7 +1302,7 @@ export default function TourForm({
                       name="location"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-2 text-creative-midnight font-medium">
+                          <FormLabel className="flex items-center gap-2 text-foreground font-medium">
                             <MapPin className="h-4 w-4 text-royal-purple" />
                             Location
                           </FormLabel>
@@ -1311,7 +1311,7 @@ export default function TourForm({
                             value={field.value}
                           >
                             <FormControl>
-                              <SelectTrigger className="border-2 border-light-grey focus:border-royal-purple">
+                              <SelectTrigger className="border-2 border-border focus:border-royal-purple">
                                 <SelectValue placeholder="Select location" />
                               </SelectTrigger>
                             </FormControl>
@@ -1353,7 +1353,7 @@ export default function TourForm({
                       name="duration"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-2 text-creative-midnight font-medium">
+                          <FormLabel className="flex items-center gap-2 text-foreground font-medium">
                             <Clock className="h-4 w-4 text-spring-green" />
                             Duration (Days)
                           </FormLabel>
@@ -1365,7 +1365,7 @@ export default function TourForm({
                               onChange={(e) =>
                                 field.onChange(parseInt(e.target.value) || 1)
                               }
-                              className="border-2 border-light-grey focus:border-spring-green"
+                              className="border-2 border-border focus:border-spring-green"
                             />
                           </FormControl>
                           <FormMessage />
@@ -1378,7 +1378,7 @@ export default function TourForm({
                       name="status"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-creative-midnight font-medium">
+                          <FormLabel className="text-foreground font-medium">
                             Status
                           </FormLabel>
                           <Select
@@ -1386,7 +1386,7 @@ export default function TourForm({
                             value={field.value}
                           >
                             <FormControl>
-                              <SelectTrigger className="border-2 border-light-grey focus:border-vivid-orange">
+                              <SelectTrigger className="border-2 border-border focus:border-vivid-orange">
                                 <SelectValue placeholder="Select status" />
                               </SelectTrigger>
                             </FormControl>
@@ -1405,15 +1405,15 @@ export default function TourForm({
               </Card>
 
               {/* Travel Dates */}
-              <Card className="bg-white border-2 border-light-grey hover:border-spring-green transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-spring-green transition-colors duration-200">
                 <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                     <div className="p-2 bg-spring-green/10 rounded-full">
                       <Calendar className="h-5 w-5 text-spring-green" />
                     </div>
                     Travel Dates
                   </CardTitle>
-                  <CardDescription className="text-grey">
+                  <CardDescription className="text-muted-foreground">
                     Add available travel dates for this tour package
                   </CardDescription>
                 </CardHeader>
@@ -1421,14 +1421,14 @@ export default function TourForm({
                   {travelDateFields.map((field, index) => (
                     <div
                       key={field.id}
-                      className="border-2 border-light-grey rounded-lg p-6 space-y-4 bg-light-grey/20"
+                      className="border-2 border-border rounded-lg p-6 space-y-4 bg-muted/20"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-spring-green text-white rounded-full flex items-center justify-center font-bold text-sm">
                             {index + 1}
                           </div>
-                          <h4 className="font-medium text-creative-midnight">
+                          <h4 className="font-medium text-foreground">
                             Travel Date {index + 1}
                           </h4>
                         </div>
@@ -1450,14 +1450,14 @@ export default function TourForm({
                           name={`travelDates.${index}.startDate`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-creative-midnight font-medium">
+                              <FormLabel className="text-foreground font-medium">
                                 Start Date
                               </FormLabel>
                               <FormControl>
                                 <Input
                                   type="date"
                                   {...field}
-                                  className="border-2 border-light-grey focus:border-spring-green"
+                                  className="border-2 border-border focus:border-spring-green"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -1470,14 +1470,14 @@ export default function TourForm({
                           name={`travelDates.${index}.endDate`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-creative-midnight font-medium">
+                              <FormLabel className="text-foreground font-medium">
                                 End Date
                               </FormLabel>
                               <FormControl>
                                 <Input
                                   type="date"
                                   {...field}
-                                  className="border-2 border-light-grey focus:border-spring-green"
+                                  className="border-2 border-border focus:border-spring-green"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -1495,10 +1495,10 @@ export default function TourForm({
                                   type="checkbox"
                                   checked={field.value}
                                   onChange={field.onChange}
-                                  className="rounded border-2 border-light-grey focus:border-spring-green"
+                                  className="rounded border-2 border-border focus:border-spring-green"
                                 />
                               </FormControl>
-                              <FormLabel className="text-sm font-normal text-creative-midnight">
+                              <FormLabel className="text-sm font-normal text-foreground">
                                 Available for booking
                               </FormLabel>
                             </FormItem>
@@ -1512,7 +1512,7 @@ export default function TourForm({
                           name={`travelDates.${index}.maxCapacity`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-creative-midnight font-medium">
+                              <FormLabel className="text-foreground font-medium">
                                 Max Capacity (Optional)
                               </FormLabel>
                               <FormControl>
@@ -1528,7 +1528,7 @@ export default function TourForm({
                                         : 0
                                     )
                                   }
-                                  className="border-2 border-light-grey focus:border-spring-green"
+                                  className="border-2 border-border focus:border-spring-green"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -1541,7 +1541,7 @@ export default function TourForm({
                           name={`travelDates.${index}.currentBookings`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-creative-midnight font-medium">
+                              <FormLabel className="text-foreground font-medium">
                                 Current Bookings (Optional)
                               </FormLabel>
                               <FormControl>
@@ -1557,7 +1557,7 @@ export default function TourForm({
                                         : 0
                                     )
                                   }
-                                  className="border-2 border-light-grey focus:border-spring-green"
+                                  className="border-2 border-border focus:border-spring-green"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -1588,9 +1588,9 @@ export default function TourForm({
               </Card>
 
               {/* Pricing */}
-              <Card className="bg-white border-2 border-light-grey hover:border-vivid-orange transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-vivid-orange transition-colors duration-200">
                 <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                     <div className="p-2 bg-vivid-orange/10 rounded-full">
                       <Banknote className="h-5 w-5 text-vivid-orange" />
                     </div>
@@ -1604,7 +1604,7 @@ export default function TourForm({
                       name="pricing.original"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-creative-midnight font-medium">
+                          <FormLabel className="text-foreground font-medium">
                             Original Price
                           </FormLabel>
                           <FormControl>
@@ -1616,7 +1616,7 @@ export default function TourForm({
                               onChange={(e) =>
                                 field.onChange(parseFloat(e.target.value) || 0)
                               }
-                              className="border-2 border-light-grey focus:border-vivid-orange"
+                              className="border-2 border-border focus:border-vivid-orange"
                             />
                           </FormControl>
                           <FormMessage />
@@ -1629,7 +1629,7 @@ export default function TourForm({
                       name="pricing.discounted"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-creative-midnight font-medium">
+                          <FormLabel className="text-foreground font-medium">
                             Discounted Price
                           </FormLabel>
                           <FormControl>
@@ -1641,10 +1641,10 @@ export default function TourForm({
                               onChange={(e) =>
                                 field.onChange(parseFloat(e.target.value) || 0)
                               }
-                              className="border-2 border-light-grey focus:border-vivid-orange"
+                              className="border-2 border-border focus:border-vivid-orange"
                             />
                           </FormControl>
-                          <FormDescription className="text-grey">
+                          <FormDescription className="text-muted-foreground">
                             Optional
                           </FormDescription>
                           <FormMessage />
@@ -1657,7 +1657,7 @@ export default function TourForm({
                       name="pricing.deposit"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-creative-midnight font-medium">
+                          <FormLabel className="text-foreground font-medium">
                             Deposit
                           </FormLabel>
                           <FormControl>
@@ -1669,7 +1669,7 @@ export default function TourForm({
                               onChange={(e) =>
                                 field.onChange(parseFloat(e.target.value) || 0)
                               }
-                              className="border-2 border-light-grey focus:border-vivid-orange"
+                              className="border-2 border-border focus:border-vivid-orange"
                             />
                           </FormControl>
                           <FormMessage />
@@ -1682,7 +1682,7 @@ export default function TourForm({
                       name="pricing.currency"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-creative-midnight font-medium">
+                          <FormLabel className="text-foreground font-medium">
                             Currency
                           </FormLabel>
                           <Select
@@ -1690,7 +1690,7 @@ export default function TourForm({
                             value={field.value}
                           >
                             <FormControl>
-                              <SelectTrigger className="border-2 border-light-grey focus:border-vivid-orange">
+                              <SelectTrigger className="border-2 border-border focus:border-vivid-orange">
                                 <SelectValue placeholder="Select currency" />
                               </SelectTrigger>
                             </FormControl>
@@ -1709,15 +1709,15 @@ export default function TourForm({
               </Card>
 
               {/* External Links */}
-              <Card className="bg-white border-2 border-light-grey hover:border-royal-purple transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-royal-purple transition-colors duration-200">
                 <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                     <div className="p-2 bg-royal-purple/10 rounded-full">
                       <FolderOpen className="h-5 w-5 text-royal-purple" />
                     </div>
                     External Links
                   </CardTitle>
-                  <CardDescription className="text-grey">
+                  <CardDescription className="text-muted-foreground">
                     Add links to brochures, payment pages, and pre-departure
                     materials
                   </CardDescription>
@@ -1728,17 +1728,17 @@ export default function TourForm({
                     name="brochureLink"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-creative-midnight font-medium">
+                        <FormLabel className="text-foreground font-medium">
                           Brochure Link
                         </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="https://drive.google.com/file/d/..."
                             {...field}
-                            className="border-2 border-light-grey focus:border-royal-purple"
+                            className="border-2 border-border focus:border-royal-purple"
                           />
                         </FormControl>
-                        <FormDescription className="text-grey">
+                        <FormDescription className="text-muted-foreground">
                           Link to tour brochure (Google Drive, PDF, etc.)
                         </FormDescription>
                         <FormMessage />
@@ -1751,17 +1751,17 @@ export default function TourForm({
                     name="stripePaymentLink"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-creative-midnight font-medium">
+                        <FormLabel className="text-foreground font-medium">
                           Stripe Payment Link
                         </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="https://book.stripe.com/..."
                             {...field}
-                            className="border-2 border-light-grey focus:border-royal-purple"
+                            className="border-2 border-border focus:border-royal-purple"
                           />
                         </FormControl>
-                        <FormDescription className="text-grey">
+                        <FormDescription className="text-muted-foreground">
                           Stripe checkout link for tour bookings
                         </FormDescription>
                         <FormMessage />
@@ -1774,17 +1774,17 @@ export default function TourForm({
                     name="preDeparturePack"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-creative-midnight font-medium">
+                        <FormLabel className="text-foreground font-medium">
                           Pre-Departure Pack
                         </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="https://drive.google.com/file/d/..."
                             {...field}
-                            className="border-2 border-light-grey focus:border-royal-purple"
+                            className="border-2 border-border focus:border-royal-purple"
                           />
                         </FormControl>
-                        <FormDescription className="text-grey">
+                        <FormDescription className="text-muted-foreground">
                           Link to pre-departure information pack
                         </FormDescription>
                         <FormMessage />
@@ -1795,9 +1795,9 @@ export default function TourForm({
               </Card>
 
               {/* Highlights */}
-              <Card className="bg-white border-2 border-light-grey hover:border-sunglow-yellow transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-sunglow-yellow transition-colors duration-200">
                 <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                     <div className="p-2 bg-sunglow-yellow/10 rounded-full">
                       <Star className="h-5 w-5 text-sunglow-yellow" />
                     </div>
@@ -1818,7 +1818,7 @@ export default function TourForm({
                               <Input
                                 placeholder={`Highlight ${index + 1}`}
                                 {...field}
-                                className="border-none bg-transparent group-hover:bg-white transition-colors duration-200 focus:ring-2 focus:ring-sunglow-yellow focus:ring-opacity-50 rounded px-2"
+                                className="border-none bg-transparent group-hover:bg-background transition-colors duration-200 focus:ring-2 focus:ring-sunglow-yellow focus:ring-opacity-50 rounded px-2"
                               />
                               <Button
                                 type="button"
@@ -1841,7 +1841,7 @@ export default function TourForm({
                     type="button"
                     variant="outline"
                     onClick={() => (appendHighlight as any)("")}
-                    className="w-full border-2 border-sunglow-yellow text-sunglow-yellow hover:bg-sunglow-yellow hover:text-creative-midnight"
+                    className="w-full border-2 border-sunglow-yellow text-sunglow-yellow hover:bg-sunglow-yellow hover:text-foreground"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Highlight
@@ -1850,9 +1850,9 @@ export default function TourForm({
               </Card>
 
               {/* Itinerary */}
-              <Card className="bg-white border-2 border-light-grey hover:border-royal-purple transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-royal-purple transition-colors duration-200">
                 <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                     <div className="p-2 bg-royal-purple/10 rounded-full">
                       <Plane className="h-5 w-5 text-royal-purple" />
                     </div>
@@ -1864,14 +1864,14 @@ export default function TourForm({
                     {itineraryFields.map((field, index) => (
                       <div
                         key={field.id}
-                        className="border-2 border-light-grey rounded-lg p-4 bg-light-grey/20 hover:border-royal-purple transition-colors duration-200"
+                        className="border-2 border-border rounded-lg p-4 bg-muted/20 hover:border-royal-purple transition-colors duration-200"
                       >
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 bg-royal-purple text-white rounded-full flex items-center justify-center font-bold text-xs">
                               {index + 1}
                             </div>
-                            <h4 className="font-medium text-creative-midnight text-sm">
+                            <h4 className="font-medium text-foreground text-sm">
                               Day {index + 1}
                             </h4>
                           </div>
@@ -1893,14 +1893,14 @@ export default function TourForm({
                             name={`details.itinerary.${index}.title`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-creative-midnight font-medium text-xs">
+                                <FormLabel className="text-foreground font-medium text-xs">
                                   Title
                                 </FormLabel>
                                 <FormControl>
                                   <Input
                                     placeholder="Day title"
                                     {...field}
-                                    className="h-8 text-sm border-2 border-light-grey focus:border-royal-purple"
+                                    className="h-8 text-sm border-2 border-border focus:border-royal-purple"
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -1913,7 +1913,7 @@ export default function TourForm({
                             name={`details.itinerary.${index}.description`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-creative-midnight font-medium text-xs">
+                                <FormLabel className="text-foreground font-medium text-xs">
                                   Description
                                 </FormLabel>
                                 <FormControl>
@@ -1921,7 +1921,7 @@ export default function TourForm({
                                     placeholder="Activities for this day"
                                     rows={2}
                                     {...field}
-                                    className="text-sm border-2 border-light-grey focus:border-royal-purple resize-none"
+                                    className="text-sm border-2 border-border focus:border-royal-purple resize-none"
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -1952,9 +1952,9 @@ export default function TourForm({
               </Card>
 
               {/* Requirements */}
-              <Card className="bg-white border-2 border-light-grey hover:border-vivid-orange transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-vivid-orange transition-colors duration-200">
                 <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                     <div className="p-2 bg-vivid-orange/10 rounded-full">
                       <AlertCircle className="h-5 w-5 text-vivid-orange" />
                     </div>
@@ -1975,7 +1975,7 @@ export default function TourForm({
                               <Input
                                 placeholder={`Requirement ${index + 1}`}
                                 {...field}
-                                className="border-none bg-transparent group-hover:bg-white transition-colors duration-200 focus:ring-2 focus:ring-vivid-orange focus:ring-opacity-50 rounded px-2"
+                                className="border-none bg-transparent group-hover:bg-background transition-colors duration-200 focus:ring-2 focus:ring-vivid-orange focus:ring-opacity-50 rounded px-2"
                               />
                               <Button
                                 type="button"
@@ -2007,15 +2007,15 @@ export default function TourForm({
               </Card>
 
               {/* Gallery Images */}
-              <Card className="bg-white border-2 border-light-grey hover:border-royal-purple transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-royal-purple transition-colors duration-200">
                 <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                     <div className="p-2 bg-royal-purple/10 rounded-full">
                       <FolderOpen className="h-5 w-5 text-royal-purple" />
                     </div>
                     Gallery Images
                   </CardTitle>
-                  <CardDescription className="text-grey">
+                  <CardDescription className="text-muted-foreground">
                     Upload multiple images to showcase your tour (up to 10
                     images)
                   </CardDescription>
@@ -2039,7 +2039,7 @@ export default function TourForm({
                         }`}
                       >
                         <Upload className="h-5 w-5 text-royal-purple" />
-                        <span className="font-medium text-creative-midnight">
+                        <span className="font-medium text-foreground">
                           Choose Gallery Images
                         </span>
                       </Label>
@@ -2052,7 +2052,7 @@ export default function TourForm({
                             <img
                               src={image}
                               alt={`Gallery ${index + 1}`}
-                              className="w-full h-32 object-cover rounded-lg border-2 border-light-grey"
+                              className="w-full h-32 object-cover rounded-lg border-2 border-border"
                             />
                             <Button
                               type="button"
@@ -2071,12 +2071,12 @@ export default function TourForm({
                 </CardContent>
               </Card>
 
-              <DialogFooter className="pt-6 border-t-2 border-light-grey">
+              <DialogFooter className="pt-6 border-t-2 border-border">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={onClose}
-                  className="border-2 border-light-grey text-grey hover:bg-light-grey hover:text-creative-midnight"
+                  className="border-2 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   Cancel
                 </Button>
