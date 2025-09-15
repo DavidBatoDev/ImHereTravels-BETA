@@ -322,6 +322,17 @@ export default function BookingsSheet() {
     []
   );
 
+  // Helper: get text color class based on column color
+  const getColumnTextColor = useCallback(
+    (color: SheetColumn["color"] | undefined): string => {
+      const hasColor = color && color !== "none";
+      // In light mode: all text is black
+      // In dark mode: colored columns are black, non-colored columns are white
+      return hasColor ? "text-gray-900 dark:text-gray-900" : "";
+    },
+    []
+  );
+
   // Fetch TypeScript functions
   useEffect(() => {
     const fetchFunctions = async () => {
@@ -530,7 +541,7 @@ export default function BookingsSheet() {
                         className={`text-sm font-medium transition-colors duration-200 select-none ${
                           value
                             ? "text-royal-purple font-semibold"
-                            : "text-gray-500"
+                            : "text-gray-500 dark:text-muted-foreground"
                         }`}
                       >
                         {value ? "Yes" : "No"}
@@ -583,17 +594,19 @@ export default function BookingsSheet() {
                               className={`h-8 border-2 border-royal-purple/20 focus:border-royal-purple text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none ${
                                 value
                                   ? "bg-royal-purple/15 border-royal-purple/40 text-royal-purple font-medium"
-                                  : "bg-white hover:bg-royal-purple/15 text-gray-500"
+                                  : "bg-white dark:bg-background hover:bg-royal-purple/15 text-gray-500 dark:text-muted-foreground"
                               }`}
                             >
                               <SelectValue
                                 placeholder="Select option"
                                 className={
-                                  !value ? "text-gray-400" : "text-royal-purple"
+                                  !value
+                                    ? "text-gray-400 dark:text-muted-foreground/60"
+                                    : "text-royal-purple"
                                 }
                               />
                             </SelectTrigger>
-                            <SelectContent className="bg-white border border-royal-purple/20 shadow-lg max-h-60 z-50">
+                            <SelectContent className="bg-white dark:bg-background border border-royal-purple/20 dark:border-border shadow-lg max-h-60 z-50">
                               {columnDef.options.map((option) => (
                                 <SelectItem
                                   key={option}
@@ -619,7 +632,7 @@ export default function BookingsSheet() {
                           />
                         </div>
                       ) : (
-                        <div className="h-8 w-full flex items-center justify-center text-sm text-gray-400 bg-gray-50 border border-gray-200 rounded cursor-not-allowed">
+                        <div className="h-8 w-full flex items-center justify-center text-sm text-gray-400 dark:text-muted-foreground/60 bg-gray-50 dark:bg-muted border border-gray-200 dark:border-border rounded cursor-not-allowed">
                           No options available
                         </div>
                       )}
@@ -763,7 +776,9 @@ export default function BookingsSheet() {
                             ? "bg-royal-purple/15 border-royal-purple/40"
                             : "bg-white hover:bg-royal-purple/15"
                         } focus:bg-white ${
-                          !value ? "text-gray-400" : "text-gray-900"
+                          !value
+                            ? "text-gray-400 dark:text-muted-foreground/60"
+                            : "text-gray-900 dark:text-foreground"
                         } appearance-none`}
                         placeholder={value ? "" : "Select date"}
                         title={
@@ -826,7 +841,9 @@ export default function BookingsSheet() {
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {renderCellValue(value, columnDef)}
+                  <span className={getColumnTextColor(columnDef.color)}>
+                    {renderCellValue(value, columnDef)}
+                  </span>
                 </TooltipContent>
               </Tooltip>
             );
@@ -896,7 +913,11 @@ export default function BookingsSheet() {
                           title={value?.toString() || ""}
                         >
                           <span className={undefined}>
-                            {renderCellValue(value, columnDef)}
+                            <span
+                              className={getColumnTextColor(columnDef.color)}
+                            >
+                              {renderCellValue(value, columnDef)}
+                            </span>
                           </span>
                         </div>
                       );
@@ -930,7 +951,9 @@ export default function BookingsSheet() {
                   onDoubleClick={() => handleCellDoubleClick(row.id, column.id)}
                 >
                   <div className="w-full truncate text-sm">
-                    {renderCellValue(value, columnDef)}
+                    <span className={getColumnTextColor(columnDef.color)}>
+                      {renderCellValue(value, columnDef)}
+                    </span>
                   </div>
                 </div>
               </TooltipTrigger>
@@ -1778,10 +1801,10 @@ export default function BookingsSheet() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-creative-midnight font-hk-grotesk">
+          <h2 className="text-2xl font-bold text-foreground font-hk-grotesk">
             Bookings Sheet
           </h2>
-          <p className="text-grey">
+          <p className="text-muted-foreground">
             Manage your bookings data with customizable columns
           </p>
         </div>
@@ -1812,8 +1835,8 @@ export default function BookingsSheet() {
 
       {/* Filters and Search */}
       <Card className="border border-royal-purple/20 shadow-lg">
-        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-          <CardTitle className="flex items-center gap-2 text-creative-midnight">
+        <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <Filter className="h-5 w-5 text-royal-purple" />
             Filters & Search
           </CardTitle>
@@ -1893,11 +1916,9 @@ export default function BookingsSheet() {
 
       {/* Sheet Table */}
       <Card className="border border-royal-purple/20 shadow-lg">
-        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-          <CardTitle className="text-creative-midnight">
-            Bookings Data
-          </CardTitle>
-          <CardDescription className="text-grey">
+        <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+          <CardTitle className="text-foreground">Bookings Data</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Showing {table.getFilteredRowModel().rows.length} of {data.length}{" "}
             rows with numeric IDs (1, 2, 3...){" "}
             {table.getFilteredRowModel().rows.length < 10 &&
@@ -1909,21 +1930,24 @@ export default function BookingsSheet() {
         <CardContent className="p-0">
           <div
             ref={containerRef}
-            className="relative rounded-md border border-royal-purple/40 overflow-x-auto"
+            className="relative rounded-md border border-royal-purple/40 dark:border-border overflow-x-auto"
             onPointerDownCapture={handlePointerDownSelect}
           >
             <TooltipProvider>
-              <Table className="border border-royal-purple/40 min-w-full table-fixed">
+              <Table className="border border-royal-purple/40 dark:border-border min-w-full table-fixed">
                 <TableHeader>
                   {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="bg-light-grey/30">
+                    <TableRow
+                      key={headerGroup.id}
+                      className="bg-light-grey/30 dark:bg-muted"
+                    >
                       {headerGroup.headers.map((header) => {
                         // Handle row number column header
                         if (header.id === "rowNumber") {
                           return (
                             <TableHead
                               key={header.id}
-                              className="relative border border-royal-purple/40 p-0"
+                              className="relative border border-royal-purple/40 dark:border-border p-0"
                               style={{
                                 minWidth: "64px",
                                 maxWidth: "64px",
@@ -1946,7 +1970,7 @@ export default function BookingsSheet() {
                         return (
                           <TableHead
                             key={header.id}
-                            className="relative border border-royal-purple/40 p-0"
+                            className="relative border border-royal-purple/40 dark:border-border p-0"
                             style={{
                               minWidth: `${columnDef?.width || 150}px`,
                               maxWidth: `${columnDef?.width || 150}px`,
@@ -1996,9 +2020,7 @@ export default function BookingsSheet() {
                           <TableRow
                             key={`row-${row.id}`}
                             data-state={row.getIsSelected() && "selected"}
-                            className={`border-b border-royal-purple/20 transition-colors duration-200 ${
-                              index % 2 === 0 ? "bg-white" : "bg-light-grey/20"
-                            } hover:bg-royal-purple/5`}
+                            className={`border-b border-royal-purple/20 transition-colors duration-200 bg-white dark:bg-background hover:bg-royal-purple/5 dark:hover:bg-muted/50`}
                             onContextMenu={(e) => {
                               e.preventDefault();
 
@@ -2024,7 +2046,7 @@ export default function BookingsSheet() {
                               return (
                                 <TableCell
                                   key={cell.id}
-                                  className="border border-royal-purple/40 p-0"
+                                  className="border border-royal-purple/40 dark:border-border p-0"
                                   style={{
                                     minWidth: `${columnDef?.width || 150}px`,
                                     maxWidth: `${columnDef?.width || 150}px`,
@@ -2053,9 +2075,9 @@ export default function BookingsSheet() {
                       emptyRows.push(
                         <TableRow
                           key={`empty-${i}`}
-                          className={`border-b border-royal-purple/20 ${
-                            i % 2 === 0 ? "bg-white" : "bg-light-grey/20"
-                          } ${isFirstEmptyRow ? "opacity-100" : "opacity-60"}`}
+                          className={`border-b border-royal-purple/20 bg-white dark:bg-background ${
+                            isFirstEmptyRow ? "opacity-100" : "opacity-60"
+                          }`}
                         >
                           {table
                             .getAllLeafColumns()
@@ -2201,7 +2223,9 @@ export default function BookingsSheet() {
                       defaultValue={overlayInitialValueRef.current}
                       onBlur={handleOverlayCommit}
                       onKeyDown={handleOverlayKeyDown}
-                      className="w-full h-full resize-none outline-none focus:outline-none focus:ring-0 px-2 py-1 text-sm bg-white"
+                      className={`w-full h-full resize-none outline-none focus:outline-none focus:ring-0 px-2 py-1 text-sm bg-white ${getColumnTextColor(
+                        selectedColDef?.color
+                      )}`}
                       style={{
                         fontFamily: "inherit",
                         lineHeight: 1.2,
@@ -2210,7 +2234,11 @@ export default function BookingsSheet() {
                   ) : (
                     selectedDisplayValue !== null && (
                       <div className="absolute inset-0 flex items-center px-2 text-sm select-none">
-                        <span className="truncate w-full">
+                        <span
+                          className={`truncate w-full ${getColumnTextColor(
+                            selectedColDef?.color
+                          )}`}
+                        >
                           {selectedDisplayValue}
                         </span>
                         {selectedType === "date" && (
@@ -2280,13 +2308,13 @@ export default function BookingsSheet() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between space-x-2 py-4 px-6">
-            <div className="flex-1 text-sm text-grey">
+            <div className="flex-1 text-sm text-muted-foreground">
               {table.getFilteredSelectedRowModel().rows.length} of{" "}
               {table.getFilteredRowModel().rows.length} row(s) selected.
             </div>
             <div className="flex items-center space-x-6 lg:space-x-8">
               <div className="flex items-center space-x-2">
-                <p className="text-sm font-medium text-creative-midnight">
+                <p className="text-sm font-medium text-foreground">
                   Rows per page
                 </p>
                 <Select
@@ -2309,7 +2337,7 @@ export default function BookingsSheet() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex w-[100px] items-center justify-center text-sm font-medium text-creative-midnight">
+              <div className="flex w-[100px] items-center justify-center text-sm font-medium text-foreground">
                 Page {table.getState().pagination.pageIndex + 1} of{" "}
                 {table.getPageCount()}
               </div>

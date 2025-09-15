@@ -65,17 +65,17 @@ export default function DashboardOverview() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-creative-midnight font-hk-grotesk">
+          <h1 className="text-3xl font-bold text-foreground font-hk-grotesk">
             Dashboard
           </h1>
-          <p className="text-grey text-lg">
+          <p className="text-muted-foreground text-lg">
             Welcome back! Here&apos;s what&apos;s happening today.
           </p>
         </div>
         <div className="flex space-x-3">
           <Button
             variant="outline"
-            className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+            className="border-border text-primary hover:bg-primary/10 hover:border-primary transition-all duration-200"
           >
             <Eye className="mr-2 h-4 w-4" />
             View All Bookings
@@ -89,26 +89,26 @@ export default function DashboardOverview() {
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+        <Card className="border border-border shadow hover:shadow-md transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-creative-midnight">
+            <CardTitle className="text-sm font-medium text-foreground">
               Bookings Today
             </CardTitle>
-            <div className="p-2 bg-royal-purple/20 rounded-lg">
-              <Calendar className="h-4 w-4 text-royal-purple" />
+            <div className="p-2 bg-primary/20 rounded-lg">
+              <Calendar className="h-4 w-4 text-primary" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-creative-midnight">
+            <div className="text-2xl font-bold text-foreground">
               {metrics.bookingsToday}
             </div>
-            <p className="text-xs text-grey">+2 from yesterday</p>
+            <p className="text-xs text-muted-foreground">+2 from yesterday</p>
           </CardContent>
         </Card>
 
-        <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+        <Card className="border border-border shadow hover:shadow-md transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-creative-midnight">
+            <CardTitle className="text-sm font-medium text-foreground">
               Revenue Today
             </CardTitle>
             <div className="p-2 bg-spring-green/20 rounded-lg">
@@ -116,16 +116,16 @@ export default function DashboardOverview() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-creative-midnight">
+            <div className="text-2xl font-bold text-foreground">
               €{metrics.revenueToday.toLocaleString()}
             </div>
-            <p className="text-xs text-grey">+12% from yesterday</p>
+            <p className="text-xs text-muted-foreground">+12% from yesterday</p>
           </CardContent>
         </Card>
 
-        <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+        <Card className="border border-border shadow hover:shadow-md transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-creative-midnight">
+            <CardTitle className="text-sm font-medium text-foreground">
               Upcoming Tours
             </CardTitle>
             <div className="p-2 bg-sunglow-yellow/20 rounded-lg">
@@ -133,16 +133,16 @@ export default function DashboardOverview() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-creative-midnight">
+            <div className="text-2xl font-bold text-foreground">
               {metrics.upcomingTours}
             </div>
-            <p className="text-xs text-grey">Next 7 days</p>
+            <p className="text-xs text-muted-foreground">Next 7 days</p>
           </CardContent>
         </Card>
 
-        <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+        <Card className="border border-border shadow hover:shadow-md transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-creative-midnight">
+            <CardTitle className="text-sm font-medium text-foreground">
               Pending Reminders
             </CardTitle>
             <div className="p-2 bg-crimson-red/20 rounded-lg">
@@ -150,10 +150,10 @@ export default function DashboardOverview() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-creative-midnight">
+            <div className="text-2xl font-bold text-foreground">
               {metrics.pendingReminders}
             </div>
-            <p className="text-xs text-grey">Require attention</p>
+            <p className="text-xs text-muted-foreground">Require attention</p>
           </CardContent>
         </Card>
       </div>
@@ -163,18 +163,18 @@ export default function DashboardOverview() {
         {quickActions.map((action) => (
           <Card
             key={action.title}
-            className="cursor-pointer hover:shadow-lg transition-all duration-200 border border-royal-purple/20 shadow hover:border-royal-purple/40"
+            className="cursor-pointer hover:shadow-lg transition-all duration-200 border border-border shadow hover:border-primary/40"
           >
             <CardHeader>
               <div className="flex items-center space-x-3">
                 <div className={`p-3 rounded-xl ${action.color} shadow-lg`}>
                   <action.icon className="h-5 w-5 text-white" />
                 </div>
-                <CardTitle className="text-lg text-creative-midnight">
+                <CardTitle className="text-lg text-foreground">
                   {action.title}
                 </CardTitle>
               </div>
-              <CardDescription className="text-grey">
+              <CardDescription className="text-muted-foreground">
                 {action.description}
               </CardDescription>
             </CardHeader>
@@ -184,23 +184,23 @@ export default function DashboardOverview() {
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+        <Card className="border border-border shadow hover:shadow-md transition-all duration-200">
           <CardHeader>
-            <CardTitle className="text-creative-midnight">
-              Booking Trends
-            </CardTitle>
-            <CardDescription className="text-grey">
+            <CardTitle className="text-foreground">Booking Trends</CardTitle>
+            <CardDescription className="text-muted-foreground">
               Last 30 days booking activity
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-64 flex items-center justify-center bg-light-grey/30 rounded-xl border border-royal-purple/20">
+            <div className="h-64 flex items-center justify-center bg-muted/30 rounded-xl border border-border">
               <div className="text-center">
-                <div className="p-3 bg-royal-purple/20 rounded-xl inline-block mb-3">
-                  <TrendingUp className="h-8 w-8 text-royal-purple mx-auto" />
+                <div className="p-3 bg-primary/20 rounded-xl inline-block mb-3">
+                  <TrendingUp className="h-8 w-8 text-primary mx-auto" />
                 </div>
-                <p className="text-grey font-medium">Chart placeholder</p>
-                <p className="text-sm text-grey/80 mt-1">
+                <p className="text-muted-foreground font-medium">
+                  Chart placeholder
+                </p>
+                <p className="text-sm text-muted-foreground/80 mt-1">
                   Booking trends visualization will be implemented here
                 </p>
               </div>
@@ -208,23 +208,23 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+        <Card className="border border-border shadow hover:shadow-md transition-all duration-200">
           <CardHeader>
-            <CardTitle className="text-creative-midnight">
-              Tour Popularity
-            </CardTitle>
-            <CardDescription className="text-grey">
+            <CardTitle className="text-foreground">Tour Popularity</CardTitle>
+            <CardDescription className="text-muted-foreground">
               Most popular tour packages
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-64 flex items-center justify-center bg-light-grey/30 rounded-xl border border-royal-purple/20">
+            <div className="h-64 flex items-center justify-center bg-muted/30 rounded-xl border border-border">
               <div className="text-center">
                 <div className="p-3 bg-spring-green/20 rounded-xl inline-block mb-3">
                   <MapPin className="h-8 w-8 text-spring-green mx-auto" />
                 </div>
-                <p className="text-grey font-medium">Heatmap placeholder</p>
-                <p className="text-sm text-grey/80 mt-1">
+                <p className="text-muted-foreground font-medium">
+                  Heatmap placeholder
+                </p>
+                <p className="text-sm text-muted-foreground/80 mt-1">
                   Tour popularity heatmap will be implemented here
                 </p>
               </div>
@@ -234,54 +234,54 @@ export default function DashboardOverview() {
       </div>
 
       {/* Recent Activity */}
-      <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
-        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-          <CardTitle className="text-creative-midnight">
-            Recent Activity
-          </CardTitle>
-          <CardDescription className="text-grey">
+      <Card className="border border-border shadow hover:shadow-md transition-all duration-200">
+        <CardHeader className="bg-muted/50 border-b border-border">
+          <CardTitle className="text-foreground">Recent Activity</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Latest bookings and updates
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6">
           <div className="space-y-4">
-            <div className="flex items-center space-x-4 p-3 rounded-lg hover:bg-light-grey/30 transition-colors duration-200">
+            <div className="flex items-center space-x-4 p-3 rounded-lg hover:bg-muted/30 transition-colors duration-200">
               <div className="w-3 h-3 bg-spring-green rounded-full shadow-sm"></div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-creative-midnight">
+                <p className="text-sm font-medium text-foreground">
                   New booking created
                 </p>
-                <p className="text-xs text-grey">
+                <p className="text-xs text-muted-foreground">
                   John Doe - Bali Adventure Tour
                 </p>
               </div>
-              <span className="text-xs text-grey/80 bg-white px-2 py-1 rounded-full border border-royal-purple/20">
+              <span className="text-xs text-muted-foreground/80 bg-background px-2 py-1 rounded-full border border-border">
                 2 minutes ago
               </span>
             </div>
-            <div className="flex items-center space-x-4 p-3 rounded-lg hover:bg-light-grey/30 transition-colors duration-200">
+            <div className="flex items-center space-x-4 p-3 rounded-lg hover:bg-muted/30 transition-colors duration-200">
               <div className="w-3 h-3 bg-royal-purple rounded-full shadow-sm"></div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-creative-midnight">
+                <p className="text-sm font-medium text-foreground">
                   Payment received
                 </p>
-                <p className="text-xs text-grey">Sarah Wilson - €1,200</p>
+                <p className="text-xs text-muted-foreground">
+                  Sarah Wilson - €1,200
+                </p>
               </div>
-              <span className="text-xs text-grey/80 bg-white px-2 py-1 rounded-full border border-royal-purple/20">
+              <span className="text-xs text-muted-foreground/80 bg-background px-2 py-1 rounded-full border border-border">
                 15 minutes ago
               </span>
             </div>
-            <div className="flex items-center space-x-4 p-3 rounded-lg hover:bg-light-grey/30 transition-colors duration-200">
+            <div className="flex items-center space-x-4 p-3 rounded-lg hover:bg-muted/30 transition-colors duration-200">
               <div className="w-3 h-3 bg-crimson-red rounded-full shadow-sm"></div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-creative-midnight">
+                <p className="text-sm font-medium text-foreground">
                   Payment reminder sent
                 </p>
-                <p className="text-xs text-grey">
+                <p className="text-xs text-muted-foreground">
                   Mike Johnson - Due in 3 days
                 </p>
               </div>
-              <span className="text-xs text-grey/80 bg-white px-2 py-1 rounded-full border border-royal-purple/20">
+              <span className="text-xs text-muted-foreground/80 bg-background px-2 py-1 rounded-full border border-border">
                 1 hour ago
               </span>
             </div>

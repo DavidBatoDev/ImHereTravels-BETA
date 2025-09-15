@@ -102,7 +102,7 @@ export default function BookingsList() {
       case "Pending":
         return "bg-crimson-red/20 text-crimson-red border border-crimson-red/30";
       default:
-        return "bg-grey/20 text-grey border border-grey/30";
+        return "bg-grey/20 text-muted-foreground border border-grey/30";
     }
   };
 
@@ -111,10 +111,12 @@ export default function BookingsList() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-creative-midnight font-hk-grotesk">
+          <h1 className="text-2xl font-bold text-foreground font-hk-grotesk">
             Bookings
           </h1>
-          <p className="text-grey">Manage all bookings and reservations</p>
+          <p className="text-muted-foreground">
+            Manage all bookings and reservations
+          </p>
         </div>
         <Button className="bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200">
           <Plus className="mr-2 h-4 w-4" />
@@ -123,9 +125,9 @@ export default function BookingsList() {
       </div>
 
       {/* Filters */}
-      <Card className="border border-royal-purple/20 shadow">
-        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-          <CardTitle className="flex items-center text-creative-midnight">
+      <Card className="border border-border shadow">
+        <CardHeader className="bg-muted/50 border-b border-border">
+          <CardTitle className="flex items-center text-foreground">
             <Filter className="mr-2 h-5 w-5 text-royal-purple" />
             Filters
           </CardTitle>
@@ -138,11 +140,11 @@ export default function BookingsList() {
                 placeholder="Search bookings..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                className="pl-10 border-border focus:border-royal-purple focus:ring-royal-purple/20"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
+              <SelectTrigger className="border-border focus:border-royal-purple focus:ring-royal-purple/20">
                 <SelectValue placeholder="Payment Status" />
               </SelectTrigger>
               <SelectContent>
@@ -154,7 +156,7 @@ export default function BookingsList() {
               </SelectContent>
             </Select>
             <Select value={tourFilter} onValueChange={setTourFilter}>
-              <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
+              <SelectTrigger className="border-border focus:border-royal-purple focus:ring-royal-purple/20">
                 <SelectValue placeholder="Tour Package" />
               </SelectTrigger>
               <SelectContent>
@@ -167,7 +169,7 @@ export default function BookingsList() {
             </Select>
             <Button
               variant="outline"
-              className="w-full border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+              className="w-full border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
             >
               Clear Filters
             </Button>
@@ -176,10 +178,10 @@ export default function BookingsList() {
       </Card>
 
       {/* Bookings Table */}
-      <Card className="border border-royal-purple/20 shadow">
-        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-          <CardTitle className="text-creative-midnight">All Bookings</CardTitle>
-          <CardDescription className="text-grey">
+      <Card className="border border-border shadow">
+        <CardHeader className="bg-muted/50 border-b border-border">
+          <CardTitle className="text-foreground">All Bookings</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Showing {filteredBookings.length} of {mockBookings.length} bookings
           </CardDescription>
         </CardHeader>
@@ -187,26 +189,26 @@ export default function BookingsList() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-light-grey/30 border-b border-royal-purple/20">
-                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight border-r border-royal-purple/20">
+                <tr className="bg-muted/30 border-b border-border">
+                  <th className="text-left py-4 px-6 font-semibold text-foreground border-r border-border">
                     Booking ID
                   </th>
-                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight border-r border-royal-purple/20">
+                  <th className="text-left py-4 px-6 font-semibold text-foreground border-r border-border">
                     Traveler
                   </th>
-                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight border-r border-royal-purple/20">
+                  <th className="text-left py-4 px-6 font-semibold text-foreground border-r border-border">
                     Tour Package
                   </th>
-                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight border-r border-royal-purple/20">
+                  <th className="text-left py-4 px-6 font-semibold text-foreground border-r border-border">
                     Tour Date
                   </th>
-                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight border-r border-royal-purple/20">
+                  <th className="text-left py-4 px-6 font-semibold text-foreground border-r border-border">
                     Payment Status
                   </th>
-                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight border-r border-royal-purple/20">
+                  <th className="text-left py-4 px-6 font-semibold text-foreground border-r border-border">
                     Balance
                   </th>
-                  <th className="text-left py-4 px-6 font-semibold text-creative-midnight">
+                  <th className="text-left py-4 px-6 font-semibold text-foreground">
                     Actions
                   </th>
                 </tr>
@@ -215,40 +217,42 @@ export default function BookingsList() {
                 {filteredBookings.map((booking, index) => (
                   <tr
                     key={booking.id}
-                    className={`border-b border-royal-purple/20 transition-colors duration-200 ${
-                      index % 2 === 0 ? "bg-white" : "bg-light-grey/20"
+                    className={`border-b border-border transition-colors duration-200 ${
+                      index % 2 === 0 ? "bg-background" : "bg-muted/20"
                     } hover:bg-royal-purple/5`}
                   >
-                    <td className="py-4 px-6 border-r border-royal-purple/20">
+                    <td className="py-4 px-6 border-r border-border">
                       <span className="font-mono text-sm bg-royal-purple/10 text-royal-purple px-2 py-1 rounded-md">
                         {booking.id}
                       </span>
                     </td>
-                    <td className="py-4 px-6 border-r border-royal-purple/20">
+                    <td className="py-4 px-6 border-r border-border">
                       <div>
-                        <div className="font-semibold text-creative-midnight">
+                        <div className="font-semibold text-foreground">
                           {booking.travelerName}
                         </div>
-                        <div className="text-sm text-grey">{booking.email}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {booking.email}
+                        </div>
                       </div>
                     </td>
-                    <td className="py-4 px-6 border-r border-royal-purple/20">
+                    <td className="py-4 px-6 border-r border-border">
                       <div className="flex items-center">
                         <MapPin className="mr-2 h-4 w-4 text-royal-purple" />
-                        <span className="text-creative-midnight">
+                        <span className="text-foreground">
                           {booking.tourPackage}
                         </span>
                       </div>
                     </td>
-                    <td className="py-4 px-6 border-r border-royal-purple/20">
+                    <td className="py-4 px-6 border-r border-border">
                       <div className="flex items-center">
                         <Calendar className="mr-2 h-4 w-4 text-royal-purple" />
-                        <span className="text-creative-midnight">
+                        <span className="text-foreground">
                           {new Date(booking.tourDate).toLocaleDateString()}
                         </span>
                       </div>
                     </td>
-                    <td className="py-4 px-6 border-r border-royal-purple/20">
+                    <td className="py-4 px-6 border-r border-border">
                       <span
                         className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
                           booking.paymentStatus
@@ -257,7 +261,7 @@ export default function BookingsList() {
                         {booking.paymentStatus}
                       </span>
                     </td>
-                    <td className="py-4 px-6 border-r border-royal-purple/20">
+                    <td className="py-4 px-6 border-r border-border">
                       <div className="flex items-center">
                         <Banknote className="mr-1 h-4 w-4 text-royal-purple" />
                         <span
@@ -299,30 +303,34 @@ export default function BookingsList() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-        <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+        <Card className="border border-border shadow hover:shadow-md transition-all duration-200">
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-3 bg-royal-purple/20 rounded-xl">
                 <Calendar className="h-6 w-6 text-royal-purple" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-grey">Total Bookings</p>
-                <p className="text-2xl font-bold text-creative-midnight">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Total Bookings
+                </p>
+                <p className="text-2xl font-bold text-foreground">
                   {mockBookings.length}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+        <Card className="border border-border shadow hover:shadow-md transition-all duration-200">
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-3 bg-spring-green/20 rounded-xl">
                 <Banknote className="h-6 w-6 text-spring-green" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-grey">Total Revenue</p>
-                <p className="text-2xl font-bold text-creative-midnight">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Total Revenue
+                </p>
+                <p className="text-2xl font-bold text-foreground">
                   €
                   {mockBookings
                     .reduce((sum, booking) => sum + booking.totalAmount, 0)
@@ -332,17 +340,17 @@ export default function BookingsList() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+        <Card className="border border-border shadow hover:shadow-md transition-all duration-200">
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-3 bg-crimson-red/20 rounded-xl">
                 <User className="h-6 w-6 text-crimson-red" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-grey">
+                <p className="text-sm font-medium text-muted-foreground">
                   Pending Payments
                 </p>
-                <p className="text-2xl font-bold text-creative-midnight">
+                <p className="text-2xl font-bold text-foreground">
                   $
                   {mockBookings
                     .reduce((sum, booking) => sum + booking.remainingBalance, 0)

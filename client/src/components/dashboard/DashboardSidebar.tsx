@@ -132,7 +132,7 @@ export default function DashboardSidebar({
           onClick={() => setSidebarOpen(false)}
         />
         <div className="fixed inset-y-0 left-0 flex w-72 flex-col bg-background border-r border-border shadow-2xl">
-          <div className="flex h-20 items-center justify-between px-6 bg-primary">
+          <div className="flex h-20 items-center justify-between px-6 bg-royal-purple dark:bg-primary">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-white/20 rounded-xl p-2 backdrop-blur-sm">
                 <Image
@@ -140,7 +140,14 @@ export default function DashboardSidebar({
                   alt="ImHereTravels Logo"
                   width={24}
                   height={24}
-                  className="w-full h-full"
+                  className="w-full h-full dark:block hidden"
+                />
+                <Image
+                  src="/logos/Logo_Red.svg"
+                  alt="ImHereTravels Logo"
+                  width={24}
+                  height={24}
+                  className="w-full h-full dark:hidden block"
                 />
               </div>
               <h1 className="text-xl font-bold text-white font-hk-grotesk">
@@ -182,7 +189,7 @@ export default function DashboardSidebar({
                     "group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ease-in-out",
                     isActive
                       ? "bg-primary text-white shadow-lg shadow-primary/25"
-                      : "text-foreground hover:bg-accent hover:text-accent-foreground hover:shadow-md"
+                      : "text-foreground hover:bg-royal-purple/10 hover:text-royal-purple hover:shadow-md"
                   )}
                   onClick={() => setSidebarOpen(false)}
                 >
@@ -191,7 +198,7 @@ export default function DashboardSidebar({
                       "mr-3 p-2 rounded-lg transition-all duration-200",
                       isActive
                         ? "bg-white/20 backdrop-blur-sm"
-                        : "bg-muted group-hover:bg-muted/80"
+                        : "bg-royal-purple/10 group-hover:bg-royal-purple/20"
                     )}
                   >
                     <item.icon
@@ -199,7 +206,7 @@ export default function DashboardSidebar({
                         "h-5 w-5 flex-shrink-0 transition-colors duration-200",
                         isActive
                           ? "text-white"
-                          : "text-muted-foreground group-hover:text-accent-foreground"
+                          : "text-royal-purple group-hover:text-royal-purple"
                       )}
                     />
                   </div>
@@ -265,7 +272,7 @@ export default function DashboardSidebar({
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
         <div className="flex min-h-0 flex-1 flex-col bg-background border-r border-border shadow">
-          <div className="flex items-center px-6 py-3 bg-primary">
+          <div className="flex items-center px-6 py-3 bg-royal-purple dark:bg-primary">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-white/20 rounded-xl p-2 backdrop-blur-sm">
                 <Image
@@ -273,7 +280,14 @@ export default function DashboardSidebar({
                   alt="ImHereTravels Logo"
                   width={24}
                   height={24}
-                  className="w-full h-full"
+                  className="w-full h-full dark:block hidden"
+                />
+                <Image
+                  src="/logos/Logo_Red.svg"
+                  alt="ImHereTravels Logo"
+                  width={24}
+                  height={24}
+                  className="w-full h-full dark:hidden block"
                 />
               </div>
               <h1 className="text-xl font-bold text-white font-hk-grotesk">
@@ -310,7 +324,7 @@ export default function DashboardSidebar({
                     "group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ease-in-out",
                     isActive
                       ? "bg-primary text-white shadow-lg shadow-primary/25"
-                      : "text-foreground hover:bg-accent hover:text-accent-foreground hover:shadow-md"
+                      : "text-foreground hover:bg-royal-purple/10 hover:text-royal-purple hover:shadow-md"
                   )}
                 >
                   <div
@@ -318,7 +332,7 @@ export default function DashboardSidebar({
                       "mr-3 p-2 rounded-lg transition-all duration-200",
                       isActive
                         ? "bg-white/20 backdrop-blur-sm"
-                        : "bg-muted group-hover:bg-muted/80"
+                        : "bg-royal-purple/10 group-hover:bg-royal-purple/20"
                     )}
                   >
                     <item.icon
@@ -326,7 +340,7 @@ export default function DashboardSidebar({
                         "h-5 w-5 flex-shrink-0 transition-colors duration-200",
                         isActive
                           ? "text-white"
-                          : "text-muted-foreground group-hover:text-accent-foreground"
+                          : "text-royal-purple group-hover:text-royal-purple"
                       )}
                     />
                   </div>

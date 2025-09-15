@@ -11,10 +11,10 @@ export default function BookingsTabs() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-creative-midnight font-hk-grotesk">
+          <h1 className="text-3xl font-bold text-foreground font-hk-grotesk">
             Bookings
           </h1>
-          <p className="text-grey text-lg">
+          <p className="text-muted-foreground text-lg">
             Manage all bookings and reservations
           </p>
         </div>
@@ -22,7 +22,7 @@ export default function BookingsTabs() {
 
       {/* Tabs */}
       <Tabs defaultValue="list" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-light-grey border border-royal-purple/20">
+        <TabsList className="grid w-full grid-cols-3 bg-muted border border-border">
           <TabsTrigger
             value="list"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
