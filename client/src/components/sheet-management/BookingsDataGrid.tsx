@@ -12,6 +12,9 @@ import React, {
 const DataGrid = require("react-data-grid").DataGrid;
 const textEditor = require("react-data-grid").textEditor;
 
+// Debug the textEditor
+console.log("textEditor from react-data-grid:", typeof textEditor, textEditor);
+
 // Define types manually since the package types are not matching
 type Column<TRow> = {
   key: string;
@@ -107,11 +110,30 @@ const DateEditor = memo(function DateEditor({
   onRowChange,
   onClose,
 }: RenderEditCellProps<SheetData>) {
+  console.log(
+    "📅 DateEditor component rendered for column:",
+    column.key,
+    "row:",
+    row.id
+  );
+
   const [value, setValue] = useState(() => {
     const cellValue = row[column.key as keyof SheetData];
+    console.log("📅 DateEditor - Processing cell value:", {
+      cellValue,
+      type: typeof cellValue,
+      isObject: typeof cellValue === "object",
+      hasToDate:
+        cellValue && typeof cellValue === "object" && "toDate" in cellValue,
+      hasSeconds:
+        cellValue && typeof cellValue === "object" && "seconds" in cellValue,
+    });
+
     if (cellValue) {
       try {
         let date: Date | null = null;
+
+        // Handle Firestore Timestamp objects
         if (
           cellValue &&
           typeof cellValue === "object" &&
@@ -119,49 +141,68 @@ const DateEditor = memo(function DateEditor({
           typeof (cellValue as any).toDate === "function"
         ) {
           date = (cellValue as any).toDate();
-        } else if (
+          console.log("📅 Converted from Firestore Timestamp:", date);
+        }
+        // Handle Firestore timestamp objects with seconds property
+        else if (
           cellValue &&
           typeof cellValue === "object" &&
           "seconds" in cellValue &&
           typeof (cellValue as any).seconds === "number"
         ) {
           date = new Date((cellValue as any).seconds * 1000);
-        } else if (cellValue) {
-          date = new Date(cellValue as string | number | Date);
+          console.log("📅 Converted from seconds timestamp:", date);
         }
+        // Handle numeric timestamps (milliseconds)
+        else if (typeof cellValue === "number") {
+          // Check if it's a timestamp in milliseconds or seconds
+          if (cellValue > 1000000000000) {
+            // Milliseconds timestamp
+            date = new Date(cellValue);
+          } else {
+            // Seconds timestamp
+            date = new Date(cellValue * 1000);
+          }
+          console.log("📅 Converted from numeric timestamp:", date);
+        }
+        // Handle string timestamps or date strings
+        else if (typeof cellValue === "string") {
+          // Check if it's a numeric string (timestamp)
+          const numericValue = parseFloat(cellValue);
+          if (!isNaN(numericValue)) {
+            if (numericValue > 1000000000000) {
+              // Milliseconds timestamp
+              date = new Date(numericValue);
+            } else {
+              // Seconds timestamp
+              date = new Date(numericValue * 1000);
+            }
+            console.log("📅 Converted from string timestamp:", date);
+          } else {
+            // Regular date string
+            date = new Date(cellValue);
+            console.log("📅 Converted from date string:", date);
+          }
+        }
+        // Handle Date objects
+        else if (cellValue instanceof Date) {
+          date = cellValue;
+          console.log("📅 Using existing Date object:", date);
+        }
+
         if (date && !isNaN(date.getTime())) {
-          return date.toISOString().split("T")[0];
+          const isoString = date.toISOString().split("T")[0];
+          console.log("📅 Final date value for input:", isoString);
+          return isoString;
+        } else {
+          console.log("📅 Invalid date, returning empty string");
         }
-      } catch {
-        // ignore
+      } catch (error) {
+        console.error("📅 Error parsing date:", error, "Value:", cellValue);
       }
     }
     return "";
   });
-
-  const dateInputRef = useRef<HTMLInputElement>(null);
-
-  // Trigger date picker when component mounts
-  useEffect(() => {
-    if (dateInputRef.current) {
-      // Small delay to ensure the input is rendered
-      setTimeout(() => {
-        if (dateInputRef.current) {
-          try {
-            if (typeof dateInputRef.current.showPicker === "function") {
-              dateInputRef.current.showPicker();
-            } else {
-              dateInputRef.current.focus();
-              dateInputRef.current.click();
-            }
-          } catch (error) {
-            console.log("Date picker trigger failed:", error);
-            dateInputRef.current.focus();
-          }
-        }
-      }, 150);
-    }
-  }, []);
 
   const handleSave = useCallback(() => {
     const processedValue = value ? new Date(value) : null;
@@ -182,64 +223,15 @@ const DateEditor = memo(function DateEditor({
   );
 
   return (
-    <div className="h-8 w-full px-2 border-r border-b border-gray-200">
-      <Input
-        ref={dateInputRef}
-        type="date"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={handleKeyDown}
-        onClick={() => {
-          // Trigger the date picker when clicking on the input
-          setTimeout(() => {
-            if (dateInputRef.current) {
-              try {
-                if (typeof dateInputRef.current.showPicker === "function") {
-                  dateInputRef.current.showPicker();
-                } else {
-                  dateInputRef.current.focus();
-                  dateInputRef.current.click();
-                }
-              } catch (error) {
-                console.log("Date picker click trigger failed:", error);
-                dateInputRef.current.focus();
-              }
-            }
-          }, 50);
-        }}
-        onDoubleClick={() => {
-          // Double-click as additional trigger
-          if (dateInputRef.current) {
-            try {
-              if (typeof dateInputRef.current.showPicker === "function") {
-                dateInputRef.current.showPicker();
-              } else {
-                dateInputRef.current.focus();
-              }
-            } catch (error) {
-              console.log("Date picker double-click trigger failed:", error);
-            }
-          }
-        }}
-        onFocus={() => {
-          // Also try to trigger on focus
-          setTimeout(() => {
-            if (dateInputRef.current) {
-              try {
-                if (typeof dateInputRef.current.showPicker === "function") {
-                  dateInputRef.current.showPicker();
-                }
-              } catch (error) {
-                console.log("Date picker focus trigger failed:", error);
-              }
-            }
-          }, 100);
-        }}
-        autoFocus
-        className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none w-full cursor-pointer"
-      />
-    </div>
+    <Input
+      type="date"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={handleSave}
+      onKeyDown={handleKeyDown}
+      autoFocus
+      className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none"
+    />
   );
 });
 
@@ -271,7 +263,7 @@ const BooleanEditor = memo(function BooleanEditor({
   }, [handleToggle, onClose]);
 
   return (
-    <div className="flex items-center justify-center h-8 w-full px-2 border-r border-b border-gray-200">
+    <div className="flex items-center justify-center h-8 w-full">
       <input
         type="checkbox"
         checked={value}
@@ -311,24 +303,22 @@ const SelectEditor = memo(function SelectEditor({
   }, [onClose]);
 
   return (
-    <div className="h-8 w-full px-2 border-r border-b border-gray-200">
-      <Select value={value} onValueChange={handleChange}>
-        <SelectTrigger className="h-8 border-0 focus:border-0 text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none bg-transparent w-full">
-          <SelectValue placeholder="Select option" />
-        </SelectTrigger>
-        <SelectContent className="bg-white dark:bg-background border border-royal-purple/20 dark:border-border shadow-lg max-h-60 z-50">
-          {options.map((option: string) => (
-            <SelectItem
-              key={option}
-              value={option}
-              className="text-sm transition-colors duration-200 hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
-            >
-              {option}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select value={value} onValueChange={handleChange}>
+      <SelectTrigger className="h-8 border-0 focus:border-0 text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none bg-transparent">
+        <SelectValue placeholder="Select option" />
+      </SelectTrigger>
+      <SelectContent className="bg-white dark:bg-background border border-royal-purple/20 dark:border-border shadow-lg max-h-60 z-50">
+        {options.map((option: string) => (
+          <SelectItem
+            key={option}
+            value={option}
+            className="text-sm transition-colors duration-200 hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
+          >
+            {option}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 });
 
@@ -362,267 +352,15 @@ const NumberEditor = memo(function NumberEditor({
   );
 
   return (
-    <div className="h-8 w-full px-2 border-r border-b border-gray-200">
-      <Input
-        type="number"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={handleKeyDown}
-        autoFocus
-        className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none w-full"
-      />
-    </div>
-  );
-});
-
-// Custom cell editor component
-const CustomCellEditor = memo(function CustomCellEditor({
-  row,
-  column,
-  onSave,
-  onCancel,
-}: {
-  row: SheetData;
-  column: Column<SheetData>;
-  onSave: (value: any) => void;
-  onCancel: () => void;
-}) {
-  const [value, setValue] = useState(() => {
-    const cellValue = row[column.key as keyof SheetData];
-    if (cellValue && typeof cellValue === "object" && "toDate" in cellValue) {
-      return (cellValue as any).toDate().toISOString().split("T")[0];
-    }
-    return cellValue?.toString() || "";
-  });
-
-  const columnDef = (column as any).columnDef as SheetColumn;
-  const options = (column as any).options || [];
-  const dateInputRef = useRef<HTMLInputElement>(null);
-
-  console.log(
-    "CustomCellEditor - Column key:",
-    column.key,
-    "ColumnDef:",
-    columnDef,
-    "DataType:",
-    columnDef?.dataType
-  );
-
-  // Trigger date picker for date columns
-  useEffect(() => {
-    if (columnDef?.dataType === "date" && dateInputRef.current) {
-      console.log(
-        "Date editor useEffect triggered for column:",
-        columnDef.columnName
-      );
-      // Small delay to ensure the input is rendered
-      setTimeout(() => {
-        if (dateInputRef.current) {
-          console.log("Attempting to trigger date picker...");
-          // Try multiple methods to trigger the date picker
-          try {
-            // Method 1: showPicker() if available
-            if (typeof dateInputRef.current.showPicker === "function") {
-              console.log("Using showPicker() method");
-              dateInputRef.current.showPicker();
-            } else {
-              console.log("showPicker() not available, using focus + click");
-              // Method 2: Focus and click
-              dateInputRef.current.focus();
-              dateInputRef.current.click();
-            }
-          } catch (error) {
-            console.log("Date picker trigger failed:", error);
-            // Method 3: Just focus as fallback
-            dateInputRef.current.focus();
-          }
-        }
-      }, 150);
-    }
-  }, [columnDef?.dataType]);
-
-  const handleSave = useCallback(() => {
-    let processedValue = value;
-
-    if (columnDef?.dataType === "date") {
-      processedValue = value ? new Date(value) : null;
-    } else if (
-      columnDef?.dataType === "number" ||
-      columnDef?.dataType === "currency"
-    ) {
-      processedValue = parseFloat(value) || 0;
-    } else if (columnDef?.dataType === "boolean") {
-      processedValue = !!value;
-    }
-
-    onSave(processedValue);
-  }, [value, columnDef, onSave]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleSave();
-      } else if (e.key === "Escape") {
-        onCancel();
-      }
-    },
-    [handleSave, onCancel]
-  );
-
-  const handleBlur = useCallback(() => {
-    handleSave();
-  }, [handleSave]);
-
-  // Boolean editor
-  if (columnDef?.dataType === "boolean") {
-    return (
-      <div className="h-8 w-full px-2 border-r border-b border-gray-200 flex items-center justify-center">
-        <input
-          type="checkbox"
-          checked={!!value}
-          onChange={(e) => {
-            setValue(e.target.checked);
-            onSave(e.target.checked);
-          }}
-          autoFocus
-          className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
-        />
-      </div>
-    );
-  }
-
-  // Select editor
-  if (columnDef?.dataType === "select") {
-    return (
-      <div className="h-8 w-full px-2 border-r border-b border-gray-200">
-        <Select
-          value={value}
-          onValueChange={(newValue) => {
-            setValue(newValue);
-            onSave(newValue);
-          }}
-        >
-          <SelectTrigger className="h-8 border-0 focus:border-0 text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none bg-transparent w-full">
-            <SelectValue placeholder="Select option" />
-          </SelectTrigger>
-          <SelectContent className="bg-white dark:bg-background border border-royal-purple/20 dark:border-border shadow-lg max-h-60 z-50">
-            {options.map((option: string) => (
-              <SelectItem
-                key={option}
-                value={option}
-                className="text-sm transition-colors duration-200 hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
-              >
-                {option}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    );
-  }
-
-  // Date editor
-  if (columnDef?.dataType === "date") {
-    console.log(
-      "Rendering date editor for column:",
-      columnDef.columnName,
-      "with value:",
-      value
-    );
-    return (
-      <div className="h-8 w-full px-2 border-r border-b border-gray-200">
-        <Input
-          ref={dateInputRef}
-          type="date"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          onClick={() => {
-            // Trigger the date picker when clicking on the input
-            setTimeout(() => {
-              if (dateInputRef.current) {
-                try {
-                  if (typeof dateInputRef.current.showPicker === "function") {
-                    dateInputRef.current.showPicker();
-                  } else {
-                    dateInputRef.current.focus();
-                    dateInputRef.current.click();
-                  }
-                } catch (error) {
-                  console.log("Date picker click trigger failed:", error);
-                  dateInputRef.current.focus();
-                }
-              }
-            }, 50);
-          }}
-          onDoubleClick={() => {
-            // Double-click as additional trigger
-            if (dateInputRef.current) {
-              try {
-                if (typeof dateInputRef.current.showPicker === "function") {
-                  dateInputRef.current.showPicker();
-                } else {
-                  dateInputRef.current.focus();
-                }
-              } catch (error) {
-                console.log("Date picker double-click trigger failed:", error);
-              }
-            }
-          }}
-          onFocus={() => {
-            // Also try to trigger on focus
-            setTimeout(() => {
-              if (dateInputRef.current) {
-                try {
-                  if (typeof dateInputRef.current.showPicker === "function") {
-                    dateInputRef.current.showPicker();
-                  }
-                } catch (error) {
-                  console.log("Date picker focus trigger failed:", error);
-                }
-              }
-            }, 100);
-          }}
-          autoFocus
-          className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none w-full cursor-pointer"
-        />
-      </div>
-    );
-  }
-
-  // Number editor
-  if (columnDef?.dataType === "number" || columnDef?.dataType === "currency") {
-    return (
-      <div className="h-8 w-full px-2 border-r border-b border-gray-200">
-        <Input
-          type="number"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          autoFocus
-          className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none w-full"
-        />
-      </div>
-    );
-  }
-
-  // Default text editor
-  return (
-    <div className="h-8 w-full px-2 border-r border-b border-gray-200">
-      <Input
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-        autoFocus
-        className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none w-full"
-      />
-    </div>
+    <Input
+      type="number"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={handleSave}
+      onKeyDown={handleKeyDown}
+      autoFocus
+      className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none"
+    />
   );
 });
 
@@ -630,36 +368,10 @@ const CustomCellEditor = memo(function CustomCellEditor({
 const BooleanFormatter = memo(function BooleanFormatter({
   row,
   column,
-  onCellClick,
-  onCellSave,
-  isEditing,
-}: RenderCellProps<SheetData> & {
-  onCellClick?: (row: SheetData, column: any) => void;
-  onCellSave?: (rowId: string, columnId: string, value: any) => void;
-  isEditing?: boolean;
-}) {
+}: RenderCellProps<SheetData>) {
   const value = !!row[column.key as keyof SheetData];
-
-  if (isEditing) {
-    return (
-      <CustomCellEditor
-        row={row}
-        column={column}
-        onSave={(newValue) => {
-          onCellSave?.(row.id, column.key, newValue);
-        }}
-        onCancel={() => {
-          onCellClick?.(row, column);
-        }}
-      />
-    );
-  }
-
   return (
-    <div
-      className="flex items-center justify-center h-8 w-full px-2 border-r border-b border-gray-200 cursor-pointer hover:bg-gray-50"
-      onClick={() => onCellClick?.(row, column)}
-    >
+    <div className="flex items-center justify-center h-8 w-full px-2 border-r border-b border-gray-200">
       <span
         className={`text-sm font-medium ${
           value ? "text-royal-purple font-semibold" : "text-gray-500"
@@ -674,43 +386,20 @@ const BooleanFormatter = memo(function BooleanFormatter({
 const DateFormatter = memo(function DateFormatter({
   row,
   column,
-  onCellClick,
-  onCellSave,
-  isEditing,
-}: RenderCellProps<SheetData> & {
-  onCellClick?: (row: SheetData, column: any) => void;
-  onCellSave?: (rowId: string, columnId: string, value: any) => void;
-  isEditing?: boolean;
-}) {
+}: RenderCellProps<SheetData>) {
   const value = row[column.key as keyof SheetData];
-
-  if (isEditing) {
-    return (
-      <CustomCellEditor
-        row={row}
-        column={column}
-        onSave={(newValue) => {
-          onCellSave?.(row.id, column.key, newValue);
-        }}
-        onCancel={() => {
-          onCellClick?.(row, column);
-        }}
-      />
-    );
-  }
 
   if (!value)
     return (
-      <div
-        className="h-8 w-full flex items-center text-sm text-gray-400 px-2 border-r border-b border-gray-200 cursor-pointer hover:bg-gray-50"
-        onClick={() => onCellClick?.(row, column)}
-      >
+      <div className="h-8 w-full flex items-center text-sm text-gray-400 px-2 border-r border-b border-gray-200">
         -
       </div>
     );
 
   try {
     let date: Date | null = null;
+
+    // Handle Firestore Timestamp objects
     if (
       value &&
       typeof value === "object" &&
@@ -718,23 +407,52 @@ const DateFormatter = memo(function DateFormatter({
       typeof (value as any).toDate === "function"
     ) {
       date = (value as any).toDate();
-    } else if (
+    }
+    // Handle Firestore timestamp objects with seconds property
+    else if (
       value &&
       typeof value === "object" &&
       "seconds" in value &&
       typeof (value as any).seconds === "number"
     ) {
       date = new Date((value as any).seconds * 1000);
-    } else {
-      date = new Date(value as string | number | Date);
+    }
+    // Handle numeric timestamps (milliseconds)
+    else if (typeof value === "number") {
+      // Check if it's a timestamp in milliseconds or seconds
+      if (value > 1000000000000) {
+        // Milliseconds timestamp
+        date = new Date(value);
+      } else {
+        // Seconds timestamp
+        date = new Date(value * 1000);
+      }
+    }
+    // Handle string timestamps or date strings
+    else if (typeof value === "string") {
+      // Check if it's a numeric string (timestamp)
+      const numericValue = parseFloat(value);
+      if (!isNaN(numericValue)) {
+        if (numericValue > 1000000000000) {
+          // Milliseconds timestamp
+          date = new Date(numericValue);
+        } else {
+          // Seconds timestamp
+          date = new Date(numericValue * 1000);
+        }
+      } else {
+        // Regular date string
+        date = new Date(value);
+      }
+    }
+    // Handle Date objects
+    else if (value instanceof Date) {
+      date = value;
     }
 
     if (date && !isNaN(date.getTime())) {
       return (
-        <div
-          className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200 cursor-pointer hover:bg-gray-50"
-          onClick={() => onCellClick?.(row, column)}
-        >
+        <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
           {date.toLocaleDateString()}
         </div>
       );
@@ -744,10 +462,7 @@ const DateFormatter = memo(function DateFormatter({
   }
 
   return (
-    <div
-      className="h-8 w-full flex items-center text-sm text-red-500 px-2 border-r border-b border-gray-200 cursor-pointer hover:bg-gray-50"
-      onClick={() => onCellClick?.(row, column)}
-    >
+    <div className="h-8 w-full flex items-center text-sm text-red-500 px-2 border-r border-b border-gray-200">
       Invalid Date
     </div>
   );
@@ -756,39 +471,13 @@ const DateFormatter = memo(function DateFormatter({
 const CurrencyFormatter = memo(function CurrencyFormatter({
   row,
   column,
-  onCellClick,
-  onCellSave,
-  isEditing,
-}: RenderCellProps<SheetData> & {
-  onCellClick?: (row: SheetData, column: any) => void;
-  onCellSave?: (rowId: string, columnId: string, value: any) => void;
-  isEditing?: boolean;
-}) {
+}: RenderCellProps<SheetData>) {
   const value = row[column.key as keyof SheetData];
-
-  if (isEditing) {
-    return (
-      <CustomCellEditor
-        row={row}
-        column={column}
-        onSave={(newValue) => {
-          onCellSave?.(row.id, column.key, newValue);
-        }}
-        onCancel={() => {
-          onCellClick?.(row, column);
-        }}
-      />
-    );
-  }
-
   const formatted = value
     ? `€${parseFloat(value.toString()).toLocaleString()}`
     : "";
   return (
-    <div
-      className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200 cursor-pointer hover:bg-gray-50"
-      onClick={() => onCellClick?.(row, column)}
-    >
+    <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
       {formatted}
     </div>
   );
@@ -863,11 +552,6 @@ export default function BookingsDataGrid({
     rowId: string;
     columnId: string;
   } | null>(null);
-  const [editingCell, setEditingCell] = useState<{
-    rowId: string;
-    columnId: string;
-    value: any;
-  } | null>(null);
   const [columnSettingsModal, setColumnSettingsModal] = useState<{
     isOpen: boolean;
     column: SheetColumn | null;
@@ -878,10 +562,19 @@ export default function BookingsDataGrid({
   const [localData, setLocalData] = useState<SheetData[]>([]);
   const functionSubscriptionsRef = useRef<Map<string, () => void>>(new Map());
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+
   // Sync local data with props data
   useEffect(() => {
     setLocalData(data);
   }, [data]);
+
+  // Debug selectedCell changes
+  useEffect(() => {
+    console.log("🔄 selectedCell changed:", selectedCell);
+  }, [selectedCell]);
 
   // Compute one function column for a single row
   const computeFunctionForRow = useCallback(
@@ -1037,56 +730,6 @@ export default function BookingsDataGrid({
     };
   }, [columns, recomputeForFunction]);
 
-  const handleCellClick = useCallback(
-    (row: SheetData, column: any) => {
-      const columnDef = columns.find((col) => col.id === column.key);
-
-      // Don't allow editing function columns
-      if (columnDef?.dataType === "function") {
-        return;
-      }
-
-      // If already editing this cell, save and exit
-      if (
-        editingCell?.rowId === row.id &&
-        editingCell?.columnId === column.key
-      ) {
-        setEditingCell(null);
-        return;
-      }
-
-      // Start editing this cell
-      setEditingCell({
-        rowId: row.id,
-        columnId: column.key,
-        value: row[column.key as keyof SheetData],
-      });
-    },
-    [editingCell, columns]
-  );
-
-  const handleCellSave = useCallback(
-    async (rowId: string, columnId: string, newValue: any) => {
-      // Update local data
-      const updatedData = localData.map((row) =>
-        row.id === rowId ? { ...row, [columnId]: newValue } : row
-      );
-
-      setLocalData(updatedData);
-      updateData(updatedData);
-
-      // Save to Firestore
-      batchedWriter.queueFieldUpdate(rowId, columnId, newValue);
-
-      // Trigger function recomputation
-      await recomputeDirectDependentsForRow(rowId, columnId, newValue);
-
-      // Exit editing mode
-      setEditingCell(null);
-    },
-    [localData, updateData, recomputeDirectDependentsForRow]
-  );
-
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
     let filtered = localData.length > 0 ? localData : data;
@@ -1126,6 +769,86 @@ export default function BookingsDataGrid({
     return filtered;
   }, [localData, data, globalFilter, sortColumns]);
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredAndSortedData.length / pageSize);
+  const startIndex = currentPage * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentPageData = filteredAndSortedData.slice(startIndex, endIndex);
+
+  // Calculate if we need to show empty rows
+  const hasSpaceForMoreRows = currentPageData.length < pageSize;
+  const rowsToShow = hasSpaceForMoreRows ? pageSize : currentPageData.length;
+
+  // Calculate dynamic height based on number of rows
+  const rowHeight = 32; // Height of each row in pixels
+  const headerHeight = 40; // Height of header row in pixels
+  const dynamicHeight = rowsToShow * rowHeight + headerHeight;
+
+  // Helper function to render empty row cells
+  const renderEmptyRowCell = (
+    column: any,
+    isFirstEmptyRow: boolean,
+    shouldShowAddButton: boolean
+  ) => {
+    const isFirstColumn = column.key === columns[0]?.id;
+
+    if (isFirstColumn && shouldShowAddButton) {
+      return (
+        <div
+          className={`h-8 w-full flex items-center px-2 border-r border-b border-gray-200 ${
+            isFirstEmptyRow ? "opacity-100" : "opacity-60"
+          }`}
+        >
+          <Button
+            onClick={handleAddNewRow}
+            disabled={isAddingRow}
+            className="bg-royal-purple hover:bg-royal-purple/90 h-6 px-2 text-xs"
+          >
+            <Plus className="h-3 w-3 mr-1" />
+            Add Row
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={`h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200 ${
+          isFirstEmptyRow ? "opacity-100" : "opacity-60"
+        }`}
+      >
+        -
+      </div>
+    );
+  };
+
+  // Create data with empty rows for layout
+  const dataWithEmptyRows = useMemo(() => {
+    const dataRows = currentPageData.map((row, index) => ({
+      ...row,
+      _isDataRow: true,
+      _displayIndex: startIndex + index,
+    }));
+
+    // Add empty rows to reach minimum
+    const emptyRows = [];
+    for (let i = currentPageData.length; i < rowsToShow; i++) {
+      const isFirstEmptyRow = i === currentPageData.length;
+      const actualRowNumber = startIndex + i;
+
+      emptyRows.push({
+        id: `empty-${i}`,
+        _isDataRow: false,
+        _isEmptyRow: true,
+        _isFirstEmptyRow: isFirstEmptyRow,
+        _displayIndex: actualRowNumber,
+        _shouldShowAddButton: hasSpaceForMoreRows && isFirstEmptyRow,
+      });
+    }
+
+    return [...dataRows, ...emptyRows];
+  }, [currentPageData, rowsToShow, hasSpaceForMoreRows, startIndex]);
+
   // Convert SheetColumn to react-data-grid Column format
   const gridColumns = useMemo<Column<SheetData>[]>(() => {
     // Safety check for columns
@@ -1142,7 +865,26 @@ export default function BookingsDataGrid({
       resizable: false,
       sortable: false,
       frozen: true,
+      editable: false,
       renderCell: ({ row }) => {
+        const isDataRow = (row as any)._isDataRow;
+        const isEmptyRow = (row as any)._isEmptyRow;
+        const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+        const shouldShowAddButton = (row as any)._shouldShowAddButton;
+        const displayIndex = (row as any)._displayIndex;
+
+        if (isEmptyRow) {
+          return (
+            <div
+              className={`h-8 w-16 flex items-center justify-center text-sm font-mono px-2 border-r border-b border-gray-200 ${
+                isFirstEmptyRow ? "text-grey/50" : "text-grey/30"
+              }`}
+            >
+              {displayIndex}
+            </div>
+          );
+        }
+
         const rowNumber = parseInt(row.id);
         return (
           <div className="h-8 w-16 flex items-center justify-center text-sm font-mono text-grey px-2 border-r border-b border-gray-200">
@@ -1185,147 +927,461 @@ export default function BookingsDataGrid({
 
         // Add column-specific properties
         if (col.dataType === "boolean") {
-          baseColumn.renderCell = ({ row, column }) => (
-            <BooleanFormatter
-              row={row}
-              column={column}
-              onCellClick={handleCellClick}
-              onCellSave={handleCellSave}
-              isEditing={
-                editingCell?.rowId === row.id &&
-                editingCell?.columnId === col.id
-              }
-            />
-          );
-          baseColumn.editable = true;
-          (baseColumn as any).columnDef = col;
-        } else if (col.dataType === "date") {
-          baseColumn.renderCell = ({ row, column }) => (
-            <DateFormatter
-              row={row}
-              column={column}
-              onCellClick={handleCellClick}
-              onCellSave={handleCellSave}
-              isEditing={
-                editingCell?.rowId === row.id &&
-                editingCell?.columnId === col.id
-              }
-            />
-          );
-          baseColumn.editable = true;
-          (baseColumn as any).columnDef = col;
-        } else if (col.dataType === "select") {
+          // Always render checkbox input for boolean columns
           baseColumn.renderCell = ({ row, column }) => {
-            const isEditing =
-              editingCell?.rowId === row.id && editingCell?.columnId === col.id;
-            if (isEditing) {
-              return (
-                <CustomCellEditor
-                  row={row}
-                  column={column}
-                  onSave={(newValue) =>
-                    handleCellSave(row.id, column.key, newValue)
-                  }
-                  onCancel={() => handleCellClick(row, column)}
-                />
-              );
-            }
+            const cellValue = !!row[column.key as keyof SheetData];
+
+            console.log("🔧 Boolean cell rendered (always input):", {
+              columnName: col.columnName,
+              rowId: row.id,
+              columnKey: column.key,
+              cellValue,
+            });
+
             return (
-              <div
-                className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200 cursor-pointer hover:bg-gray-50"
-                onClick={() => handleCellClick(row, column)}
-              >
-                {row[col.id]?.toString() || ""}
+              <div className="h-8 w-full flex items-center justify-center px-2 border-r border-b border-gray-200">
+                <input
+                  type="checkbox"
+                  checked={cellValue}
+                  onChange={async (e) => {
+                    const newValue = e.target.checked;
+                    console.log("🔧 Boolean input changed:", {
+                      rowId: row.id,
+                      columnKey: column.key,
+                      newValue,
+                      originalValue: cellValue,
+                    });
+
+                    // Update local data immediately
+                    setLocalData((prev) =>
+                      prev.map((r) =>
+                        r.id === row.id ? { ...r, [column.key]: newValue } : r
+                      )
+                    );
+
+                    // Save to Firestore
+                    try {
+                      await bookingService.updateBookingField(
+                        row.id,
+                        column.key,
+                        newValue
+                      );
+                      console.log("🔧 Boolean saved to Firestore successfully");
+                    } catch (error) {
+                      console.error(
+                        "❌ Failed to save boolean to Firestore:",
+                        error
+                      );
+                      // Revert local change on error
+                      setLocalData((prev) =>
+                        prev.map((r) =>
+                          r.id === row.id
+                            ? { ...r, [column.key]: cellValue }
+                            : r
+                        )
+                      );
+                    }
+                  }}
+                  className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
+                />
               </div>
             );
           };
-          baseColumn.editable = true;
-          (baseColumn as any).options = col.options || [];
-          (baseColumn as any).columnDef = col;
+          baseColumn.editable = false; // We handle editing through the checkbox
+          console.log("🔧 Boolean column configured (always input):", {
+            columnName: col.columnName,
+            hasRenderCell: !!baseColumn.renderCell,
+            editable: baseColumn.editable,
+          });
+        } else if (col.dataType === "date") {
+          // Always render date input for date columns
+          baseColumn.renderCell = ({ row, column }) => {
+            const isEmptyRow = (row as any)._isEmptyRow;
+            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+            if (isEmptyRow) {
+              return renderEmptyRowCell(
+                column,
+                isFirstEmptyRow,
+                shouldShowAddButton
+              );
+            }
+
+            const cellValue = row[column.key as keyof SheetData];
+
+            console.log("📅 Date cell rendered (always input):", {
+              columnName: col.columnName,
+              rowId: row.id,
+              columnKey: column.key,
+              cellValue,
+            });
+
+            return (
+              <input
+                type="date"
+                value={(() => {
+                  if (cellValue) {
+                    try {
+                      let date: Date | null = null;
+                      if (
+                        cellValue &&
+                        typeof cellValue === "object" &&
+                        "toDate" in cellValue &&
+                        typeof (cellValue as any).toDate === "function"
+                      ) {
+                        date = (cellValue as any).toDate();
+                      } else if (
+                        cellValue &&
+                        typeof cellValue === "object" &&
+                        "seconds" in cellValue &&
+                        typeof (cellValue as any).seconds === "number"
+                      ) {
+                        date = new Date((cellValue as any).seconds * 1000);
+                      } else if (typeof cellValue === "number") {
+                        if (cellValue > 1000000000000) {
+                          date = new Date(cellValue);
+                        } else {
+                          date = new Date(cellValue * 1000);
+                        }
+                      } else if (typeof cellValue === "string") {
+                        const numericValue = parseFloat(cellValue);
+                        if (!isNaN(numericValue)) {
+                          if (numericValue > 1000000000000) {
+                            date = new Date(numericValue);
+                          } else {
+                            date = new Date(numericValue * 1000);
+                          }
+                        } else {
+                          date = new Date(cellValue);
+                        }
+                      } else if (cellValue instanceof Date) {
+                        date = cellValue;
+                      }
+                      if (date && !isNaN(date.getTime())) {
+                        return date.toISOString().split("T")[0];
+                      }
+                    } catch (error) {
+                      console.error("Error parsing date:", error);
+                    }
+                  }
+                  return "";
+                })()}
+                onChange={async (e) => {
+                  const newValue = e.target.value
+                    ? new Date(e.target.value)
+                    : null;
+                  console.log("📅 Date input changed:", {
+                    rowId: row.id,
+                    columnKey: column.key,
+                    newValue,
+                    originalValue: cellValue,
+                  });
+
+                  // Update local data immediately
+                  setLocalData((prev) =>
+                    prev.map((r) =>
+                      r.id === row.id ? { ...r, [column.key]: newValue } : r
+                    )
+                  );
+
+                  // Save to Firestore
+                  try {
+                    await bookingService.updateBookingField(
+                      row.id,
+                      column.key,
+                      newValue
+                    );
+                    console.log("📅 Date saved to Firestore successfully");
+                  } catch (error) {
+                    console.error(
+                      "❌ Failed to save date to Firestore:",
+                      error
+                    );
+                    // Revert local change on error
+                    setLocalData((prev) =>
+                      prev.map((r) =>
+                        r.id === row.id ? { ...r, [column.key]: cellValue } : r
+                      )
+                    );
+                  }
+                }}
+                className="h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2"
+                style={{ backgroundColor: "transparent" }}
+              />
+            );
+          };
+          baseColumn.editable = false; // We handle editing through the input
+          console.log("📅 Date column configured (always input):", {
+            columnName: col.columnName,
+            hasRenderCell: !!baseColumn.renderCell,
+            editable: baseColumn.editable,
+          });
+        } else if (col.dataType === "select") {
+          // Always render select input for select columns
+          baseColumn.renderCell = ({ row, column }) => {
+            const isEmptyRow = (row as any)._isEmptyRow;
+            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+            if (isEmptyRow) {
+              return renderEmptyRowCell(
+                column,
+                isFirstEmptyRow,
+                shouldShowAddButton
+              );
+            }
+
+            const cellValue = row[column.key as keyof SheetData];
+            const options = col.options || [];
+
+            console.log("📋 Select cell rendered (always input):", {
+              columnName: col.columnName,
+              rowId: row.id,
+              columnKey: column.key,
+              cellValue,
+              options,
+            });
+
+            return (
+              <select
+                value={cellValue?.toString() || ""}
+                onChange={async (e) => {
+                  const newValue = e.target.value;
+                  console.log("📋 Select input changed:", {
+                    rowId: row.id,
+                    columnKey: column.key,
+                    newValue,
+                    originalValue: cellValue,
+                  });
+
+                  // Update local data immediately
+                  setLocalData((prev) =>
+                    prev.map((r) =>
+                      r.id === row.id ? { ...r, [column.key]: newValue } : r
+                    )
+                  );
+
+                  // Save to Firestore
+                  try {
+                    await bookingService.updateBookingField(
+                      row.id,
+                      column.key,
+                      newValue
+                    );
+                    console.log("📋 Select saved to Firestore successfully");
+                  } catch (error) {
+                    console.error(
+                      "❌ Failed to save select to Firestore:",
+                      error
+                    );
+                    // Revert local change on error
+                    setLocalData((prev) =>
+                      prev.map((r) =>
+                        r.id === row.id ? { ...r, [column.key]: cellValue } : r
+                      )
+                    );
+                  }
+                }}
+                className="h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2"
+                style={{ backgroundColor: "transparent" }}
+              >
+                <option value="">Select option</option>
+                {options.map((option: string) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            );
+          };
+          baseColumn.editable = false; // We handle editing through the select
+          console.log("📋 Select column configured (always input):", {
+            columnName: col.columnName,
+            hasRenderCell: !!baseColumn.renderCell,
+            editable: baseColumn.editable,
+            options: col.options,
+          });
         } else if (col.dataType === "currency") {
-          baseColumn.renderCell = ({ row, column }) => (
-            <CurrencyFormatter
-              row={row}
-              column={column}
-              onCellClick={handleCellClick}
-              onCellSave={handleCellSave}
-              isEditing={
-                editingCell?.rowId === row.id &&
-                editingCell?.columnId === col.id
-              }
-            />
-          );
-          baseColumn.editable = true;
-          (baseColumn as any).columnDef = col;
+          // Always render currency input for currency columns
+          baseColumn.renderCell = ({ row, column }) => {
+            const cellValue = row[column.key as keyof SheetData];
+            const numericValue =
+              typeof cellValue === "number"
+                ? cellValue
+                : parseFloat(cellValue?.toString() || "0") || 0;
+
+            console.log("💰 Currency cell rendered (always input):", {
+              columnName: col.columnName,
+              rowId: row.id,
+              columnKey: column.key,
+              cellValue,
+              numericValue,
+            });
+
+            return (
+              <input
+                type="number"
+                step="0.01"
+                value={numericValue || ""}
+                onChange={async (e) => {
+                  const newValue = parseFloat(e.target.value) || 0;
+                  console.log("💰 Currency input changed:", {
+                    rowId: row.id,
+                    columnKey: column.key,
+                    newValue,
+                    originalValue: cellValue,
+                  });
+
+                  // Update local data immediately
+                  setLocalData((prev) =>
+                    prev.map((r) =>
+                      r.id === row.id ? { ...r, [column.key]: newValue } : r
+                    )
+                  );
+
+                  // Save to Firestore
+                  try {
+                    await bookingService.updateBookingField(
+                      row.id,
+                      column.key,
+                      newValue
+                    );
+                    console.log("💰 Currency saved to Firestore successfully");
+                  } catch (error) {
+                    console.error(
+                      "❌ Failed to save currency to Firestore:",
+                      error
+                    );
+                    // Revert local change on error
+                    setLocalData((prev) =>
+                      prev.map((r) =>
+                        r.id === row.id ? { ...r, [column.key]: cellValue } : r
+                      )
+                    );
+                  }
+                }}
+                className="h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2"
+                style={{ backgroundColor: "transparent" }}
+                placeholder="0.00"
+              />
+            );
+          };
+          baseColumn.editable = false; // We handle editing through the input
+          console.log("💰 Currency column configured (always input):", {
+            columnName: col.columnName,
+            hasRenderCell: !!baseColumn.renderCell,
+            editable: baseColumn.editable,
+          });
         } else if (col.dataType === "function") {
-          baseColumn.renderCell = FunctionFormatter;
+          baseColumn.renderCell = ({ row, column }) => {
+            const isEmptyRow = (row as any)._isEmptyRow;
+            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+            if (isEmptyRow) {
+              return renderEmptyRowCell(
+                column,
+                isFirstEmptyRow,
+                shouldShowAddButton
+              );
+            }
+
+            return (
+              <div className="h-8 w-full flex items-center px-2 border-r border-b border-gray-200">
+                <FunctionFormatter
+                  value={row[column.key as keyof SheetData]}
+                  row={row}
+                  column={column}
+                />
+              </div>
+            );
+          };
           baseColumn.sortable = false;
           baseColumn.editable = false;
           (baseColumn as any).columnDef = col;
           (baseColumn as any).deleteRow = deleteRow;
         } else if (col.dataType === "number") {
           baseColumn.renderCell = ({ row, column }) => {
-            const isEditing =
-              editingCell?.rowId === row.id && editingCell?.columnId === col.id;
-            if (isEditing) {
-              return (
-                <CustomCellEditor
-                  row={row}
-                  column={column}
-                  onSave={(newValue) =>
-                    handleCellSave(row.id, column.key, newValue)
-                  }
-                  onCancel={() => handleCellClick(row, column)}
-                />
+            const isEmptyRow = (row as any)._isEmptyRow;
+            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+            if (isEmptyRow) {
+              return renderEmptyRowCell(
+                column,
+                isFirstEmptyRow,
+                shouldShowAddButton
               );
             }
+
             return (
-              <div
-                className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200 cursor-pointer hover:bg-gray-50"
-                onClick={() => handleCellClick(row, column)}
-              >
-                {row[col.id]?.toString() || ""}
+              <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
+                {row[column.key as keyof SheetData]?.toString() || ""}
               </div>
             );
           };
+          baseColumn.renderEditCell = NumberEditor; // Use direct reference
           baseColumn.editable = true;
-          (baseColumn as any).columnDef = col;
+          console.log("🔢 Number column configured:", {
+            columnName: col.columnName,
+            hasRenderEditCell: !!baseColumn.renderEditCell,
+          });
         } else {
           // Default renderer for string, email, etc.
           baseColumn.renderCell = ({ row, column }) => {
-            const isEditing =
-              editingCell?.rowId === row.id && editingCell?.columnId === col.id;
-            if (isEditing) {
-              return (
-                <CustomCellEditor
-                  row={row}
-                  column={column}
-                  onSave={(newValue) =>
-                    handleCellSave(row.id, column.key, newValue)
-                  }
-                  onCancel={() => handleCellClick(row, column)}
-                />
+            const isEmptyRow = (row as any)._isEmptyRow;
+            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+            if (isEmptyRow) {
+              return renderEmptyRowCell(
+                column,
+                isFirstEmptyRow,
+                shouldShowAddButton
               );
             }
+
             return (
-              <div
-                className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200 cursor-pointer hover:bg-gray-50"
-                onClick={() => handleCellClick(row, column)}
-              >
-                {row[col.id]?.toString() || ""}
+              <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
+                {row[column.key as keyof SheetData]?.toString() || ""}
               </div>
             );
           };
+          baseColumn.renderEditCell = textEditor; // Use direct reference
           baseColumn.editable = true;
-          (baseColumn as any).columnDef = col;
+          console.log("📝 Text column configured:", {
+            columnName: col.columnName,
+            hasRenderEditCell: !!baseColumn.renderEditCell,
+          });
         }
 
         // Ensure every column has a renderCell function
         if (!baseColumn.renderCell) {
-          baseColumn.renderCell = ({ row }) => (
-            <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
-              {row[col.id]?.toString() || ""}
-            </div>
+          baseColumn.renderCell = ({ row, column }) => {
+            const isEmptyRow = (row as any)._isEmptyRow;
+            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+            if (isEmptyRow) {
+              return renderEmptyRowCell(
+                column,
+                isFirstEmptyRow,
+                shouldShowAddButton
+              );
+            }
+
+            return (
+              <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
+                {row[column.key as keyof SheetData]?.toString() || ""}
+              </div>
+            );
+          };
+          baseColumn.renderEditCell = textEditor; // Use direct reference
+          baseColumn.editable = true;
+          console.log(
+            "📝 Fallback text editor configured for column:",
+            col.columnName
           );
         }
 
@@ -1345,6 +1401,8 @@ export default function BookingsDataGrid({
               {row[col.key as keyof SheetData]?.toString() || ""}
             </div>
           ),
+          renderEditCell: textEditor, // Use direct reference
+          editable: true,
         };
       }
       return col;
@@ -1371,7 +1429,7 @@ export default function BookingsDataGrid({
     }
 
     return validatedColumns;
-  }, [columns, deleteRow, editingCell, handleCellClick, handleCellSave]);
+  }, [columns, deleteRow]);
 
   const handleAddNewRow = async () => {
     try {
@@ -1462,16 +1520,27 @@ export default function BookingsDataGrid({
         <TooltipProvider>
           <DataGrid
             columns={gridColumns}
-            rows={filteredAndSortedData}
+            rows={dataWithEmptyRows}
             onRowsChange={(rows, { indexes, column }) => {
-              // Handle row changes
-              const newData = rows as SheetData[];
+              // Filter out empty rows and only process data rows
+              const dataRows = rows.filter(
+                (row: any) => row._isDataRow !== false
+              );
+              const newData = dataRows as SheetData[];
               updateData(newData);
               setLocalData(newData);
 
+              // Find the column definition for debugging
+              const columnDef = column
+                ? columns.find((col) => col.id === column.key)
+                : null;
+
               console.log("🔄 Row change detected:", {
                 indexes,
-                column,
+                column: column?.key,
+                columnName: columnDef?.columnName,
+                dataType: columnDef?.dataType,
+                isEditable: columnDef?.dataType !== "function",
                 rowsCount: rows.length,
               });
 
@@ -1486,6 +1555,9 @@ export default function BookingsDataGrid({
                   rowId: changedRow.id,
                   hasOriginal: !!originalRow,
                   column: column?.key,
+                  columnName: columnDef?.columnName,
+                  dataType: columnDef?.dataType,
+                  isFunctionColumn: columnDef?.dataType === "function",
                 });
 
                 if (originalRow && column) {
@@ -1495,10 +1567,16 @@ export default function BookingsDataGrid({
                   const newValue = changedRow[fieldKey as keyof SheetData];
 
                   if (oldValue !== newValue) {
-                    console.log(`💾 Updating field ${fieldKey}:`, {
-                      oldValue,
-                      newValue,
-                    });
+                    console.log(
+                      `💾 Updating field ${fieldKey} (${columnDef?.dataType}):`,
+                      {
+                        oldValue,
+                        newValue,
+                        columnName: columnDef?.columnName,
+                        dataType: columnDef?.dataType,
+                        isFunctionColumn: columnDef?.dataType === "function",
+                      }
+                    );
                     batchedWriter.queueFieldUpdate(
                       changedRow.id,
                       fieldKey,
@@ -1519,12 +1597,34 @@ export default function BookingsDataGrid({
                       key !== "id" && originalRow[key] !== changedRow[key]
                   );
 
-                  console.log("📝 Multiple field changes:", changedFields);
+                  console.log(
+                    "📝 Multiple field changes:",
+                    changedFields.map((fieldKey) => {
+                      const fieldColumnDef = columns.find(
+                        (col) => col.id === fieldKey
+                      );
+                      return {
+                        fieldKey,
+                        columnName: fieldColumnDef?.columnName,
+                        dataType: fieldColumnDef?.dataType,
+                      };
+                    })
+                  );
 
                   // Process each changed field
                   for (const fieldKey of changedFields) {
                     const newValue = changedRow[fieldKey as keyof SheetData];
-                    console.log(`💾 Updating field ${fieldKey}:`, newValue);
+                    const fieldColumnDef = columns.find(
+                      (col) => col.id === fieldKey
+                    );
+                    console.log(
+                      `💾 Updating field ${fieldKey} (${fieldColumnDef?.dataType}):`,
+                      {
+                        newValue,
+                        columnName: fieldColumnDef?.columnName,
+                        dataType: fieldColumnDef?.dataType,
+                      }
+                    );
                     batchedWriter.queueFieldUpdate(
                       changedRow.id,
                       fieldKey,
@@ -1542,17 +1642,51 @@ export default function BookingsDataGrid({
               });
             }}
             onCellClick={(args) => {
-              setSelectedCell({
+              const columnDef = columns.find(
+                (col) => col.id === args.column.key
+              );
+              console.log("🖱️ onCellClick handler called:", {
                 rowId: args.row.id,
-                columnId: args.column.key as string,
+                columnId: args.column.key,
+                columnName: columnDef?.columnName,
+                dataType: columnDef?.dataType,
+                isEditable: columnDef?.dataType !== "function",
+                currentValue: args.row[args.column.key as keyof SheetData],
+                allRowKeys: Object.keys(args.row),
+                allColumnIds: columns.map((c) => c.id),
               });
+
+              // Skip date columns - they handle their own clicking
+              if (columnDef?.dataType === "date") {
+                console.log(
+                  "📅 Date column clicked - skipping onCellClick handler"
+                );
+                return;
+              }
+
+              // Only allow editing for non-function columns
+              if (columnDef?.dataType !== "function") {
+                setSelectedCell({
+                  rowId: args.row.id,
+                  columnId: args.column.key as string,
+                });
+                console.log("✅ Selected cell set:", {
+                  rowId: args.row.id,
+                  columnId: args.column.key,
+                  dataType: columnDef?.dataType,
+                });
+              } else {
+                console.log(
+                  "❌ Function column clicked, not setting selected cell"
+                );
+              }
             }}
             sortColumns={sortColumns}
             onSortColumnsChange={setSortColumns}
             className="rdg-light custom-grid"
             style={
               {
-                height: 600,
+                height: dynamicHeight,
                 "--rdg-border-color": "#e5e7eb",
                 "--rdg-header-background-color": "#f9fafb",
                 "--rdg-row-hover-background-color": "#f3f4f6",
@@ -1563,15 +1697,15 @@ export default function BookingsDataGrid({
             defaultColumnOptions={{
               sortable: true,
               resizable: true,
+              editable: true,
               renderCell: ({ row, column }) => (
                 <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
                   {row[column.key as keyof SheetData]?.toString() || ""}
                 </div>
               ),
+              // Don't set a default renderEditCell - let each column define its own
             }}
             enableVirtualization
-            enableCellSelect
-            enableCellEdit
             renderers={{
               noRowsFallback: (
                 <div className="flex flex-col items-center justify-center h-32 text-gray-500">
@@ -1590,6 +1724,69 @@ export default function BookingsDataGrid({
             }}
           />
         </TooltipProvider>
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-royal-purple/20">
+        <div className="text-sm text-gray-700">
+          Showing {startIndex + 1} to{" "}
+          {Math.min(endIndex, filteredAndSortedData.length)} of{" "}
+          {filteredAndSortedData.length} entries
+        </div>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700">
+              Rows per page:
+            </label>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(0); // Reset to first page when changing page size
+              }}
+              className="h-8 px-2 border border-royal-purple/20 rounded focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/20 focus:outline-none"
+            >
+              {[10, 20, 30, 40, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setCurrentPage(0)}
+              disabled={currentPage === 0}
+              className="px-2 py-1 text-sm border border-royal-purple/20 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-royal-purple/5"
+            >
+              First
+            </button>
+            <button
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 0}
+              className="px-2 py-1 text-sm border border-royal-purple/20 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-royal-purple/5"
+            >
+              Previous
+            </button>
+            <span className="px-3 py-1 text-sm text-gray-700">
+              Page {currentPage + 1} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage >= totalPages - 1}
+              className="px-2 py-1 text-sm border border-royal-purple/20 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-royal-purple/5"
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages - 1)}
+              disabled={currentPage >= totalPages - 1}
+              className="px-2 py-1 text-sm border border-royal-purple/20 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-royal-purple/5"
+            >
+              Last
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Modals */}
