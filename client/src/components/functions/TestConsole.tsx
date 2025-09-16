@@ -194,15 +194,15 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
       // Create a sandbox to execute custom code
       const sandbox = new Function("exports", "module", "require", customCode);
 
-      const module = { exports: {} as any };
-      const result = sandbox(module.exports, module, () => {});
+      const moduleObj = { exports: {} as any };
+      const result = sandbox(moduleObj.exports, moduleObj, () => {});
 
       const endTime = performance.now();
       const executionTime = endTime - startTime;
 
       const testResult: TestResult = {
         success: true,
-        result: result || module.exports,
+        result: result || moduleObj.exports,
         executionTime,
         timestamp: new Date(),
       };
@@ -299,7 +299,7 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
               <p>To test a function, add:</p>
               <div className="bg-muted/50 p-2 rounded text-left font-mono">
                 <div>export default function myFunction() {`{`}</div>
-                <div className="ml-2">// Your code here</div>
+                <div className="ml-2">{/* Your code here */}</div>
                 <div className="ml-2">return "Hello World";</div>
                 <div>{`}`}</div>
               </div>

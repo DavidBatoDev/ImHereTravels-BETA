@@ -1118,7 +1118,6 @@ export default function BookingsSheet() {
         }
       }
       // Expedite persistence
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       batchedWriter.flush();
     },
     [columns, localData, data, computeFunctionForRow]
@@ -1143,7 +1142,6 @@ export default function BookingsSheet() {
               // Invalidate compiled function cache so next compute uses fresh code
               functionExecutionService.invalidate(funcId);
               // Recompute only affected columns and their dependents
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
               recomputeForFunction(funcId);
             }
           );
