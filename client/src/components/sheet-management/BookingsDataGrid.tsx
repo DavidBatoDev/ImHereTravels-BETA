@@ -9,8 +9,8 @@ import React, {
   useRef,
 } from "react";
 // Import react-data-grid components
-const DataGrid = require("react-data-grid").DataGrid;
-const textEditor = require("react-data-grid").textEditor;
+// @ts-expect-error - react-data-grid v7 has incorrect type definitions
+import { DataGrid, textEditor } from "react-data-grid";
 
 // Debug the textEditor
 console.log("textEditor from react-data-grid:", typeof textEditor, textEditor);
