@@ -398,10 +398,10 @@ const BooleanFormatter = memo(function BooleanFormatter({
 }: RenderCellProps<SheetData>) {
   const value = !!row[column.key as keyof SheetData];
   return (
-    <div className="flex items-center justify-center h-8 w-full px-2 border-r border-b border-gray-200">
+    <div className="flex items-center justify-center h-8 w-full px-2 border-r border-b border-border">
       <span
         className={`text-sm font-medium ${
-          value ? "text-royal-purple font-semibold" : "text-gray-500"
+          value ? "text-royal-purple font-semibold" : "text-muted-foreground"
         }`}
       >
         {value ? "Yes" : "No"}
@@ -418,7 +418,7 @@ const DateFormatter = memo(function DateFormatter({
 
   if (!value)
     return (
-      <div className="h-8 w-full flex items-center text-sm text-gray-400 px-2 border-r border-b border-gray-200">
+      <div className="h-8 w-full flex items-center text-sm text-muted-foreground px-2 border-r border-b border-border">
         -
       </div>
     );
@@ -479,7 +479,7 @@ const DateFormatter = memo(function DateFormatter({
 
     if (date && !isNaN(date.getTime())) {
       return (
-        <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
+        <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-border">
           {date.toLocaleDateString()}
         </div>
       );
@@ -489,7 +489,7 @@ const DateFormatter = memo(function DateFormatter({
   }
 
   return (
-    <div className="h-8 w-full flex items-center text-sm text-red-500 px-2 border-r border-b border-gray-200">
+    <div className="h-8 w-full flex items-center text-sm text-destructive px-2 border-r border-b border-border">
       Invalid Date
     </div>
   );
@@ -504,7 +504,7 @@ const CurrencyFormatter = memo(function CurrencyFormatter({
     ? `€${parseFloat(value.toString()).toLocaleString()}`
     : "";
   return (
-    <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
+    <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-border">
       {formatted}
     </div>
   );
@@ -521,7 +521,7 @@ const FunctionFormatter = memo(function FunctionFormatter({
 
   if (columnDef.id === "delete") {
     return (
-      <div className="h-8 w-full flex items-center justify-center px-2 border-r border-b border-gray-200">
+      <div className="h-8 w-full flex items-center justify-center px-2 border-r border-b border-border">
         <Button
           variant="destructive"
           size="sm"
@@ -540,7 +540,7 @@ const FunctionFormatter = memo(function FunctionFormatter({
 
   const value = row[column.key as keyof SheetData];
   return (
-    <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
+    <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-border">
       {value?.toString() || ""}
     </div>
   );
@@ -969,8 +969,8 @@ export default function BookingsDataGrid({
   // Calculate dynamic height based on number of rows
   const rowHeight = 32; // Height of each row in pixels
   const headerHeight = 40; // Height of header row in pixels
-    //   const dynamicHeight = rowsToShow * rowHeight + headerHeight + 150;
-    const dynamicHeight = 450;
+  //   const dynamicHeight = rowsToShow * rowHeight + headerHeight + 150;
+  const dynamicHeight = 450;
 
   // Helper function to render empty row cells
   const renderEmptyRowCell = (
@@ -983,7 +983,7 @@ export default function BookingsDataGrid({
     if (isFirstColumn && shouldShowAddButton) {
       return (
         <div
-          className={`h-8 w-full flex items-center px-2 border-r border-b border-gray-200 ${
+          className={`h-8 w-full flex items-center px-2 border-r border-b border-border ${
             isFirstEmptyRow ? "opacity-100" : "opacity-60"
           }`}
         >
@@ -1001,7 +1001,7 @@ export default function BookingsDataGrid({
 
     return (
       <div
-        className={`h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200 ${
+        className={`h-8 w-full flex items-center text-sm px-2 border-r border-b border-border ${
           isFirstEmptyRow ? "opacity-100" : "opacity-60"
         }`}
       >
@@ -1073,8 +1073,10 @@ export default function BookingsDataGrid({
         if (isEmptyRow) {
           return (
             <div
-              className={`h-8 w-16 flex items-center justify-center text-sm font-mono px-2 border-r border-b border-gray-200 bg-slate-50 ${
-                isFirstEmptyRow ? "text-slate-400" : "text-slate-300"
+              className={`h-8 w-16 flex items-center justify-center text-sm font-mono px-2 border-r border-b border-border bg-muted ${
+                isFirstEmptyRow
+                  ? "text-muted-foreground"
+                  : "text-muted-foreground/60"
               }`}
             >
               {displayIndex}
@@ -1084,7 +1086,7 @@ export default function BookingsDataGrid({
 
         const rowNumber = parseInt(row.id);
         return (
-          <div className="h-8 w-16 flex items-center justify-center text-sm font-mono text-slate-600 px-2 border-r border-b border-gray-200 bg-slate-50">
+          <div className="h-8 w-16 flex items-center justify-center text-sm font-mono text-foreground px-2 border-r border-b border-border bg-muted">
             {!isNaN(rowNumber) ? rowNumber : "-"}
           </div>
         );
@@ -1093,8 +1095,8 @@ export default function BookingsDataGrid({
 
     // Add background color styling for the row number column
     (rowNumberColumn as any).headerCellClass =
-      "bg-slate-100 border-l border-r border-slate-200";
-    (rowNumberColumn as any).cellClass = "bg-slate-50";
+      "bg-muted border-l border-r border-border";
+    (rowNumberColumn as any).cellClass = "bg-muted";
 
     const dataColumns = columns
       .filter((col) => col && col.id && col.columnName) // Filter out invalid columns
@@ -1108,22 +1110,25 @@ export default function BookingsDataGrid({
           sortable: true,
         };
 
-        // Add column color styling
+        // Add column color styling (only for cells, not headers)
         if (col.color && col.color !== "none") {
           const colorClasses = {
             purple:
-              "bg-royal-purple/8 border-l border-r border-royal-purple/40",
-            blue: "bg-blue-100 border-l border-r border-royal-purple/40",
-            green: "bg-green-100 border-l border-r border-royal-purple/40",
-            yellow: "bg-yellow-100 border-l border-r border-royal-purple/40",
-            orange: "bg-orange-100 border-l border-r border-royal-purple/40",
-            red: "bg-red-100 border-l border-r border-royal-purple/40",
-            pink: "bg-pink-100 border-l border-r border-royal-purple/40",
-            cyan: "bg-cyan-100 border-l border-r border-royal-purple/40",
-            gray: "bg-gray-100 border-l border-r border-royal-purple/40",
+              "bg-royal-purple/8 border-l border-r border-royal-purple/40 text-black",
+            blue: "bg-blue-100 border-l border-r border-royal-purple/40 text-black",
+            green:
+              "bg-green-100 border-l border-r border-royal-purple/40 text-black",
+            yellow:
+              "bg-yellow-100 border-l border-r border-royal-purple/40 text-black",
+            orange:
+              "bg-orange-100 border-l border-r border-royal-purple/40 text-black",
+            red: "bg-red-100 border-l border-r border-royal-purple/40 text-black",
+            pink: "bg-pink-100 border-l border-r border-royal-purple/40 text-black",
+            cyan: "bg-cyan-100 border-l border-r border-royal-purple/40 text-black",
+            gray: "bg-gray-100 border-l border-r border-royal-purple/40 text-black",
           };
 
-          (baseColumn as any).headerCellClass = colorClasses[col.color] || "";
+          // Only apply color to cells, not headers - headers will use consistent styling
           (baseColumn as any).cellClass = colorClasses[col.color] || "";
         }
 
@@ -1137,7 +1142,7 @@ export default function BookingsDataGrid({
 
           return (
             <div className="flex items-center justify-between w-full h-full px-2">
-              <span className="font-medium text-gray-900 truncate">
+              <span className="font-medium truncate text-foreground">
                 {column.name}
               </span>
               <div className="flex items-center ml-2">
@@ -1148,7 +1153,7 @@ export default function BookingsDataGrid({
                     <ArrowDown className="h-4 w-4 text-royal-purple" />
                   )
                 ) : (
-                  <ArrowUpDown className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ArrowUpDown className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
                 )}
               </div>
             </div>
@@ -1168,8 +1173,10 @@ export default function BookingsDataGrid({
               cellValue,
             });
 
+            const hasColor = col.color && col.color !== "none";
+
             return (
-              <div className="h-8 w-full flex items-center justify-center px-2 border-r border-b border-gray-200">
+              <div className="h-8 w-full flex items-center justify-center px-2 border-r border-b border-border">
                 <input
                   type="checkbox"
                   checked={cellValue}
@@ -1246,6 +1253,8 @@ export default function BookingsDataGrid({
               columnKey: column.key,
               cellValue,
             });
+
+            const hasColor = col.color && col.color !== "none";
 
             return (
               <input
@@ -1336,7 +1345,9 @@ export default function BookingsDataGrid({
                     );
                   }
                 }}
-                className="h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2"
+                className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2 ${
+                  hasColor ? "text-black" : ""
+                }`}
                 style={{ backgroundColor: "transparent" }}
               />
             );
@@ -1364,6 +1375,7 @@ export default function BookingsDataGrid({
 
             const cellValue = row[column.key as keyof SheetData];
             const options = col.options || [];
+            const hasColor = col.color && col.color !== "none";
 
             console.log("📋 Select cell rendered (always input):", {
               columnName: col.columnName,
@@ -1413,7 +1425,9 @@ export default function BookingsDataGrid({
                     );
                   }
                 }}
-                className="h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2"
+                className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2 ${
+                  hasColor ? "text-black" : ""
+                }`}
                 style={{ backgroundColor: "transparent" }}
               >
                 <option value="">Select option</option>
@@ -1440,6 +1454,7 @@ export default function BookingsDataGrid({
               typeof cellValue === "number"
                 ? cellValue
                 : parseFloat(cellValue?.toString() || "0") || 0;
+            const hasColor = col.color && col.color !== "none";
 
             console.log("💰 Currency cell rendered (always input):", {
               columnName: col.columnName,
@@ -1491,7 +1506,9 @@ export default function BookingsDataGrid({
                     );
                   }
                 }}
-                className="h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2"
+                className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2 ${
+                  hasColor ? "text-black" : ""
+                }`}
                 style={{ backgroundColor: "transparent" }}
                 placeholder="0.00"
               />
@@ -1532,6 +1549,7 @@ export default function BookingsDataGrid({
             const isEmptyRow = (row as any)._isEmptyRow;
             const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
             const shouldShowAddButton = (row as any)._shouldShowAddButton;
+            const hasColor = col.color && col.color !== "none";
 
             if (isEmptyRow) {
               return renderEmptyRowCell(
@@ -1542,7 +1560,11 @@ export default function BookingsDataGrid({
             }
 
             return (
-              <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
+              <div
+                className={`h-8 w-full flex items-center text-sm px-2 border-r border-b border-border ${
+                  hasColor ? "text-black" : ""
+                }`}
+              >
                 {row[column.key as keyof SheetData]?.toString() || ""}
               </div>
             );
@@ -1559,6 +1581,7 @@ export default function BookingsDataGrid({
             const isEmptyRow = (row as any)._isEmptyRow;
             const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
             const shouldShowAddButton = (row as any)._shouldShowAddButton;
+            const hasColor = col.color && col.color !== "none";
 
             if (isEmptyRow) {
               return renderEmptyRowCell(
@@ -1569,7 +1592,11 @@ export default function BookingsDataGrid({
             }
 
             return (
-              <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
+              <div
+                className={`h-8 w-full flex items-center text-sm px-2 border-r border-b border-border ${
+                  hasColor ? "text-black" : ""
+                }`}
+              >
                 {row[column.key as keyof SheetData]?.toString() || ""}
               </div>
             );
@@ -1622,11 +1649,18 @@ export default function BookingsDataGrid({
         console.warn(`Column ${col.key} missing renderCell, adding fallback`);
         return {
           ...col,
-          renderCell: ({ row }: { row: SheetData }) => (
-            <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
-              {row[col.key as keyof SheetData]?.toString() || ""}
-            </div>
-          ),
+          renderCell: ({ row }: { row: SheetData }) => {
+            const hasColor = col.color && col.color !== "none";
+            return (
+              <div
+                className={`h-8 w-full flex items-center text-sm px-2 border-r border-b border-border ${
+                  hasColor ? "text-black" : ""
+                }`}
+              >
+                {row[col.key as keyof SheetData]?.toString() || ""}
+              </div>
+            );
+          },
           renderEditCell: textEditor, // Use direct reference
           editable: true,
         };
@@ -1719,10 +1753,10 @@ export default function BookingsDataGrid({
       {/* Enhanced Search and Filters */}
       <div className="space-y-4">
         {/* Main Search and Filter Controls */}
-        <div className="bg-white border border-royal-purple/20 rounded-lg p-4 shadow-sm">
+        <div className="bg-background border border-royal-purple/20 rounded-lg p-4 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="Search all columns..."
                 value={globalFilter}
@@ -1971,7 +2005,7 @@ export default function BookingsDataGrid({
                 variant="ghost"
                 size="sm"
                 onClick={clearAllFilters}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <X className="h-4 w-4 mr-1" />
                 Clear All
@@ -2242,28 +2276,41 @@ export default function BookingsDataGrid({
             style={
               {
                 height: dynamicHeight,
-                "--rdg-border-color": "#e5e7eb",
-                "--rdg-header-background-color": "#f9fafb",
-                "--rdg-row-hover-background-color": "#f3f4f6",
-                "--rdg-cell-frozen-background-color": "#f8fafc",
-                "--rdg-row-border-color": "#e5e7eb",
+                "--rdg-border-color": "hsl(var(--border))",
+                "--rdg-header-background-color": "hsl(var(--muted))",
+                "--rdg-row-hover-background-color": "hsl(var(--muted) / 0.5)",
+                "--rdg-cell-frozen-background-color": "hsl(var(--background))",
+                "--rdg-row-border-color": "hsl(var(--border))",
+                "--rdg-background-color": "hsl(var(--background))",
+                "--rdg-text-color": "hsl(var(--foreground))",
+                "--rdg-header-text-color": "hsl(var(--foreground))",
               } as React.CSSProperties
             }
             defaultColumnOptions={{
               sortable: true,
               resizable: true,
               editable: true,
-              renderCell: ({ row, column }) => (
-                <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
-                  {row[column.key as keyof SheetData]?.toString() || ""}
-                </div>
-              ),
+              renderCell: ({ row, column }) => {
+                // Check if this column has a color by finding the column definition
+                const columnDef = columns.find((col) => col.id === column.key);
+                const hasColor = columnDef?.color && columnDef.color !== "none";
+
+                return (
+                  <div
+                    className={`h-8 w-full flex items-center text-sm px-2 border-r border-b border-border ${
+                      hasColor ? "text-black" : ""
+                    }`}
+                  >
+                    {row[column.key as keyof SheetData]?.toString() || ""}
+                  </div>
+                );
+              },
               // Don't set a default renderEditCell - let each column define its own
             }}
             enableVirtualization
             renderers={{
               noRowsFallback: (
-                <div className="flex flex-col items-center justify-center h-32 text-gray-500">
+                <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
                   <p>No data available</p>
                   <Button
                     onClick={handleAddNewRow}
@@ -2282,15 +2329,15 @@ export default function BookingsDataGrid({
       </div>
 
       {/* Pagination Controls */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-royal-purple/20">
-        <div className="text-sm text-gray-700">
+      <div className="flex items-center justify-between px-4 py-3 bg-background border-t border-royal-purple/20">
+        <div className="text-sm text-foreground">
           Showing {startIndex + 1} to{" "}
           {Math.min(endIndex, filteredAndSortedData.length)} of{" "}
           {filteredAndSortedData.length} entries
         </div>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-foreground">
               Rows per page:
             </label>
             <select
@@ -2301,7 +2348,7 @@ export default function BookingsDataGrid({
               }}
               className="h-8 px-2 border border-royal-purple/20 rounded focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/20 focus:outline-none"
             >
-              {[10, 20, 30, 40, 50, 100].map((size) => (
+              {[10, 20, 30, 40, 50, 100, 200, 500, 1000].map((size) => (
                 <option key={size} value={size}>
                   {size}
                 </option>
@@ -2323,7 +2370,7 @@ export default function BookingsDataGrid({
             >
               Previous
             </button>
-            <span className="px-3 py-1 text-sm text-gray-700">
+            <span className="px-3 py-1 text-sm text-foreground">
               Page {currentPage + 1} of {totalPages}
             </span>
             <button
@@ -2358,14 +2405,14 @@ export default function BookingsDataGrid({
       {/* Loading Modal for Adding Row */}
       {isAddingRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
             <div className="flex items-center space-x-4">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-royal-purple"></div>
               <div>
-                <h3 className="text-lg font-semibold text-creative-midnight">
+                <h3 className="text-lg font-semibold text-foreground">
                   Adding New Row
                 </h3>
-                <p className="text-sm text-grey">
+                <p className="text-sm text-muted-foreground">
                   Please wait while we create your new booking row...
                 </p>
               </div>

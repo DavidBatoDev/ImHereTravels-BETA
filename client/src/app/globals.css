@@ -9,17 +9,45 @@
 }
 
 .custom-grid .rdg-cell {
-  border-right: 1px solid #e5e7eb !important;
-  border-bottom: 1px solid #e5e7eb !important;
+  border-right: 1px solid hsl(var(--border)) !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  /* background-color: hsl(var(--background)) !important; */
+  color: hsl(var(--foreground)) !important;
 }
 
 .custom-grid .rdg-header-cell {
-  border-right: 1px solid #e5e7eb !important;
-  border-bottom: 1px solid #e5e7eb !important;
+  border-right: 1px solid hsl(var(--border)) !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  background-color: hsl(var(--muted)) !important;
+  color: hsl(var(--foreground)) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  font-size: 0.95rem !important;
+  letter-spacing: 0.05em !important;
+  position: relative !important;
+}
+
+.custom-grid .rdg-header-cell::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--primary)),
+    hsl(var(--primary) / 0.3)
+  );
+  opacity: 0.6;
 }
 
 .custom-grid .rdg-row {
-  border-bottom: 1px solid #e5e7eb !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+}
+
+.custom-grid .rdg-row:hover {
+  background-color: hsl(var(--muted) / 0.5) !important;
 }
 
 /* Monaco Editor Optimizations */
