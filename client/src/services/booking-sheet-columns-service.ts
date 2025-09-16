@@ -327,10 +327,53 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
       }
 
       console.log(`🔍 Updating column ${columnId} with data:`, cleanUpdates);
+      console.log(`🔍 Column details:`, {
+        columnId,
+        docId: existingColumn.docId,
+        columnName: existingColumn.columnName,
+        currentWidth: existingColumn.width,
+        newWidth: cleanUpdates.width,
+      });
+      console.log(`🔍 Clean updates object keys:`, Object.keys(cleanUpdates));
+      console.log(
+        `🔍 Clean updates object values:`,
+        Object.values(cleanUpdates)
+      );
+      console.log(
+        `🔍 Width specifically:`,
+        cleanUpdates.width,
+        typeof cleanUpdates.width
+      );
+
       const targetId = existingColumn.docId ?? columnId;
+      console.log(`🔍 Using target document ID: ${targetId}`);
       const docRef = doc(db, COLLECTION_NAME, targetId);
+      console.log(`🔍 Document reference:`, docRef.path);
+
+      // Let's also check what the document looks like before update
+      try {
+        const docSnap = await getDoc(docRef);
+        console.log(`🔍 Document exists before update:`, docSnap.exists());
+        if (docSnap.exists()) {
+          console.log(`🔍 Current document data:`, docSnap.data());
+        }
+      } catch (error) {
+        console.log(`🔍 Error checking document before update:`, error);
+      }
+
       await updateDoc(docRef, cleanUpdates);
-      console.log(`✅ Updated column: ${columnId}`);
+      console.log(`✅ Updated column: ${columnId} in document: ${targetId}`);
+
+      // Let's also check what the document looks like after update
+      try {
+        const docSnapAfter = await getDoc(docRef);
+        console.log(`🔍 Document exists after update:`, docSnapAfter.exists());
+        if (docSnapAfter.exists()) {
+          console.log(`🔍 Document data after update:`, docSnapAfter.data());
+        }
+      } catch (error) {
+        console.log(`🔍 Error checking document after update:`, error);
+      }
     } catch (error) {
       console.error(
         `❌ Failed to update column ${columnId}: ${

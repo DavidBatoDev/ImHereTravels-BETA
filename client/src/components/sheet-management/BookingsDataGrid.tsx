@@ -53,6 +53,8 @@ import "react-data-grid/lib/styles.css";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -66,7 +68,32 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, Settings, Trash2 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Plus,
+  Settings,
+  Trash2,
+  X,
+  Search,
+  Filter,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Calendar as CalendarIcon,
+} from "lucide-react";
 import {
   SheetColumn,
   SheetData,
@@ -562,9 +589,68 @@ export default function BookingsDataGrid({
   const [localData, setLocalData] = useState<SheetData[]>([]);
   const functionSubscriptionsRef = useRef<Map<string, () => void>>(new Map());
 
+  // Enhanced filtering state
+  const [columnFilters, setColumnFilters] = useState<Record<string, any>>({});
+  const [showFilters, setShowFilters] = useState(false);
+  const [dateRangeFilters, setDateRangeFilters] = useState<
+    Record<string, { from?: Date; to?: Date }>
+  >({});
+  const [currencyRangeFilters, setCurrencyRangeFilters] = useState<
+    Record<string, { min?: number; max?: number }>
+  >({});
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+
+  // Debounced resize handler
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced function to update column width in Firebase
+  const debouncedUpdateColumnWidth = useCallback(
+    async (columnId: string, newWidth: number) => {
+      // Clear any existing timeout
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+
+      // Set a new timeout
+      resizeTimeoutRef.current = setTimeout(async () => {
+        try {
+          const columnToUpdate = columns.find((col) => col.id === columnId);
+          if (columnToUpdate) {
+            const updatedColumn = {
+              ...columnToUpdate,
+              width: newWidth,
+            };
+
+            console.log("📏 Debounced update - updating column width:", {
+              columnId,
+              newWidth,
+              columnName: columnToUpdate.columnName,
+            });
+
+            await updateColumn(updatedColumn);
+            console.log(
+              "✅ Debounced column width updated in Firebase successfully"
+            );
+          }
+        } catch (error) {
+          console.error("❌ Failed to update column width in Firebase:", error);
+        }
+      }, 300); // 300ms delay
+    },
+    [columns, updateColumn]
+  );
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Sync local data with props data
   useEffect(() => {
@@ -730,7 +816,7 @@ export default function BookingsDataGrid({
     };
   }, [columns, recomputeForFunction]);
 
-  // Filter and sort data
+  // Enhanced filtering and sorting logic
   const filteredAndSortedData = useMemo(() => {
     let filtered = localData.length > 0 ? localData : data;
 
@@ -746,6 +832,63 @@ export default function BookingsDataGrid({
         });
       });
     }
+
+    // Apply column-specific filters
+    filtered = filtered.filter((row) => {
+      return columns.every((col) => {
+        const columnKey = col.id;
+        const cellValue = row[columnKey as keyof SheetData];
+
+        // Date range filters
+        if (col.dataType === "date" && dateRangeFilters[columnKey]) {
+          const { from, to } = dateRangeFilters[columnKey];
+          if (!cellValue) return !from && !to; // Show empty values if no filter
+
+          let date: Date | null = null;
+          if (
+            cellValue &&
+            typeof cellValue === "object" &&
+            "toDate" in cellValue
+          ) {
+            date = (cellValue as any).toDate();
+          } else if (typeof cellValue === "number") {
+            date = new Date(
+              cellValue > 1000000000000 ? cellValue : cellValue * 1000
+            );
+          } else if (typeof cellValue === "string") {
+            date = new Date(cellValue);
+          } else if (cellValue instanceof Date) {
+            date = cellValue;
+          }
+
+          if (!date) return !from && !to;
+
+          if (from && date < from) return false;
+          if (to && date > to) return false;
+        }
+
+        // Currency range filters
+        if (col.dataType === "currency" && currencyRangeFilters[columnKey]) {
+          const { min, max } = currencyRangeFilters[columnKey];
+          const numericValue =
+            typeof cellValue === "number"
+              ? cellValue
+              : parseFloat(cellValue?.toString() || "0") || 0;
+
+          if (min !== undefined && numericValue < min) return false;
+          if (max !== undefined && numericValue > max) return false;
+        }
+
+        // Text filters for other column types
+        if (columnFilters[columnKey]) {
+          const filterValue = columnFilters[columnKey].toLowerCase();
+          const cellString = cellValue?.toString().toLowerCase() || "";
+          return cellString.includes(filterValue);
+        }
+
+        return true;
+      });
+    });
 
     // Apply sorting
     if (sortColumns.length > 0) {
@@ -767,7 +910,51 @@ export default function BookingsDataGrid({
     }
 
     return filtered;
-  }, [localData, data, globalFilter, sortColumns]);
+  }, [
+    localData,
+    data,
+    globalFilter,
+    sortColumns,
+    columnFilters,
+    dateRangeFilters,
+    currencyRangeFilters,
+    columns,
+  ]);
+
+  // Filter management functions
+  const clearAllFilters = useCallback(() => {
+    setGlobalFilter("");
+    setColumnFilters({});
+    setDateRangeFilters({});
+    setCurrencyRangeFilters({});
+  }, []);
+
+  const clearColumnFilter = useCallback((columnId: string) => {
+    setColumnFilters((prev) => {
+      const newFilters = { ...prev };
+      delete newFilters[columnId];
+      return newFilters;
+    });
+    setDateRangeFilters((prev) => {
+      const newFilters = { ...prev };
+      delete newFilters[columnId];
+      return newFilters;
+    });
+    setCurrencyRangeFilters((prev) => {
+      const newFilters = { ...prev };
+      delete newFilters[columnId];
+      return newFilters;
+    });
+  }, []);
+
+  const getActiveFiltersCount = useCallback(() => {
+    let count = 0;
+    if (globalFilter) count++;
+    count += Object.keys(columnFilters).length;
+    count += Object.keys(dateRangeFilters).length;
+    count += Object.keys(currencyRangeFilters).length;
+    return count;
+  }, [globalFilter, columnFilters, dateRangeFilters, currencyRangeFilters]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredAndSortedData.length / pageSize);
@@ -832,6 +1019,8 @@ export default function BookingsDataGrid({
 
     // Add empty rows to reach minimum
     const emptyRows = [];
+    const hasActiveFilters = getActiveFiltersCount() > 0;
+
     for (let i = currentPageData.length; i < rowsToShow; i++) {
       const isFirstEmptyRow = i === currentPageData.length;
       const actualRowNumber = startIndex + i;
@@ -842,12 +1031,19 @@ export default function BookingsDataGrid({
         _isEmptyRow: true,
         _isFirstEmptyRow: isFirstEmptyRow,
         _displayIndex: actualRowNumber,
-        _shouldShowAddButton: hasSpaceForMoreRows && isFirstEmptyRow,
+        _shouldShowAddButton:
+          hasSpaceForMoreRows && isFirstEmptyRow && !hasActiveFilters,
       });
     }
 
     return [...dataRows, ...emptyRows];
-  }, [currentPageData, rowsToShow, hasSpaceForMoreRows, startIndex]);
+  }, [
+    currentPageData,
+    rowsToShow,
+    hasSpaceForMoreRows,
+    startIndex,
+    getActiveFiltersCount,
+  ]);
 
   // Convert SheetColumn to react-data-grid Column format
   const gridColumns = useMemo<Column<SheetData>[]>(() => {
@@ -876,8 +1072,8 @@ export default function BookingsDataGrid({
         if (isEmptyRow) {
           return (
             <div
-              className={`h-8 w-16 flex items-center justify-center text-sm font-mono px-2 border-r border-b border-gray-200 ${
-                isFirstEmptyRow ? "text-grey/50" : "text-grey/30"
+              className={`h-8 w-16 flex items-center justify-center text-sm font-mono px-2 border-r border-b border-gray-200 bg-slate-50 ${
+                isFirstEmptyRow ? "text-slate-400" : "text-slate-300"
               }`}
             >
               {displayIndex}
@@ -887,12 +1083,17 @@ export default function BookingsDataGrid({
 
         const rowNumber = parseInt(row.id);
         return (
-          <div className="h-8 w-16 flex items-center justify-center text-sm font-mono text-grey px-2 border-r border-b border-gray-200">
+          <div className="h-8 w-16 flex items-center justify-center text-sm font-mono text-slate-600 px-2 border-r border-b border-gray-200 bg-slate-50">
             {!isNaN(rowNumber) ? rowNumber : "-"}
           </div>
         );
       },
     };
+
+    // Add background color styling for the row number column
+    (rowNumberColumn as any).headerCellClass =
+      "bg-slate-100 border-l border-r border-slate-200";
+    (rowNumberColumn as any).cellClass = "bg-slate-50";
 
     const dataColumns = columns
       .filter((col) => col && col.id && col.columnName) // Filter out invalid columns
@@ -924,6 +1125,34 @@ export default function BookingsDataGrid({
           (baseColumn as any).headerCellClass = colorClasses[col.color] || "";
           (baseColumn as any).cellClass = colorClasses[col.color] || "";
         }
+
+        // Add custom header with sorting indicators
+        baseColumn.renderHeaderCell = ({ column }) => {
+          const currentSort = sortColumns.find(
+            (sort) => sort.columnKey === column.key
+          );
+          const isSorted = !!currentSort;
+          const sortDirection = currentSort?.direction;
+
+          return (
+            <div className="flex items-center justify-between w-full h-full px-2">
+              <span className="font-medium text-gray-900 truncate">
+                {column.name}
+              </span>
+              <div className="flex items-center ml-2">
+                {isSorted ? (
+                  sortDirection === "ASC" ? (
+                    <ArrowUp className="h-4 w-4 text-royal-purple" />
+                  ) : (
+                    <ArrowDown className="h-4 w-4 text-royal-purple" />
+                  )
+                ) : (
+                  <ArrowUpDown className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                )}
+              </div>
+            </div>
+          );
+        };
 
         // Add column-specific properties
         if (col.dataType === "boolean") {
@@ -1289,11 +1518,7 @@ export default function BookingsDataGrid({
 
             return (
               <div className="h-8 w-full flex items-center px-2 border-r border-b border-gray-200">
-                <FunctionFormatter
-                  value={row[column.key as keyof SheetData]}
-                  row={row}
-                  column={column}
-                />
+                <FunctionFormatter row={row} column={column} />
               </div>
             );
           };
@@ -1482,37 +1707,290 @@ export default function BookingsDataGrid({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground font-hk-grotesk">
-            Bookings Data Grid
+            All Bookings Data
           </h2>
           <p className="text-muted-foreground">
-            Manage your bookings data with react-data-grid
+            Manage your bookings data with spreadsheets
           </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={handleAddNewRow}
-            disabled={isAddingRow}
-            className="bg-royal-purple hover:bg-royal-purple/90"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Row
-          </Button>
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex items-center gap-4">
-        <div className="flex-1">
-          <Input
-            placeholder="Search all columns..."
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0"
-          />
+      {/* Enhanced Search and Filters */}
+      <div className="space-y-4">
+        {/* Main Search and Filter Controls */}
+        <div className="bg-white border border-royal-purple/20 rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search all columns..."
+                value={globalFilter}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0"
+              />
+            </div>
+            <Dialog open={showFilters} onOpenChange={setShowFilters}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filters
+                  {getActiveFiltersCount() > 0 && (
+                    <Badge variant="secondary" className="ml-1">
+                      {getActiveFiltersCount()}
+                    </Badge>
+                  )}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="text-lg font-semibold text-gray-900">
+                    Advanced Filters
+                  </DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {columns.map((col) => {
+                      if (col.dataType === "date") {
+                        return (
+                          <div key={col.id} className="space-y-2">
+                            <Label className="text-xs font-medium text-gray-700">
+                              {col.columnName} (Date Range)
+                            </Label>
+                            <div className="flex gap-2">
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1 justify-start text-left font-normal"
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRangeFilters[col.id]?.from
+                                      ? dateRangeFilters[
+                                          col.id
+                                        ].from?.toLocaleDateString()
+                                      : "From"}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  className="w-auto p-0"
+                                  align="start"
+                                >
+                                  <Calendar
+                                    mode="single"
+                                    selected={dateRangeFilters[col.id]?.from}
+                                    onSelect={(date) =>
+                                      setDateRangeFilters((prev) => ({
+                                        ...prev,
+                                        [col.id]: {
+                                          ...prev[col.id],
+                                          from: date,
+                                        },
+                                      }))
+                                    }
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1 justify-start text-left font-normal"
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRangeFilters[col.id]?.to
+                                      ? dateRangeFilters[
+                                          col.id
+                                        ].to?.toLocaleDateString()
+                                      : "To"}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  className="w-auto p-0"
+                                  align="start"
+                                >
+                                  <Calendar
+                                    mode="single"
+                                    selected={dateRangeFilters[col.id]?.to}
+                                    onSelect={(date) =>
+                                      setDateRangeFilters((prev) => ({
+                                        ...prev,
+                                        [col.id]: {
+                                          ...prev[col.id],
+                                          to: date,
+                                        },
+                                      }))
+                                    }
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              {(dateRangeFilters[col.id]?.from ||
+                                dateRangeFilters[col.id]?.to) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => clearColumnFilter(col.id)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (col.dataType === "currency") {
+                        return (
+                          <div key={col.id} className="space-y-2">
+                            <Label className="text-xs font-medium text-gray-700">
+                              {col.columnName} (Range)
+                            </Label>
+                            <div className="flex gap-2">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="Min"
+                                value={currencyRangeFilters[col.id]?.min || ""}
+                                onChange={(e) =>
+                                  setCurrencyRangeFilters((prev) => ({
+                                    ...prev,
+                                    [col.id]: {
+                                      ...prev[col.id],
+                                      min: e.target.value
+                                        ? parseFloat(e.target.value)
+                                        : undefined,
+                                    },
+                                  }))
+                                }
+                                className="text-xs"
+                              />
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="Max"
+                                value={currencyRangeFilters[col.id]?.max || ""}
+                                onChange={(e) =>
+                                  setCurrencyRangeFilters((prev) => ({
+                                    ...prev,
+                                    [col.id]: {
+                                      ...prev[col.id],
+                                      max: e.target.value
+                                        ? parseFloat(e.target.value)
+                                        : undefined,
+                                    },
+                                  }))
+                                }
+                                className="text-xs"
+                              />
+                              {(currencyRangeFilters[col.id]?.min !==
+                                undefined ||
+                                currencyRangeFilters[col.id]?.max !==
+                                  undefined) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => clearColumnFilter(col.id)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Text filter for other column types
+                      return (
+                        <div key={col.id} className="space-y-2">
+                          <Label className="text-xs font-medium text-gray-700">
+                            {col.columnName}
+                          </Label>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder={`Filter ${col.columnName}...`}
+                              value={columnFilters[col.id] || ""}
+                              onChange={(e) =>
+                                setColumnFilters((prev) => ({
+                                  ...prev,
+                                  [col.id]: e.target.value,
+                                }))
+                              }
+                              className="text-xs"
+                            />
+                            {columnFilters[col.id] && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => clearColumnFilter(col.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div className="text-sm text-gray-600">
+                      {getActiveFiltersCount() > 0 && (
+                        <span>
+                          {getActiveFiltersCount()} filter
+                          {getActiveFiltersCount() !== 1 ? "s" : ""} applied
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={clearAllFilters}
+                        disabled={getActiveFiltersCount() === 0}
+                      >
+                        Clear All
+                      </Button>
+                      <Button
+                        onClick={() => setShowFilters(false)}
+                        className="bg-royal-purple hover:bg-royal-purple/90"
+                      >
+                        Apply Filters
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            {getActiveFiltersCount() > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllFilters}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Clear All
+              </Button>
+            )}
+          </div>
         </div>
-        <div className="text-sm text-muted-foreground">
-          Showing {filteredAndSortedData.length} of {data.length} rows
-        </div>
+
+        {/* Results Summary */}
+        {/* <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div>
+            Showing {filteredAndSortedData.length} of {data.length} rows
+            {getActiveFiltersCount() > 0 && (
+              <span className="ml-2 text-royal-purple">
+                ({getActiveFiltersCount()} filter
+                {getActiveFiltersCount() !== 1 ? "s" : ""} applied)
+              </span>
+            )}
+          </div>
+        </div> */}
       </div>
 
       {/* Data Grid */}
@@ -1683,6 +2161,82 @@ export default function BookingsDataGrid({
             }}
             sortColumns={sortColumns}
             onSortColumnsChange={setSortColumns}
+            onColumnResize={(columnKey, width) => {
+              console.log("📏 Column resized:", { columnKey, width });
+
+              // Handle both string key and column object
+              let actualColumnKey = columnKey;
+              let actualWidth = width;
+
+              // If columnKey is an object (column definition), extract the key and width
+              if (typeof columnKey === "object" && columnKey !== null) {
+                actualColumnKey = columnKey.key;
+                // The width parameter should contain the new width, not the column object's width
+                actualWidth = width; // Use the width parameter directly
+                console.log("📏 Extracted from column object:", {
+                  actualColumnKey,
+                  actualWidth,
+                  originalWidth: columnKey.width,
+                  widthParameter: width,
+                });
+              }
+
+              // Find the column and update its width
+              const columnToUpdate = columns.find(
+                (col) => col.id === actualColumnKey
+              );
+
+              if (columnToUpdate) {
+                console.log("📏 Column resize - debouncing Firebase update:", {
+                  columnId: actualColumnKey,
+                  newWidth: actualWidth,
+                  columnName: columnToUpdate.columnName,
+                });
+
+                // Only debounce the Firebase update - no immediate updateColumn call
+                // The grid will handle the visual update internally
+                debouncedUpdateColumnWidth(actualColumnKey, actualWidth);
+              } else {
+                console.warn(
+                  "⚠️ Column not found for resize:",
+                  actualColumnKey
+                );
+              }
+            }}
+            onColumnsChange={async (newColumns) => {
+              console.log("📏 Columns changed:", newColumns);
+
+              // Check if any column width changed
+              for (const newCol of newColumns) {
+                const existingCol = columns.find(
+                  (col) => col.id === newCol.key
+                );
+                if (existingCol && existingCol.width !== newCol.width) {
+                  console.log("📏 Column width changed:", {
+                    columnKey: newCol.key,
+                    oldWidth: existingCol.width,
+                    newWidth: newCol.width,
+                  });
+
+                  try {
+                    const updatedColumn = {
+                      ...existingCol,
+                      width: newCol.width,
+                    };
+
+                    await updateColumn(updatedColumn);
+                    console.log(
+                      "✅ Column width updated in Firebase successfully"
+                    );
+                  } catch (error) {
+                    console.error(
+                      "❌ Failed to update column width in Firebase:",
+                      error
+                    );
+                  }
+                }
+              }
+            }}
             className="rdg-light custom-grid"
             style={
               {
