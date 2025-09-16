@@ -538,11 +538,21 @@ export default function BookingsSheet() {
                         }}
                       />
                       <span
-                        className={`text-sm font-medium transition-colors duration-200 select-none ${
+                        className={`text-sm font-medium transition-colors duration-200 select-none cursor-pointer ${
                           value
                             ? "text-royal-purple font-semibold"
                             : "text-gray-500 dark:text-muted-foreground"
                         }`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // Toggle the checkbox when text is clicked
+                          handleCellEdit(
+                            row.id,
+                            column.id,
+                            (!value).toString()
+                          );
+                        }}
                       >
                         {value ? "Yes" : "No"}
                       </span>
@@ -591,10 +601,10 @@ export default function BookingsSheet() {
                             }}
                           >
                             <SelectTrigger
-                              className={`h-8 border-0 focus:border-0 text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none ${
+                              className={`h-8 border-0 focus:border-0 text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none bg-transparent ${
                                 value
-                                  ? "bg-royal-purple/15 text-royal-purple font-medium"
-                                  : "bg-white dark:bg-background hover:bg-royal-purple/15 text-gray-500 dark:text-muted-foreground"
+                                  ? "text-royal-purple font-medium"
+                                  : "text-gray-500 dark:text-muted-foreground"
                               }`}
                             >
                               <SelectValue
@@ -639,7 +649,7 @@ export default function BookingsSheet() {
                     </div>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent>{value ? String(value) : "-"}</TooltipContent>
+                <TooltipContent>{value ? String(value) : ""}</TooltipContent>
               </Tooltip>
             );
           }
@@ -771,11 +781,7 @@ export default function BookingsSheet() {
                             }, 10);
                           }
                         }}
-                        className={`h-8 border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 text-sm transition-colors duration-200 pr-8 cursor-pointer rounded-none ${
-                          value
-                            ? "bg-royal-purple/15"
-                            : "bg-white hover:bg-royal-purple/15"
-                        } focus:bg-white ${
+                        className={`h-8 border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 text-sm transition-colors duration-200 pr-8 cursor-pointer rounded-none bg-transparent ${
                           !value
                             ? "text-gray-400 dark:text-muted-foreground/60"
                             : "text-gray-900 dark:text-foreground"
@@ -926,7 +932,7 @@ export default function BookingsSheet() {
                 </TooltipTrigger>
                 <TooltipContent>
                   {value === undefined || value === null || value === ""
-                    ? "-"
+                    ? ""
                     : String(value)}
                 </TooltipContent>
               </Tooltip>
@@ -959,7 +965,7 @@ export default function BookingsSheet() {
               </TooltipTrigger>
               <TooltipContent>
                 {value === undefined || value === null || value === ""
-                  ? "-"
+                  ? ""
                   : String(value)}
               </TooltipContent>
             </Tooltip>
@@ -1175,7 +1181,7 @@ export default function BookingsSheet() {
   // Removed sheet-wide recomputation to avoid rerunning entire sheet on edits
 
   const renderCellValue = useCallback((value: any, column: SheetColumn) => {
-    if (value === null || value === undefined || value === "") return "-";
+    if (value === null || value === undefined || value === "") return "";
 
     const dataType = column.dataType;
     const columnId = column.id;
@@ -1647,7 +1653,7 @@ export default function BookingsSheet() {
     const colDef = columns.find((c) => c.id === selectedCell.columnId);
     if (!colDef) return null;
     const raw = row[colDef.id];
-    if (raw === undefined || raw === null || raw === "") return "-";
+    if (raw === undefined || raw === null || raw === "") return "";
     try {
       if (colDef.dataType === "boolean") {
         const boolVal = !!raw;
@@ -1669,11 +1675,11 @@ export default function BookingsSheet() {
         if (date && !isNaN(date.getTime())) {
           return date.toISOString().split("T")[0];
         }
-        return "-";
+        return "";
       }
       return String(raw);
     } catch {
-      return "-";
+      return "";
     }
   }, [selectedCell, localData, data, columns]);
 

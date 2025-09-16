@@ -53,10 +53,11 @@ async function getAllTourPackages(): Promise<void> {
     console.log(`📊 Found ${tours.length} tour packages`);
     console.log("=".repeat(60));
 
-    // Create simple export data with just name and tour code
+    // Create simple export data with name, tour code, and duration
     const simpleToursData = tours.map((tour) => ({
       name: tour.name,
       tourCode: tour.tourCode,
+      duration: tour.duration,
     }));
 
     // Save to JSON file
