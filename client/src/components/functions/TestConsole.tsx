@@ -192,7 +192,12 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
 
     try {
       // Create a sandbox to execute custom code
-      const sandbox = new Function("exports", "module", "require", customCode);
+      const sandbox = new Function(
+        "exports",
+        "moduleRef",
+        "require",
+        customCode
+      );
 
       const moduleObj = { exports: {} as any };
       const result = sandbox(moduleObj.exports, moduleObj, () => {});

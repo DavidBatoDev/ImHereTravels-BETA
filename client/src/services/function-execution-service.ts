@@ -45,9 +45,9 @@ class FunctionExecutionService {
     // Build a CommonJS evaluation sandbox to extract default export
     const factory = new Function(
       "exports",
-      "module",
-      `${transpiled}; return module.exports?.default ?? exports?.default ?? module.exports;`
-    ) as (exports: any, module: any) => CompiledFn;
+      "moduleRef",
+      `${transpiled}; return moduleRef.exports?.default ?? exports?.default ?? moduleRef.exports;`
+    ) as (exports: any, moduleRef: any) => CompiledFn;
 
     const moduleObj = { exports: {} as any };
     const compiled = factory(moduleObj.exports, moduleObj);
