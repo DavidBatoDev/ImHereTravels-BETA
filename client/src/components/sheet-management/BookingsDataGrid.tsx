@@ -969,7 +969,8 @@ export default function BookingsDataGrid({
   // Calculate dynamic height based on number of rows
   const rowHeight = 32; // Height of each row in pixels
   const headerHeight = 40; // Height of header row in pixels
-  const dynamicHeight = rowsToShow * rowHeight + headerHeight + 150;
+    //   const dynamicHeight = rowsToShow * rowHeight + headerHeight + 150;
+    const dynamicHeight = 450;
 
   // Helper function to render empty row cells
   const renderEmptyRowCell = (
