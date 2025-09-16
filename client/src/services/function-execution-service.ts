@@ -7,6 +7,21 @@ type CompiledFn = (...args: any[]) => any;
 class FunctionExecutionService {
   private cache: Map<string, CompiledFn> = new Map();
 
+  // Invalidate a single compiled function by its ts_file id
+  invalidate(fileId: string): void {
+    this.cache.delete(fileId);
+  }
+
+  // Invalidate multiple compiled functions at once
+  invalidateMany(fileIds: string[]): void {
+    for (const id of fileIds) this.cache.delete(id);
+  }
+
+  // Clear all compiled function cache (use sparingly)
+  clearAll(): void {
+    this.cache.clear();
+  }
+
   // Fetch, transpile, and cache the function by ts_file id
   async getCompiledFunction(fileId: string): Promise<CompiledFn> {
     if (this.cache.has(fileId)) return this.cache.get(fileId)!;
@@ -30,9 +45,9 @@ class FunctionExecutionService {
     // Build a CommonJS evaluation sandbox to extract default export
     const factory = new Function(
       "exports",
-      "module",
-      `${transpiled}; return module.exports?.default ?? exports?.default ?? module.exports;`
-    ) as (exports: any, module: any) => CompiledFn;
+      "moduleRef",
+      `${transpiled}; return moduleRef.exports?.default ?? exports?.default ?? moduleRef.exports;`
+    ) as (exports: any, moduleRef: any) => CompiledFn;
 
     const moduleObj = { exports: {} as any };
     const compiled = factory(moduleObj.exports, moduleObj);
@@ -52,6 +67,11 @@ class FunctionExecutionService {
     allColumns: SheetColumn[]
   ): any[] {
     const argsMeta = column.arguments || [];
+    // Pre-index columns by name to avoid repeated linear scans
+    const columnsByName = new Map<string, SheetColumn>();
+    for (const c of allColumns) {
+      if (c.columnName) columnsByName.set(c.columnName, c);
+    }
 
     return argsMeta.map((arg) => {
       const t = (arg.type || "").toLowerCase();
@@ -59,7 +79,7 @@ class FunctionExecutionService {
       // If multiple column references are supplied (array-like param)
       if (Array.isArray(arg.columnReferences) && arg.columnReferences.length) {
         const values = arg.columnReferences.map((refName) => {
-          const refCol = allColumns.find((c) => c.columnName === refName);
+          const refCol = refName ? columnsByName.get(refName) : undefined;
           return refCol ? row[refCol.id] : undefined;
         });
         return values;
@@ -67,9 +87,7 @@ class FunctionExecutionService {
 
       // Single column reference
       if (arg.columnReference !== undefined && arg.columnReference !== "") {
-        const refCol = allColumns.find(
-          (c) => c.columnName === arg.columnReference
-        );
+        const refCol = columnsByName.get(arg.columnReference);
         const value = refCol ? row[refCol.id] : undefined;
         return value;
       }

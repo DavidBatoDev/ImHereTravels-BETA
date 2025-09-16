@@ -219,10 +219,10 @@ export default function BBCUsersManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-creative-midnight font-hk-grotesk">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground font-hk-grotesk">
             Manage BCC Users
           </h1>
-          <p className="text-grey text-lg">
+          <p className="text-muted-foreground text-lg">
             Manage BCC users, their roles, and access permissions
           </p>
         </div>
@@ -236,12 +236,12 @@ export default function BBCUsersManagement() {
               Add BCC User
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] border border-royal-purple/20">
+          <DialogContent className="sm:max-w-[600px] border border-royal-purple/20 dark:border-border">
             <DialogHeader>
-              <DialogTitle className="text-creative-midnight">
+              <DialogTitle className="text-foreground">
                 Add New BCC User
               </DialogTitle>
-              <DialogDescription className="text-grey">
+              <DialogDescription className="text-muted-foreground">
                 Create a new BCC user account with appropriate permissions
               </DialogDescription>
             </DialogHeader>
@@ -251,16 +251,14 @@ export default function BBCUsersManagement() {
       </div>
 
       {/* Filters and Search */}
-      <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
-        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-          <CardTitle className="text-creative-midnight">
-            Filters & Search
-          </CardTitle>
+      <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
+        <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+          <CardTitle className="text-foreground">Filters & Search</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="search" className="text-creative-midnight">
+              <Label htmlFor="search" className="text-foreground">
                 Search
               </Label>
               <div className="relative">
@@ -270,14 +268,14 @@ export default function BBCUsersManagement() {
                   placeholder="Search users..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                  className="pl-8 border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-creative-midnight">Results</Label>
-              <div className="text-sm text-grey pt-2">
+              <Label className="text-foreground">Results</Label>
+              <div className="text-sm text-muted-foreground pt-2">
                 {filteredUsers.length} of {users.length} users
               </div>
             </div>
@@ -286,23 +284,21 @@ export default function BBCUsersManagement() {
       </Card>
 
       {/* Users Table */}
-      <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
-        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-          <CardTitle className="text-creative-midnight">BCC Users</CardTitle>
-          <CardDescription className="text-grey">
+      <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
+        <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+          <CardTitle className="text-foreground">BCC Users</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Manage BCC user accounts and their access levels
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6">
           <Table>
             <TableHeader>
-              <TableRow className="border-royal-purple/20">
-                <TableHead className="text-creative-midnight">User</TableHead>
-                <TableHead className="text-creative-midnight">BCC ID</TableHead>
-                <TableHead className="text-creative-midnight">Status</TableHead>
-                <TableHead className="text-creative-midnight">
-                  Actions
-                </TableHead>
+              <TableRow className="border-royal-purple/20 dark:border-border">
+                <TableHead className="text-foreground">User</TableHead>
+                <TableHead className="text-foreground">BCC ID</TableHead>
+                <TableHead className="text-foreground">Status</TableHead>
+                <TableHead className="text-foreground">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -311,14 +307,16 @@ export default function BBCUsersManagement() {
                   <TableCell colSpan={4} className="text-center py-8">
                     <div className="flex items-center justify-center space-x-2">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                      <span className="text-grey">Loading users...</span>
+                      <span className="text-muted-foreground">
+                        Loading users...
+                      </span>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : filteredUsers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-8">
-                    <div className="text-grey">
+                    <div className="text-muted-foreground">
                       {searchTerm
                         ? "No users found matching your search."
                         : "No BCC users found."}
@@ -329,7 +327,7 @@ export default function BBCUsersManagement() {
                 filteredUsers.map((user) => (
                   <TableRow
                     key={user.id}
-                    className="border-b border-royal-purple/20 transition-colors duration-200 hover:bg-royal-purple/5"
+                    className="border-b border-royal-purple/20 dark:border-border transition-colors duration-200 hover:bg-royal-purple/5"
                   >
                     <TableCell>
                       <div className="flex items-center space-x-3">
@@ -341,17 +339,19 @@ export default function BBCUsersManagement() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium text-creative-midnight">
+                          <div className="font-medium text-foreground">
                             {user.firstName} {user.lastName}
                           </div>
-                          <div className="text-sm text-grey">{user.email}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {user.email}
+                          </div>
                           <div className="flex items-center space-x-2 mt-1">
                             <Badge
                               variant={user.isActive ? "default" : "secondary"}
                               className={
                                 user.isActive
                                   ? "bg-spring-green/20 text-spring-green border border-spring-green/30"
-                                  : "bg-grey/20 text-grey border border-grey/30"
+                                  : "bg-grey/20 text-muted-foreground border border-grey/30"
                               }
                             >
                               {user.isActive ? "Active" : "Inactive"}
@@ -372,7 +372,9 @@ export default function BBCUsersManagement() {
                       <div className="flex items-center space-x-2">
                         <Power
                           className={`h-4 w-4 ${
-                            user.isActive ? "text-spring-green" : "text-grey"
+                            user.isActive
+                              ? "text-spring-green"
+                              : "text-muted-foreground"
                           }`}
                         />
                         <Switch
@@ -382,7 +384,7 @@ export default function BBCUsersManagement() {
                           }
                           disabled={isLoading}
                         />
-                        <span className="text-sm text-grey ml-2">
+                        <span className="text-sm text-muted-foreground ml-2">
                           {user.isActive ? "Active" : "Inactive"}
                         </span>
                       </div>
@@ -422,12 +424,10 @@ export default function BBCUsersManagement() {
 
       {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] border border-royal-purple/20">
+        <DialogContent className="sm:max-w-[600px] border border-royal-purple/20 dark:border-border">
           <DialogHeader>
-            <DialogTitle className="text-creative-midnight">
-              Edit BCC User
-            </DialogTitle>
-            <DialogDescription className="text-grey">
+            <DialogTitle className="text-foreground">Edit BCC User</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               Update user information and permissions
             </DialogDescription>
           </DialogHeader>
@@ -494,7 +494,7 @@ function CreateUserForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="firstName" className="text-creative-midnight">
+          <Label htmlFor="firstName" className="text-foreground">
             First Name
           </Label>
           <Input
@@ -504,11 +504,11 @@ function CreateUserForm({
               setFormData({ ...formData, firstName: e.target.value })
             }
             required
-            className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+            className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="lastName" className="text-creative-midnight">
+          <Label htmlFor="lastName" className="text-foreground">
             Last Name
           </Label>
           <Input
@@ -518,12 +518,12 @@ function CreateUserForm({
               setFormData({ ...formData, lastName: e.target.value })
             }
             required
-            className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+            className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
           />
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="email" className="text-creative-midnight">
+        <Label htmlFor="email" className="text-foreground">
           Email
         </Label>
         <Input
@@ -532,7 +532,7 @@ function CreateUserForm({
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           required
-          className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+          className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
         />
       </div>
 
@@ -598,7 +598,7 @@ function EditUserForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="editFirstName" className="text-creative-midnight">
+          <Label htmlFor="editFirstName" className="text-foreground">
             First Name
           </Label>
           <Input
@@ -608,11 +608,11 @@ function EditUserForm({
               setFormData({ ...formData, firstName: e.target.value })
             }
             required
-            className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+            className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="editLastName" className="text-creative-midnight">
+          <Label htmlFor="editLastName" className="text-foreground">
             Last Name
           </Label>
           <Input
@@ -622,12 +622,12 @@ function EditUserForm({
               setFormData({ ...formData, lastName: e.target.value })
             }
             required
-            className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+            className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
           />
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="editEmail" className="text-creative-midnight">
+        <Label htmlFor="editEmail" className="text-foreground">
           Email
         </Label>
         <Input
@@ -636,7 +636,7 @@ function EditUserForm({
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           required
-          className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+          className="border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
         />
       </div>
 
@@ -645,7 +645,7 @@ function EditUserForm({
           type="button"
           variant="outline"
           onClick={onCancel}
-          className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+          className="border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
         >
           Cancel
         </Button>

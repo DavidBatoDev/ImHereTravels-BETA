@@ -105,39 +105,39 @@
     --ring: 0 75% 53%;
     --radius: 0.5rem;
 
-    /* Sidebar Colors */
-    --sidebar-background: 210 40% 17%;
-    --sidebar-foreground: 0 0% 100%;
+    /* Sidebar Colors - Light Mode */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 0%;
     --sidebar-primary: 0 75% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 263 55% 55%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 59%;
+    --sidebar-accent: 210 19% 90%;
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 210 19% 90%;
     --sidebar-ring: 0 75% 53%;
   }
 
   .dark {
-    --background: 210 40% 17%;
+    --background: 220 25% 10%; /* Creative Midnight #1C1F2A */
     --foreground: 0 0% 100%;
-    --card: 210 40% 17%;
+    --card: 220 25% 12%; /* Slightly lighter than background */
     --card-foreground: 0 0% 100%;
-    --popover: 210 40% 17%;
+    --popover: 220 25% 12%;
     --popover-foreground: 0 0% 100%;
 
     /* Primary Brand Colors - Dark Mode */
     --primary: 0 78% 67%; /* Light Red for better contrast */
-    --primary-foreground: 210 40% 17%;
-    --secondary: 263 55% 55%; /* Royal Purple */
+    --primary-foreground: 220 25% 10%;
+    --secondary: 220 25% 10%; /* Creative Midnight as secondary */
     --secondary-foreground: 0 0% 100%;
 
-    /* Adjusted for dark mode */
+    /* Brand Colors - Dark Mode (Creative Midnight as primary dark color) */
     --crimson-red: #ff585d;
     --light-red: #ef3340;
-    --creative-midnight: #ffffff;
-    --black: #ffffff;
-    --grey: #b3b3b3;
-    --white: #1c1f2a;
-    --light-grey: #333333;
+    --creative-midnight: #1c1f2a; /* Keep original Creative Midnight */
+    --black: #000000;
+    --grey: #959595;
+    --white: #ffffff;
+    --light-grey: #f2f0ee;
 
     /* Secondary Brand Colors - Dark Mode */
     --royal-purple: #b397f7;
@@ -150,15 +150,25 @@
     --light-yellow: #fbe687;
 
     /* System Colors - Dark Mode */
-    --muted: 0 0% 20%;
+    --muted: 220 25% 15%; /* Slightly lighter than Creative Midnight */
     --muted-foreground: 0 0% 70%;
-    --accent: 0 0% 20%;
+    --accent: 220 25% 15%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 78% 67%;
-    --destructive-foreground: 210 40% 17%;
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
+    --destructive-foreground: 220 25% 10%;
+    --border: 220 25% 20%;
+    --input: 220 25% 15%;
     --ring: 0 78% 67%;
+
+    /* Sidebar Colors - Dark Mode */
+    --sidebar-background: 220 25% 10%; /* Creative Midnight */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 78% 67%;
+    --sidebar-primary-foreground: 220 25% 10%;
+    --sidebar-accent: 220 25% 15%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 25% 20%;
+    --sidebar-ring: 0 78% 67%;
   }
 }
 
@@ -233,4 +243,29 @@
 
 .overlay-bg-storage {
   margin: 0 !important;
+}
+
+/* Booking sheet: hide native date input icons */
+.booking-sheet input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none !important;
+}
+.booking-sheet input[type="date"]::-webkit-clear-button {
+  display: none !important;
+}
+.booking-sheet input[type="date"]::-ms-clear {
+  display: none !important;
+}
+.booking-sheet input[type="date"] {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  scrollbar-width: none; /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
 }

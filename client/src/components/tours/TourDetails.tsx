@@ -16,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   MapPin,
   Clock,
-  DollarSign,
+  Banknote,
   Users,
   Star,
   Calendar,
@@ -64,7 +64,7 @@ export default function TourDetails({
       case "active":
         return "bg-spring-green text-white border-spring-green";
       case "draft":
-        return "bg-sunglow-yellow text-creative-midnight border-sunglow-yellow";
+        return "bg-sunglow-yellow text-foreground border-sunglow-yellow";
       case "archived":
         return "bg-grey text-white border-grey";
       default:
@@ -78,7 +78,7 @@ export default function TourDetails({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] p-0 bg-gradient-to-br from-white to-light-grey">
+      <DialogContent className="max-w-6xl max-h-[95vh] p-0 bg-background">
         <DialogHeader className="px-8 pt-8 pb-6 bg-gradient-to-r from-crimson-red to-light-red text-white rounded-t-lg">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -109,15 +109,17 @@ export default function TourDetails({
           <div className="p-8 space-y-8">
             {/* Quick Info Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-white border-2 border-light-grey hover:border-crimson-red transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-crimson-red transition-colors duration-200">
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <div className="p-3 bg-crimson-red/10 rounded-full">
                       <Clock className="w-6 h-6 text-crimson-red" />
                     </div>
                     <div>
-                      <p className="text-sm text-grey font-medium">Duration</p>
-                      <p className="text-xl font-bold text-creative-midnight">
+                      <p className="text-sm text-muted-foreground font-medium">
+                        Duration
+                      </p>
+                      <p className="text-xl font-bold text-foreground">
                         {tour.duration} {tour.duration === 1 ? "Day" : "Days"}
                       </p>
                     </div>
@@ -125,24 +127,26 @@ export default function TourDetails({
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-2 border-light-grey hover:border-royal-purple transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-royal-purple transition-colors duration-200">
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <div className="p-3 bg-royal-purple/10 rounded-full">
-                      <DollarSign className="w-6 h-6 text-royal-purple" />
+                      <Banknote className="w-6 h-6 text-royal-purple" />
                     </div>
                     <div>
-                      <p className="text-sm text-grey font-medium">Price</p>
+                      <p className="text-sm text-muted-foreground font-medium">
+                        Price
+                      </p>
                       <div className="flex flex-col items-center">
                         {hasDiscount &&
                           tour.pricing.original &&
                           tour.pricing.original > 0 && (
-                            <p className="text-sm text-grey line-through">
+                            <p className="text-sm text-muted-foreground line-through">
                               {tour.pricing.currency}{" "}
                               {tour.pricing.original.toLocaleString()}
                             </p>
                           )}
-                        <p className="text-xl font-bold text-creative-midnight">
+                        <p className="text-xl font-bold text-foreground">
                           {tour.pricing.currency}{" "}
                           {currentPrice.toLocaleString()}
                         </p>
@@ -152,15 +156,17 @@ export default function TourDetails({
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-2 border-light-grey hover:border-spring-green transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-spring-green transition-colors duration-200">
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <div className="p-3 bg-spring-green/10 rounded-full">
                       <CreditCard className="w-6 h-6 text-spring-green" />
                     </div>
                     <div>
-                      <p className="text-sm text-grey font-medium">Deposit</p>
-                      <p className="text-xl font-bold text-creative-midnight">
+                      <p className="text-sm text-muted-foreground font-medium">
+                        Deposit
+                      </p>
+                      <p className="text-xl font-bold text-foreground">
                         {tour.pricing.currency}{" "}
                         {tour.pricing.deposit.toLocaleString()}
                       </p>
@@ -169,17 +175,17 @@ export default function TourDetails({
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-2 border-light-grey hover:border-vivid-orange transition-colors duration-200">
+              <Card className="bg-background border-2 border-border hover:border-vivid-orange transition-colors duration-200">
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <div className="p-3 bg-vivid-orange/10 rounded-full">
                       <Calendar className="w-6 h-6 text-vivid-orange" />
                     </div>
                     <div>
-                      <p className="text-sm text-grey font-medium">
+                      <p className="text-sm text-muted-foreground font-medium">
                         Available Dates
                       </p>
-                      <p className="text-xl font-bold text-creative-midnight">
+                      <p className="text-xl font-bold text-foreground">
                         {tour.travelDates.filter((d) => d.isAvailable).length}
                       </p>
                     </div>
@@ -193,9 +199,9 @@ export default function TourDetails({
               {/* Left Column - Highlights & Requirements */}
               <div className="lg:col-span-2 space-y-6">
                 {/* Highlights */}
-                <Card className="bg-white border-2 border-light-grey">
+                <Card className="bg-background border-2 border-border">
                   <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <CardTitle className="flex items-center gap-2 text-foreground">
                       <Star className="w-5 h-5 text-sunglow-yellow" />
                       Tour Highlights
                     </CardTitle>
@@ -205,9 +211,7 @@ export default function TourDetails({
                       {tour.details.highlights.map((highlight, index) => (
                         <div key={index} className="flex items-start gap-3">
                           <CheckCircle className="w-5 h-5 text-spring-green mt-0.5 flex-shrink-0" />
-                          <span className="text-creative-midnight">
-                            {highlight}
-                          </span>
+                          <span className="text-foreground">{highlight}</span>
                         </div>
                       ))}
                     </div>
@@ -215,9 +219,9 @@ export default function TourDetails({
                 </Card>
 
                 {/* Itinerary */}
-                <Card className="bg-white border-2 border-light-grey">
+                <Card className="bg-background border-2 border-border">
                   <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <CardTitle className="flex items-center gap-2 text-foreground">
                       <Plane className="w-5 h-5 text-royal-purple" />
                       Daily Itinerary
                     </CardTitle>
@@ -227,7 +231,7 @@ export default function TourDetails({
                       {tour.details.itinerary.map((day) => (
                         <div
                           key={day.day}
-                          className="flex gap-4 p-4 bg-light-grey/30 rounded-lg"
+                          className="flex gap-4 p-4 bg-muted/30 rounded-lg"
                         >
                           <div className="flex-shrink-0">
                             <div className="w-12 h-12 bg-crimson-red text-white rounded-full flex items-center justify-center font-bold text-lg">
@@ -235,10 +239,10 @@ export default function TourDetails({
                             </div>
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-semibold text-creative-midnight mb-2">
+                            <h4 className="font-semibold text-foreground mb-2">
                               {day.title}
                             </h4>
-                            <p className="text-grey leading-relaxed">
+                            <p className="text-muted-foreground leading-relaxed">
                               {day.description}
                             </p>
                           </div>
@@ -249,9 +253,9 @@ export default function TourDetails({
                 </Card>
 
                 {/* Requirements */}
-                <Card className="bg-white border-2 border-light-grey">
+                <Card className="bg-background border-2 border-border">
                   <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <CardTitle className="flex items-center gap-2 text-foreground">
                       <AlertCircle className="w-5 h-5 text-vivid-orange" />
                       Requirements & Important Notes
                     </CardTitle>
@@ -264,9 +268,7 @@ export default function TourDetails({
                           className="flex items-start gap-3 p-3 bg-vivid-orange/5 rounded-lg border-l-4 border-vivid-orange"
                         >
                           <AlertCircle className="w-5 h-5 text-vivid-orange mt-0.5 flex-shrink-0" />
-                          <span className="text-creative-midnight">
-                            {requirement}
-                          </span>
+                          <span className="text-foreground">{requirement}</span>
                         </div>
                       ))}
                     </div>
@@ -277,9 +279,9 @@ export default function TourDetails({
               {/* Right Column - Travel Dates & Actions */}
               <div className="space-y-6">
                 {/* Travel Dates */}
-                <Card className="bg-white border-2 border-light-grey">
+                <Card className="bg-background border-2 border-border">
                   <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-creative-midnight">
+                    <CardTitle className="flex items-center gap-2 text-foreground">
                       <Calendar className="w-5 h-5 text-spring-green" />
                       Available Travel Dates
                     </CardTitle>
@@ -296,14 +298,14 @@ export default function TourDetails({
                           >
                             <div className="flex items-center justify-between">
                               <div>
-                                <p className="font-medium text-creative-midnight">
+                                <p className="font-medium text-foreground">
                                   {format(date.startDate.toDate(), "MMM dd")} -{" "}
                                   {format(
                                     date.endDate.toDate(),
                                     "MMM dd, yyyy"
                                   )}
                                 </p>
-                                <p className="text-sm text-grey">
+                                <p className="text-sm text-muted-foreground">
                                   {Math.ceil(
                                     (date.endDate.toDate().getTime() -
                                       date.startDate.toDate().getTime()) /
@@ -314,8 +316,10 @@ export default function TourDetails({
                               </div>
                               {date.maxCapacity && (
                                 <div className="text-right">
-                                  <p className="text-sm text-grey">Capacity</p>
-                                  <p className="font-medium text-creative-midnight">
+                                  <p className="text-sm text-muted-foreground">
+                                    Capacity
+                                  </p>
+                                  <p className="font-medium text-foreground">
                                     {date.currentBookings || 0}/
                                     {date.maxCapacity}
                                   </p>
@@ -326,7 +330,7 @@ export default function TourDetails({
                         ))}
                       {tour.travelDates.filter((date) => date.isAvailable)
                         .length > 5 && (
-                        <p className="text-sm text-grey text-center">
+                        <p className="text-sm text-muted-foreground text-center">
                           +
                           {tour.travelDates.filter((date) => date.isAvailable)
                             .length - 5}{" "}
@@ -338,9 +342,9 @@ export default function TourDetails({
                 </Card>
 
                 {/* Quick Actions */}
-                <Card className="bg-white border-2 border-light-grey">
+                <Card className="bg-background border-2 border-border">
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-creative-midnight">
+                    <CardTitle className="text-foreground">
                       Quick Actions
                     </CardTitle>
                   </CardHeader>
@@ -381,7 +385,7 @@ export default function TourDetails({
                 </Card>
 
                 {/* Action Buttons */}
-                <Card className="bg-white border-2 border-light-grey">
+                <Card className="bg-background border-2 border-border">
                   <CardContent className="p-4 space-y-3">
                     {onEdit && (
                       <Button
@@ -419,7 +423,7 @@ export default function TourDetails({
 
             {/* Footer with additional info */}
             <div className="pt-6 border-t-2 border-light-grey">
-              <div className="flex items-center justify-between text-sm text-grey">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <div className="flex items-center gap-4">
                   <span>Tour ID: {tour.id}</span>
                   <span>•</span>

@@ -518,7 +518,7 @@ export default function GalleryTab() {
           </Button>
           <button
             onClick={() => setSelectMode(!selectMode)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
           >
             {selectMode ? (
               <>
@@ -566,7 +566,7 @@ export default function GalleryTab() {
               placeholder="Search images... (Ctrl+K)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 w-64 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+              className="pl-10 w-64 border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
               title="Search images (Ctrl+K)"
             />
           </div>
@@ -578,7 +578,7 @@ export default function GalleryTab() {
             className={
               showFilters
                 ? "bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25"
-                : "border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple"
+                : "border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple"
             }
           >
             <Filter className="h-4 w-4" />
@@ -589,13 +589,15 @@ export default function GalleryTab() {
             )}
           </Button>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-grey font-medium">View:</span>
-            <div className="flex border border-royal-purple/20 rounded-md bg-white shadow-sm">
+            <span className="text-xs text-muted-foreground font-medium">
+              View:
+            </span>
+            <div className="flex border border-royal-purple/20 dark:border-border rounded-md bg-background shadow-sm">
               <Button
                 variant={viewMode === "large" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("large")}
-                className={`rounded-r-none border-r border-royal-purple/20 transition-colors ${
+                className={`rounded-r-none border-r border-royal-purple/20 dark:border-border transition-colors ${
                   viewMode === "large"
                     ? "bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25"
                     : "hover:bg-royal-purple/10"
@@ -608,7 +610,7 @@ export default function GalleryTab() {
                 variant={viewMode === "small" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("small")}
-                className={`rounded-none border-r border-royal-purple/20 transition-colors ${
+                className={`rounded-none border-r border-royal-purple/20 dark:border-border transition-colors ${
                   viewMode === "small"
                     ? "bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25"
                     : "hover:bg-royal-purple/10"
@@ -637,16 +639,16 @@ export default function GalleryTab() {
 
       {/* Filter Controls */}
       {showFilters && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <div className="bg-muted/50 border border-gray-200 rounded-lg p-4 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-700">
+            <h3 className="text-sm font-medium text-foreground">
               Filters & Sorting
             </h3>
             <Button
               variant="ghost"
               size="sm"
               onClick={clearAllFilters}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-muted-foreground hover:text-foreground"
             >
               Clear All
             </Button>
@@ -655,7 +657,7 @@ export default function GalleryTab() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* File Type Filter */}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-600">
+              <label className="text-xs font-medium text-muted-foreground">
                 File Type
               </label>
               <select
@@ -672,7 +674,7 @@ export default function GalleryTab() {
 
             {/* Size Filter */}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-600">
+              <label className="text-xs font-medium text-muted-foreground">
                 File Size
               </label>
               <select
@@ -689,7 +691,7 @@ export default function GalleryTab() {
 
             {/* Date Filter */}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-600">
+              <label className="text-xs font-medium text-muted-foreground">
                 Upload Date
               </label>
               <select
@@ -706,7 +708,9 @@ export default function GalleryTab() {
 
             {/* Tag Filter */}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-600">Tags</label>
+              <label className="text-xs font-medium text-muted-foreground">
+                Tags
+              </label>
               <select
                 value={tagFilter}
                 onChange={(e) => setTagFilter(e.target.value)}
@@ -725,7 +729,7 @@ export default function GalleryTab() {
           {/* Sorting Controls */}
           <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-200">
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600">
+              <label className="text-xs font-medium text-muted-foreground">
                 Sort by:
               </label>
               <select
@@ -740,15 +744,15 @@ export default function GalleryTab() {
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600">
+              <label className="text-xs font-medium text-muted-foreground">
                 Order:
               </label>
-              <div className="flex border rounded-md bg-white shadow-sm">
+              <div className="flex border rounded-md bg-background shadow-sm">
                 <Button
                   variant={sortOrder === "asc" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setSortOrder("asc")}
-                  className="rounded-r-none border-r border-gray-200 hover:bg-gray-50 transition-colors"
+                  className="rounded-r-none border-r border-gray-200 hover:bg-muted/50 transition-colors"
                   title="Ascending"
                 >
                   ↑
@@ -757,7 +761,7 @@ export default function GalleryTab() {
                   variant={sortOrder === "desc" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setSortOrder("desc")}
-                  className="rounded-l-none hover:bg-gray-50 transition-colors"
+                  className="rounded-l-none hover:bg-muted/50 transition-colors"
                   title="Descending"
                 >
                   ↓
@@ -774,7 +778,7 @@ export default function GalleryTab() {
                   Search: "{searchQuery}"
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="ml-1 text-gray-500 hover:text-gray-700"
+                    className="ml-1 text-muted-foreground hover:text-foreground"
                   >
                     ×
                   </button>
@@ -785,7 +789,7 @@ export default function GalleryTab() {
                   Type: {fileTypeFilter}
                   <button
                     onClick={() => setFileTypeFilter("all")}
-                    className="ml-1 text-gray-500 hover:text-gray-700"
+                    className="ml-1 text-muted-foreground hover:text-foreground"
                   >
                     ×
                   </button>
@@ -796,7 +800,7 @@ export default function GalleryTab() {
                   Size: {sizeFilter}
                   <button
                     onClick={() => setSizeFilter("all")}
-                    className="ml-1 text-gray-500 hover:text-gray-700"
+                    className="ml-1 text-muted-foreground hover:text-foreground"
                   >
                     ×
                   </button>
@@ -807,7 +811,7 @@ export default function GalleryTab() {
                   Date: {dateFilter}
                   <button
                     onClick={() => setDateFilter("all")}
-                    className="ml-1 text-gray-500 hover:text-gray-700"
+                    className="ml-1 text-muted-foreground hover:text-foreground"
                   >
                     ×
                   </button>
@@ -818,7 +822,7 @@ export default function GalleryTab() {
                   Tag: {tagFilter}
                   <button
                     onClick={() => setTagFilter("all")}
-                    className="ml-1 text-gray-500 hover:text-gray-700"
+                    className="ml-1 text-muted-foreground hover:text-foreground"
                   >
                     ×
                   </button>
@@ -832,7 +836,7 @@ export default function GalleryTab() {
       {/* Results Counter */}
       {!loading && (
         <div className="flex items-center justify-between mb-4">
-          <div className="text-sm text-grey">
+          <div className="text-sm text-muted-foreground">
             Showing {filteredImages.length} of {images.length} images
             {searchQuery && (
               <span className="ml-2 text-royal-purple">
@@ -840,7 +844,7 @@ export default function GalleryTab() {
               </span>
             )}
             {getActiveFilterCount() > 0 && (
-              <span className="ml-2 text-grey">
+              <span className="ml-2 text-muted-foreground">
                 • {getActiveFilterCount()} filter
                 {getActiveFilterCount() !== 1 ? "s" : ""} active
               </span>
@@ -863,7 +867,7 @@ export default function GalleryTab() {
       {loading ? (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-grey">Loading images...</p>
+          <p className="text-muted-foreground">Loading images...</p>
         </div>
       ) : viewMode === "large" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
@@ -890,7 +894,7 @@ export default function GalleryTab() {
                         <div className="w-full h-full flex items-center justify-center">
                           <div className="text-center">
                             <div className="w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                            <div className="text-gray-500 text-xs">
+                            <div className="text-muted-foreground text-xs">
                               Loading...
                             </div>
                           </div>
@@ -925,10 +929,10 @@ export default function GalleryTab() {
                   )}
                   {deletingImages.has(image.id) && (
                     <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center rounded-t-lg">
-                      <div className="bg-white rounded-lg px-3 py-2 shadow-lg">
+                      <div className="bg-background rounded-lg px-3 py-2 shadow-lg">
                         <div className="flex items-center gap-2">
                           <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-medium text-foreground">
                             Deleting...
                           </span>
                         </div>
@@ -965,7 +969,7 @@ export default function GalleryTab() {
                         <div className="w-full h-full flex items-center justify-center">
                           <div className="text-center">
                             <div className="w-6 h-6 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mx-auto mb-1"></div>
-                            <div className="text-gray-500 text-xs">
+                            <div className="text-muted-foreground text-xs">
                               Loading...
                             </div>
                           </div>
@@ -991,10 +995,10 @@ export default function GalleryTab() {
                   )}
                   {deletingImages.has(image.id) && (
                     <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center rounded-t-lg">
-                      <div className="bg-white rounded-lg px-2 py-1 shadow-lg">
+                      <div className="bg-background rounded-lg px-2 py-1 shadow-lg">
                         <div className="flex items-center gap-1">
                           <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
-                          <span className="text-xs font-medium text-gray-700">
+                          <span className="text-xs font-medium text-foreground">
                             Deleting...
                           </span>
                         </div>
@@ -1004,12 +1008,12 @@ export default function GalleryTab() {
                 </div>
                 <div className="p-2">
                   <p
-                    className="text-xs font-medium text-gray-900 mb-1 text-center"
+                    className="text-xs font-medium text-foreground mb-1 text-center"
                     title={image.name}
                   >
                     {truncateFileName(image.name, 15)}
                   </p>
-                  <p className="text-xs text-gray-500 mb-1 text-center">
+                  <p className="text-xs text-muted-foreground mb-1 text-center">
                     {image.size}
                   </p>
                   <div className="flex flex-wrap gap-1 justify-center">
@@ -1038,7 +1042,7 @@ export default function GalleryTab() {
           {filteredImages.map((image) => (
             <Card
               key={image.id}
-              className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
+              className={`p-4 hover:bg-muted/50 transition-colors cursor-pointer ${
                 selectMode && selectedImages.includes(image.id)
                   ? "bg-blue-50 ring-1 ring-blue-200"
                   : ""
@@ -1058,7 +1062,7 @@ export default function GalleryTab() {
                         <div className="w-full h-full flex items-center justify-center">
                           <div className="text-center">
                             <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mx-auto mb-1"></div>
-                            <div className="text-gray-500 text-xs">
+                            <div className="text-muted-foreground text-xs">
                               Loading...
                             </div>
                           </div>
@@ -1142,10 +1146,10 @@ export default function GalleryTab() {
                     </div>
                   ) : (
                     <>
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-medium text-foreground truncate">
                         {image.name}
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-muted-foreground">
                         {image.size} • {image.type} • {image.uploadedAt}
                       </p>
                     </>
@@ -1207,12 +1211,12 @@ export default function GalleryTab() {
       {!loading && filteredImages.length === 0 && (
         <div className="text-center py-12">
           <ImageIcon className="mx-auto h-12 w-12 text-royal-purple mb-4" />
-          <h3 className="text-lg font-medium text-creative-midnight mb-2">
+          <h3 className="text-lg font-medium text-foreground mb-2">
             {images.length === 0
               ? "No images uploaded yet"
               : "No images match your filters"}
           </h3>
-          <p className="text-grey mb-4">
+          <p className="text-muted-foreground mb-4">
             {images.length === 0
               ? "Start building your image collection by uploading some photos"
               : "Try adjusting your search or filters to see more results"}
@@ -1226,7 +1230,7 @@ export default function GalleryTab() {
                 >
                   Upload Your First Image
                 </Button>
-                <span className="text-sm text-grey">
+                <span className="text-sm text-muted-foreground">
                   or drag and drop images here
                 </span>
               </>
@@ -1235,11 +1239,11 @@ export default function GalleryTab() {
                 <Button
                   onClick={clearAllFilters}
                   variant="outline"
-                  className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                  className="border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
                 >
                   Clear All Filters
                 </Button>
-                <span className="text-sm text-grey">
+                <span className="text-sm text-muted-foreground">
                   or adjust your search criteria
                 </span>
               </>
@@ -1255,14 +1259,14 @@ export default function GalleryTab() {
           onClick={() => setSelectedImageForModal(null)}
         >
           <div
-            className="bg-white rounded-lg w-[1200px] max-w-[95vw] h-[80vh] flex overflow-hidden relative animate-in zoom-in-95 duration-300 ease-out"
+            className="bg-background rounded-lg w-[1200px] max-w-[95vw] h-[80vh] flex overflow-hidden relative animate-in zoom-in-95 duration-300 ease-out"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close Button - positioned on the right upper side of the modal */}
             <Button
               variant="ghost"
               size="sm"
-              className="absolute top-0 right-1 text-gray-600 hover:text-red-800 w-8 h-8 p-0 z-10"
+              className="absolute top-0 right-1 text-muted-foreground hover:text-red-800 w-8 h-8 p-0 z-10"
               onClick={() => setSelectedImageForModal(null)}
             >
               ✕
@@ -1317,7 +1321,7 @@ export default function GalleryTab() {
                             ? selectedImageForModal.name.substring(lastDotIndex)
                             : "";
                         return (
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             Final name: {newImageName}
                             {extension}
                           </p>
@@ -1358,13 +1362,13 @@ export default function GalleryTab() {
                     </div>
                   ) : (
                     <h2
-                      className="text-xl font-semibold text-gray-900 mb-2"
+                      className="text-xl font-semibold text-foreground mb-2"
                       title={selectedImageForModal.name}
                     >
                       {truncateFileName(selectedImageForModal.name, 35)}
                     </h2>
                   )}
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     Uploaded on {selectedImageForModal.uploadedAt}
                   </p>
                 </div>
@@ -1372,64 +1376,64 @@ export default function GalleryTab() {
                 {/* Image Details */}
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-foreground">
                       Original Name:
                     </span>
-                    <span className="text-sm text-gray-500 font-mono">
+                    <span className="text-sm text-muted-foreground font-mono">
                       {selectedImageForModal.name}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-foreground">
                       File ID:
                     </span>
-                    <span className="text-sm text-gray-500 font-mono">
+                    <span className="text-sm text-muted-foreground font-mono">
                       {selectedImageForModal.id}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-foreground">
                       Size:
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-muted-foreground">
                       {selectedImageForModal.size}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-foreground">
                       Type:
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-muted-foreground">
                       {selectedImageForModal.type}
                     </span>
                   </div>
                   {selectedImageForModal.metadata?.width && (
                     <div className="flex justify-between">
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-sm font-medium text-foreground">
                         Dimensions:
                       </span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-muted-foreground">
                         {selectedImageForModal.metadata.width} ×{" "}
                         {selectedImageForModal.metadata.height}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-foreground">
                       Uploaded By:
                     </span>
                     <span
-                      className="text-sm text-gray-500 font-mono max-w-[200px] truncate"
+                      className="text-sm text-muted-foreground font-mono max-w-[200px] truncate"
                       title={selectedImageForModal.uploadedBy || "N/A"}
                     >
                       {selectedImageForModal.uploadedBy || "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-foreground">
                       Last Modified:
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-muted-foreground">
                       {selectedImageForModal.lastModified
                         ? new Date(
                             selectedImageForModal.lastModified
@@ -1442,7 +1446,7 @@ export default function GalleryTab() {
                 {/* Tags */}
                 {selectedImageForModal.tags.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">
+                    <h3 className="text-sm font-medium text-foreground mb-2">
                       Tags:
                     </h3>
                     <div className="flex flex-wrap gap-2">
@@ -1462,10 +1466,10 @@ export default function GalleryTab() {
                 {/* Description */}
                 {selectedImageForModal.metadata?.description && (
                   <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">
+                    <h3 className="text-sm font-medium text-foreground mb-2">
                       Description:
                     </h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted-foreground">
                       {selectedImageForModal.metadata.description}
                     </p>
                   </div>
@@ -1474,10 +1478,10 @@ export default function GalleryTab() {
                 {/* Location */}
                 {selectedImageForModal.metadata?.location && (
                   <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">
+                    <h3 className="text-sm font-medium text-foreground mb-2">
                       Location:
                     </h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted-foreground">
                       {selectedImageForModal.metadata.location}
                     </p>
                   </div>
@@ -1485,7 +1489,7 @@ export default function GalleryTab() {
 
                 {/* Actions */}
                 <div className="pt-4 border-t border-gray-200">
-                  <p className="text-xs text-gray-500 mb-3">
+                  <p className="text-xs text-muted-foreground mb-3">
                     💡 Right-click the image and select "Save As" to download to
                     your device.
                   </p>
@@ -1581,7 +1585,7 @@ export default function GalleryTab() {
       {/* Drag Overlay */}
       {isDragOver && (
         <div className="fixed inset-0 bg-royal-purple/10 border-2 border-dashed border-royal-purple/40 flex items-center justify-center z-40 pointer-events-none animate-in fade-in duration-200">
-          <div className="bg-white rounded-lg px-6 py-4 shadow-lg animate-in zoom-in-95 duration-200 ease-out border border-royal-purple/20">
+          <div className="bg-background rounded-lg px-6 py-4 shadow-lg animate-in zoom-in-95 duration-200 ease-out border border-royal-purple/20 dark:border-border">
             <div className="flex items-center gap-3">
               <Upload className="h-6 w-6 text-royal-purple" />
               <span className="text-royal-purple font-medium">

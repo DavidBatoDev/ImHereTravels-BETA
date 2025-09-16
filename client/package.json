@@ -49,7 +49,8 @@
     "migrate:rollback014": "tsx migrations/migrate.ts rollback014",
     "migrate:rollback015": "tsx migrations/migrate.ts rollback015",
     "migrate:rollback016": "tsx migrations/migrate.ts rollback016",
-    "migrate:help": "tsx migrations/migrate.ts help"
+    "migrate:help": "tsx migrations/migrate.ts help",
+    "log-columns": "tsx src/scripts/log-columns.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

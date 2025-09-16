@@ -38,7 +38,7 @@ import {
   Edit,
   MapPin,
   Clock,
-  DollarSign,
+  Banknote,
   Users,
   Star,
   Archive,
@@ -289,7 +289,7 @@ export default function ToursList() {
     return (
       <div className="flex items-center justify-center h-64">
         <RefreshCw className="h-8 w-8 animate-spin text-royal-purple" />
-        <span className="ml-2 text-creative-midnight">Loading tours...</span>
+        <span className="ml-2 text-foreground">Loading tours...</span>
       </div>
     );
   }
@@ -299,10 +299,10 @@ export default function ToursList() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-creative-midnight font-hk-grotesk">
+          <h1 className="text-3xl font-bold text-foreground font-hk-grotesk">
             Tour Packages
           </h1>
-          <p className="text-grey mt-2 text-lg">
+          <p className="text-muted-foreground mt-2 text-lg">
             Manage your tour packages and itineraries
           </p>
         </div>
@@ -318,32 +318,34 @@ export default function ToursList() {
       {/* Summary Cards */}
       {tours.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="p-3 bg-royal-purple/20 rounded-xl">
                   <MapPin className="h-6 w-6 text-royal-purple" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-grey">Total Tours</p>
-                  <p className="text-2xl font-bold text-creative-midnight">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Total Tours
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
                     {tours.length}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="p-3 bg-spring-green/20 rounded-xl">
                   <Users className="h-6 w-6 text-spring-green" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-grey">
+                  <p className="text-sm font-medium text-muted-foreground">
                     Total Bookings
                   </p>
-                  <p className="text-2xl font-bold text-creative-midnight">
+                  <p className="text-2xl font-bold text-foreground">
                     {tours.reduce(
                       (sum, tour) => sum + tour.metadata.bookingsCount,
                       0
@@ -353,16 +355,18 @@ export default function ToursList() {
               </div>
             </CardContent>
           </Card>
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="p-3 bg-sunglow-yellow/20 rounded-xl">
-                  <DollarSign className="h-6 w-6 text-vivid-orange" />
+                  <Banknote className="h-6 w-6 text-vivid-orange" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-grey">Avg. Price</p>
-                  <p className="text-2xl font-bold text-creative-midnight">
-                    $
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Avg. Price
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    €
                     {tours.length > 0
                       ? Math.round(
                           tours.reduce(
@@ -379,15 +383,17 @@ export default function ToursList() {
               </div>
             </CardContent>
           </Card>
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="p-3 bg-crimson-red/20 rounded-xl">
                   <Star className="h-6 w-6 text-crimson-red" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-grey">Active Tours</p>
-                  <p className="text-2xl font-bold text-creative-midnight">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Active Tours
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
                     {tours.filter((tour) => tour.status === "active").length}
                   </p>
                 </div>
@@ -398,7 +404,7 @@ export default function ToursList() {
       )}
 
       {/* Filters */}
-      <Card className="border border-royal-purple/20 shadow">
+      <Card className="border border-royal-purple/20 dark:border-border shadow">
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
@@ -450,10 +456,10 @@ export default function ToursList() {
           return (
             <Card
               key={tour.id}
-              className="hover:shadow-lg transition-all duration-200 overflow-hidden border border-royal-purple/20 shadow hover:border-royal-purple/40"
+              className="hover:shadow-lg transition-all duration-200 overflow-hidden border border-royal-purple/20 dark:border-border shadow hover:border-royal-purple/40 dark:hover:border-border"
             >
               {/* Cover Image */}
-              <div className="relative w-full h-48 bg-light-grey">
+              <div className="relative w-full h-48 bg-muted">
                 {tour.media?.coverImage ? (
                   <Image
                     src={tour.media.coverImage}
@@ -463,8 +469,8 @@ export default function ToursList() {
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-light-grey/50">
-                    <div className="text-center text-grey">
+                  <div className="w-full h-full flex items-center justify-center bg-muted/50">
+                    <div className="text-center text-muted-foreground">
                       <MapPin className="h-8 w-8 mx-auto mb-2 text-royal-purple/60" />
                       <p className="text-sm">No image</p>
                     </div>
@@ -481,10 +487,10 @@ export default function ToursList() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-lg mb-1 text-creative-midnight">
+                    <CardTitle className="text-lg mb-1 text-foreground">
                       {tour.name}
                     </CardTitle>
-                    <div className="flex items-center text-sm text-grey mb-2">
+                    <div className="flex items-center text-sm text-muted-foreground mb-2">
                       <MapPin className="h-4 w-4 mr-1 text-royal-purple" />
                       {tour.location}
                     </div>
@@ -528,7 +534,7 @@ export default function ToursList() {
                     </DropdownMenu>
                   </div>
                 </div>
-                <CardDescription className="line-clamp-2 text-grey">
+                <CardDescription className="line-clamp-2 text-muted-foreground">
                   {tour.description}
                 </CardDescription>
               </CardHeader>
@@ -539,13 +545,13 @@ export default function ToursList() {
                     <div className="flex items-center gap-4">
                       <div className="flex items-center">
                         <Clock className="h-4 w-4 mr-1 text-royal-purple" />
-                        <span className="text-creative-midnight">
+                        <span className="text-foreground">
                           {tour.duration} days
                         </span>
                       </div>
                       <div className="flex items-center">
                         <Users className="h-4 w-4 mr-1 text-royal-purple" />
-                        <span className="text-creative-midnight">
+                        <span className="text-foreground">
                           {tour.metadata.bookingsCount}
                         </span>
                       </div>
@@ -556,11 +562,11 @@ export default function ToursList() {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xl font-bold text-creative-midnight">
+                        <span className="text-xl font-bold text-foreground">
                           {formatPrice(currentPrice, tour.pricing.currency)}
                         </span>
                         {hasDiscount && (
-                          <span className="text-sm text-grey line-through">
+                          <span className="text-sm text-muted-foreground line-through">
                             {formatPrice(
                               tour.pricing.original,
                               tour.pricing.currency
@@ -568,7 +574,7 @@ export default function ToursList() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-grey">
+                      <p className="text-xs text-muted-foreground">
                         Deposit:{" "}
                         {formatPrice(
                           tour.pricing.deposit,
@@ -648,15 +654,15 @@ export default function ToursList() {
 
       {/* Empty State */}
       {tours.length === 0 && !loading && (
-        <Card className="border border-royal-purple/20 shadow">
+        <Card className="border border-royal-purple/20 dark:border-border shadow">
           <CardContent className="p-12 text-center">
-            <div className="mx-auto w-24 h-24 bg-light-grey/50 rounded-full flex items-center justify-center mb-4 border border-royal-purple/20">
+            <div className="mx-auto w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mb-4 border border-royal-purple/20 dark:border-border">
               <MapPin className="h-12 w-12 text-royal-purple/60" />
             </div>
-            <h3 className="text-lg font-semibold text-creative-midnight mb-2">
+            <h3 className="text-lg font-semibold text-foreground mb-2">
               No tours found
             </h3>
-            <p className="text-grey mb-4">
+            <p className="text-muted-foreground mb-4">
               {searchTerm || statusFilter !== "all"
                 ? "Try adjusting your search or filters"
                 : "Get started by creating your first tour package"}
@@ -705,12 +711,12 @@ export default function ToursList() {
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
       >
-        <AlertDialogContent className="border border-royal-purple/20">
+        <AlertDialogContent className="border border-royal-purple/20 dark:border-border">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-creative-midnight">
+            <AlertDialogTitle className="text-foreground">
               Are you sure?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-grey">
+            <AlertDialogDescription className="text-muted-foreground">
               This action cannot be undone. This will permanently delete the
               tour "{tourToDelete?.name}" and remove all associated data.
             </AlertDialogDescription>

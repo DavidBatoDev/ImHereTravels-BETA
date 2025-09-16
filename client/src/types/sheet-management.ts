@@ -50,10 +50,17 @@ export interface TypeScriptFunction {
   lastModified: Date;
 }
 
+export interface ColumnNameHistoryEntry {
+  oldName: string;
+  newName: string;
+  timestamp: string; // ISO string
+}
+
 export interface SheetColumn {
   id: string;
   docId?: string; // Firestore document ID (for metadata ops like reordering)
   columnName: string; // Human-readable column name
+  columnNameHistory?: ColumnNameHistoryEntry[]; // History of column name changes
   dataType: ColumnType; // The data type of the column
   function?: string; // ID of the TypeScript function (only for function type)
   arguments?: FunctionArgument[]; // Arguments for the function (only for function type)

@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+  memo,
+  startTransition,
+} from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -67,10 +75,9 @@ import {
 import { useSheetManagement } from "@/hooks/use-sheet-management";
 import { typescriptFunctionsService } from "@/services/typescript-functions-service";
 import { bookingService } from "@/services/booking-service";
-import { demoBookingData } from "@/lib/demo-booking-data";
 import { useToast } from "@/hooks/use-toast";
+import { useColumnLogger } from "@/hooks/use-column-logger";
 import ColumnSettingsModal from "./ColumnSettingsModal";
-import AddColumnModal from "./AddColumnModal";
 import { functionExecutionService } from "@/services/function-execution-service";
 import { batchedWriter } from "@/services/batched-writer";
 import {
@@ -154,11 +161,18 @@ const EditableCell = memo(function EditableCell({
           onChange={(e) => setLocal(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => {
-            if (e.key === "Enter") commit();
-            else if (e.key === "Escape") cancel();
+            if (e.key === "Enter") {
+              commit();
+              onCancel();
+            } else if (e.key === "Escape") cancel();
           }}
           autoFocus
-          className="h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+          className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none appearance-none"
+          style={{
+            WebkitAppearance: "none",
+            MozAppearance: "textfield",
+            appearance: "none" as any,
+          }}
         />
       </div>
     );
@@ -171,11 +185,13 @@ const EditableCell = memo(function EditableCell({
         onChange={(e) => setLocal(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-          else if (e.key === "Escape") cancel();
+          if (e.key === "Enter") {
+            commit();
+            onCancel();
+          } else if (e.key === "Escape") cancel();
         }}
         autoFocus
-        className="h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+        className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none"
       />
     </div>
   );
@@ -188,11 +204,18 @@ export default function BookingsSheet() {
     data,
     updateColumn,
     deleteColumn,
-    addColumn,
     updateData,
     updateRow,
     deleteRow,
   } = useSheetManagement();
+
+  // Log columns when they change (compact format for performance)
+  useColumnLogger(columns, {
+    logOnChange: true,
+    compact: true,
+    logOrderChanges: true,
+    prefix: "📊 BookingsSheet",
+  });
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -202,10 +225,15 @@ export default function BookingsSheet() {
     rowId: string;
     columnId: string;
   } | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{
+    rowId: string;
+    columnId: string;
+  } | null>(null);
   // Remove global editing value to avoid table-wide rerenders
 
   // Local state for optimistic updates (prevents re-renders)
   const [localData, setLocalData] = useState<SheetData[]>([]);
+  // Removed per-cell loading state per request
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -215,7 +243,7 @@ export default function BookingsSheet() {
     y: number;
   }>({ isOpen: false, rowId: null, x: 0, y: 0 });
 
-  // Handle clicking outside to close editing
+  // Handle clicking outside to close editing (use click so input onBlur commits first)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (editingCell && !(event.target as Element).closest(".editing-cell")) {
@@ -223,9 +251,9 @@ export default function BookingsSheet() {
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("click", handleClickOutside);
     };
   }, [editingCell]);
 
@@ -234,34 +262,73 @@ export default function BookingsSheet() {
     isOpen: boolean;
     column: SheetColumn | null;
   }>({ isOpen: false, column: null });
-  const [addColumnModal, setAddColumnModal] = useState(false);
   const [availableFunctions, setAvailableFunctions] = useState<
     TypeScriptFunction[]
   >([]);
   const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
-  const [isRecomputing, setIsRecomputing] = useState(false);
+  const [isAddingRow, setIsAddingRow] = useState(false);
+  // Active subscriptions to function changes keyed by function id
+  const functionSubscriptionsRef = useRef<Map<string, () => void>>(new Map());
 
   // Helper: map column color to light background + hover classes for body cells
   const getColumnTintClasses = useCallback(
     (color: SheetColumn["color"] | undefined): string => {
       const map: Record<string, { base: string; hover: string }> = {
         purple: {
-          base: "bg-royal-purple/5",
-          hover: "hover:bg-royal-purple/10",
+          base: "bg-royal-purple/8 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-royal-purple/15",
         },
-        blue: { base: "bg-blue-50", hover: "hover:bg-blue-50" },
-        green: { base: "bg-green-50", hover: "hover:bg-green-50" },
-        yellow: { base: "bg-yellow-50", hover: "hover:bg-yellow-50" },
-        orange: { base: "bg-orange-50", hover: "hover:bg-orange-50" },
-        red: { base: "bg-red-50", hover: "hover:bg-red-50" },
-        pink: { base: "bg-pink-50", hover: "hover:bg-pink-50" },
-        cyan: { base: "bg-cyan-50", hover: "hover:bg-cyan-50" },
-        gray: { base: "bg-gray-100", hover: "hover:bg-gray-100" },
-        none: { base: "", hover: "hover:bg-royal-purple/5" },
+        blue: {
+          base: "bg-blue-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-blue-200",
+        },
+        green: {
+          base: "bg-green-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-green-200",
+        },
+        yellow: {
+          base: "bg-yellow-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-yellow-200",
+        },
+        orange: {
+          base: "bg-orange-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-orange-200",
+        },
+        red: {
+          base: "bg-red-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-red-200",
+        },
+        pink: {
+          base: "bg-pink-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-pink-200",
+        },
+        cyan: {
+          base: "bg-cyan-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-cyan-200",
+        },
+        gray: {
+          base: "bg-gray-100 border-l border-r border-royal-purple/40",
+          hover: "hover:bg-gray-200",
+        },
+        none: {
+          base: "border-l border-r border-royal-purple/40",
+          hover: "hover:bg-royal-purple/8",
+        },
       };
       const key = color || "none";
       const chosen = map[key] || map.none;
       return `${chosen.base} ${chosen.hover}`.trim();
+    },
+    []
+  );
+
+  // Helper: get text color class based on column color
+  const getColumnTextColor = useCallback(
+    (color: SheetColumn["color"] | undefined): string => {
+      const hasColor = color && color !== "none";
+      // In light mode: all text is black
+      // In dark mode: colored columns are black, non-colored columns are white
+      return hasColor ? "text-gray-900 dark:text-gray-900" : "";
     },
     []
   );
@@ -282,9 +349,6 @@ export default function BookingsSheet() {
 
     fetchFunctions();
 
-    // Initialize demo data in Firestore if needed
-    initializeDemoData();
-
     // Show ready toast
     toast({
       title: "🚀 Bookings Sheet Ready",
@@ -292,13 +356,6 @@ export default function BookingsSheet() {
       variant: "default",
     });
   }, []);
-
-  // Initialize with demo data (now handled by Firestore)
-  // useMemo(() => {
-  //   if (data.length === 0) {
-  //     updateData(demoBookingData);
-  //   }
-  // }, [data.length, updateData]);
 
   // Use local data for optimistic updates, fallback to hook data
   const tableData = localData.length > 0 ? localData : data;
@@ -350,7 +407,7 @@ export default function BookingsSheet() {
               <div
                 className={`flex items-center justify-center h-12 w-16 px-2 text-sm font-mono transition-all duration-200 ${
                   isRowBeingEdited
-                    ? "bg-royal-purple/20 text-royal-purple font-semibold border border-royal-purple/40"
+                    ? "bg-royal-purple/20 text-royal-purple font-semibold border-2 border-royal-purple"
                     : "text-grey"
                 }`}
               >
@@ -377,8 +434,9 @@ export default function BookingsSheet() {
             <TooltipTrigger asChild>
               <div
                 className={`flex items-center justify-between group h-12 w-full px-3 py-2 rounded transition-all duration-200 ${
+                  selectedCell?.columnId === col.id ||
                   editingCell?.columnId === col.id
-                    ? "bg-royal-purple/30 border border-royal-purple/50 shadow-sm"
+                    ? "bg-royal-purple/30 border-2 border-royal-purple shadow-sm"
                     : "bg-transparent"
                 } text-royal-purple`}
                 style={{
@@ -404,7 +462,7 @@ export default function BookingsSheet() {
             <TooltipContent>{col.columnName}</TooltipContent>
           </Tooltip>
         ),
-        accessorKey: col.id, // Use exact column ID
+        accessorKey: col.id, // Use column ID as accessor key
         cell: ({ row, column }) => {
           const value = row.getValue(column.id);
           const columnDef = columns.find((c) => c.id === column.id);
@@ -434,12 +492,13 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className={`h-12 w-full px-2 flex items-center justify-center transition-all duration-200 relative ${
-                      editingCell?.rowId === row.id &&
-                      editingCell?.columnId === column.id
-                        ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                        : getColumnTintClasses(columnDef.color)
-                    }`}
+                    className={`h-12 w-full px-2 flex items-center justify-center transition-all duration-200 relative ${getColumnTintClasses(
+                      columnDef.color
+                    )}`}
+                    data-cell="1"
+                    data-row-id={row.id}
+                    data-col-id={column.id}
+                    data-type="boolean"
                     style={{
                       minWidth: `${columnDef.width || 150}px`,
                       maxWidth: `${columnDef.width || 150}px`,
@@ -479,11 +538,21 @@ export default function BookingsSheet() {
                         }}
                       />
                       <span
-                        className={`text-sm font-medium transition-colors duration-200 select-none ${
+                        className={`text-sm font-medium transition-colors duration-200 select-none cursor-pointer ${
                           value
                             ? "text-royal-purple font-semibold"
-                            : "text-gray-500"
+                            : "text-gray-500 dark:text-muted-foreground"
                         }`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // Toggle the checkbox when text is clicked
+                          handleCellEdit(
+                            row.id,
+                            column.id,
+                            (!value).toString()
+                          );
+                        }}
                       >
                         {value ? "Yes" : "No"}
                       </span>
@@ -501,12 +570,16 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                      editingCell?.rowId === row.id &&
-                      editingCell?.columnId === column.id
-                        ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                        : getColumnTintClasses(columnDef.color)
-                    }`}
+                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${getColumnTintClasses(
+                      columnDef.color
+                    )}`}
+                    data-cell="1"
+                    data-row-id={row.id}
+                    data-col-id={column.id}
+                    data-type="select"
+                    onDoubleClick={() =>
+                      handleCellDoubleClick(row.id, column.id)
+                    }
                     style={{
                       minWidth: `${columnDef.width || 150}px`,
                       maxWidth: `${columnDef.width || 150}px`,
@@ -519,52 +592,64 @@ export default function BookingsSheet() {
                       style={{ position: "relative", zIndex: 15 }}
                     >
                       {columnDef.options && columnDef.options.length > 0 ? (
-                        <Select
-                          value={value?.toString() || ""}
-                          onValueChange={(newValue) => {
-                            // Update the cell value directly when selection changes
-                            handleCellEdit(row.id, column.id, newValue);
-                          }}
-                        >
-                          <SelectTrigger
-                            className={`h-8 border-royal-purple/20 focus:border-royal-purple text-sm transition-colors duration-200 focus:ring-2 focus:ring-royal-purple/20 ${
-                              value
-                                ? "bg-royal-purple/5 border-royal-purple/40 text-royal-purple font-medium"
-                                : "bg-white hover:bg-royal-purple/5 text-gray-500"
-                            }`}
+                        <div className="relative">
+                          <Select
+                            value={value?.toString() || ""}
+                            onValueChange={(newValue) => {
+                              // Update the cell value directly when selection changes
+                              handleCellEdit(row.id, column.id, newValue);
+                            }}
                           >
-                            <SelectValue
-                              placeholder="Select option"
-                              className={
-                                !value ? "text-gray-400" : "text-royal-purple"
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white border border-royal-purple/20 shadow-lg max-h-60 z-50">
-                            {columnDef.options.map((option) => (
-                              <SelectItem
-                                key={option}
-                                value={option}
-                                className={`text-sm transition-colors duration-200 ${
-                                  option === value
-                                    ? "bg-royal-purple/20 text-royal-purple font-medium"
-                                    : "hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
-                                }`}
-                              >
-                                {option}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                            <SelectTrigger
+                              className={`h-8 border-0 focus:border-0 text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none bg-transparent ${
+                                value
+                                  ? "text-royal-purple font-medium"
+                                  : "text-gray-500 dark:text-muted-foreground"
+                              }`}
+                            >
+                              <SelectValue
+                                placeholder="Select option"
+                                className={
+                                  !value
+                                    ? "text-gray-400 dark:text-muted-foreground/60"
+                                    : "text-royal-purple"
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-background border border-royal-purple/20 dark:border-border shadow-lg max-h-60 z-50">
+                              {columnDef.options.map((option) => (
+                                <SelectItem
+                                  key={option}
+                                  value={option}
+                                  className={`text-sm transition-colors duration-200 ${
+                                    option === value
+                                      ? "bg-royal-purple/20 text-royal-purple font-medium"
+                                      : "hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
+                                  }`}
+                                >
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {/* Single-click blocker to prevent opening on first click */}
+                          <div
+                            className="absolute inset-0"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
+                          />
+                        </div>
                       ) : (
-                        <div className="h-8 w-full flex items-center justify-center text-sm text-gray-400 bg-gray-50 border border-gray-200 rounded cursor-not-allowed">
+                        <div className="h-8 w-full flex items-center justify-center text-sm text-gray-400 dark:text-muted-foreground/60 bg-gray-50 dark:bg-muted border border-gray-200 dark:border-border rounded cursor-not-allowed">
                           No options available
                         </div>
                       )}
                     </div>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent>{value ? String(value) : "-"}</TooltipContent>
+                <TooltipContent>{value ? String(value) : ""}</TooltipContent>
               </Tooltip>
             );
           }
@@ -575,12 +660,16 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                      editingCell?.rowId === row.id &&
-                      editingCell?.columnId === column.id
-                        ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                        : getColumnTintClasses(columnDef.color)
-                    }`}
+                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${getColumnTintClasses(
+                      columnDef.color
+                    )}`}
+                    data-cell="1"
+                    data-row-id={row.id}
+                    data-col-id={column.id}
+                    data-type="date"
+                    onDoubleClick={() =>
+                      handleCellDoubleClick(row.id, column.id)
+                    }
                     style={{
                       minWidth: `${columnDef.width || 150}px`,
                       maxWidth: `${columnDef.width || 150}px`,
@@ -672,9 +761,9 @@ export default function BookingsSheet() {
                           e.stopPropagation();
 
                           // Try multiple approaches to show the date picker
-                          if (e.currentTarget.showPicker) {
+                          if ((e.currentTarget as any).showPicker) {
                             try {
-                              e.currentTarget.showPicker();
+                              (e.currentTarget as any).showPicker();
                             } catch (error) {
                               // Fallback: ensure the input is focused and try to trigger the date picker
                               e.currentTarget.focus();
@@ -692,13 +781,11 @@ export default function BookingsSheet() {
                             }, 10);
                           }
                         }}
-                        className={`h-8 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 text-sm transition-colors duration-200 pr-8 cursor-pointer ${
-                          value
-                            ? "bg-royal-purple/5 border-royal-purple/40"
-                            : "bg-white hover:bg-royal-purple/5"
-                        } focus:bg-white focus:ring-2 focus:ring-royal-purple/20 ${
-                          !value ? "text-gray-400" : "text-gray-900"
-                        }`}
+                        className={`h-8 border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 text-sm transition-colors duration-200 pr-8 cursor-pointer rounded-none bg-transparent ${
+                          !value
+                            ? "text-gray-400 dark:text-muted-foreground/60"
+                            : "text-gray-900 dark:text-foreground"
+                        } appearance-none`}
                         placeholder={value ? "" : "Select date"}
                         title={
                           value
@@ -709,51 +796,60 @@ export default function BookingsSheet() {
                             : "Click to select a date"
                         }
                         aria-label={`Date for ${columnDef.columnName}`}
-                        style={{ zIndex: 10 }}
+                        style={{
+                          zIndex: 10,
+                          WebkitAppearance: "none",
+                          MozAppearance: "textfield",
+                          appearance: "none" as any,
+                        }}
                         autoComplete="off"
                         data-date-picker="true"
                       />
                       {/* Calendar icon indicator - clickable to open date picker */}
-                      {/* <div 
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer z-20"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Focus the input and try to show the date picker
-                      const input = e.currentTarget.parentElement?.querySelector('input[type="date"]') as HTMLInputElement;
-                      if (input) {
-                        input.focus();
-                        // Try to show the native date picker
-                        if (input.showPicker) {
-                          input.showPicker();
-                        } else {
-                          // Fallback: click the input to trigger the date picker
-                          input.click();
-                        }
-                      }
-                    }}
-                    title="Click to open date picker"
-                  >
-                    <svg
-                      className={`w-4 h-4 transition-colors duration-200 ${
-                        value ? "text-royal-purple" : "text-royal-purple/40"
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                    </svg>
-                  </div> */}
+                      <div
+                        className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer z-20"
+                        onPointerDown={(e) => {
+                          // prevent selection logic on container
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const input =
+                            e.currentTarget.parentElement?.querySelector(
+                              'input[type="date"]'
+                            ) as HTMLInputElement | null;
+                          if (input) {
+                            if ((input as any).showPicker) {
+                              (input as any).showPicker();
+                            } else {
+                              input.focus();
+                              setTimeout(() => input.click(), 10);
+                            }
+                          }
+                        }}
+                        title="Open date picker"
+                        aria-label="Open date picker"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 text-royal-purple"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM18 9H2v7a2 2 0 002 2h12a2 2 0 002-2V9z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {renderCellValue(value, columnDef)}
+                  <span className={getColumnTextColor(columnDef.color)}>
+                    {renderCellValue(value, columnDef)}
+                  </span>
                 </TooltipContent>
               </Tooltip>
             );
@@ -766,12 +862,13 @@ export default function BookingsSheet() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
-                      className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                        editingCell?.rowId === row.id &&
-                        editingCell?.columnId === column.id
-                          ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                          : getColumnTintClasses(columnDef.color)
-                      }`}
+                      className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${getColumnTintClasses(
+                        columnDef.color
+                      )}`}
+                      data-cell="1"
+                      data-row-id={row.id}
+                      data-col-id={column.id}
+                      data-type="function"
                       style={{
                         minWidth: `${columnDef.width || 150}px`,
                         maxWidth: `${columnDef.width || 150}px`,
@@ -796,31 +893,46 @@ export default function BookingsSheet() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${
-                      editingCell?.rowId === row.id &&
-                      editingCell?.columnId === column.id
-                        ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                        : getColumnTintClasses(columnDef.color)
-                    }`}
+                    className={`h-12 w-full px-2 flex items-center transition-all duration-200 relative ${getColumnTintClasses(
+                      columnDef.color
+                    )}`}
+                    data-cell="1"
+                    data-row-id={row.id}
+                    data-col-id={column.id}
+                    data-type="function"
                     style={{
                       minWidth: `${columnDef.width || 150}px`,
                       maxWidth: `${columnDef.width || 150}px`,
                     }}
                     // Non-editable
                     onClick={(e) => e.stopPropagation()}
+                    onDoubleClick={() =>
+                      handleCellDoubleClick(row.id, column.id)
+                    }
                     title="Computed cell"
                   >
-                    <div
-                      className="w-full truncate text-sm"
-                      title={value?.toString() || ""}
-                    >
-                      {renderCellValue(value, columnDef)}
-                    </div>
+                    {(() => {
+                      const key = `${row.id}:${columnDef.id}`;
+                      return (
+                        <div
+                          className="w-full truncate text-sm flex items-center gap-2"
+                          title={value?.toString() || ""}
+                        >
+                          <span className={undefined}>
+                            <span
+                              className={getColumnTextColor(columnDef.color)}
+                            >
+                              {renderCellValue(value, columnDef)}
+                            </span>
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
                   {value === undefined || value === null || value === ""
-                    ? "-"
+                    ? ""
                     : String(value)}
                 </TooltipContent>
               </Tooltip>
@@ -832,26 +944,28 @@ export default function BookingsSheet() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className={`h-12 w-full px-2 flex items-center cursor-pointer transition-all duration-200 relative ${
-                    editingCell?.rowId === row.id &&
-                    editingCell?.columnId === column.id
-                      ? "bg-royal-purple/20 border border-royal-purple/40 shadow-sm"
-                      : getColumnTintClasses(columnDef.color)
-                  }`}
+                  className={`h-12 w-full px-2 flex items-center cursor-pointer transition-all duration-200 relative ${getColumnTintClasses(
+                    columnDef.color
+                  )}`}
                   style={{
                     minWidth: `${columnDef.width || 150}px`,
                     maxWidth: `${columnDef.width || 150}px`,
                   }}
-                  onClick={() => handleCellClick(row.id, column.id)}
+                  data-cell="1"
+                  data-row-id={row.id}
+                  data-col-id={column.id}
+                  onDoubleClick={() => handleCellDoubleClick(row.id, column.id)}
                 >
                   <div className="w-full truncate text-sm">
-                    {renderCellValue(value, columnDef)}
+                    <span className={getColumnTextColor(columnDef.color)}>
+                      {renderCellValue(value, columnDef)}
+                    </span>
                   </div>
                 </div>
               </TooltipTrigger>
               <TooltipContent>
                 {value === undefined || value === null || value === ""
-                  ? "-"
+                  ? ""
                   : String(value)}
               </TooltipContent>
             </Tooltip>
@@ -961,13 +1075,11 @@ export default function BookingsSheet() {
     return map;
   }, [columns]);
 
-  // Recompute only dependents for a single row (BFS over columnName dependencies)
-  const recomputeDependentsForRow = useCallback(
+  // Recompute only direct dependent function columns for a single row
+  const recomputeDirectDependentsForRow = useCallback(
     async (rowId: string, changedColumnId: string, updatedValue: any) => {
       const changedCol = columns.find((c) => c.id === changedColumnId);
-      if (!changedCol) return;
-      const startName = changedCol.columnName;
-      if (!startName) return;
+      if (!changedCol || !changedCol.columnName) return;
 
       // Build a working snapshot of the row values
       const baseRow =
@@ -979,54 +1091,95 @@ export default function BookingsSheet() {
         [changedColumnId]: updatedValue,
       };
 
-      const visited = new Set<string>(); // function column ids visited
-      const queue: string[] = [startName]; // queue of columnNames whose dependents need recompute
-
-      while (queue.length) {
-        const name = queue.shift()!;
-        const dependents = dependencyGraph.get(name) || [];
-        for (const funcCol of dependents) {
-          if (visited.has(funcCol.id)) continue;
-          visited.add(funcCol.id);
-          const result = await computeFunctionForRow(rowSnapshot, funcCol);
-          if (result !== undefined) {
-            (rowSnapshot as any)[funcCol.id] = result;
-          }
-          // Enqueue further dependents using the function column's own columnName
-          if (funcCol.columnName) {
-            queue.push(funcCol.columnName);
-          }
-        }
-      }
+      const directDependents = dependencyGraph.get(changedCol.columnName) || [];
+      // Compute all direct dependents in parallel for speed
+      await Promise.all(
+        directDependents.map((funcCol) =>
+          computeFunctionForRow(rowSnapshot, funcCol)
+        )
+      );
+      // Do not force flush; allow debounced batch to commit to keep UI snappy
     },
     [columns, localData, data, dependencyGraph, computeFunctionForRow]
   );
 
-  // Recompute all function columns when data or columns change (debounced via effect cadence + batched writes)
-  useEffect(() => {
-    const funcCols = columns.filter(
-      (c) => c.dataType === "function" && !!c.function
-    );
-    if (funcCols.length === 0 || tableData.length === 0) return;
+  // Recompute for columns bound to a specific function id (and their dependents)
+  const recomputeForFunction = useCallback(
+    async (funcId: string) => {
+      const impactedColumns = columns.filter(
+        (c) => c.dataType === "function" && c.function === funcId
+      );
+      if (impactedColumns.length === 0) return;
 
-    let cancelled = false;
-    (async () => {
-      for (const row of tableData) {
-        for (const col of funcCols) {
-          if (cancelled) return;
-          await computeFunctionForRow(row, col);
+      const rows = localData.length > 0 ? localData : data;
+      for (const row of rows) {
+        for (const funcCol of impactedColumns) {
+          await computeFunctionForRow(row, funcCol);
         }
       }
-      // After scheduling all updates, let the batched writer flush on its debounce
-    })();
+      // Expedite persistence
+      batchedWriter.flush();
+    },
+    [columns, localData, data, computeFunctionForRow]
+  );
 
+  // Subscribe to changes for only the functions referenced by current columns
+  useEffect(() => {
+    const inUseFunctionIds = new Set(
+      columns
+        .filter((c) => c.dataType === "function" && !!c.function)
+        .map((c) => c.function as string)
+    );
+
+    // Add new subscriptions for newly referenced functions
+    inUseFunctionIds.forEach((funcId) => {
+      if (!functionSubscriptionsRef.current.has(funcId)) {
+        const unsubscribe =
+          typescriptFunctionsService.subscribeToFunctionChanges(
+            funcId,
+            (updated) => {
+              if (!updated) return;
+              // Invalidate compiled function cache so next compute uses fresh code
+              functionExecutionService.invalidate(funcId);
+              // Recompute only affected columns and their dependents
+              recomputeForFunction(funcId);
+            }
+          );
+        functionSubscriptionsRef.current.set(funcId, unsubscribe);
+      }
+    });
+
+    // Remove subscriptions for functions no longer referenced
+    for (const [
+      funcId,
+      unsubscribe,
+    ] of functionSubscriptionsRef.current.entries()) {
+      if (!inUseFunctionIds.has(funcId)) {
+        try {
+          unsubscribe();
+        } catch {}
+        functionSubscriptionsRef.current.delete(funcId);
+      }
+    }
+
+    // Cleanup on unmount: ensure all remaining subscriptions are torn down
     return () => {
-      cancelled = true;
+      for (const [
+        ,
+        unsubscribe,
+      ] of functionSubscriptionsRef.current.entries()) {
+        try {
+          unsubscribe();
+        } catch {}
+      }
+      functionSubscriptionsRef.current.clear();
     };
-  }, [columns, tableData, computeFunctionForRow]);
+  }, [columns, recomputeForFunction]);
+
+  // Removed sheet-wide recomputation to avoid rerunning entire sheet on edits
 
   const renderCellValue = useCallback((value: any, column: SheetColumn) => {
-    if (value === null || value === undefined || value === "") return "-";
+    if (value === null || value === undefined || value === "") return "";
 
     const dataType = column.dataType;
     const columnId = column.id;
@@ -1070,7 +1223,7 @@ export default function BookingsSheet() {
           return "Invalid Date";
         }
       case "currency":
-        return `$${parseFloat(value).toLocaleString()}`;
+        return `€${parseFloat(value).toLocaleString()}`;
       case "select":
         return value;
       case "function":
@@ -1117,6 +1270,13 @@ export default function BookingsSheet() {
             processedValue = value;
         }
 
+        // Do not update if value didn't change
+        const currentRow = (localData.find((r) => r.id === rowId) ||
+          data.find((r) => r.id === rowId)) as SheetData | undefined;
+        if (currentRow && isEqual(currentRow[columnId], processedValue)) {
+          return;
+        }
+
         // 🚀 OPTIMISTIC UPDATE: Update local state immediately for instant UI feedback
         setLocalData((prevData) => {
           const updatedData = prevData.map((row) =>
@@ -1130,19 +1290,9 @@ export default function BookingsSheet() {
 
         // Queue field update (debounced batch)
         batchedWriter.queueFieldUpdate(rowId, columnId, processedValue);
-        // Keep toast UX similar by simulating success path immediately
-        Promise.resolve()
-          .then(() => {
-            // Show success toast
-            toast({
-              title: "✅ Cell Updated",
-              description: `Updated ${column.columnName}`,
-            });
-
-            // After a successful base field update, recompute dependents via the dependency graph
-            recomputeDependentsForRow(rowId, columnId, processedValue);
-          })
-          .catch((error) => {
+        // Recompute only direct dependents (no success toast to keep UI snappy)
+        recomputeDirectDependentsForRow(rowId, columnId, processedValue).catch(
+          (error) => {
             console.error(`❌ Failed to update cell:`, error);
 
             // Revert optimistic update on error
@@ -1165,12 +1315,13 @@ export default function BookingsSheet() {
               }`,
               variant: "destructive",
             });
-          });
+          }
+        );
       } catch (error) {
         console.error(`❌ Failed to handle cell edit:`, error);
       }
     },
-    [columns, toast, data, tableData, recomputeDependentsForRow]
+    [columns, toast, data, tableData, recomputeDirectDependentsForRow]
   );
 
   // Handle committing cell changes (like Google Sheets - save on Enter/blur)
@@ -1178,10 +1329,374 @@ export default function BookingsSheet() {
     setEditingCell(null);
   }, []);
 
-  // Memoized cell click handler to prevent re-renders
+  // Memoized cell click handler: select only (fast), don't enter edit on single click
   const handleCellClick = useCallback((rowId: string, columnId: string) => {
-    setEditingCell({ rowId, columnId });
+    setSelectedCell((prev) => {
+      if (prev && prev.rowId === rowId && prev.columnId === columnId)
+        return prev;
+      return { rowId, columnId };
+    });
   }, []);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastSelectedCellEl = useRef<HTMLElement | null>(null);
+  const [overlayEditing, setOverlayEditing] = useState(false);
+  const overlayInitialValueRef = useRef<string>("");
+  const overlayEditingCellRef = useRef<{
+    rowId: string;
+    columnId: string;
+  } | null>(null);
+  const overlayTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const [selectionBox, setSelectionBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const clearSelection = useCallback(() => {
+    setOverlayEditing(false);
+    setSelectionBox(null);
+    setSelectedCell(null as any);
+    if (lastSelectedCellEl.current) {
+      lastSelectedCellEl.current.style.backgroundColor = "";
+      lastSelectedCellEl.current.style.visibility = "";
+      lastSelectedCellEl.current = null;
+    }
+  }, []);
+
+  const handleOverlayCommit = useCallback(async () => {
+    const targetCell = overlayEditingCellRef.current || selectedCell;
+    if (!targetCell) return;
+    const currentValue = overlayTextareaRef.current?.value ?? "";
+    let valueToSend = currentValue;
+    const colDef = columns.find((c) => c.id === targetCell.columnId);
+    if (colDef) {
+      switch (colDef.dataType) {
+        case "number":
+        case "currency": {
+          // Strip thousands separators, currency symbols, and spaces
+          const normalized = (currentValue || "").replace(/[^0-9.\-]+/g, "");
+          valueToSend = normalized;
+          break;
+        }
+        case "boolean": {
+          const t = (currentValue || "").trim().toLowerCase();
+          const truthy = ["true", "1", "yes", "y", "on"];
+          valueToSend = truthy.includes(t) ? "true" : "false";
+          break;
+        }
+        case "date": {
+          const d = new Date(currentValue);
+          if (!isNaN(d.getTime())) {
+            valueToSend = d.toISOString().split("T")[0];
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    }
+    await handleCellEdit(targetCell.rowId, targetCell.columnId, valueToSend);
+    clearSelection();
+    overlayEditingCellRef.current = null;
+  }, [selectedCell, handleCellEdit, clearSelection, columns]);
+
+  const handlePointerDownSelect = useCallback(
+    (e: React.PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      // If clicking on the floating overlay, let its handlers manage
+      if (overlayRef.current && overlayRef.current.contains(target)) {
+        return;
+      }
+      const cellEl = target.closest('[data-cell="1"]') as HTMLElement | null;
+      // Clicked somewhere inside the container but not on a cell -> commit/clear
+      if (!cellEl) {
+        if (overlayEditing) {
+          // Commit then unselect
+          handleOverlayCommit();
+        } else if (selectedCell) {
+          clearSelection();
+        }
+        return;
+      }
+      const rowId = cellEl.dataset.rowId;
+      const columnId = cellEl.dataset.colId;
+      const cellType = cellEl.dataset.type;
+      if (rowId && columnId) {
+        // If we're currently editing and selecting a different cell, commit the edit first
+        if (overlayEditing) {
+          const current = overlayEditingCellRef.current || selectedCell;
+          if (
+            !current ||
+            current.rowId !== rowId ||
+            current.columnId !== columnId
+          ) {
+            // Commit the current edit before switching to new cell
+            handleOverlayCommit();
+            // Don't return here - continue to select the new cell
+          }
+        }
+
+        // Immediate boolean toggle: click on checkbox cell toggles without overlay edit
+        if (cellType === "boolean") {
+          // Toggle immediately via data state, do not change selection
+          const row = (localData.find((r) => r.id === rowId) ||
+            data.find((r) => r.id === rowId)) as any;
+          const current = row ? !!row[columnId as any] : false;
+          handleCellEdit(rowId, columnId, (!current).toString());
+          return;
+        }
+        // Defer selection state to next frame to let layout settle before overlay render
+        requestAnimationFrame(() => {
+          setSelectedCell((prev) => {
+            if (prev && prev.rowId === rowId && prev.columnId === columnId)
+              return prev;
+            return { rowId, columnId };
+          });
+        });
+
+        const container = containerRef.current;
+        if (container) {
+          const cellRect = cellEl.getBoundingClientRect();
+          const contRect = container.getBoundingClientRect();
+          requestAnimationFrame(() => {
+            setSelectionBox({
+              top: cellRect.top - contRect.top,
+              left: cellRect.left - contRect.left,
+              width: cellRect.width,
+              height: cellRect.height,
+            });
+          });
+        }
+
+        // Batch style changes to avoid layout thrash
+        requestAnimationFrame(() => {
+          if (
+            lastSelectedCellEl.current &&
+            lastSelectedCellEl.current !== cellEl
+          ) {
+            lastSelectedCellEl.current.style.backgroundColor = "";
+            lastSelectedCellEl.current.style.visibility = "";
+          }
+          const shouldHide = !(
+            cellType === "boolean" ||
+            cellType === "select" ||
+            cellType === "date" ||
+            cellType === "function"
+          );
+          if (shouldHide) {
+            cellEl.style.backgroundColor = "#ffffff";
+            cellEl.style.visibility = "hidden";
+          } else {
+            cellEl.style.backgroundColor = "";
+            cellEl.style.visibility = "";
+          }
+          lastSelectedCellEl.current = cellEl;
+        });
+
+        // Close overlay editing if selecting a new cell
+        setOverlayEditing(false);
+      }
+    },
+    [
+      localData,
+      data,
+      columns,
+      handleCellEdit,
+      overlayEditing,
+      handleOverlayCommit,
+    ]
+  );
+
+  const handleOverlayDoubleClick = useCallback(() => {
+    if (!selectedCell) return;
+    const row = (localData.find((r) => r.id === selectedCell.rowId) ||
+      data.find((r) => r.id === selectedCell.rowId)) as any;
+    const colDef = columns.find((c) => c.id === selectedCell.columnId);
+    const raw = row && colDef ? row[colDef.id] : undefined;
+    overlayInitialValueRef.current = String(raw ?? "");
+    setOverlayEditing(true);
+    overlayEditingCellRef.current = {
+      rowId: selectedCell.rowId,
+      columnId: selectedCell.columnId,
+    };
+  }, [selectedCell, localData, data, columns]);
+
+  const handleContainerDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const cellEl = target.closest('[data-cell="1"]') as HTMLElement | null;
+      if (!cellEl) return;
+      const rowId = cellEl.dataset.rowId || selectedCell?.rowId;
+      const columnId = cellEl.dataset.colId || selectedCell?.columnId;
+      if (!rowId || !columnId) return;
+      const row = (localData.find((r) => r.id === rowId) ||
+        data.find((r) => r.id === rowId)) as any;
+      const colDef = columns.find((c) => c.id === columnId);
+      const raw = row && colDef ? row[colDef.id] : undefined;
+      overlayInitialValueRef.current = String(raw ?? "");
+      setOverlayEditing(true);
+      overlayEditingCellRef.current = { rowId, columnId };
+    },
+    [selectedCell, localData, data, columns]
+  );
+
+  const handleOverlayKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleOverlayCommit();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setOverlayEditing(false);
+      }
+    },
+    [handleOverlayCommit]
+  );
+
+  useEffect(() => {
+    // When entering edit mode, ensure the overlay doesn't obstruct and the cell is visible
+    if (editingCell) {
+      if (lastSelectedCellEl.current) {
+        lastSelectedCellEl.current.style.visibility = "";
+        lastSelectedCellEl.current.style.backgroundColor = "";
+      }
+    }
+  }, [editingCell]);
+
+  useEffect(() => {
+    if (overlayEditing && overlayTextareaRef.current) {
+      const el = overlayTextareaRef.current;
+      // Focus and move caret to the end of the value
+      try {
+        el.focus();
+        const len = el.value.length;
+        if (typeof (el as any).setSelectionRange === "function") {
+          (el as any).setSelectionRange(len, len);
+        }
+      } catch {}
+    }
+  }, [overlayEditing]);
+
+  useEffect(() => {
+    const onGlobalPointerDown = (e: PointerEvent) => {
+      const container = containerRef.current;
+      if (!container) return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const insideContainer = container.contains(target);
+      if (!insideContainer) {
+        if (overlayEditing) {
+          // Commit then unselect
+          handleOverlayCommit();
+        } else if (selectedCell) {
+          clearSelection();
+        }
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        if (overlayEditing) {
+          e.preventDefault();
+          handleOverlayCommit();
+        } else if (selectedCell) {
+          e.preventDefault();
+          clearSelection();
+        }
+      } else if (selectedCell && !overlayEditing) {
+        // Check if it's a printable character (not special keys like Escape, Tab, etc.)
+        const isPrintableChar =
+          e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+
+        if (isPrintableChar) {
+          const selectedCol = columns.find(
+            (c) => c.id === selectedCell.columnId
+          );
+          const isEditableType =
+            selectedCol?.dataType === "string" ||
+            selectedCol?.dataType === "number" ||
+            selectedCol?.dataType === "currency";
+
+          if (isEditableType) {
+            e.preventDefault();
+            overlayInitialValueRef.current = e.key;
+            setOverlayEditing(true);
+          }
+        }
+      }
+    };
+    window.addEventListener("pointerdown", onGlobalPointerDown, true);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.removeEventListener("pointerdown", onGlobalPointerDown, true);
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [
+    overlayEditing,
+    selectedCell,
+    handleOverlayCommit,
+    clearSelection,
+    columns,
+  ]);
+
+  const selectedDisplayValue = useMemo(() => {
+    if (!selectedCell) return null;
+    const row = (localData.find((r) => r.id === selectedCell.rowId) ||
+      data.find((r) => r.id === selectedCell.rowId)) as any;
+    if (!row) return null;
+    const colDef = columns.find((c) => c.id === selectedCell.columnId);
+    if (!colDef) return null;
+    const raw = row[colDef.id];
+    if (raw === undefined || raw === null || raw === "") return "";
+    try {
+      if (colDef.dataType === "boolean") {
+        const boolVal = !!raw;
+        return boolVal ? "Yes" : "No";
+      }
+      if (colDef.dataType === "date") {
+        let date: Date | null = null;
+        if (raw && typeof raw === "object") {
+          if (typeof (raw as any).toDate === "function") {
+            date = (raw as any).toDate();
+          } else if (typeof (raw as any).seconds === "number") {
+            date = new Date((raw as any).seconds * 1000);
+          }
+        }
+        if (!date && (typeof raw === "string" || typeof raw === "number")) {
+          const d = new Date(raw as any);
+          if (!isNaN(d.getTime())) date = d;
+        }
+        if (date && !isNaN(date.getTime())) {
+          return date.toISOString().split("T")[0];
+        }
+        return "";
+      }
+      return String(raw);
+    } catch {
+      return "";
+    }
+  }, [selectedCell, localData, data, columns]);
+
+  const selectedColDef = useMemo(
+    () =>
+      selectedCell
+        ? columns.find((c) => c.id === selectedCell.columnId)
+        : undefined,
+    [selectedCell, columns]
+  );
+  const selectedType = selectedColDef?.dataType;
+
+  // Double click enters edit mode (heavy UI only when needed)
+  const handleCellDoubleClick = useCallback(
+    (rowId: string, columnId: string) => {
+      setEditingCell({ rowId, columnId });
+    },
+    []
+  );
 
   const openColumnSettings = (column: SheetColumn) => {
     setColumnSettingsModal({ isOpen: true, column });
@@ -1195,60 +1710,11 @@ export default function BookingsSheet() {
     deleteColumn(columnId);
   };
 
-  const handleAddColumn = (newColumn: Omit<SheetColumn, "id">) => {
-    addColumn(newColumn);
-  };
-
-  // Initialize demo data in Firestore if needed
-  const initializeDemoData = async () => {
-    try {
-      // Check if we have any data in Firestore
-      const existingBookings = await bookingService.getAllBookings();
-
-      if (existingBookings.length === 0) {
-        console.log("📝 No existing bookings found, initializing demo data...");
-
-        // Create demo bookings in Firestore with numeric IDs
-        for (let i = 0; i < demoBookingData.length; i++) {
-          const demoBooking = demoBookingData[i];
-          const rowNumber = (i + 1).toString(); // Use 1, 2, 3, etc.
-
-          await bookingService.createOrUpdateBooking(rowNumber, {
-            ...demoBooking,
-            id: rowNumber,
-          });
-        }
-
-        console.log("✅ Demo data initialized in Firestore");
-
-        // Show success toast
-        toast({
-          title: "📊 Demo Data Initialized",
-          description: `${demoBookingData.length} demo bookings created successfully`,
-          variant: "default",
-        });
-      } else {
-        console.log(
-          `📊 Found ${existingBookings.length} existing bookings in Firestore`
-        );
-      }
-    } catch (error) {
-      console.error("❌ Failed to initialize demo data:", error);
-
-      // Show error toast
-      toast({
-        title: "❌ Failed to Initialize Demo Data",
-        description: `Error: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        variant: "destructive",
-      });
-    }
-  };
-
   // Handle adding a new row
   const handleAddNewRow = async () => {
     try {
+      setIsAddingRow(true);
+
       // Get the next available row number
       const nextRowNumber = await bookingService.getNextRowNumber();
       const newRowId = nextRowNumber.toString();
@@ -1285,6 +1751,8 @@ export default function BookingsSheet() {
         }`,
         variant: "destructive",
       });
+    } finally {
+      setIsAddingRow(false);
     }
   };
 
@@ -1330,76 +1798,22 @@ export default function BookingsSheet() {
     }));
   };
 
-  // Manually recompute all function columns for all rows (useful after CSV/migration)
-  const handleRecomputeAllFunctions = async () => {
-    try {
-      setIsRecomputing(true);
-      const funcCols = columns.filter(
-        (c) => c.dataType === "function" && !!c.function
-      );
-      if (
-        funcCols.length === 0 ||
-        (localData.length === 0 && data.length === 0)
-      ) {
-        toast({
-          title: "No Function Columns",
-          description: "Nothing to recompute.",
-        });
-        return;
-      }
-
-      const rows = localData.length > 0 ? localData : data;
-      for (const row of rows) {
-        for (const col of funcCols) {
-          await computeFunctionForRow(row, col);
-        }
-      }
-
-      // Expedite persistence of the batched writes
-      batchedWriter.flush();
-
-      toast({
-        title: "Functions Recomputed",
-        description: `Processed ${rows.length} rows across ${funcCols.length} function column(s)`,
-      });
-    } catch (err) {
-      console.error("❌ Recompute all failed", err);
-      toast({
-        title: "Failed to Recompute",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRecomputing(false);
-    }
-  };
+  // Removed manual recompute handler and button per request
 
   return (
-    <div className="space-y-6">
+    <div className="booking-sheet space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-creative-midnight font-hk-grotesk">
+          <h2 className="text-2xl font-bold text-foreground font-hk-grotesk">
             Bookings Sheet
           </h2>
-          <p className="text-grey">
+          <p className="text-muted-foreground">
             Manage your bookings data with customizable columns
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleRecomputeAllFunctions}
-            disabled={isRecomputing}
-            className="flex items-center gap-2 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-            title="Recompute all function columns (use after CSV/migrated data)"
-          >
-            {isRecomputing ? (
-              <span className="animate-pulse">Recomputing…</span>
-            ) : (
-              <>Recompute Functions</>
-            )}
-          </Button>
+          {/* Recompute button removed */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1414,28 +1828,19 @@ export default function BookingsSheet() {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-xs">
                 <p className="text-sm">
-                  Use “Recompute Functions” after importing CSV or migrating
-                  data to backfill function columns. Day-to-day edits recompute
-                  automatically.
+                  Function columns recompute only when their inputs or
+                  underlying functions change.
                 </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <Button
-            variant="outline"
-            onClick={() => setAddColumnModal(true)}
-            className="flex items-center gap-2 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-          >
-            <Plus className="h-4 w-4" />
-            Add Column
-          </Button>
         </div>
       </div>
 
       {/* Filters and Search */}
       <Card className="border border-royal-purple/20 shadow-lg">
-        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-          <CardTitle className="flex items-center gap-2 text-creative-midnight">
+        <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <Filter className="h-5 w-5 text-royal-purple" />
             Filters & Search
           </CardTitle>
@@ -1448,7 +1853,7 @@ export default function BookingsSheet() {
                 placeholder="Search all columns..."
                 value={globalFilter ?? ""}
                 onChange={(e) => setGlobalFilter(e.target.value)}
-                className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0"
               />
             </div>
             <Select
@@ -1461,7 +1866,7 @@ export default function BookingsSheet() {
                 table.setPageSize(newPageSize);
               }}
             >
-              <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
+              <SelectTrigger className="border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1483,7 +1888,10 @@ export default function BookingsSheet() {
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent
+                align="end"
+                className="w-48 max-h-80 overflow-y-auto scrollbar-hide"
+              >
                 <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {table.getAllLeafColumns().map((column) => {
@@ -1515,11 +1923,9 @@ export default function BookingsSheet() {
 
       {/* Sheet Table */}
       <Card className="border border-royal-purple/20 shadow-lg">
-        <CardHeader className="bg-light-grey/50 border-b border-royal-purple/20">
-          <CardTitle className="text-creative-midnight">
-            Bookings Data
-          </CardTitle>
-          <CardDescription className="text-grey">
+        <CardHeader className="bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+          <CardTitle className="text-foreground">Bookings Data</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Showing {table.getFilteredRowModel().rows.length} of {data.length}{" "}
             rows with numeric IDs (1, 2, 3...){" "}
             {table.getFilteredRowModel().rows.length < 10 &&
@@ -1529,19 +1935,26 @@ export default function BookingsSheet() {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="rounded-md border border-royal-purple/20 overflow-x-auto">
+          <div
+            ref={containerRef}
+            className="relative rounded-md border border-royal-purple/40 dark:border-border overflow-x-auto"
+            onPointerDownCapture={handlePointerDownSelect}
+          >
             <TooltipProvider>
-              <Table className="border border-royal-purple/20 min-w-full table-fixed">
+              <Table className="border border-royal-purple/40 dark:border-border min-w-full table-fixed">
                 <TableHeader>
                   {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="bg-light-grey/30">
+                    <TableRow
+                      key={headerGroup.id}
+                      className="bg-light-grey/30 dark:bg-muted"
+                    >
                       {headerGroup.headers.map((header) => {
                         // Handle row number column header
                         if (header.id === "rowNumber") {
                           return (
                             <TableHead
                               key={header.id}
-                              className="relative border border-royal-purple/20 p-0"
+                              className="relative border border-royal-purple/40 dark:border-border p-0"
                               style={{
                                 minWidth: "64px",
                                 maxWidth: "64px",
@@ -1564,7 +1977,7 @@ export default function BookingsSheet() {
                         return (
                           <TableHead
                             key={header.id}
-                            className="relative border border-royal-purple/20 p-0"
+                            className="relative border border-royal-purple/40 dark:border-border p-0"
                             style={{
                               minWidth: `${columnDef?.width || 150}px`,
                               maxWidth: `${columnDef?.width || 150}px`,
@@ -1586,8 +1999,16 @@ export default function BookingsSheet() {
                 <TableBody>
                   {(() => {
                     const visibleRows = table.getRowModel().rows;
-                    const minRows = 10;
-                    const rowsToShow = Math.max(visibleRows.length, minRows);
+                    const pageSize = table.getState().pagination.pageSize;
+                    const currentPage = table.getState().pagination.pageIndex;
+                    const startIndex = currentPage * pageSize;
+                    const endIndex = startIndex + pageSize;
+
+                    // Only show add button if we have space for more rows on the current page
+                    const hasSpaceForMoreRows = visibleRows.length < pageSize;
+                    const rowsToShow = hasSpaceForMoreRows
+                      ? pageSize
+                      : visibleRows.length;
 
                     // Show actual data rows with stable ordering by numeric ID
                     const dataRows = visibleRows
@@ -1606,9 +2027,7 @@ export default function BookingsSheet() {
                           <TableRow
                             key={`row-${row.id}`}
                             data-state={row.getIsSelected() && "selected"}
-                            className={`border-b border-royal-purple/20 transition-colors duration-200 ${
-                              index % 2 === 0 ? "bg-white" : "bg-light-grey/20"
-                            } hover:bg-royal-purple/5`}
+                            className={`border-b border-royal-purple/20 transition-colors duration-200 bg-white dark:bg-background hover:bg-royal-purple/5 dark:hover:bg-muted/50`}
                             onContextMenu={(e) => {
                               e.preventDefault();
 
@@ -1634,7 +2053,7 @@ export default function BookingsSheet() {
                               return (
                                 <TableCell
                                   key={cell.id}
-                                  className="border border-royal-purple/20 p-0"
+                                  className="border border-royal-purple/40 dark:border-border p-0"
                                   style={{
                                     minWidth: `${columnDef?.width || 150}px`,
                                     maxWidth: `${columnDef?.width || 150}px`,
@@ -1656,12 +2075,16 @@ export default function BookingsSheet() {
                     const emptyRows = [];
                     for (let i = visibleRows.length; i < rowsToShow; i++) {
                       const isFirstEmptyRow = i === visibleRows.length;
+                      const isFirstEmptyRowAfterData = i === visibleRows.length; // Add button should be on the first empty row after data
+                      const isEmptyRow = i >= visibleRows.length;
+                      const shouldShowAddButton =
+                        hasSpaceForMoreRows && isFirstEmptyRowAfterData;
                       emptyRows.push(
                         <TableRow
                           key={`empty-${i}`}
-                          className={`border-b border-royal-purple/20 ${
-                            i % 2 === 0 ? "bg-white" : "bg-light-grey/20"
-                          } ${isFirstEmptyRow ? "opacity-100" : "opacity-60"}`}
+                          className={`border-b border-royal-purple/20 bg-white dark:bg-background ${
+                            isFirstEmptyRow ? "opacity-100" : "opacity-60"
+                          }`}
                         >
                           {table
                             .getAllLeafColumns()
@@ -1669,13 +2092,11 @@ export default function BookingsSheet() {
                               // Handle row number column
                               if (column.id === "rowNumber") {
                                 // Calculate the actual row number for empty rows
-                                const actualRowNumber =
-                                  visibleRows.length +
-                                  (i - visibleRows.length + 1);
+                                const actualRowNumber = i;
                                 return (
                                   <TableCell
                                     key={column.id}
-                                    className="border border-royal-purple/20 p-0"
+                                    className="border border-royal-purple/40 p-0"
                                     style={{
                                       minWidth: "64px",
                                       maxWidth: "64px",
@@ -1695,7 +2116,7 @@ export default function BookingsSheet() {
                               return (
                                 <TableCell
                                   key={column.id}
-                                  className="border border-royal-purple/20 p-0"
+                                  className="border border-royal-purple/40 p-0"
                                   style={{
                                     minWidth: `${columnDef?.width || 150}px`,
                                     maxWidth: `${columnDef?.width || 150}px`,
@@ -1703,14 +2124,21 @@ export default function BookingsSheet() {
                                   }}
                                 >
                                   <div className="h-12 w-full px-2 flex items-center">
-                                    {isFirstEmptyRow && columnIndex === 1 ? (
-                                      // Plus button in second column (after row number) of first empty row
+                                    {isEmptyRow &&
+                                    shouldShowAddButton &&
+                                    columnIndex === 1 ? (
+                                      // Plus button only in the last empty row, second column (after row number)
                                       <Button
                                         variant="outline"
                                         size="sm"
                                         onClick={() => handleAddNewRow()}
-                                        className="h-8 w-8 p-0 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-                                        title="Add new booking"
+                                        disabled={isAddingRow}
+                                        className="h-8 w-8 p-0 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/20 hover:border-royal-purple transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={
+                                          isAddingRow
+                                            ? "Adding new row..."
+                                            : "Add new booking"
+                                        }
                                       >
                                         <Plus className="h-4 w-4" />
                                       </Button>
@@ -1732,17 +2160,168 @@ export default function BookingsSheet() {
                 </TableBody>
               </Table>
             </TooltipProvider>
+            {selectionBox &&
+              !(
+                editingCell &&
+                selectedCell &&
+                editingCell.rowId === selectedCell.rowId &&
+                editingCell.columnId === selectedCell.columnId
+              ) && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: selectionBox.top,
+                    left: selectionBox.left,
+                    width: selectionBox.width,
+                    height: selectionBox.height,
+                    pointerEvents: selectedType === "boolean" ? "none" : "auto",
+                    zIndex: 50,
+                  }}
+                  className={`border-2 border-royal-purple shadow-sm ${
+                    selectedType === "boolean" ? "bg-transparent" : "bg-white"
+                  }`}
+                  ref={overlayRef}
+                  onClick={(e) => {
+                    // Intercept single clicks for non-text cells so legacy click doesn't open controls
+                    if (
+                      selectedType === "date" ||
+                      selectedType === "select" ||
+                      selectedType === "boolean"
+                    ) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return;
+                    }
+                    handleOverlayDoubleClick();
+                  }}
+                  onDoubleClick={() => {
+                    if (selectedType === "date") {
+                      try {
+                        const input = lastSelectedCellEl.current?.querySelector(
+                          'input[type="date"]'
+                        ) as HTMLInputElement | null;
+                        if (input) {
+                          if ((input as any).showPicker) {
+                            (input as any).showPicker();
+                          } else {
+                            input.focus();
+                            setTimeout(() => input.click(), 0);
+                          }
+                        }
+                      } catch {}
+                      return;
+                    }
+                    if (selectedType === "select") {
+                      try {
+                        const trigger =
+                          lastSelectedCellEl.current?.querySelector(
+                            '[role="combobox"],button'
+                          ) as HTMLElement | null;
+                        if (trigger) trigger.click();
+                      } catch {}
+                      return;
+                    }
+                  }}
+                >
+                  {overlayEditing ? (
+                    <textarea
+                      autoFocus
+                      ref={overlayTextareaRef}
+                      defaultValue={overlayInitialValueRef.current}
+                      onBlur={handleOverlayCommit}
+                      onKeyDown={handleOverlayKeyDown}
+                      className={`w-full h-full resize-none outline-none focus:outline-none focus:ring-0 px-2 py-1 text-sm bg-white ${getColumnTextColor(
+                        selectedColDef?.color
+                      )}`}
+                      style={{
+                        fontFamily: "inherit",
+                        lineHeight: 1.2,
+                      }}
+                    />
+                  ) : (
+                    selectedDisplayValue !== null && (
+                      <div className="absolute inset-0 flex items-center px-2 text-sm select-none">
+                        <span
+                          className={`truncate w-full ${getColumnTextColor(
+                            selectedColDef?.color
+                          )}`}
+                        >
+                          {selectedDisplayValue}
+                        </span>
+                        {selectedType === "date" && (
+                          <button
+                            type="button"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded hover:bg-royal-purple/10 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              try {
+                                const input =
+                                  lastSelectedCellEl.current?.querySelector(
+                                    'input[type="date"]'
+                                  ) as HTMLInputElement | null;
+                                if (input) {
+                                  if ((input as any).showPicker) {
+                                    (input as any).showPicker();
+                                  } else {
+                                    input.focus();
+                                    setTimeout(() => input.click(), 0);
+                                  }
+                                }
+                              } catch {}
+                            }}
+                            aria-label="Open date picker"
+                            title="Open date picker"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4 text-royal-purple"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM18 9H2v7a2 2 0 002 2h12a2 2 0 002-2V9z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+                        )}
+                        {selectedType === "select" && (
+                          <button
+                            type="button"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded hover:bg-royal-purple/10 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              try {
+                                const trigger =
+                                  lastSelectedCellEl.current?.querySelector(
+                                    '[role="combobox"],button'
+                                  ) as HTMLElement | null;
+                                if (trigger) trigger.click();
+                              } catch {}
+                            }}
+                            aria-label="Open options"
+                            title="Open options"
+                          >
+                            <ChevronDown className="h-4 w-4 text-royal-purple" />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
           </div>
 
           {/* Pagination */}
           <div className="flex items-center justify-between space-x-2 py-4 px-6">
-            <div className="flex-1 text-sm text-grey">
+            <div className="flex-1 text-sm text-muted-foreground">
               {table.getFilteredSelectedRowModel().rows.length} of{" "}
               {table.getFilteredRowModel().rows.length} row(s) selected.
             </div>
             <div className="flex items-center space-x-6 lg:space-x-8">
               <div className="flex items-center space-x-2">
-                <p className="text-sm font-medium text-creative-midnight">
+                <p className="text-sm font-medium text-foreground">
                   Rows per page
                 </p>
                 <Select
@@ -1751,7 +2330,7 @@ export default function BookingsSheet() {
                     table.setPageSize(Number(value));
                   }}
                 >
-                  <SelectTrigger className="h-8 w-[70px] border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
+                  <SelectTrigger className="h-8 w-[70px] border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0">
                     <SelectValue
                       placeholder={table.getState().pagination.pageSize}
                     />
@@ -1765,7 +2344,7 @@ export default function BookingsSheet() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex w-[100px] items-center justify-center text-sm font-medium text-creative-midnight">
+              <div className="flex w-[100px] items-center justify-center text-sm font-medium text-foreground">
                 Page {table.getState().pagination.pageIndex + 1} of{" "}
                 {table.getPageCount()}
               </div>
@@ -1823,14 +2402,6 @@ export default function BookingsSheet() {
         existingColumns={columns}
       />
 
-      <AddColumnModal
-        isOpen={addColumnModal}
-        onClose={() => setAddColumnModal(false)}
-        onAdd={handleAddColumn}
-        existingColumns={columns}
-        availableFunctions={availableFunctions}
-      />
-
       {/* Context Menu */}
       {contextMenu.isOpen && (
         <div
@@ -1860,6 +2431,25 @@ export default function BookingsSheet() {
             setContextMenu({ isOpen: false, rowId: null, x: 0, y: 0 })
           }
         />
+      )}
+
+      {/* Loading Modal for Adding Row */}
+      {isAddingRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
+            <div className="flex items-center space-x-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-royal-purple"></div>
+              <div>
+                <h3 className="text-lg font-semibold text-creative-midnight">
+                  Adding New Row
+                </h3>
+                <p className="text-sm text-grey">
+                  Please wait while we create your new booking row...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

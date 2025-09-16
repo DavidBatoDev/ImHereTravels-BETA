@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { DM_Sans, Work_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/components/ui/theme-provider";
+import { SidebarProvider } from "@/contexts/SidebarContext";
 
 // Configure DM Sans for body text and CTAs
 const dmSans = DM_Sans({
@@ -42,10 +44,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${workSans.variable}`}>
+    <html
+      lang="en"
+      className={`${dmSans.variable} ${workSans.variable}`}
+      suppressHydrationWarning
+    >
       <body>
-        {children}
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SidebarProvider>
+            {children}
+            <Toaster />
+          </SidebarProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

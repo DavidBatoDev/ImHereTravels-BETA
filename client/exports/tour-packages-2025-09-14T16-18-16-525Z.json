@@ -1,0 +1,50 @@
+[
+  {
+    "name": "India Discovery Tour",
+    "tourCode": "IDD"
+  },
+  {
+    "name": "Argentina's Wonders",
+    "tourCode": "ARW"
+  },
+  {
+    "name": "Maldives Bucketlist",
+    "tourCode": "MLB"
+  },
+  {
+    "name": "New Zealand Expedition",
+    "tourCode": "NZE"
+  },
+  {
+    "name": "Tanzania Exploration",
+    "tourCode": "TXP"
+  },
+  {
+    "name": "Sri Lanka Wander Tour",
+    "tourCode": "SLW"
+  },
+  {
+    "name": "India Holi Festival Tour",
+    "tourCode": "IHF"
+  },
+  {
+    "name": "Brazil's Treasures",
+    "tourCode": "BZT"
+  },
+  {
+    "name": "Philippines Sunset",
+    "tourCode": "PSS"
+  },
+  {
+    "name": "Philippine Sunrise",
+    "tourCode": "PHS"
+  },
+  {
+    "name": "Siargao Island Adventure",
+    "tourCode": "SIA"
+  },
+  {
+    "name": "Vietnam Expedition",
+    "tourCode": "VNE"
+  }
+]

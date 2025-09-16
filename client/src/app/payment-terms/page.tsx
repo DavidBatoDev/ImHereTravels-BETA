@@ -160,7 +160,9 @@ export default function PaymentTermsPage() {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-2 text-sm text-grey">Loading payment types...</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Loading payment types...
+              </p>
             </div>
           </div>
         </div>
@@ -174,10 +176,10 @@ export default function PaymentTermsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-creative-midnight font-hk-grotesk">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground font-hk-grotesk">
               Payment Terms
             </h1>
-            <p className="text-grey text-lg">
+            <p className="text-muted-foreground text-lg">
               Manage payment types used throughout the booking system. These
               terms define payment conditions based on tour booking timeline.
             </p>
@@ -193,9 +195,9 @@ export default function PaymentTermsPage() {
 
         {/* Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-creative-midnight">
+              <CardTitle className="text-sm font-medium text-foreground">
                 Total Terms
               </CardTitle>
               <div className="p-2 bg-royal-purple/20 rounded-lg">
@@ -203,16 +205,18 @@ export default function PaymentTermsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-creative-midnight">
+              <div className="text-2xl font-bold text-foreground">
                 {paymentTerms.length}
               </div>
-              <p className="text-xs text-grey">Available payment types</p>
+              <p className="text-xs text-muted-foreground">
+                Available payment types
+              </p>
             </CardContent>
           </Card>
 
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-creative-midnight">
+              <CardTitle className="text-sm font-medium text-foreground">
                 Active Terms
               </CardTitle>
               <div className="p-2 bg-spring-green/20 rounded-lg">
@@ -220,27 +224,31 @@ export default function PaymentTermsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-creative-midnight">
+              <div className="text-2xl font-bold text-foreground">
                 {paymentTerms.filter((term) => term.isActive).length}
               </div>
-              <p className="text-xs text-grey">Active payment types</p>
+              <p className="text-xs text-muted-foreground">
+                Active payment types
+              </p>
             </CardContent>
           </Card>
 
-          <Card className="border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200">
+          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-creative-midnight">
+              <CardTitle className="text-sm font-medium text-foreground">
                 Inactive Terms
               </CardTitle>
               <div className="p-2 bg-grey/20 rounded-lg">
-                <ToggleLeft className="h-4 w-4 text-grey" />
+                <ToggleLeft className="h-4 w-4 text-muted-foreground" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-creative-midnight">
+              <div className="text-2xl font-bold text-foreground">
                 {paymentTerms.filter((term) => !term.isActive).length}
               </div>
-              <p className="text-xs text-grey">Inactive payment types</p>
+              <p className="text-xs text-muted-foreground">
+                Inactive payment types
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -250,7 +258,7 @@ export default function PaymentTermsPage() {
           {paymentTerms.map((term) => (
             <Card
               key={term.id}
-              className={`border border-royal-purple/20 shadow hover:shadow-md transition-all duration-200 ${
+              className={`border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200 ${
                 !term.isActive ? "opacity-60" : ""
               }`}
             >
@@ -258,7 +266,7 @@ export default function PaymentTermsPage() {
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg text-creative-midnight">
+                      <CardTitle className="text-lg text-foreground">
                         {term.name}
                       </CardTitle>
                       <Badge
@@ -277,13 +285,13 @@ export default function PaymentTermsPage() {
                         className={
                           term.isActive
                             ? "bg-spring-green/20 text-spring-green border border-spring-green/30"
-                            : "bg-grey/20 text-grey border border-grey/30"
+                            : "bg-grey/20 text-muted-foreground border border-grey/30"
                         }
                       >
                         {term.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </div>
-                    <CardDescription className="text-grey">
+                    <CardDescription className="text-muted-foreground">
                       {term.description}
                     </CardDescription>
                   </div>
@@ -318,19 +326,19 @@ export default function PaymentTermsPage() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent className="border border-royal-purple/20">
+                      <AlertDialogContent className="border border-royal-purple/20 dark:border-border">
                         <AlertDialogHeader>
-                          <AlertDialogTitle className="text-creative-midnight">
+                          <AlertDialogTitle className="text-foreground">
                             Delete Payment Type
                           </AlertDialogTitle>
-                          <AlertDialogDescription className="text-grey">
+                          <AlertDialogDescription className="text-muted-foreground">
                             Are you sure you want to delete "{term.name}"? This
                             action cannot be undone and will affect any bookings
                             using this payment type.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple">
+                          <AlertDialogCancel className="border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple">
                             Cancel
                           </AlertDialogCancel>
                           <AlertDialogAction
@@ -349,10 +357,10 @@ export default function PaymentTermsPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {term.paymentType === "full_payment" && (
                     <div>
-                      <p className="text-sm font-medium text-grey">
+                      <p className="text-sm font-medium text-muted-foreground">
                         Days Before Full Payment
                       </p>
-                      <p className="text-lg font-semibold text-creative-midnight">
+                      <p className="text-lg font-semibold text-foreground">
                         {term.name === "Payment Plan P4"
                           ? `${term.daysRequired || 0}+`
                           : `< ${term.daysRequired || 0}`}
@@ -361,10 +369,10 @@ export default function PaymentTermsPage() {
                   )}
                   {term.paymentType === "monthly_scheduled" && (
                     <div>
-                      <p className="text-sm font-medium text-grey">
+                      <p className="text-sm font-medium text-muted-foreground">
                         Payment Schedule
                       </p>
-                      <p className="text-lg font-semibold text-creative-midnight">
+                      <p className="text-lg font-semibold text-foreground">
                         {term.monthsRequired} months
                       </p>
                     </div>
@@ -372,29 +380,29 @@ export default function PaymentTermsPage() {
                   {term.paymentType === "monthly_scheduled" &&
                     term.monthlyPercentages && (
                       <div>
-                        <p className="text-sm font-medium text-grey">
+                        <p className="text-sm font-medium text-muted-foreground">
                           Monthly Breakdown
                         </p>
-                        <p className="text-sm text-creative-midnight">
+                        <p className="text-sm text-foreground">
                           {term.monthlyPercentages.join("%, ")}%
                         </p>
                       </div>
                     )}
                   {term.percentage && (
                     <div>
-                      <p className="text-sm font-medium text-grey">
+                      <p className="text-sm font-medium text-muted-foreground">
                         Payment Percentage
                       </p>
-                      <p className="text-lg font-semibold text-creative-midnight">
+                      <p className="text-lg font-semibold text-foreground">
                         {term.percentage}%
                       </p>
                     </div>
                   )}
                   <div>
-                    <p className="text-sm font-medium text-grey">
+                    <p className="text-sm font-medium text-muted-foreground">
                       Last Updated
                     </p>
-                    <p className="text-sm text-creative-midnight">
+                    <p className="text-sm text-foreground">
                       {formatDate(term.metadata.updatedAt)}
                     </p>
                   </div>
@@ -405,15 +413,15 @@ export default function PaymentTermsPage() {
         </div>
 
         {paymentTerms.length === 0 && (
-          <Card className="border border-royal-purple/20 shadow">
+          <Card className="border border-royal-purple/20 dark:border-border shadow">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <div className="p-3 bg-royal-purple/20 rounded-xl mb-4">
                 <Settings className="h-12 w-12 text-royal-purple" />
               </div>
-              <h3 className="text-lg font-semibold mb-2 text-creative-midnight">
+              <h3 className="text-lg font-semibold mb-2 text-foreground">
                 No Payment Types
               </h3>
-              <p className="text-grey text-center max-w-md mb-4">
+              <p className="text-muted-foreground text-center max-w-md mb-4">
                 Get started by creating payment types that will be used
                 throughout the booking system.
               </p>
