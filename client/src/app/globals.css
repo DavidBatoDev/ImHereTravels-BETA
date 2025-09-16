@@ -2,6 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+/* React Data Grid Custom Styling */
+.custom-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.custom-grid .rdg-cell {
+  border-right: 1px solid #e5e7eb !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.custom-grid .rdg-header-cell {
+  border-right: 1px solid #e5e7eb !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.custom-grid .rdg-row {
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
 /* Monaco Editor Optimizations */
 .monaco-editor {
   transition: none !important;
