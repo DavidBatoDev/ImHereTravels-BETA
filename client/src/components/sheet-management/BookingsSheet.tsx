@@ -591,9 +591,9 @@ export default function BookingsSheet() {
                             }}
                           >
                             <SelectTrigger
-                              className={`h-8 border-2 border-royal-purple/20 focus:border-royal-purple text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none ${
+                              className={`h-8 border-0 focus:border-0 text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none ${
                                 value
-                                  ? "bg-royal-purple/15 border-royal-purple/40 text-royal-purple font-medium"
+                                  ? "bg-royal-purple/15 text-royal-purple font-medium"
                                   : "bg-white dark:bg-background hover:bg-royal-purple/15 text-gray-500 dark:text-muted-foreground"
                               }`}
                             >
@@ -771,9 +771,9 @@ export default function BookingsSheet() {
                             }, 10);
                           }
                         }}
-                        className={`h-8 border-2 border-royal-purple/20 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 text-sm transition-colors duration-200 pr-8 cursor-pointer rounded-none ${
+                        className={`h-8 border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 text-sm transition-colors duration-200 pr-8 cursor-pointer rounded-none ${
                           value
-                            ? "bg-royal-purple/15 border-royal-purple/40"
+                            ? "bg-royal-purple/15"
                             : "bg-white hover:bg-royal-purple/15"
                         } focus:bg-white ${
                           !value
