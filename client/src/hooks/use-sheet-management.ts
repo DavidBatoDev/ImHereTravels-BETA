@@ -153,6 +153,19 @@ export function useSheetManagement() {
   const deleteColumn = useCallback(async (columnId: string) => {
     try {
       setError(null);
+
+      // Check for dependent columns first
+      const dependentColumns =
+        await bookingSheetColumnService.getDependentColumnsForColumn(columnId);
+
+      if (dependentColumns.length > 1) {
+        // More than 1 means there are dependencies (excluding the column itself)
+        // Show warning modal - this will be handled by the component
+        throw new Error(
+          `DEPENDENCIES_FOUND:${JSON.stringify(dependentColumns)}`
+        );
+      }
+
       await bookingSheetColumnService.deleteColumn(columnId);
 
       // Local state will be updated via real-time subscription
@@ -160,6 +173,12 @@ export function useSheetManagement() {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
+
+      if (errorMessage.startsWith("DEPENDENCIES_FOUND:")) {
+        // Re-throw the dependencies error to be handled by the component
+        throw error;
+      }
+
       console.error(`❌ Failed to delete column: ${errorMessage}`);
       setError(`Failed to delete column: ${errorMessage}`);
     }

@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
   Plus,
+  GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ColumnSettingsModal from "../sheet-management/ColumnSettingsModal";
+import { DeleteColumnWarningModal } from "../sheet-management/DeleteColumnWarningModal";
+import { ColumnRelationsModal } from "../sheet-management/ColumnRelationsModal";
 import {
   DndContext,
   DragEndEvent,
@@ -98,6 +101,18 @@ export default function BookingsColumnsTab() {
     null
   );
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [deleteColumnWarningModal, setDeleteColumnWarningModal] = useState<{
+    isOpen: boolean;
+    columnId: string;
+    columnName: string;
+    affectedColumns: SheetColumn[];
+  }>({ isOpen: false, columnId: "", columnName: "", affectedColumns: [] });
+  const [columnRelationsModal, setColumnRelationsModal] = useState<{
+    isOpen: boolean;
+    columnName: string;
+    dependencies: SheetColumn[];
+    dependents: SheetColumn[];
+  }>({ isOpen: false, columnName: "", dependencies: [], dependents: [] });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -185,6 +200,74 @@ export default function BookingsColumnsTab() {
     }
   };
 
+  const handleDeleteColumn = async (columnId: string) => {
+    try {
+      // Check for dependent columns first
+      const dependentColumns =
+        await bookingSheetColumnService.getDependentColumnsForColumn(columnId);
+
+      if (dependentColumns.length > 1) {
+        // More than 1 means there are dependencies (excluding the column itself)
+        // Show warning modal
+        const column = columns.find((c) => c.id === columnId);
+        setDeleteColumnWarningModal({
+          isOpen: true,
+          columnId,
+          columnName: column?.columnName || "Unknown",
+          affectedColumns: dependentColumns,
+        });
+        return;
+      }
+
+      // No dependencies, proceed with deletion
+      await bookingSheetColumnService.deleteColumn(columnId);
+      toast({
+        title: "Column Deleted",
+        description: "Column has been deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting column:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete column. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleConfirmDeleteColumn = async () => {
+    const { columnId, affectedColumns } = deleteColumnWarningModal;
+
+    try {
+      // Delete all affected columns
+      for (const column of affectedColumns) {
+        await bookingSheetColumnService.deleteColumn(column.id);
+      }
+
+      // Close the modal
+      setDeleteColumnWarningModal({
+        isOpen: false,
+        columnId: "",
+        columnName: "",
+        affectedColumns: [],
+      });
+
+      toast({
+        title: "Success",
+        description: `${affectedColumns.length} column${
+          affectedColumns.length !== 1 ? "s" : ""
+        } deleted successfully.`,
+      });
+    } catch (error) {
+      console.error("Error deleting columns:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete columns. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleOpenSettings = (column: SheetColumn) => {
     setSelectedColumn(column);
     setIsSettingsModalOpen(true);
@@ -218,6 +301,27 @@ export default function BookingsColumnsTab() {
   const handleAddColumn = () => {
     setSelectedColumn(null); // null means we're adding a new column
     setIsSettingsModalOpen(true);
+  };
+
+  const handleShowColumnRelations = async (column: SheetColumn) => {
+    try {
+      const relatedColumns = await bookingSheetColumnService.getRelatedColumns(
+        column.id
+      );
+      setColumnRelationsModal({
+        isOpen: true,
+        columnName: column.columnName,
+        dependencies: relatedColumns.dependencies,
+        dependents: relatedColumns.dependents,
+      });
+    } catch (error) {
+      console.error("Error loading column relations:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load column relations. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -262,7 +366,7 @@ export default function BookingsColumnsTab() {
                 strategy={verticalListSortingStrategy}
               >
                 <div className="rounded-md border-2 border-royal-purple/30 dark:border-border bg-white dark:bg-background overflow-hidden">
-                  <div className="grid grid-cols-[48px_60px_1fr_100px_80px_100px] gap-0 bg-muted/50 border-b-2 border-royal-purple/30 dark:border-border text-royal-purple text-xs font-medium uppercase tracking-wide">
+                  <div className="grid grid-cols-[48px_60px_1fr_100px_80px_120px] gap-0 bg-muted/50 border-b-2 border-royal-purple/30 dark:border-border text-royal-purple text-xs font-medium uppercase tracking-wide">
                     <div className="p-2 text-center border-r border-royal-purple/20">
                       Move
                     </div>
@@ -285,7 +389,7 @@ export default function BookingsColumnsTab() {
                       <SortableRow key={col.id} id={col.id}>
                         {(listeners) => (
                           <div
-                            className={`grid grid-cols-[48px_60px_1fr_100px_80px_100px] items-center border-b border-royal-purple/20 ${
+                            className={`grid grid-cols-[48px_60px_1fr_100px_80px_120px] items-center border-b border-royal-purple/20 ${
                               isReordering
                                 ? "cursor-grabbing"
                                 : "cursor-default"
@@ -336,6 +440,23 @@ export default function BookingsColumnsTab() {
                               />
                             </div>
                             <div className="p-3 flex items-center justify-center gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleShowColumnRelations(col)
+                                    }
+                                    className="h-8 w-8 p-0 hover:bg-royal-purple/10"
+                                  >
+                                    <GitBranch className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Show Column Relations
+                                </TooltipContent>
+                              </Tooltip>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
@@ -397,6 +518,7 @@ export default function BookingsColumnsTab() {
         column={selectedColumn}
         availableFunctions={availableFunctions}
         existingColumns={columns}
+        onDelete={handleDeleteColumn}
         onSave={async (updatedColumn) => {
           try {
             if (selectedColumn) {
@@ -428,6 +550,38 @@ export default function BookingsColumnsTab() {
             });
           }
         }}
+      />
+
+      {/* Delete Column Warning Modal */}
+      <DeleteColumnWarningModal
+        isOpen={deleteColumnWarningModal.isOpen}
+        onClose={() =>
+          setDeleteColumnWarningModal({
+            isOpen: false,
+            columnId: "",
+            columnName: "",
+            affectedColumns: [],
+          })
+        }
+        onConfirm={handleConfirmDeleteColumn}
+        columnName={deleteColumnWarningModal.columnName}
+        affectedColumns={deleteColumnWarningModal.affectedColumns}
+      />
+
+      {/* Column Relations Modal */}
+      <ColumnRelationsModal
+        isOpen={columnRelationsModal.isOpen}
+        onClose={() =>
+          setColumnRelationsModal({
+            isOpen: false,
+            columnName: "",
+            dependencies: [],
+            dependents: [],
+          })
+        }
+        columnName={columnRelationsModal.columnName}
+        dependencies={columnRelationsModal.dependencies}
+        dependents={columnRelationsModal.dependents}
       />
     </>
   );

@@ -520,6 +520,48 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
     return functions;
   }
 
+  async getDependentColumnsForColumn(columnId: string): Promise<SheetColumn[]> {
+    const allColumns = await this.getAllColumns();
+
+    // Build column dependency graph
+    const dependencyGraph = this.buildColumnDependencyGraph(allColumns);
+
+    // Find all columns that depend on this column
+    const allDependentColumnIds = new Set<string>();
+    allDependentColumnIds.add(columnId); // Include the column itself
+
+    const dependents = this.getColumnDependents(columnId, dependencyGraph);
+    dependents.forEach((depId) => allDependentColumnIds.add(depId));
+
+    // Return all dependent columns
+    return allColumns.filter((col) => allDependentColumnIds.has(col.id));
+  }
+
+  async getRelatedColumns(columnId: string): Promise<{
+    dependencies: SheetColumn[];
+    dependents: SheetColumn[];
+  }> {
+    const allColumns = await this.getAllColumns();
+    const dependencyGraph = this.buildColumnDependencyGraph(allColumns);
+
+    // Find dependencies (columns this column depends on)
+    const dependencies = dependencyGraph.get(columnId) || [];
+    const dependencyColumns = allColumns.filter((col) =>
+      dependencies.includes(col.id)
+    );
+
+    // Find dependents (columns that depend on this column)
+    const dependents = this.getColumnDependents(columnId, dependencyGraph);
+    const dependentColumns = allColumns.filter((col) =>
+      dependents.includes(col.id)
+    );
+
+    return {
+      dependencies: dependencyColumns,
+      dependents: dependentColumns,
+    };
+  }
+
   private buildColumnDependencyGraph(
     columns: SheetColumn[]
   ): Map<string, string[]> {
