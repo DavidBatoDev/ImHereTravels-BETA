@@ -25,9 +25,10 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/app/functions/*": ["./src/app/functions/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "functions/**/*", "migrations/**/*"]
+  "exclude": ["node_modules", "migrations/**/*"]
 }

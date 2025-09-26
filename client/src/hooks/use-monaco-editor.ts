@@ -32,6 +32,7 @@ export function useMonacoEditor({
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [internalValue, setInternalValue] = useState(value);
+  const extraLibDisposersRef = useRef<any[]>([]);
 
   // Initialize Monaco if not already loaded
   useEffect(() => {
@@ -134,6 +135,42 @@ export function useMonacoEditor({
             typeRoots: ["node_modules/@types"],
           }
         );
+
+        // Inject ambient typings for runtime-injected globals used in the editor
+        const ambientGlobalsDts = [
+          "declare const firebaseUtils: any;",
+          "declare const db: any;",
+          "declare const auth: any;",
+          "declare const storage: any;",
+          "declare const collection: any;",
+          "declare const doc: any;",
+          "declare const getDocs: any;",
+          "declare const addDoc: any;",
+          "declare const updateDoc: any;",
+          "declare const deleteDoc: any;",
+          "declare function query(...args: any[]): any;",
+          "declare function where(...args: any[]): any;",
+          "declare function orderBy(...args: any[]): any;",
+          "declare function serverTimestamp(...args: any[]): any;",
+        ].join("\n");
+
+        // Dispose previous extra libs to avoid duplicates
+        if (extraLibDisposersRef.current.length) {
+          extraLibDisposersRef.current.forEach((d) => d?.dispose?.());
+          extraLibDisposersRef.current = [];
+        }
+
+        const jsLib =
+          window.monaco.languages.typescript.javascriptDefaults.addExtraLib(
+            ambientGlobalsDts,
+            "inmemory://model/firebase-runtime-globals-js.d.ts"
+          );
+        const tsLib =
+          window.monaco.languages.typescript.typescriptDefaults.addExtraLib(
+            ambientGlobalsDts,
+            "inmemory://model/firebase-runtime-globals-ts.d.ts"
+          );
+        extraLibDisposersRef.current.push(jsLib, tsLib);
       }
 
       setIsEditorReady(true);

@@ -42,6 +42,7 @@ import TestConsole from "./TestConsole";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
 import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
+import { functionExecutionService } from "@/services/function-execution-service";
 import { SheetColumn } from "@/types/sheet-management";
 
 // Initialize TypeScript function service
@@ -84,6 +85,7 @@ export default function FunctionsCenter() {
 
   // Add editor instance ref and loading state
   const editorRef = useRef<any>(null);
+  const monacoExtraLibDisposersRef = useRef<any[]>([]);
   const [isEditorLoading, setIsEditorLoading] = useState(false);
   const [editorValue, setEditorValue] = useState("");
 
@@ -178,6 +180,9 @@ export default function FunctionsCenter() {
       // Refetch to ensure consistency with database
       const updatedFiles = await typescriptFunctionService.files.getAll();
       setFiles(updatedFiles);
+
+      // Clear function execution cache for this file to ensure fresh compilation
+      functionExecutionService.invalidate(file.id);
     } catch (error) {
       console.error("Error setting file as active:", error);
       // Revert the optimistic update on error
@@ -225,15 +230,51 @@ export default function FunctionsCenter() {
         name: fullFileName,
         content: `// ${fullFileName}
 // Created on ${new Date().toLocaleDateString()}
-// TypeScript file with export default function
+// TypeScript file with Firebase SDK access (pre-authenticated)
 
-export default function ${
+// Firebase utilities - injected at runtime (hidden from user)
+// These variables are provided by the runtime environment
+// Users can use them without seeing the implementation details
+
+// Firebase utilities and services are automatically available
+// No need to import or define them - they're injected by the runtime
+
+export default async function ${
           fileName.replace(/[^a-zA-Z0-9]/g, "") || "exampleFunction"
         }(
   // Add your parameters here
+  // Example: data: any, options?: { [key: string]: any }
 ) {
   // Your implementation here
-  return "Hello from TypeScript!";
+  // Note: Functions are pre-authenticated with admin credentials
+  // Firebase utilities are automatically available (no imports needed)
+  
+  // Get current user (will be admin@imheretravels.com)
+  const user = firebaseUtils.getCurrentUser();
+  
+  // Example: Get data from Firestore
+  const getData = async () => {
+    const data = await firebaseUtils.getCollectionData('bookings');
+    return data;
+  };
+  
+  // Example: Add data to Firestore
+  const addData = async (newData: any) => {
+    const docId = await firebaseUtils.addDocument('bookings', newData);
+    return docId;
+  };
+  
+  // Example: Query with constraints
+  const getFilteredData = async () => {
+    const data = await firebaseUtils.getCollectionData('bookings', [
+      where('status', '==', 'confirmed'),
+      orderBy('createdAt', 'desc')
+    ]);
+    return data;
+  };
+  
+  // Execute the function and return the result
+  return await getData();
 }`,
         folderId: selectedFolder.id,
         isActive: false,
@@ -433,6 +474,10 @@ export default function ${
       if (updatedFile) {
         setActiveFile(updatedFile);
         setIsEditing(false);
+
+        // Clear function execution cache for this file
+        functionExecutionService.invalidate(activeFile.id);
+
         toast({
           title: "Success",
           description: "File saved successfully.",
@@ -555,8 +600,57 @@ export default function ${
     );
   };
 
+  const handleEditorBeforeMount = useCallback((monaco: any) => {
+    try {
+      const ambientGlobalsDts = [
+        "declare const firebaseUtils: any;",
+        "declare const db: any;",
+        "declare const auth: any;",
+        "declare const storage: any;",
+        "declare const collection: any;",
+        "declare const doc: any;",
+        "declare const getDocs: any;",
+        "declare const addDoc: any;",
+        "declare const updateDoc: any;",
+        "declare const deleteDoc: any;",
+        "declare function query(...args: any[]): any;",
+        "declare function where(...args: any[]): any;",
+        "declare function orderBy(...args: any[]): any;",
+        "declare function serverTimestamp(...args: any[]): any;",
+      ].join("\n");
+
+      // Dispose previous extra libs
+      if (monacoExtraLibDisposersRef.current.length) {
+        monacoExtraLibDisposersRef.current.forEach((d) => d?.dispose?.());
+        monacoExtraLibDisposersRef.current = [];
+      }
+
+      const tsLib = monaco.languages.typescript.typescriptDefaults.addExtraLib(
+        ambientGlobalsDts,
+        "inmemory://model/firebase-runtime-globals-editor-ts.d.ts"
+      );
+      const jsLib = monaco.languages.typescript.javascriptDefaults.addExtraLib(
+        ambientGlobalsDts,
+        "inmemory://model/firebase-runtime-globals-editor-js.d.ts"
+      );
+      monacoExtraLibDisposersRef.current.push(tsLib, jsLib);
+
+      // Ensure diagnostics stay enabled (we just add globals)
+      monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+      });
+      monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+      });
+    } catch (err) {
+      console.error("Failed to prepare Monaco ambient globals:", err);
+    }
+  }, []);
+
   const handleEditorDidMount = useCallback(
-    (editor: any) => {
+    (editor: any, _monaco?: any) => {
       editorRef.current = editor;
 
       // Configure TypeScript language features
@@ -606,6 +700,16 @@ export default function ${
     },
     [activeFile]
   );
+
+  // Cleanup ambient libs on unmount
+  useEffect(() => {
+    return () => {
+      if (monacoExtraLibDisposersRef.current.length) {
+        monacoExtraLibDisposersRef.current.forEach((d) => d?.dispose?.());
+        monacoExtraLibDisposersRef.current = [];
+      }
+    };
+  }, []);
 
   // Update editor value when activeFile changes
   useEffect(() => {
@@ -907,6 +1011,7 @@ export default function ${
                       key={activeFile?.id || "empty"}
                       height="100%"
                       defaultLanguage="typescript"
+                      beforeMount={handleEditorBeforeMount}
                       value={editorValue}
                       onChange={(value) => {
                         if (value !== undefined) {

@@ -1,6 +1,22 @@
 import ts from "typescript";
 import { typescriptFunctionService } from "./firebase-function-service";
 import { SheetColumn, SheetData } from "@/types/sheet-management";
+import {
+  auth,
+  db,
+  storage,
+  firebaseUtils,
+  collection,
+  doc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  serverTimestamp,
+} from "@/app/functions/firebase-utils";
 
 type CompiledFn = (...args: any[]) => any;
 
@@ -42,15 +58,46 @@ class FunctionExecutionService {
       fileName: tsFile.name || "temp.ts",
     }).outputText;
 
-    // Build a CommonJS evaluation sandbox to extract default export
+    // Build a CommonJS evaluation sandbox with Firebase utilities injected
     const factory = new Function(
       "exports",
       "moduleRef",
+      "auth",
+      "db",
+      "storage",
+      "firebaseUtils",
+      "collection",
+      "doc",
+      "getDocs",
+      "addDoc",
+      "updateDoc",
+      "deleteDoc",
+      "query",
+      "where",
+      "orderBy",
+      "serverTimestamp",
       `${transpiled}; return moduleRef.exports?.default ?? exports?.default ?? moduleRef.exports;`
-    ) as (exports: any, moduleRef: any) => CompiledFn;
+    ) as (exports: any, moduleRef: any, ...firebaseUtils: any[]) => CompiledFn;
 
     const moduleObj = { exports: {} as any };
-    const compiled = factory(moduleObj.exports, moduleObj);
+    const compiled = factory(
+      moduleObj.exports,
+      moduleObj,
+      auth,
+      db,
+      storage,
+      firebaseUtils,
+      collection,
+      doc,
+      getDocs,
+      addDoc,
+      updateDoc,
+      deleteDoc,
+      query,
+      where,
+      orderBy,
+      serverTimestamp
+    );
 
     if (typeof compiled !== "function") {
       throw new Error(`Default export is not a function in file ${fileId}`);

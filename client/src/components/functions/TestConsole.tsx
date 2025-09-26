@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Minimize2,
   Maximize2,
+  Download,
 } from "lucide-react";
 import { functionExecutionService } from "@/services/function-execution-service";
 import { TSFile, TSArgument } from "@/types/functions";
@@ -55,9 +56,11 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
   useEffect(() => {
     if (activeFile) {
       const initialValues: Record<string, string> = {};
-      activeFile.arguments.forEach((arg) => {
-        initialValues[arg.name] = getDefaultValue(arg);
-      });
+      if (activeFile.arguments.length > 0) {
+        activeFile.arguments.forEach((arg) => {
+          initialValues[arg.name] = getDefaultValue(arg);
+        });
+      }
       setParameterValues(initialValues);
       setTestResults([]);
     }
@@ -129,14 +132,23 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
   const executeFunction = async () => {
     if (!activeFile) return;
 
+    // Clear previous results before executing new function
+    setTestResults([]);
+
     setIsExecuting(true);
     const startTime = performance.now();
 
     try {
-      // Parse parameters
-      const args = activeFile.arguments.map((arg) =>
-        parseParameterValue(parameterValues[arg.name] || "", arg)
-      );
+      // Parse parameters (only if there are arguments)
+      const args =
+        activeFile.arguments.length > 0
+          ? activeFile.arguments.map((arg) =>
+              parseParameterValue(parameterValues[arg.name] || "", arg)
+            )
+          : [];
+
+      // Clear cache to ensure we get the latest version
+      functionExecutionService.invalidate(activeFile.id);
 
       // Get compiled function
       const compiledFunction =
@@ -145,12 +157,15 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
       // Execute function
       const result = await compiledFunction(...args);
 
+      // If the result is a Promise, await it
+      const finalResult = result instanceof Promise ? await result : result;
+
       const endTime = performance.now();
       const executionTime = endTime - startTime;
 
       const testResult: TestResult = {
         success: true,
-        result,
+        result: finalResult,
         executionTime,
         timestamp: new Date(),
       };
@@ -245,6 +260,34 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
     setTestResults([]);
   };
 
+  const downloadResult = (result: any, index: number) => {
+    const resultString =
+      typeof result === "string" ? result : JSON.stringify(result, null, 2);
+    const blob = new Blob([resultString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `function-result-${index + 1}-${new Date()
+      .toISOString()
+      .slice(0, 19)
+      .replace(/:/g, "-")}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const clearCache = () => {
+    if (activeFile) {
+      functionExecutionService.invalidate(activeFile.id);
+      toast({
+        title: "Cache cleared",
+        description:
+          "Function cache cleared. Next execution will use fresh code.",
+      });
+    }
+  };
+
   const formatResult = (result: any): string => {
     if (result === null) return "null";
     if (result === undefined) return "undefined";
@@ -332,9 +375,19 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
             <Button
               size="sm"
               variant="ghost"
+              onClick={clearCache}
+              className="h-5 px-1 text-xs"
+              title="Clear function cache"
+            >
+              <RotateCcw className="h-3 w-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={clearResults}
               disabled={testResults.length === 0}
               className="h-5 px-1 text-xs"
+              title="Clear results"
             >
               <RotateCcw className="h-3 w-3" />
             </Button>
@@ -344,7 +397,7 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
 
       <CardContent className="flex-1 flex flex-col space-y-1 px-3 pb-3">
         {/* Function Parameters */}
-        {activeFile.arguments.length > 0 && (
+        {activeFile.arguments.length > 0 ? (
           <div className="space-y-2">
             <button
               onClick={() => setShowParameters(!showParameters)}
@@ -416,6 +469,31 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
               </div>
             )}
           </div>
+        ) : (
+          /* No Parameters - Show Run Button Directly */
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-medium text-foreground flex items-center space-x-1">
+                <Type className="h-3 w-3" />
+                <span>Function</span>
+                <Badge variant="outline" className="text-xs px-1 py-0">
+                  No params
+                </Badge>
+              </h4>
+            </div>
+            <Button
+              onClick={executeFunction}
+              disabled={isExecuting}
+              className="w-full h-6 text-xs"
+            >
+              {isExecuting ? (
+                <Clock className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <Play className="h-3 w-3 mr-1" />
+              )}
+              {isExecuting ? "..." : "Run Function"}
+            </Button>
+          </div>
         )}
 
         {/* Custom Code Execution */}
@@ -481,7 +559,7 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
             </button>
             {showResults && (
               <div className="pl-3">
-                <ScrollArea className="h-24 border rounded p-1 bg-muted">
+                <ScrollArea className="h-96 border rounded p-1 bg-muted">
                   <div className="space-y-1">
                     {testResults.map((result, index) => (
                       <div
@@ -512,17 +590,38 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
                               .substring(0, 5)}
                           </span>
                         </div>
-                        <pre className="text-xs font-mono whitespace-pre-wrap break-words max-h-16 overflow-hidden">
-                          {result.success
-                            ? formatResult(result.result).substring(0, 100) +
-                              (formatResult(result.result).length > 100
-                                ? "..."
-                                : "")
-                            : result.error?.substring(0, 100) +
-                              (result.error && result.error.length > 100
-                                ? "..."
-                                : "")}
-                        </pre>
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-xs text-muted-foreground">
+                            <span>
+                              {result.success
+                                ? `${
+                                    formatResult(result.result).length
+                                  } characters`
+                                : `${(result.error || "").length} characters`}
+                            </span>
+                          </div>
+                          <pre className="text-xs font-mono whitespace-pre-wrap break-words max-h-64 overflow-auto">
+                            {result.success
+                              ? formatResult(result.result)
+                              : result.error || ""}
+                          </pre>
+                          <div className="flex justify-end mt-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                downloadResult(
+                                  result.success ? result.result : result.error,
+                                  index
+                                )
+                              }
+                              className="h-6 px-2 text-xs"
+                            >
+                              <Download className="h-3 w-3 mr-1" />
+                              Download JSON
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
