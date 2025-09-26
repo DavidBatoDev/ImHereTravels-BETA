@@ -13,6 +13,8 @@ import {
   EyeOff,
   Plus,
   GitBranch,
+  Lock,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import ColumnSettingsModal from "../sheet-management/ColumnSettingsModal";
 import { DeleteColumnWarningModal } from "../sheet-management/DeleteColumnWarningModal";
 import { ColumnRelationsModal } from "../sheet-management/ColumnRelationsModal";
+import { LockColumnModal } from "../sheet-management/LockColumnModal";
 import {
   DndContext,
   DragEndEvent,
@@ -113,6 +116,10 @@ export default function BookingsColumnsTab() {
     dependencies: SheetColumn[];
     dependents: SheetColumn[];
   }>({ isOpen: false, columnName: "", dependencies: [], dependents: [] });
+  const [lockColumnModal, setLockColumnModal] = useState<{
+    isOpen: boolean;
+    columnName: string;
+  }>({ isOpen: false, columnName: "" });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -202,7 +209,17 @@ export default function BookingsColumnsTab() {
 
   const handleDeleteColumn = async (columnId: string) => {
     try {
-      // Check for dependent columns first
+      // Check if it's a default column first
+      if (bookingSheetColumnService.isDefaultColumn(columnId)) {
+        const column = columns.find((c) => c.id === columnId);
+        setLockColumnModal({
+          isOpen: true,
+          columnName: column?.columnName || "Unknown",
+        });
+        return;
+      }
+
+      // Check for dependent columns
       const dependentColumns =
         await bookingSheetColumnService.getDependentColumnsForColumn(columnId);
 
@@ -493,6 +510,44 @@ export default function BookingsColumnsTab() {
                                     : "Add to forms"}
                                 </TooltipContent>
                               </Tooltip>
+                              {bookingSheetColumnService.isDefaultColumn(
+                                col.id
+                              ) ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setLockColumnModal({
+                                          isOpen: true,
+                                          columnName: col.columnName,
+                                        });
+                                      }}
+                                      className="h-8 w-8 p-0 hover:bg-amber-100 dark:hover:bg-amber-900/20"
+                                    >
+                                      <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Protected Column - Cannot be deleted
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteColumn(col.id)}
+                                      className="h-8 w-8 p-0 hover:bg-red-100 dark:hover:bg-red-900/20"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete Column</TooltipContent>
+                                </Tooltip>
+                              )}
                             </div>
                           </div>
                         )}
@@ -582,6 +637,18 @@ export default function BookingsColumnsTab() {
         columnName={columnRelationsModal.columnName}
         dependencies={columnRelationsModal.dependencies}
         dependents={columnRelationsModal.dependents}
+      />
+
+      {/* Lock Column Modal */}
+      <LockColumnModal
+        isOpen={lockColumnModal.isOpen}
+        onClose={() =>
+          setLockColumnModal({
+            isOpen: false,
+            columnName: "",
+          })
+        }
+        columnName={lockColumnModal.columnName}
       />
     </>
   );

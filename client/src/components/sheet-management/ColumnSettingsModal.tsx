@@ -27,7 +27,9 @@ import {
   TypeScriptFunction,
   FunctionArgument,
 } from "@/types/sheet-management";
-import { Trash2, Settings } from "lucide-react";
+import { Trash2, Settings, Lock } from "lucide-react";
+import { LockColumnModal } from "./LockColumnModal";
+import bookingSheetColumnService from "@/services/booking-sheet-columns-service";
 
 interface ColumnSettingsModalProps {
   column: SheetColumn | null;
@@ -61,6 +63,10 @@ export default function ColumnSettingsModal({
 }: ColumnSettingsModalProps) {
   const [formData, setFormData] = useState<Partial<SheetColumn>>({});
   const [optionsText, setOptionsText] = useState("");
+  const [lockColumnModal, setLockColumnModal] = useState<{
+    isOpen: boolean;
+    columnName: string;
+  }>({ isOpen: false, columnName: "" });
 
   useEffect(() => {
     if (column) {
@@ -121,9 +127,21 @@ export default function ColumnSettingsModal({
   };
 
   const handleDelete = () => {
-    if (column && onDelete) {
-      onDelete(column.id);
-      onClose();
+    if (column) {
+      // Check if it's a default column first
+      if (bookingSheetColumnService.isDefaultColumn(column.id)) {
+        setLockColumnModal({
+          isOpen: true,
+          columnName: column.columnName,
+        });
+        return;
+      }
+
+      // Not a default column, proceed with deletion
+      if (onDelete) {
+        onDelete(column.id);
+        onClose();
+      }
     }
   };
 
@@ -131,7 +149,7 @@ export default function ColumnSettingsModal({
 
   const selectedFunction = (
     formData.function
-    ? availableFunctions.find((f) => f.id === formData.function)
+      ? availableFunctions.find((f) => f.id === formData.function)
       : undefined
   ) as TypeScriptFunction | undefined;
 
@@ -447,17 +465,17 @@ export default function ColumnSettingsModal({
                                   <div className="flex flex-wrap gap-2">
                                     {(argState.columnReferences || []).map(
                                       (ref: string, i: number) => (
-                                      <div
-                                        key={`${ref}-${i}`}
-                                        className="flex items-center gap-1 rounded border px-2 py-1 text-xs"
-                                      >
-                                        <span>{ref}</span>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-5 px-1 text-red-600"
-                                          onClick={() => {
+                                        <div
+                                          key={`${ref}-${i}`}
+                                          className="flex items-center gap-1 rounded border px-2 py-1 text-xs"
+                                        >
+                                          <span>{ref}</span>
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-5 px-1 text-red-600"
+                                            onClick={() => {
                                               const newArgs = [
                                                 ...(formData.arguments || []),
                                               ];
@@ -467,11 +485,11 @@ export default function ColumnSettingsModal({
                                                 ...(current.columnReferences ||
                                                   []),
                                               ];
-                                            list.splice(i, 1);
-                                            newArgs[index] = {
-                                              ...current,
-                                              columnReferences: list,
-                                            } as any;
+                                              list.splice(i, 1);
+                                              newArgs[index] = {
+                                                ...current,
+                                                columnReferences: list,
+                                              } as any;
                                               handleInputChange(
                                                 "arguments",
                                                 newArgs
@@ -485,8 +503,8 @@ export default function ColumnSettingsModal({
                                             <span className="sr-only">
                                               Remove reference
                                             </span>
-                                              </Button>
-                                      </div>
+                                          </Button>
+                                        </div>
                                       )
                                     )}
                                   </div>
@@ -688,14 +706,27 @@ export default function ColumnSettingsModal({
         <DialogFooter className="flex justify-between">
           <div className="flex gap-2">
             {column && onDelete && (
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                className="flex items-center gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete Column
-              </Button>
+              <>
+                {bookingSheetColumnService.isDefaultColumn(column.id) ? (
+                  <Button
+                    variant="outline"
+                    onClick={handleDelete}
+                    className="flex items-center gap-2 hover:bg-amber-100 dark:hover:bg-amber-900/20"
+                  >
+                    <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    Protected Column
+                  </Button>
+                ) : (
+                  <Button
+                    variant="destructive"
+                    onClick={handleDelete}
+                    className="flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete Column
+                  </Button>
+                )}
+              </>
             )}
           </div>
           <div className="flex gap-2">
@@ -708,6 +739,18 @@ export default function ColumnSettingsModal({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* Lock Column Modal */}
+      <LockColumnModal
+        isOpen={lockColumnModal.isOpen}
+        onClose={() =>
+          setLockColumnModal({
+            isOpen: false,
+            columnName: "",
+          })
+        }
+        columnName={lockColumnModal.columnName}
+      />
     </Dialog>
   );
 }

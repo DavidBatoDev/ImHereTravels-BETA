@@ -10,8 +10,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Plus, Trash2, Settings, RotateCcw } from "lucide-react";
+import {
+  RefreshCw,
+  Plus,
+  Trash2,
+  Settings,
+  RotateCcw,
+  Lock,
+} from "lucide-react";
 import { useState } from "react";
+import bookingSheetColumnService from "@/services/booking-sheet-columns-service";
+import { LockColumnModal } from "@/components/sheet-management/LockColumnModal";
 
 export default function TestSheetManagementPage() {
   const {
@@ -33,6 +42,10 @@ export default function TestSheetManagementPage() {
   } = useSheetManagement();
 
   const [showAddColumnForm, setShowAddColumnForm] = useState(false);
+  const [lockColumnModal, setLockColumnModal] = useState<{
+    isOpen: boolean;
+    columnName: string;
+  }>({ isOpen: false, columnName: "" });
 
   const handleAddTestColumn = async () => {
     try {
@@ -170,14 +183,29 @@ export default function TestSheetManagementPage() {
                     {column.includeInForms ? "In Forms" : "Not in Forms"}
                   </Badge>
                   <Badge variant="outline">{column.dataType}</Badge>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => deleteColumn(column.id)}
-                    disabled={column.id === "bookingId"} // Protect default columns
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {bookingSheetColumnService.isDefaultColumn(column.id) ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setLockColumnModal({
+                          isOpen: true,
+                          columnName: column.columnName,
+                        });
+                      }}
+                      className="hover:bg-amber-100 dark:hover:bg-amber-900/20"
+                    >
+                      <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => deleteColumn(column.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -264,6 +292,18 @@ export default function TestSheetManagementPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Lock Column Modal */}
+      <LockColumnModal
+        isOpen={lockColumnModal.isOpen}
+        onClose={() =>
+          setLockColumnModal({
+            isOpen: false,
+            columnName: "",
+          })
+        }
+        columnName={lockColumnModal.columnName}
+      />
     </div>
   );
 }
