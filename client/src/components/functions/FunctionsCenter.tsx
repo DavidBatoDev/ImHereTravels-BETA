@@ -37,9 +37,12 @@ import {
 } from "@/types/functions";
 import CreateItemModal from "./CreateItemModal";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
+import { DeleteFunctionWarningModal } from "./DeleteFunctionWarningModal";
 import TestConsole from "./TestConsole";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
+import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
+import { SheetColumn } from "@/types/sheet-management";
 
 // Initialize TypeScript function service
 typescriptFunctionService.initialize();
@@ -64,11 +67,19 @@ export default function FunctionsCenter() {
     folderId: string;
     folderName: string;
   }>({ isOpen: false, folderId: "", folderName: "" });
-  const [deleteFileModal, setDeleteFileModal] = useState<{
+  const [deleteFunctionWarningModal, setDeleteFunctionWarningModal] = useState<{
     isOpen: boolean;
     fileId: string;
     fileName: string;
-  }>({ isOpen: false, fileId: "", fileName: "" });
+    affectedColumns: SheetColumn[];
+    affectedFunctions: any[];
+  }>({
+    isOpen: false,
+    fileId: "",
+    fileName: "",
+    affectedColumns: [],
+    affectedFunctions: [],
+  });
   const [isTestConsoleVisible, setIsTestConsoleVisible] = useState(false);
 
   // Add editor instance ref and loading state
@@ -353,6 +364,41 @@ export default function ${
 
   const handleDeleteFile = async (fileId: string) => {
     try {
+      // Check if any columns depend on this function (directly or indirectly)
+      const dependentColumns =
+        await bookingSheetColumnService.getDependentColumns(fileId);
+
+      // Check if any functions depend on this function
+      const dependentFunctions =
+        await bookingSheetColumnService.getDependentFunctions(fileId);
+
+      if (dependentColumns.length > 0 || dependentFunctions.length > 0) {
+        // Show warning modal with dependent columns and functions
+        const file = files.find((f) => f.id === fileId);
+        setDeleteFunctionWarningModal({
+          isOpen: true,
+          fileId,
+          fileName: file?.name || "Unknown",
+          affectedColumns: dependentColumns,
+          affectedFunctions: dependentFunctions,
+        });
+        return;
+      }
+
+      // No dependent columns or functions, proceed with deletion
+      await performFileDeletion(fileId);
+    } catch (error) {
+      console.error("Error checking dependent items:", error);
+      toast({
+        title: "Error",
+        description: "Failed to check dependent items. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const performFileDeletion = async (fileId: string) => {
+    try {
       await typescriptFunctionService.files.delete(fileId);
       const updatedFiles = await typescriptFunctionService.files.getAll();
       setFiles(updatedFiles);
@@ -408,6 +454,52 @@ export default function ${
       title: "Run Function",
       description: "Function execution feature coming soon!",
     });
+  };
+
+  const handleConfirmDeleteWithColumns = async () => {
+    const { fileId, affectedColumns, affectedFunctions } =
+      deleteFunctionWarningModal;
+
+    try {
+      // Delete the affected columns first
+      for (const column of affectedColumns) {
+        await bookingSheetColumnService.deleteColumn(column.id);
+      }
+
+      // Delete the affected functions
+      for (const func of affectedFunctions) {
+        await typescriptFunctionService.files.delete(func.id);
+      }
+
+      // Then delete the main function
+      await performFileDeletion(fileId);
+
+      // Close the modal
+      setDeleteFunctionWarningModal({
+        isOpen: false,
+        fileId: "",
+        fileName: "",
+        affectedColumns: [],
+        affectedFunctions: [],
+      });
+
+      toast({
+        title: "Success",
+        description: `${affectedFunctions.length + 1} function${
+          affectedFunctions.length !== 0 ? "s" : ""
+        } and ${affectedColumns.length} column${
+          affectedColumns.length !== 1 ? "s" : ""
+        } deleted successfully.`,
+      });
+    } catch (error) {
+      console.error("Error deleting function and dependencies:", error);
+      toast({
+        title: "Error",
+        description:
+          "Failed to delete function and dependencies. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getFileIcon = () => {
@@ -709,11 +801,7 @@ export default function ${
                               className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setDeleteFileModal({
-                                  isOpen: true,
-                                  fileId: file.id,
-                                  fileName: file.name,
-                                });
+                                handleDeleteFile(file.id);
                               }}
                               title="Delete file"
                             >
@@ -973,16 +1061,21 @@ export default function ${
         type="folder"
       />
 
-      <ConfirmDeleteModal
-        isOpen={deleteFileModal.isOpen}
+      <DeleteFunctionWarningModal
+        isOpen={deleteFunctionWarningModal.isOpen}
         onClose={() =>
-          setDeleteFileModal({ isOpen: false, fileId: "", fileName: "" })
+          setDeleteFunctionWarningModal({
+            isOpen: false,
+            fileId: "",
+            fileName: "",
+            affectedColumns: [],
+            affectedFunctions: [],
+          })
         }
-        onConfirm={() => handleDeleteFile(deleteFileModal.fileId)}
-        title="Delete TypeScript File"
-        description="Are you sure you want to delete this TypeScript file?"
-        itemName={deleteFileModal.fileName}
-        type="file"
+        onConfirm={handleConfirmDeleteWithColumns}
+        functionName={deleteFunctionWarningModal.fileName}
+        affectedColumns={deleteFunctionWarningModal.affectedColumns}
+        affectedFunctions={deleteFunctionWarningModal.affectedFunctions}
       />
     </div>
   );

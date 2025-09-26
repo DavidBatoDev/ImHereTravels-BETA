@@ -425,6 +425,170 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
     return allColumns.filter((col) => !this.isDefaultColumn(col.id));
   }
 
+  async getColumnsByFunction(functionId: string): Promise<SheetColumn[]> {
+    const allColumns = await this.getAllColumns();
+    return allColumns.filter((col) => col.function === functionId);
+  }
+
+  async getDependentColumns(functionId: string): Promise<SheetColumn[]> {
+    const allColumns = await this.getAllColumns();
+
+    // Find columns that directly use this function
+    const directDependentColumns = allColumns.filter(
+      (col) => col.function === functionId
+    );
+
+    if (directDependentColumns.length === 0) {
+      return [];
+    }
+
+    // Build column dependency graph
+    const dependencyGraph = this.buildColumnDependencyGraph(allColumns);
+
+    // Find all columns that depend on the directly dependent columns
+    const allDependentColumnIds = new Set<string>();
+
+    for (const column of directDependentColumns) {
+      // Add the column itself
+      allDependentColumnIds.add(column.id);
+
+      // Find all columns that depend on this column
+      const dependents = this.getColumnDependents(column.id, dependencyGraph);
+      dependents.forEach((depId) => allDependentColumnIds.add(depId));
+    }
+
+    // Return all dependent columns
+    return allColumns.filter((col) => allDependentColumnIds.has(col.id));
+  }
+
+  async getDependentFunctions(functionId: string): Promise<any[]> {
+    const allColumns = await this.getAllColumns();
+
+    // Find columns that directly use this function
+    const directDependentColumns = allColumns.filter(
+      (col) => col.function === functionId
+    );
+
+    if (directDependentColumns.length === 0) {
+      return [];
+    }
+
+    // Build column dependency graph
+    const dependencyGraph = this.buildColumnDependencyGraph(allColumns);
+
+    // Find all columns that depend on the directly dependent columns
+    const allDependentColumnIds = new Set<string>();
+
+    for (const column of directDependentColumns) {
+      // Add the column itself
+      allDependentColumnIds.add(column.id);
+
+      // Find all columns that depend on this column
+      const dependents = this.getColumnDependents(column.id, dependencyGraph);
+      dependents.forEach((depId) => allDependentColumnIds.add(depId));
+    }
+
+    // Get all dependent columns
+    const dependentColumns = allColumns.filter((col) =>
+      allDependentColumnIds.has(col.id)
+    );
+
+    // Extract unique function IDs from dependent columns
+    const functionIds = new Set<string>();
+    dependentColumns.forEach((col) => {
+      if (col.function) {
+        functionIds.add(col.function);
+      }
+    });
+
+    // Get function details from Firestore
+    const functions = [];
+    for (const funcId of functionIds) {
+      try {
+        const funcDoc = await getDoc(doc(db, "ts_files", funcId));
+        if (funcDoc.exists()) {
+          functions.push({
+            id: funcId,
+            ...funcDoc.data(),
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching function ${funcId}:`, error);
+      }
+    }
+
+    return functions;
+  }
+
+  private buildColumnDependencyGraph(
+    columns: SheetColumn[]
+  ): Map<string, string[]> {
+    const dependencyGraph = new Map<string, string[]>();
+
+    columns.forEach((column) => {
+      const dependencies: string[] = [];
+
+      if (column.arguments) {
+        column.arguments.forEach((arg) => {
+          // Check for single column reference by column name
+          if (arg.columnReference) {
+            const refColumn = columns.find(
+              (c) => c.columnName === arg.columnReference
+            );
+            if (refColumn) {
+              dependencies.push(refColumn.id);
+            }
+          }
+
+          // Check for multiple column references by column name
+          if (arg.columnReferences && Array.isArray(arg.columnReferences)) {
+            arg.columnReferences.forEach((refName) => {
+              const refColumn = columns.find((c) => c.columnName === refName);
+              if (refColumn) {
+                dependencies.push(refColumn.id);
+              }
+            });
+          }
+
+          // Check for column reference by column ID in arguments[n].name
+          if (arg.name) {
+            const refColumn = columns.find((c) => c.id === arg.name);
+            if (refColumn) {
+              dependencies.push(refColumn.id);
+            }
+          }
+        });
+      }
+
+      dependencyGraph.set(column.id, dependencies);
+    });
+
+    return dependencyGraph;
+  }
+
+  private getColumnDependents(
+    columnId: string,
+    dependencyGraph: Map<string, string[]>
+  ): string[] {
+    const visited = new Set<string>();
+    const dependents: string[] = [];
+
+    const collectDependents = (currentId: string) => {
+      if (visited.has(currentId)) return;
+      visited.add(currentId);
+
+      for (const [colId, dependencies] of dependencyGraph.entries()) {
+        if (dependencies.includes(currentId)) {
+          dependents.push(colId);
+          collectDependents(colId);
+        }
+      }
+    };
+
+    collectDependents(columnId);
+    return dependents;
+  }
+
   async reorderColumns(columnIds: string[]): Promise<void> {
     try {
       const batch = writeBatch(db);
