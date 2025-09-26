@@ -27,6 +27,7 @@ import {
   Type,
   Package,
   Terminal,
+  BookOpen,
 } from "lucide-react";
 import { typescriptFunctionService } from "@/services/firebase-function-service";
 import {
@@ -39,6 +40,7 @@ import CreateItemModal from "./CreateItemModal";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import { DeleteFunctionWarningModal } from "./DeleteFunctionWarningModal";
 import TestConsole from "./TestConsole";
+import CodeEditorDocumentationModal from "./CodeEditorDocumentationModal";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
 import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
@@ -82,6 +84,8 @@ export default function FunctionsCenter() {
     affectedFunctions: [],
   });
   const [isTestConsoleVisible, setIsTestConsoleVisible] = useState(false);
+  const [isDocumentationModalOpen, setIsDocumentationModalOpen] =
+    useState(false);
 
   // Add editor instance ref and loading state
   const editorRef = useRef<any>(null);
@@ -149,14 +153,18 @@ export default function FunctionsCenter() {
 
   // Get files for each folder
   const getFilesForFolder = (folderId: string) => {
-    return files.filter((file) => file.folderId === folderId);
+    return files
+      .filter((file) => file.folderId === folderId)
+      .sort((a, b) => a.name.localeCompare(b.name));
   };
 
   // Flatten all files for search and stats
   const allFiles = files;
-  const filteredFiles = allFiles.filter((file) =>
-    file.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredFiles = allFiles
+    .filter((file) =>
+      file.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const handleFileSelect = async (file: TSFile) => {
     if (activeFile?.id === file.id) return; // Prevent unnecessary re-renders
@@ -767,7 +775,7 @@ export default async function ${
         </div>
 
         {/* File List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto scrollbar-hide">
           <div className="p-2">
             {folders.length === 0 ? (
               <div className="text-center py-8">
@@ -837,18 +845,22 @@ export default async function ${
 
                   {/* Folder Files */}
                   {!folder.isCollapsed && (
-                    <div className="ml-6 space-y-1">
-                      {getFilesForFolder(folder.id).map((file) => (
+                    <div className="ml-10 space-y-1">
+                      {getFilesForFolder(folder.id).map((file, fileIndex) => (
                         <div
                           key={file.id}
-                          className={`p-2 rounded-lg cursor-pointer transition-colors ${
+                          className={`p-2 rounded-lg cursor-pointer transition-colors relative ${
                             file.isActive
                               ? "bg-blue-100 border border-blue-200 dark:bg-primary/10 dark:border-primary/20"
                               : "hover:bg-muted/50"
                           }`}
                           onClick={() => handleFileSelect(file)}
                         >
-                          <div className="flex items-center space-x-2">
+                          {/* Document tree line */}
+                          <div className="absolute left-0 top-0 bottom-0 w-px bg-border"></div>
+                          <div className="absolute left-0 top-1/2 w-3 h-px bg-border"></div>
+
+                          <div className="flex items-center space-x-2 ml-4">
                             <FileCode className="h-4 w-4 text-muted-foreground" />
                             <div className="flex-1 min-w-0">
                               <p
@@ -966,21 +978,31 @@ export default async function ${
                       {isTestConsoleVisible ? "Hide Console" : "Show Console"}
                     </Button>
                     <Button
-                      variant="outline"
+                      variant={isEditing ? "default" : "outline"}
                       size="sm"
                       onClick={toggleEditMode}
+                      className="h-8 w-8 p-0"
+                      title={isEditing ? "View Mode" : "Edit Mode"}
                     >
-                      {isEditing ? "View" : "Edit"}
+                      <Edit className="h-4 w-4" />
                     </Button>
-                    {isEditing && (
-                      <Button size="sm" onClick={handleSave}>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save
-                      </Button>
-                    )}
-                    <Button size="sm" onClick={handleRun}>
-                      <Play className="mr-2 h-4 w-4" />
-                      Run
+                    <Button
+                      size="sm"
+                      onClick={handleSave}
+                      disabled={!isEditing}
+                      className="disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Save className="mr-2 h-4 w-4" />
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsDocumentationModalOpen(true)}
+                      className="h-8 w-8 p-0"
+                      title="View Documentation"
+                    >
+                      <BookOpen className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -1142,6 +1164,12 @@ export default async function ${
         functionName={deleteFunctionWarningModal.fileName}
         affectedColumns={deleteFunctionWarningModal.affectedColumns}
         affectedFunctions={deleteFunctionWarningModal.affectedFunctions}
+      />
+
+      {/* Code Editor Documentation Modal */}
+      <CodeEditorDocumentationModal
+        isOpen={isDocumentationModalOpen}
+        onClose={() => setIsDocumentationModalOpen(false)}
       />
     </div>
   );
