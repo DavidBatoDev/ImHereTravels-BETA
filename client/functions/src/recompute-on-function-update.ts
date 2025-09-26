@@ -38,14 +38,177 @@ function transpileToFunction(
     fileName,
   }).outputText;
 
+  // Create Firebase utilities for runtime injection
+  const createFirebaseUtils = () => {
+    return {
+      getCurrentUser: () => ({
+        uid: "admin",
+        email: "admin@imheretravels.com",
+      }),
+      isAuthenticated: () => true,
+      getUserId: () => "admin",
+      ensureAuthenticated: async () => ({
+        uid: "admin",
+        email: "admin@imheretravels.com",
+      }),
+      reAuthenticate: async () => {},
+      createDocRef: (collectionName: string, docId?: string) =>
+        docId
+          ? db.collection(collectionName).doc(docId)
+          : db.collection(collectionName).doc(),
+      createCollectionRef: (collectionName: string) =>
+        db.collection(collectionName),
+      createStorageRef: (path: string) => null, // Storage not needed for this function
+      getDocumentData: async (collectionName: string, docId: string) => {
+        const doc = await db.collection(collectionName).doc(docId).get();
+        return doc.exists ? { id: doc.id, ...doc.data() } : null;
+      },
+      getCollectionData: async (
+        collectionName: string,
+        constraints?: any[]
+      ) => {
+        let query: any = db.collection(collectionName);
+
+        if (constraints && constraints.length > 0) {
+          for (const constraint of constraints) {
+            if (constraint.type === "where") {
+              query = query.where(
+                constraint.field,
+                constraint.operator,
+                constraint.value
+              );
+            } else if (constraint.type === "orderBy") {
+              query = query.orderBy(
+                constraint.field,
+                constraint.direction || "asc"
+              );
+            }
+          }
+        }
+
+        const snapshot = await query.get();
+        return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      },
+      addDocument: async (collectionName: string, data: any) => {
+        const docRef = await db.collection(collectionName).add(data);
+        return docRef.id;
+      },
+      updateDocument: async (
+        collectionName: string,
+        docId: string,
+        data: any
+      ) => {
+        await db.collection(collectionName).doc(docId).update(data);
+        return docId;
+      },
+      deleteDocument: async (collectionName: string, docId: string) => {
+        await db.collection(collectionName).doc(docId).delete();
+        return true;
+      },
+    };
+  };
+
+  // Create Firebase function references
+  const createFirebaseFunctions = () => {
+    return {
+      collection: (collectionName: string) => db.collection(collectionName),
+      doc: (collectionName: string, docId?: string) =>
+        docId
+          ? db.collection(collectionName).doc(docId)
+          : db.collection(collectionName).doc(),
+      getDocs: async (query: any) => {
+        const snapshot = await query.get();
+        return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      },
+      addDoc: async (collectionRef: any, data: any) => {
+        const docRef = await collectionRef.add(data);
+        return docRef.id;
+      },
+      updateDoc: async (docRef: any, data: any) => {
+        await docRef.update(data);
+        return docRef.id;
+      },
+      deleteDoc: async (docRef: any) => {
+        await docRef.delete();
+        return true;
+      },
+      query: (...args: any[]) => {
+        let query: any = db.collection(args[0]);
+        for (let i = 1; i < args.length; i++) {
+          const constraint = args[i];
+          if (constraint.type === "where") {
+            query = query.where(
+              constraint.field,
+              constraint.operator,
+              constraint.value
+            );
+          } else if (constraint.type === "orderBy") {
+            query = query.orderBy(
+              constraint.field,
+              constraint.direction || "asc"
+            );
+          }
+        }
+        return query;
+      },
+      where: (field: string, operator: string, value: any) => ({
+        type: "where",
+        field,
+        operator,
+        value,
+      }),
+      orderBy: (field: string, direction?: string) => ({
+        type: "orderBy",
+        field,
+        direction: direction || "asc",
+      }),
+      serverTimestamp: () => new Date(),
+    };
+  };
+
   const factory = new Function(
     "exports",
     "module",
+    "db",
+    "auth",
+    "storage",
+    "firebaseUtils",
+    "collection",
+    "doc",
+    "getDocs",
+    "addDoc",
+    "updateDoc",
+    "deleteDoc",
+    "query",
+    "where",
+    "orderBy",
+    "serverTimestamp",
     `${transpiled}; return module.exports?.default ?? exports?.default ?? module.exports;`
-  ) as (exports: any, module: any) => any;
+  ) as (exports: any, module: any, ...firebaseUtils: any[]) => any;
 
   const moduleObj = { exports: {} as any };
-  const compiled = factory(moduleObj.exports, moduleObj);
+  const firebaseUtils = createFirebaseUtils();
+  const firebaseFunctions = createFirebaseFunctions();
+
+  const compiled = factory(
+    moduleObj.exports,
+    moduleObj,
+    db,
+    null, // auth not needed for this function
+    null, // storage not needed for this function
+    firebaseUtils,
+    firebaseFunctions.collection,
+    firebaseFunctions.doc,
+    firebaseFunctions.getDocs,
+    firebaseFunctions.addDoc,
+    firebaseFunctions.updateDoc,
+    firebaseFunctions.deleteDoc,
+    firebaseFunctions.query,
+    firebaseFunctions.where,
+    firebaseFunctions.orderBy,
+    firebaseFunctions.serverTimestamp
+  );
+
   if (typeof compiled !== "function") {
     throw new Error("Default export is not a function after transpile");
   }
