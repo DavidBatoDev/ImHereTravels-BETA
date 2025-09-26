@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { SheetColumn } from "@/types/sheet-management";
+import type { SheetColumn, TypeScriptFunction } from "@/types/sheet-management";
 import bookingSheetColumnService from "@/services/booking-sheet-columns-service";
+import { typescriptFunctionsService } from "@/services/typescript-functions-service";
 import { useToast } from "@/hooks/use-toast";
 import {
   GripVertical,
@@ -22,7 +23,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ColumnSettingsModal from "../sheet-management/ColumnSettingsModal";
-import AddColumnModal from "../sheet-management/AddColumnModal";
 import {
   DndContext,
   DragEndEvent,
@@ -90,12 +90,14 @@ function SortableRow({
 
 export default function BookingsColumnsTab() {
   const [columns, setColumns] = useState<SheetColumn[]>([]);
+  const [availableFunctions, setAvailableFunctions] = useState<
+    TypeScriptFunction[]
+  >([]);
   const [isReordering, setIsReordering] = useState(false);
   const [selectedColumn, setSelectedColumn] = useState<SheetColumn | null>(
     null
   );
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -105,6 +107,27 @@ export default function BookingsColumnsTab() {
     });
     return () => unsubscribe();
   }, [isReordering]);
+
+  // Load available functions
+  useEffect(() => {
+    const loadFunctions = async () => {
+      try {
+        const functions = await typescriptFunctionsService.getAllFunctions();
+        setAvailableFunctions(functions);
+        console.log(
+          "🔍 Loaded functions in BookingsColumnsTab:",
+          functions.length
+        );
+      } catch (error) {
+        console.error(
+          "❌ Failed to load functions in BookingsColumnsTab:",
+          error
+        );
+      }
+    };
+
+    loadFunctions();
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -192,21 +215,9 @@ export default function BookingsColumnsTab() {
     }
   };
 
-  const handleAddColumn = async (newColumn: Omit<SheetColumn, "id">) => {
-    try {
-      await bookingSheetColumnService.createColumn(newColumn);
-      toast({
-        title: "Column Added",
-        description: `${newColumn.columnName} has been created successfully`,
-      });
-      setIsAddColumnModalOpen(false);
-    } catch (err) {
-      toast({
-        title: "Failed to Add Column",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive",
-      });
-    }
+  const handleAddColumn = () => {
+    setSelectedColumn(null); // null means we're adding a new column
+    setIsSettingsModalOpen(true);
   };
 
   return (
@@ -224,7 +235,7 @@ export default function BookingsColumnsTab() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsAddColumnModalOpen(true)}
+              onClick={handleAddColumn}
               className="gap-2"
             >
               <Plus className="h-4 w-4" /> Add Column
@@ -380,13 +391,16 @@ export default function BookingsColumnsTab() {
       </Card>
 
       {/* Column Settings Modal */}
-      {selectedColumn && (
-        <ColumnSettingsModal
-          isOpen={isSettingsModalOpen}
-          onClose={handleCloseSettings}
-          column={selectedColumn}
-          onSave={async (updatedColumn) => {
-            try {
+      <ColumnSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={handleCloseSettings}
+        column={selectedColumn}
+        availableFunctions={availableFunctions}
+        existingColumns={columns}
+        onSave={async (updatedColumn) => {
+          try {
+            if (selectedColumn) {
+              // Editing existing column
               await bookingSheetColumnService.updateColumn(
                 selectedColumn.id,
                 updatedColumn
@@ -395,25 +409,25 @@ export default function BookingsColumnsTab() {
                 title: "Column Updated",
                 description: `${selectedColumn.columnName} settings saved`,
               });
-              handleCloseSettings();
-            } catch (err) {
+            } else {
+              // Adding new column
+              await bookingSheetColumnService.createColumn(updatedColumn);
               toast({
-                title: "Failed to Update Column",
-                description:
-                  err instanceof Error ? err.message : "Unknown error",
-                variant: "destructive",
+                title: "Column Added",
+                description: `${updatedColumn.columnName} has been created successfully`,
               });
             }
-          }}
-        />
-      )}
-
-      {/* Add Column Modal */}
-      <AddColumnModal
-        isOpen={isAddColumnModalOpen}
-        onClose={() => setIsAddColumnModalOpen(false)}
-        onAdd={handleAddColumn}
-        existingColumns={columns}
+            handleCloseSettings();
+          } catch (err) {
+            toast({
+              title: selectedColumn
+                ? "Failed to Update Column"
+                : "Failed to Add Column",
+              description: err instanceof Error ? err.message : "Unknown error",
+              variant: "destructive",
+            });
+          }
+        }}
       />
     </>
   );

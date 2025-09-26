@@ -93,8 +93,11 @@ export default function ColumnSettingsModal({
           });
           if (copy.columnReference === "") delete copy.columnReference;
           if (Array.isArray(copy.columnReferences)) {
-            copy.columnReferences = copy.columnReferences.filter((x: string) => !!x);
-            if (copy.columnReferences.length === 0) delete copy.columnReferences;
+            copy.columnReferences = copy.columnReferences.filter(
+              (x: string) => !!x
+            );
+            if (copy.columnReferences.length === 0)
+              delete copy.columnReferences;
           }
           return copy;
         })
@@ -126,9 +129,11 @@ export default function ColumnSettingsModal({
 
   const isFormValid = formData.columnName && formData.dataType;
 
-  const selectedFunction = (formData.function
+  const selectedFunction = (
+    formData.function
     ? availableFunctions.find((f) => f.id === formData.function)
-    : undefined) as TypeScriptFunction | undefined;
+      : undefined
+  ) as TypeScriptFunction | undefined;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -185,17 +190,63 @@ export default function ColumnSettingsModal({
             <div className="flex items-center gap-3 flex-wrap">
               {[
                 { value: "none", label: "None", bg: "bg-white", ring: "" },
-                { value: "purple", label: "Purple", bg: "bg-purple-600", ring: "ring-purple-600" },
-                { value: "blue", label: "Blue", bg: "bg-blue-600", ring: "ring-blue-600" },
-                { value: "green", label: "Green", bg: "bg-green-600", ring: "ring-green-600" },
-                { value: "yellow", label: "Yellow", bg: "bg-yellow-500", ring: "ring-yellow-500" },
-                { value: "orange", label: "Orange", bg: "bg-orange-500", ring: "ring-orange-500" },
-                { value: "red", label: "Red", bg: "bg-red-600", ring: "ring-red-600" },
-                { value: "pink", label: "Pink", bg: "bg-pink-600", ring: "ring-pink-600" },
-                { value: "cyan", label: "Cyan", bg: "bg-cyan-500", ring: "ring-cyan-500" },
-                { value: "gray", label: "Gray", bg: "bg-gray-500", ring: "ring-gray-500" },
+                {
+                  value: "purple",
+                  label: "Purple",
+                  bg: "bg-purple-600",
+                  ring: "ring-purple-600",
+                },
+                {
+                  value: "blue",
+                  label: "Blue",
+                  bg: "bg-blue-600",
+                  ring: "ring-blue-600",
+                },
+                {
+                  value: "green",
+                  label: "Green",
+                  bg: "bg-green-600",
+                  ring: "ring-green-600",
+                },
+                {
+                  value: "yellow",
+                  label: "Yellow",
+                  bg: "bg-yellow-500",
+                  ring: "ring-yellow-500",
+                },
+                {
+                  value: "orange",
+                  label: "Orange",
+                  bg: "bg-orange-500",
+                  ring: "ring-orange-500",
+                },
+                {
+                  value: "red",
+                  label: "Red",
+                  bg: "bg-red-600",
+                  ring: "ring-red-600",
+                },
+                {
+                  value: "pink",
+                  label: "Pink",
+                  bg: "bg-pink-600",
+                  ring: "ring-pink-600",
+                },
+                {
+                  value: "cyan",
+                  label: "Cyan",
+                  bg: "bg-cyan-500",
+                  ring: "ring-cyan-500",
+                },
+                {
+                  value: "gray",
+                  label: "Gray",
+                  bg: "bg-gray-500",
+                  ring: "ring-gray-500",
+                },
               ].map((c) => {
-                const selected = ((formData as any).color || "none") === c.value;
+                const selected =
+                  ((formData as any).color || "none") === c.value;
                 return (
                   <button
                     key={c.value}
@@ -213,13 +264,17 @@ export default function ColumnSettingsModal({
                         <span className="absolute left-1 right-1 h-[2px] rotate-45 bg-gray-400" />
                       </span>
                     ) : (
-                      <span className={`absolute inset-1 rounded-full ${c.bg}`} />
+                      <span
+                        className={`absolute inset-1 rounded-full ${c.bg}`}
+                      />
                     )}
                   </button>
                 );
               })}
             </div>
-            <p className="text-xs text-gray-500">Applies a light background tint to this column.</p>
+            <p className="text-xs text-gray-500">
+              Applies a light background tint to this column.
+            </p>
           </div>
 
           {/* Select Options */}
@@ -264,15 +319,20 @@ export default function ColumnSettingsModal({
                   <div className="text-sm text-gray-500">
                     Function: {selectedFunction.functionName}
                     <br />
-                    Parameters: {selectedFunction.arguments?.map((a) => `${a.name}: ${a.type}`).join(", ")}
+                    Parameters:{" "}
+                    {selectedFunction.arguments
+                      ?.map((a) => `${a.name}: ${a.type}`)
+                      .join(", ")}
                   </div>
 
                   <div className="space-y-3">
                     <Label>Function Arguments</Label>
                     {selectedFunction.arguments?.map((arg, index) => {
                       const t = (arg.type || "").toLowerCase();
-                      const isArrayArg = t === "{}" || t.includes("[]") || t.includes("array");
-                      const argState: any = (formData.arguments || [])[index] || {};
+                      const isArrayArg =
+                        t === "{}" || t.includes("[]") || t.includes("array");
+                      const argState: any =
+                        (formData.arguments || [])[index] || {};
                       const usingRefs = isArrayArg
                         ? argState.columnReferences !== undefined
                         : argState.columnReference !== undefined;
@@ -290,7 +350,9 @@ export default function ColumnSettingsModal({
                                 id={`use-column-ref-${index}`}
                                 checked={!!usingRefs}
                                 onCheckedChange={(checked) => {
-                                  const newArgs = [...(formData.arguments || [])];
+                                  const newArgs = [
+                                    ...(formData.arguments || []),
+                                  ];
                                   const current = (newArgs[index] || {}) as any;
                                   const base: any = {
                                     ...current,
@@ -318,24 +380,37 @@ export default function ColumnSettingsModal({
                                   handleInputChange("arguments", newArgs);
                                 }}
                               />
-                              <Label htmlFor={`use-column-ref-${index}`} className="text-sm">
-                                {isArrayArg ? "Use Column Reference(s)" : "Use Column Reference"}
+                              <Label
+                                htmlFor={`use-column-ref-${index}`}
+                                className="text-sm"
+                              >
+                                {isArrayArg
+                                  ? "Use Column Reference(s)"
+                                  : "Use Column Reference"}
                               </Label>
                             </div>
 
                             {usingRefs ? (
                               isArrayArg ? (
                                 <div className="space-y-2">
-                                  <Label className="text-xs text-gray-600">Add Columns to Reference</Label>
+                                  <Label className="text-xs text-gray-600">
+                                    Add Columns to Reference
+                                  </Label>
                                   <Select
                                     value=""
                                     onValueChange={(value) => {
-                                      const newArgs = [...(formData.arguments || [])];
-                                      const current = (newArgs[index] || {}) as any;
-                                      const list = Array.isArray(current.columnReferences)
+                                      const newArgs = [
+                                        ...(formData.arguments || []),
+                                      ];
+                                      const current = (newArgs[index] ||
+                                        {}) as any;
+                                      const list = Array.isArray(
+                                        current.columnReferences
+                                      )
                                         ? [...current.columnReferences]
                                         : ([] as string[]);
-                                      if (!list.includes(value)) list.push(value);
+                                      if (!list.includes(value))
+                                        list.push(value);
                                       newArgs[index] = {
                                         ...current,
                                         name: arg.name,
@@ -355,17 +430,23 @@ export default function ColumnSettingsModal({
                                       {existingColumns
                                         .filter((c) => c.id !== column?.id)
                                         .map((col) => (
-                                          <SelectItem key={col.id} value={col.columnName}>
+                                          <SelectItem
+                                            key={col.id}
+                                            value={col.columnName}
+                                          >
                                             <div className="flex items-center justify-between">
                                               <span>{col.columnName}</span>
-                                              <span className="text-xs text-gray-500 ml-2">{col.dataType}</span>
+                                              <span className="text-xs text-gray-500 ml-2">
+                                                {col.dataType}
+                                              </span>
                                             </div>
                                           </SelectItem>
                                         ))}
                                     </SelectContent>
                                   </Select>
                                   <div className="flex flex-wrap gap-2">
-                                    {(argState.columnReferences || []).map((ref: string, i: number) => (
+                                    {(argState.columnReferences || []).map(
+                                      (ref: string, i: number) => (
                                       <div
                                         key={`${ref}-${i}`}
                                         className="flex items-center gap-1 rounded border px-2 py-1 text-xs"
@@ -377,34 +458,57 @@ export default function ColumnSettingsModal({
                                           size="sm"
                                           className="h-5 px-1 text-red-600"
                                           onClick={() => {
-                                            const newArgs = [...(formData.arguments || [])];
-                                            const current = (newArgs[index] || {}) as any;
-                                            const list: string[] = [...(current.columnReferences || [])];
+                                              const newArgs = [
+                                                ...(formData.arguments || []),
+                                              ];
+                                              const current = (newArgs[index] ||
+                                                {}) as any;
+                                              const list: string[] = [
+                                                ...(current.columnReferences ||
+                                                  []),
+                                              ];
                                             list.splice(i, 1);
                                             newArgs[index] = {
                                               ...current,
                                               columnReferences: list,
                                             } as any;
-                                            handleInputChange("arguments", newArgs);
-                                          }}
-                                              >
-                                                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                                                <span className="sr-only">Remove reference</span>
+                                              handleInputChange(
+                                                "arguments",
+                                                newArgs
+                                              );
+                                            }}
+                                          >
+                                            <Trash2
+                                              className="h-3.5 w-3.5"
+                                              aria-hidden="true"
+                                            />
+                                            <span className="sr-only">
+                                              Remove reference
+                                            </span>
                                               </Button>
                                       </div>
-                                    ))}
+                                      )
+                                    )}
                                   </div>
-                                  <p className="text-xs text-blue-600">This argument will use the values from selected columns</p>
+                                  <p className="text-xs text-blue-600">
+                                    This argument will use the values from
+                                    selected columns
+                                  </p>
                                 </div>
                               ) : (
                                 <div className="space-y-2">
-                                  <Label htmlFor={`column-ref-${index}`} className="text-xs text-gray-600">
+                                  <Label
+                                    htmlFor={`column-ref-${index}`}
+                                    className="text-xs text-gray-600"
+                                  >
                                     Select Column to Reference
                                   </Label>
                                   <Select
                                     value={argState.columnReference || ""}
                                     onValueChange={(value) => {
-                                      const newArgs = [...(formData.arguments || [])];
+                                      const newArgs = [
+                                        ...(formData.arguments || []),
+                                      ];
                                       newArgs[index] = {
                                         ...argState,
                                         name: arg.name,
@@ -424,16 +528,24 @@ export default function ColumnSettingsModal({
                                       {existingColumns
                                         .filter((c) => c.id !== column?.id)
                                         .map((col) => (
-                                          <SelectItem key={col.id} value={col.columnName}>
+                                          <SelectItem
+                                            key={col.id}
+                                            value={col.columnName}
+                                          >
                                             <div className="flex items-center justify-between">
                                               <span>{col.columnName}</span>
-                                              <span className="text-xs text-gray-500 ml-2">{col.dataType}</span>
+                                              <span className="text-xs text-gray-500 ml-2">
+                                                {col.dataType}
+                                              </span>
                                             </div>
                                           </SelectItem>
                                         ))}
                                     </SelectContent>
                                   </Select>
-                                  <p className="text-xs text-blue-600">This argument will use the value from the selected column</p>
+                                  <p className="text-xs text-blue-600">
+                                    This argument will use the value from the
+                                    selected column
+                                  </p>
                                 </div>
                               )
                             ) : isArrayArg ? (
@@ -442,7 +554,9 @@ export default function ColumnSettingsModal({
                                   id={`arg-${index}`}
                                   value={(argState.value as string) || ""}
                                   onChange={(e) => {
-                                    const newArgs = [...(formData.arguments || [])];
+                                    const newArgs = [
+                                      ...(formData.arguments || []),
+                                    ];
                                     newArgs[index] = {
                                       ...argState,
                                       name: arg.name,
@@ -458,14 +572,18 @@ export default function ColumnSettingsModal({
                                   placeholder="Enter comma-separated values"
                                   rows={3}
                                 />
-                                <p className="text-xs text-gray-500">Separate multiple values with commas</p>
+                                <p className="text-xs text-gray-500">
+                                  Separate multiple values with commas
+                                </p>
                               </div>
                             ) : (
                               <Input
                                 id={`arg-${index}`}
                                 value={argState.value || ""}
                                 onChange={(e) => {
-                                  const newArgs = [...(formData.arguments || [])];
+                                  const newArgs = [
+                                    ...(formData.arguments || []),
+                                  ];
                                   newArgs[index] = {
                                     ...argState,
                                     name: arg.name,
@@ -478,14 +596,24 @@ export default function ColumnSettingsModal({
                                   } as any;
                                   handleInputChange("arguments", newArgs);
                                 }}
-                                placeholder={arg.hasDefault ? "Has default value" : "Enter value"}
-                                className={arg.isOptional ? "border-gray-300" : "border-red-300"}
+                                placeholder={
+                                  arg.hasDefault
+                                    ? "Has default value"
+                                    : "Enter value"
+                                }
+                                className={
+                                  arg.isOptional
+                                    ? "border-gray-300"
+                                    : "border-red-300"
+                                }
                               />
                             )}
                           </div>
 
                           {arg.isOptional && (
-                            <p className="text-xs text-gray-500">This parameter is optional</p>
+                            <p className="text-xs text-gray-500">
+                              This parameter is optional
+                            </p>
                           )}
                         </div>
                       );
@@ -539,13 +667,17 @@ export default function ColumnSettingsModal({
                   id="defaultValue"
                   type="date"
                   value={(formData.defaultValue as any) || ""}
-                  onChange={(e) => handleInputChange("defaultValue", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("defaultValue", e.target.value)
+                  }
                 />
               ) : (
                 <Input
                   id="defaultValue"
                   value={(formData.defaultValue as any) || ""}
-                  onChange={(e) => handleInputChange("defaultValue", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("defaultValue", e.target.value)
+                  }
                   placeholder="Enter default value"
                 />
               )}

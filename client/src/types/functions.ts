@@ -23,6 +23,7 @@ export interface TSFile {
   hasIntersectionTypes: boolean;
   hasDestructuring: boolean;
   hasRestParameters: boolean;
+  functionDependencies: string[]; // Names of functions called within this function
 }
 
 export interface TSArgument {
@@ -72,6 +73,7 @@ export interface FileAnalysisResult {
   hasIntersectionTypes: boolean;
   hasDestructuring: boolean;
   hasRestParameters: boolean;
+  functionDependencies: string[]; // Names of functions called within this function
 }
 
 // Legacy aliases for backward compatibility

@@ -58,19 +58,45 @@ function buildArgs(
   allColumns: SheetColumn[]
 ): any[] {
   const argsMeta = column.arguments || [];
-  return argsMeta.map((arg) => {
+  logger.info(`Building args for column ${column.columnName}:`);
+  logger.info(`  Arguments metadata: ${JSON.stringify(argsMeta, null, 2)}`);
+
+  return argsMeta.map((arg, index) => {
     const t = (arg.type || "").toLowerCase();
+    logger.info(`  Processing argument ${index}: ${JSON.stringify(arg)}`);
+
     if (Array.isArray(arg.columnReferences) && arg.columnReferences.length) {
-      return arg.columnReferences.map((refName) => {
+      const result = arg.columnReferences.map((refName) => {
         const refCol = allColumns.find((c) => c.columnName === refName);
-        return refCol ? row[refCol.id] : undefined;
+        const value = refCol ? row[refCol.id] : undefined;
+        logger.info(
+          `    Column reference "${refName}" -> column ID "${refCol?.id}" -> value "${value}"`
+        );
+        return value;
       });
+      logger.info(
+        `    Final result for arg ${index}: ${JSON.stringify(result)}`
+      );
+      return result;
     }
     if (arg.columnReference !== undefined && arg.columnReference !== "") {
       const refCol = allColumns.find(
         (c) => c.columnName === arg.columnReference
       );
-      return refCol ? row[refCol.id] : undefined;
+      const value = refCol ? row[refCol.id] : undefined;
+      logger.info(
+        `    Single column reference "${arg.columnReference}" -> column ID "${refCol?.id}" -> value "${value}"`
+      );
+      return value;
+    }
+    if (arg.name) {
+      // Check for column reference by column ID in arguments[n].name
+      const refCol = allColumns.find((c) => c.id === arg.name);
+      const value = refCol ? row[refCol.id] : undefined;
+      logger.info(
+        `    Column ID reference "${arg.name}" -> column name "${refCol?.columnName}" -> value "${value}"`
+      );
+      return value;
     }
     if (arg.value !== undefined) {
       if (Array.isArray(arg.value)) return arg.value;
@@ -89,10 +115,152 @@ function buildArgs(
       }
       if (t.includes("number")) return Number(arg.value);
       if (t.includes("boolean")) return String(arg.value) === "true";
+      logger.info(`    Static value for arg ${index}: ${arg.value}`);
       return arg.value as any;
     }
+    logger.info(`    No value found for arg ${index}, returning undefined`);
     return undefined;
   });
+}
+
+/**
+ * Build function dependency graph to find all functions that depend on the updated function
+ */
+async function buildFunctionDependencyGraph(
+  db: FirebaseFirestore.Firestore
+): Promise<Map<string, string[]>> {
+  const dependencyGraph = new Map<string, string[]>();
+  const functionNameToIdMap = new Map<string, string>();
+
+  // Fetch all functions
+  const functionsSnap = await db.collection("ts_files").get();
+  const functions: any[] = functionsSnap.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+
+  // Build function name to ID mapping
+  functions.forEach((func) => {
+    if (func.functionName) {
+      functionNameToIdMap.set(func.functionName, func.id);
+    }
+  });
+
+  // Build dependency graph
+  functions.forEach((func) => {
+    const dependencies = func.functionDependencies || [];
+    const dependencyIds = dependencies
+      .map((depName: string) => functionNameToIdMap.get(depName))
+      .filter((id: string | undefined): id is string => id !== undefined);
+
+    dependencyGraph.set(func.id, dependencyIds);
+  });
+
+  return dependencyGraph;
+}
+
+/**
+ * Get all functions that depend on the given function (transitive closure)
+ */
+function getDependents(
+  functionId: string,
+  dependencyGraph: Map<string, string[]>
+): string[] {
+  const visited = new Set<string>();
+  const dependents: string[] = [];
+
+  const collectDependents = (currentId: string) => {
+    if (visited.has(currentId)) return;
+    visited.add(currentId);
+
+    // Find all functions that depend on currentId
+    for (const [funcId, dependencies] of dependencyGraph.entries()) {
+      if (dependencies.includes(currentId)) {
+        dependents.push(funcId);
+        collectDependents(funcId);
+      }
+    }
+  };
+
+  collectDependents(functionId);
+  return dependents;
+}
+
+/**
+ * Build column dependency graph to find columns that depend on other columns
+ */
+function buildColumnDependencyGraph(
+  columns: SheetColumn[]
+): Map<string, string[]> {
+  const dependencyGraph = new Map<string, string[]>();
+
+  // For each column, find which other columns it depends on
+  columns.forEach((column) => {
+    const dependencies: string[] = [];
+
+    if (column.arguments) {
+      column.arguments.forEach((arg) => {
+        // Check for single column reference by column name
+        if (arg.columnReference) {
+          const refColumn = columns.find(
+            (c) => c.columnName === arg.columnReference
+          );
+          if (refColumn) {
+            dependencies.push(refColumn.id);
+          }
+        }
+
+        // Check for multiple column references by column name
+        if (arg.columnReferences && Array.isArray(arg.columnReferences)) {
+          arg.columnReferences.forEach((refName) => {
+            const refColumn = columns.find((c) => c.columnName === refName);
+            if (refColumn) {
+              dependencies.push(refColumn.id);
+            }
+          });
+        }
+
+        // Check for column reference by column ID in arguments[n].name
+        if (arg.name) {
+          const refColumn = columns.find((c) => c.id === arg.name);
+          if (refColumn) {
+            dependencies.push(refColumn.id);
+          }
+        }
+      });
+    }
+
+    dependencyGraph.set(column.id, dependencies);
+  });
+
+  return dependencyGraph;
+}
+
+/**
+ * Get all columns that depend on the given column (transitive closure)
+ */
+function getColumnDependents(
+  columnId: string,
+  dependencyGraph: Map<string, string[]>
+): string[] {
+  const visited = new Set<string>();
+  const dependents: string[] = [];
+
+  const collectDependents = (currentId: string) => {
+    if (visited.has(currentId)) return;
+    visited.add(currentId);
+
+    // Find all columns that depend on currentId
+    for (const [colId, dependencies] of dependencyGraph.entries()) {
+      if (dependencies.includes(currentId)) {
+        dependents.push(colId);
+        collectDependents(colId);
+      }
+    }
+  };
+
+  collectDependents(columnId);
+  return dependents;
 }
 
 export const onTypeScriptFunctionUpdated = onDocumentUpdated(
@@ -114,27 +282,136 @@ export const onTypeScriptFunctionUpdated = onDocumentUpdated(
         return;
       }
 
-      // Fetch all columns that reference this function
+      // Build function dependency graph
+      const dependencyGraph = await buildFunctionDependencyGraph(db);
+      const dependentFunctionIds = getDependents(funcId, dependencyGraph);
+
+      // Include the updated function itself
+      const allAffectedFunctionIds = [funcId, ...dependentFunctionIds];
+
+      logger.info(
+        `Function ${funcId} updated. Found ${
+          dependentFunctionIds.length
+        } dependent functions: ${dependentFunctionIds.join(", ")}`
+      );
+
+      // Fetch all columns
       const colsSnap = await db.collection("bookingSheetColumns").get();
       const allColumns: SheetColumn[] = colsSnap.docs.map((d) => ({
         id: d.id,
         ...(d.data() as any),
       }));
-      const impactedColumns = allColumns.filter(
-        (c) => c.dataType === "function" && c.function === funcId
+
+      // Find columns that directly reference the affected functions
+      const directlyImpactedColumns = allColumns.filter(
+        (c) =>
+          c.dataType === "function" &&
+          allAffectedFunctionIds.includes(c.function || "")
       );
-      if (impactedColumns.length === 0) {
+
+      if (directlyImpactedColumns.length === 0) {
         logger.info(
-          `No columns reference function ${funcId}. Nothing to recompute.`
+          `No columns reference affected functions. Nothing to recompute.`
         );
         return;
       }
 
-      // Prepare compiled function
-      const compiled = transpileToFunction(
-        after.content,
-        after.name || "ts-func.ts"
+      logger.info(
+        `Found ${
+          directlyImpactedColumns.length
+        } directly impacted columns: ${directlyImpactedColumns
+          .map((c) => c.columnName)
+          .join(", ")}`
       );
+
+      // Build column dependency graph to find columns that depend on the directly impacted columns
+      const columnDependencyGraph = buildColumnDependencyGraph(allColumns);
+      const allColumnDependents = new Set<string>();
+
+      // Log the column dependency graph for debugging
+      logger.info("Column dependency graph:");
+      for (const [columnId, dependencies] of columnDependencyGraph.entries()) {
+        const column = allColumns.find((c) => c.id === columnId);
+        logger.info(
+          `  ${column?.columnName || columnId} depends on: ${dependencies
+            .map((depId) => {
+              const depColumn = allColumns.find((c) => c.id === depId);
+              return depColumn?.columnName || depId;
+            })
+            .join(", ")}`
+        );
+      }
+
+      // For each directly impacted column, find all columns that depend on it
+      for (const column of directlyImpactedColumns) {
+        logger.info(
+          `Finding dependents for directly impacted column: ${column.columnName} (${column.id})`
+        );
+        const dependents = getColumnDependents(
+          column.id,
+          columnDependencyGraph
+        );
+        logger.info(
+          `  Found ${dependents.length} dependents: ${dependents
+            .map((depId) => {
+              const depColumn = allColumns.find((c) => c.id === depId);
+              return depColumn?.columnName || depId;
+            })
+            .join(", ")}`
+        );
+
+        dependents.forEach((depId) => allColumnDependents.add(depId));
+        allColumnDependents.add(column.id); // Include the column itself
+      }
+
+      // Get all columns that need to be recomputed (directly impacted + their dependents)
+      const impactedColumns = allColumns.filter((col) =>
+        allColumnDependents.has(col.id)
+      );
+
+      logger.info(
+        `Found ${
+          directlyImpactedColumns.length
+        } directly impacted columns and ${
+          allColumnDependents.size - directlyImpactedColumns.length
+        } dependent columns. Total: ${
+          impactedColumns.length
+        } columns to recompute.`
+      );
+
+      // Prepare compiled functions for all functions used by impacted columns
+      const compiledFunctions = new Map<string, (...args: any[]) => any>();
+
+      // Get all function contents
+      const functionsSnap = await db.collection("ts_files").get();
+      const allFunctions: any[] = functionsSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Collect all function IDs used by impacted columns
+      const functionsToCompile = new Set<string>();
+      for (const column of impactedColumns) {
+        if (column.dataType === "function" && column.function) {
+          functionsToCompile.add(column.function);
+        }
+      }
+
+      // Compile all functions used by impacted columns
+      for (const functionId of functionsToCompile) {
+        const func = allFunctions.find((f) => f.id === functionId);
+        if (func && func.content) {
+          try {
+            const compiled = transpileToFunction(
+              func.content,
+              func.name || "ts-func.ts"
+            );
+            compiledFunctions.set(functionId, compiled);
+          } catch (error) {
+            logger.error(`Failed to compile function ${functionId}:`, error);
+          }
+        }
+      }
 
       // Stream bookings and recompute
       const bookingsRef = db.collection("bookings");
@@ -146,10 +423,40 @@ export const onTypeScriptFunctionUpdated = onDocumentUpdated(
         const updates: Record<string, any> = {};
 
         for (const col of impactedColumns) {
-          const args = buildArgs(col, row, allColumns);
-          const result = await Promise.resolve(compiled(...args));
-          if (row[col.id] !== result) {
-            updates[col.id] = result;
+          if (!col.function) continue;
+
+          const compiled = compiledFunctions.get(col.function);
+          if (!compiled) {
+            logger.warn(
+              `No compiled function found for column ${col.id} (function ${col.function})`
+            );
+            continue;
+          }
+
+          try {
+            const args = buildArgs(col, row, allColumns);
+            logger.info(`Computing column ${col.columnName} (${col.id}):`);
+            logger.info(`  Function: ${col.function}`);
+            logger.info(`  Arguments: ${JSON.stringify(args)}`);
+            logger.info(`  Current row value: ${row[col.id]}`);
+
+            const result = await Promise.resolve(compiled(...args));
+            logger.info(`  Computed result: ${result}`);
+
+            if (row[col.id] !== result) {
+              updates[col.id] = result;
+              // Update the row data so subsequent columns can use the new value
+              row[col.id] = result;
+              logger.info(
+                `  ✅ Will update column ${col.columnName} from "${
+                  row[col.id]
+                }" to "${result}"`
+              );
+            } else {
+              logger.info(`  ⏭️ No change needed for column ${col.columnName}`);
+            }
+          } catch (error) {
+            logger.error(`Error computing column ${col.id}:`, error);
           }
         }
 
@@ -160,7 +467,7 @@ export const onTypeScriptFunctionUpdated = onDocumentUpdated(
       }
 
       logger.info(
-        `Recomputed columns for function ${funcId} across ${bookingsSnap.size} bookings; updated ${updatedCount} documents.`
+        `Recomputed columns for ${allAffectedFunctionIds.length} functions across ${bookingsSnap.size} bookings; updated ${updatedCount} documents.`
       );
     } catch (err) {
       logger.error(`Failed to recompute for function ${funcId}:`, err as any);

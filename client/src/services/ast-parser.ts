@@ -218,6 +218,7 @@ export class ASTParser {
       hasIntersectionTypes: false,
       hasDestructuring: false,
       hasRestParameters: false,
+      functionDependencies: [],
     };
 
     // Determine export type and extract function information
@@ -313,6 +314,13 @@ export class ASTParser {
         }
       }
     });
+
+    // Extract function dependencies from the function body
+    if (functionNode.body) {
+      analysis.functionDependencies = this.extractFunctionDependencies(
+        functionNode.body
+      );
+    }
   }
 
   /**
@@ -717,6 +725,7 @@ export class ASTParser {
       hasIntersectionTypes: false,
       hasDestructuring: false,
       hasRestParameters: false,
+      functionDependencies: [],
     };
   }
 
@@ -811,6 +820,48 @@ export class ASTParser {
     const hasVarTypes = /:\s*\w+(\[\])?(\s*[=,;]|$)/.test(content);
 
     return hasParamTypes || hasReturnType || hasVarTypes;
+  }
+
+  /**
+   * Extract function dependencies from a function body
+   */
+  private extractFunctionDependencies(body: ts.Node): string[] {
+    const dependencies = new Set<string>();
+
+    const visitNode = (node: ts.Node): void => {
+      // Check for function calls
+      if (ts.isCallExpression(node)) {
+        if (ts.isIdentifier(node.expression)) {
+          // Direct function call: functionName()
+          dependencies.add(node.expression.text);
+        } else if (ts.isPropertyAccessExpression(node.expression)) {
+          // Method call: object.method()
+          if (ts.isIdentifier(node.expression.name)) {
+            dependencies.add(node.expression.name.text);
+          }
+        }
+      }
+
+      // Check for function references (not calls)
+      if (ts.isIdentifier(node)) {
+        // This is a simple heuristic - in practice, you might want to be more sophisticated
+        // about distinguishing between function references and other identifiers
+        const symbol = this.typeChecker?.getSymbolAtLocation(node);
+        if (
+          symbol &&
+          symbol.valueDeclaration &&
+          ts.isFunctionDeclaration(symbol.valueDeclaration)
+        ) {
+          dependencies.add(node.text);
+        }
+      }
+
+      // Recursively visit child nodes
+      ts.forEachChild(node, visitNode);
+    };
+
+    visitNode(body);
+    return Array.from(dependencies);
   }
 
   /**

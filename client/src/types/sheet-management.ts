@@ -48,6 +48,7 @@ export interface TypeScriptFunction {
   createdAt: Date;
   updatedAt: Date;
   lastModified: Date;
+  functionDependencies: string[]; // Names of functions called within this function
 }
 
 export interface ColumnNameHistoryEntry {

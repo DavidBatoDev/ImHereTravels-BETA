@@ -14,6 +14,7 @@ export { helloWorld } from "./hello-world";
 export { sendVerificationEmail } from "./send-verification-email";
 export { verifyEmail } from "./verify-email";
 export { onTypeScriptFunctionUpdated } from "./recompute-on-function-update";
+export { testRecompute } from "./test-recompute";
 
 // Export email utilities
 export { EmailTemplateLoader } from "./email-template-loader";

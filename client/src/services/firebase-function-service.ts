@@ -86,6 +86,7 @@ const convertFileDoc = (doc: QueryDocumentSnapshot<DocumentData>): TSFile => {
     hasIntersectionTypes: analysis.hasIntersectionTypes,
     hasDestructuring: analysis.hasDestructuring,
     hasRestParameters: analysis.hasRestParameters,
+    functionDependencies: analysis.functionDependencies || [],
   };
 };
 
@@ -109,6 +110,7 @@ const parseTSContent = (content: string): FileAnalysisResult => {
       hasIntersectionTypes: false,
       hasDestructuring: false,
       hasRestParameters: false,
+      functionDependencies: [],
     };
   }
 };
@@ -338,6 +340,7 @@ export class TypeScriptFunctionService {
           hasIntersectionTypes: analysis.hasIntersectionTypes,
           hasDestructuring: analysis.hasDestructuring,
           hasRestParameters: analysis.hasRestParameters,
+          functionDependencies: analysis.functionDependencies || [],
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           lastModified: serverTimestamp(),
@@ -365,6 +368,7 @@ export class TypeScriptFunctionService {
           hasIntersectionTypes: analysis.hasIntersectionTypes,
           hasDestructuring: analysis.hasDestructuring,
           hasRestParameters: analysis.hasRestParameters,
+          functionDependencies: analysis.functionDependencies || [],
         };
 
         return newFile;
@@ -408,6 +412,7 @@ export class TypeScriptFunctionService {
           updateData.hasIntersectionTypes = analysis.hasIntersectionTypes;
           updateData.hasDestructuring = analysis.hasDestructuring;
           updateData.hasRestParameters = analysis.hasRestParameters;
+          updateData.functionDependencies = analysis.functionDependencies || [];
         }
 
         await updateDoc(fileRef, updateData);
@@ -448,6 +453,7 @@ export class TypeScriptFunctionService {
           hasIntersectionTypes: analysis.hasIntersectionTypes,
           hasDestructuring: analysis.hasDestructuring,
           hasRestParameters: analysis.hasRestParameters,
+          functionDependencies: analysis.functionDependencies || [],
           updatedAt: serverTimestamp(),
           lastModified: serverTimestamp(),
         });

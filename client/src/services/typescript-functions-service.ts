@@ -113,6 +113,7 @@ class TypeScriptFunctionsServiceImpl implements TypeScriptFunctionsService {
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           lastModified: data.lastModified?.toDate() || new Date(),
+          functionDependencies: data.functionDependencies || [],
         } as TypeScriptFunction;
       }
 
@@ -133,7 +134,7 @@ class TypeScriptFunctionsServiceImpl implements TypeScriptFunctionsService {
         query(collection(db, COLLECTION_NAME), orderBy("updatedAt", "desc"))
       );
 
-      return querySnapshot.docs.map((doc) => {
+      const allFunctions = querySnapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -141,8 +142,34 @@ class TypeScriptFunctionsServiceImpl implements TypeScriptFunctionsService {
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           lastModified: data.lastModified?.toDate() || new Date(),
+          functionDependencies: data.functionDependencies || [],
         } as TypeScriptFunction;
       });
+
+      console.log("🔍 All functions from database:", allFunctions.length);
+      console.log(
+        "🔍 Function details:",
+        allFunctions.map((f) => ({
+          id: f.id,
+          name: f.name,
+          functionName: f.functionName,
+          exportType: f.exportType,
+          hasFunctionName: !!f.functionName,
+          hasExportType: !!f.exportType,
+        }))
+      );
+
+      const functions = allFunctions.filter((func) => {
+        // Filter out functions that don't have required fields
+        return func.functionName && func.exportType === "function";
+      });
+
+      console.log(
+        "🔍 Filtered functions:",
+        functions.length,
+        "functions found"
+      );
+      return functions;
     } catch (error) {
       console.error(
         `❌ Failed to get all TypeScript functions: ${

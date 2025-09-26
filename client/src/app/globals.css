@@ -15,6 +15,11 @@
   color: hsl(var(--foreground)) !important;
 }
 
+
+.custom-grid .rdg-cell input {
+  padding-left: 10px;
+}
+
 .custom-grid .rdg-header-cell {
   border-right: 1px solid hsl(var(--border)) !important;
   border-bottom: 1px solid hsl(var(--border)) !important;
@@ -26,6 +31,8 @@
   letter-spacing: 0.05em !important;
   position: relative !important;
 }
+
+
 
 .custom-grid .rdg-header-cell::after {
   content: "";
