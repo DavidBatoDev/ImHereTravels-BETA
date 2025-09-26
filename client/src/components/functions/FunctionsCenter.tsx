@@ -506,24 +506,7 @@ export default function ${
     if (!activeFile)
       return <FileCode className="h-4 w-4 text-muted-foreground" />;
 
-    // Return different icons based on file type and export type
-    if (activeFile.fileType === "typescript") {
-      return <Type className="h-4 w-4 text-blue-600" />;
-    }
-
-    if (activeFile.hasExportDefault) {
-      switch (activeFile.exportType) {
-        case "function":
-          return <Code className="h-4 w-4 text-green-600" />;
-        case "class":
-          return <Package className="h-4 w-4 text-purple-600" />;
-        case "object":
-          return <Layers className="h-4 w-4 text-orange-600" />;
-        default:
-          return <Code className="h-4 w-4 text-gray-600" />;
-      }
-    }
-
+    // Use consistent FileCode icon for all files
     return <FileCode className="h-4 w-4 text-muted-foreground" />;
   };
 
@@ -762,11 +745,7 @@ export default function ${
                           onClick={() => handleFileSelect(file)}
                         >
                           <div className="flex items-center space-x-2">
-                            {file.fileType === "typescript" ? (
-                              <Type className="h-4 w-4 text-blue-600" />
-                            ) : (
-                              <FileCode className="h-4 w-4 text-muted-foreground" />
-                            )}
+                            <FileCode className="h-4 w-4 text-muted-foreground" />
                             <div className="flex-1 min-w-0">
                               <p
                                 className={`text-sm font-medium truncate select-none ${
@@ -853,7 +832,7 @@ export default function ${
           {activeFile ? (
             <>
               {/* Editor Header */}
-              <div className="border-b border-border bg-background px-6 py-3">
+              <div className="border-b border-border bg-background px-6 py-3 border border-black">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     {getFileIcon()}
@@ -861,24 +840,6 @@ export default function ${
                       <h3 className="text-lg font-medium text-foreground">
                         {activeFile.name}
                       </h3>
-                      <div className="flex items-center space-x-2 mt-1">
-                        {getFileTypeBadge(activeFile.fileType)}
-                        {activeFile.hasExportDefault &&
-                          getExportTypeBadge(activeFile.exportType)}
-                        {getComplexityBadge(activeFile.complexity)}
-                        {activeFile.hasTypeAnnotations && (
-                          <Badge variant="outline" className="text-xs">
-                            <Type className="h-2 w-2 mr-1" />
-                            Types
-                          </Badge>
-                        )}
-                        {activeFile.hasExportDefault &&
-                          activeFile.arguments.length > 0 && (
-                            <Badge variant="outline" className="text-xs">
-                              {activeFile.arguments.length} params
-                            </Badge>
-                          )}
-                      </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         Modified {activeFile.lastModified.toLocaleString()}
                       </p>
@@ -938,7 +899,7 @@ export default function ${
                 <div className="flex h-full overflow-hidden relative">
                   {/* Code Editor */}
                   <div
-                    className={`transition-all duration-300 ease-in-out ${
+                    className={`transition-all duration-300 ease-in-out border border-black ${
                       isTestConsoleVisible ? "w-2/3" : "w-full"
                     }`}
                   >
@@ -993,7 +954,7 @@ export default function ${
 
                   {/* Test Console - Fixed width to prevent overflow */}
                   <div
-                    className={`absolute right-0 top-0 h-full border-l border-border bg-muted transition-transform duration-300 ease-in-out ${
+                    className={`absolute right-0 top-0 h-full border-l border-border bg-muted transition-transform duration-300 ease-in-out border border-black ${
                       isTestConsoleVisible
                         ? "w-1/3 translate-x-0"
                         : "w-1/3 translate-x-full"
