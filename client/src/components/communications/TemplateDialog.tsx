@@ -46,14 +46,6 @@ declare global {
 // Types
 import { CommunicationTemplate, TemplateStatus } from "@/types/communications";
 
-// Add new interface for conditional rendering
-interface ConditionalBlock {
-  condition: string;
-  content: string;
-  startIndex: number;
-  endIndex: number;
-}
-
 interface TemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -377,8 +369,8 @@ function VariableDefinitionItem({
             </Select>
           </div>
           <div className="text-xs text-gray-400">
-            Access with: {`<?= ${variable.name}[0] ?>`},{" "}
-            {`<?= ${variable.name}.length ?>`}
+            Access with: {`{{ ${variable.name}[0] }}`},{" "}
+            {`{{ ${variable.name}.length }}`}
           </div>
         </div>
       )}
@@ -451,9 +443,9 @@ function VariableDefinitionItem({
           {variable.mapFields && Object.keys(variable.mapFields).length > 0 && (
             <div className="text-xs text-gray-400">
               Access with:{" "}
-              {`<?= ${variable.name}.${
+              {`{{ ${variable.name}.${
                 Object.keys(variable.mapFields)[0] || "field"
-              } ?>`}
+              } }}`}
             </div>
           )}
         </div>
@@ -498,28 +490,17 @@ export default function TemplateDialog({
 
   const editorRef = useRef<any>(null);
 
-  // Function to extract all variables referenced in the template
+  // Function to extract all variables referenced in the template (Nunjucks syntax)
+  // Only extracts variables for UI purposes - Nunjucks handles all processing
   const extractAllTemplateVariables = (content: string) => {
     const variables = new Set<string>();
 
-    // JavaScript keywords and common loop counters to exclude
+    // Common keywords to exclude
     const excludedKeywords = [
       "true",
       "false",
       "null",
       "undefined",
-      "let",
-      "const",
-      "var",
-      "i",
-      "j",
-      "k",
-      "index",
-      "idx",
-      "counter",
-      "count",
-      "n",
-      "num",
       "length",
       "item",
       "element",
@@ -527,27 +508,62 @@ export default function TemplateDialog({
       "value",
       "prop",
       "property",
+      "if",
+      "for",
+      "in",
+      "of",
+      "and",
+      "or",
+      "not",
+      "loop",
+      "range",
+      "macro",
+      "set",
+      "extends",
+      "block",
+      "include",
+      "import",
+      "from",
+      "as",
+      "with",
+      "only",
+      "ignore",
+      "missing",
+      "super",
+      "self",
+      "term",
+      "index0", // Nunjucks loop.index0
+      "index", // Nunjucks loop.index
+      "first", // Nunjucks loop.first
+      "last", // Nunjucks loop.last
     ];
 
-    // Extract from <?= variable ?> syntax
-    const variableRegex = /<\?\s*=\s*([^?]+)\s*\?>/g;
+    // Extract from {{ variable }} syntax
+    const variableRegex = /\{\{\s*([^}]+)\s*\}\}/g;
     let match;
     while ((match = variableRegex.exec(content)) !== null) {
-      const varName = match[1].trim();
-      // Handle simple variable names (not complex expressions)
-      if (/^\w+$/.test(varName) && !excludedKeywords.includes(varName)) {
-        variables.add(varName);
-      }
-    }
+      const expression = match[1].trim();
 
-    // Extract from conditional statements <? if (variable === "value") { ?>
-    const conditionalRegex = /<\?\s*if\s*\(([^)]+)\)\s*\{/g;
-    while ((match = conditionalRegex.exec(content)) !== null) {
-      const condition = match[1];
-      // Extract variable names from conditions like "paymentMethod === 'Stripe'"
-      const varMatches = condition.match(/\b\w+\b/g);
+      // Skip filters and complex expressions
+      if (
+        expression.includes("|") ||
+        expression.includes("(") ||
+        expression.includes(")")
+      ) {
+        continue;
+      }
+
+      // Extract simple variable names, but skip method calls like .trim()
+      const varMatches = expression.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g);
       if (varMatches) {
         varMatches.forEach((varName) => {
+          // Skip if this is part of a method call (e.g., "trim" in "variable.trim()")
+          if (
+            expression.includes(`${varName}.`) ||
+            expression.includes(`.${varName}`)
+          ) {
+            return;
+          }
           if (!excludedKeywords.includes(varName)) {
             variables.add(varName);
           }
@@ -555,14 +571,118 @@ export default function TemplateDialog({
       }
     }
 
-    // Extract from for loops <? for (let i = 0; i < array.length; i++) { ?>
-    const forLoopRegex = /<\?\s*for\s*\([^)]*\)\s*\{/g;
+    // Extract from {% if condition %} syntax
+    const conditionalRegex = /\{%\s*if\s+([^%]+)\s*%\}/g;
+    while ((match = conditionalRegex.exec(content)) !== null) {
+      const condition = match[1].trim();
+
+      // Remove string literals to avoid extracting them as variables
+      let cleanCondition = condition;
+      cleanCondition = cleanCondition.replace(/"[^"]*"/g, ""); // Remove double-quoted strings
+      cleanCondition = cleanCondition.replace(/'[^']*'/g, ""); // Remove single-quoted strings
+
+      // Extract variable names from conditions
+      const varMatches = cleanCondition.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g);
+      if (varMatches) {
+        varMatches.forEach((varName) => {
+          // Skip if this is part of a method call (e.g., "trim" in "variable.trim()")
+          if (
+            cleanCondition.includes(`${varName}.`) ||
+            cleanCondition.includes(`.${varName}`)
+          ) {
+            return;
+          }
+          if (!excludedKeywords.includes(varName)) {
+            variables.add(varName);
+          }
+        });
+      }
+    }
+
+    // Extract from {% for item in array %} syntax
+    const forLoopRegex =
+      /\{%\s*for\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+in\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*%\}/g;
     while ((match = forLoopRegex.exec(content)) !== null) {
-      // Don't extract loop counters from for loops
-      // They are automatically handled by the template processing
+      const arrayVar = match[2];
+      if (!excludedKeywords.includes(arrayVar)) {
+        variables.add(arrayVar);
+      }
     }
 
     return Array.from(variables);
+  };
+
+  // Function to auto-generate sample data for preview
+  const generateAutoSampleData = (content: string) => {
+    const allTemplateVariables = extractAllTemplateVariables(content);
+    const sampleData: { [key: string]: any } = {};
+
+    allTemplateVariables.forEach((varName) => {
+      // Provide sensible defaults based on variable name patterns
+      if (varName.toLowerCase().includes("name")) {
+        sampleData[varName] = "John Doe";
+      } else if (varName.toLowerCase().includes("email")) {
+        sampleData[varName] = "john.doe@example.com";
+      } else if (varName.toLowerCase().includes("phone")) {
+        sampleData[varName] = "+44 123 456 7890";
+      } else if (varName.toLowerCase().includes("date")) {
+        sampleData[varName] = "2024-12-25";
+      } else if (varName.toLowerCase().includes("time")) {
+        sampleData[varName] = "09:00";
+      } else if (
+        varName.toLowerCase().includes("amount") ||
+        varName.toLowerCase().includes("price") ||
+        varName.toLowerCase().includes("fee") ||
+        varName.toLowerCase().includes("cost")
+      ) {
+        sampleData[varName] = "100.00";
+      } else if (
+        varName.toLowerCase().includes("number") ||
+        varName.toLowerCase().includes("id")
+      ) {
+        sampleData[varName] = "12345";
+      } else if (
+        varName.toLowerCase().includes("url") ||
+        varName.toLowerCase().includes("link")
+      ) {
+        sampleData[varName] = "https://example.com";
+      } else if (
+        varName.toLowerCase().includes("package") ||
+        varName.toLowerCase().includes("tour")
+      ) {
+        sampleData[varName] = "Amazing Adventure Tour";
+      } else if (varName.toLowerCase().includes("duration")) {
+        sampleData[varName] = "7";
+      } else if (varName.toLowerCase().includes("group")) {
+        sampleData[varName] = "GRP-001";
+      } else if (varName.toLowerCase().includes("booking")) {
+        sampleData[varName] = "BK-001";
+      } else if (
+        varName.toLowerCase().includes("meeting") ||
+        varName.toLowerCase().includes("point")
+      ) {
+        sampleData[varName] = "Central Station, Platform 1";
+      } else if (varName.toLowerCase().includes("departure")) {
+        sampleData[varName] = "09:00 AM";
+      } else if (varName.toLowerCase().includes("return")) {
+        sampleData[varName] = "2024-12-31";
+      } else if (varName.toLowerCase().includes("instruction")) {
+        sampleData[varName] =
+          "Please arrive 15 minutes early and bring comfortable shoes.";
+      } else if (varName.toLowerCase().includes("company")) {
+        sampleData[varName] = "ImHereTravels";
+      } else if (varName.toLowerCase().includes("account")) {
+        sampleData[varName] = "12345678";
+      } else if (varName.toLowerCase().includes("sort")) {
+        sampleData[varName] = "12-34-56";
+      } else if (varName.toLowerCase().includes("method")) {
+        sampleData[varName] = "Bank Transfer";
+      } else {
+        sampleData[varName] = "Sample Value";
+      }
+    });
+
+    return sampleData;
   };
 
   // Function to convert test data from flat structure to nested structure for processing
@@ -663,18 +783,18 @@ export default function TemplateDialog({
     </div>
     
     <div style="background-color: #ffffff; padding: 20px; border: 1px solid #dee2e6;">
-        <h2 style="color: #333; margin-top: 0;">Hello <?= fullName ?>,</h2>
+        <h2 style="color: #333; margin-top: 0;">Hello {{ fullName }},</h2>
         
-        <p>This is your email content using the new Google Apps Script-like syntax:</p>
+        <p>This is your email content using Nunjucks templating syntax:</p>
         
                  <ul>
-             <li>Use &lt;?= variable ?&gt; for outputting variables</li>
-             <li>Use &lt;? if (condition) { ?&gt; for conditionals</li>
-             <li>Use &lt;? for (loop) { ?&gt; for loops</li>
-             <li>Everything in &lt;? ?&gt; tags is dynamic logic</li>
+             <li>Use {{ variable }} for outputting variables</li>
+             <li>Use {% if condition %} for conditionals</li>
+             <li>Use {% for item in array %} for loops</li>
+             <li>Use {{ variable | filter }} for filters</li>
         </ul>
         
-        <? if (paymentMethod === "Stripe") { ?>
+        {% if paymentMethod === "Stripe" %}
             <p><strong>Payment Method:</strong> Pay securely online with Stripe</p>
             <a href="https://buy.stripe.com/example" target="_blank" 
                style="background-color: #28a745; color: white; text-decoration: none; 
@@ -682,16 +802,16 @@ export default function TemplateDialog({
                       display: inline-block; margin-top: 8px;">
                 Pay with Stripe
             </a>
-        <? } else if (paymentMethod === "Bank") { ?>
+        {% elif paymentMethod === "Bank" %}
             <p><strong>Bank Details:</strong></p>
             <ul>
-                <li>Account Name: <?= companyName ?></li>
-                <li>Account Number: <?= accountNumber ?></li>
-                <li>Sort Code: <?= sortCode ?></li>
+                <li>Account Name: {{ companyName }}</li>
+                <li>Account Number: {{ accountNumber }}</li>
+                <li>Sort Code: {{ sortCode }}</li>
             </ul>
-        <? } else { ?>
+        {% else %}
             <p>Payment details will be provided separately.</p>
-        <? } ?>
+        {% endif %}
         
         <center>
             <a href="#" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0;">Call to Action</a>
@@ -795,7 +915,7 @@ export default function TemplateDialog({
           errors.push("Template content is required");
         } else {
           // Validate conditional syntax
-          const conditionalValidation = validateConditionalSyntax(htmlContent);
+          const conditionalValidation = validateTemplateSyntax(htmlContent);
           if (!conditionalValidation.isValid) {
             conditionalValidation.errors.forEach((error) =>
               errors.push(`Conditional syntax: ${error}`)
@@ -935,55 +1055,8 @@ export default function TemplateDialog({
     };
   }, [htmlContent, testData]); // Also update when testData changes
 
-  // Function to parse conditional blocks in the template
-  const parseConditionalBlocks = (content: string): ConditionalBlock[] => {
-    const blocks: ConditionalBlock[] = [];
-    const conditionalRegex = /<\? if \(([^)]+)\) \{ \?>/g;
-    const endRegex = /<\? \}/g;
-
-    // Find all conditional blocks and their positions
-    const conditionalMatches: Array<{
-      condition: string;
-      startIndex: number;
-      matchLength: number;
-    }> = [];
-    let match;
-
-    while ((match = conditionalRegex.exec(content)) !== null) {
-      conditionalMatches.push({
-        condition: match[1].trim(),
-        startIndex: match.index,
-        matchLength: match[0].length,
-      });
-    }
-
-    // Find end tags and complete blocks
-    let endMatch;
-    let currentBlockIndex = 0;
-
-    while ((endMatch = endRegex.exec(content)) !== null) {
-      if (currentBlockIndex < conditionalMatches.length) {
-        const conditionalMatch = conditionalMatches[currentBlockIndex];
-        const block: ConditionalBlock = {
-          condition: conditionalMatch.condition,
-          startIndex: conditionalMatch.startIndex,
-          endIndex: endMatch.index,
-          content: content.substring(
-            conditionalMatch.startIndex + conditionalMatch.matchLength,
-            endMatch.index
-          ),
-        };
-
-        blocks.push(block);
-        currentBlockIndex++;
-      }
-    }
-
-    return blocks;
-  };
-
-  // Function to validate conditional syntax
-  const validateConditionalSyntax = (
+  // Function to validate template syntax using Nunjucks
+  const validateTemplateSyntax = (
     content: string
   ): { isValid: boolean; errors: string[] } => {
     try {
@@ -1072,289 +1145,131 @@ export default function TemplateDialog({
 
     switch (variable.type) {
       case "array":
-        return `<?= ${fullPath} ?>`;
+        return `{{ ${fullPath} }}`;
       case "map":
-        return `<?= ${fullPath} ?>`;
+        return `{{ ${fullPath} }}`;
       default:
-        return `<?= ${fullPath} ?>`;
+        return `{{ ${fullPath} }}`;
     }
   };
 
-  // Function to extract all variable references from template content
+  // Function to extract all variable references from template content (Nunjucks syntax)
   const extractVariableReferences = (content: string): string[] => {
     const references = new Set<string>();
-    let currentLoopVariable: string | null = null;
 
-    // First pass: identify loop variables and their scope
-    const loopMatches = content.match(/<\?\s*for\s*\([^)]+\)\s*\{\s*\?>/g);
-    if (loopMatches) {
-      loopMatches.forEach((match) => {
-        const loopMatch = match.match(/<\?\s*for\s*\(([^)]+)\)\s*\{\s*\?>/);
-        if (loopMatch && loopMatch[1]) {
-          const loopExpression = loopMatch[1].trim();
+    // Nunjucks keywords to exclude
+    const excludedKeywords = [
+      "true",
+      "false",
+      "null",
+      "undefined",
+      "length",
+      "item",
+      "element",
+      "key",
+      "value",
+      "prop",
+      "property",
+      "if",
+      "for",
+      "in",
+      "of",
+      "and",
+      "or",
+      "not",
+      "loop",
+      "range",
+      "macro",
+      "set",
+      "extends",
+      "block",
+      "include",
+      "import",
+      "from",
+      "as",
+      "with",
+      "only",
+      "ignore",
+      "missing",
+      "super",
+      "self",
+      "term", // Nunjucks loop variable
+      "index0", // Nunjucks loop.index0
+      "index", // Nunjucks loop.index
+      "first", // Nunjucks loop.first
+      "last", // Nunjucks loop.last
+      "length", // Nunjucks loop.length
+    ];
 
-          // Skip generic instructional examples
+    // Extract variables from {{ variable }} syntax
+    const variableRegex = /\{\{\s*([^}]+)\s*\}\}/g;
+    let match;
+    while ((match = variableRegex.exec(content)) !== null) {
+      const expression = match[1].trim();
+
+      // Skip filters and complex expressions
+      if (
+        expression.includes("|") ||
+        expression.includes("(") ||
+        expression.includes(")")
+      ) {
+        continue;
+      }
+
+      // Extract simple variable names, but skip method calls like .trim()
+      const varMatches = expression.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g);
+      if (varMatches) {
+        varMatches.forEach((varName) => {
+          // Skip if this is part of a method call (e.g., "trim" in "variable.trim()")
           if (
-            loopExpression.includes("loop") &&
-            (loopExpression.includes("{") || loopExpression === "loop")
+            expression.includes(`${varName}.`) ||
+            expression.includes(`.${varName}`)
           ) {
             return;
           }
-
-          // Extract loop variable declaration (e.g., "let i = 0" -> "i")
-          const loopVarMatch = loopExpression.match(
-            /^(?:let|const|var)\s+([a-zA-Z_][a-zA-Z0-9_]*)/
-          );
-          const loopVarName = loopVarMatch ? loopVarMatch[1] : null;
-
-          if (loopVarName) {
-            // Skip common loop variables
-            if (
-              ![
-                "i",
-                "j",
-                "k",
-                "index",
-                "idx",
-                "counter",
-                "count",
-                "n",
-                "num",
-              ].includes(loopVarName)
-            ) {
-              references.add(loopVarName);
-            } else {
-              currentLoopVariable = loopVarName; // Track the current loop variable
-            }
+          if (!excludedKeywords.includes(varName)) {
+            references.add(varName);
           }
-
-          // Extract other variables from the loop expression, excluding loop variables
-          const variables = loopExpression.match(
-            /\b[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*/g
-          );
-          if (variables) {
-            variables.forEach((variable) => {
-              // Skip loop variables, keywords, and common loop patterns
-              if (
-                variable &&
-                variable !== loopVarName && // Skip the actual loop variable
-                ![
-                  "let",
-                  "const",
-                  "var",
-                  "i",
-                  "j",
-                  "k",
-                  "index",
-                  "idx",
-                  "counter",
-                  "count",
-                  "n",
-                  "num",
-                  "item",
-                  "of",
-                  "in",
-                  "length",
-                  "loop", // Skip the instructional example
-                ].includes(variable)
-              ) {
-                const rootVar = variable.split(".")[0];
-                references.add(rootVar);
-              }
-            });
-          }
-        }
-      });
+        });
+      }
     }
 
-    // Extract variables from <?= variable ?> tags, but be smarter about loop context
-    const outputMatches = content.match(/<\?\s*=\s*([^?]+)\s*\?>/g);
-    if (outputMatches) {
-      outputMatches.forEach((match) => {
-        const varMatch = match.match(/<\?\s*=\s*([^?]+)\s*\?>/);
-        if (varMatch && varMatch[1]) {
-          const expression = varMatch[1].trim();
+    // Extract variables from {% if condition %} syntax
+    const conditionalRegex = /\{%\s*if\s+([^%]+)\s*%\}/g;
+    while ((match = conditionalRegex.exec(content)) !== null) {
+      const condition = match[1].trim();
 
-          // Skip generic instructional examples
+      // Remove string literals to avoid extracting them as variables
+      let cleanCondition = condition;
+      cleanCondition = cleanCondition.replace(/"[^"]*"/g, ""); // Remove double-quoted strings
+      cleanCondition = cleanCondition.replace(/'[^']*'/g, ""); // Remove single-quoted strings
+
+      // Extract variable names from conditions
+      const varMatches = cleanCondition.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g);
+      if (varMatches) {
+        varMatches.forEach((varName) => {
+          // Skip if this is part of a method call (e.g., "trim" in "variable.trim()")
           if (
-            expression === "variable" ||
-            expression === "example" ||
-            expression === "placeholder"
+            cleanCondition.includes(`${varName}.`) ||
+            cleanCondition.includes(`.${varName}`)
           ) {
             return;
           }
-
-          // Extract simple variable names and object property access
-          const variables = expression.match(
-            /\b[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*/g
-          );
-          if (variables) {
-            variables.forEach((variable) => {
-              if (variable) {
-                // Get the root variable name (before any dot notation)
-                const rootVar = variable.split(".")[0];
-
-                // Skip if this is a loop variable (like 'i' in 'terms[i]')
-                if (currentLoopVariable && rootVar === currentLoopVariable) {
-                  return;
-                }
-
-                // Skip common loop variables in any context
-                if (
-                  [
-                    "i",
-                    "j",
-                    "k",
-                    "index",
-                    "idx",
-                    "counter",
-                    "count",
-                    "n",
-                    "num",
-                  ].includes(rootVar)
-                ) {
-                  return;
-                }
-
-                references.add(rootVar);
-              }
-            });
+          if (!excludedKeywords.includes(varName)) {
+            references.add(varName);
           }
-        }
-      });
+        });
+      }
     }
 
-    // Extract variables from conditional statements with structural analysis
-    const conditionalMatches = content.match(
-      /<\?\s*if\s*\([^)]+\)\s*\{\s*\?>/g
-    );
-    if (conditionalMatches) {
-      conditionalMatches.forEach((match) => {
-        const condMatch = match.match(/<\?\s*if\s*\(([^)]+)\)\s*\{\s*\?>/);
-        if (condMatch && condMatch[1]) {
-          const condition = condMatch[1].trim();
-
-          // Skip generic instructional examples
-          if (
-            condition === "condition" ||
-            condition === "example" ||
-            condition === "placeholder"
-          ) {
-            return;
-          }
-
-          // Split by logical operators to analyze each comparison separately
-          const comparisons = condition.split(/\s+(?:&&|\|\|)\s+/);
-
-          comparisons.forEach((comparison) => {
-            const trimmedComparison = comparison.trim();
-
-            // Look for patterns like: variable === "string" or variable !== "string"
-            const comparisonMatch = trimmedComparison.match(
-              /^([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*(===|!==|==|!=)\s*["'][^"']*["']$/
-            );
-
-            if (comparisonMatch) {
-              // Valid comparison pattern found - only add the variable part, not the string literal
-              const variable = comparisonMatch[1];
-              const rootVar = variable.split(".")[0];
-
-              // Skip JavaScript keywords and common loop variables
-              if (
-                rootVar &&
-                ![
-                  "true",
-                  "false",
-                  "null",
-                  "undefined",
-                  "let",
-                  "const",
-                  "var",
-                  "if",
-                  "else",
-                  "for",
-                  "while",
-                  "i",
-                  "j",
-                  "k",
-                  "index",
-                  "idx",
-                  "counter",
-                  "count",
-                  "n",
-                  "num",
-                  "length",
-                  "item",
-                  "element",
-                  "key",
-                  "value",
-                  "prop",
-                  "property",
-                  "of",
-                  "in",
-                  "loop",
-                ].includes(rootVar)
-              ) {
-                references.add(rootVar);
-              }
-            } else {
-              // For more complex conditions, extract variables more carefully
-              // Remove string literals first to avoid false positives
-              let cleanComparison = trimmedComparison;
-              cleanComparison = cleanComparison.replace(/"[^"]*"/g, "");
-              cleanComparison = cleanComparison.replace(/'[^']*'/g, "");
-
-              const variables = cleanComparison.match(
-                /\b[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*/g
-              );
-              if (variables) {
-                variables.forEach((variable) => {
-                  const rootVar = variable.split(".")[0];
-
-                  // Skip JavaScript keywords, operators, and common loop variables
-                  if (
-                    rootVar &&
-                    ![
-                      "true",
-                      "false",
-                      "null",
-                      "undefined",
-                      "let",
-                      "const",
-                      "var",
-                      "if",
-                      "else",
-                      "for",
-                      "while",
-                      "i",
-                      "j",
-                      "k",
-                      "index",
-                      "idx",
-                      "counter",
-                      "count",
-                      "n",
-                      "num",
-                      "length",
-                      "item",
-                      "element",
-                      "key",
-                      "value",
-                      "prop",
-                      "property",
-                      "of",
-                      "in",
-                      "loop",
-                    ].includes(rootVar)
-                  ) {
-                    references.add(rootVar);
-                  }
-                });
-              }
-            }
-          });
-        }
-      });
+    // Extract variables from {% for item in array %} syntax
+    const forLoopRegex =
+      /\{%\s*for\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+in\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*%\}/g;
+    while ((match = forLoopRegex.exec(content)) !== null) {
+      const arrayVar = match[2];
+      if (!excludedKeywords.includes(arrayVar)) {
+        references.add(arrayVar);
+      }
     }
 
     return Array.from(references);
@@ -1414,7 +1329,7 @@ export default function TemplateDialog({
       }
 
       // Validate conditional syntax
-      const conditionalValidation = validateConditionalSyntax(htmlContent);
+      const conditionalValidation = validateTemplateSyntax(htmlContent);
       if (!conditionalValidation.isValid) {
         conditionalValidation.errors.forEach((error) =>
           errors.push(`Conditional syntax: ${error}`)
@@ -1859,9 +1774,13 @@ export default function TemplateDialog({
                           <div className="flex items-center justify-between">
                             <span>
                               Live Preview
-                              {Object.keys(testData).length > 0 && (
+                              {Object.keys(testData).length > 0 ? (
                                 <span className="text-green-600 ml-2">
                                   (with test data)
+                                </span>
+                              ) : (
+                                <span className="text-blue-600 ml-2">
+                                  (auto-generated sample data)
                                 </span>
                               )}
                             </span>
@@ -1928,18 +1847,80 @@ export default function TemplateDialog({
                                 )}px`,
                               }}
                             >
-                              <div
-                                dangerouslySetInnerHTML={{
-                                  __html:
-                                    Object.keys(testData).length > 0
-                                      ? EmailTemplateService.processTemplate(
-                                          htmlContent,
-                                          convertTestDataForProcessing(testData)
-                                        )
-                                      : htmlContent,
-                                }}
-                                className="w-full h-full text-black"
-                              />
+                              {(() => {
+                                // Check for undefined variables
+                                const undefinedVariables =
+                                  validateVariableReferences(htmlContent);
+
+                                if (undefinedVariables.length > 0) {
+                                  return (
+                                    <div className="w-full h-full relative">
+                                      <div className="absolute top-4 left-4 z-10 max-w-sm">
+                                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 shadow-lg">
+                                          <div className="flex items-start space-x-3">
+                                            <div className="flex-shrink-0">
+                                              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                                            </div>
+                                            <div className="flex-1">
+                                              <h3 className="text-sm font-medium text-yellow-800 mb-1">
+                                                Preview Disabled
+                                              </h3>
+                                              <p className="text-xs text-yellow-700 mb-2">
+                                                Variables used but not defined:
+                                              </p>
+                                              <div className="space-y-1 mb-2">
+                                                {undefinedVariables.map(
+                                                  (varName) => (
+                                                    <div
+                                                      key={varName}
+                                                      className="text-xs font-mono bg-yellow-100 px-2 py-1 rounded"
+                                                    >
+                                                      {varName}
+                                                    </div>
+                                                  )
+                                                )}
+                                              </div>
+                                              <p className="text-xs text-yellow-600">
+                                                Define in Variables tab to
+                                                enable preview.
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+
+                                // Only process with Nunjucks if test data exists
+                                if (Object.keys(testData).length > 0) {
+                                  const processedData =
+                                    convertTestDataForProcessing(testData);
+
+                                  return (
+                                    <div
+                                      dangerouslySetInnerHTML={{
+                                        __html:
+                                          EmailTemplateService.processTemplate(
+                                            htmlContent,
+                                            processedData
+                                          ),
+                                      }}
+                                      className="w-full h-full text-black"
+                                    />
+                                  );
+                                } else {
+                                  // Show raw template when no test data
+                                  return (
+                                    <div
+                                      dangerouslySetInnerHTML={{
+                                        __html: htmlContent,
+                                      }}
+                                      className="w-full h-full text-black"
+                                    />
+                                  );
+                                }
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -2018,9 +1999,13 @@ export default function TemplateDialog({
                         <div className="flex items-center justify-between">
                           <span>
                             Live Preview
-                            {Object.keys(testData).length > 0 && (
+                            {Object.keys(testData).length > 0 ? (
                               <span className="text-green-600 ml-2">
                                 (with test data)
+                              </span>
+                            ) : (
+                              <span className="text-blue-600 ml-2">
+                                (auto-generated sample data)
                               </span>
                             )}
                           </span>
@@ -2089,13 +2074,14 @@ export default function TemplateDialog({
                           >
                             {(() => {
                               try {
+                                // Only process with Nunjucks if test data exists
                                 if (Object.keys(testData).length > 0) {
                                   const processedData =
                                     convertTestDataForProcessing(testData);
 
                                   // Log the processed data for debugging
                                   console.log(
-                                    "Live Preview - Original test data:",
+                                    "Live Preview - Data being used:",
                                     testData
                                   );
                                   console.log(
@@ -2118,6 +2104,7 @@ export default function TemplateDialog({
                                     />
                                   );
                                 } else {
+                                  // Show raw template when no test data
                                   return (
                                     <div
                                       dangerouslySetInnerHTML={{
@@ -2602,57 +2589,6 @@ export default function TemplateDialog({
                         Enter sample values to preview how your template will
                         render
                       </div>
-                      {Object.keys(testData).length > 0 && (
-                        <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
-                          ✓ Live Preview is showing template with test data
-                          <div className="mt-1 text-gray-600">
-                            {Object.entries(testData)
-                              .slice(0, 3)
-                              .map(([key, value]) => (
-                                <span key={key} className="mr-2">
-                                  {key}:{" "}
-                                  {Array.isArray(value)
-                                    ? `[${value.join(", ")}]`
-                                    : String(value)}
-                                </span>
-                              ))}
-                            {Object.keys(testData).length > 3 && (
-                              <span className="text-gray-500">
-                                +{Object.keys(testData).length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Show missing variables warning */}
-                      {(() => {
-                        const allTemplateVariables =
-                          extractAllTemplateVariables(htmlContent);
-                        const missingVariables = allTemplateVariables.filter(
-                          (varName) => !(varName in testData)
-                        );
-
-                        if (missingVariables.length > 0) {
-                          return (
-                            <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
-                              ⚠️ Missing variables in test data:
-                              <div className="mt-1 text-amber-700">
-                                {missingVariables.map((varName) => (
-                                  <span key={varName} className="mr-2">
-                                    {varName}
-                                  </span>
-                                ))}
-                              </div>
-                              <div className="mt-1 text-amber-600">
-                                These variables will be treated as empty strings
-                                in the preview.
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
                     </div>
 
                     {/* Test Data Form */}
@@ -3112,6 +3048,33 @@ export default function TemplateDialog({
                               className="w-full h-6 px-1 text-xs bg-white hover:bg-gray-100 justify-start"
                             >
                               Load Sample Data
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setTestData({});
+
+                                // Clear all input fields and textareas
+                                const inputs = document.querySelectorAll(
+                                  'input[placeholder*="Enter"], textarea[placeholder*="Enter"]'
+                                );
+                                inputs.forEach((input) => {
+                                  const inputElement = input as
+                                    | HTMLInputElement
+                                    | HTMLTextAreaElement;
+                                  inputElement.value = "";
+                                });
+
+                                toast({
+                                  title: "Test Data Cleared",
+                                  description:
+                                    "All test data has been cleared from input fields",
+                                });
+                              }}
+                              className="w-full h-6 px-1 text-xs bg-white hover:bg-gray-100 justify-start mt-1"
+                            >
+                              Clear Test Data
                             </Button>
                           </div>
                         </div>

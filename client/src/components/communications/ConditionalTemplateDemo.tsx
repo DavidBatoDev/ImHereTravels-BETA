@@ -26,78 +26,78 @@ const sampleTemplate = `<!DOCTYPE html>
         <img src="https://imheretravels.com/wp-content/uploads/2024/05/siargao-header-1.webp" alt="ImHereTravels Banner" style="width: 100%; max-width: 636px; height: auto; display: block; margin: 0 auto;">
     </div>
     <div class="email-container" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
-        <p style="font-size: 16px; color: #333333;">Hi <strong>{{fullName}}</strong>,</p>
+        <p style="font-size: 16px; color: #333333;">Hi <strong>{{ fullName }}</strong>,</p>
 
         <!-- Refund Details (for Invalid bookings) -->
-        <? if (availablePaymentTerms === "Invalid") { ?>
-            <p style="font-size: 16px; color: #333333;">Thank you for choosing ImHereTravels. We truly appreciate your interest in our <strong>{{tourPackage}}</strong>.</p>
+        {% if availablePaymentTerms === "Invalid" %}
+            <p style="font-size: 16px; color: #333333;">Thank you for choosing ImHereTravels. We truly appreciate your interest in our <strong>{{ tourPackage }}</strong>.</p>
             <h3 style="color: red;">Refund Details for Your Booking</h3>
             <p style="font-size: 16px;">Unfortunately, we're unable to process your booking because the tour is scheduled to begin within 48 hours.</p>
-            <p style="font-size: 16px; color: #333333;">Regarding your deposit of <strong style="color: red;">£{{reservationFee}}</strong>, please let us know your preferred refund method.</p>
-        <? } ?>
+            <p style="font-size: 16px; color: #333333;">Regarding your deposit of <strong style="color: red;">£{{ reservationFee }}</strong>, please let us know your preferred refund method.</p>
+        {% endif %}
 
         <!-- Payment Terms Rendering -->
-        <? if (availablePaymentTerms !== "Invalid" && availablePaymentTerms !== "Full payment required within 48hrs" && availablePaymentTerms !== "P1" && availablePaymentTerms !== "P2" && availablePaymentTerms !== "P3" && availablePaymentTerms !== "P4") { ?>
+        {% if availablePaymentTerms !== "Invalid" and availablePaymentTerms !== "Full payment required within 48hrs" and availablePaymentTerms !== "P1" and availablePaymentTerms !== "P2" and availablePaymentTerms !== "P3" and availablePaymentTerms !== "P4" %}
             <p style="font-size: 16px; color: #333333;">Thank you for booking with <strong style="color: red;">ImHereTravels!</strong></p>
-            <p style="font-size: 16px; color: #333333;">Your deposit of <span style="color: red;"><strong>£{{reservationFee}}</strong></span> has been received!</p>
-        <? } ?>
+            <p style="font-size: 16px; color: #333333;">Your deposit of <span style="color: red;"><strong>£{{ reservationFee }}</strong></span> has been received!</p>
+        {% endif %}
 
         <!-- Final Payment Scenario -->
-        <? if (availablePaymentTerms === "Full payment required within 48hrs") { ?>
+        {% if availablePaymentTerms === "Full payment required within 48hrs" %}
             <p style="font-size: 16px; color: #333333;">Thank you for booking with <strong style="color: red;">ImHereTravels!</strong></p>
-            <p style="font-size: 16px; color: #333333;">We're holding your spot for <strong>{{tourPackage}}</strong>, but your reservation isn't confirmed yet.</p>
+            <p style="font-size: 16px; color: #333333;">We're holding your spot for <strong>{{ tourPackage }}</strong>, but your reservation isn't confirmed yet.</p>
             
             <h2 style="color: red; font-size: 24px; margin-top: 0;">Booking Details</h2>
             <table cellpadding="5" style="border-collapse: collapse; width: 100%; max-width: 600px; color: #333333; margin-bottom: 20px;">
-                <tr><td><strong>Traveler Name:</strong></td><td>{{fullName}}</td></tr>
+                <tr><td><strong>Traveler Name:</strong></td><td>{{ fullName }}</td></tr>
                 
                 <!-- Conditional rendering for Main Booker -->
-                <? if (bookingType === "Group Booking" || bookingType === "Duo Booking") { ?>
-                    <tr><td><strong>Main Booker:</strong></td><td>{{mainBooker}}</td></tr>
-                <? } ?>
+                {% if bookingType === "Group Booking" or bookingType === "Duo Booking" %}
+                    <tr><td><strong>Main Booker:</strong></td><td>{{ mainBooker }}</td></tr>
+                {% endif %}
 
-                <tr><td><strong>Tour Name:</strong></td><td>{{tourPackage}}</td></tr>
-                <tr><td><strong>Tour Date:</strong></td><td>{{tourDate}}</td></tr>
-                <tr><td><strong>Return Date:</strong></td><td>{{returnDate}}</td></tr>
-                <tr><td><strong>Tour Duration:</strong></td><td>{{tourDuration}}</td></tr>
-                <tr><td><strong>Booking Type:</strong></td><td>{{bookingType}}</td></tr>
+                <tr><td><strong>Tour Name:</strong></td><td>{{ tourPackage }}</td></tr>
+                <tr><td><strong>Tour Date:</strong></td><td>{{ tourDate }}</td></tr>
+                <tr><td><strong>Return Date:</strong></td><td>{{ returnDate }}</td></tr>
+                <tr><td><strong>Tour Duration:</strong></td><td>{{ tourDuration }}</td></tr>
+                <tr><td><strong>Booking Type:</strong></td><td>{{ bookingType }}</td></tr>
                 
                 <!-- Conditional rendering for Booking ID and Group ID -->
-                <? if (bookingType === "Group Booking" || bookingType === "Duo Booking") { ?>
-                    <tr><td><strong>Booking ID:</strong></td><td>{{bookingId}}</td></tr>
-                    <tr><td><strong>Group ID:</strong></td><td>{{groupId}}</td></tr>
-                <? } ?>
+                {% if bookingType === "Group Booking" or bookingType === "Duo Booking" %}
+                    <tr><td><strong>Booking ID:</strong></td><td>{{ bookingId }}</td></tr>
+                    <tr><td><strong>Group ID:</strong></td><td>{{ groupId }}</td></tr>
+                {% endif %}
             </table>
 
-            <p style="font-size: 16px; color: #333333;">We've received your deposit of <span style="color: red;"><strong>£{{reservationFee}}</strong></span> — thank you!</p>
+            <p style="font-size: 16px; color: #333333;">We've received your deposit of <span style="color: red;"><strong>£{{ reservationFee }}</strong></span> — thank you!</p>
             <h3 style="font-size: 18px; color: red; margin-top: 20px;">⚠️ Final Payment Required Within 48 Hours</h3>
-        <? } ?>
+        {% endif %}
 
         <!-- P1 Payment Scenario -->
-        <? if (availablePaymentTerms === "P1") { ?>
+        {% if availablePaymentTerms === "P1" %}
             <p style="font-size: 16px; color: #333333;">Thank you for booking with <strong style="color: red;">ImHereTravels!</strong></p>
-            <p style="font-size: 16px; color: #333333;">We've received your deposit of <span style="color: red;"><strong>£{{reservationFee}}</strong></span> — and your spot is nearly secured!</p>
+            <p style="font-size: 16px; color: #333333;">We've received your deposit of <span style="color: red;"><strong>£{{ reservationFee }}</strong></span> — and your spot is nearly secured!</p>
             
             <h2 style="color: red; font-size: 24px; margin-top: 0;">Booking Details</h2>
             <table cellpadding="5" style="border-collapse: collapse; width: 100%; max-width: 600px; color: #333333; margin-bottom: 20px;">
-                <tr><td><strong>Traveler Name:</strong></td><td>{{fullName}}</td></tr>
-                <tr><td><strong>Tour Name:</strong></td><td>{{tourPackage}}</td></tr>
-                <tr><td><strong>Tour Date:</strong></td><td>{{tourDate}}</td></tr>
-                <tr><td><strong>Return Date:</strong></td><td>{{returnDate}}</td></tr>        
-                <tr><td><strong>Tour Duration:</strong></td><td>{{tourDuration}}</td></tr>
-                <tr><td><strong>Booking Type:</strong></td><td>{{bookingType}}</td></tr>
-                <tr><td><strong>Booking ID:</strong></td><td>{{bookingId}}</td></tr>
+                <tr><td><strong>Traveler Name:</strong></td><td>{{ fullName }}</td></tr>
+                <tr><td><strong>Tour Name:</strong></td><td>{{ tourPackage }}</td></tr>
+                <tr><td><strong>Tour Date:</strong></td><td>{{ tourDate }}</td></tr>
+                <tr><td><strong>Return Date:</strong></td><td>{{ returnDate }}</td></tr>        
+                <tr><td><strong>Tour Duration:</strong></td><td>{{ tourDuration }}</td></tr>
+                <tr><td><strong>Booking Type:</strong></td><td>{{ bookingType }}</td></tr>
+                <tr><td><strong>Booking ID:</strong></td><td>{{ bookingId }}</td></tr>
                 <!-- Conditional rendering for Group ID -->
-                <? if (bookingType === "Group Booking" || bookingType === "Duo Booking") { ?>
-                    <tr><td><strong>Group ID:</strong></td><td>{{groupId}}</td></tr>
-                <? } ?>
+                {% if bookingType === "Group Booking" or bookingType === "Duo Booking" %}
+                    <tr><td><strong>Group ID:</strong></td><td>{{ groupId }}</td></tr>
+                {% endif %}
             </table>
 
             <h3 style="font-size: 20px; color: red;">Final Payment Due Soon</h3>
-            <p style="font-size: 16px; color: #333333;">There is only one available payment plan for your tour, so the remaining balance must be paid in full on <strong>{{p1DueDate}}</strong>.</p>
-        <? } ?>
+            <p style="font-size: 16px; color: #333333;">There is only one available payment plan for your tour, so the remaining balance must be paid in full on <strong>{{ p1DueDate }}</strong>.</p>
+        {% endif %}
 
-        <? if (availablePaymentTerms !== 'Invalid') { ?>
+        {% if availablePaymentTerms !== 'Invalid' %}
             <h3 style="font-size: 20px; color: red;">Choose Your Payment Method</h3>
             <div style="background-color: #fff9c4; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
                 <ul style="font-size: 16px; color: #333333; margin-bottom: 20px; list-style-type: disc; padding-left: 20px;">
@@ -108,8 +108,8 @@ const sampleTemplate = `<!DOCTYPE html>
                     </li>
                 </ul>
             </div>
-            <p style="font-size: 16px; color: #333333;">We can't wait to welcome you to {{tourPackage}} — it's going to be an unforgettable adventure!</p>
-        <? } ?>
+            <p style="font-size: 16px; color: #333333;">We can't wait to welcome you to {{ tourPackage }} — it's going to be an unforgettable adventure!</p>
+        {% endif %}
 
         <p style="font-size: 16px; color: #333333;">Best regards,</p>
         <p style="font-size: 16px; color: #333333;"><strong>The ImHereTravels Team</strong></p>

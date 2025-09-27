@@ -25,6 +25,7 @@ import {
   TemplateStatus,
   VariableDefinition,
 } from "@/types/communications";
+import nunjucks from "nunjucks";
 
 // Collection reference
 const COLLECTION_NAME = "emailTemplates";
@@ -890,9 +891,8 @@ export class EmailTemplateService {
   }
 
   /**
-   * Process a template with conditional rendering and variable substitution
-   * Using Google Apps Script-like syntax: <?= variable ?> for output and <? ... ?> for logic
-   * @param template The HTML template string
+   * Process a template with Nunjucks templating engine
+   * @param template The HTML template string with Nunjucks syntax
    * @param data The data object containing variable values
    * @param options Processing options
    * @returns Processed HTML string
@@ -902,22 +902,29 @@ export class EmailTemplateService {
     data: TemplateData,
     options: ProcessingOptions = {}
   ): string {
-    let processedTemplate = template;
-
     try {
-      // Process conditional blocks and loops
-      processedTemplate = this.processScriptLogic(
-        processedTemplate,
-        data,
-        options
-      );
+      // Configure Nunjucks environment
+      const env = nunjucks.configure({
+        autoescape: false, // We're dealing with HTML templates
+        throwOnUndefined: false, // Don't throw on undefined variables
+        trimBlocks: true,
+        lstripBlocks: true,
+      });
 
-      // Process variable outputs
-      processedTemplate = this.processVariableOutputs(
-        processedTemplate,
-        data,
-        options
-      );
+      // Add custom filters if needed
+      env.addFilter("currency", (value: number, symbol = "£") => {
+        return `${symbol}${value.toFixed(2)}`;
+      });
+
+      env.addFilter("date", (value: string | Date, format = "YYYY-MM-DD") => {
+        const date = new Date(value);
+        return date.toLocaleDateString();
+      });
+
+      // Render the template with Nunjucks
+      const processedTemplate = env.renderString(template, data);
+
+      return processedTemplate;
     } catch (error) {
       console.warn(
         "Template processing failed, returning original template:",
@@ -927,195 +934,53 @@ export class EmailTemplateService {
       // This prevents the app from crashing
       return template;
     }
-
-    return processedTemplate;
   }
 
   /**
-   * Process script logic blocks (conditionals, loops) in the template
-   * Handles: <? if (condition) { ?>...<? } ?>, <? for (loop) { ?>...<? } ?>, etc.
-   */
-  private static processScriptLogic(
-    template: string,
-    data: TemplateData,
-    options: ProcessingOptions
-  ): string {
-    try {
-      // Create a safe evaluation context
-      const context = { ...data };
-
-      // Use Function constructor to safely evaluate the template as JavaScript
-      // This converts the template into executable JavaScript code
-      const jsCode = this.convertTemplateToJS(template);
-
-      // Execute the JavaScript code with the data context
-      const func = new Function(
-        ...Object.keys(context),
-        `return \`${jsCode}\`;`
-      );
-      return func(...Object.values(context));
-    } catch (error) {
-      console.warn(
-        "Error processing script logic, returning original template:",
-        error
-      );
-
-      // Instead of throwing errors, return the original template
-      // This prevents the app from crashing and allows the user to see the issue
-      return template;
-    }
-  }
-
-  /**
-   * Convert template with <? ?> syntax to JavaScript template literal syntax
-   */
-  private static convertTemplateToJS(template: string): string {
-    let jsCode = template;
-
-    // Step 1: Convert <?= variable ?> to ${variable} (trim whitespace)
-    jsCode = jsCode.replace(/<\?\s*=\s*([^?]+)\s*\?>/g, (match, variable) => {
-      return `\${${variable.trim()}}`;
-    });
-
-    // Step 2: Process ALL conditional blocks in one pass to avoid conflicts
-    // This approach processes the entire conditional structure as a unit
-    jsCode = jsCode.replace(
-      /<\?\s*if\s*\(([^)]+)\)\s*\{\s*\?>([\s\S]*?)(?:<\?\s*\}\s*else\s*if\s*\(([^)]+)\)\s*\{\s*\?>([\s\S]*?))*?(?:<\?\s*\}\s*else\s*\{\s*\?>([\s\S]*?))?<\?\s*\}\s*\?>/g,
-      (match, ifCondition, ifContent, ...rest) => {
-        // Parse the entire conditional structure
-        const parts = [];
-
-        // Add the first if condition
-        parts.push(`${ifCondition.trim()} ? \`${ifContent}\``);
-
-        // Process else if and else parts
-        for (let i = 0; i < rest.length; i += 2) {
-          if (rest[i] && rest[i + 1]) {
-            // This is an else if
-            parts.push(`${rest[i].trim()} ? \`${rest[i + 1]}\``);
-          } else if (rest[i]) {
-            // This is an else
-            parts.push(`\`${rest[i]}\``);
-            break;
-          }
-        }
-
-        // If no else, add empty string fallback
-        if (parts.length % 2 === 1) {
-          parts.push('""');
-        }
-
-        // Build the ternary chain
-        let result = `\${${parts[0]}`;
-        for (let i = 1; i < parts.length; i += 2) {
-          result += ` : ${parts[i]}`;
-        }
-        result += "}";
-
-        return result;
-      }
-    );
-
-    // Step 3: Handle for loops
-    jsCode = jsCode.replace(
-      /<\?\s*for\s*\(\s*(\w+)\s+of\s+(\w+)\s*\)\s*\{\s*\?>([\s\S]*?)<\?\s*\}\s*\?>/g,
-      (match, item, array, content) => {
-        return `\${${array}.map(${item} => \`${content}\`).join('')}`;
-      }
-    );
-
-    return jsCode;
-  }
-
-  /**
-   * Process conditional blocks properly to handle if/else if/else chains
-   */
-  private static processConditionalBlocks(template: string): string {
-    let result = template;
-
-    // Find and process each conditional block
-    const conditionalBlockRegex =
-      /<\?\s*if\s*\([^)]+\)\s*\{\s*\?>[\s\S]*?<\?\s*\}\s*\?>/g;
-
-    result = result.replace(conditionalBlockRegex, (match) => {
-      // Process this conditional block
-      let blockCode = match;
-
-      // Convert the opening if
-      blockCode = blockCode.replace(
-        /<\?\s*if\s*\(([^)]+)\)\s*{\s*\?>/g,
-        "${$1 ? `"
-      );
-
-      // Convert else if statements
-      blockCode = blockCode.replace(
-        /<\?\s*}\s*else\s*if\s*\(([^)]+)\)\s*{\s*\?>/g,
-        "` : ($1) ? `"
-      );
-
-      // Convert else statements
-      blockCode = blockCode.replace(/<\?\s*}\s*else\s*{\s*\?>/g, "` : `");
-
-      // Convert the final closing brace
-      blockCode = blockCode.replace(/<\?\s*}\s*\?>$/, '` : ""}');
-
-      return blockCode;
-    });
-
-    return result;
-  }
-
-  /**
-   * Process variable outputs in the template (<?= variable ?> syntax)
-   * This is a fallback for any <?= ?> tags that weren't processed by the main logic
-   */
-  private static processVariableOutputs(
-    template: string,
-    data: TemplateData,
-    options: ProcessingOptions
-  ): string {
-    let result = template;
-
-    // Replace any remaining <?= variable ?> with actual values
-    result = result.replace(
-      /<\?\s*=\s*([^?]+)\s*\?>/g,
-      (match, variableName) => {
-        const varName = variableName.trim();
-        const value = data[varName];
-
-        // If value is empty or undefined, use default or empty string
-        if (value === undefined || value === null || value === "") {
-          return options.defaultValues?.[varName] || "";
-        } else {
-          return String(value);
-        }
-      }
-    );
-
-    return result;
-  }
-
-  /**
-   * Get all variables used in a template (from <?= variable ?> syntax)
+   * Get all variables used in a template (from Nunjucks syntax)
+   * Only extracts variables for UI purposes - Nunjucks handles all processing
    */
   static extractTemplateVariables(template: string): string[] {
     const variables = new Set<string>();
 
-    // JavaScript keywords and common loop counters to exclude
+    // Common keywords to exclude
     const excludedKeywords = [
-      "true", "false", "null", "undefined", "let", "const", "var",
-      "i", "j", "k", "index", "idx", "counter", "count", "n", "num",
-      "length", "item", "element", "key", "value", "prop", "property"
+      "true",
+      "false",
+      "null",
+      "undefined",
+      "length",
+      "item",
+      "element",
+      "key",
+      "value",
+      "prop",
+      "property",
     ];
 
-    // Extract variables from <?= variable ?> syntax
-    const variableRegex = /<\?\s*=\s*([^?]+)\s*\?>/g;
+    // Extract variables from {{ variable }} syntax only
+    const variableRegex = /\{\{\s*([^}]+)\s*\}\}/g;
     let match;
     while ((match = variableRegex.exec(template)) !== null) {
-      const varName = match[1].trim();
-      // Handle simple variable names (not complex expressions)
-      if (/^\w+$/.test(varName) && !excludedKeywords.includes(varName)) {
-        variables.add(varName);
+      const expression = match[1].trim();
+
+      // Skip filters and complex expressions
+      if (
+        expression.includes("|") ||
+        expression.includes("(") ||
+        expression.includes(")")
+      ) {
+        continue;
+      }
+
+      // Extract simple variable names
+      const varMatches = expression.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g);
+      if (varMatches) {
+        varMatches.forEach((varName) => {
+          if (!excludedKeywords.includes(varName)) {
+            variables.add(varName);
+          }
+        });
       }
     }
 
@@ -1123,7 +988,7 @@ export class EmailTemplateService {
   }
 
   /**
-   * Validate template syntax for new <?= ?> and <? ?> format
+   * Validate template syntax for Nunjucks format
    */
   static validateTemplateSyntax(template: string): {
     isValid: boolean;
@@ -1131,57 +996,53 @@ export class EmailTemplateService {
   } {
     const errors: string[] = [];
 
-    // Count actual opening blocks (if and for statements)
-    const ifBlocks = (template.match(/<\?\s*if\s*\(/g) || []).length;
-    const forBlocks = (template.match(/<\?\s*for\s*\(/g) || []).length;
+    try {
+      // Use Nunjucks to validate the template syntax
+      const env = nunjucks.configure({
+        autoescape: false,
+        throwOnUndefined: false,
+        trimBlocks: true,
+        lstripBlocks: true,
+      });
 
-    // Count only TRUE closing blocks (not else if or else continuations)
-    // A true closing block is <? } ?> that is NOT followed by else
-    const allClosingTags = template.match(/<\?\s*\}\s*\?>/g) || [];
-    const elseIfContinuations =
-      template.match(/<\?\s*\}\s*else\s*if\s*\(/g) || [];
-    const elseContinuations =
-      template.match(/<\?\s*\}\s*else\s*\{\s*\?>/g) || [];
-
-    const totalOpenBlocks = ifBlocks + forBlocks;
-    const trueClosingBlocks = allClosingTags.length;
-
-    if (totalOpenBlocks !== trueClosingBlocks) {
-      errors.push(
-        `Mismatched conditional/loop blocks: ${totalOpenBlocks} opening blocks, ${trueClosingBlocks} closing blocks`
-      );
-    }
-
-    // Validate that variable output tags are properly closed
-    const variablePatternWithClosing = /<\?\s*=\s*[^?]*\?>/g;
-    const variablePatternWithoutClosing = /<\?\s*=\s*[^?]*(?!\?>)/g;
-
-    const completeVariables = template.match(variablePatternWithClosing) || [];
-    const incompleteVariables =
-      template.match(variablePatternWithoutClosing) || [];
-
-    // Remove complete variables from incomplete count to avoid double counting
-    const actualIncompleteVariables = incompleteVariables.filter(
-      (incomplete: string) => {
-        return !completeVariables.some((complete: string) =>
-          complete.includes(incomplete)
-        );
+      // Try to render the template to check for syntax errors
+      env.renderString(template, {});
+    } catch (error) {
+      if (error instanceof Error) {
+        errors.push(`Template syntax error: ${error.message}`);
+      } else {
+        errors.push("Unknown template syntax error");
       }
-    );
-
-    if (actualIncompleteVariables.length > 0) {
-      errors.push("Incomplete variable output tags found (missing ?>)");
     }
 
-    // Validate overall tag balance
-    // Count all <? openings vs all ?> closings
-    const allOpenings = template.match(/<\?/g) || [];
-    const allClosings = template.match(/\?>/g) || [];
+    // Basic validation for common issues
+    const openVariables = (template.match(/\{\{/g) || []).length;
+    const closeVariables = (template.match(/\}\}/g) || []).length;
 
-    if (allOpenings.length !== allClosings.length) {
+    if (openVariables !== closeVariables) {
       errors.push(
-        `Mismatched script tags: ${allOpenings.length} opening tags, ${allClosings.length} closing tags`
+        `Mismatched variable tags: ${openVariables} opening {{, ${closeVariables} closing }}`
       );
+    }
+
+    const openBlocks = (template.match(/\{%/g) || []).length;
+    const closeBlocks = (template.match(/%\}/g) || []).length;
+
+    if (openBlocks !== closeBlocks) {
+      errors.push(
+        `Mismatched block tags: ${openBlocks} opening {%, ${closeBlocks} closing %}`
+      );
+    }
+
+    // Check for common syntax issues
+    const unclosedVariables = template.match(/\{\{[^}]*$/g);
+    if (unclosedVariables) {
+      errors.push("Unclosed variable tags found");
+    }
+
+    const unclosedBlocks = template.match(/\{%[^%]*$/g);
+    if (unclosedBlocks) {
+      errors.push("Unclosed block tags found");
     }
 
     return {
