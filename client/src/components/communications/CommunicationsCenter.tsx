@@ -34,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Search,
@@ -50,8 +51,10 @@ import {
   Sparkles,
   Archive,
   RotateCcw,
+  TestTube,
 } from "lucide-react";
 import TemplateDialog from "./TemplateDialog";
+import TestTab from "./TestTab";
 import EmailTemplateService from "@/services/email-template-service";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/hooks/use-toast";
@@ -842,268 +845,308 @@ export default function CommunicationsCenter() {
             Create and manage email templates for automated communications
           </p>
         </div>
-        <Button
-          onClick={handleCreateTemplate}
-          className="h-9 bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Create Template
-        </Button>
       </div>
 
-      {/* Filters */}
-      <Card className="mb-6 border border-royal-purple/20 dark:border-border shadow">
-        <CardHeader className="pb-3 bg-muted/50 border-b border-royal-purple/20 dark:border-border">
-          <CardTitle className="flex items-center text-base text-foreground">
-            <Filter className="mr-2 h-4 w-4 text-royal-purple" />
-            Filter Templates
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-royal-purple/60" />
-              <Input
-                placeholder="Search templates..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-9 border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
-              />
-            </div>
+      {/* Tabs */}
+      <Tabs defaultValue="templates" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 bg-muted border border-royal-purple/20 dark:border-border">
+          <TabsTrigger
+            value="templates"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Templates
+          </TabsTrigger>
+          <TabsTrigger
+            value="test"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            <TestTube className="mr-2 h-4 w-4" />
+            Test Tab
+          </TabsTrigger>
+        </TabsList>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {templateStatuses.map((status) => (
-                  <SelectItem key={status.value} value={status.value}>
-                    {status.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm("");
-                setStatusFilter("all");
-              }}
-              className="h-9 border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-            >
-              Clear Filters
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Templates Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredTemplates.map((template) => {
-          return (
-            <Card
-              key={template.id}
-              className="group hover:shadow-lg transition-all duration-200 border border-royal-purple/20 dark:border-border shadow hover:border-royal-purple/40"
-            >
-              {/* HTML Preview - At the very top */}
-              <div className="bg-muted/30 rounded-t-lg border-b border-royal-purple/20 dark:border-border h-32 overflow-hidden">
-                <div
-                  className="text-xs text-foreground line-clamp-4"
-                  dangerouslySetInnerHTML={{
-                    __html: template.content,
-                  }}
-                />
-              </div>
-
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3">
-                    <div className={`p-2 rounded-lg bg-royal-purple/20`}></div>
-                    <div className="flex-1">
-                      <CardTitle className="text-base font-semibold text-foreground">
-                        {template.name}
-                      </CardTitle>
-                      <CardDescription className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                        {template.subject}
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 text-royal-purple hover:bg-royal-purple/10 hover:text-royal-purple"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>More actions</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Badge
-                    className={`${getStatusColor(template.status)} text-xs`}
-                  >
-                    {template.status}
-                  </Badge>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <Send className="mr-1 h-3 w-3 text-royal-purple" />
-                    {template.metadata?.usedCount || 0} sent
-                  </div>
-                </div>
-
-                <div className="space-y-1 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Variables</span>
-                    <span className="font-medium text-foreground">
-                      {template.variables.length}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Last Modified</span>
-                    <span className="font-medium text-foreground">
-                      {template.metadata?.updatedAt
-                        ?.toDate?.()
-                        ?.toLocaleDateString?.() || "Today"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEditTemplate(template)}
-                    className="flex-1 h-8 text-xs border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-                  >
-                    <Edit className="mr-1 h-3 w-3" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDuplicateTemplate(template)}
-                    className="flex-1 h-8 text-xs border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-                  >
-                    <Copy className="mr-1 h-3 w-3" />
-                    Duplicate
-                  </Button>
-                  {template.status === "archived" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleRestoreTemplate(template)}
-                      className="text-royal-purple hover:text-royal-purple hover:bg-royal-purple/10 h-8 w-8 p-0 border-royal-purple/20 dark:border-border transition-all duration-200"
-                      title="Restore template"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleArchiveTemplate(template)}
-                      className="text-sunglow-yellow hover:text-vivid-orange hover:bg-sunglow-yellow/10 h-8 w-8 p-0 border-sunglow-yellow/20 transition-all duration-200"
-                      title="Archive template"
-                    >
-                      <Archive className="h-3 w-3" />
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteTemplate(template)}
-                    className="text-crimson-red hover:text-crimson-red hover:bg-crimson-red/10 h-8 w-8 p-0 border-crimson-red/20 transition-all duration-200"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Empty State */}
-      {filteredTemplates.length === 0 && (
-        <Card className="text-center py-8 border border-royal-purple/20 dark:border-border shadow">
-          <CardContent>
-            <div className="p-3 bg-royal-purple/20 rounded-xl inline-block mb-3">
-              <FileText className="h-10 w-10 text-royal-purple" />
-            </div>
-            <h3 className="text-base font-medium text-foreground mb-2">
-              No templates found
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              {searchTerm || statusFilter !== "all"
-                ? "Try adjusting your filters or search terms."
-                : "Create your first email template to get started."}
-            </p>
-            {!searchTerm && statusFilter === "all" && (
+        <TabsContent value="templates" className="mt-6">
+          <div className="space-y-6">
+            {/* Create Template Button */}
+            <div className="flex justify-end">
               <Button
                 onClick={handleCreateTemplate}
                 className="h-9 bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Create First Template
+                Create Template
               </Button>
+            </div>
+
+            {/* Filters */}
+            <Card className="mb-6 border border-royal-purple/20 dark:border-border shadow">
+              <CardHeader className="pb-3 bg-muted/50 border-b border-royal-purple/20 dark:border-border">
+                <CardTitle className="flex items-center text-base text-foreground">
+                  <Filter className="mr-2 h-4 w-4 text-royal-purple" />
+                  Filter Templates
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-royal-purple/60" />
+                    <Input
+                      placeholder="Search templates..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 h-9 border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20"
+                    />
+                  </div>
+
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="h-9 border-royal-purple/20 dark:border-border focus:border-royal-purple focus:ring-royal-purple/20">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      {templateStatuses.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setStatusFilter("all");
+                    }}
+                    className="h-9 border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                  >
+                    Clear Filters
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Templates Grid */}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filteredTemplates.map((template) => {
+                return (
+                  <Card
+                    key={template.id}
+                    className="group hover:shadow-lg transition-all duration-200 border border-royal-purple/20 dark:border-border shadow hover:border-royal-purple/40"
+                  >
+                    {/* HTML Preview - At the very top */}
+                    <div className="bg-muted/30 rounded-t-lg border-b border-royal-purple/20 dark:border-border h-32 overflow-hidden">
+                      <div
+                        className="text-xs text-foreground line-clamp-4"
+                        dangerouslySetInnerHTML={{
+                          __html: template.content,
+                        }}
+                      />
+                    </div>
+
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                          <div
+                            className={`p-2 rounded-lg bg-royal-purple/20`}
+                          ></div>
+                          <div className="flex-1">
+                            <CardTitle className="text-base font-semibold text-foreground">
+                              {template.name}
+                            </CardTitle>
+                            <CardDescription className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                              {template.subject}
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 text-royal-purple hover:bg-royal-purple/10 hover:text-royal-purple"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>More actions</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Badge
+                          className={`${getStatusColor(
+                            template.status
+                          )} text-xs`}
+                        >
+                          {template.status}
+                        </Badge>
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Send className="mr-1 h-3 w-3 text-royal-purple" />
+                          {template.metadata?.usedCount || 0} sent
+                        </div>
+                      </div>
+
+                      <div className="space-y-1 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">
+                            Variables
+                          </span>
+                          <span className="font-medium text-foreground">
+                            {template.variables.length}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">
+                            Last Modified
+                          </span>
+                          <span className="font-medium text-foreground">
+                            {template.metadata?.updatedAt
+                              ?.toDate?.()
+                              ?.toLocaleDateString?.() || "Today"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2 pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditTemplate(template)}
+                          className="flex-1 h-8 text-xs border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                        >
+                          <Edit className="mr-1 h-3 w-3" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDuplicateTemplate(template)}
+                          className="flex-1 h-8 text-xs border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                        >
+                          <Copy className="mr-1 h-3 w-3" />
+                          Duplicate
+                        </Button>
+                        {template.status === "archived" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRestoreTemplate(template)}
+                            className="text-royal-purple hover:text-royal-purple hover:bg-royal-purple/10 h-8 w-8 p-0 border-royal-purple/20 dark:border-border transition-all duration-200"
+                            title="Restore template"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleArchiveTemplate(template)}
+                            className="text-sunglow-yellow hover:text-vivid-orange hover:bg-sunglow-yellow/10 h-8 w-8 p-0 border-sunglow-yellow/20 transition-all duration-200"
+                            title="Archive template"
+                          >
+                            <Archive className="h-3 w-3" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteTemplate(template)}
+                          className="text-crimson-red hover:text-crimson-red hover:bg-crimson-red/10 h-8 w-8 p-0 border-crimson-red/20 transition-all duration-200"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Empty State */}
+            {filteredTemplates.length === 0 && (
+              <Card className="text-center py-8 border border-royal-purple/20 dark:border-border shadow">
+                <CardContent>
+                  <div className="p-3 bg-royal-purple/20 rounded-xl inline-block mb-3">
+                    <FileText className="h-10 w-10 text-royal-purple" />
+                  </div>
+                  <h3 className="text-base font-medium text-foreground mb-2">
+                    No templates found
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {searchTerm || statusFilter !== "all"
+                      ? "Try adjusting your filters or search terms."
+                      : "Create your first email template to get started."}
+                  </p>
+                  {!searchTerm && statusFilter === "all" && (
+                    <Button
+                      onClick={handleCreateTemplate}
+                      className="h-9 bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create First Template
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Create/Edit Template Dialog */}
-      <TemplateDialog
-        open={isCreateDialogOpen || isEditDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            // When closing, reset both states and clear selected template
-            setIsCreateDialogOpen(false);
-            setIsEditDialogOpen(false);
-            setSelectedTemplate(null);
-          }
-        }}
-        template={selectedTemplate}
-        onSave={handleSaveTemplate}
-        isLoading={isLoading}
-      />
+            {/* Create/Edit Template Dialog */}
+            <TemplateDialog
+              open={isCreateDialogOpen || isEditDialogOpen}
+              onOpenChange={(open) => {
+                if (!open) {
+                  // When closing, reset both states and clear selected template
+                  setIsCreateDialogOpen(false);
+                  setIsEditDialogOpen(false);
+                  setSelectedTemplate(null);
+                }
+              }}
+              template={selectedTemplate}
+              onSave={handleSaveTemplate}
+              isLoading={isLoading}
+            />
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-      >
-        <AlertDialogContent className="border border-royal-purple/20 dark:border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">
-              Delete Template
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
-              Are you sure you want to delete "{selectedTemplate?.name}"? This
-              action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-crimson-red hover:bg-crimson-red/90 text-white"
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog
+              open={isDeleteDialogOpen}
+              onOpenChange={setIsDeleteDialogOpen}
             >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <AlertDialogContent className="border border-royal-purple/20 dark:border-border">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-foreground">
+                    Delete Template
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-muted-foreground">
+                    Are you sure you want to delete "{selectedTemplate?.name}"?
+                    This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="border-royal-purple/20 dark:border-border text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleConfirmDelete}
+                    className="bg-crimson-red hover:bg-crimson-red/90 text-white"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="test" className="mt-6">
+          <TestTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
