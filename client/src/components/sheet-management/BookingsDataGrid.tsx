@@ -518,6 +518,48 @@ const FunctionFormatter = memo(function FunctionFormatter({
   const deleteRow = (column as any).deleteRow as
     | ((rowId: string) => void)
     | undefined;
+  const availableFunctions = (column as any)
+    .availableFunctions as TypeScriptFunction[];
+
+  const [showFunctionPopup, setShowFunctionPopup] = useState(false);
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+
+  // Close popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showFunctionPopup) {
+        setShowFunctionPopup(false);
+      }
+    };
+
+    if (showFunctionPopup) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showFunctionPopup]);
+
+  // Close popup when arrow keys are pressed
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        showFunctionPopup &&
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)
+      ) {
+        setShowFunctionPopup(false);
+      }
+    };
+
+    if (showFunctionPopup) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showFunctionPopup]);
 
   if (columnDef.id === "delete") {
     return (
@@ -539,10 +581,126 @@ const FunctionFormatter = memo(function FunctionFormatter({
   }
 
   const value = row[column.key as keyof SheetData];
+  const functionId = columnDef.function;
+  const functionDetails = availableFunctions?.find((f) => f.id === functionId);
+
+  const handleCellClick = (e: React.MouseEvent) => {
+    if (functionDetails) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const popupWidth = 300; // Approximate popup width
+      const popupHeight = 200; // Approximate popup height
+
+      // Calculate position with boundary detection
+      let x = rect.left - 200 + rect.width / 2 - popupWidth / 2; // Center horizontally
+      let y = rect.top - 100 - popupHeight - 10; // Above the cell
+
+      // Boundary checks
+      if (x < 10) x = 10; // Left boundary
+      if (x + popupWidth > window.innerWidth - 10) {
+        x = window.innerWidth - popupWidth - 10; // Right boundary
+      }
+
+      if (y < 10) {
+        // If not enough space above, position below
+        y = rect.bottom + 10;
+      }
+
+      setPopupPosition({ x, y });
+      setShowFunctionPopup(true);
+    }
+  };
+
   return (
-    <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-border">
-      {value?.toString() || ""}
-    </div>
+    <>
+      <div
+        className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-border cursor-pointer hover:bg-gray-50"
+        onClick={handleCellClick}
+        title={
+          functionDetails
+            ? `Click to view function details: ${functionDetails.name}`
+            : ""
+        }
+      >
+        {value?.toString() || ""}
+      </div>
+
+      {showFunctionPopup && functionDetails && (
+        <div
+          className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-4 max-w-sm"
+          style={{
+            left: popupPosition.x,
+            top: popupPosition.y,
+          }}
+        >
+          <div className="flex justify-between items-start mb-2">
+            <h3 className="font-semibold text-gray-900">
+              {functionDetails.name}
+            </h3>
+            <button
+              onClick={() => setShowFunctionPopup(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="space-y-2 text-sm">
+            <div>
+              <span className="font-medium text-gray-700">Function Name:</span>
+              <span className="ml-2 text-gray-600">
+                {functionDetails.functionName}
+              </span>
+            </div>
+
+            <div>
+              <span className="font-medium text-gray-700">File Type:</span>
+              <span className="ml-2 text-gray-600">
+                {functionDetails.fileType}
+              </span>
+            </div>
+
+            <div>
+              <span className="font-medium text-gray-700">Export Type:</span>
+              <span className="ml-2 text-gray-600">
+                {functionDetails.exportType}
+              </span>
+            </div>
+
+            <div>
+              <span className="font-medium text-gray-700">Parameters:</span>
+              <span className="ml-2 text-gray-600">
+                {functionDetails.parameterCount}
+              </span>
+            </div>
+
+            {functionDetails.arguments &&
+              functionDetails.arguments.length > 0 && (
+                <div>
+                  <span className="font-medium text-gray-700">Arguments:</span>
+                  <ul className="ml-2 mt-1 space-y-1">
+                    {functionDetails.arguments.map((arg, index) => (
+                      <li key={index} className="text-gray-600">
+                        • {arg.name}: {arg.type}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+            <div>
+              <span className="font-medium text-gray-700">Status:</span>
+              <span
+                className={`ml-2 ${
+                  functionDetails.isActive ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {functionDetails.isActive ? "Active" : "Inactive"}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 });
 
@@ -1652,6 +1810,7 @@ export default function BookingsDataGrid({
           baseColumn.editable = false;
           (baseColumn as any).columnDef = col;
           (baseColumn as any).deleteRow = deleteRow;
+          (baseColumn as any).availableFunctions = availableFunctions;
         } else if (col.dataType === "number") {
           baseColumn.renderCell = ({ row, column }) => {
             const isEmptyRow = (row as any)._isEmptyRow;
