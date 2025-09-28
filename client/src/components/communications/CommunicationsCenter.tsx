@@ -52,9 +52,13 @@ import {
   Archive,
   RotateCcw,
   TestTube,
+  Mail,
+  Trash,
 } from "lucide-react";
 import TemplateDialog from "./TemplateDialog";
 import TestTab from "./TestTab";
+import EmailDraftsTab from "./EmailDraftsTab";
+import RecycleBinTab from "./RecycleBinTab";
 import EmailTemplateService from "@/services/email-template-service";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/hooks/use-toast";
@@ -848,8 +852,22 @@ export default function CommunicationsCenter() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="templates" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-muted border border-royal-purple/20 dark:border-border">
+      <Tabs defaultValue="drafts" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 bg-muted border border-royal-purple/20 dark:border-border">
+          <TabsTrigger
+            value="drafts"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            Email Drafts
+          </TabsTrigger>
+          <TabsTrigger
+            value="recycle"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            <Trash className="mr-2 h-4 w-4" />
+            Recycle Bin
+          </TabsTrigger>
           <TabsTrigger
             value="templates"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
@@ -865,6 +883,14 @@ export default function CommunicationsCenter() {
             Test Tab
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="drafts" className="mt-6">
+          <EmailDraftsTab />
+        </TabsContent>
+
+        <TabsContent value="recycle" className="mt-6">
+          <RecycleBinTab />
+        </TabsContent>
 
         <TabsContent value="templates" className="mt-6">
           <div className="space-y-6">

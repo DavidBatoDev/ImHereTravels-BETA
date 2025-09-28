@@ -2,8 +2,6 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
-// @ts-ignore
-const { google } = require("googleapis");
 import EmailTemplateService from "./email-template-service";
 import * as dotenv from "dotenv";
 
@@ -15,22 +13,6 @@ if (getApps().length === 0) {
   initializeApp();
 }
 const db = getFirestore();
-
-// Gmail API setup with OAuth2
-const getGmailClient = () => {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GMAIL_OAUTH2_CLIENT_ID,
-    process.env.GMAIL_OAUTH2_CLIENT_SECRET,
-    "urn:ietf:wg:oauth:2.0:oob" // For desktop apps
-  );
-
-  // Set the refresh token
-  oauth2Client.setCredentials({
-    refresh_token: process.env.GMAIL_OAUTH2_REFRESH_TOKEN,
-  });
-
-  return google.gmail({ version: "v1", auth: oauth2Client });
-};
 
 // Helper function to format GBP currency
 function formatGBP(value: number | string): string {
@@ -284,24 +266,22 @@ export const generateReservationEmail = onCall(
       }
 
       // Check for existing drafts with same recipient and subject
-      const gmail = getGmailClient();
-
       try {
-        const existingDrafts = await gmail.users.drafts.list({
-          userId: "me",
-          q: `in:drafts to:${email} subject:"${subject}"`,
-        });
+        const existingDrafts = await db
+          .collection("emailDrafts")
+          .where("to", "==", email)
+          .where("subject", "==", subject)
+          .where("status", "==", "draft")
+          .limit(1)
+          .get();
 
-        if (
-          existingDrafts.data.drafts &&
-          existingDrafts.data.drafts.length > 0
-        ) {
+        if (!existingDrafts.empty) {
           logger.warn(
-            `Found ${existingDrafts.data.drafts.length} existing drafts for ${email}`
+            `Found existing draft for ${email} with subject "${subject}"`
           );
           throw new HttpsError(
             "already-exists",
-            `A draft with the same recipient (${email}) and subject ("${subject}") already exists. Please delete it manually from Gmail before generating a new one.`
+            `A draft with the same recipient (${email}) and subject ("${subject}") already exists. Please delete it before generating a new one.`
           );
         }
       } catch (error) {
@@ -310,52 +290,36 @@ export const generateReservationEmail = onCall(
         // Continue with draft creation even if check fails
       }
 
-      // Prepare email message
-      const message = {
+      // Prepare email draft data
+      const emailDraftData = {
         to: email,
         subject: subject,
-        htmlBody: processedHtml,
+        htmlContent: processedHtml,
         bcc: getBCCList(),
         from: "Bella | ImHereTravels <bella@imheretravels.com>",
+        emailType: isCancelled ? "cancellation" : "reservation",
+        bookingId: bookingId,
+        status: "draft",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        // Additional metadata
+        templateId: "BnRGgT6E8SVrXZH961LT",
+        templateVariables: templateVariables,
+        isCancellation: isCancelled,
+        fullName: fullName,
+        tourPackage: tourPackage,
       };
 
-      // Create draft using Gmail API
-      const draft = await gmail.users.drafts.create({
-        userId: "me",
-        requestBody: {
-          message: {
-            raw: Buffer.from(
-              `To: ${message.to}\r\n` +
-                `Subject: ${message.subject}\r\n` +
-                `From: ${message.from}\r\n` +
-                `Bcc: ${message.bcc.join(", ")}\r\n` +
-                `Content-Type: text/html; charset=UTF-8\r\n\r\n` +
-                message.htmlBody
-            )
-              .toString("base64")
-              .replace(/\+/g, "-")
-              .replace(/\//g, "_")
-              .replace(/=+$/, ""),
-          },
-        },
-      });
+      // Create draft document in emailDrafts collection
+      const draftRef = await db.collection("emailDrafts").add(emailDraftData);
 
-      const messageId = draft.data.message?.id;
-      if (!messageId) {
-        throw new HttpsError(
-          "internal",
-          "Failed to create draft - no message ID returned"
-        );
-      }
+      logger.info(
+        `Email draft created successfully for ${email} with ID: ${draftRef.id}`
+      );
 
-      // Generate Gmail compose URL
-      const composeUrl = `https://mail.google.com/mail/u/0/#drafts?compose=${messageId}`;
-
-      logger.info(`Draft created successfully for ${email}: ${composeUrl}`);
-
-      // Update booking document with draft link and subject
+      // Update booking document with draft reference and subject
       const updateData: any = {
-        emailDraftLink: composeUrl,
+        emailDraftId: draftRef.id,
         generateEmailDraft: false, // Reset the trigger
       };
 
@@ -363,18 +327,19 @@ export const generateReservationEmail = onCall(
         updateData.subjectLineReservation = subject;
       } else {
         updateData.subjectLineCancellation = subject;
-        updateData.cancellationEmailDraftLink = composeUrl;
+        updateData.cancellationEmailDraftId = draftRef.id;
       }
 
       await db.collection("bookings").doc(bookingId).update(updateData);
 
       return {
         success: true,
-        draftLink: composeUrl,
+        draftId: draftRef.id,
         subject: subject,
-        messageId: messageId,
         email: email,
         isCancellation: isCancelled,
+        emailType: emailDraftData.emailType,
+        status: "draft",
       };
     } catch (error) {
       logger.error("Error generating email draft:", error);
@@ -390,7 +355,7 @@ export const generateReservationEmail = onCall(
             .collection("bookings")
             .doc(request.data.bookingId)
             .update({
-              emailDraftLink: `ERROR: ${
+              emailDraftError: `ERROR: ${
                 error instanceof Error ? error.message : String(error)
               }`,
               generateEmailDraft: false,
