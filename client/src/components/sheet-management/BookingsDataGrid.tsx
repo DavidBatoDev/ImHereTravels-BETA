@@ -55,6 +55,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { FunctionSquare } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -1418,9 +1419,14 @@ export default function BookingsDataGrid({
 
               {/* Column Name Row */}
               <div className="flex items-center justify-center flex-1 px-2 mt-10">
-                <span className="font-medium truncate text-foreground">
-                  {column.name}
-                </span>
+                <div className="flex items-center gap-1">
+                  {col.dataType === "function" && (
+                    <FunctionSquare className="h-4 w-4 text-red-600" />
+                  )}
+                  <span className="font-medium truncate text-foreground">
+                    {column.name}
+                  </span>
+                </div>
               </div>
             </div>
           );
