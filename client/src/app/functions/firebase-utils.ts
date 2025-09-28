@@ -229,6 +229,161 @@ export const firebaseUtils = {
   },
 };
 
+// Firebase Functions utilities for calling other cloud functions
+export const functionsUtils = {
+  // Call other cloud functions
+  callFunction: async (functionName: string, data?: any) => {
+    try {
+      // Note: This is a simplified implementation for client-side testing
+      // In practice, you'd use the Firebase Functions SDK to call functions
+      console.log(`Calling function: ${functionName} with data:`, data);
+
+      // For now, return a placeholder response
+      // In a real implementation, you'd actually call the function
+      return {
+        success: true,
+        functionName,
+        data,
+        message: "Function call simulated (client-side)",
+      };
+    } catch (error) {
+      console.error(`Error calling function ${functionName}:`, error);
+      throw error;
+    }
+  },
+
+  // Get function configuration
+  getFunctionConfig: (functionName: string) => {
+    return {
+      name: functionName,
+      region: "asia-southeast1",
+      runtime: "nodejs18",
+      memory: "1GiB",
+      timeout: "540s",
+    };
+  },
+
+  // List available functions
+  listFunctions: async () => {
+    return [
+      "generateReservationEmail",
+      "sendEmail",
+      "recompute-on-function-update",
+    ];
+  },
+
+  // Email-specific utilities
+  emailUtils: {
+    sendEmail: async (
+      to: string,
+      subject: string,
+      html: string,
+      bcc?: string[]
+    ) => {
+      try {
+        // This would call the sendEmail cloud function
+        console.log(`Sending email to: ${to}, subject: ${subject}`);
+        return {
+          success: true,
+          messageId: `msg_${Date.now()}`,
+          to,
+          subject,
+        };
+      } catch (error) {
+        console.error("Error sending email:", error);
+        throw error;
+      }
+    },
+
+    generateReservationEmail: async (
+      bookingId: string,
+      generateDraftCell: boolean = true
+    ) => {
+      try {
+        // This would call the generateReservationEmail cloud function
+        console.log(`Generating reservation email for booking: ${bookingId}`);
+        return {
+          success: true,
+          draftId: `draft_${Date.now()}`,
+          bookingId,
+          generateDraftCell,
+        };
+      } catch (error) {
+        console.error("Error generating reservation email:", error);
+        throw error;
+      }
+    },
+  },
+
+  // Template utilities
+  templateUtils: {
+    processTemplate: (template: string, variables: Record<string, any>) => {
+      // This would use the EmailTemplateService.processTemplate
+      console.log("Processing email template with variables:", variables);
+      return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+        return variables[key] || match;
+      });
+    },
+
+    getTemplate: async (templateId: string) => {
+      try {
+        await preAuthenticate();
+        const docRef = firestoreDoc(db, "emailTemplates", templateId);
+        const docSnap = await firestoreGetDoc(docRef);
+        return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+      } catch (error) {
+        console.error(`Error getting template ${templateId}:`, error);
+        throw error;
+      }
+    },
+  },
+
+  // Utility functions
+  utils: {
+    formatCurrency: (value: number | string, currency: string = "GBP") => {
+      if (!value) return "";
+      const numValue = Number(value);
+      if (currency === "GBP") {
+        return `£${numValue.toFixed(2)}`;
+      }
+      return `${numValue.toFixed(2)} ${currency}`;
+    },
+
+    formatDate: (date: any) => {
+      if (!date) return "";
+      try {
+        let dateObj: Date;
+        if (date && typeof date === "object" && date._seconds) {
+          dateObj = new Date(date._seconds * 1000);
+        } else if (typeof date === "string") {
+          dateObj = new Date(date);
+        } else if (date instanceof Date) {
+          dateObj = date;
+        } else {
+          return "";
+        }
+
+        if (isNaN(dateObj.getTime())) {
+          return "";
+        }
+
+        return dateObj.toISOString().split("T")[0];
+      } catch (error) {
+        console.warn("Error formatting date:", error, "Value:", date);
+        return "";
+      }
+    },
+
+    generateId: () => {
+      return `id_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    },
+
+    sleep: (ms: number) => {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    },
+  },
+};
+
 // Type definitions for common Firebase operations
 export interface FirebaseDocument {
   id: string;
@@ -257,6 +412,7 @@ export default {
   db,
   storage,
   firebaseUtils,
+  functionsUtils,
   // Re-export all Firestore functions
   collection: firestoreCollection,
   doc: firestoreDoc,

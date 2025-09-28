@@ -206,16 +206,69 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
     const startTime = performance.now();
 
     try {
-      // Create a sandbox to execute custom code
+      // Import Firebase utilities for custom code execution
+      const {
+        auth,
+        db,
+        storage,
+        firebaseUtils,
+        functionsUtils,
+        collection,
+        doc,
+        getDocs,
+        addDoc,
+        updateDoc,
+        deleteDoc,
+        query,
+        where,
+        orderBy,
+        serverTimestamp,
+      } = await import("@/app/functions/firebase-utils");
+
+      // Create a sandbox to execute custom code with Firebase utilities
       const sandbox = new Function(
         "exports",
         "moduleRef",
         "require",
+        "auth",
+        "db",
+        "storage",
+        "firebaseUtils",
+        "functionsUtils",
+        "collection",
+        "doc",
+        "getDocs",
+        "addDoc",
+        "updateDoc",
+        "deleteDoc",
+        "query",
+        "where",
+        "orderBy",
+        "serverTimestamp",
         customCode
       );
 
       const moduleObj = { exports: {} as any };
-      const result = sandbox(moduleObj.exports, moduleObj, () => {});
+      const result = sandbox(
+        moduleObj.exports,
+        moduleObj,
+        () => {},
+        auth,
+        db,
+        storage,
+        firebaseUtils,
+        functionsUtils,
+        collection,
+        doc,
+        getDocs,
+        addDoc,
+        updateDoc,
+        deleteDoc,
+        query,
+        where,
+        orderBy,
+        serverTimestamp
+      );
 
       const endTime = performance.now();
       const executionTime = endTime - startTime;

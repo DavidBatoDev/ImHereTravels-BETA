@@ -108,6 +108,167 @@ function transpileToFunction(
     };
   };
 
+  // Create Firebase Functions utilities for runtime injection
+  const createFirebaseFunctionsUtils = () => {
+    return {
+      // Call other cloud functions
+      callFunction: async (functionName: string, data?: any) => {
+        try {
+          // Note: This is a simplified implementation
+          // In practice, you'd use the Firebase Admin SDK to call functions
+          // or make HTTP requests to the function endpoints
+          logger.info(`Calling function: ${functionName} with data:`, data);
+
+          // For now, return a placeholder response
+          // In a real implementation, you'd actually call the function
+          return {
+            success: true,
+            functionName,
+            data,
+            message: "Function call simulated",
+          };
+        } catch (error) {
+          logger.error(`Error calling function ${functionName}:`, error);
+          throw error;
+        }
+      },
+
+      // Get function configuration
+      getFunctionConfig: (functionName: string) => {
+        return {
+          name: functionName,
+          region: "asia-southeast1",
+          runtime: "nodejs18",
+          memory: "1GiB",
+          timeout: "540s",
+        };
+      },
+
+      // List available functions
+      listFunctions: async () => {
+        return [
+          "generateReservationEmail",
+          "sendEmail",
+          "recompute-on-function-update",
+        ];
+      },
+
+      // Email-specific utilities
+      emailUtils: {
+        sendEmail: async (
+          to: string,
+          subject: string,
+          html: string,
+          bcc?: string[]
+        ) => {
+          try {
+            // This would call the sendEmail cloud function
+            logger.info(`Sending email to: ${to}, subject: ${subject}`);
+            return {
+              success: true,
+              messageId: `msg_${Date.now()}`,
+              to,
+              subject,
+            };
+          } catch (error) {
+            logger.error("Error sending email:", error);
+            throw error;
+          }
+        },
+
+        generateReservationEmail: async (
+          bookingId: string,
+          generateDraftCell: boolean = true
+        ) => {
+          try {
+            // This would call the generateReservationEmail cloud function
+            logger.info(
+              `Generating reservation email for booking: ${bookingId}`
+            );
+            return {
+              success: true,
+              draftId: `draft_${Date.now()}`,
+              bookingId,
+              generateDraftCell,
+            };
+          } catch (error) {
+            logger.error("Error generating reservation email:", error);
+            throw error;
+          }
+        },
+      },
+
+      // Template utilities
+      templateUtils: {
+        processTemplate: (template: string, variables: Record<string, any>) => {
+          // This would use the EmailTemplateService.processTemplate
+          logger.info("Processing email template with variables:", variables);
+          return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+            return variables[key] || match;
+          });
+        },
+
+        getTemplate: async (templateId: string) => {
+          try {
+            const doc = await db
+              .collection("emailTemplates")
+              .doc(templateId)
+              .get();
+            return doc.exists ? { id: doc.id, ...doc.data() } : null;
+          } catch (error) {
+            logger.error(`Error getting template ${templateId}:`, error);
+            throw error;
+          }
+        },
+      },
+
+      // Utility functions
+      utils: {
+        formatCurrency: (value: number | string, currency: string = "GBP") => {
+          if (!value) return "";
+          const numValue = Number(value);
+          if (currency === "GBP") {
+            return `£${numValue.toFixed(2)}`;
+          }
+          return `${numValue.toFixed(2)} ${currency}`;
+        },
+
+        formatDate: (date: any) => {
+          if (!date) return "";
+          try {
+            let dateObj: Date;
+            if (date && typeof date === "object" && date._seconds) {
+              dateObj = new Date(date._seconds * 1000);
+            } else if (typeof date === "string") {
+              dateObj = new Date(date);
+            } else if (date instanceof Date) {
+              dateObj = date;
+            } else {
+              return "";
+            }
+
+            if (isNaN(dateObj.getTime())) {
+              return "";
+            }
+
+            return dateObj.toISOString().split("T")[0];
+          } catch (error) {
+            logger.warn("Error formatting date:", error, "Value:", date);
+            return "";
+          }
+        },
+
+        generateId: () => {
+          return `id_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        },
+
+        sleep: (ms: number) => {
+          return new Promise((resolve) => setTimeout(resolve, ms));
+        },
+      },
+    };
+  };
+
   // Create Firebase function references
   const createFirebaseFunctions = () => {
     return {
@@ -173,6 +334,7 @@ function transpileToFunction(
     "auth",
     "storage",
     "firebaseUtils",
+    "functionsUtils",
     "collection",
     "doc",
     "getDocs",
@@ -188,6 +350,7 @@ function transpileToFunction(
 
   const moduleObj = { exports: {} as any };
   const firebaseUtils = createFirebaseUtils();
+  const firebaseFunctionsUtils = createFirebaseFunctionsUtils();
   const firebaseFunctions = createFirebaseFunctions();
 
   const compiled = factory(
@@ -197,6 +360,7 @@ function transpileToFunction(
     null, // auth not needed for this function
     null, // storage not needed for this function
     firebaseUtils,
+    firebaseFunctionsUtils,
     firebaseFunctions.collection,
     firebaseFunctions.doc,
     firebaseFunctions.getDocs,
