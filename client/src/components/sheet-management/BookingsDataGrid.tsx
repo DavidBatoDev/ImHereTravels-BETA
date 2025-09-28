@@ -714,7 +714,6 @@ interface BookingsDataGridProps {
   updateRow: (rowId: string, updates: Partial<SheetData>) => void;
   deleteRow: (rowId: string) => void;
   availableFunctions: TypeScriptFunction[];
-  skipInitialRecompute?: boolean; // New prop to control initial recomputation
 }
 
 export default function BookingsDataGrid({
@@ -726,7 +725,6 @@ export default function BookingsDataGrid({
   updateRow,
   deleteRow,
   availableFunctions,
-  skipInitialRecompute = true, // Default to true to prevent initial recomputation
 }: BookingsDataGridProps) {
   // Debug logging
   console.log(
@@ -762,6 +760,7 @@ export default function BookingsDataGrid({
   const [globalFilter, setGlobalFilter] = useState("");
   const [localData, setLocalData] = useState<SheetData[]>([]);
   const functionSubscriptionsRef = useRef<Map<string, () => void>>(new Map());
+  const isInitialLoadRef = useRef<boolean>(true);
 
   // Enhanced filtering state
   const [columnFilters, setColumnFilters] = useState<Record<string, any>>({});
@@ -845,6 +844,17 @@ export default function BookingsDataGrid({
           : [],
     });
     setLocalData(data);
+
+    // After initial data load, allow recomputation for real changes
+    if (isInitialLoadRef.current && data && data.length > 0) {
+      console.log(
+        "🔄 [SHEET MANAGEMENT] Initial data load complete, enabling recomputation for real changes"
+      );
+      // Use a small delay to ensure all subscriptions are set up
+      setTimeout(() => {
+        isInitialLoadRef.current = false;
+      }, 100);
+    }
   }, [data, columns]);
 
   // Debug selectedCell changes
@@ -854,8 +864,26 @@ export default function BookingsDataGrid({
 
   // Compute one function column for a single row
   const computeFunctionForRow = useCallback(
-    async (row: SheetData, funcCol: SheetColumn): Promise<any> => {
+    async (
+      row: SheetData,
+      funcCol: SheetColumn,
+      skipInitialCheck = false
+    ): Promise<any> => {
       if (!funcCol.function) return;
+
+      // Skip computation during initial load unless explicitly requested
+      if (isInitialLoadRef.current && !skipInitialCheck) {
+        console.log(
+          "⏭️ [SHEET MANAGEMENT] Skipping initial computeFunctionForRow:",
+          {
+            rowId: row.id,
+            columnId: funcCol.id,
+            columnName: funcCol.columnName,
+          }
+        );
+        return row[funcCol.id]; // Return existing value
+      }
+
       console.log("⚡ [RECOMPUTE] computeFunctionForRow called:", {
         rowId: row.id,
         columnId: funcCol.id,
@@ -863,6 +891,7 @@ export default function BookingsDataGrid({
         functionId: funcCol.function,
         currentValue: row[funcCol.id],
         timestamp: new Date().toISOString(),
+        isInitialLoad: isInitialLoadRef.current,
       });
       try {
         const fn = await functionExecutionService.getCompiledFunction(
@@ -944,8 +973,8 @@ export default function BookingsDataGrid({
       const directDependents = dependencyGraph.get(changedCol.columnName) || [];
       // Compute all direct dependents in parallel for speed
       await Promise.all(
-        directDependents.map((funcCol) =>
-          computeFunctionForRow(rowSnapshot, funcCol)
+        directDependents.map(
+          (funcCol) => computeFunctionForRow(rowSnapshot, funcCol, true) // Skip initial check for user-triggered changes
         )
       );
       // Do not force flush; allow debounced batch to commit to keep UI snappy
@@ -968,7 +997,7 @@ export default function BookingsDataGrid({
       const rows = localData.length > 0 ? localData : data;
       for (const row of rows) {
         for (const funcCol of impactedColumns) {
-          await computeFunctionForRow(row, funcCol);
+          await computeFunctionForRow(row, funcCol, true); // Skip initial check for function changes
         }
       }
       // Expedite persistence
@@ -998,37 +1027,25 @@ export default function BookingsDataGrid({
     // Add new subscriptions for newly referenced functions
     inUseFunctionIds.forEach((funcId) => {
       if (!functionSubscriptionsRef.current.has(funcId)) {
-        let isInitialCallback = skipInitialRecompute; // Use prop to control initial callback
-
         const unsubscribe =
           typescriptFunctionsService.subscribeToFunctionChanges(
             funcId,
             (updated) => {
-              // Skip the initial callback from Firestore subscription if configured
-              if (isInitialCallback) {
+              if (!updated) return;
+
+              // Skip recomputation during initial load
+              if (isInitialLoadRef.current) {
                 console.log(
-                  "⏭️ [SHEET MANAGEMENT] Skipping initial callback for function:",
-                  {
-                    funcId,
-                    functionName: updated?.name,
-                    skipInitialRecompute,
-                    timestamp: new Date().toISOString(),
-                  }
+                  "⏭️ [SHEET MANAGEMENT] Skipping initial recomputation for function:",
+                  funcId
                 );
-                isInitialCallback = false;
                 return;
               }
 
               console.log(
-                "🔔 [FUNCTION SUBSCRIPTION] Function change detected:",
-                {
-                  funcId,
-                  hasUpdated: !!updated,
-                  functionName: updated?.name,
-                  timestamp: new Date().toISOString(),
-                }
+                "🔄 [SHEET MANAGEMENT] Function changed, triggering recomputation:",
+                funcId
               );
-              if (!updated) return;
               // Invalidate compiled function cache so next compute uses fresh code
               functionExecutionService.invalidate(funcId);
               // Recompute only affected columns and their dependents
@@ -1058,7 +1075,7 @@ export default function BookingsDataGrid({
       functionSubscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
       functionSubscriptionsRef.current.clear();
     };
-  }, [columns, recomputeForFunction, skipInitialRecompute]);
+  }, [columns, recomputeForFunction]);
 
   // Enhanced filtering and sorting logic
   const filteredAndSortedData = useMemo(() => {
@@ -1561,13 +1578,6 @@ export default function BookingsDataGrid({
                         newValue
                       );
                       console.log("🔧 Boolean saved to Firestore successfully");
-
-                      // Trigger function recomputation for dependent columns
-                      await recomputeDirectDependentsForRow(
-                        row.id,
-                        column.key,
-                        newValue
-                      );
                     } catch (error) {
                       console.error(
                         "❌ Failed to save boolean to Firestore:",
@@ -1696,13 +1706,6 @@ export default function BookingsDataGrid({
                       newValue
                     );
                     console.log("📅 Date saved to Firestore successfully");
-
-                    // Trigger function recomputation for dependent columns
-                    await recomputeDirectDependentsForRow(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
                   } catch (error) {
                     console.error(
                       "❌ Failed to save date to Firestore:",
@@ -1783,13 +1786,6 @@ export default function BookingsDataGrid({
                       newValue
                     );
                     console.log("📋 Select saved to Firestore successfully");
-
-                    // Trigger function recomputation for dependent columns
-                    await recomputeDirectDependentsForRow(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
                   } catch (error) {
                     console.error(
                       "❌ Failed to save select to Firestore:",
@@ -1808,7 +1804,7 @@ export default function BookingsDataGrid({
                 }`}
                 style={{ backgroundColor: "transparent" }}
               >
-                <option value=""></option>
+                <option value="">Select option</option>
                 {options.map((option: string) => (
                   <option key={option} value={option}>
                     {option}
@@ -1871,13 +1867,6 @@ export default function BookingsDataGrid({
                       newValue
                     );
                     console.log("💰 Currency saved to Firestore successfully");
-
-                    // Trigger function recomputation for dependent columns
-                    await recomputeDirectDependentsForRow(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
                   } catch (error) {
                     console.error(
                       "❌ Failed to save currency to Firestore:",
