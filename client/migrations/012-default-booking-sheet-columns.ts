@@ -35,6 +35,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: false,
     sortable: true,
     filterable: true,
+    parentTab: "Core Booking",
   },
   {
     id: "bookingCode",
@@ -47,6 +48,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Core Booking",
   },
   {
     id: "tourCode",
@@ -59,6 +61,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Core Booking",
   },
   {
     id: "reservationDate",
@@ -71,6 +74,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Core Booking",
   },
   {
     id: "bookingType",
@@ -84,6 +88,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Core Booking",
   },
   {
     id: "bookingStatus",
@@ -97,6 +102,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Core Booking",
   },
   {
     id: "daysBetweenBookingAndTour",
@@ -109,6 +115,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: false,
     sortable: true,
     filterable: true,
+    parentTab: "Core Booking",
   },
   {
     id: "groupId",
@@ -121,6 +128,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Core Booking",
   },
   {
     id: "isMainBooker",
@@ -133,6 +141,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Core Booking",
   },
   {
     id: "delete",
@@ -145,6 +154,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: false,
     sortable: false,
     filterable: false,
+    parentTab: "Core Booking",
   },
   {
     id: "travellerInitials",
@@ -157,6 +167,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Traveller Information",
   },
   {
     id: "firstName",
@@ -169,6 +180,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Traveller Information",
   },
   {
     id: "lastName",
@@ -181,6 +193,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Traveller Information",
   },
   {
     id: "fullName",
@@ -193,6 +206,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: false,
     sortable: true,
     filterable: true,
+    parentTab: "Traveller Information",
   },
   {
     id: "emailAddress",
@@ -205,6 +219,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Traveller Information",
   },
   {
     id: "tourPackageNameUniqueCounter",
@@ -217,6 +232,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Tour Details",
   },
   {
     id: "tourPackageName",
@@ -229,6 +245,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Tour Details",
   },
   {
     id: "formattedDate",
@@ -241,6 +258,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: false,
     sortable: true,
     filterable: true,
+    parentTab: "Tour Details",
   },
   {
     id: "tourDate",
@@ -253,6 +271,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Tour Details",
   },
   {
     id: "returnDate",
@@ -265,6 +284,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Tour Details",
   },
   {
     id: "tourDuration",
@@ -277,6 +297,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Tour Details",
   },
   {
     id: "useDiscountedTourCost",
@@ -289,6 +310,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Pricing",
   },
   {
     id: "originalTourCost",
@@ -301,6 +323,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Pricing",
   },
   {
     id: "discountedTourCost",
@@ -313,6 +336,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Pricing",
   },
   {
     id: "reservationEmail",
@@ -325,6 +349,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Email Management - Reservation",
   },
   {
     id: "includeBccReservation",
@@ -337,6 +362,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Email Management - Reservation",
   },
   {
     id: "generateEmailDraft",
@@ -349,6 +375,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Email Management - Reservation",
   },
   {
     id: "emailDraftLink",
@@ -361,6 +388,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: false,
     sortable: true,
     filterable: true,
+    parentTab: "Email Management - Reservation",
   },
   {
     id: "subjectLineReservation",
@@ -373,6 +401,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Email Management - Reservation",
   },
   {
     id: "sendEmail",
@@ -385,6 +414,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Email Management - Reservation",
   },
   {
     id: "sentEmailLink",
@@ -397,6 +427,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: false,
     sortable: true,
     filterable: true,
+    parentTab: "Email Management - Reservation",
   },
   {
     id: "reservationEmailSentDate",
@@ -409,6 +440,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: false,
     sortable: true,
     filterable: true,
+    parentTab: "Email Management - Reservation",
   },
   {
     id: "paymentCondition",
@@ -422,6 +454,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Terms",
   },
   {
     id: "eligible2ndOfMonths",
@@ -434,6 +467,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Terms",
   },
   {
     id: "availablePaymentTerms",
@@ -446,6 +480,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Terms",
   },
   {
     id: "paymentPlan",
@@ -459,6 +494,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Terms",
   },
   {
     id: "paymentMethod",
@@ -472,6 +508,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Terms",
   },
   {
     id: "enablePaymentReminder",
@@ -484,6 +521,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Terms",
   },
   {
     id: "paymentProgress",
@@ -496,6 +534,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: false,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Terms",
   },
   {
     id: "fullPayment",
@@ -508,6 +547,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "fullPaymentDueDate",
@@ -520,6 +560,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "fullPaymentAmount",
@@ -532,6 +573,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "fullPaymentDatePaid",
@@ -544,6 +586,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "paymentTerm1",
@@ -556,6 +599,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "paymentTerm2",
@@ -568,6 +612,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "paymentTerm3",
@@ -580,6 +625,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "paymentTerm4",
@@ -592,6 +638,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "reservationFee",
@@ -604,6 +651,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "paid",
@@ -616,6 +664,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "remainingBalance",
@@ -628,6 +677,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: false,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "manualCredit",
@@ -640,6 +690,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "creditFrom",
@@ -652,6 +703,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Payment Details",
   },
   {
     id: "reasonForCancellation",
@@ -664,6 +716,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Cancellation Management",
   },
   {
     id: "includeBccCancellation",
@@ -676,6 +729,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Cancellation Management",
   },
   {
     id: "generateCancellationEmailDraft",
@@ -688,6 +742,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Cancellation Management",
   },
   {
     id: "cancellationEmailDraftLink",
@@ -700,6 +755,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: false,
     sortable: true,
     filterable: true,
+    parentTab: "Cancellation Management",
   },
   {
     id: "subjectLineCancellation",
@@ -712,6 +768,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Cancellation Management",
   },
   {
     id: "sendCancellationEmail",
@@ -724,6 +781,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: true,
     sortable: true,
     filterable: true,
+    parentTab: "Cancellation Management",
   },
   {
     id: "sentCancellationEmailLink",
@@ -736,6 +794,7 @@ const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     editable: false,
     sortable: true,
     filterable: true,
+    parentTab: "Cancellation Management",
   },
   {
     id: "cancellationEmailSentDate",

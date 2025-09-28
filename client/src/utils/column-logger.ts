@@ -20,6 +20,7 @@ export class ColumnLogger {
       console.log(`${index + 1}. ${column.columnName}`);
       console.log(`   ID: ${column.id}`);
       console.log(`   Order: ${column.order}`);
+      console.log(`   Parent Tab: ${column.parentTab || "General"}`);
       console.log(`   Data Type: ${column.dataType}`);
       console.log(`   Width: ${column.width}px`);
       console.log(
@@ -55,6 +56,23 @@ export class ColumnLogger {
 
       console.log("");
     });
+
+    // Summary by parent tab
+    console.log("📂 SUMMARY BY PARENT TAB");
+    console.log("-".repeat(30));
+    const parentTabCounts = sortedColumns.reduce((acc, col) => {
+      const parentTab = col.parentTab || "General";
+      acc[parentTab] = (acc[parentTab] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    Object.entries(parentTabCounts)
+      .sort(([, a], [, b]) => b - a)
+      .forEach(([parentTab, count]) => {
+        console.log(`${parentTab}: ${count} column(s)`);
+      });
+
+    console.log("");
 
     // Summary by data type
     console.log("📈 SUMMARY BY DATA TYPE");
@@ -112,6 +130,7 @@ export class ColumnLogger {
       order: number;
       name: string;
       id: string;
+      parentTab: string;
       dataType: string;
       width: number;
       includeInForms: boolean;
@@ -120,11 +139,18 @@ export class ColumnLogger {
       function?: string;
     }>;
     summary: Record<string, number>;
+    parentTabSummary: Record<string, number>;
   } {
     const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
 
     const dataTypeCounts = sortedColumns.reduce((acc, col) => {
       acc[col.dataType] = (acc[col.dataType] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const parentTabCounts = sortedColumns.reduce((acc, col) => {
+      const parentTab = col.parentTab || "General";
+      acc[parentTab] = (acc[parentTab] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
@@ -134,6 +160,7 @@ export class ColumnLogger {
         order: col.order,
         name: col.columnName,
         id: col.id,
+        parentTab: col.parentTab || "General",
         dataType: col.dataType,
         width: col.width,
         includeInForms: col.includeInForms,
@@ -142,6 +169,7 @@ export class ColumnLogger {
         function: col.function,
       })),
       summary: dataTypeCounts,
+      parentTabSummary: parentTabCounts,
     };
   }
 

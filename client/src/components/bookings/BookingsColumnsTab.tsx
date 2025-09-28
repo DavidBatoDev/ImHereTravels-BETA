@@ -444,6 +444,16 @@ export default function BookingsColumnsTab() {
                               <div className="text-xs text-muted-foreground mt-0.5">
                                 ID: {col.id}
                               </div>
+                              {col.parentTab && (
+                                <div className="mt-1">
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200"
+                                  >
+                                    {col.parentTab}
+                                  </Badge>
+                                </div>
+                              )}
                             </div>
                             <div className="p-3 text-sm text-muted-foreground border-r border-royal-purple/20 dark:border-border">
                               {col.dataType}

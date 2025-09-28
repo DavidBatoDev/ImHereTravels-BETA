@@ -80,6 +80,22 @@ import {
   rollbackMigration as rollbackMigration020,
   dryRun as dryRun020,
 } from "./020-rebuild-columns-with-custom-ids";
+import {
+  runMigration as runMigration023,
+  rollbackMigration as rollbackMigration023,
+} from "./023-add-parent-tab-field";
+import {
+  runMigration024,
+  rollbackMigration024,
+} from "./024-update-parent-tabs";
+import {
+  runMigration025,
+  rollbackMigration025,
+} from "./025-remove-emoji-from-parent-tabs";
+import {
+  runMigration026,
+  rollbackMigration026,
+} from "./026-move-payment-progress-to-payment-setting";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -383,6 +399,45 @@ async function main() {
       }
       break;
 
+    case "023":
+      console.log("📊 Running migration: 023-add-parent-tab-field");
+      const result023 = await runMigration023(dryRun);
+      console.log(`\n🎯 ${result023.message}`);
+      if (result023.details) {
+        console.log(
+          `📊 Details: ${result023.details.updatedCount} updated, ${result023.details.skippedCount} skipped, ${result023.details.errorCount} errors`
+        );
+        if (result023.details.migrationResults) {
+          const errors = result023.details.migrationResults.filter(
+            (r: any) => r.status === "error"
+          );
+          if (errors.length > 0) {
+            console.log("\n❌ Errors:");
+            errors.forEach((error: any) =>
+              console.log(`  - ${error.id}: ${error.error}`)
+            );
+          }
+        }
+      }
+      break;
+
+    case "024":
+      console.log("📊 Running migration: 024-update-parent-tabs");
+      await runMigration024();
+      break;
+
+    case "025":
+      console.log("📊 Running migration: 025-remove-emoji-from-parent-tabs");
+      await runMigration025();
+      break;
+
+    case "026":
+      console.log(
+        "📊 Running migration: 026-move-payment-progress-to-payment-setting"
+      );
+      await runMigration026();
+      break;
+
     case "rollback":
     case "rollback002":
       console.log("🔄 Rolling back migration: 002-additional-tour-packages");
@@ -665,6 +720,47 @@ async function main() {
       await rollbackMigration020();
       break;
 
+    case "rollback023":
+      console.log("🔄 Rolling back migration: 023-add-parent-tab-field");
+      const rollbackResult023 = await rollbackMigration023();
+      console.log(`\n🎯 ${rollbackResult023.message}`);
+      if (rollbackResult023.details) {
+        console.log(
+          `📊 Details: ${rollbackResult023.details.rollbackCount} rolled back, ${rollbackResult023.details.errorCount} errors`
+        );
+        if (rollbackResult023.details.rollbackResults) {
+          const errors = rollbackResult023.details.rollbackResults.filter(
+            (r: any) => r.status === "error"
+          );
+          if (errors.length > 0) {
+            console.log("\n❌ Errors:");
+            errors.forEach((error: any) =>
+              console.log(`  - ${error.id}: ${error.error}`)
+            );
+          }
+        }
+      }
+      break;
+
+    case "rollback024":
+      console.log("🔄 Rolling back migration: 024-update-parent-tabs");
+      await rollbackMigration024();
+      break;
+
+    case "rollback025":
+      console.log(
+        "🔄 Rolling back migration: 025-remove-emoji-from-parent-tabs"
+      );
+      await rollbackMigration025();
+      break;
+
+    case "rollback026":
+      console.log(
+        "🔄 Rolling back migration: 026-move-payment-progress-to-payment-setting"
+      );
+      await rollbackMigration026();
+      break;
+
     case "dry-run":
     case "dry-run002":
       console.log(
@@ -865,6 +961,30 @@ async function main() {
         "🔍 Running migration in DRY RUN mode: 020-rebuild-columns-with-custom-ids"
       );
       await dryRun020();
+      break;
+
+    case "dry-run023":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 023-add-parent-tab-field"
+      );
+      const dryRunResult023 = await runMigration023(true);
+      console.log(`\n🎯 ${dryRunResult023.message}`);
+      if (dryRunResult023.details) {
+        console.log(
+          `📊 Details: ${dryRunResult023.details.updatedCount} would be updated, ${dryRunResult023.details.skippedCount} skipped, ${dryRunResult023.details.errorCount} errors`
+        );
+        if (dryRunResult023.details.migrationResults) {
+          const errors = dryRunResult023.details.migrationResults.filter(
+            (r: any) => r.status === "error"
+          );
+          if (errors.length > 0) {
+            console.log("\n❌ Errors:");
+            errors.forEach((error: any) =>
+              console.log(`  - ${error.id}: ${error.error}`)
+            );
+          }
+        }
+      }
       break;
 
     case "help":

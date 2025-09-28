@@ -66,6 +66,7 @@ export interface SheetColumn {
   function?: string; // ID of the TypeScript function (only for function type)
   arguments?: FunctionArgument[]; // Arguments for the function (only for function type)
   includeInForms: boolean; // Whether to include this column in forms
+  parentTab?: string; // Parent tab for organizing columns
 
   // Display and behavior properties
   width?: number;

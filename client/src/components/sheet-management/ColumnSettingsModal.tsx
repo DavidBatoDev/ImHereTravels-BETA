@@ -202,6 +202,20 @@ export default function ColumnSettingsModal({
             </div>
           </div>
 
+          {/* Parent Tab */}
+          <div className="space-y-2">
+            <Label htmlFor="parentTab">Parent Tab</Label>
+            <Input
+              id="parentTab"
+              value={formData.parentTab || ""}
+              onChange={(e) => handleInputChange("parentTab", e.target.value)}
+              placeholder="Enter parent tab name (e.g., Core Booking, Payment Details)"
+            />
+            <p className="text-sm text-gray-500">
+              Organize columns into logical groups or tabs
+            </p>
+          </div>
+
           {/* Column Color */}
           <div className="space-y-2">
             <Label htmlFor="color">Column Color</Label>

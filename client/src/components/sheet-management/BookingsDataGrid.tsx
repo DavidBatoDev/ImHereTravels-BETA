@@ -1063,6 +1063,23 @@ export default function BookingsDataGrid({
       sortable: false,
       frozen: true,
       editable: false,
+      renderHeaderCell: () => {
+        return (
+          <div className="flex flex-col w-full h-full relative overflow-visible">
+            {/* Parent Tab Row */}
+            <div
+              className="bg-gray-400 border-b border-r border-gray-400 px-2 py-1 text-lg font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 w-full flex items-center"
+              style={{ height: "40px" }}
+            >
+              Row
+            </div>
+            {/* Column Name Row */}
+            <div className="flex items-center justify-center flex-1 px-2 mt-10">
+              <span className="font-medium text-foreground">#</span>
+            </div>
+          </div>
+        );
+      },
       renderCell: ({ row }) => {
         const isDataRow = (row as any)._isDataRow;
         const isEmptyRow = (row as any)._isEmptyRow;
@@ -1073,7 +1090,7 @@ export default function BookingsDataGrid({
         if (isEmptyRow) {
           return (
             <div
-              className={`h-8 w-16 flex items-center justify-center text-sm font-mono px-2 border-r border-b border-border bg-muted ${
+              className={`h-8 w-16 flex items-center justify-center text-sm font-mono px-2 border-r border-b border-border bg-muted relative z-[999999999] ${
                 isFirstEmptyRow
                   ? "text-muted-foreground"
                   : "text-muted-foreground/60"
@@ -1086,7 +1103,7 @@ export default function BookingsDataGrid({
 
         const rowNumber = parseInt(row.id);
         return (
-          <div className="h-8 w-16 flex items-center justify-center text-sm font-mono text-foreground px-2 border-r border-b border-border bg-muted">
+          <div className="h-8 w-16 flex items-center justify-center text-sm font-mono text-foreground px-2 border-r border-b border-border bg-muted relative z-[999999999]">
             {!isNaN(rowNumber) ? rowNumber : "-"}
           </div>
         );
@@ -1095,7 +1112,7 @@ export default function BookingsDataGrid({
 
     // Add background color styling for the row number column
     (rowNumberColumn as any).headerCellClass =
-      "bg-muted border-l border-r border-border";
+      "bg-muted border-l border-r border-border h-20 !p-0"; // Increased height for two-row header, no padding
     (rowNumberColumn as any).cellClass = "bg-muted";
 
     const dataColumns = columns
@@ -1107,10 +1124,39 @@ export default function BookingsDataGrid({
           name: col.columnName,
           width: col.width || 150,
           resizable: true,
-          sortable: true,
+          sortable: false,
         };
 
-        // Add column color styling (only for cells, not headers)
+        // Add group-based background styling for cells
+        const parentTab = col.parentTab || "General";
+        const sortedColumns = columns
+          .filter((c) => c && c.id && c.columnName)
+          .sort((a, b) => a.order - b.order);
+        const currentIndex = sortedColumns.findIndex((c) => c.id === col.id);
+        const isFirstInGroup =
+          currentIndex === 0 ||
+          sortedColumns[currentIndex - 1].parentTab !== parentTab;
+        const isLastInGroup =
+          currentIndex === sortedColumns.length - 1 ||
+          sortedColumns[currentIndex + 1].parentTab !== parentTab;
+
+        // Apply group-based cell styling
+        let cellClass = "";
+        if (isFirstInGroup && isLastInGroup) {
+          // Single column group
+          cellClass = "bg-gray-100 border-l border-r border-gray-300";
+        } else if (isFirstInGroup) {
+          // First column in group
+          cellClass = "bg-gray-100 border-l border-r border-gray-300";
+        } else if (isLastInGroup) {
+          // Last column in group
+          cellClass = "bg-gray-100 border-l border-r border-gray-300";
+        } else {
+          // Middle column in group
+          cellClass = "bg-gray-100 border-l border-r border-gray-300";
+        }
+
+        // Override with individual column color if specified and not "none"
         if (col.color && col.color !== "none") {
           const colorClasses = {
             purple:
@@ -1127,34 +1173,96 @@ export default function BookingsDataGrid({
             cyan: "bg-cyan-100 border-l border-r border-royal-purple/40 text-black",
             gray: "bg-gray-100 border-l border-r border-royal-purple/40 text-black",
           };
-
-          // Only apply color to cells, not headers - headers will use consistent styling
-          (baseColumn as any).cellClass = colorClasses[col.color] || "";
+          cellClass = colorClasses[col.color] || cellClass;
         }
 
-        // Add custom header with sorting indicators
+        // Apply cell styling
+        (baseColumn as any).cellClass = cellClass;
+
+        // Add header height styling for two-row header structure and remove padding
+        (baseColumn as any).headerCellClass = "h-20 !p-0"; // Increased height for two-row header, no padding
+
+        // Add custom header with parent tab (no sorting indicators)
         baseColumn.renderHeaderCell = ({ column }) => {
-          const currentSort = sortColumns.find(
-            (sort) => sort.columnKey === column.key
-          );
-          const isSorted = !!currentSort;
-          const sortDirection = currentSort?.direction;
+          const parentTab = col.parentTab || "General";
+
+          // Find the current column index in the sorted columns
+          const sortedColumns = columns
+            .filter((c) => c && c.id && c.columnName)
+            .sort((a, b) => a.order - b.order);
+          const currentIndex = sortedColumns.findIndex((c) => c.id === col.id);
+
+          // Check if this is the first column in a group of same parent tabs
+          const isFirstInGroup =
+            currentIndex === 0 ||
+            sortedColumns[currentIndex - 1].parentTab !== parentTab;
+
+          // Check if this is the last column in a group of same parent tabs
+          const isLastInGroup =
+            currentIndex === sortedColumns.length - 1 ||
+            sortedColumns[currentIndex + 1].parentTab !== parentTab;
+
+          // Calculate the width of the merged parent tab cell
+          let parentTabWidth = column.width || 150;
+          if (isFirstInGroup && !isLastInGroup) {
+            // Calculate total width of all columns in this parent tab group
+            let groupWidth = 0;
+            for (let i = currentIndex; i < sortedColumns.length; i++) {
+              if (sortedColumns[i].parentTab === parentTab) {
+                groupWidth += sortedColumns[i].width || 150;
+              } else {
+                break;
+              }
+            }
+            parentTabWidth = groupWidth;
+          }
 
           return (
-            <div className="flex items-center justify-between w-full h-full px-2">
-              <span className="font-medium truncate text-foreground">
-                {column.name}
-              </span>
-              <div className="flex items-center ml-2">
-                {isSorted ? (
-                  sortDirection === "ASC" ? (
-                    <ArrowUp className="h-4 w-4 text-royal-purple" />
-                  ) : (
-                    <ArrowDown className="h-4 w-4 text-royal-purple" />
-                  )
-                ) : (
-                  <ArrowUpDown className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
-                )}
+            <div className="flex flex-col w-full h-full relative">
+              {/* Parent Tab Row - only show if first in group */}
+              {isFirstInGroup && isLastInGroup && (
+                <div
+                  className="parent-tab-seperator bg-gray-400 border-r border-l border-gray-900 px-2 py-1 text-lg font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 flex items-center"
+                  style={{ height: "40px" }}
+                >
+                  <div className="z-[999999999] flex items-center justify-center w-full">
+                    {parentTab}
+                  </div>
+                </div>
+              )}
+              {isFirstInGroup && !isLastInGroup && (
+                <div
+                  className="parent-tab-seperator bg-gray-400 border-r border-gray-900 px-2 py-1 text-lg font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 flex items-center"
+                  style={{
+                    width: `${parentTabWidth}px`,
+                    height: "40px",
+                  }}
+                >
+                  <div className="z-[999999999] flex items-center justify-center ">
+                    {parentTab}
+                  </div>
+                </div>
+              )}
+              {/* Background for all columns in the group - only show if NOT first in group */}
+              {!isFirstInGroup && (
+                <div
+                  className="bg-gray-400 absolute top-0 left-0 z-5 w-full"
+                  style={{ height: "40px" }}
+                />
+              )}
+              {/* Background for last column in the group */}
+              {isLastInGroup && (
+                <div
+                  className="bg-gray-400 border-r border-gray-900 absolute top-0 left-0 z-5 w-full"
+                  style={{ height: "40px" }}
+                />
+              )}
+
+              {/* Column Name Row */}
+              <div className="flex items-center justify-center flex-1 px-2 mt-10">
+                <span className="font-medium truncate text-foreground">
+                  {column.name}
+                </span>
               </div>
             </div>
           );
@@ -2034,6 +2142,7 @@ export default function BookingsDataGrid({
           <DataGrid
             columns={gridColumns}
             rows={dataWithEmptyRows}
+            headerRowHeight={80}
             onRowsChange={(rows, { indexes, column }) => {
               // Filter out empty rows and only process data rows
               const dataRows = rows.filter(
