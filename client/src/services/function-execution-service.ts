@@ -18,6 +18,8 @@ import {
   orderBy,
   serverTimestamp,
 } from "@/app/functions/firebase-utils";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "@/lib/firebase";
 
 type CompiledFn = (...args: any[]) => any;
 
@@ -78,6 +80,8 @@ class FunctionExecutionService {
       "where",
       "orderBy",
       "serverTimestamp",
+      "httpsCallable",
+      "functions",
       `${transpiled}; return moduleRef.exports?.default ?? exports?.default ?? moduleRef.exports;`
     ) as (exports: any, moduleRef: any, ...firebaseUtils: any[]) => CompiledFn;
 
@@ -99,7 +103,9 @@ class FunctionExecutionService {
       query,
       where,
       orderBy,
-      serverTimestamp
+      serverTimestamp,
+      httpsCallable,
+      functions
     );
 
     if (typeof compiled !== "function") {

@@ -267,34 +267,13 @@ export const functionsUtils = {
   listFunctions: async () => {
     return [
       "generateReservationEmail",
-      "sendEmail",
+      "sendReservationEmail",
       "recompute-on-function-update",
     ];
   },
 
   // Email-specific utilities
   emailUtils: {
-    sendEmail: async (
-      to: string,
-      subject: string,
-      html: string,
-      bcc?: string[]
-    ) => {
-      try {
-        // This would call the sendEmail cloud function
-        console.log(`Sending email to: ${to}, subject: ${subject}`);
-        return {
-          success: true,
-          messageId: `msg_${Date.now()}`,
-          to,
-          subject,
-        };
-      } catch (error) {
-        console.error("Error sending email:", error);
-        throw error;
-      }
-    },
-
     generateReservationEmail: async (
       bookingId: string,
       generateDraftCell: boolean = true
@@ -310,6 +289,22 @@ export const functionsUtils = {
         };
       } catch (error) {
         console.error("Error generating reservation email:", error);
+        throw error;
+      }
+    },
+
+    sendReservationEmail: async (draftId: string) => {
+      try {
+        // This would call the sendReservationEmail cloud function
+        console.log(`Sending reservation email draft: ${draftId}`);
+        return {
+          success: true,
+          messageId: `msg_${Date.now()}`,
+          draftId,
+          message: "Reservation email sent successfully",
+        };
+      } catch (error) {
+        console.error("Error sending reservation email:", error);
         throw error;
       }
     },

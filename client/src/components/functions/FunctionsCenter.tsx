@@ -612,6 +612,7 @@ export default async function ${
     try {
       const ambientGlobalsDts = [
         "declare const firebaseUtils: any;",
+        "declare const functionsUtils: any;",
         "declare const db: any;",
         "declare const auth: any;",
         "declare const storage: any;",
@@ -625,6 +626,8 @@ export default async function ${
         "declare function where(...args: any[]): any;",
         "declare function orderBy(...args: any[]): any;",
         "declare function serverTimestamp(...args: any[]): any;",
+        "declare const httpsCallable: any;",
+        "declare const functions: any;",
       ].join("\n");
 
       // Dispose previous extra libs

@@ -16,7 +16,7 @@ export { verifyEmail } from "./verify-email";
 export { onTypeScriptFunctionUpdated } from "./recompute-on-function-update";
 export { testRecompute } from "./test-recompute";
 export { generateReservationEmail } from "./generate-reservation-email";
-export { sendEmail } from "./send-email";
+export { sendReservationEmail } from "./send-reservation-email";
 
 // Export email utilities
 export { EmailTemplateLoader } from "./email-template-loader";

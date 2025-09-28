@@ -34,6 +34,7 @@ interface TestResult {
   error?: string;
   executionTime: number;
   timestamp: Date;
+  consoleLogs?: string[];
 }
 
 interface TestConsoleProps {
@@ -52,19 +53,22 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
   const [showCustomCode, setShowCustomCode] = useState(false);
   const [showResults, setShowResults] = useState(true);
 
-  // Reset parameter values when active file changes
+  // Initialize parameter values only once when active file changes (don't reset on save)
   useEffect(() => {
     if (activeFile) {
-      const initialValues: Record<string, string> = {};
-      if (activeFile.arguments.length > 0) {
-        activeFile.arguments.forEach((arg) => {
-          initialValues[arg.name] = getDefaultValue(arg);
-        });
+      // Only set initial values if parameterValues is empty (first time)
+      if (Object.keys(parameterValues).length === 0) {
+        const initialValues: Record<string, string> = {};
+        if (activeFile.arguments.length > 0) {
+          activeFile.arguments.forEach((arg) => {
+            initialValues[arg.name] = getDefaultValue(arg);
+          });
+        }
+        setParameterValues(initialValues);
       }
-      setParameterValues(initialValues);
-      setTestResults([]);
+      // Don't clear test results on file change
     }
-  }, [activeFile]);
+  }, [activeFile?.id]); // Only trigger on file ID change, not on file content change
 
   const getDefaultValue = (arg: TSArgument): string => {
     if (arg.hasDefault) return "";
@@ -132,11 +136,46 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
   const executeFunction = async () => {
     if (!activeFile) return;
 
-    // Clear previous results before executing new function
-    setTestResults([]);
-
     setIsExecuting(true);
     const startTime = performance.now();
+
+    // Capture console.logs
+    const consoleLogs: string[] = [];
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+
+    // Override console methods to capture logs
+    console.log = (...args) => {
+      consoleLogs.push(
+        `[LOG] ${args
+          .map((arg) =>
+            typeof arg === "object" ? JSON.stringify(arg) : String(arg)
+          )
+          .join(" ")}`
+      );
+      originalConsoleLog(...args);
+    };
+    console.error = (...args) => {
+      consoleLogs.push(
+        `[ERROR] ${args
+          .map((arg) =>
+            typeof arg === "object" ? JSON.stringify(arg) : String(arg)
+          )
+          .join(" ")}`
+      );
+      originalConsoleError(...args);
+    };
+    console.warn = (...args) => {
+      consoleLogs.push(
+        `[WARN] ${args
+          .map((arg) =>
+            typeof arg === "object" ? JSON.stringify(arg) : String(arg)
+          )
+          .join(" ")}`
+      );
+      originalConsoleWarn(...args);
+    };
 
     try {
       // Parse parameters (only if there are arguments)
@@ -168,6 +207,7 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
         result: finalResult,
         executionTime,
         timestamp: new Date(),
+        consoleLogs: [...consoleLogs],
       };
 
       setTestResults((prev) => [testResult, ...prev]);
@@ -185,6 +225,7 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
         error: error instanceof Error ? error.message : String(error),
         executionTime,
         timestamp: new Date(),
+        consoleLogs: [...consoleLogs],
       };
 
       setTestResults((prev) => [testResult, ...prev]);
@@ -195,6 +236,10 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
         variant: "destructive",
       });
     } finally {
+      // Restore original console methods
+      console.log = originalConsoleLog;
+      console.error = originalConsoleError;
+      console.warn = originalConsoleWarn;
       setIsExecuting(false);
     }
   };
@@ -204,6 +249,44 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
 
     setIsExecuting(true);
     const startTime = performance.now();
+
+    // Capture console.logs
+    const consoleLogs: string[] = [];
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+
+    // Override console methods to capture logs
+    console.log = (...args) => {
+      consoleLogs.push(
+        `[LOG] ${args
+          .map((arg) =>
+            typeof arg === "object" ? JSON.stringify(arg) : String(arg)
+          )
+          .join(" ")}`
+      );
+      originalConsoleLog(...args);
+    };
+    console.error = (...args) => {
+      consoleLogs.push(
+        `[ERROR] ${args
+          .map((arg) =>
+            typeof arg === "object" ? JSON.stringify(arg) : String(arg)
+          )
+          .join(" ")}`
+      );
+      originalConsoleError(...args);
+    };
+    console.warn = (...args) => {
+      consoleLogs.push(
+        `[WARN] ${args
+          .map((arg) =>
+            typeof arg === "object" ? JSON.stringify(arg) : String(arg)
+          )
+          .join(" ")}`
+      );
+      originalConsoleWarn(...args);
+    };
 
     try {
       // Import Firebase utilities for custom code execution
@@ -225,6 +308,10 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
         serverTimestamp,
       } = await import("@/app/functions/firebase-utils");
 
+      // Import Firebase Functions for real function calls
+      const { httpsCallable } = await import("firebase/functions");
+      const { functions } = await import("@/lib/firebase");
+
       // Create a sandbox to execute custom code with Firebase utilities
       const sandbox = new Function(
         "exports",
@@ -245,6 +332,8 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
         "where",
         "orderBy",
         "serverTimestamp",
+        "httpsCallable",
+        "functions",
         customCode
       );
 
@@ -267,7 +356,9 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
         query,
         where,
         orderBy,
-        serverTimestamp
+        serverTimestamp,
+        httpsCallable,
+        functions
       );
 
       const endTime = performance.now();
@@ -278,6 +369,7 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
         result: result || moduleObj.exports,
         executionTime,
         timestamp: new Date(),
+        consoleLogs: [...consoleLogs],
       };
 
       setTestResults((prev) => [testResult, ...prev]);
@@ -295,6 +387,7 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
         error: error instanceof Error ? error.message : String(error),
         executionTime,
         timestamp: new Date(),
+        consoleLogs: [...consoleLogs],
       };
 
       setTestResults((prev) => [testResult, ...prev]);
@@ -305,6 +398,10 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
         variant: "destructive",
       });
     } finally {
+      // Restore original console methods
+      console.log = originalConsoleLog;
+      console.error = originalConsoleError;
+      console.warn = originalConsoleWarn;
       setIsExecuting(false);
     }
   };
@@ -658,6 +755,33 @@ export default function TestConsole({ activeFile }: TestConsoleProps) {
                               ? formatResult(result.result)
                               : result.error || ""}
                           </pre>
+
+                          {/* Console Logs */}
+                          {result.consoleLogs &&
+                            result.consoleLogs.length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-gray-200">
+                                <div className="text-xs font-medium text-muted-foreground mb-1">
+                                  Console Output:
+                                </div>
+                                <div className="space-y-1">
+                                  {result.consoleLogs.map((log, logIndex) => (
+                                    <div
+                                      key={logIndex}
+                                      className={`text-xs font-mono p-1 rounded ${
+                                        log.startsWith("[ERROR]")
+                                          ? "bg-red-50 text-red-700"
+                                          : log.startsWith("[WARN]")
+                                          ? "bg-yellow-50 text-yellow-700"
+                                          : "bg-blue-50 text-blue-700"
+                                      }`}
+                                    >
+                                      {log}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
                           <div className="flex justify-end mt-2">
                             <Button
                               size="sm"

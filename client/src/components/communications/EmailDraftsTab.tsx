@@ -48,7 +48,7 @@ import {
 import { db } from "@/lib/firebase";
 import { toast } from "@/hooks/use-toast";
 import { httpsCallable } from "firebase/functions";
-import { functions } from "@/lib/firebase";
+import { functions, functionsUsCentral } from "@/lib/firebase";
 
 // Email Draft type
 interface EmailDraft {
@@ -102,33 +102,62 @@ export default function EmailDraftsTab() {
 
   // Load drafts on component mount
   useEffect(() => {
-    const q = query(
-      collection(db, "emailDrafts"),
-      where("deletedAt", "==", null),
-      orderBy("createdAt", "desc")
-    );
+    console.log("🔍 Starting to fetch email drafts...");
+
+    // Simple query without where clause to avoid index issues
+    const q = query(collection(db, "emailDrafts"));
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const draftsData: EmailDraft[] = snapshot.docs.map((doc) => ({
+        console.log(
+          `📄 Fetched ${snapshot.docs.length} documents from emailDrafts collection`
+        );
+
+        const allDrafts: EmailDraft[] = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as EmailDraft[];
-        setDrafts(draftsData);
+
+        console.log(
+          "📋 All drafts:",
+          allDrafts.map((d) => ({ id: d.id, to: d.to, deletedAt: d.deletedAt }))
+        );
+
+        // Filter out deleted drafts on client side
+        const activeDrafts = allDrafts.filter((draft) => !draft.deletedAt);
+        console.log(`✅ Active drafts (not deleted): ${activeDrafts.length}`);
+
+        // Sort by createdAt in descending order on client side
+        const sortedDrafts = activeDrafts.sort((a, b) => {
+          const aTime = a.createdAt?.toDate
+            ? a.createdAt.toDate()
+            : new Date(a.createdAt);
+          const bTime = b.createdAt?.toDate
+            ? b.createdAt.toDate()
+            : new Date(b.createdAt);
+          return bTime.getTime() - aTime.getTime();
+        });
+
+        console.log(`🎯 Setting ${sortedDrafts.length} drafts to state`);
+        setDrafts(sortedDrafts);
+        setError(null); // Clear any previous errors
       },
       (error) => {
-        console.error("Error loading drafts:", error);
+        console.error("❌ Error loading drafts:", error);
         setError("Failed to load email drafts");
         toast({
           title: "Error",
-          description: "Failed to load email drafts",
+          description: `Failed to load email drafts: ${error.message}`,
           variant: "destructive",
         });
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      console.log("🔄 Unsubscribing from emailDrafts listener");
+      unsubscribe();
+    };
   }, []);
 
   const handleDeleteDraft = (draft: EmailDraft) => {
@@ -181,8 +210,11 @@ export default function EmailDraftsTab() {
         });
       }
 
-      // Call the sendEmail cloud function
-      const sendEmailFunction = httpsCallable(functions, "sendEmail");
+      // Call the sendReservationEmail cloud function (deployed in asia-southeast1)
+      const sendEmailFunction = httpsCallable(
+        functions,
+        "sendReservationEmail"
+      );
       const result = await sendEmailFunction({ draftId: draft.id });
 
       console.log("Email sent successfully:", result.data);

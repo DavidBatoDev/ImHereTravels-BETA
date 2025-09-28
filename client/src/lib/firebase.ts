@@ -24,7 +24,10 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const functions = getFunctions(app);
+
+// Initialize Functions with correct regions
+export const functions = getFunctions(app, "asia-southeast1");
+export const functionsUsCentral = getFunctions(app, "us-central1");
 
 // Helper functions for migration scripts (with different names to avoid conflicts)
 export const getDbInstance = () => db;

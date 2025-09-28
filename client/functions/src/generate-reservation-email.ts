@@ -104,8 +104,8 @@ async function getMainBookerByGroupId(groupId: string): Promise<string | null> {
 
 // Helper function to get BCC list (you can customize this)
 function getBCCList(): string[] {
-  // Return your BCC email addresses
-  return ["bella@imheretravels.com"];
+  // Return your BCC email addresses - removed Bella from BCC
+  return [];
 }
 
 // Main function to generate email draft
@@ -265,33 +265,40 @@ export const generateReservationEmail = onCall(
         );
       }
 
-      // Check for existing drafts with same recipient and subject
+      // Check for existing drafts for this booking and delete them to ensure only one draft per booking
       try {
         const existingDrafts = await db
           .collection("emailDrafts")
-          .where("to", "==", email)
-          .where("subject", "==", subject)
-          .where("status", "==", "draft")
-          .limit(1)
+          .where("bookingId", "==", bookingId)
           .get();
 
         if (!existingDrafts.empty) {
           logger.warn(
-            `Found existing draft for ${email} with subject "${subject}"`
+            `Found ${existingDrafts.docs.length} existing draft(s) for booking ${bookingId}, deleting them to ensure only one draft per booking...`
           );
-          throw new HttpsError(
-            "already-exists",
-            `A draft with the same recipient (${email}) and subject ("${subject}") already exists. Please delete it before generating a new one.`
+
+          // Delete all existing drafts for this booking
+          const deletePromises = existingDrafts.docs.map((doc) =>
+            doc.ref.delete()
+          );
+          await Promise.all(deletePromises);
+
+          logger.info(
+            `Successfully deleted ${existingDrafts.docs.length} existing draft(s) for booking ${bookingId}`
           );
         }
       } catch (error) {
-        if (error instanceof HttpsError) throw error;
-        logger.warn("Error checking existing drafts:", error);
+        logger.warn("Error checking/deleting existing drafts:", error);
         // Continue with draft creation even if check fails
       }
 
-      // Prepare email draft data
+      // Create draft document in emailDrafts collection first to get the ID
+      const draftRef = db.collection("emailDrafts").doc();
+      const draftId = draftRef.id;
+
+      // Prepare email draft data with the document UID
       const emailDraftData = {
+        id: draftId, // Add the document UID
         to: email,
         subject: subject,
         htmlContent: processedHtml,
@@ -310,31 +317,17 @@ export const generateReservationEmail = onCall(
         tourPackage: tourPackage,
       };
 
-      // Create draft document in emailDrafts collection
-      const draftRef = await db.collection("emailDrafts").add(emailDraftData);
+      // Set the draft document with the prepared data
+      await draftRef.set(emailDraftData);
 
       logger.info(
-        `Email draft created successfully for ${email} with ID: ${draftRef.id}`
+        `Email draft created successfully for ${email} with ID: ${draftId}`
       );
 
-      // Update booking document with draft reference and subject
-      const updateData: any = {
-        emailDraftId: draftRef.id,
-        generateEmailDraft: false, // Reset the trigger
-      };
-
-      if (!isCancelled) {
-        updateData.subjectLineReservation = subject;
-      } else {
-        updateData.subjectLineCancellation = subject;
-        updateData.cancellationEmailDraftId = draftRef.id;
-      }
-
-      await db.collection("bookings").doc(bookingId).update(updateData);
-
+      // Just return the draft ID without updating the booking document
       return {
         success: true,
-        draftId: draftRef.id,
+        draftId: draftId,
         subject: subject,
         email: email,
         isCancellation: isCancelled,
@@ -348,25 +341,7 @@ export const generateReservationEmail = onCall(
         throw error;
       }
 
-      // Update booking document with error
-      if (request.data.bookingId) {
-        try {
-          await db
-            .collection("bookings")
-            .doc(request.data.bookingId)
-            .update({
-              emailDraftError: `ERROR: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-              generateEmailDraft: false,
-            });
-        } catch (updateError) {
-          logger.error(
-            "Error updating booking with error message:",
-            updateError
-          );
-        }
-      }
+      // Don't update booking document with error - just log it
 
       throw new HttpsError(
         "internal",
