@@ -50,7 +50,8 @@
     "migrate:rollback015": "tsx migrations/migrate.ts rollback015",
     "migrate:rollback016": "tsx migrations/migrate.ts rollback016",
     "migrate:help": "tsx migrations/migrate.ts help",
-    "log-columns": "tsx src/scripts/log-columns.ts"
+    "log-columns": "tsx src/scripts/log-columns.ts",
+    "log-email-templates": "tsx src/scripts/log-email-templates.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
