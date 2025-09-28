@@ -1025,6 +1025,16 @@ export default function BookingsSheet() {
           funcCol.function
         );
         const args = functionExecutionService.buildArgs(funcCol, row, columns);
+
+        // Log function arguments for debugging
+        console.log("🔧 [FUNCTION] Calling function with args:", {
+          functionId: funcCol.function,
+          columnName: funcCol.columnName,
+          rowId: row.id,
+          args: args,
+          argsCount: args.length,
+        });
+
         const result = await Promise.resolve(fn(...args));
 
         if (!isEqual(row[funcCol.id], result)) {
@@ -1044,29 +1054,56 @@ export default function BookingsSheet() {
           `❌ Failed computing function column ${funcCol.columnName} for row ${row.id}:`,
           err
         );
+
+        // If the error is about a booking not being found, log additional context
+        if (err instanceof Error && err.message.includes("not found")) {
+          console.error("🔍 [DEBUG] Function execution context:", {
+            rowId: row.id,
+            functionId: funcCol.function,
+            columnId: funcCol.id,
+            columnName: funcCol.columnName,
+            rowData: row,
+            functionArguments: functionExecutionService.buildArgs(
+              funcCol,
+              row,
+              columns
+            ),
+          });
+        }
+
         return undefined;
       }
     },
     [columns, isEqual]
   );
 
-  // Build dependency graph: source columnName -> list of function columns depending on it
+  // Build dependency graph: source columnId -> list of function columns depending on it
   const dependencyGraph = useMemo(() => {
     const map = new Map<string, SheetColumn[]>();
     columns.forEach((col) => {
       if (col.dataType === "function" && Array.isArray(col.arguments)) {
         col.arguments.forEach((arg) => {
           if (arg.columnReference) {
-            const list = map.get(arg.columnReference) || [];
-            list.push(col);
-            map.set(arg.columnReference, list);
+            // Find the column ID for the referenced column name
+            const refCol = columns.find(
+              (c) => c.columnName === arg.columnReference
+            );
+            if (refCol) {
+              const list = map.get(refCol.id) || [];
+              list.push(col);
+              map.set(refCol.id, list);
+            }
           }
           if (Array.isArray(arg.columnReferences)) {
             arg.columnReferences.forEach((ref) => {
               if (!ref) return;
-              const list = map.get(ref) || [];
-              list.push(col);
-              map.set(ref, list);
+              // Find the column ID for the referenced column name
+              const refCol = columns.find((c) => c.columnName === ref);
+              if (refCol) {
+                const list = map.get(refCol.id) || [];
+                list.push(col);
+                map.set(refCol.id, list);
+              }
             });
           }
         });
@@ -1079,7 +1116,7 @@ export default function BookingsSheet() {
   const recomputeDirectDependentsForRow = useCallback(
     async (rowId: string, changedColumnId: string, updatedValue: any) => {
       const changedCol = columns.find((c) => c.id === changedColumnId);
-      if (!changedCol || !changedCol.columnName) return;
+      if (!changedCol) return;
 
       // Build a working snapshot of the row values
       const baseRow =
@@ -1091,7 +1128,17 @@ export default function BookingsSheet() {
         [changedColumnId]: updatedValue,
       };
 
-      const directDependents = dependencyGraph.get(changedCol.columnName) || [];
+      // Use column ID instead of column name for precise tracking
+      const directDependents = dependencyGraph.get(changedColumnId) || [];
+      console.log("🎯 [RECOMPUTE] Found direct dependents:", {
+        changedColumnId,
+        changedColumnName: changedCol.columnName,
+        dependentColumns: directDependents.map((col) => ({
+          id: col.id,
+          name: col.columnName,
+        })),
+      });
+
       // Compute all direct dependents in parallel for speed
       await Promise.all(
         directDependents.map((funcCol) =>

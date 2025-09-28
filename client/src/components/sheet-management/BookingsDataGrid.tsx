@@ -13,7 +13,6 @@ import React, {
 import { DataGrid, textEditor } from "react-data-grid";
 
 // Debug the textEditor
-console.log("textEditor from react-data-grid:", typeof textEditor, textEditor);
 
 // Define types manually since the package types are not matching
 type Column<TRow> = {
@@ -138,24 +137,8 @@ const DateEditor = memo(function DateEditor({
   onRowChange,
   onClose,
 }: RenderEditCellProps<SheetData>) {
-  console.log(
-    "📅 DateEditor component rendered for column:",
-    column.key,
-    "row:",
-    row.id
-  );
-
   const [value, setValue] = useState(() => {
     const cellValue = row[column.key as keyof SheetData];
-    console.log("📅 DateEditor - Processing cell value:", {
-      cellValue,
-      type: typeof cellValue,
-      isObject: typeof cellValue === "object",
-      hasToDate:
-        cellValue && typeof cellValue === "object" && "toDate" in cellValue,
-      hasSeconds:
-        cellValue && typeof cellValue === "object" && "seconds" in cellValue,
-    });
 
     if (cellValue) {
       try {
@@ -169,7 +152,6 @@ const DateEditor = memo(function DateEditor({
           typeof (cellValue as any).toDate === "function"
         ) {
           date = (cellValue as any).toDate();
-          console.log("📅 Converted from Firestore Timestamp:", date);
         }
         // Handle Firestore timestamp objects with seconds property
         else if (
@@ -179,7 +161,6 @@ const DateEditor = memo(function DateEditor({
           typeof (cellValue as any).seconds === "number"
         ) {
           date = new Date((cellValue as any).seconds * 1000);
-          console.log("📅 Converted from seconds timestamp:", date);
         }
         // Handle numeric timestamps (milliseconds)
         else if (typeof cellValue === "number") {
@@ -191,7 +172,6 @@ const DateEditor = memo(function DateEditor({
             // Seconds timestamp
             date = new Date(cellValue * 1000);
           }
-          console.log("📅 Converted from numeric timestamp:", date);
         }
         // Handle string timestamps or date strings
         else if (typeof cellValue === "string") {
@@ -205,28 +185,22 @@ const DateEditor = memo(function DateEditor({
               // Seconds timestamp
               date = new Date(numericValue * 1000);
             }
-            console.log("📅 Converted from string timestamp:", date);
           } else {
             // Regular date string
             date = new Date(cellValue);
-            console.log("📅 Converted from date string:", date);
           }
         }
         // Handle Date objects
         else if (cellValue instanceof Date) {
           date = cellValue;
-          console.log("📅 Using existing Date object:", date);
         }
 
         if (date && !isNaN(date.getTime())) {
           const isoString = date.toISOString().split("T")[0];
-          console.log("📅 Final date value for input:", isoString);
           return isoString;
-        } else {
-          console.log("📅 Invalid date, returning empty string");
         }
       } catch (error) {
-        console.error("📅 Error parsing date:", error, "Value:", cellValue);
+        // Handle date parsing errors silently
       }
     }
     return "";
@@ -486,7 +460,7 @@ const DateFormatter = memo(function DateFormatter({
       );
     }
   } catch (error) {
-    console.error("Error parsing date:", value, error);
+    // Handle date parsing errors silently
   }
 
   return (
@@ -727,25 +701,6 @@ export default function BookingsDataGrid({
   availableFunctions,
 }: BookingsDataGridProps) {
   // Debug logging
-  console.log(
-    "🔍 [SHEET MANAGEMENT] BookingsDataGrid component mounted/updated:",
-    {
-      columnsCount: columns?.length || 0,
-      dataCount: data?.length || 0,
-      hasFunctionColumns:
-        columns?.filter((c) => c.dataType === "function").length || 0,
-      functionColumns:
-        columns
-          ?.filter((c) => c.dataType === "function")
-          .map((c) => ({
-            id: c.id,
-            columnName: c.columnName,
-            function: c.function,
-          })) || [],
-      columns: columns,
-      data: data,
-    }
-  );
   const { toast } = useToast();
   const [selectedCell, setSelectedCell] = useState<{
     rowId: string;
@@ -761,6 +716,14 @@ export default function BookingsDataGrid({
   const [localData, setLocalData] = useState<SheetData[]>([]);
   const functionSubscriptionsRef = useRef<Map<string, () => void>>(new Map());
   const isInitialLoadRef = useRef<boolean>(true);
+
+  // Cache for function arguments to detect actual changes
+  const functionArgsCacheRef = useRef<Map<string, any[]>>(new Map());
+
+  // Clear function cache when data changes
+  const clearFunctionCache = useCallback(() => {
+    functionArgsCacheRef.current.clear();
+  }, []);
 
   // Enhanced filtering state
   const [columnFilters, setColumnFilters] = useState<Record<string, any>>({});
@@ -797,19 +760,10 @@ export default function BookingsDataGrid({
               width: newWidth,
             };
 
-            console.log("📏 Debounced update - updating column width:", {
-              columnId,
-              newWidth,
-              columnName: columnToUpdate.columnName,
-            });
-
             await updateColumn(updatedColumn);
-            console.log(
-              "✅ Debounced column width updated in Firebase successfully"
-            );
           }
         } catch (error) {
-          console.error("❌ Failed to update column width in Firebase:", error);
+          // Handle column update errors silently
         }
       }, 300); // 300ms delay
     },
@@ -827,29 +781,10 @@ export default function BookingsDataGrid({
 
   // Sync local data with props data
   useEffect(() => {
-    console.log("📊 [SHEET MANAGEMENT] Data sync effect triggered:", {
-      dataLength: data?.length || 0,
-      hasData: data && data.length > 0,
-      firstRowKeys: data && data.length > 0 ? Object.keys(data[0]) : [],
-      functionColumnsInData:
-        data && data.length > 0
-          ? columns
-              .filter((c) => c.dataType === "function")
-              .map((c) => ({
-                columnId: c.id,
-                columnName: c.columnName,
-                hasValueInFirstRow:
-                  data[0][c.id] !== undefined && data[0][c.id] !== null,
-              }))
-          : [],
-    });
     setLocalData(data);
 
     // After initial data load, allow recomputation for real changes
     if (isInitialLoadRef.current && data && data.length > 0) {
-      console.log(
-        "🔄 [SHEET MANAGEMENT] Initial data load complete, enabling recomputation for real changes"
-      );
       // Use a small delay to ensure all subscriptions are set up
       setTimeout(() => {
         isInitialLoadRef.current = false;
@@ -858,9 +793,6 @@ export default function BookingsDataGrid({
   }, [data, columns]);
 
   // Debug selectedCell changes
-  useEffect(() => {
-    console.log("🔄 selectedCell changed:", selectedCell);
-  }, [selectedCell]);
 
   // Compute one function column for a single row
   const computeFunctionForRow = useCallback(
@@ -873,31 +805,38 @@ export default function BookingsDataGrid({
 
       // Skip computation during initial load unless explicitly requested
       if (isInitialLoadRef.current && !skipInitialCheck) {
-        console.log(
-          "⏭️ [SHEET MANAGEMENT] Skipping initial computeFunctionForRow:",
-          {
-            rowId: row.id,
-            columnId: funcCol.id,
-            columnName: funcCol.columnName,
-          }
-        );
         return row[funcCol.id]; // Return existing value
       }
 
-      console.log("⚡ [RECOMPUTE] computeFunctionForRow called:", {
-        rowId: row.id,
-        columnId: funcCol.id,
-        columnName: funcCol.columnName,
-        functionId: funcCol.function,
-        currentValue: row[funcCol.id],
-        timestamp: new Date().toISOString(),
-        isInitialLoad: isInitialLoadRef.current,
-      });
       try {
         const fn = await functionExecutionService.getCompiledFunction(
           funcCol.function
         );
         const args = functionExecutionService.buildArgs(funcCol, row, columns);
+
+        // Create a cache key for this specific function call
+        const cacheKey = `${row.id}:${funcCol.id}:${funcCol.function}`;
+        const cachedArgs = functionArgsCacheRef.current.get(cacheKey);
+
+        // Check if arguments have actually changed
+        const argsChanged = !cachedArgs || !isEqual(cachedArgs, args);
+
+        // Check if any function arguments are undefined or null (indicating missing data)
+        const hasUndefinedArgs = args.some(
+          (arg) => arg === undefined || arg === null
+        );
+        if (hasUndefinedArgs) {
+          return row[funcCol.id]; // Return existing value without recomputing
+        }
+
+        // Skip recomputation if arguments haven't changed
+        if (!argsChanged) {
+          return row[funcCol.id]; // Return existing value without recomputing
+        }
+
+        // Update cache with new arguments
+        functionArgsCacheRef.current.set(cacheKey, [...args]);
+
         const result = await Promise.resolve(fn(...args));
 
         if (!isEqual(row[funcCol.id], result)) {
@@ -913,33 +852,39 @@ export default function BookingsDataGrid({
         }
         return result;
       } catch (err) {
-        console.error(
-          `❌ Failed computing function column ${funcCol.columnName} for row ${row.id}:`,
-          err
-        );
         return undefined;
       }
     },
     [columns]
   );
 
-  // Build dependency graph: source columnName -> list of function columns depending on it
+  // Build dependency graph: source columnId -> list of function columns depending on it
   const dependencyGraph = useMemo(() => {
     const map = new Map<string, SheetColumn[]>();
     columns.forEach((col) => {
       if (col.dataType === "function" && Array.isArray(col.arguments)) {
         col.arguments.forEach((arg) => {
           if (arg.columnReference) {
-            const list = map.get(arg.columnReference) || [];
-            list.push(col);
-            map.set(arg.columnReference, list);
+            // Find the column ID for the referenced column name
+            const refCol = columns.find(
+              (c) => c.columnName === arg.columnReference
+            );
+            if (refCol) {
+              const list = map.get(refCol.id) || [];
+              list.push(col);
+              map.set(refCol.id, list);
+            }
           }
           if (Array.isArray(arg.columnReferences)) {
             arg.columnReferences.forEach((ref) => {
               if (!ref) return;
-              const list = map.get(ref) || [];
-              list.push(col);
-              map.set(ref, list);
+              // Find the column ID for the referenced column name
+              const refCol = columns.find((c) => c.columnName === ref);
+              if (refCol) {
+                const list = map.get(refCol.id) || [];
+                list.push(col);
+                map.set(refCol.id, list);
+              }
             });
           }
         });
@@ -951,14 +896,8 @@ export default function BookingsDataGrid({
   // Recompute only direct dependent function columns for a single row
   const recomputeDirectDependentsForRow = useCallback(
     async (rowId: string, changedColumnId: string, updatedValue: any) => {
-      console.log("🔄 [RECOMPUTE] recomputeDirectDependentsForRow called:", {
-        rowId,
-        changedColumnId,
-        updatedValue,
-        timestamp: new Date().toISOString(),
-      });
       const changedCol = columns.find((c) => c.id === changedColumnId);
-      if (!changedCol || !changedCol.columnName) return;
+      if (!changedCol) return;
 
       // Build a working snapshot of the row values
       const baseRow =
@@ -970,7 +909,15 @@ export default function BookingsDataGrid({
         [changedColumnId]: updatedValue,
       };
 
-      const directDependents = dependencyGraph.get(changedCol.columnName) || [];
+      // Use column ID instead of column name for precise tracking
+      const directDependents = dependencyGraph.get(changedColumnId) || [];
+
+      // Clear cache for affected functions since data has changed
+      directDependents.forEach((funcCol) => {
+        const cacheKey = `${rowId}:${funcCol.id}:${funcCol.function}`;
+        functionArgsCacheRef.current.delete(cacheKey);
+      });
+
       // Compute all direct dependents in parallel for speed
       await Promise.all(
         directDependents.map(
@@ -985,16 +932,21 @@ export default function BookingsDataGrid({
   // Recompute for columns bound to a specific function id (and their dependents)
   const recomputeForFunction = useCallback(
     async (funcId: string) => {
-      console.log("🔄 [RECOMPUTE] recomputeForFunction called:", {
-        funcId,
-        timestamp: new Date().toISOString(),
-      });
       const impactedColumns = columns.filter(
         (c) => c.dataType === "function" && c.function === funcId
       );
       if (impactedColumns.length === 0) return;
 
       const rows = localData.length > 0 ? localData : data;
+
+      // Clear cache for all affected functions since function definition changed
+      rows.forEach((row) => {
+        impactedColumns.forEach((funcCol) => {
+          const cacheKey = `${row.id}:${funcCol.id}:${funcCol.function}`;
+          functionArgsCacheRef.current.delete(cacheKey);
+        });
+      });
+
       for (const row of rows) {
         for (const funcCol of impactedColumns) {
           await computeFunctionForRow(row, funcCol, true); // Skip initial check for function changes
@@ -1008,16 +960,6 @@ export default function BookingsDataGrid({
 
   // Subscribe to changes for only the functions referenced by current columns
   useEffect(() => {
-    console.log("🔗 [SHEET MANAGEMENT] Setting up function subscriptions:", {
-      functionColumns: columns
-        .filter((c) => c.dataType === "function" && !!c.function)
-        .map((c) => ({
-          id: c.id,
-          columnName: c.columnName,
-          function: c.function,
-        })),
-      timestamp: new Date().toISOString(),
-    });
     const inUseFunctionIds = new Set(
       columns
         .filter((c) => c.dataType === "function" && !!c.function)
@@ -1035,17 +977,9 @@ export default function BookingsDataGrid({
 
               // Skip recomputation during initial load
               if (isInitialLoadRef.current) {
-                console.log(
-                  "⏭️ [SHEET MANAGEMENT] Skipping initial recomputation for function:",
-                  funcId
-                );
                 return;
               }
 
-              console.log(
-                "🔄 [SHEET MANAGEMENT] Function changed, triggering recomputation:",
-                funcId
-              );
               // Invalidate compiled function cache so next compute uses fresh code
               functionExecutionService.invalidate(funcId);
               // Recompute only affected columns and their dependents
@@ -1311,7 +1245,6 @@ export default function BookingsDataGrid({
   const gridColumns = useMemo<Column<SheetData>[]>(() => {
     // Safety check for columns
     if (!columns || !Array.isArray(columns)) {
-      console.warn("Invalid columns array:", columns);
       return [];
     }
 
@@ -1540,13 +1473,6 @@ export default function BookingsDataGrid({
           baseColumn.renderCell = ({ row, column }) => {
             const cellValue = !!row[column.key as keyof SheetData];
 
-            console.log("🔧 Boolean cell rendered (always input):", {
-              columnName: col.columnName,
-              rowId: row.id,
-              columnKey: column.key,
-              cellValue,
-            });
-
             const hasColor = col.color && col.color !== "none";
 
             return (
@@ -1556,12 +1482,6 @@ export default function BookingsDataGrid({
                   checked={cellValue}
                   onChange={async (e) => {
                     const newValue = e.target.checked;
-                    console.log("🔧 Boolean input changed:", {
-                      rowId: row.id,
-                      columnKey: column.key,
-                      newValue,
-                      originalValue: cellValue,
-                    });
 
                     // Update local data immediately
                     setLocalData((prev) =>
@@ -1577,12 +1497,7 @@ export default function BookingsDataGrid({
                         column.key,
                         newValue
                       );
-                      console.log("🔧 Boolean saved to Firestore successfully");
                     } catch (error) {
-                      console.error(
-                        "❌ Failed to save boolean to Firestore:",
-                        error
-                      );
                       // Revert local change on error
                       setLocalData((prev) =>
                         prev.map((r) =>
@@ -1599,11 +1514,6 @@ export default function BookingsDataGrid({
             );
           };
           baseColumn.editable = false; // We handle editing through the checkbox
-          console.log("🔧 Boolean column configured (always input):", {
-            columnName: col.columnName,
-            hasRenderCell: !!baseColumn.renderCell,
-            editable: baseColumn.editable,
-          });
         } else if (col.dataType === "date") {
           // Always render date input for date columns
           baseColumn.renderCell = ({ row, column }) => {
@@ -1620,13 +1530,6 @@ export default function BookingsDataGrid({
             }
 
             const cellValue = row[column.key as keyof SheetData];
-
-            console.log("📅 Date cell rendered (always input):", {
-              columnName: col.columnName,
-              rowId: row.id,
-              columnKey: column.key,
-              cellValue,
-            });
 
             const hasColor = col.color && col.color !== "none";
 
@@ -1674,9 +1577,7 @@ export default function BookingsDataGrid({
                       if (date && !isNaN(date.getTime())) {
                         return date.toISOString().split("T")[0];
                       }
-                    } catch (error) {
-                      console.error("Error parsing date:", error);
-                    }
+                    } catch (error) {}
                   }
                   return "";
                 })()}
@@ -1684,12 +1585,6 @@ export default function BookingsDataGrid({
                   const newValue = e.target.value
                     ? new Date(e.target.value)
                     : null;
-                  console.log("📅 Date input changed:", {
-                    rowId: row.id,
-                    columnKey: column.key,
-                    newValue,
-                    originalValue: cellValue,
-                  });
 
                   // Update local data immediately
                   setLocalData((prev) =>
@@ -1705,12 +1600,7 @@ export default function BookingsDataGrid({
                       column.key,
                       newValue
                     );
-                    console.log("📅 Date saved to Firestore successfully");
                   } catch (error) {
-                    console.error(
-                      "❌ Failed to save date to Firestore:",
-                      error
-                    );
                     // Revert local change on error
                     setLocalData((prev) =>
                       prev.map((r) =>
@@ -1727,11 +1617,6 @@ export default function BookingsDataGrid({
             );
           };
           baseColumn.editable = false; // We handle editing through the input
-          console.log("📅 Date column configured (always input):", {
-            columnName: col.columnName,
-            hasRenderCell: !!baseColumn.renderCell,
-            editable: baseColumn.editable,
-          });
         } else if (col.dataType === "select") {
           // Always render select input for select columns
           baseColumn.renderCell = ({ row, column }) => {
@@ -1751,25 +1636,11 @@ export default function BookingsDataGrid({
             const options = col.options || [];
             const hasColor = col.color && col.color !== "none";
 
-            console.log("📋 Select cell rendered (always input):", {
-              columnName: col.columnName,
-              rowId: row.id,
-              columnKey: column.key,
-              cellValue,
-              options,
-            });
-
             return (
               <select
                 value={cellValue?.toString() || ""}
                 onChange={async (e) => {
                   const newValue = e.target.value;
-                  console.log("📋 Select input changed:", {
-                    rowId: row.id,
-                    columnKey: column.key,
-                    newValue,
-                    originalValue: cellValue,
-                  });
 
                   // Update local data immediately
                   setLocalData((prev) =>
@@ -1785,12 +1656,7 @@ export default function BookingsDataGrid({
                       column.key,
                       newValue
                     );
-                    console.log("📋 Select saved to Firestore successfully");
                   } catch (error) {
-                    console.error(
-                      "❌ Failed to save select to Firestore:",
-                      error
-                    );
                     // Revert local change on error
                     setLocalData((prev) =>
                       prev.map((r) =>
@@ -1814,12 +1680,6 @@ export default function BookingsDataGrid({
             );
           };
           baseColumn.editable = false; // We handle editing through the select
-          console.log("📋 Select column configured (always input):", {
-            columnName: col.columnName,
-            hasRenderCell: !!baseColumn.renderCell,
-            editable: baseColumn.editable,
-            options: col.options,
-          });
         } else if (col.dataType === "currency") {
           // Always render currency input for currency columns
           baseColumn.renderCell = ({ row, column }) => {
@@ -1830,14 +1690,6 @@ export default function BookingsDataGrid({
                 : parseFloat(cellValue?.toString() || "0") || 0;
             const hasColor = col.color && col.color !== "none";
 
-            console.log("💰 Currency cell rendered (always input):", {
-              columnName: col.columnName,
-              rowId: row.id,
-              columnKey: column.key,
-              cellValue,
-              numericValue,
-            });
-
             return (
               <input
                 type="number"
@@ -1845,12 +1697,6 @@ export default function BookingsDataGrid({
                 value={numericValue || ""}
                 onChange={async (e) => {
                   const newValue = parseFloat(e.target.value) || 0;
-                  console.log("💰 Currency input changed:", {
-                    rowId: row.id,
-                    columnKey: column.key,
-                    newValue,
-                    originalValue: cellValue,
-                  });
 
                   // Update local data immediately
                   setLocalData((prev) =>
@@ -1866,7 +1712,6 @@ export default function BookingsDataGrid({
                       column.key,
                       newValue
                     );
-                    console.log("💰 Currency saved to Firestore successfully");
                   } catch (error) {
                     console.error(
                       "❌ Failed to save currency to Firestore:",
@@ -1889,11 +1734,6 @@ export default function BookingsDataGrid({
             );
           };
           baseColumn.editable = false; // We handle editing through the input
-          console.log("💰 Currency column configured (always input):", {
-            columnName: col.columnName,
-            hasRenderCell: !!baseColumn.renderCell,
-            editable: baseColumn.editable,
-          });
         } else if (col.dataType === "function") {
           baseColumn.renderCell = ({ row, column }) => {
             const isEmptyRow = (row as any)._isEmptyRow;
@@ -1946,10 +1786,6 @@ export default function BookingsDataGrid({
           };
           baseColumn.renderEditCell = NumberEditor; // Use direct reference
           baseColumn.editable = true;
-          console.log("🔢 Number column configured:", {
-            columnName: col.columnName,
-            hasRenderEditCell: !!baseColumn.renderEditCell,
-          });
         } else {
           // Default renderer for string, email, etc.
           baseColumn.renderCell = ({ row, column }) => {
@@ -1978,10 +1814,6 @@ export default function BookingsDataGrid({
           };
           baseColumn.renderEditCell = textEditor; // Use direct reference
           baseColumn.editable = true;
-          console.log("📝 Text column configured:", {
-            columnName: col.columnName,
-            hasRenderEditCell: !!baseColumn.renderEditCell,
-          });
         }
 
         // Ensure every column has a renderCell function
@@ -2007,10 +1839,6 @@ export default function BookingsDataGrid({
           };
           baseColumn.renderEditCell = textEditor; // Use direct reference
           baseColumn.editable = true;
-          console.log(
-            "📝 Fallback text editor configured for column:",
-            col.columnName
-          );
         }
 
         return baseColumn;
@@ -2044,16 +1872,6 @@ export default function BookingsDataGrid({
     });
 
     // Debug logging
-    console.log("All columns:", validatedColumns);
-    console.log(
-      "Grid columns:",
-      validatedColumns.map((col) => ({
-        key: col.key,
-        name: col.name,
-        hasRenderCell: typeof col.renderCell === "function",
-        renderCellType: typeof col.renderCell,
-      }))
-    );
 
     // Validate all columns have renderCell
     const invalidColumns = validatedColumns.filter(
@@ -2424,30 +2242,12 @@ export default function BookingsDataGrid({
                 ? columns.find((col) => col.id === column.key)
                 : null;
 
-              console.log("🔄 Row change detected:", {
-                indexes,
-                column: column?.key,
-                columnName: columnDef?.columnName,
-                dataType: columnDef?.dataType,
-                isEditable: columnDef?.dataType !== "function",
-                rowsCount: rows.length,
-              });
-
               // Update Firestore for each changed row
               indexes.forEach(async (index) => {
                 const changedRow = rows[index] as SheetData;
                 const originalRow = data.find(
                   (row) => row.id === changedRow.id
                 );
-
-                console.log("📝 Processing row change:", {
-                  rowId: changedRow.id,
-                  hasOriginal: !!originalRow,
-                  column: column?.key,
-                  columnName: columnDef?.columnName,
-                  dataType: columnDef?.dataType,
-                  isFunctionColumn: columnDef?.dataType === "function",
-                });
 
                 if (originalRow && column) {
                   // Single field change
@@ -2456,16 +2256,6 @@ export default function BookingsDataGrid({
                   const newValue = changedRow[fieldKey as keyof SheetData];
 
                   if (oldValue !== newValue) {
-                    console.log(
-                      `💾 Updating field ${fieldKey} (${columnDef?.dataType}):`,
-                      {
-                        oldValue,
-                        newValue,
-                        columnName: columnDef?.columnName,
-                        dataType: columnDef?.dataType,
-                        isFunctionColumn: columnDef?.dataType === "function",
-                      }
-                    );
                     batchedWriter.queueFieldUpdate(
                       changedRow.id,
                       fieldKey,
@@ -2486,34 +2276,13 @@ export default function BookingsDataGrid({
                       key !== "id" && originalRow[key] !== changedRow[key]
                   );
 
-                  console.log(
-                    "📝 Multiple field changes:",
-                    changedFields.map((fieldKey) => {
-                      const fieldColumnDef = columns.find(
-                        (col) => col.id === fieldKey
-                      );
-                      return {
-                        fieldKey,
-                        columnName: fieldColumnDef?.columnName,
-                        dataType: fieldColumnDef?.dataType,
-                      };
-                    })
-                  );
-
                   // Process each changed field
                   for (const fieldKey of changedFields) {
                     const newValue = changedRow[fieldKey as keyof SheetData];
                     const fieldColumnDef = columns.find(
                       (col) => col.id === fieldKey
                     );
-                    console.log(
-                      `💾 Updating field ${fieldKey} (${fieldColumnDef?.dataType}):`,
-                      {
-                        newValue,
-                        columnName: fieldColumnDef?.columnName,
-                        dataType: fieldColumnDef?.dataType,
-                      }
-                    );
+
                     batchedWriter.queueFieldUpdate(
                       changedRow.id,
                       fieldKey,
@@ -2534,22 +2303,9 @@ export default function BookingsDataGrid({
               const columnDef = columns.find(
                 (col) => col.id === args.column.key
               );
-              console.log("🖱️ onCellClick handler called:", {
-                rowId: args.row.id,
-                columnId: args.column.key,
-                columnName: columnDef?.columnName,
-                dataType: columnDef?.dataType,
-                isEditable: columnDef?.dataType !== "function",
-                currentValue: args.row[args.column.key as keyof SheetData],
-                allRowKeys: Object.keys(args.row),
-                allColumnIds: columns.map((c) => c.id),
-              });
 
               // Skip date columns - they handle their own clicking
               if (columnDef?.dataType === "date") {
-                console.log(
-                  "📅 Date column clicked - skipping onCellClick handler"
-                );
                 return;
               }
 
@@ -2559,22 +2315,12 @@ export default function BookingsDataGrid({
                   rowId: args.row.id,
                   columnId: args.column.key as string,
                 });
-                console.log("✅ Selected cell set:", {
-                  rowId: args.row.id,
-                  columnId: args.column.key,
-                  dataType: columnDef?.dataType,
-                });
               } else {
-                console.log(
-                  "❌ Function column clicked, not setting selected cell"
-                );
               }
             }}
             sortColumns={sortColumns}
             onSortColumnsChange={setSortColumns}
             onColumnResize={(columnKey, width) => {
-              console.log("📏 Column resized:", { columnKey, width });
-
               // Handle both string key and column object
               let actualColumnKey = columnKey;
               let actualWidth = width;
@@ -2584,12 +2330,6 @@ export default function BookingsDataGrid({
                 actualColumnKey = columnKey.key;
                 // The width parameter should contain the new width, not the column object's width
                 actualWidth = width; // Use the width parameter directly
-                console.log("📏 Extracted from column object:", {
-                  actualColumnKey,
-                  actualWidth,
-                  originalWidth: columnKey.width,
-                  widthParameter: width,
-                });
               }
 
               // Find the column and update its width
@@ -2598,12 +2338,6 @@ export default function BookingsDataGrid({
               );
 
               if (columnToUpdate) {
-                console.log("📏 Column resize - debouncing Firebase update:", {
-                  columnId: actualColumnKey,
-                  newWidth: actualWidth,
-                  columnName: columnToUpdate.columnName,
-                });
-
                 // Only debounce the Firebase update - no immediate updateColumn call
                 // The grid will handle the visual update internally
                 debouncedUpdateColumnWidth(actualColumnKey, actualWidth);
@@ -2615,20 +2349,12 @@ export default function BookingsDataGrid({
               }
             }}
             onColumnsChange={async (newColumns) => {
-              console.log("📏 Columns changed:", newColumns);
-
               // Check if any column width changed
               for (const newCol of newColumns) {
                 const existingCol = columns.find(
                   (col) => col.id === newCol.key
                 );
                 if (existingCol && existingCol.width !== newCol.width) {
-                  console.log("📏 Column width changed:", {
-                    columnKey: newCol.key,
-                    oldWidth: existingCol.width,
-                    newWidth: newCol.width,
-                  });
-
                   try {
                     const updatedColumn = {
                       ...existingCol,
@@ -2636,9 +2362,6 @@ export default function BookingsDataGrid({
                     };
 
                     await updateColumn(updatedColumn);
-                    console.log(
-                      "✅ Column width updated in Firebase successfully"
-                    );
                   } catch (error) {
                     console.error(
                       "❌ Failed to update column width in Firebase:",
