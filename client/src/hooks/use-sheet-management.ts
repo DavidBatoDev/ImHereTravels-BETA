@@ -30,25 +30,8 @@ export function useSheetManagement() {
   // ============================================================================
 
   useEffect(() => {
-    console.log(
-      "🔍 [SHEET MANAGEMENT] Setting up real-time column subscription..."
-    );
-
     const unsubscribeColumns = bookingSheetColumnService.subscribeToColumns(
       (fetchedColumns) => {
-        console.log(
-          `✅ [SHEET MANAGEMENT] Received ${fetchedColumns.length} columns from Firestore:`,
-          {
-            functionColumns: fetchedColumns
-              .filter((c) => c.dataType === "function")
-              .map((c) => ({
-                id: c.id,
-                columnName: c.columnName,
-                function: c.function,
-              })),
-            timestamp: new Date().toISOString(),
-          }
-        );
         setColumns(fetchedColumns);
         setConfig((prev) => ({
           ...prev,
@@ -62,7 +45,6 @@ export function useSheetManagement() {
 
     // Cleanup subscription on unmount
     return () => {
-      console.log("🧹 Cleaning up column subscription");
       unsubscribeColumns();
     };
   }, []);
@@ -72,10 +54,6 @@ export function useSheetManagement() {
   // ============================================================================
 
   useEffect(() => {
-    console.log(
-      "🔍 [SHEET MANAGEMENT] Setting up real-time booking data subscription..."
-    );
-
     const unsubscribeBookings = onSnapshot(
       query(collection(db, "bookings")),
       (querySnapshot) => {
@@ -94,42 +72,6 @@ export function useSheetManagement() {
           return aId - bId;
         });
 
-        console.log(
-          `✅ [SHEET MANAGEMENT] Received ${sortedBookings.length} bookings from Firestore sorted numerically by ID:`,
-          {
-            bookingCount: sortedBookings.length,
-            firstBookingKeys:
-              sortedBookings.length > 0 ? Object.keys(sortedBookings[0]) : [],
-            timestamp: new Date().toISOString(),
-          }
-        );
-
-        // Debug: Log each booking to see what fields are present
-        sortedBookings.forEach((booking, index) => {
-          const fieldCount = Object.keys(booking).length;
-          const nonEssentialFields = Object.keys(booking).filter(
-            (key) => key !== "id" && key !== "createdAt" && key !== "updatedAt"
-          );
-          const hasNullFields = nonEssentialFields.some(
-            (key) => booking[key] === null
-          );
-          console.log(
-            `📊 Booking ${index + 1} (ID: ${
-              booking.id
-            }): ${fieldCount} fields, Non-essential: [${nonEssentialFields.join(
-              ", "
-            )}]${hasNullFields ? " (has null fields)" : ""}`
-          );
-
-          // Log null fields specifically
-          if (hasNullFields) {
-            const nullFields = nonEssentialFields.filter(
-              (key) => booking[key] === null
-            );
-            console.log(`  🔍 Null fields: [${nullFields.join(", ")}]`);
-          }
-        });
-
         setData(sortedBookings);
         setIsLoading(false);
         setError(null);
@@ -143,7 +85,6 @@ export function useSheetManagement() {
 
     // Cleanup subscription on unmount
     return () => {
-      console.log("🧹 Cleaning up booking data subscription");
       unsubscribeBookings();
     };
   }, []);

@@ -726,30 +726,6 @@ export default function BookingsDataGrid({
   deleteRow,
   availableFunctions,
 }: BookingsDataGridProps) {
-  // Track if any recomputation happens during this component's lifecycle
-  const recomputationCountRef = useRef(0);
-
-  // Debug logging
-  console.log(
-    "🔍 [SHEET MANAGEMENT] BookingsDataGrid component mounted/updated:",
-    {
-      columnsCount: columns?.length || 0,
-      dataCount: data?.length || 0,
-      hasFunctionColumns:
-        columns?.filter((c) => c.dataType === "function").length || 0,
-      functionColumns:
-        columns
-          ?.filter((c) => c.dataType === "function")
-          .map((c) => ({
-            id: c.id,
-            columnName: c.columnName,
-            function: c.function,
-          })) || [],
-      columns: columns,
-      data: data,
-      recomputationCount: recomputationCountRef.current,
-    }
-  );
   const { toast } = useToast();
   const [selectedCell, setSelectedCell] = useState<{
     rowId: string;
@@ -830,47 +806,13 @@ export default function BookingsDataGrid({
 
   // Sync local data with props data
   useEffect(() => {
-    console.log("📊 [SHEET MANAGEMENT] Data sync effect triggered:", {
-      dataLength: data?.length || 0,
-      hasData: data && data.length > 0,
-      firstRowKeys: data && data.length > 0 ? Object.keys(data[0]) : [],
-      functionColumnsInData:
-        data && data.length > 0
-          ? columns
-              .filter((c) => c.dataType === "function")
-              .map((c) => ({
-                columnId: c.id,
-                columnName: c.columnName,
-                hasValueInFirstRow:
-                  data[0][c.id] !== undefined && data[0][c.id] !== null,
-              }))
-          : [],
-    });
     setLocalData(data);
-  }, [data, columns]);
-
-  // Debug selectedCell changes
-  useEffect(() => {
-    console.log("🔄 selectedCell changed:", selectedCell);
-  }, [selectedCell]);
+  }, [data]);
 
   // Compute one function column for a single row
   const computeFunctionForRow = useCallback(
     async (row: SheetData, funcCol: SheetColumn): Promise<any> => {
       if (!funcCol.function) return;
-
-      // Increment recomputation counter
-      recomputationCountRef.current += 1;
-
-      console.log("⚡ [RECOMPUTE] computeFunctionForRow called:", {
-        rowId: row.id,
-        columnId: funcCol.id,
-        columnName: funcCol.columnName,
-        functionId: funcCol.function,
-        currentValue: row[funcCol.id],
-        timestamp: new Date().toISOString(),
-        totalRecomputations: recomputationCountRef.current,
-      });
       try {
         const fn = await functionExecutionService.getCompiledFunction(
           funcCol.function
@@ -929,12 +871,6 @@ export default function BookingsDataGrid({
   // Recompute only direct dependent function columns for a single row
   const recomputeDirectDependentsForRow = useCallback(
     async (rowId: string, changedColumnId: string, updatedValue: any) => {
-      console.log("🔄 [RECOMPUTE] recomputeDirectDependentsForRow called:", {
-        rowId,
-        changedColumnId,
-        updatedValue,
-        timestamp: new Date().toISOString(),
-      });
       const changedCol = columns.find((c) => c.id === changedColumnId);
       if (!changedCol || !changedCol.columnName) return;
 
@@ -963,11 +899,6 @@ export default function BookingsDataGrid({
   // Recompute for columns bound to a specific function id (and their dependents)
   const recomputeForFunction = useCallback(
     async (funcId: string) => {
-      console.log("🔄 [RECOMPUTE] recomputeForFunction called:", {
-        funcId,
-        timestamp: new Date().toISOString(),
-        reason: "Function code updated or manual trigger",
-      });
       const impactedColumns = columns.filter(
         (c) => c.dataType === "function" && c.function === funcId
       );
@@ -987,16 +918,6 @@ export default function BookingsDataGrid({
 
   // Subscribe to changes for only the functions referenced by current columns
   useEffect(() => {
-    console.log("🔗 [SHEET MANAGEMENT] Setting up function subscriptions:", {
-      functionColumns: columns
-        .filter((c) => c.dataType === "function" && !!c.function)
-        .map((c) => ({
-          id: c.id,
-          columnName: c.columnName,
-          function: c.function,
-        })),
-      timestamp: new Date().toISOString(),
-    });
     const inUseFunctionIds = new Set(
       columns
         .filter((c) => c.dataType === "function" && !!c.function)
@@ -1014,27 +935,10 @@ export default function BookingsDataGrid({
             (updated) => {
               // Skip the initial callback from Firestore subscription
               if (isInitialCallback) {
-                console.log(
-                  "⏭️ [FUNCTION SUBSCRIPTION] Skipping initial callback for:",
-                  {
-                    funcId,
-                    functionName: updated?.name,
-                    timestamp: new Date().toISOString(),
-                  }
-                );
                 isInitialCallback = false;
                 return;
               }
 
-              console.log(
-                "🔔 [FUNCTION SUBSCRIPTION] Function change detected:",
-                {
-                  funcId,
-                  hasUpdated: !!updated,
-                  functionName: updated?.name,
-                  timestamp: new Date().toISOString(),
-                }
-              );
               if (!updated) return;
               // Invalidate compiled function cache so next compute uses fresh code
               functionExecutionService.invalidate(funcId);
@@ -1060,29 +964,8 @@ export default function BookingsDataGrid({
       }
     });
 
-    // Log recomputation status after subscription setup
-    console.log(
-      "📊 [SHEET MANAGEMENT] Function subscriptions setup complete:",
-      {
-        totalRecomputations: recomputationCountRef.current,
-        functionCount: inUseFunctionIds.size,
-        timestamp: new Date().toISOString(),
-        status:
-          recomputationCountRef.current > 0
-            ? "❌ RECOMPUTATION DETECTED"
-            : "✅ NO RECOMPUTATION",
-      }
-    );
-
     // Cleanup on unmount
     return () => {
-      console.log(
-        "🧹 [SHEET MANAGEMENT] Component unmounting - Final recomputation count:",
-        {
-          totalRecomputations: recomputationCountRef.current,
-          timestamp: new Date().toISOString(),
-        }
-      );
       functionSubscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
       functionSubscriptionsRef.current.clear();
     };

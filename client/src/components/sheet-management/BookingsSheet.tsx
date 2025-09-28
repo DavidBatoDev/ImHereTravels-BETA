@@ -7,10 +7,6 @@ import { typescriptFunctionsService } from "@/services/typescript-functions-serv
 import { TypeScriptFunction } from "@/types/sheet-management";
 
 export default function BookingsSheet() {
-  console.log("📋 [SHEET MANAGEMENT] BookingsSheet component mounted:", {
-    timestamp: new Date().toISOString(),
-  });
-
   const [availableFunctions, setAvailableFunctions] = useState<
     TypeScriptFunction[]
   >([]);
