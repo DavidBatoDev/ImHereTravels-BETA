@@ -30,12 +30,24 @@ export function useSheetManagement() {
   // ============================================================================
 
   useEffect(() => {
-    console.log("🔍 Setting up real-time column subscription...");
+    console.log(
+      "🔍 [SHEET MANAGEMENT] Setting up real-time column subscription..."
+    );
 
     const unsubscribeColumns = bookingSheetColumnService.subscribeToColumns(
       (fetchedColumns) => {
         console.log(
-          `✅ Received ${fetchedColumns.length} columns from Firestore`
+          `✅ [SHEET MANAGEMENT] Received ${fetchedColumns.length} columns from Firestore:`,
+          {
+            functionColumns: fetchedColumns
+              .filter((c) => c.dataType === "function")
+              .map((c) => ({
+                id: c.id,
+                columnName: c.columnName,
+                function: c.function,
+              })),
+            timestamp: new Date().toISOString(),
+          }
         );
         setColumns(fetchedColumns);
         setConfig((prev) => ({
@@ -60,7 +72,9 @@ export function useSheetManagement() {
   // ============================================================================
 
   useEffect(() => {
-    console.log("🔍 Setting up real-time booking data subscription...");
+    console.log(
+      "🔍 [SHEET MANAGEMENT] Setting up real-time booking data subscription..."
+    );
 
     const unsubscribeBookings = onSnapshot(
       query(collection(db, "bookings")),
@@ -81,7 +95,13 @@ export function useSheetManagement() {
         });
 
         console.log(
-          `✅ Received ${sortedBookings.length} bookings from Firestore sorted numerically by ID`
+          `✅ [SHEET MANAGEMENT] Received ${sortedBookings.length} bookings from Firestore sorted numerically by ID:`,
+          {
+            bookingCount: sortedBookings.length,
+            firstBookingKeys:
+              sortedBookings.length > 0 ? Object.keys(sortedBookings[0]) : [],
+            timestamp: new Date().toISOString(),
+          }
         );
 
         // Debug: Log each booking to see what fields are present
