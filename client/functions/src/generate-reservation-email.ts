@@ -265,32 +265,45 @@ export const generateReservationEmail = onCall(
         );
       }
 
-      // Check for existing drafts for this booking and delete them to ensure only one draft per booking
+      // Check for existing drafts for this booking
+      let existingDraftId: string | null = null;
       try {
         const existingDrafts = await db
           .collection("emailDrafts")
           .where("bookingId", "==", bookingId)
+          .limit(1)
           .get();
 
         if (!existingDrafts.empty) {
-          logger.warn(
-            `Found ${existingDrafts.docs.length} existing draft(s) for booking ${bookingId}, deleting them to ensure only one draft per booking...`
-          );
-
-          // Delete all existing drafts for this booking
-          const deletePromises = existingDrafts.docs.map((doc) =>
-            doc.ref.delete()
-          );
-          await Promise.all(deletePromises);
-
+          existingDraftId = existingDrafts.docs[0].id;
           logger.info(
-            `Successfully deleted ${existingDrafts.docs.length} existing draft(s) for booking ${bookingId}`
+            `Found existing draft ${existingDraftId} for booking ${bookingId}, returning existing draft instead of creating new one`
           );
+
+          // Return existing draft information
+          const existingDraftData = existingDrafts.docs[0].data();
+          return {
+            success: true,
+            draftId: existingDraftId,
+            subject: existingDraftData.subject || subject,
+            email: existingDraftData.to || email,
+            isCancellation: existingDraftData.isCancellation || isCancelled,
+            emailType:
+              existingDraftData.emailType ||
+              (isCancelled ? "cancellation" : "reservation"),
+            status: "existing_draft",
+            message: "Returned existing draft instead of creating new one",
+          };
         }
       } catch (error) {
-        logger.warn("Error checking/deleting existing drafts:", error);
+        logger.warn("Error checking for existing drafts:", error);
         // Continue with draft creation even if check fails
       }
+
+      // Only create new draft if no existing draft found
+      logger.info(
+        `No existing draft found for booking ${bookingId}, creating new draft`
+      );
 
       // Create draft document in emailDrafts collection first to get the ID
       const draftRef = db.collection("emailDrafts").doc();
@@ -332,7 +345,8 @@ export const generateReservationEmail = onCall(
         email: email,
         isCancellation: isCancelled,
         emailType: emailDraftData.emailType,
-        status: "draft",
+        status: "new_draft",
+        message: "Created new email draft",
       };
     } catch (error) {
       logger.error("Error generating email draft:", error);
