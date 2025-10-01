@@ -429,7 +429,8 @@ async function main() {
       console.log(`\n🎯 ${result027.message}`);
       if (result027.details) {
         console.log(
-          `📊 Details: ${result027.details.created} created, ${result027.details.skipped} skipped, ${result027.details.errors} errors`);
+          `📊 Details: ${result027.details.created} created, ${result027.details.skipped} skipped, ${result027.details.errors} errors`
+        );
         console.log(`📄 File: ${result027.details.fileUsed}`);
       }
       break;

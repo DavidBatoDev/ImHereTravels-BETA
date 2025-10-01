@@ -15,9 +15,9 @@ const COLLECTION_NAME = "bookingSheetColumns";
 
 type AnyRecord = Record<string, any>;
 
-function isTimestampLike(value: any):
-  | { seconds: number; nanoseconds: number }
-  | undefined {
+function isTimestampLike(
+  value: any
+): { seconds: number; nanoseconds: number } | undefined {
   if (
     value &&
     typeof value === "object" &&
@@ -45,7 +45,9 @@ function reviveTimestamps(input: any): any {
   if (input && typeof input === "object") {
     const ts = isTimestampLike(input);
     if (ts) {
-      return Timestamp.fromMillis(ts.seconds * 1000 + ts.nanoseconds / 1_000_000);
+      return Timestamp.fromMillis(
+        ts.seconds * 1000 + ts.nanoseconds / 1_000_000
+      );
     }
     const out: AnyRecord = {};
     for (const [k, v] of Object.entries(input)) {
@@ -139,7 +141,8 @@ export async function runMigration(dryRun = false): Promise<{
 
   for (const entry of entries) {
     try {
-      const id: string | undefined = entry?.id || entry?.columnId || entry?.name;
+      const id: string | undefined =
+        entry?.id || entry?.columnId || entry?.name;
       if (!id) {
         skipped++;
         continue;
@@ -195,7 +198,11 @@ export async function rollbackMigration(): Promise<void> {
     const ref = doc(db, COLLECTION_NAME, id);
     // Emulate delete via set with empty object and merge false? Better to truly delete
     // But we didn't import delete here; to keep file small, use setDoc with marker
-    await setDoc(ref, { _rolledBackBy: MIGRATION_ID, _rolledBackAt: new Date() }, { merge: true });
+    await setDoc(
+      ref,
+      { _rolledBackBy: MIGRATION_ID, _rolledBackAt: new Date() },
+      { merge: true }
+    );
     ops++;
     if (ops % 450 === 0) {
       await batch.commit();
