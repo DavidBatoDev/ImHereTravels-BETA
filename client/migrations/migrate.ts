@@ -96,6 +96,30 @@ import {
   runMigration026,
   rollbackMigration026,
 } from "./026-move-payment-progress-to-payment-setting";
+import {
+  runMigration as runMigration027,
+  rollbackMigration as rollbackMigration027,
+} from "./027-import-booking-sheet-columns";
+import {
+  runMigration as runMigration028,
+  rollbackMigration as rollbackMigration028,
+} from "./028-import-ts-folders";
+import {
+  runMigration as runMigration029,
+  rollbackMigration as rollbackMigration029,
+} from "./029-import-ts-files";
+import {
+  runMigration as runMigration030,
+  rollbackMigration as rollbackMigration030,
+} from "./030-import-payment-terms";
+import {
+  runMigration as runMigration031,
+  rollbackMigration as rollbackMigration031,
+} from "./031-import-tour-packages";
+import {
+  runMigration as runMigration032,
+  rollbackMigration as rollbackMigration032,
+} from "./032-import-email-templates";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -397,6 +421,47 @@ async function main() {
       } else {
         await runMigration020();
       }
+      break;
+
+    case "027":
+      console.log("📊 Running migration: 027-import-booking-sheet-columns");
+      const result027 = await runMigration027(dryRun);
+      console.log(`\n🎯 ${result027.message}`);
+      if (result027.details) {
+        console.log(
+          `📊 Details: ${result027.details.created} created, ${result027.details.skipped} skipped, ${result027.details.errors} errors`);
+        console.log(`📄 File: ${result027.details.fileUsed}`);
+      }
+      break;
+
+    case "028":
+      console.log("📊 Running migration: 028-import-ts-folders");
+      const result028 = await runMigration028(dryRun);
+      console.log(`\n🎯 ${result028.message}`);
+      break;
+
+    case "029":
+      console.log("📊 Running migration: 029-import-ts-files");
+      const result029 = await runMigration029(dryRun);
+      console.log(`\n🎯 ${result029.message}`);
+      break;
+
+    case "030":
+      console.log("📊 Running migration: 030-import-payment-terms");
+      const result030 = await runMigration030(dryRun);
+      console.log(`\n🎯 ${result030.message}`);
+      break;
+
+    case "031":
+      console.log("📊 Running migration: 031-import-tour-packages");
+      const result031 = await runMigration031(dryRun);
+      console.log(`\n🎯 ${result031.message}`);
+      break;
+
+    case "032":
+      console.log("📊 Running migration: 032-import-email-templates");
+      const result032 = await runMigration032(dryRun);
+      console.log(`\n🎯 ${result032.message}`);
       break;
 
     case "023":
