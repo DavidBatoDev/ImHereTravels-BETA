@@ -1,0 +1,2490 @@
+[
+  {
+    "id": "bookingId",
+    "color": "yellow",
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974997,
+      "nanoseconds": 402000000
+    },
+    "width": 288,
+    "order": 1,
+    "_rollbackNotes": "Removed parentTab field",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "dataType": "function",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 807000000
+    },
+    "columnName": "Booking ID",
+    "function": "ijP8aQvTkrN40y8vUagz",
+    "arguments": [
+      {
+        "type": "string",
+        "isOptional": false,
+        "columnReference": "Booking Type",
+        "value": "",
+        "name": "bookingType",
+        "hasDefault": false
+      },
+      {
+        "value": "",
+        "type": "{}",
+        "name": "supportingFields",
+        "hasDefault": false,
+        "isOptional": false,
+        "columnReferences": [
+          "Booking Code",
+          "Tour Code",
+          "Formatted Date",
+          "Traveller Initials",
+          "Tour Package Name Unique Counter",
+          "Email Address",
+          "Full Name"
+        ]
+      },
+      {
+        "name": "bookingId",
+        "columnReference": "Booking Code",
+        "type": "string",
+        "hasDefault": false,
+        "value": "",
+        "isOptional": false
+      },
+      {
+        "value": "",
+        "hasDefault": false,
+        "columnReference": "Tour Code",
+        "isOptional": false,
+        "name": "tourCode",
+        "type": "string"
+      },
+      {
+        "value": "",
+        "type": "string",
+        "columnReference": "Formatted Date",
+        "name": "formattedDate",
+        "hasDefault": false,
+        "isOptional": false
+      },
+      {
+        "hasDefault": false,
+        "columnReference": "Traveller Initials",
+        "isOptional": false,
+        "name": "travelsInitial",
+        "type": "string",
+        "value": ""
+      },
+      {
+        "columnReference": "Tour Package Name Unique Counter",
+        "value": "",
+        "type": "string",
+        "isOptional": false,
+        "hasDefault": false,
+        "name": "tourPackageUniqueCounter"
+      }
+    ],
+    "showColumn": true,
+    "includeInForms": false,
+    "parentTab": "Identifier"
+  },
+  {
+    "id": "bookingCode",
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "Booking Code",
+    "width": 167.54165649414062,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974998,
+      "nanoseconds": 125000000
+    },
+    "function": "jSptJPyeP0httIjeVNUH",
+    "parentTab": "Identifier",
+    "order": 2,
+    "color": "gray",
+    "showColumn": false,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 806000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "dataType": "function",
+    "includeInForms": false,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "arguments": [
+      {
+        "type": "string",
+        "columnReference": "Booking Type",
+        "hasDefault": false,
+        "name": "bookingType",
+        "isOptional": false,
+        "value": ""
+      }
+    ]
+  },
+  {
+    "id": "tourCode",
+    "_rollback": "023-add-parent-tab-field",
+    "width": 156.66668701171875,
+    "function": "LhdyWTqRZlHdfDYcN3Ar",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974998,
+      "nanoseconds": 201000000
+    },
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 828000000
+    },
+    "showColumn": false,
+    "_rollbackNotes": "Removed parentTab field",
+    "dataType": "function",
+    "arguments": [
+      {
+        "columnReference": "Tour Package Name",
+        "type": "string",
+        "name": "tourPackageName",
+        "isOptional": false,
+        "value": "",
+        "hasDefault": false
+      }
+    ],
+    "color": "gray",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "columnName": "Tour Code",
+    "order": 3,
+    "parentTab": "Identifier",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "includeInForms": false
+  },
+  {
+    "id": "formattedDate",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "dataType": "function",
+    "columnName": "Formatted Date",
+    "showColumn": false,
+    "order": 4,
+    "_rollback": "023-add-parent-tab-field",
+    "color": "gray",
+    "parentTab": "Identifier",
+    "function": "ZIeBZVrVFdisM7pXqWZQ",
+    "width": 182,
+    "arguments": [
+      {
+        "isOptional": false,
+        "name": "tourDate",
+        "type": "string",
+        "hasDefault": false,
+        "value": "",
+        "columnReference": "Tour Date"
+      }
+    ],
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974998,
+      "nanoseconds": 272000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 814000000
+    },
+    "includeInForms": false
+  },
+  {
+    "id": "travellerInitials",
+    "columnName": "Traveller Initials",
+    "showColumn": false,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackNotes": "Removed parentTab field",
+    "function": "oN7e6p0OHMXNw1M4pHVy",
+    "order": 5,
+    "arguments": [
+      {
+        "value": "",
+        "columnReference": "First Name",
+        "type": "string",
+        "hasDefault": false,
+        "name": "firstName",
+        "isOptional": false
+      },
+      {
+        "columnReference": "Last Name",
+        "type": "string",
+        "value": "",
+        "hasDefault": false,
+        "name": "lastName",
+        "isOptional": false
+      }
+    ],
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "color": "gray",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974998,
+      "nanoseconds": 348000000
+    },
+    "dataType": "function",
+    "width": 271.1041259765625,
+    "_rollback": "023-add-parent-tab-field",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 829000000
+    },
+    "parentTab": "Identifier",
+    "includeInForms": false
+  },
+  {
+    "id": "tourPackageNameUniqueCounter",
+    "dataType": "function",
+    "width": 294.66668701171875,
+    "includeInForms": false,
+    "color": "gray",
+    "parentTab": "Identifier",
+    "_rollback": "023-add-parent-tab-field",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 829000000
+    },
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "Tour Package Name Unique Counter",
+    "showColumn": false,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "arguments": [
+      {
+        "columnReference": "Tour Package Name",
+        "value": "",
+        "isOptional": false,
+        "name": "tourPackageName",
+        "type": "string",
+        "hasDefault": false
+      },
+      {
+        "columnReference": "Email Address",
+        "hasDefault": false,
+        "type": "string",
+        "name": "email",
+        "isOptional": false,
+        "value": ""
+      },
+      {
+        "name": "tourDate",
+        "hasDefault": false,
+        "columnReference": "Tour Date",
+        "isOptional": false,
+        "type": "unknown",
+        "value": ""
+      }
+    ],
+    "function": "pu7KacJCDH7Zp70NH4aI",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974998,
+      "nanoseconds": 444000000
+    },
+    "order": 6
+  },
+  {
+    "id": "emailAddress",
+    "parentTab": "Traveler Information",
+    "_rollback": "023-add-parent-tab-field",
+    "order": 7,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 813000000
+    },
+    "dataType": "string",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974998,
+      "nanoseconds": 523000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "color": "cyan",
+    "width": 284.66668701171875,
+    "columnName": "Email Address",
+    "includeInForms": true
+  },
+  {
+    "id": "firstName",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "order": 8,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 814000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974998,
+      "nanoseconds": 595000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "parentTab": "Traveler Information",
+    "dataType": "string",
+    "columnName": "First Name",
+    "includeInForms": true,
+    "width": 187.9791717529297
+  },
+  {
+    "id": "lastName",
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974998,
+      "nanoseconds": 678000000
+    },
+    "_migrationNotes": "Removed emojis from parent tab",
+    "dataType": "string",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 817000000
+    },
+    "width": 169.33331298828125,
+    "includeInForms": true,
+    "order": 9,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "columnName": "Last Name",
+    "parentTab": "Traveler Information",
+    "_rollbackNotes": "Removed parentTab field"
+  },
+  {
+    "id": "fullName",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974998,
+      "nanoseconds": 754000000
+    },
+    "color": "gray",
+    "columnName": "Full Name",
+    "includeInForms": false,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "order": 10,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "function": "sxT6wbtgSiUwho941kXh",
+    "_rollbackNotes": "Removed parentTab field",
+    "width": 327.3333740234375,
+    "_rollback": "023-add-parent-tab-field",
+    "dataType": "function",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 814000000
+    },
+    "arguments": [
+      {
+        "hasDefault": false,
+        "columnReference": "First Name",
+        "isOptional": false,
+        "type": "string",
+        "value": "",
+        "name": "f"
+      },
+      {
+        "value": "",
+        "hasDefault": false,
+        "name": "l",
+        "columnReference": "Last Name",
+        "type": "string",
+        "isOptional": false
+      }
+    ],
+    "parentTab": "Traveler Information"
+  },
+  {
+    "id": "fullname2",
+    "order": 11,
+    "width": 212,
+    "columnName": "fullName2",
+    "color": "purple",
+    "parentTab": "Test",
+    "dataType": "function",
+    "function": "sF93bd9J5Y0vV1xBqseV",
+    "showColumn": false,
+    "includeInForms": false,
+    "arguments": [
+      {
+        "hasDefault": false,
+        "type": "string",
+        "isOptional": false,
+        "value": "",
+        "columnReference": "Full Name",
+        "name": "fullName"
+      }
+    ]
+  },
+  {
+    "id": "reservationDate",
+    "parentTab": "Tour Details",
+    "columnName": "Reservation Date",
+    "dataType": "date",
+    "color": "none",
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackNotes": "Removed parentTab field",
+    "includeInForms": true,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "order": 12,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 825000000
+    },
+    "width": 171.333251953125,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974998,
+      "nanoseconds": 845000000
+    }
+  },
+  {
+    "id": "bookingType",
+    "width": 158,
+    "includeInForms": true,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974998,
+      "nanoseconds": 924000000
+    },
+    "dataType": "select",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 808000000
+    },
+    "_migrationNotes": "Removed emojis from parent tab",
+    "parentTab": "Tour Details",
+    "_rollbackNotes": "Removed parentTab field",
+    "_rollback": "023-add-parent-tab-field",
+    "options": [
+      "Single Booking",
+      "Duo Booking",
+      "Group Booking"
+    ],
+    "order": 13,
+    "columnName": "Booking Type",
+    "color": "none"
+  },
+  {
+    "id": "tourPackageName",
+    "_rollbackNotes": "Removed parentTab field",
+    "includeInForms": true,
+    "columnName": "Tour Package Name",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "options": [
+      "India Discovery Tour",
+      "Argentina's Wonders",
+      "Maldives Bucketlist",
+      "New Zealand Expedition",
+      "Tanzania Exploration",
+      "Sri Lanka Wander Tour",
+      "India Holi Festival Tour",
+      "Brazil's Treasures",
+      "Philippines Sunset",
+      "Philippine Sunrise",
+      "Siargao Island Adventure",
+      "Vietnam Expedition"
+    ],
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 828000000
+    },
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 1000000
+    },
+    "dataType": "select",
+    "_rollback": "023-add-parent-tab-field",
+    "order": 14,
+    "parentTab": "Tour Details",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "width": 208
+  },
+  {
+    "id": "tourDate",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 828000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "includeInForms": true,
+    "order": 15,
+    "_rollbackNotes": "Removed parentTab field",
+    "width": 148.666748046875,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "dataType": "date",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "parentTab": "Tour Details",
+    "columnName": "Tour Date",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 86000000
+    }
+  },
+  {
+    "id": "returnDate",
+    "color": "gray",
+    "dataType": "function",
+    "columnName": "Return Date",
+    "includeInForms": false,
+    "showColumn": false,
+    "_rollback": "023-add-parent-tab-field",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "arguments": [
+      {
+        "name": "tourDate",
+        "value": "",
+        "type": "unknown",
+        "columnReference": "Tour Date",
+        "hasDefault": false,
+        "isOptional": false
+      },
+      {
+        "isOptional": false,
+        "name": "durationValue",
+        "hasDefault": false,
+        "value": "",
+        "type": "unknown",
+        "columnReference": "Tour Duration"
+      }
+    ],
+    "width": 321.9791717529297,
+    "order": 16,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 825000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "function": "RWgqWzjUm9haopehL5Bt",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 171000000
+    },
+    "parentTab": "Tour Details"
+  },
+  {
+    "id": "tourDuration",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 828000000
+    },
+    "parentTab": "Tour Details",
+    "arguments": [
+      {
+        "columnReference": "Tour Package Name",
+        "name": "tourPackageName",
+        "hasDefault": false,
+        "type": "string",
+        "value": "",
+        "isOptional": false
+      }
+    ],
+    "width": 150.6666259765625,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 247000000
+    },
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "order": 17,
+    "_rollback": "023-add-parent-tab-field",
+    "columnName": "Tour Duration",
+    "dataType": "function",
+    "color": "gray",
+    "function": "2rRo0dpHdjTYP7IPy7jK",
+    "showColumn": false,
+    "includeInForms": false,
+    "_rollbackNotes": "Removed parentTab field",
+    "_migrationNotes": "Removed emojis from parent tab"
+  },
+  {
+    "id": "paymentCondition",
+    "parentTab": "Tour Details",
+    "order": 18,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 325000000
+    },
+    "width": 189.333251953125,
+    "includeInForms": false,
+    "function": "eEPeF3AAICoe7tDKcdwr",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "arguments": [
+      {
+        "isOptional": false,
+        "hasDefault": false,
+        "value": "",
+        "name": "tourDate",
+        "columnReference": "Tour Date",
+        "type": "unknown"
+      },
+      {
+        "hasDefault": false,
+        "value": "",
+        "isOptional": false,
+        "columnReference": "Eligible 2nd-of-Months",
+        "type": "number",
+        "name": "eligibleSecondCount"
+      },
+      {
+        "hasDefault": false,
+        "columnReference": "Days Between Booking and Tour Date",
+        "type": "number",
+        "name": "daysBetweenReservationAndTour",
+        "isOptional": false,
+        "value": ""
+      }
+    ],
+    "_migrationNotes": "Removed emojis from parent tab",
+    "color": "gray",
+    "dataType": "function",
+    "options": [
+      "Full Payment",
+      "Partial Payment",
+      "Installment"
+    ],
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 823000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "showColumn": false,
+    "columnName": "Payment Condition",
+    "_rollbackNotes": "Removed parentTab field"
+  },
+  {
+    "id": "eligible2ndofmonths",
+    "arguments": [
+      {
+        "value": "",
+        "type": "unknown",
+        "name": "reservationDate",
+        "hasDefault": false,
+        "isOptional": false,
+        "columnReference": "Reservation Date"
+      },
+      {
+        "isOptional": false,
+        "columnReference": "Tour Date",
+        "value": "",
+        "name": "tourDate",
+        "hasDefault": false,
+        "type": "unknown"
+      }
+    ],
+    "showColumn": false,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollback": "023-add-parent-tab-field",
+    "width": 212.66668701171875,
+    "order": 19,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "columnName": "Eligible 2nd-of-Months",
+    "parentTab": "Tour Details",
+    "dataType": "function",
+    "includeInForms": false,
+    "function": "NEF6QLxcXoZKKwDZgsrq",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 813000000
+    },
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 398000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "color": "gray"
+  },
+  {
+    "id": "daysBetweenBookingAndTourDate",
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "Days Between Booking and Tour Date",
+    "width": 312.666748046875,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 470000000
+    },
+    "function": "04iOigQVQJXqE1Ht4yw2",
+    "parentTab": "Tour Details",
+    "order": 20,
+    "color": "gray",
+    "showColumn": false,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 811000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "dataType": "function",
+    "includeInForms": false,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "arguments": [
+      {
+        "value": "",
+        "type": "unknown",
+        "name": "reservationDate",
+        "hasDefault": false,
+        "isOptional": false,
+        "columnReference": "Reservation Date"
+      },
+      {
+        "hasDefault": false,
+        "value": "",
+        "isOptional": false,
+        "columnReference": "Tour Date",
+        "type": "unknown",
+        "name": "tourDate"
+      }
+    ]
+  },
+  {
+    "id": "availablePaymentTerms",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "includeInForms": false,
+    "function": "gTl0J3RWqWZ9oQiVDOSp",
+    "width": 262,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "arguments": [
+      {
+        "isOptional": false,
+        "value": "",
+        "type": "unknown",
+        "hasDefault": false,
+        "name": "cancelMarker"
+      },
+      {
+        "columnReference": "Payment Condition",
+        "isOptional": false,
+        "name": "paymentCondition",
+        "hasDefault": false,
+        "type": "string",
+        "value": ""
+      }
+    ],
+    "dataType": "function",
+    "parentTab": "Tour Details",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 545000000
+    },
+    "order": 21,
+    "color": "yellow",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 804000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "Available Payment Terms"
+  },
+  {
+    "id": "isMainBooker",
+    "_rollback": "023-add-parent-tab-field",
+    "order": 22,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 816000000
+    },
+    "columnName": "Is Main Booker?",
+    "includeInForms": true,
+    "width": 272,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackNotes": "Removed parentTab field",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 617000000
+    },
+    "dataType": "boolean",
+    "color": "orange",
+    "parentTab": "If Duo or Group Booking"
+  },
+  {
+    "id": "groupIdGroupIdGenerator",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollback": "023-add-parent-tab-field",
+    "function": "jcKaPYU6xDH67PzB5NzB",
+    "color": "yellow",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 816000000
+    },
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 697000000
+    },
+    "width": 310.6666717529297,
+    "dataType": "function",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "order": 23,
+    "parentTab": "If Duo or Group Booking",
+    "arguments": [
+      {
+        "columnReference": "Booking Type",
+        "type": "string",
+        "isOptional": false,
+        "hasDefault": false,
+        "value": "",
+        "name": "bookingType"
+      },
+      {
+        "columnReference": "Tour Package Name",
+        "hasDefault": false,
+        "type": "string",
+        "value": "",
+        "name": "tourName",
+        "isOptional": false
+      },
+      {
+        "hasDefault": false,
+        "columnReference": "First Name",
+        "type": "string",
+        "isOptional": false,
+        "value": "",
+        "name": "firstName"
+      },
+      {
+        "value": "",
+        "columnReference": "Last Name",
+        "isOptional": false,
+        "hasDefault": false,
+        "name": "lastName",
+        "type": "string"
+      },
+      {
+        "columnReference": "Email Address",
+        "type": "string",
+        "value": "",
+        "isOptional": false,
+        "hasDefault": false,
+        "name": "email"
+      },
+      {
+        "columnReference": "Is Main Booker?",
+        "type": "boolean",
+        "hasDefault": false,
+        "value": "",
+        "name": "isActive",
+        "isOptional": false
+      }
+    ],
+    "includeInForms": false,
+    "columnName": "Group ID / Group ID Generator",
+    "_rollbackNotes": "Removed parentTab field"
+  },
+  {
+    "id": "timenow",
+    "dataType": "function",
+    "width": 197.33331298828125,
+    "showColumn": false,
+    "order": 24,
+    "columnName": "timeNow",
+    "function": "8wTSTvAyHfmd88yd2SdH",
+    "arguments": [
+      {
+        "name": "returnTime",
+        "type": "any",
+        "isOptional": false,
+        "hasDefault": false,
+        "value": "",
+        "columnReference": "Is Main Booker?"
+      }
+    ],
+    "includeInForms": false,
+    "parentTab": "Test"
+  },
+  {
+    "id": "includeBccReservation",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "color": "orange",
+    "includeInForms": true,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 771000000
+    },
+    "columnName": "Include BCC (Reservation)",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 816000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackNotes": "Removed parentTab field",
+    "order": 25,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "parentTab": "Reservation Email",
+    "dataType": "boolean",
+    "width": 258
+  },
+  {
+    "id": "useDiscountedTourCost",
+    "dataType": "boolean",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "includeInForms": true,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "width": 242.6666259765625,
+    "_rollback": "023-add-parent-tab-field",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 829000000
+    },
+    "color": "orange",
+    "columnName": "Use Discounted Tour Cost?",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 847000000
+    },
+    "order": 26,
+    "parentTab": "Reservation Email",
+    "_rollbackNotes": "Removed parentTab field"
+  },
+  {
+    "id": "generateEmailDraft",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758974999,
+      "nanoseconds": 923000000
+    },
+    "parentTab": "Reservation Email",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 816000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "Generate Email Draft",
+    "dataType": "boolean",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "width": 201.3333740234375,
+    "color": "orange",
+    "order": 27,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "includeInForms": true
+  },
+  {
+    "id": "emailDraftLink",
+    "width": 425.3333740234375,
+    "arguments": [
+      {
+        "type": "string",
+        "hasDefault": false,
+        "isOptional": false,
+        "value": "",
+        "columnReference": "Booking ID",
+        "name": "bookingId"
+      },
+      {
+        "columnReference": "Include BCC (Reservation)",
+        "name": "includeBcc",
+        "type": "boolean",
+        "isOptional": false,
+        "value": "",
+        "hasDefault": false
+      },
+      {
+        "value": "",
+        "isOptional": false,
+        "type": "string",
+        "name": "emailAddress",
+        "hasDefault": false,
+        "columnReference": "Email Address"
+      },
+      {
+        "type": "boolean",
+        "hasDefault": false,
+        "name": "generateEmailDraft",
+        "isOptional": false,
+        "value": "",
+        "columnReference": "Generate Email Draft"
+      }
+    ],
+    "dataType": "function",
+    "parentTab": "Reservation Email",
+    "includeInForms": false,
+    "color": "yellow",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 0
+    },
+    "columnName": "Email Draft Link",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 813000000
+    },
+    "function": "gzdYxQzZCNawiMAZATPg",
+    "_rollbackNotes": "Removed parentTab field",
+    "_rollback": "023-add-parent-tab-field",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "order": 28
+  },
+  {
+    "id": "subjectLineReservation",
+    "width": 547.9895629882812,
+    "order": 29,
+    "parentTab": "Reservation Email",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollback": "023-add-parent-tab-field",
+    "arguments": [
+      {
+        "columnReference": "Email Draft Link",
+        "value": "",
+        "name": "draftLinkId",
+        "type": "string",
+        "isOptional": false,
+        "hasDefault": false
+      }
+    ],
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 70000000
+    },
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 827000000
+    },
+    "color": "yellow",
+    "dataType": "function",
+    "includeInForms": false,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "Subject Line (Reservation)",
+    "function": "wwQi6z9ayC4izgDYhHjM"
+  },
+  {
+    "id": "sendEmail",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 826000000
+    },
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 144000000
+    },
+    "dataType": "boolean",
+    "_rollbackNotes": "Removed parentTab field",
+    "width": 173.9791717529297,
+    "color": "orange",
+    "order": 30,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "includeInForms": false,
+    "_rollback": "023-add-parent-tab-field",
+    "columnName": "Send Email?",
+    "parentTab": "Reservation Email"
+  },
+  {
+    "id": "sentEmailLink",
+    "arguments": [
+      {
+        "hasDefault": false,
+        "isOptional": false,
+        "name": "draftLinkId",
+        "columnReference": "Email Draft Link",
+        "type": "string",
+        "value": ""
+      },
+      {
+        "type": "boolean",
+        "columnReference": "Send Email?",
+        "isOptional": false,
+        "hasDefault": false,
+        "name": "sendEmail",
+        "value": ""
+      }
+    ],
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 827000000
+    },
+    "order": 31,
+    "parentTab": "Reservation Email",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "dataType": "function",
+    "columnName": "Sent Email Link",
+    "_rollback": "023-add-parent-tab-field",
+    "function": "ZHx2xy9eB9YYbVTBaMse",
+    "includeInForms": false,
+    "width": 483.3333740234375,
+    "_rollbackNotes": "Removed parentTab field",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 221000000
+    },
+    "color": "yellow"
+  },
+  {
+    "id": "reservationEmailSentDate",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "color": "yellow",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 297000000
+    },
+    "columnName": "Reservation Email Sent Date",
+    "_rollbackNotes": "Removed parentTab field",
+    "parentTab": "Reservation Email",
+    "order": 32,
+    "_rollback": "023-add-parent-tab-field",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 825000000
+    },
+    "width": 252,
+    "dataType": "date",
+    "includeInForms": true
+  },
+  {
+    "id": "originalTourCost",
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackNotes": "Removed parentTab field",
+    "width": 183.3333740234375,
+    "columnName": "Original Tour Cost",
+    "color": "gray",
+    "parentTab": "Payment Setting",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 817000000
+    },
+    "dataType": "currency",
+    "order": 33,
+    "includeInForms": true,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 371000000
+    },
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migration": "025-remove-emoji-from-parent-tabs"
+  },
+  {
+    "id": "discountedTourCost",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "includeInForms": true,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "width": 205.3333740234375,
+    "parentTab": "Payment Setting",
+    "dataType": "currency",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 472000000
+    },
+    "order": 34,
+    "color": "gray",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 813000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "Discounted Tour Cost"
+  },
+  {
+    "id": "reservationFee",
+    "dataType": "currency",
+    "color": "gray",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 545000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "parentTab": "Payment Setting",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 825000000
+    },
+    "width": 176.666748046875,
+    "order": 35,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "includeInForms": true,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "Reservation Fee"
+  },
+  {
+    "id": "paid",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "dataType": "currency",
+    "columnName": "Paid",
+    "order": 36,
+    "width": 100,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 628000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 823000000
+    },
+    "includeInForms": true,
+    "_rollback": "023-add-parent-tab-field",
+    "color": "yellow",
+    "parentTab": "Payment Setting"
+  },
+  {
+    "id": "remainingBalance",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "order": 37,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollback": "023-add-parent-tab-field",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 824000000
+    },
+    "columnName": "Remaining Balance",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 699000000
+    },
+    "dataType": "currency",
+    "includeInForms": true,
+    "color": "yellow",
+    "width": 191.33331298828125,
+    "parentTab": "Payment Setting",
+    "_rollbackNotes": "Removed parentTab field"
+  },
+  {
+    "id": "manualCredit",
+    "width": 162,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 774000000
+    },
+    "parentTab": "Payment Setting",
+    "_rollbackNotes": "Removed parentTab field",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 817000000
+    },
+    "columnName": "Manual Credit",
+    "_rollback": "023-add-parent-tab-field",
+    "includeInForms": true,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "dataType": "currency",
+    "order": 38
+  },
+  {
+    "id": "creditFrom",
+    "dataType": "select",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 851000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 811000000
+    },
+    "includeInForms": true,
+    "parentTab": "Payment Setting",
+    "options": [
+      "Reservation",
+      "P1",
+      "P2",
+      "P3"
+    ],
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "Credit From",
+    "width": 156,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "order": 39
+  },
+  {
+    "id": "paymentPlan",
+    "dataType": "select",
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackNotes": "Removed parentTab field",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "order": 40,
+    "parentTab": "Payment Setting",
+    "width": 162.6666259765625,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 824000000
+    },
+    "columnName": "Payment Plan",
+    "options": [
+      "Full Payment",
+      "P1",
+      "P2",
+      "P3",
+      "P4"
+    ],
+    "includeInForms": true,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975000,
+      "nanoseconds": 940000000
+    },
+    "_migration": "025-remove-emoji-from-parent-tabs"
+  },
+  {
+    "id": "paymentMethod",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 823000000
+    },
+    "options": [
+      "Revolut",
+      "Ulster",
+      "Stripe"
+    ],
+    "dataType": "select",
+    "order": 41,
+    "includeInForms": true,
+    "parentTab": "Payment Setting",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975001,
+      "nanoseconds": 15000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "width": 179.3333740234375,
+    "columnName": "Payment Method",
+    "_rollback": "023-add-parent-tab-field",
+    "_migrationNotes": "Removed emojis from parent tab"
+  },
+  {
+    "id": "enablePaymentReminder",
+    "includeInForms": true,
+    "_rollbackNotes": "Removed parentTab field",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 814000000
+    },
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975001,
+      "nanoseconds": 150000000
+    },
+    "dataType": "boolean",
+    "order": 42,
+    "color": "orange",
+    "width": 239.3333740234375,
+    "_rollback": "023-add-parent-tab-field",
+    "parentTab": "Payment Setting",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "columnName": "Enable Payment Reminder",
+    "_migration": "025-remove-emoji-from-parent-tabs"
+  },
+  {
+    "id": "bookingStatus",
+    "color": "yellow",
+    "_rollback": "023-add-parent-tab-field",
+    "columnName": "Booking Status",
+    "dataType": "select",
+    "width": 168,
+    "_rollbackNotes": "Removed parentTab field",
+    "order": 43,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975001,
+      "nanoseconds": 224000000
+    },
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "includeInForms": true,
+    "options": [
+      "Confirmed",
+      "Pending",
+      "Cancelled",
+      "Completed"
+    ],
+    "parentTab": "Payment Setting",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 808000000
+    }
+  },
+  {
+    "id": "paymentProgress",
+    "width": 140,
+    "color": "yellow",
+    "_rollback": "023-add-parent-tab-field",
+    "includeInForms": true,
+    "_rollbackNotes": "Removed parentTab field",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 824000000
+    },
+    "columnName": "Payment Progress",
+    "dataType": "number",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "order": 44,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975001,
+      "nanoseconds": 307000000
+    },
+    "parentTab": "Payment Setting"
+  },
+  {
+    "id": "guestInfoEmailSentLink",
+    "includeInForms": true,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050554,
+      "nanoseconds": 646000000
+    },
+    "dataType": "string",
+    "_rollback": "023-add-parent-tab-field",
+    "columnNameHistory": [
+      {
+        "oldName": "Guest Info Email Sent Link",
+        "timestamp": "2025-09-14T13:09:56.642Z",
+        "newName": "Guest Info Email Sent Link 2"
+      },
+      {
+        "newName": "Guest Info Email Sent Link",
+        "timestamp": "2025-09-14T13:10:21.031Z",
+        "oldName": "Guest Info Email Sent Link 2"
+      }
+    ],
+    "_rollbackNotes": "Removed parentTab field",
+    "color": "yellow",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975001,
+      "nanoseconds": 386000000
+    },
+    "_migration": "026-move-payment-progress-to-payment-setting",
+    "_migrationNotes": "Moved to Payment Setting parent tab",
+    "columnName": "Guest Info Email Sent Link",
+    "order": 45,
+    "parentTab": "Payment Setting"
+  },
+  {
+    "id": "fullPaymentDueDate",
+    "order": 46,
+    "_rollbackNotes": "Removed parentTab field",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "width": 160,
+    "includeInForms": true,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "parentTab": "Full Payment",
+    "_rollback": "023-add-parent-tab-field",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 815000000
+    },
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975001,
+      "nanoseconds": 461000000
+    },
+    "columnName": "Full Payment Due Date",
+    "dataType": "date",
+    "color": "yellow"
+  },
+  {
+    "id": "fullPaymentAmount",
+    "order": 47,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975001,
+      "nanoseconds": 535000000
+    },
+    "width": 160,
+    "_rollback": "023-add-parent-tab-field",
+    "includeInForms": true,
+    "columnName": "Full Payment Amount",
+    "_rollbackNotes": "Removed parentTab field",
+    "dataType": "currency",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "color": "yellow",
+    "parentTab": "Full Payment",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 815000000
+    }
+  },
+  {
+    "id": "fullPaymentDatePaid",
+    "columnName": "Full Payment Date Paid",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975001,
+      "nanoseconds": 611000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 815000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "width": 160,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "order": 48,
+    "parentTab": "Full Payment",
+    "dataType": "date",
+    "includeInForms": true
+  },
+  {
+    "id": "p1ScheduledReminderDate",
+    "dataType": "date",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "order": 49,
+    "color": "yellow",
+    "columnName": "P1 Scheduled Reminder Date",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 819000000
+    },
+    "width": 180,
+    "_rollback": "023-add-parent-tab-field",
+    "includeInForms": true,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "parentTab": "Payment Term 1",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975001,
+      "nanoseconds": 688000000
+    },
+    "_rollbackNotes": "Removed parentTab field"
+  },
+  {
+    "id": "p1ScheduledEmailLink",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 818000000
+    },
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "columnName": "P1 Scheduled Email Link",
+    "order": 50,
+    "_rollbackNotes": "Removed parentTab field",
+    "dataType": "string",
+    "includeInForms": true,
+    "parentTab": "Payment Term 1",
+    "width": 180,
+    "color": "yellow",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975001,
+      "nanoseconds": 769000000
+    }
+  },
+  {
+    "id": "p1CalendarEventId",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 817000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975001,
+      "nanoseconds": 841000000
+    },
+    "columnName": "P1 Calendar Event ID",
+    "width": 160,
+    "includeInForms": true,
+    "order": 51,
+    "dataType": "string",
+    "color": "yellow",
+    "_rollbackNotes": "Removed parentTab field",
+    "parentTab": "Payment Term 1",
+    "_migration": "025-remove-emoji-from-parent-tabs"
+  },
+  {
+    "id": "p1CalendarEventLink",
+    "color": "yellow",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 818000000
+    },
+    "width": 160,
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "P1 Calendar Event Link",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "parentTab": "Payment Term 1",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975001,
+      "nanoseconds": 928000000
+    },
+    "dataType": "string",
+    "includeInForms": true,
+    "order": 52,
+    "_rollback": "023-add-parent-tab-field"
+  },
+  {
+    "id": "p1DueDate",
+    "color": "yellow",
+    "dataType": "date",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 14000000
+    },
+    "parentTab": "Payment Term 1",
+    "width": 120,
+    "_rollback": "023-add-parent-tab-field",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "columnName": "P1 Due Date",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 818000000
+    },
+    "_migrationNotes": "Removed emojis from parent tab",
+    "includeInForms": true,
+    "order": 53,
+    "_rollbackNotes": "Removed parentTab field"
+  },
+  {
+    "id": "p1Amount",
+    "includeInForms": true,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 817000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "dataType": "currency",
+    "_rollbackNotes": "Removed parentTab field",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 104000000
+    },
+    "columnName": "P1 Amount",
+    "color": "yellow",
+    "order": 54,
+    "parentTab": "Payment Term 1",
+    "width": 120
+  },
+  {
+    "id": "p1DatePaid",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 182000000
+    },
+    "dataType": "date",
+    "_rollback": "023-add-parent-tab-field",
+    "order": 55,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 818000000
+    },
+    "columnName": "P1 Date Paid",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackNotes": "Removed parentTab field",
+    "width": 120,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "includeInForms": true,
+    "parentTab": "Payment Term 1"
+  },
+  {
+    "id": "p2ScheduledReminderDate",
+    "columnName": "P2 Scheduled Reminder Date",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 820000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "order": 56,
+    "dataType": "date",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "color": "yellow",
+    "parentTab": "Payment Term 2",
+    "width": 218,
+    "includeInForms": true,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 253000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_migrationNotes": "Removed emojis from parent tab"
+  },
+  {
+    "id": "p2ScheduledEmailLink",
+    "order": 57,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 332000000
+    },
+    "color": "yellow",
+    "width": 180,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackNotes": "Removed parentTab field",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "parentTab": "Payment Term 2",
+    "columnName": "P2 Scheduled Email Link",
+    "dataType": "string",
+    "_rollback": "023-add-parent-tab-field",
+    "includeInForms": true,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 820000000
+    }
+  },
+  {
+    "id": "p2CalendarEventId",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 819000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 404000000
+    },
+    "color": "yellow",
+    "includeInForms": true,
+    "dataType": "string",
+    "width": 160,
+    "_rollbackNotes": "Removed parentTab field",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "parentTab": "Payment Term 2",
+    "order": 58,
+    "columnName": "P2 Calendar Event ID"
+  },
+  {
+    "id": "p2CalendarEventLink",
+    "width": 160,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "parentTab": "Payment Term 2",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 819000000
+    },
+    "dataType": "string",
+    "order": 59,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 478000000
+    },
+    "color": "yellow",
+    "columnName": "P2 Calendar Event Link",
+    "includeInForms": true,
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackNotes": "Removed parentTab field"
+  },
+  {
+    "id": "p2DueDate",
+    "parentTab": "Payment Term 2",
+    "dataType": "date",
+    "_rollbackNotes": "Removed parentTab field",
+    "order": 60,
+    "width": 120,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollback": "023-add-parent-tab-field",
+    "includeInForms": true,
+    "columnName": "P2 Due Date",
+    "color": "yellow",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 551000000
+    },
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 819000000
+    },
+    "_migration": "025-remove-emoji-from-parent-tabs"
+  },
+  {
+    "id": "p2Amount",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 819000000
+    },
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 635000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "includeInForms": true,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "dataType": "currency",
+    "order": 61,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "width": 120,
+    "columnName": "P2 Amount",
+    "parentTab": "Payment Term 2",
+    "_rollbackNotes": "Removed parentTab field",
+    "color": "yellow"
+  },
+  {
+    "id": "p2DatePaid",
+    "includeInForms": true,
+    "width": 120,
+    "dataType": "date",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 819000000
+    },
+    "parentTab": "Payment Term 2",
+    "order": 62,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 711000000
+    },
+    "columnName": "P2 Date Paid",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackNotes": "Removed parentTab field",
+    "_rollback": "023-add-parent-tab-field",
+    "_migrationNotes": "Removed emojis from parent tab"
+  },
+  {
+    "id": "p3ScheduledReminderDate",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "includeInForms": true,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "parentTab": "Payment Term 3",
+    "dataType": "date",
+    "_rollbackNotes": "Removed parentTab field",
+    "width": 213.33331298828125,
+    "color": "yellow",
+    "order": 63,
+    "columnName": "P3 Scheduled Reminder Date",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 821000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 790000000
+    }
+  },
+  {
+    "id": "p3ScheduledEmailLink",
+    "width": 180,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "dataType": "string",
+    "includeInForms": true,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 821000000
+    },
+    "columnName": "P3 Scheduled Email Link",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackNotes": "Removed parentTab field",
+    "parentTab": "Payment Term 3",
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 862000000
+    },
+    "order": 64,
+    "color": "yellow"
+  },
+  {
+    "id": "p3CalendarEventId",
+    "parentTab": "Payment Term 3",
+    "width": 160,
+    "order": 65,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975002,
+      "nanoseconds": 935000000
+    },
+    "columnName": "P3 Calendar Event ID",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 820000000
+    },
+    "dataType": "string",
+    "_rollbackNotes": "Removed parentTab field",
+    "color": "yellow",
+    "includeInForms": true,
+    "_rollback": "023-add-parent-tab-field"
+  },
+  {
+    "id": "p3CalendarEventLink",
+    "includeInForms": true,
+    "dataType": "string",
+    "parentTab": "Payment Term 3",
+    "width": 160,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 9000000
+    },
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 821000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "P3 Calendar Event Link",
+    "order": 66,
+    "color": "yellow"
+  },
+  {
+    "id": "p3DueDate",
+    "parentTab": "Payment Term 3",
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 84000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "dataType": "date",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 821000000
+    },
+    "_migrationNotes": "Removed emojis from parent tab",
+    "order": 67,
+    "columnName": "P3 Due Date",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "width": 120,
+    "includeInForms": true,
+    "color": "yellow"
+  },
+  {
+    "id": "p3Amount",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 159000000
+    },
+    "color": "yellow",
+    "order": 68,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "P3 Amount",
+    "includeInForms": true,
+    "parentTab": "Payment Term 3",
+    "width": 120,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 820000000
+    },
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollback": "023-add-parent-tab-field",
+    "dataType": "currency"
+  },
+  {
+    "id": "p3DatePaid",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 821000000
+    },
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 237000000
+    },
+    "columnName": "P3 Date Paid",
+    "_rollbackNotes": "Removed parentTab field",
+    "color": "none",
+    "parentTab": "Payment Term 3",
+    "dataType": "date",
+    "includeInForms": false,
+    "width": 120,
+    "_rollback": "023-add-parent-tab-field",
+    "order": 69
+  },
+  {
+    "id": "p4ScheduledReminderDate",
+    "dataType": "date",
+    "_rollback": "023-add-parent-tab-field",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 823000000
+    },
+    "width": 211.3333740234375,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 310000000
+    },
+    "parentTab": "Payment Term 4",
+    "includeInForms": false,
+    "color": "yellow",
+    "columnName": "P4 Scheduled Reminder Date",
+    "_rollbackNotes": "Removed parentTab field",
+    "order": 70
+  },
+  {
+    "id": "p4ScheduledEmailLink",
+    "includeInForms": true,
+    "dataType": "string",
+    "parentTab": "Payment Term 4",
+    "width": 180,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 384000000
+    },
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 822000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "P4 Scheduled Email Link",
+    "order": 71,
+    "color": "yellow"
+  },
+  {
+    "id": "p4CalendarEventId",
+    "dataType": "string",
+    "includeInForms": false,
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 459000000
+    },
+    "columnName": "P4 Calendar Event ID",
+    "width": 160,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "color": "yellow",
+    "parentTab": "Payment Term 4",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "order": 72,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 822000000
+    },
+    "_rollbackNotes": "Removed parentTab field"
+  },
+  {
+    "id": "p4CalendarEventLink",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 822000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackNotes": "Removed parentTab field",
+    "includeInForms": false,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 533000000
+    },
+    "columnName": "P4 Calendar Event Link",
+    "dataType": "string",
+    "parentTab": "Payment Term 4",
+    "color": "yellow",
+    "width": 160,
+    "order": 73
+  },
+  {
+    "id": "p4DueDate",
+    "_rollbackNotes": "Removed parentTab field",
+    "dataType": "date",
+    "_rollback": "023-add-parent-tab-field",
+    "includeInForms": false,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 822000000
+    },
+    "width": 120,
+    "columnName": "P4 Due Date",
+    "parentTab": "Payment Term 4",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 602000000
+    },
+    "color": "yellow",
+    "order": 74,
+    "_migrationNotes": "Removed emojis from parent tab"
+  },
+  {
+    "id": "p4Amount",
+    "parentTab": "Payment Term 4",
+    "_rollback": "023-add-parent-tab-field",
+    "color": "yellow",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "includeInForms": false,
+    "columnName": "P4 Amount",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackNotes": "Removed parentTab field",
+    "width": 120,
+    "dataType": "currency",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 675000000
+    },
+    "order": 75,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 822000000
+    }
+  },
+  {
+    "id": "p4DatePaid",
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 748000000
+    },
+    "dataType": "date",
+    "columnName": "P4 Date Paid",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "parentTab": "Payment Term 4",
+    "width": 120,
+    "color": "none",
+    "includeInForms": false,
+    "order": 76,
+    "_rollbackNotes": "Removed parentTab field",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 822000000
+    }
+  },
+  {
+    "id": "reasonForCancellation",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollback": "023-add-parent-tab-field",
+    "columnName": "Reason for Cancellation",
+    "parentTab": "Cancellation",
+    "includeInForms": false,
+    "order": 77,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 819000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "color": "none",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 824000000
+    },
+    "dataType": "string",
+    "width": 200
+  },
+  {
+    "id": "includeBccCancellation",
+    "width": 180,
+    "dataType": "boolean",
+    "_rollbackNotes": "Removed parentTab field",
+    "columnName": "Include BCC (Cancellation)",
+    "includeInForms": false,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 892000000
+    },
+    "color": "orange",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 816000000
+    },
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollback": "023-add-parent-tab-field",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "order": 78,
+    "parentTab": "Cancellation"
+  },
+  {
+    "id": "generateCancellationEmailDraft",
+    "includeInForms": false,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 815000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "dataType": "boolean",
+    "_rollbackNotes": "Removed parentTab field",
+    "color": "orange",
+    "width": 200,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975003,
+      "nanoseconds": 967000000
+    },
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "columnName": "Generate Cancellation Email Draft",
+    "order": 79,
+    "parentTab": "Cancellation"
+  },
+  {
+    "id": "cancellationEmailDraftLink",
+    "dataType": "string",
+    "color": "yellow",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "width": 200,
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975004,
+      "nanoseconds": 46000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "includeInForms": false,
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 809000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "parentTab": "Cancellation",
+    "order": 80,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "columnName": "Cancellation Email Draft Link"
+  },
+  {
+    "id": "subjectLineCancellation",
+    "width": 200,
+    "parentTab": "Cancellation",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 827000000
+    },
+    "_rollbackNotes": "Removed parentTab field",
+    "_rollback": "023-add-parent-tab-field",
+    "columnName": "Subject Line (Cancellation)",
+    "dataType": "string",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975004,
+      "nanoseconds": 121000000
+    },
+    "color": "yellow",
+    "order": 81,
+    "includeInForms": false,
+    "_migration": "025-remove-emoji-from-parent-tabs"
+  },
+  {
+    "id": "sendCancellationEmail",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "parentTab": "Cancellation",
+    "_rollbackNotes": "Removed parentTab field",
+    "order": 82,
+    "_rollback": "023-add-parent-tab-field",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 826000000
+    },
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975004,
+      "nanoseconds": 195000000
+    },
+    "width": 180,
+    "columnName": "Send Cancellation Email?",
+    "includeInForms": false,
+    "dataType": "boolean",
+    "color": "yellow"
+  },
+  {
+    "id": "sentCancellationEmailLink",
+    "parentTab": "Cancellation",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975004,
+      "nanoseconds": 264000000
+    },
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 826000000
+    },
+    "dataType": "string",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "_rollbackNotes": "Removed parentTab field",
+    "includeInForms": false,
+    "width": 200,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "columnName": "Sent Cancellation Email Link",
+    "_rollback": "023-add-parent-tab-field",
+    "color": "yellow",
+    "order": 83
+  },
+  {
+    "id": "cancellationEmailSentDate",
+    "includeInForms": false,
+    "_migrationNotes": "Removed emojis from parent tab",
+    "dataType": "date",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 809000000
+    },
+    "columnName": "Cancellation Email Sent Date",
+    "parentTab": "Cancellation",
+    "_rollback": "023-add-parent-tab-field",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975004,
+      "nanoseconds": 342000000
+    },
+    "color": "yellow",
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "width": 258,
+    "order": 84,
+    "_rollbackNotes": "Removed parentTab field"
+  },
+  {
+    "id": "delete",
+    "parentTab": "Identifier",
+    "_rollbackAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758975004,
+      "nanoseconds": 421000000
+    },
+    "color": "red",
+    "order": 85,
+    "_migration": "025-remove-emoji-from-parent-tabs",
+    "width": 110.666748046875,
+    "_rollbackNotes": "Removed parentTab field",
+    "dataType": "function",
+    "_migrationNotes": "Removed emojis from parent tab",
+    "_migratedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759050345,
+      "nanoseconds": 812000000
+    },
+    "_rollback": "023-add-parent-tab-field",
+    "includeInForms": false,
+    "columnName": "Delete"
+  }
+]

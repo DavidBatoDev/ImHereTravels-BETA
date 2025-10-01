@@ -1,12 +1,13 @@
 #!/usr/bin/env tsx
 
 /**
- * Script to generate a JSON file with all email templates from Firebase
+ * Script to export all documents from the bookings collection as JSON
+ * Returns all fields from each document using spread operator
  *
  * Usage:
- *   npm run log-email-templates
+ *   npm run log-bookings
  *   or
- *   npx tsx src/scripts/log-email-templates.ts
+ *   npx tsx src/scripts/log-bookings.ts
  */
 
 import { writeFileSync } from "fs";
@@ -14,17 +15,17 @@ import { join } from "path";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../migrations/firebase-config";
 
-console.log("🚀 Starting emailTemplates collection export...");
+console.log("🚀 Starting bookings collection export...");
 
 // Fetch all documents from Firebase collection
-async function fetchEmailTemplates(): Promise<any[]> {
+async function fetchBookings(): Promise<any[]> {
   try {
-    console.log("📡 Fetching documents from emailTemplates collection...");
-    const templatesRef = collection(db, "emailTemplates");
-    const snapshot = await getDocs(templatesRef);
+    console.log("📡 Fetching documents from bookings collection...");
+    const bookingsRef = collection(db, "bookings");
+    const snapshot = await getDocs(bookingsRef);
 
     if (snapshot.empty) {
-      console.log("❌ No documents found in emailTemplates collection");
+      console.log("❌ No documents found in bookings collection");
       return [];
     }
 
@@ -50,24 +51,24 @@ async function fetchEmailTemplates(): Promise<any[]> {
 async function main() {
   try {
     // Fetch all documents from Firebase
-    const documents = await fetchEmailTemplates();
+    const documents = await fetchBookings();
 
     if (documents.length === 0) {
       console.log("❌ No documents to export");
       return;
     }
 
-    // Sort by template name or document ID
+    // Sort by booking ID or document ID
     documents.sort((a, b) => {
-      if (a.name && b.name) {
-        return a.name.localeCompare(b.name);
+      if (a.bookingId !== undefined && b.bookingId !== undefined) {
+        return a.bookingId.localeCompare(b.bookingId);
       }
       return a.id.localeCompare(b.id);
     });
 
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `email-templates-${timestamp}.json`;
+    const filename = `bookings-${timestamp}.json`;
 
     // Write to exports directory
     const outputPath = join(process.cwd(), "exports", filename);
@@ -88,13 +89,21 @@ async function main() {
     console.log(`📊 Total documents: ${documents.length}`);
 
     // Display summary of exported documents
-    console.log("\n📋 Exported Email Templates Summary:");
+    console.log("\n📋 Exported Bookings Summary:");
     documents.forEach((doc, index) => {
-      const name = doc.name || "No name";
-      const status = doc.status || "No status";
-      const createdBy = doc.metadata?.createdBy || "Unknown";
+      const bookingId = doc.bookingId || doc.id;
+      const fullName =
+        doc.fullName ||
+        `${doc.firstName || ""} ${doc.lastName || ""}`.trim() ||
+        "No name";
+      const tourName = doc.tourPackageName || "No tour";
+      const status = doc.bookingStatus || "No status";
+      const tourDate = doc.tourDate || "No date";
+
       console.log(
-        `${index + 1}. ${name} | Status: ${status} | Created by: ${createdBy}`
+        `${
+          index + 1
+        }. ${bookingId} - ${fullName} | ${tourName} | ${status} | ${tourDate}`
       );
     });
   } catch (error) {
