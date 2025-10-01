@@ -24,6 +24,9 @@ export interface TSFile {
   hasDestructuring: boolean;
   hasRestParameters: boolean;
   functionDependencies: string[]; // Names of functions called within this function
+  isAsync: boolean; // Whether the function is async
+  hasAwait: boolean; // Whether the function uses await
+  returnType: "sync" | "async" | "promise"; // Return type classification
 }
 
 export interface TSArgument {
@@ -74,6 +77,9 @@ export interface FileAnalysisResult {
   hasDestructuring: boolean;
   hasRestParameters: boolean;
   functionDependencies: string[]; // Names of functions called within this function
+  isAsync: boolean; // Whether the function is async
+  hasAwait: boolean; // Whether the function uses await
+  returnType: "sync" | "async" | "promise"; // Return type classification
 }
 
 // Legacy aliases for backward compatibility

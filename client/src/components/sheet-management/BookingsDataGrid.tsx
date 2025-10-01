@@ -93,6 +93,9 @@ import {
   ArrowUp,
   ArrowDown,
   Calendar as CalendarIcon,
+  RefreshCw,
+  Terminal,
+  Bug,
 } from "lucide-react";
 import {
   SheetColumn,
@@ -129,6 +132,7 @@ const isEqual = (a: any, b: any): boolean => {
   return true;
 };
 import ColumnSettingsModal from "./ColumnSettingsModal";
+import SheetConsole from "./SheetConsole";
 
 // Custom editors for different data types
 const DateEditor = memo(function DateEditor({
@@ -495,9 +499,16 @@ const FunctionFormatter = memo(function FunctionFormatter({
     | undefined;
   const availableFunctions = (column as any)
     .availableFunctions as TypeScriptFunction[];
+  const recomputeCell = (column as any).recomputeCell as
+    | ((rowId: string, columnId: string) => Promise<void>)
+    | undefined;
+  const openDebugConsole = (column as any).openDebugConsole as
+    | ((rowId: string, columnId: string) => void)
+    | undefined;
 
   const [showFunctionPopup, setShowFunctionPopup] = useState(false);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+  const [isRecomputing, setIsRecomputing] = useState(false);
 
   // Close popup when clicking outside
   useEffect(() => {
@@ -585,18 +596,62 @@ const FunctionFormatter = memo(function FunctionFormatter({
     }
   };
 
+  const handleRetry = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent cell click
+    if (recomputeCell && !isRecomputing) {
+      setIsRecomputing(true);
+      try {
+        await recomputeCell(row.id, column.key);
+      } catch (error) {
+        console.error("Failed to recompute cell:", error);
+      } finally {
+        setIsRecomputing(false);
+      }
+    }
+  };
+
+  const handleDebug = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent cell click
+    if (openDebugConsole) {
+      openDebugConsole(row.id, column.key);
+    }
+  };
+
   return (
     <>
-      <div
-        className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-border cursor-pointer hover:bg-gray-50"
-        onClick={handleCellClick}
-        title={
-          functionDetails
-            ? `Click to view function details: ${functionDetails.name}`
-            : ""
-        }
-      >
-        {value?.toString() || ""}
+      <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-border relative group">
+        <div
+          className="flex-1 cursor-pointer hover:bg-gray-50 h-full flex items-center pr-16"
+          onClick={handleCellClick}
+          title={
+            functionDetails
+              ? `Click to view function details: ${functionDetails.name}`
+              : ""
+          }
+        >
+          {value?.toString() || ""}
+        </div>
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          <button
+            onClick={handleDebug}
+            className="p-1 hover:bg-blue-50 rounded transition-all opacity-0 group-hover:opacity-100"
+            title="Debug in console"
+          >
+            <Bug className="h-3 w-3 text-blue-600" />
+          </button>
+          <button
+            onClick={handleRetry}
+            disabled={isRecomputing}
+            className="p-1 hover:bg-royal-purple/10 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Retry computation"
+          >
+            <RefreshCw
+              className={`h-3 w-3 text-royal-purple ${
+                isRecomputing ? "animate-spin" : ""
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       {showFunctionPopup && functionDetails && (
@@ -716,6 +771,11 @@ export default function BookingsDataGrid({
   const [localData, setLocalData] = useState<SheetData[]>([]);
   const functionSubscriptionsRef = useRef<Map<string, () => void>>(new Map());
   const isInitialLoadRef = useRef<boolean>(true);
+  const [isSheetConsoleVisible, setIsSheetConsoleVisible] = useState(false);
+  const [debugCell, setDebugCell] = useState<{
+    rowId: string;
+    columnId: string;
+  } | null>(null);
 
   // Cache for function arguments to detect actual changes
   const functionArgsCacheRef = useRef<Map<string, any[]>>(new Map());
@@ -723,6 +783,7 @@ export default function BookingsDataGrid({
   // Clear function cache when data changes
   const clearFunctionCache = useCallback(() => {
     functionArgsCacheRef.current.clear();
+    functionExecutionService.clearAllResultCache();
   }, []);
 
   // Enhanced filtering state
@@ -779,18 +840,8 @@ export default function BookingsDataGrid({
     };
   }, []);
 
-  // Sync local data with props data
-  useEffect(() => {
-    setLocalData(data);
-
-    // After initial data load, allow recomputation for real changes
-    if (isInitialLoadRef.current && data && data.length > 0) {
-      // Use a small delay to ensure all subscriptions are set up
-      setTimeout(() => {
-        isInitialLoadRef.current = false;
-      }, 100);
-    }
-  }, [data, columns]);
+  // Track previous data to detect changes
+  const prevDataRef = useRef<SheetData[]>([]);
 
   // Debug selectedCell changes
 
@@ -809,9 +860,6 @@ export default function BookingsDataGrid({
       }
 
       try {
-        const fn = await functionExecutionService.getCompiledFunction(
-          funcCol.function
-        );
         const args = functionExecutionService.buildArgs(funcCol, row, columns);
 
         // Create a cache key for this specific function call
@@ -821,13 +869,22 @@ export default function BookingsDataGrid({
         // Check if arguments have actually changed
         const argsChanged = !cachedArgs || !isEqual(cachedArgs, args);
 
-        // Check if any function arguments are undefined or null (indicating missing data)
-        const hasUndefinedArgs = args.some(
-          (arg) => arg === undefined || arg === null
-        );
-        if (hasUndefinedArgs) {
-          return row[funcCol.id]; // Return existing value without recomputing
-        }
+        // Skip only if a REQUIRED argument is missing.
+        // Allow undefined/null when the argument is optional or has a default.
+        // const meta = Array.isArray(funcCol.arguments) ? funcCol.arguments : [];
+        // const missingRequiredArg = args.some((argVal, idx) => {
+        //   const m = meta[idx];
+        //   if (argVal === undefined || argVal === null) {
+        //     // If we have metadata and it's optional or has default, allow it
+        //     if (m && (m.isOptional || m.hasDefault)) return false;
+        //     // Otherwise this is a required missing value
+        //     return true;
+        //   }
+        //   return false;
+        // });
+        // if (missingRequiredArg) {
+        //   return row[funcCol.id]; // Return existing value without recomputing
+        // }
 
         // Skip recomputation if arguments haven't changed
         if (!argsChanged) {
@@ -837,21 +894,32 @@ export default function BookingsDataGrid({
         // Update cache with new arguments
         functionArgsCacheRef.current.set(cacheKey, [...args]);
 
-        const result = await Promise.resolve(fn(...args));
+        // Execute function with proper async handling
+        // The function execution service will handle caching based on arguments
+        const executionResult = await functionExecutionService.executeFunction(
+          funcCol.function,
+          args,
+          10000 // 10 second timeout
+        );
+
+        if (!executionResult.success) {
+          console.error(
+            `Function execution failed for ${funcCol.function}:`,
+            executionResult.error
+          );
+          return row[funcCol.id]; // Return existing value on error
+        }
+
+        const result = executionResult.result;
 
         if (!isEqual(row[funcCol.id], result)) {
-          // Optimistic local update
-          setLocalData((prev) =>
-            prev.map((r) =>
-              r.id === row.id ? { ...r, [funcCol.id]: result } : r
-            )
-          );
-
           // Batch persist to Firestore (debounced)
+          // Firebase listener will update the UI when confirmed
           batchedWriter.queueFieldUpdate(row.id, funcCol.id, result);
         }
         return result;
       } catch (err) {
+        console.error(`Function execution error for ${funcCol.function}:`, err);
         return undefined;
       }
     },
@@ -893,6 +961,37 @@ export default function BookingsDataGrid({
     return map;
   }, [columns]);
 
+  // Recompute a specific function cell (manual retry)
+  const recomputeCell = useCallback(
+    async (rowId: string, columnId: string) => {
+      const funcCol = columns.find((c) => c.id === columnId);
+      if (!funcCol || funcCol.dataType !== "function") return;
+
+      // Build a working snapshot of the row values
+      const baseRow =
+        localData.find((r) => r.id === rowId) ||
+        data.find((r) => r.id === rowId);
+      if (!baseRow) return;
+
+      // Clear cache for this specific cell
+      const cacheKey = `${rowId}:${funcCol.id}:${funcCol.function}`;
+      functionArgsCacheRef.current.delete(cacheKey);
+
+      // Force recomputation
+      await computeFunctionForRow(baseRow, funcCol, true);
+
+      // Flush immediately for manual retries
+      batchedWriter.flush();
+    },
+    [columns, localData, data, computeFunctionForRow]
+  );
+
+  // Open debug console for a specific cell
+  const openDebugConsole = useCallback((rowId: string, columnId: string) => {
+    setDebugCell({ rowId, columnId });
+    setIsSheetConsoleVisible(true);
+  }, []);
+
   // Recompute only direct dependent function columns for a single row
   const recomputeDirectDependentsForRow = useCallback(
     async (rowId: string, changedColumnId: string, updatedValue: any) => {
@@ -929,6 +1028,63 @@ export default function BookingsDataGrid({
     [columns, localData, data, dependencyGraph, computeFunctionForRow]
   );
 
+  // Sync local data with props data and trigger recomputation on Firebase changes
+  useEffect(() => {
+    const prevData = prevDataRef.current;
+    const currentData = data;
+
+    // Update local data
+    setLocalData(data);
+
+    // Skip recomputation during initial load
+    if (isInitialLoadRef.current) {
+      if (data && data.length > 0) {
+        // Use a small delay to ensure all subscriptions are set up
+        setTimeout(() => {
+          isInitialLoadRef.current = false;
+        }, 100);
+      }
+      prevDataRef.current = [...currentData];
+      return;
+    }
+
+    // Detect changes (including function columns) and trigger recomputation for affected rows
+    if (prevData.length > 0 && currentData.length > 0) {
+      const changedRows = currentData.filter((currentRow) => {
+        const prevRow = prevData.find((p) => p.id === currentRow.id);
+        if (!prevRow) return false;
+
+        // Check if any fields have changed (including function columns)
+        return columns.some((col) => {
+          return !isEqual(prevRow[col.id], currentRow[col.id]);
+        });
+      });
+
+      // Trigger recomputation for changed rows
+      changedRows.forEach(async (changedRow) => {
+        const prevRow = prevData.find((p) => p.id === changedRow.id);
+        if (!prevRow) return;
+
+        // Find which fields changed (including function columns)
+        const changedFields = columns.filter((col) => {
+          return !isEqual(prevRow[col.id], changedRow[col.id]);
+        });
+
+        // Trigger recomputation for each changed field's direct dependents
+        for (const field of changedFields) {
+          await recomputeDirectDependentsForRow(
+            changedRow.id,
+            field.id,
+            changedRow[field.id]
+          );
+        }
+      });
+    }
+
+    // Update previous data reference
+    prevDataRef.current = [...currentData];
+  }, [data, columns, recomputeDirectDependentsForRow]);
+
   // Recompute for columns bound to a specific function id (and their dependents)
   const recomputeForFunction = useCallback(
     async (funcId: string) => {
@@ -955,7 +1111,7 @@ export default function BookingsDataGrid({
       // Expedite persistence
       batchedWriter.flush();
     },
-    [columns, localData, data, computeFunctionForRow]
+    [columns, localData, data]
   );
 
   // Subscribe to changes for only the functions referenced by current columns
@@ -1009,7 +1165,7 @@ export default function BookingsDataGrid({
       functionSubscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
       functionSubscriptionsRef.current.clear();
     };
-  }, [columns, recomputeForFunction]);
+  }, [columns]);
 
   // Enhanced filtering and sorting logic
   const filteredAndSortedData = useMemo(() => {
@@ -1483,29 +1639,16 @@ export default function BookingsDataGrid({
                   onChange={async (e) => {
                     const newValue = e.target.checked;
 
-                    // Update local data immediately
-                    setLocalData((prev) =>
-                      prev.map((r) =>
-                        r.id === row.id ? { ...r, [column.key]: newValue } : r
-                      )
-                    );
-
-                    // Save to Firestore
+                    // Save to Firestore - Firebase listener will update the UI
                     try {
                       await bookingService.updateBookingField(
                         row.id,
                         column.key,
                         newValue
                       );
+                      // Note: Recomputation will be triggered by Firebase listener
                     } catch (error) {
-                      // Revert local change on error
-                      setLocalData((prev) =>
-                        prev.map((r) =>
-                          r.id === row.id
-                            ? { ...r, [column.key]: cellValue }
-                            : r
-                        )
-                      );
+                      console.error("Failed to update boolean field:", error);
                     }
                   }}
                   className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
@@ -1586,27 +1729,16 @@ export default function BookingsDataGrid({
                     ? new Date(e.target.value)
                     : null;
 
-                  // Update local data immediately
-                  setLocalData((prev) =>
-                    prev.map((r) =>
-                      r.id === row.id ? { ...r, [column.key]: newValue } : r
-                    )
-                  );
-
-                  // Save to Firestore
+                  // Save to Firestore - Firebase listener will update the UI
                   try {
                     await bookingService.updateBookingField(
                       row.id,
                       column.key,
                       newValue
                     );
+                    // Note: Recomputation will be triggered by Firebase listener
                   } catch (error) {
-                    // Revert local change on error
-                    setLocalData((prev) =>
-                      prev.map((r) =>
-                        r.id === row.id ? { ...r, [column.key]: cellValue } : r
-                      )
-                    );
+                    console.error("Failed to update date field:", error);
                   }
                 }}
                 className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2 ${
@@ -1642,27 +1774,16 @@ export default function BookingsDataGrid({
                 onChange={async (e) => {
                   const newValue = e.target.value;
 
-                  // Update local data immediately
-                  setLocalData((prev) =>
-                    prev.map((r) =>
-                      r.id === row.id ? { ...r, [column.key]: newValue } : r
-                    )
-                  );
-
-                  // Save to Firestore
+                  // Save to Firestore - Firebase listener will update the UI
                   try {
                     await bookingService.updateBookingField(
                       row.id,
                       column.key,
                       newValue
                     );
+                    // Note: Recomputation will be triggered by Firebase listener
                   } catch (error) {
-                    // Revert local change on error
-                    setLocalData((prev) =>
-                      prev.map((r) =>
-                        r.id === row.id ? { ...r, [column.key]: cellValue } : r
-                      )
-                    );
+                    console.error("Failed to update select field:", error);
                   }
                 }}
                 className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2 ${
@@ -1670,7 +1791,7 @@ export default function BookingsDataGrid({
                 }`}
                 style={{ backgroundColor: "transparent" }}
               >
-                <option value="">Select option</option>
+                <option value=""></option>
                 {options.map((option: string) => (
                   <option key={option} value={option}>
                     {option}
@@ -1698,31 +1819,16 @@ export default function BookingsDataGrid({
                 onChange={async (e) => {
                   const newValue = parseFloat(e.target.value) || 0;
 
-                  // Update local data immediately
-                  setLocalData((prev) =>
-                    prev.map((r) =>
-                      r.id === row.id ? { ...r, [column.key]: newValue } : r
-                    )
-                  );
-
-                  // Save to Firestore
+                  // Save to Firestore - Firebase listener will update the UI
                   try {
                     await bookingService.updateBookingField(
                       row.id,
                       column.key,
                       newValue
                     );
+                    // Note: Recomputation will be triggered by Firebase listener
                   } catch (error) {
-                    console.error(
-                      "❌ Failed to save currency to Firestore:",
-                      error
-                    );
-                    // Revert local change on error
-                    setLocalData((prev) =>
-                      prev.map((r) =>
-                        r.id === row.id ? { ...r, [column.key]: cellValue } : r
-                      )
-                    );
+                    console.error("Failed to update currency field:", error);
                   }
                 }}
                 className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2 ${
@@ -1759,6 +1865,8 @@ export default function BookingsDataGrid({
           (baseColumn as any).columnDef = col;
           (baseColumn as any).deleteRow = deleteRow;
           (baseColumn as any).availableFunctions = availableFunctions;
+          (baseColumn as any).recomputeCell = recomputeCell;
+          (baseColumn as any).openDebugConsole = openDebugConsole;
         } else if (col.dataType === "number") {
           baseColumn.renderCell = ({ row, column }) => {
             const isEmptyRow = (row as any)._isEmptyRow;
@@ -1882,7 +1990,7 @@ export default function BookingsDataGrid({
     }
 
     return validatedColumns;
-  }, [columns, deleteRow]);
+  }, [columns, deleteRow, recomputeCell, openDebugConsole]);
 
   const handleAddNewRow = async () => {
     try {
@@ -1930,7 +2038,7 @@ export default function BookingsDataGrid({
   };
 
   return (
-    <div className="booking-data-grid space-y-6">
+    <div className="booking-data-grid space-y-6 relative">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -2234,8 +2342,7 @@ export default function BookingsDataGrid({
                 (row: any) => row._isDataRow !== false
               );
               const newData = dataRows as SheetData[];
-              updateData(newData);
-              setLocalData(newData);
+              // Note: Don't update local data - Firebase listener is the source of truth
 
               // Find the column definition for debugging
               const columnDef = column
@@ -2261,13 +2368,7 @@ export default function BookingsDataGrid({
                       fieldKey,
                       newValue
                     );
-
-                    // Trigger function recomputation for dependent columns
-                    await recomputeDirectDependentsForRow(
-                      changedRow.id,
-                      fieldKey,
-                      newValue
-                    );
+                    // Note: Recomputation will be triggered by Firebase listener
                   }
                 } else if (originalRow) {
                   // Multiple field changes - compare all fields
@@ -2288,13 +2389,7 @@ export default function BookingsDataGrid({
                       fieldKey,
                       newValue
                     );
-
-                    // Trigger function recomputation for dependent columns
-                    await recomputeDirectDependentsForRow(
-                      changedRow.id,
-                      fieldKey,
-                      newValue
-                    );
+                    // Note: Recomputation will be triggered by Firebase listener
                   }
                 }
               });
@@ -2518,6 +2613,32 @@ export default function BookingsDataGrid({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Sheet Console - Slide-out panel */}
+      <div
+        className={`fixed right-0 top-0 h-screen w-96 bg-background shadow-2xl transition-transform duration-300 ease-in-out z-40 ${
+          isSheetConsoleVisible ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <SheetConsole
+          columns={columns}
+          data={data}
+          availableFunctions={availableFunctions}
+          onClose={() => {
+            setIsSheetConsoleVisible(false);
+            setDebugCell(null);
+          }}
+          debugCell={debugCell}
+        />
+      </div>
+
+      {/* Backdrop for console */}
+      {isSheetConsoleVisible && (
+        <div
+          className="fixed inset-0 bg-black/20 z-30"
+          onClick={() => setIsSheetConsoleVisible(false)}
+        />
       )}
     </div>
   );

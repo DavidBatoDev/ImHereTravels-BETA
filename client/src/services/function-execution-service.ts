@@ -22,23 +22,173 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
 
 type CompiledFn = (...args: any[]) => any;
+type AsyncCompiledFn = (...args: any[]) => Promise<any>;
 
 class FunctionExecutionService {
   private cache: Map<string, CompiledFn> = new Map();
+  private resultCache: Map<
+    string,
+    { result: any; timestamp: number; executionTime: number }
+  > = new Map();
+  private readonly RESULT_CACHE_TTL = 30000; // 30 seconds cache TTL
 
   // Invalidate a single compiled function by its ts_file id
   invalidate(fileId: string): void {
     this.cache.delete(fileId);
+    this.clearResultCache(fileId);
   }
 
   // Invalidate multiple compiled functions at once
   invalidateMany(fileIds: string[]): void {
-    for (const id of fileIds) this.cache.delete(id);
+    for (const id of fileIds) {
+      this.cache.delete(id);
+      this.clearResultCache(id);
+    }
   }
 
   // Clear all compiled function cache (use sparingly)
   clearAll(): void {
     this.cache.clear();
+    this.resultCache.clear();
+  }
+
+  // Clear result cache for a specific function
+  clearResultCache(fileId: string): void {
+    const keysToDelete = Array.from(this.resultCache.keys()).filter((key) =>
+      key.startsWith(`${fileId}:`)
+    );
+    keysToDelete.forEach((key) => this.resultCache.delete(key));
+  }
+
+  // Clear all result cache
+  clearAllResultCache(): void {
+    this.resultCache.clear();
+  }
+
+  // Generate cache key for function execution
+  private generateCacheKey(fileId: string, args: any[]): string {
+    const argsString = JSON.stringify(args);
+    return `${fileId}:${argsString}`;
+  }
+
+  // Check if cached result is still valid
+  private isCacheValid(timestamp: number): boolean {
+    return Date.now() - timestamp < this.RESULT_CACHE_TTL;
+  }
+
+  // Execute a function with proper async handling and timeout
+  async executeFunction(
+    fileId: string,
+    args: any[],
+    timeoutMs: number = 10000
+  ): Promise<{
+    success: boolean;
+    result?: any;
+    error?: string;
+    executionTime?: number;
+  }> {
+    const startTime = performance.now();
+
+    // Check result cache first
+    const cacheKey = this.generateCacheKey(fileId, args);
+    const cachedResult = this.resultCache.get(cacheKey);
+
+    if (cachedResult && this.isCacheValid(cachedResult.timestamp)) {
+      console.log(
+        `🚀 [CACHE HIT] Function ${fileId} with args [${args.join(
+          ", "
+        )}] executed in ${cachedResult.executionTime}ms (cached)`
+      );
+      return {
+        success: true,
+        result: cachedResult.result,
+        executionTime: cachedResult.executionTime,
+      };
+    }
+
+    try {
+      const fn = await this.getCompiledFunction(fileId);
+
+      // Check if function is async by trying to detect it
+      const isAsync = this.isFunctionAsync(fn);
+
+      let result: any;
+      let executionTime: number;
+
+      if (isAsync) {
+        // Handle async function with timeout
+        result = await this.executeWithTimeout(() => fn(...args), timeoutMs);
+        executionTime = performance.now() - startTime;
+      } else {
+        // Handle sync function
+        result = fn(...args);
+
+        // Check if result is a Promise (function might return Promise without being async)
+        if (result && typeof result.then === "function") {
+          result = await this.executeWithTimeout(() => result, timeoutMs);
+        }
+        executionTime = performance.now() - startTime;
+      }
+
+      // Cache the successful result
+      this.resultCache.set(cacheKey, {
+        result,
+        timestamp: Date.now(),
+        executionTime,
+      });
+
+      console.log(
+        `✅ [FUNCTION EXECUTED] Function ${fileId} with args [${args.join(
+          ", "
+        )}] executed in ${executionTime}ms`
+      );
+
+      return {
+        success: true,
+        result,
+        executionTime,
+      };
+    } catch (error) {
+      const executionTime = performance.now() - startTime;
+      console.error(
+        `❌ [FUNCTION ERROR] Function ${fileId} with args [${args.join(
+          ", "
+        )}] failed after ${executionTime}ms:`,
+        error
+      );
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        executionTime,
+      };
+    }
+  }
+
+  // Execute function with timeout
+  private async executeWithTimeout<T>(
+    fn: () => T | Promise<T>,
+    timeoutMs: number
+  ): Promise<T> {
+    return Promise.race([
+      Promise.resolve(fn()),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(`Function execution timeout after ${timeoutMs}ms`)
+            ),
+          timeoutMs
+        )
+      ),
+    ]);
+  }
+
+  // Detect if a function is async (basic detection)
+  private isFunctionAsync(fn: Function): boolean {
+    // Check function string representation for async keyword
+    const fnString = fn.toString();
+    return fnString.includes("async") || fnString.includes("await");
   }
 
   // Fetch, transpile, and cache the function by ts_file id

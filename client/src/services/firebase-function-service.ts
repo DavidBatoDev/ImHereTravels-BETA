@@ -87,6 +87,9 @@ const convertFileDoc = (doc: QueryDocumentSnapshot<DocumentData>): TSFile => {
     hasDestructuring: analysis.hasDestructuring,
     hasRestParameters: analysis.hasRestParameters,
     functionDependencies: analysis.functionDependencies || [],
+    isAsync: analysis.isAsync,
+    hasAwait: analysis.hasAwait,
+    returnType: analysis.returnType,
   };
 };
 

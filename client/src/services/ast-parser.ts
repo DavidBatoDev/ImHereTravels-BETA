@@ -219,6 +219,9 @@ export class ASTParser {
       hasDestructuring: false,
       hasRestParameters: false,
       functionDependencies: [],
+      isAsync: false,
+      hasAwait: false,
+      returnType: "sync",
     };
 
     // Determine export type and extract function information
@@ -275,6 +278,9 @@ export class ASTParser {
   ): void {
     if (!functionNode.parameters) return;
 
+    // Check if function is async
+    analysis.isAsync = this.isAsyncFunction(functionNode);
+
     // Set function name if available and not already set
     if (
       ts.isFunctionDeclaration(functionNode) &&
@@ -320,7 +326,13 @@ export class ASTParser {
       analysis.functionDependencies = this.extractFunctionDependencies(
         functionNode.body
       );
+
+      // Check for await usage in function body
+      analysis.hasAwait = this.hasAwaitInBody(functionNode.body);
     }
+
+    // Determine return type classification
+    analysis.returnType = this.determineReturnType(analysis);
   }
 
   /**
@@ -726,6 +738,9 @@ export class ASTParser {
       hasDestructuring: false,
       hasRestParameters: false,
       functionDependencies: [],
+      isAsync: false,
+      hasAwait: false,
+      returnType: "sync",
     };
   }
 
@@ -788,6 +803,9 @@ export class ASTParser {
       parameterCount: extractedArgs.length,
       fileType: this.detectFileTypeFromContent(content),
       hasTypeAnnotations: this.hasTypeAnnotationsFromContent(content),
+      isAsync: this.detectAsyncFromContent(content),
+      hasAwait: this.detectAwaitFromContent(content),
+      returnType: this.detectAsyncFromContent(content) ? "async" : "sync",
     };
   }
 
@@ -820,6 +838,32 @@ export class ASTParser {
     const hasVarTypes = /:\s*\w+(\[\])?(\s*[=,;]|$)/.test(content);
 
     return hasParamTypes || hasReturnType || hasVarTypes;
+  }
+
+  /**
+   * Detect async function from content using regex (fallback method)
+   */
+  private detectAsyncFromContent(content: string): boolean {
+    // Check for async function declarations
+    const hasAsyncFunction = /export\s+default\s+async\s+function/.test(
+      content
+    );
+    // Check for async arrow functions
+    const hasAsyncArrow = /export\s+default\s+async\s*\(/.test(content);
+    // Check for async function expressions
+    const hasAsyncExpression = /export\s+default\s+async\s*\([^)]*\)\s*=>/.test(
+      content
+    );
+
+    return hasAsyncFunction || hasAsyncArrow || hasAsyncExpression;
+  }
+
+  /**
+   * Detect await usage from content using regex (fallback method)
+   */
+  private detectAwaitFromContent(content: string): boolean {
+    // Check for await expressions
+    return /\bawait\s+/.test(content);
   }
 
   /**
@@ -862,6 +906,67 @@ export class ASTParser {
 
     visitNode(body);
     return Array.from(dependencies);
+  }
+
+  /**
+   * Check if a function is async
+   */
+  private isAsyncFunction(
+    functionNode:
+      | ts.FunctionDeclaration
+      | ts.FunctionExpression
+      | ts.ArrowFunction
+  ): boolean {
+    // Check for async modifier
+    if (functionNode.modifiers) {
+      return functionNode.modifiers.some(
+        (modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword
+      );
+    }
+    return false;
+  }
+
+  /**
+   * Check if function body contains await expressions
+   */
+  private hasAwaitInBody(body: ts.Node): boolean {
+    let hasAwait = false;
+
+    const visitNode = (node: ts.Node): void => {
+      if (ts.isAwaitExpression(node)) {
+        hasAwait = true;
+        return;
+      }
+      ts.forEachChild(node, visitNode);
+    };
+
+    visitNode(body);
+    return hasAwait;
+  }
+
+  /**
+   * Determine return type classification based on function analysis
+   */
+  private determineReturnType(
+    analysis: FileAnalysisResult
+  ): "sync" | "async" | "promise" {
+    if (analysis.isAsync) {
+      return "async";
+    }
+
+    // Check if function returns a Promise (basic detection)
+    if (
+      analysis.functionDependencies.some(
+        (dep) =>
+          dep.toLowerCase().includes("promise") ||
+          dep.toLowerCase().includes("then") ||
+          dep.toLowerCase().includes("catch")
+      )
+    ) {
+      return "promise";
+    }
+
+    return "sync";
   }
 
   /**

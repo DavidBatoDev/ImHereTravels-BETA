@@ -1021,9 +1021,6 @@ export default function BookingsSheet() {
     async (row: SheetData, funcCol: SheetColumn): Promise<any> => {
       if (!funcCol.function) return;
       try {
-        const fn = await functionExecutionService.getCompiledFunction(
-          funcCol.function
-        );
         const args = functionExecutionService.buildArgs(funcCol, row, columns);
 
         // Log function arguments for debugging
@@ -1035,7 +1032,22 @@ export default function BookingsSheet() {
           argsCount: args.length,
         });
 
-        const result = await Promise.resolve(fn(...args));
+        // Execute function with proper async handling
+        const executionResult = await functionExecutionService.executeFunction(
+          funcCol.function,
+          args,
+          10000 // 10 second timeout
+        );
+
+        if (!executionResult.success) {
+          console.error(
+            `❌ [FUNCTION EXECUTION] Function ${funcCol.function} failed:`,
+            executionResult.error
+          );
+          return row[funcCol.id]; // Return existing value on error
+        }
+
+        const result = executionResult.result;
 
         if (!isEqual(row[funcCol.id], result)) {
           // Optimistic local update

@@ -113,20 +113,20 @@ export function useSheetManagement() {
           const hasNullFields = nonEssentialFields.some(
             (key) => booking[key] === null
           );
-          console.log(
-            `📊 Booking ${index + 1} (ID: ${
-              booking.id
-            }): ${fieldCount} fields, Non-essential: [${nonEssentialFields.join(
-              ", "
-            )}]${hasNullFields ? " (has null fields)" : ""}`
-          );
+          // console.log(
+          //   `📊 Booking ${index + 1} (ID: ${
+          //     booking.id
+          //   }): ${fieldCount} fields, Non-essential: [${nonEssentialFields.join(
+          //     ", "
+          //   )}]${hasNullFields ? " (has null fields)" : ""}`
+          // );
 
           // Log null fields specifically
           if (hasNullFields) {
             const nullFields = nonEssentialFields.filter(
               (key) => booking[key] === null
             );
-            console.log(`  🔍 Null fields: [${nullFields.join(", ")}]`);
+            // console.log(`  🔍 Null fields: [${nullFields.join(", ")}]`);
           }
         });
 
@@ -161,7 +161,7 @@ export function useSheetManagement() {
       );
 
       // Local state will be updated via real-time subscription
-      console.log(`✅ Column ${updatedColumn.columnName} updated successfully`);
+      // console.log(`✅ Column ${updatedColumn.columnName} updated successfully`);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
