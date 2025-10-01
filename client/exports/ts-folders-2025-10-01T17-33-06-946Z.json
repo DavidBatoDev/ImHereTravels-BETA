@@ -1,0 +1,18 @@
+[
+  {
+    "id": "2lbmRmaZCIXELy8nZysu",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1756717913,
+      "nanoseconds": 553000000
+    },
+    "isCollapsed": false,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759300464,
+      "nanoseconds": 466000000
+    },
+    "name": "Bookings Logic",
+    "description": "TypeScript functions folder: Bookings Logic"
+  }
+]
