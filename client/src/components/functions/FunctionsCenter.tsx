@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,8 @@ typescriptFunctionService.initialize();
 export default function FunctionsCenter() {
   const { toast } = useToast();
   const { resolvedTheme } = useTheme();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [folders, setFolders] = useState<TSFolder[]>([]);
   const [files, setFiles] = useState<TSFile[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<TSFolder | null>(null);
@@ -92,6 +95,8 @@ export default function FunctionsCenter() {
   const monacoExtraLibDisposersRef = useRef<any[]>([]);
   const [isEditorLoading, setIsEditorLoading] = useState(false);
   const [editorValue, setEditorValue] = useState("");
+  // Guard to prevent subscription overwriting user selection while DB catches up
+  const manualSelectionRef = useRef<{ id: string; until: number } | null>(null);
 
   // Load data from TypeScript function service and set up real-time listeners
   useEffect(() => {
@@ -129,11 +134,34 @@ export default function FunctionsCenter() {
     );
 
     const unsubscribeFiles = typescriptFunctionService.subscribeToFiles(
-      (files) => {
-        setFiles(files);
+      (incomingFiles) => {
+        // If user recently selected a file, enforce that selection in UI highlight
+        const manual = manualSelectionRef.current;
+        let nextFiles = incomingFiles;
+        if (manual && Date.now() < manual.until) {
+          nextFiles = incomingFiles.map((f) =>
+            f.id === manual.id
+              ? { ...f, isActive: true }
+              : { ...f, isActive: false }
+          );
+        }
+        setFiles(nextFiles);
 
-        // Update active file if the currently active file changed
-        const activeFileFromDB = files.find((file) => file.isActive);
+        // Determine DB active from the (possibly adjusted) set
+        const activeFileFromDB = nextFiles.find((file) => file.isActive);
+
+        // If user recently selected a file, avoid briefly reverting to previous DB active
+        if (manual && Date.now() < manual.until) {
+          if (activeFileFromDB && activeFileFromDB.id !== manual.id) {
+            // Ignore this subscription tick; wait for DB to reflect manual selection
+            return;
+          }
+          if (activeFileFromDB && activeFileFromDB.id === manual.id) {
+            // DB now matches manual selection; clear guard
+            manualSelectionRef.current = null;
+          }
+        }
+
         if (
           activeFileFromDB &&
           (!activeFile || activeFile.id !== activeFileFromDB.id)
@@ -150,6 +178,25 @@ export default function FunctionsCenter() {
       unsubscribeFiles();
     };
   }, []);
+
+  // URL synchronization effect
+  useEffect(() => {
+    const fileParam = searchParams.get("file");
+    const consoleOpenParam = searchParams.get("console-open");
+
+    // Set console visibility from URL
+    if (consoleOpenParam !== null) {
+      setIsTestConsoleVisible(consoleOpenParam === "true");
+    }
+
+    // Set active file from URL if not already set and files are loaded
+    if (fileParam && files.length > 0) {
+      const fileFromUrl = files.find((file) => file.id === fileParam);
+      if (fileFromUrl && (!activeFile || activeFile.id !== fileFromUrl.id)) {
+        handleFileSelect(fileFromUrl);
+      }
+    }
+  }, [searchParams, files]);
 
   // Get files for each folder
   const getFilesForFolder = (folderId: string) => {
@@ -169,6 +216,19 @@ export default function FunctionsCenter() {
   const handleFileSelect = async (file: TSFile) => {
     if (activeFile?.id === file.id) return; // Prevent unnecessary re-renders
 
+    // Update URL immediately to reflect the new file selection and avoid stale URL overriding UI
+    try {
+      const currentParam = searchParams.get("file");
+      if (currentParam !== file.id) {
+        const newSearchParams = new URLSearchParams(searchParams.toString());
+        newSearchParams.set("file", file.id);
+        router.replace(`/functions?${newSearchParams.toString()}`);
+      }
+    } catch {}
+
+    // Set manual guard window (~2s) while DB updates propagate
+    manualSelectionRef.current = { id: file.id, until: Date.now() + 2000 };
+
     setIsEditorLoading(true);
     setActiveFile(file);
     setEditorValue(file.content);
@@ -187,10 +247,28 @@ export default function FunctionsCenter() {
       await typescriptFunctionService.files.setActive(file.id);
       // Refetch to ensure consistency with database
       const updatedFiles = await typescriptFunctionService.files.getAll();
-      setFiles(updatedFiles);
+      // If manual selection is still active, enforce it in the refreshed list
+      const manual = manualSelectionRef.current;
+      const enforced =
+        manual && Date.now() < manual.until
+          ? updatedFiles.map((f) =>
+              f.id === file.id
+                ? { ...f, isActive: true }
+                : { ...f, isActive: false }
+            )
+          : updatedFiles;
+      setFiles(enforced);
 
       // Clear function execution cache for this file to ensure fresh compilation
       functionExecutionService.invalidate(file.id);
+
+      // If DB confirms this file is active, clear the manual selection guard
+      const confirmedActive = updatedFiles.find(
+        (f) => f.id === file.id
+      )?.isActive;
+      if (confirmedActive) {
+        manualSelectionRef.current = null;
+      }
     } catch (error) {
       console.error("Error setting file as active:", error);
       // Revert the optimistic update on error
@@ -208,6 +286,20 @@ export default function FunctionsCenter() {
 
   const toggleEditMode = () => {
     setIsEditing(!isEditing);
+  };
+
+  const toggleTestConsole = () => {
+    const newVisibility = !isTestConsoleVisible;
+    setIsTestConsoleVisible(newVisibility);
+
+    // Update URL with console visibility
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    if (newVisibility) {
+      newSearchParams.set("console_open", "true");
+    } else {
+      newSearchParams.delete("console_open");
+    }
+    router.replace(`/functions?${newSearchParams.toString()}`);
   };
 
   const handleCreateFile = async (fileName: string) => {
@@ -968,9 +1060,7 @@ export default async function ${
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        setIsTestConsoleVisible(!isTestConsoleVisible)
-                      }
+                      onClick={toggleTestConsole}
                       className={
                         isTestConsoleVisible
                           ? "bg-blue-50 border-blue-200 dark:bg-primary/10 dark:border-primary/20"
