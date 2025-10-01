@@ -2505,7 +2505,6 @@ export default function BookingsDataGrid({
                     onClick={() => router.push("/bookings/fullscreen")}
                   >
                     <Maximize className="h-4 w-4" />
-                    Full Screen
                   </Button>
                 )}
                 {getActiveFiltersCount() > 0 && (
