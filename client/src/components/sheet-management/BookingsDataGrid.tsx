@@ -97,6 +97,11 @@ import {
   Terminal,
   Bug,
   ExternalLink,
+  Pin,
+  PinOff,
+  Eye,
+  EyeOff,
+  Maximize,
 } from "lucide-react";
 import {
   SheetColumn,
@@ -686,6 +691,13 @@ interface BookingsDataGridProps {
   updateRow: (rowId: string, updates: Partial<SheetData>) => void;
   deleteRow: (rowId: string) => void;
   availableFunctions: TypeScriptFunction[];
+  // Fullscreen mode props
+  isFullscreen?: boolean;
+  pageSize?: number;
+  globalFilter?: string;
+  columnFilters?: Record<string, any>;
+  dateRangeFilters?: Record<string, { from?: Date; to?: Date }>;
+  currencyRangeFilters?: Record<string, { min?: number; max?: number }>;
 }
 
 export default function BookingsDataGrid({
@@ -697,6 +709,12 @@ export default function BookingsDataGrid({
   updateRow,
   deleteRow,
   availableFunctions,
+  isFullscreen = false,
+  pageSize: initialPageSize,
+  globalFilter: externalGlobalFilter,
+  columnFilters: externalColumnFilters,
+  dateRangeFilters: externalDateRangeFilters,
+  currencyRangeFilters: externalCurrencyRangeFilters,
 }: BookingsDataGridProps) {
   // Debug logging
   const { toast } = useToast();
@@ -711,7 +729,6 @@ export default function BookingsDataGrid({
   }>({ isOpen: false, column: null });
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [sortColumns, setSortColumns] = useState<readonly SortColumn[]>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
   const [localData, setLocalData] = useState<SheetData[]>([]);
   const functionSubscriptionsRef = useRef<Map<string, () => void>>(new Map());
   const isInitialLoadRef = useRef<boolean>(true);
@@ -720,6 +737,11 @@ export default function BookingsDataGrid({
     rowId: string;
     columnId: string;
   } | null>(null);
+  const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [frozenColumnIds, setFrozenColumnIds] = useState<Set<string>>(
+    new Set()
+  );
 
   // Cache for function arguments to detect actual changes
   const functionArgsCacheRef = useRef<Map<string, any[]>>(new Map());
@@ -730,19 +752,46 @@ export default function BookingsDataGrid({
     functionExecutionService.clearAllResultCache();
   }, []);
 
-  // Enhanced filtering state
-  const [columnFilters, setColumnFilters] = useState<Record<string, any>>({});
+  // Enhanced filtering state (use external values in fullscreen mode)
+  const [internalGlobalFilter, setInternalGlobalFilter] = useState("");
+  const globalFilter = isFullscreen
+    ? externalGlobalFilter || ""
+    : internalGlobalFilter;
+  const setGlobalFilter = isFullscreen ? () => {} : setInternalGlobalFilter;
+
+  const [internalColumnFilters, setInternalColumnFilters] = useState<
+    Record<string, any>
+  >({});
+  const columnFilters = isFullscreen
+    ? externalColumnFilters || {}
+    : internalColumnFilters;
+  const setColumnFilters = isFullscreen ? () => {} : setInternalColumnFilters;
+
   const [showFilters, setShowFilters] = useState(false);
-  const [dateRangeFilters, setDateRangeFilters] = useState<
+  const [showColumnsDialog, setShowColumnsDialog] = useState(false);
+
+  const [internalDateRangeFilters, setInternalDateRangeFilters] = useState<
     Record<string, { from?: Date; to?: Date }>
   >({});
-  const [currencyRangeFilters, setCurrencyRangeFilters] = useState<
-    Record<string, { min?: number; max?: number }>
-  >({});
+  const dateRangeFilters = isFullscreen
+    ? externalDateRangeFilters || {}
+    : internalDateRangeFilters;
+  const setDateRangeFilters = isFullscreen
+    ? () => {}
+    : setInternalDateRangeFilters;
+
+  const [internalCurrencyRangeFilters, setInternalCurrencyRangeFilters] =
+    useState<Record<string, { min?: number; max?: number }>>({});
+  const currencyRangeFilters = isFullscreen
+    ? externalCurrencyRangeFilters || {}
+    : internalCurrencyRangeFilters;
+  const setCurrencyRangeFilters = isFullscreen
+    ? () => {}
+    : setInternalCurrencyRangeFilters;
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(initialPageSize || 25);
 
   // Debounced resize handler
   const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -940,6 +989,61 @@ export default function BookingsDataGrid({
   const navigateToFunctions = useCallback(() => {
     router.push("/functions");
   }, [router]);
+
+  // Toggle column freeze
+  const toggleColumnFreeze = useCallback(
+    (columnId: string, e?: React.MouseEvent) => {
+      if (e) {
+        e.stopPropagation(); // Prevent header click
+      }
+      setFrozenColumnIds((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(columnId)) {
+          newSet.delete(columnId);
+        } else {
+          newSet.add(columnId);
+        }
+        return newSet;
+      });
+    },
+    []
+  );
+
+  // Toggle column visibility
+  const toggleColumnVisibility = useCallback(
+    async (columnId: string) => {
+      const column = columns.find((col) => col.id === columnId);
+      if (!column) return;
+
+      const updatedColumn = {
+        ...column,
+        showColumn: column.showColumn === false ? true : false,
+      };
+
+      try {
+        await updateColumn(updatedColumn);
+        toast({
+          title: updatedColumn.showColumn
+            ? "✅ Column Shown"
+            : "✅ Column Hidden",
+          description: `Column "${column.columnName}" ${
+            updatedColumn.showColumn ? "is now visible" : "is now hidden"
+          }`,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Failed to toggle column visibility:", error);
+        toast({
+          title: "❌ Failed to Update Column",
+          description: `Error: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+          variant: "destructive",
+        });
+      }
+    },
+    [columns, updateColumn, toast]
+  );
 
   // Update global navigation function, available functions, and column definitions
   useEffect(() => {
@@ -1287,7 +1391,11 @@ export default function BookingsDataGrid({
   const rowHeight = 32; // Height of each row in pixels
   const headerHeight = 40; // Height of header row in pixels
   //   const dynamicHeight = rowsToShow * rowHeight + headerHeight + 150;
-  const dynamicHeight = 450;
+  const dynamicHeight = isFullscreen
+    ? typeof window !== "undefined"
+      ? window.innerHeight - 150
+      : 800 // Full viewport height minus header in fullscreen
+    : 450; // Fixed height in normal mode
 
   // Helper function to render empty row cells
   const renderEmptyRowCell = (
@@ -1420,8 +1528,14 @@ export default function BookingsDataGrid({
         }
 
         const rowNumber = parseInt(row.id);
+        const isSelected = selectedRowId === row.id;
         return (
-          <div className="h-8 w-16 flex items-center justify-center text-sm font-mono text-foreground px-2 border-r border-b border-border bg-muted relative z-[999999999]">
+          <div
+            onClick={() => setSelectedRowId(isSelected ? null : row.id)}
+            className={`h-8 w-16 flex items-center justify-center text-sm font-mono text-foreground px-2 border-r border-b border-border bg-muted relative z-[999999999] cursor-pointer hover:bg-royal-purple/20 transition-colors ${
+              isSelected ? "ring-2 ring-inset ring-royal-purple" : ""
+            }`}
+          >
             {!isNaN(rowNumber) ? rowNumber : "-"}
           </div>
         );
@@ -1434,7 +1548,9 @@ export default function BookingsDataGrid({
     (rowNumberColumn as any).cellClass = "bg-muted";
 
     const dataColumns = columns
-      .filter((col) => col && col.id && col.columnName) // Filter out invalid columns
+      .filter(
+        (col) => col && col.id && col.columnName && col.showColumn !== false
+      ) // Filter out invalid columns and hidden columns
       .sort((a, b) => a.order - b.order)
       .map((col) => {
         const baseColumn: Column<SheetData> = {
@@ -1445,6 +1561,7 @@ export default function BookingsDataGrid({
           maxWidth: 3000,
           resizable: true,
           sortable: false,
+          frozen: frozenColumnIds.has(col.id),
         };
 
         // Add group-based background styling for cells
@@ -1497,7 +1614,21 @@ export default function BookingsDataGrid({
         }
 
         // Apply cell styling
-        (baseColumn as any).cellClass = cellClass;
+        (baseColumn as any).cellClass = (row: SheetData) => {
+          const isColumnSelected = selectedColumnId === col.id;
+          const isRowSelected = selectedRowId === row.id;
+          const isFrozen = frozenColumnIds.has(col.id);
+
+          // Build classes array for easier management
+          const classes = [cellClass];
+
+          // Add ring if column is selected, frozen, or row is selected
+          if (isColumnSelected || isFrozen || isRowSelected) {
+            classes.push("ring-2 ring-inset ring-royal-purple/40");
+          }
+
+          return classes.join(" ");
+        };
 
         // Add header height styling for two-row header structure and remove padding
         (baseColumn as any).headerCellClass = "h-20 !p-0"; // Increased height for two-row header, no padding
@@ -1579,15 +1710,49 @@ export default function BookingsDataGrid({
               )}
 
               {/* Column Name Row */}
-              <div className="flex items-center justify-center flex-1 px-2 mt-10">
-                <div className="flex items-center gap-1">
+              <div
+                className={`flex items-center justify-between flex-1 px-2 mt-10 cursor-pointer hover:bg-royal-purple/10 transition-colors group/header ${
+                  selectedColumnId === col.id
+                    ? "bg-royal-purple/15 ring-2 ring-inset ring-royal-purple"
+                    : ""
+                } ${frozenColumnIds.has(col.id) ? "bg-royal-purple/5" : ""}`}
+                onClick={() =>
+                  setSelectedColumnId(
+                    selectedColumnId === col.id ? null : col.id
+                  )
+                }
+                title="Click to highlight column"
+              >
+                <div className="flex items-center gap-1 flex-1 justify-center">
                   {col.dataType === "function" && (
                     <FunctionSquare className="h-4 w-4 text-red-600" />
+                  )}
+                  {frozenColumnIds.has(col.id) && (
+                    <Pin className="h-3 w-3 text-royal-purple" />
                   )}
                   <span className="font-medium truncate text-foreground">
                     {column.name}
                   </span>
                 </div>
+                <button
+                  onClick={(e) => toggleColumnFreeze(col.id, e)}
+                  className={`p-1 hover:bg-royal-purple/20 rounded transition-all ${
+                    frozenColumnIds.has(col.id)
+                      ? "opacity-100"
+                      : "opacity-0 group-hover/header:opacity-100"
+                  }`}
+                  title={
+                    frozenColumnIds.has(col.id)
+                      ? "Unfreeze column"
+                      : "Freeze column"
+                  }
+                >
+                  {frozenColumnIds.has(col.id) ? (
+                    <PinOff className="h-3 w-3 text-royal-purple" />
+                  ) : (
+                    <Pin className="h-3 w-3 text-muted-foreground" />
+                  )}
+                </button>
               </div>
             </div>
           );
@@ -1713,8 +1878,11 @@ export default function BookingsDataGrid({
                 }}
                 className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2 ${
                   hasColor ? "text-black" : ""
-                }`}
-                style={{ backgroundColor: "transparent" }}
+                } ${!cellValue ? "text-transparent" : ""}`}
+                style={{
+                  backgroundColor: "transparent",
+                  colorScheme: !cellValue ? "light" : "auto",
+                }}
               />
             );
           };
@@ -1967,6 +2135,10 @@ export default function BookingsDataGrid({
     recomputeCell,
     openDebugConsole,
     navigateToFunctions,
+    selectedColumnId,
+    selectedRowId,
+    frozenColumnIds,
+    toggleColumnFreeze,
   ]);
 
   const handleAddNewRow = async () => {
@@ -2016,284 +2188,342 @@ export default function BookingsDataGrid({
 
   return (
     <div className="booking-data-grid space-y-6 relative">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground font-hk-grotesk">
-            All Bookings Data
-          </h2>
-          <p className="text-muted-foreground">
-            Manage your bookings data with spreadsheets
-          </p>
-        </div>
-      </div>
-
-      {/* Enhanced Search and Filters */}
-      <div className="space-y-4">
-        {/* Main Search and Filter Controls */}
-        <div className="bg-background border border-royal-purple/20 rounded-lg p-4 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search all columns..."
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0"
-              />
+      {!isFullscreen && (
+        <>
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground font-hk-grotesk">
+                All Bookings Data
+              </h2>
+              <p className="text-muted-foreground">
+                Manage your bookings data with spreadsheets
+              </p>
             </div>
-            <Dialog open={showFilters} onOpenChange={setShowFilters}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  Filters
-                  {getActiveFiltersCount() > 0 && (
-                    <Badge variant="secondary" className="ml-1">
-                      {getActiveFiltersCount()}
-                    </Badge>
-                  )}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="text-lg font-semibold text-gray-900">
-                    Advanced Filters
-                  </DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {columns.map((col) => {
-                      if (col.dataType === "date") {
-                        return (
-                          <div key={col.id} className="space-y-2">
-                            <Label className="text-xs font-medium text-gray-700">
-                              {col.columnName} (Date Range)
-                            </Label>
-                            <div className="flex gap-2">
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="flex-1 justify-start text-left font-normal"
-                                  >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRangeFilters[col.id]?.from
-                                      ? dateRangeFilters[
-                                          col.id
-                                        ].from?.toLocaleDateString()
-                                      : "From"}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                  className="w-auto p-0"
-                                  align="start"
-                                >
-                                  <Calendar
-                                    mode="single"
-                                    selected={dateRangeFilters[col.id]?.from}
-                                    onSelect={(date) =>
-                                      setDateRangeFilters((prev) => ({
-                                        ...prev,
-                                        [col.id]: {
-                                          ...prev[col.id],
-                                          from: date,
-                                        },
-                                      }))
-                                    }
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="flex-1 justify-start text-left font-normal"
-                                  >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRangeFilters[col.id]?.to
-                                      ? dateRangeFilters[
-                                          col.id
-                                        ].to?.toLocaleDateString()
-                                      : "To"}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                  className="w-auto p-0"
-                                  align="start"
-                                >
-                                  <Calendar
-                                    mode="single"
-                                    selected={dateRangeFilters[col.id]?.to}
-                                    onSelect={(date) =>
-                                      setDateRangeFilters((prev) => ({
-                                        ...prev,
-                                        [col.id]: {
-                                          ...prev[col.id],
-                                          to: date,
-                                        },
-                                      }))
-                                    }
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              {(dateRangeFilters[col.id]?.from ||
-                                dateRangeFilters[col.id]?.to) && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => clearColumnFilter(col.id)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      if (col.dataType === "currency") {
-                        return (
-                          <div key={col.id} className="space-y-2">
-                            <Label className="text-xs font-medium text-gray-700">
-                              {col.columnName} (Range)
-                            </Label>
-                            <div className="flex gap-2">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="Min"
-                                value={currencyRangeFilters[col.id]?.min || ""}
-                                onChange={(e) =>
-                                  setCurrencyRangeFilters((prev) => ({
-                                    ...prev,
-                                    [col.id]: {
-                                      ...prev[col.id],
-                                      min: e.target.value
-                                        ? parseFloat(e.target.value)
-                                        : undefined,
-                                    },
-                                  }))
-                                }
-                                className="text-xs"
-                              />
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="Max"
-                                value={currencyRangeFilters[col.id]?.max || ""}
-                                onChange={(e) =>
-                                  setCurrencyRangeFilters((prev) => ({
-                                    ...prev,
-                                    [col.id]: {
-                                      ...prev[col.id],
-                                      max: e.target.value
-                                        ? parseFloat(e.target.value)
-                                        : undefined,
-                                    },
-                                  }))
-                                }
-                                className="text-xs"
-                              />
-                              {(currencyRangeFilters[col.id]?.min !==
-                                undefined ||
-                                currencyRangeFilters[col.id]?.max !==
-                                  undefined) && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => clearColumnFilter(col.id)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      // Text filter for other column types
-                      return (
-                        <div key={col.id} className="space-y-2">
-                          <Label className="text-xs font-medium text-gray-700">
-                            {col.columnName}
-                          </Label>
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder={`Filter ${col.columnName}...`}
-                              value={columnFilters[col.id] || ""}
-                              onChange={(e) =>
-                                setColumnFilters((prev) => ({
-                                  ...prev,
-                                  [col.id]: e.target.value,
-                                }))
-                              }
-                              className="text-xs"
-                            />
-                            {columnFilters[col.id] && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => clearColumnFilter(col.id)}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Modal Footer */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                    <div className="text-sm text-gray-600">
-                      {getActiveFiltersCount() > 0 && (
-                        <span>
-                          {getActiveFiltersCount()} filter
-                          {getActiveFiltersCount() !== 1 ? "s" : ""} applied
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={clearAllFilters}
-                        disabled={getActiveFiltersCount() === 0}
-                      >
-                        Clear All
-                      </Button>
-                      <Button
-                        onClick={() => setShowFilters(false)}
-                        className="bg-royal-purple hover:bg-royal-purple/90"
-                      >
-                        Apply Filters
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-            {getActiveFiltersCount() > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearAllFilters}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-4 w-4 mr-1" />
-                Clear All
-              </Button>
-            )}
           </div>
-        </div>
 
-        {/* Results Summary */}
-        {/* <div className="flex items-center justify-between text-sm text-muted-foreground">
+          {/* Enhanced Search and Filters */}
+          <div className="space-y-4">
+            {/* Main Search and Filter Controls */}
+            <div className="bg-background border border-royal-purple/20 rounded-lg p-4 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Search all columns..."
+                    value={globalFilter}
+                    onChange={(e) => setGlobalFilter(e.target.value)}
+                    className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0"
+                  />
+                </div>
+                <Dialog open={showFilters} onOpenChange={setShowFilters}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Filter className="h-4 w-4" />
+                      Filters
+                      {getActiveFiltersCount() > 0 && (
+                        <Badge variant="secondary" className="ml-1">
+                          {getActiveFiltersCount()}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="text-lg font-semibold text-gray-900">
+                        Advanced Filters
+                      </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {columns.map((col) => {
+                          if (col.dataType === "date") {
+                            return (
+                              <div key={col.id} className="space-y-2">
+                                <Label className="text-xs font-medium text-gray-700">
+                                  {col.columnName} (Date Range)
+                                </Label>
+                                <div className="flex gap-2">
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 justify-start text-left font-normal"
+                                      >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dateRangeFilters[col.id]?.from
+                                          ? dateRangeFilters[
+                                              col.id
+                                            ].from?.toLocaleDateString()
+                                          : "From"}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent
+                                      className="w-auto p-0"
+                                      align="start"
+                                    >
+                                      <Calendar
+                                        mode="single"
+                                        selected={
+                                          dateRangeFilters[col.id]?.from
+                                        }
+                                        onSelect={(date) =>
+                                          setDateRangeFilters((prev) => ({
+                                            ...prev,
+                                            [col.id]: {
+                                              ...prev[col.id],
+                                              from: date,
+                                            },
+                                          }))
+                                        }
+                                        initialFocus
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 justify-start text-left font-normal"
+                                      >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dateRangeFilters[col.id]?.to
+                                          ? dateRangeFilters[
+                                              col.id
+                                            ].to?.toLocaleDateString()
+                                          : "To"}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent
+                                      className="w-auto p-0"
+                                      align="start"
+                                    >
+                                      <Calendar
+                                        mode="single"
+                                        selected={dateRangeFilters[col.id]?.to}
+                                        onSelect={(date) =>
+                                          setDateRangeFilters((prev) => ({
+                                            ...prev,
+                                            [col.id]: {
+                                              ...prev[col.id],
+                                              to: date,
+                                            },
+                                          }))
+                                        }
+                                        initialFocus
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                  {(dateRangeFilters[col.id]?.from ||
+                                    dateRangeFilters[col.id]?.to) && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => clearColumnFilter(col.id)}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          if (col.dataType === "currency") {
+                            return (
+                              <div key={col.id} className="space-y-2">
+                                <Label className="text-xs font-medium text-gray-700">
+                                  {col.columnName} (Range)
+                                </Label>
+                                <div className="flex gap-2">
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="Min"
+                                    value={
+                                      currencyRangeFilters[col.id]?.min || ""
+                                    }
+                                    onChange={(e) =>
+                                      setCurrencyRangeFilters((prev) => ({
+                                        ...prev,
+                                        [col.id]: {
+                                          ...prev[col.id],
+                                          min: e.target.value
+                                            ? parseFloat(e.target.value)
+                                            : undefined,
+                                        },
+                                      }))
+                                    }
+                                    className="text-xs"
+                                  />
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="Max"
+                                    value={
+                                      currencyRangeFilters[col.id]?.max || ""
+                                    }
+                                    onChange={(e) =>
+                                      setCurrencyRangeFilters((prev) => ({
+                                        ...prev,
+                                        [col.id]: {
+                                          ...prev[col.id],
+                                          max: e.target.value
+                                            ? parseFloat(e.target.value)
+                                            : undefined,
+                                        },
+                                      }))
+                                    }
+                                    className="text-xs"
+                                  />
+                                  {(currencyRangeFilters[col.id]?.min !==
+                                    undefined ||
+                                    currencyRangeFilters[col.id]?.max !==
+                                      undefined) && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => clearColumnFilter(col.id)}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          // Text filter for other column types
+                          return (
+                            <div key={col.id} className="space-y-2">
+                              <Label className="text-xs font-medium text-gray-700">
+                                {col.columnName}
+                              </Label>
+                              <div className="flex gap-2">
+                                <Input
+                                  placeholder={`Filter ${col.columnName}...`}
+                                  value={columnFilters[col.id] || ""}
+                                  onChange={(e) =>
+                                    setColumnFilters((prev) => ({
+                                      ...prev,
+                                      [col.id]: e.target.value,
+                                    }))
+                                  }
+                                  className="text-xs"
+                                />
+                                {columnFilters[col.id] && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => clearColumnFilter(col.id)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Modal Footer */}
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                        <div className="text-sm text-gray-600">
+                          {getActiveFiltersCount() > 0 && (
+                            <span>
+                              {getActiveFiltersCount()} filter
+                              {getActiveFiltersCount() !== 1 ? "s" : ""} applied
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={clearAllFilters}
+                            disabled={getActiveFiltersCount() === 0}
+                          >
+                            Clear All
+                          </Button>
+                          <Button
+                            onClick={() => setShowFilters(false)}
+                            className="bg-royal-purple hover:bg-royal-purple/90"
+                          >
+                            Apply Filters
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <Popover
+                  open={showColumnsDialog}
+                  onOpenChange={setShowColumnsDialog}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Show
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 max-h-[500px] overflow-y-auto p-2">
+                    <div className="space-y-1">
+                      {columns.map((col) => {
+                        const isVisible = col.showColumn !== false;
+                        return (
+                          <button
+                            key={col.id}
+                            onClick={() => toggleColumnVisibility(col.id)}
+                            className="w-full flex items-center justify-between p-2 rounded-md hover:bg-royal-purple/10 transition-colors text-left"
+                          >
+                            <span className="text-sm font-medium text-foreground">
+                              {col.columnName}
+                            </span>
+                            {isVisible ? (
+                              <Eye className="h-4 w-4 text-green-600 flex-shrink-0" />
+                            ) : (
+                              <EyeOff className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {!isFullscreen && (
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => router.push("/bookings/fullscreen")}
+                  >
+                    <Maximize className="h-4 w-4" />
+                    Full Screen
+                  </Button>
+                )}
+                {getActiveFiltersCount() > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAllFilters}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Clear All
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Results Summary */}
+            {/* <div className="flex items-center justify-between text-sm text-muted-foreground">
           <div>
             Showing {filteredAndSortedData.length} of {data.length} rows
             {getActiveFiltersCount() > 0 && (
@@ -2304,7 +2534,9 @@ export default function BookingsDataGrid({
             )}
           </div>
         </div> */}
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Data Grid */}
       <div className="border border-royal-purple/20 rounded-md shadow-lg overflow-hidden">
@@ -2500,67 +2732,69 @@ export default function BookingsDataGrid({
       </div>
 
       {/* Pagination Controls */}
-      <div className="flex items-center justify-between px-4 py-3 bg-background border-t border-royal-purple/20">
-        <div className="text-sm text-foreground">
-          Showing {startIndex + 1} to{" "}
-          {Math.min(endIndex, filteredAndSortedData.length)} of{" "}
-          {filteredAndSortedData.length} entries
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-foreground">
-              Rows per page:
-            </label>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setCurrentPage(0); // Reset to first page when changing page size
-              }}
-              className="h-8 px-2 border border-royal-purple/20 rounded focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/20 focus:outline-none"
-            >
-              {[10, 20, 30, 40, 50, 100, 200, 500, 1000].map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
+      {!isFullscreen && (
+        <div className="flex items-center justify-between px-4 py-3 bg-background border-t border-royal-purple/20">
+          <div className="text-sm text-foreground">
+            Showing {startIndex + 1} to{" "}
+            {Math.min(endIndex, filteredAndSortedData.length)} of{" "}
+            {filteredAndSortedData.length} entries
           </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setCurrentPage(0)}
-              disabled={currentPage === 0}
-              className="px-2 py-1 text-sm border border-royal-purple/20 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-royal-purple/5"
-            >
-              First
-            </button>
-            <button
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={currentPage === 0}
-              className="px-2 py-1 text-sm border border-royal-purple/20 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-royal-purple/5"
-            >
-              Previous
-            </button>
-            <span className="px-3 py-1 text-sm text-foreground">
-              Page {currentPage + 1} of {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={currentPage >= totalPages - 1}
-              className="px-2 py-1 text-sm border border-royal-purple/20 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-royal-purple/5"
-            >
-              Next
-            </button>
-            <button
-              onClick={() => setCurrentPage(totalPages - 1)}
-              disabled={currentPage >= totalPages - 1}
-              className="px-2 py-1 text-sm border border-royal-purple/20 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-royal-purple/5"
-            >
-              Last
-            </button>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-foreground">
+                Rows per page:
+              </label>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(0); // Reset to first page when changing page size
+                }}
+                className="h-8 px-2 border border-royal-purple/20 rounded focus:border-royal-purple focus:ring-1 focus:ring-royal-purple/20 focus:outline-none"
+              >
+                {[25, 50, 100, 200, 500, 1000].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentPage(0)}
+                disabled={currentPage === 0}
+                className="px-2 py-1 text-sm border border-royal-purple/20 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-royal-purple/5"
+              >
+                First
+              </button>
+              <button
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 0}
+                className="px-2 py-1 text-sm border border-royal-purple/20 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-royal-purple/5"
+              >
+                Previous
+              </button>
+              <span className="px-3 py-1 text-sm text-foreground">
+                Page {currentPage + 1} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage >= totalPages - 1}
+                className="px-2 py-1 text-sm border border-royal-purple/20 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-royal-purple/5"
+              >
+                Next
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages - 1)}
+                disabled={currentPage >= totalPages - 1}
+                className="px-2 py-1 text-sm border border-royal-purple/20 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-royal-purple/5"
+              >
+                Last
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Modals */}
       <ColumnSettingsModal

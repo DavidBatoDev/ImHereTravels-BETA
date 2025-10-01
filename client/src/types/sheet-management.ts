@@ -74,6 +74,7 @@ export interface SheetColumn {
   maxWidth?: number;
   options?: string[]; // For select type columns
   color?: ColumnColor; // Optional column color theme
+  showColumn?: boolean; // Whether to show/hide this column in the grid (default: true)
   defaultValue?: any;
   validation?: {
     min?: number;
