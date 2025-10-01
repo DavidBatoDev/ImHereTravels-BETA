@@ -96,6 +96,7 @@ import {
   RefreshCw,
   Terminal,
   Bug,
+  ExternalLink,
 } from "lucide-react";
 import {
   SheetColumn,
@@ -108,6 +109,7 @@ import { functionExecutionService } from "@/services/function-execution-service"
 import { batchedWriter } from "@/services/batched-writer";
 import { bookingService } from "@/services/booking-service";
 import { typescriptFunctionsService } from "@/services/typescript-functions-service";
+import { useRouter } from "next/navigation";
 // Simple deep equality check
 const isEqual = (a: any, b: any): boolean => {
   if (a === b) return true;
@@ -370,6 +372,97 @@ const NumberEditor = memo(function NumberEditor({
   );
 });
 
+// Store navigation function and column metadata globally for function editor
+let globalNavigateToFunctions: (() => void) | null = null;
+let globalAvailableFunctions: TypeScriptFunction[] = [];
+let globalColumnDefs: Map<string, SheetColumn> = new Map();
+let globalAllColumns: SheetColumn[] = [];
+
+function FunctionEditor({
+  row,
+  column,
+  onRowChange,
+  onClose,
+}: RenderEditCellProps<SheetData>) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  // Get function name from global column defs map
+  const columnDef = globalColumnDefs.get(column.key);
+  const functionId = columnDef?.function;
+  const functionDetails = globalAvailableFunctions?.find(
+    (f) => f.id === functionId
+  );
+  const functionName = functionDetails?.functionName || "EditFunction";
+
+  // Build function signature with arguments
+  // Build function signature with actual values from row
+  const args =
+    columnDef?.arguments
+      ?.map((arg) => {
+        if (arg.columnReference) {
+          // Find the column and get value from row
+          const refCol = globalAllColumns.find(
+            (c) => c.columnName === arg.columnReference
+          );
+          if (refCol) {
+            const value = row[refCol.id];
+            if (value === undefined || value === null) return "null";
+            if (typeof value === "string") return `"${value}"`;
+            if (typeof value === "object") return JSON.stringify(value);
+            return String(value);
+          }
+          return arg.columnReference;
+        }
+        if (arg.columnReferences && arg.columnReferences.length > 0) {
+          const values = arg.columnReferences.map((ref) => {
+            const refCol = globalAllColumns.find((c) => c.columnName === ref);
+            if (refCol) {
+              const value = row[refCol.id];
+              if (value === undefined || value === null) return "null";
+              if (typeof value === "string") return `"${value}"`;
+              return String(value);
+            }
+            return ref;
+          });
+          return `[${values.join(", ")}]`;
+        }
+        if (arg.value !== undefined) {
+          return typeof arg.value === "string"
+            ? `"${arg.value}"`
+            : String(arg.value);
+        }
+        return arg.name;
+      })
+      .join(", ") || "";
+  const signature = `${functionName}(${args})`;
+
+  return (
+    <div className="h-8 w-full flex items-center justify-center px-2">
+      <button
+        onClick={() => {
+          if (globalNavigateToFunctions) {
+            globalNavigateToFunctions();
+          }
+          onClose(false);
+        }}
+        className="text-sm text-royal-purple hover:text-royal-purple/80 underline flex items-center gap-1 hover:no-underline transition-all"
+      >
+        <ExternalLink className="h-4 w-4" />
+        {signature}
+      </button>
+    </div>
+  );
+}
+
 // Custom cell renderers
 const BooleanFormatter = memo(function BooleanFormatter({
   row,
@@ -506,46 +599,7 @@ const FunctionFormatter = memo(function FunctionFormatter({
     | ((rowId: string, columnId: string) => void)
     | undefined;
 
-  const [showFunctionPopup, setShowFunctionPopup] = useState(false);
-  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [isRecomputing, setIsRecomputing] = useState(false);
-
-  // Close popup when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showFunctionPopup) {
-        setShowFunctionPopup(false);
-      }
-    };
-
-    if (showFunctionPopup) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showFunctionPopup]);
-
-  // Close popup when arrow keys are pressed
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        showFunctionPopup &&
-        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)
-      ) {
-        setShowFunctionPopup(false);
-      }
-    };
-
-    if (showFunctionPopup) {
-      document.addEventListener("keydown", handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [showFunctionPopup]);
 
   if (columnDef.id === "delete") {
     return (
@@ -569,32 +623,6 @@ const FunctionFormatter = memo(function FunctionFormatter({
   const value = row[column.key as keyof SheetData];
   const functionId = columnDef.function;
   const functionDetails = availableFunctions?.find((f) => f.id === functionId);
-
-  const handleCellClick = (e: React.MouseEvent) => {
-    if (functionDetails) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const popupWidth = 300; // Approximate popup width
-      const popupHeight = 200; // Approximate popup height
-
-      // Calculate position with boundary detection
-      let x = rect.left - 200 + rect.width / 2 - popupWidth / 2; // Center horizontally
-      let y = rect.top - 100 - popupHeight - 10; // Above the cell
-
-      // Boundary checks
-      if (x < 10) x = 10; // Left boundary
-      if (x + popupWidth > window.innerWidth - 10) {
-        x = window.innerWidth - popupWidth - 10; // Right boundary
-      }
-
-      if (y < 10) {
-        // If not enough space above, position below
-        y = rect.bottom + 10;
-      }
-
-      setPopupPosition({ x, y });
-      setShowFunctionPopup(true);
-    }
-  };
 
   const handleRetry = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent cell click
@@ -620,15 +648,7 @@ const FunctionFormatter = memo(function FunctionFormatter({
   return (
     <>
       <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-border relative group">
-        <div
-          className="flex-1 cursor-pointer hover:bg-gray-50 h-full flex items-center pr-16"
-          onClick={handleCellClick}
-          title={
-            functionDetails
-              ? `Click to view function details: ${functionDetails.name}`
-              : ""
-          }
-        >
+        <div className="flex-1 h-full flex items-center pr-16">
           {value?.toString() || ""}
         </div>
         <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -653,83 +673,6 @@ const FunctionFormatter = memo(function FunctionFormatter({
           </button>
         </div>
       </div>
-
-      {showFunctionPopup && functionDetails && (
-        <div
-          className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-4 max-w-sm"
-          style={{
-            left: popupPosition.x,
-            top: popupPosition.y,
-          }}
-        >
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="font-semibold text-gray-900">
-              {functionDetails.name}
-            </h3>
-            <button
-              onClick={() => setShowFunctionPopup(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              ×
-            </button>
-          </div>
-
-          <div className="space-y-2 text-sm">
-            <div>
-              <span className="font-medium text-gray-700">Function Name:</span>
-              <span className="ml-2 text-gray-600">
-                {functionDetails.functionName}
-              </span>
-            </div>
-
-            <div>
-              <span className="font-medium text-gray-700">File Type:</span>
-              <span className="ml-2 text-gray-600">
-                {functionDetails.fileType}
-              </span>
-            </div>
-
-            <div>
-              <span className="font-medium text-gray-700">Export Type:</span>
-              <span className="ml-2 text-gray-600">
-                {functionDetails.exportType}
-              </span>
-            </div>
-
-            <div>
-              <span className="font-medium text-gray-700">Parameters:</span>
-              <span className="ml-2 text-gray-600">
-                {functionDetails.parameterCount}
-              </span>
-            </div>
-
-            {functionDetails.arguments &&
-              functionDetails.arguments.length > 0 && (
-                <div>
-                  <span className="font-medium text-gray-700">Arguments:</span>
-                  <ul className="ml-2 mt-1 space-y-1">
-                    {functionDetails.arguments.map((arg, index) => (
-                      <li key={index} className="text-gray-600">
-                        • {arg.name}: {arg.type}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-            <div>
-              <span className="font-medium text-gray-700">Status:</span>
-              <span
-                className={`ml-2 ${
-                  functionDetails.isActive ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {functionDetails.isActive ? "Active" : "Inactive"}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 });
@@ -757,6 +700,7 @@ export default function BookingsDataGrid({
 }: BookingsDataGridProps) {
   // Debug logging
   const { toast } = useToast();
+  const router = useRouter();
   const [selectedCell, setSelectedCell] = useState<{
     rowId: string;
     columnId: string;
@@ -991,6 +935,28 @@ export default function BookingsDataGrid({
     setDebugCell({ rowId, columnId });
     setIsSheetConsoleVisible(true);
   }, []);
+
+  // Navigate to functions page
+  const navigateToFunctions = useCallback(() => {
+    router.push("/functions");
+  }, [router]);
+
+  // Update global navigation function, available functions, and column definitions
+  useEffect(() => {
+    globalNavigateToFunctions = navigateToFunctions;
+    globalAvailableFunctions = availableFunctions;
+    globalAllColumns = columns;
+    globalColumnDefs.clear();
+    columns.forEach((col) => {
+      globalColumnDefs.set(col.id, col);
+    });
+    return () => {
+      globalNavigateToFunctions = null;
+      globalAvailableFunctions = [];
+      globalAllColumns = [];
+      globalColumnDefs.clear();
+    };
+  }, [navigateToFunctions, availableFunctions, columns]);
 
   // Recompute only direct dependent function columns for a single row
   const recomputeDirectDependentsForRow = useCallback(
@@ -1409,6 +1375,8 @@ export default function BookingsDataGrid({
       key: "rowNumber",
       name: "#",
       width: 64,
+      minWidth: 50,
+      maxWidth: 100,
       resizable: false,
       sortable: false,
       frozen: true,
@@ -1473,6 +1441,8 @@ export default function BookingsDataGrid({
           key: col.id,
           name: col.columnName,
           width: col.width || 150,
+          minWidth: 50,
+          maxWidth: 3000,
           resizable: true,
           sortable: false,
         };
@@ -1860,8 +1830,9 @@ export default function BookingsDataGrid({
               </div>
             );
           };
+          baseColumn.renderEditCell = FunctionEditor; // Show button when editing
           baseColumn.sortable = false;
-          baseColumn.editable = false;
+          baseColumn.editable = true; // Make editable so user can click to "edit"
           (baseColumn as any).columnDef = col;
           (baseColumn as any).deleteRow = deleteRow;
           (baseColumn as any).availableFunctions = availableFunctions;
@@ -1990,7 +1961,13 @@ export default function BookingsDataGrid({
     }
 
     return validatedColumns;
-  }, [columns, deleteRow, recomputeCell, openDebugConsole]);
+  }, [
+    columns,
+    deleteRow,
+    recomputeCell,
+    openDebugConsole,
+    navigateToFunctions,
+  ]);
 
   const handleAddNewRow = async () => {
     try {

@@ -843,9 +843,9 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
 
     if (
       column.width !== undefined &&
-      (column.width < 50 || column.width > 500)
+      (column.width < 50 || column.width > 3000)
     ) {
-      errors.push("Width must be between 50 and 500");
+      errors.push("Width must be between 50 and 3000");
     }
 
     return {
