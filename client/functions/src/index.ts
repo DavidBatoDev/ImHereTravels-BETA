@@ -17,6 +17,7 @@ export { onTypeScriptFunctionUpdated } from "./recompute-on-function-update";
 export { testRecompute } from "./test-recompute";
 export { generateReservationEmail } from "./generate-reservation-email";
 export { sendReservationEmail } from "./send-reservation-email";
+export { telegramBot } from "./telegram-bot";
 
 // Export email utilities
 export { EmailTemplateLoader } from "./email-template-loader";

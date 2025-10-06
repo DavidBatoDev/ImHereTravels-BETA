@@ -1391,11 +1391,18 @@ export default function BookingsDataGrid({
   const rowHeight = 32; // Height of each row in pixels
   const headerHeight = 40; // Height of header row in pixels
   //   const dynamicHeight = rowsToShow * rowHeight + headerHeight + 150;
-  const dynamicHeight = isFullscreen
-    ? typeof window !== "undefined"
-      ? window.innerHeight - 150
-      : 800 // Full viewport height minus header in fullscreen
-    : 450; // Fixed height in normal mode
+
+  // Use state for dynamic height to avoid hydration mismatch
+  const [dynamicHeight, setDynamicHeight] = useState(
+    isFullscreen ? 800 : 450 // Default values for SSR
+  );
+
+  // Update height after component mounts to avoid hydration mismatch
+  useEffect(() => {
+    if (isFullscreen && typeof window !== "undefined") {
+      setDynamicHeight(window.innerHeight - 150);
+    }
+  }, [isFullscreen]);
 
   // Helper function to render empty row cells
   const renderEmptyRowCell = (
@@ -1953,7 +1960,7 @@ export default function BookingsDataGrid({
               <input
                 type="number"
                 step="0.01"
-                value={numericValue || ""}
+                value={numericValue.toString()}
                 onChange={async (e) => {
                   const newValue = parseFloat(e.target.value) || 0;
 
