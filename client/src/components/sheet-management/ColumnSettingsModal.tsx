@@ -340,7 +340,15 @@ export default function ColumnSettingsModal({
                 <SelectContent>
                   {availableFunctions.map((func) => (
                     <SelectItem key={func.id} value={func.id}>
-                      {func.functionName} ({func.parameterCount} params)
+                      <span className="inline-flex items-center gap-2">
+                        <span className="inline-flex items-center rounded-full border px-2 py-0.5 bg-muted text-foreground text-xs font-medium">
+                          {func.name}
+                        </span>
+                        <span>-</span>
+                        <span>
+                          {`${func.functionName}(*${func.parameterCount})`}
+                        </span>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -349,7 +357,15 @@ export default function ColumnSettingsModal({
               {selectedFunction && (
                 <div className="space-y-4">
                   <div className="text-sm text-gray-500">
-                    Function: {selectedFunction.functionName}
+                    <span className="inline-flex items-center gap-2">
+                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 bg-muted text-foreground text-xs font-medium">
+                        {selectedFunction.name}
+                      </span>
+                      <span>-</span>
+                      <span>
+                        {`${selectedFunction.functionName}(*${selectedFunction.parameterCount})`}
+                      </span>
+                    </span>
                     <br />
                     Parameters:{" "}
                     {selectedFunction.arguments
