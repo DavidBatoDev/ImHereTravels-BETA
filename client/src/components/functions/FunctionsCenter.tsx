@@ -9,6 +9,19 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import Editor from "@monaco-editor/react";
 import {
+  DndContext,
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+  DragOverlay,
+  useDraggable,
+  useDroppable,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
   Code,
   FileCode,
   Plus,
@@ -50,6 +63,176 @@ import { SheetColumn } from "@/types/sheet-management";
 
 // Initialize TypeScript function service
 typescriptFunctionService.initialize();
+
+// Draggable File Component
+function DraggableFile({
+  file,
+  onSelect,
+  onRename,
+  onDelete,
+}: {
+  file: TSFile;
+  onSelect: (file: TSFile) => void;
+  onRename: (file: TSFile) => void;
+  onDelete: (fileId: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: file.id,
+    });
+
+  const style = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      }
+    : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group p-1.5 rounded cursor-pointer transition-colors relative ${
+        file.isActive
+          ? "bg-blue-100 border border-blue-200 dark:bg-primary/10 dark:border-primary/20"
+          : "hover:bg-muted/50"
+      } ${isDragging ? "opacity-50" : ""}`}
+      onClick={() => onSelect(file)}
+      {...listeners}
+      {...attributes}
+    >
+      {/* Document tree line */}
+      <div className="absolute left-0 top-0 bottom-0 w-px bg-border"></div>
+      <div className="absolute left-0 top-1/2 w-2 h-px bg-border"></div>
+
+      <div className="flex items-center space-x-1.5 ml-3">
+        <FileCode className="h-3.5 w-3.5 text-muted-foreground" />
+        <div className="flex-1 min-w-0">
+          <p
+            className={`text-xs font-medium truncate select-none ${
+              file.isActive
+                ? "text-blue-900 dark:text-primary"
+                : "text-foreground"
+            }`}
+          >
+            {file.name}
+          </p>
+        </div>
+        <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-5 w-5 p-0 text-muted-foreground hover:text-blue-500"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRename(file);
+            }}
+            title="Rename file"
+          >
+            <Edit className="h-2.5 w-2.5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-5 w-5 p-0 text-muted-foreground hover:text-red-500"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(file.id);
+            }}
+            title="Delete file"
+          >
+            <Trash2 className="h-2.5 w-2.5" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Droppable Folder Component
+function DroppableFolder({
+  folder,
+  children,
+  onSelect,
+  onToggle,
+  onDelete,
+  getFilesForFolder,
+  selectedFolder,
+}: {
+  folder: TSFolder;
+  children: React.ReactNode;
+  onSelect: (folder: TSFolder) => void;
+  onToggle: (folder: TSFolder) => void;
+  onDelete: (folderId: string, folderName: string) => void;
+  getFilesForFolder: (folderId: string) => TSFile[];
+  selectedFolder: TSFolder | null;
+}) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: folder.id,
+  });
+
+  return (
+    <div key={folder.id} className="mb-1">
+      {/* Folder Header */}
+      <div
+        ref={setNodeRef}
+        className={`group flex items-center space-x-1.5 p-1.5 rounded cursor-pointer transition-colors ${
+          selectedFolder?.id === folder.id
+            ? "bg-blue-50 border border-blue-200 dark:bg-primary/10 dark:border-primary/20"
+            : "hover:bg-muted/50"
+        } ${
+          isOver
+            ? "bg-green-50 border border-green-200 dark:bg-green-900/20 dark:border-green-800"
+            : ""
+        }`}
+        onClick={() => onSelect(folder)}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle(folder);
+          }}
+          className="p-0.5 hover:bg-gray-200 rounded"
+        >
+          {folder.isCollapsed ? (
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          )}
+        </button>
+        <Folder className="h-3.5 w-3.5 text-muted-foreground" />
+        <span
+          className="text-xs font-medium text-foreground flex-1 cursor-pointer select-none"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(folder);
+          }}
+        >
+          {folder.name}
+        </span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {getFilesForFolder(folder.id).length}
+        </span>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-5 w-5 p-0 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(folder.id, folder.name);
+          }}
+          title="Delete folder"
+        >
+          <Trash2 className="h-2.5 w-2.5" />
+        </Button>
+      </div>
+
+      {/* Folder Files */}
+      {!folder.isCollapsed && (
+        <div className="ml-6 space-y-0.5">{children}</div>
+      )}
+    </div>
+  );
+}
 
 export default function FunctionsCenter() {
   const { toast } = useToast();
@@ -98,6 +281,61 @@ export default function FunctionsCenter() {
   // Guard to prevent subscription overwriting user selection while DB catches up
   const manualSelectionRef = useRef<{ id: string; until: number } | null>(null);
 
+  // Drag and drop state
+  const [draggedFile, setDraggedFile] = useState<TSFile | null>(null);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  // Drag and drop handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const file = files.find((f) => f.id === active.id);
+    if (file) {
+      setDraggedFile(file);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setDraggedFile(null);
+
+    if (!over) return;
+
+    const file = files.find((f) => f.id === active.id);
+    const targetFolder = folders.find((f) => f.id === over.id);
+
+    if (file && targetFolder && file.folderId !== targetFolder.id) {
+      handleMoveFile(file.id, targetFolder.id);
+    }
+  };
+
+  const handleMoveFile = async (fileId: string, newFolderId: string) => {
+    try {
+      await typescriptFunctionService.files.moveToFolder(fileId, newFolderId);
+      const updatedFiles = await typescriptFunctionService.files.getAll();
+      setFiles(updatedFiles);
+
+      toast({
+        title: "Success",
+        description: "File moved successfully.",
+      });
+    } catch (error) {
+      console.error("Error moving file:", error);
+      toast({
+        title: "Error",
+        description: "Failed to move file. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Load data from TypeScript function service and set up real-time listeners
   useEffect(() => {
     const loadData = async () => {
@@ -105,7 +343,7 @@ export default function FunctionsCenter() {
         const allFolders = await typescriptFunctionService.folders.getAll();
         const allFiles = await typescriptFunctionService.files.getAll();
 
-        setFolders(allFolders);
+        setFolders(allFolders.sort((a, b) => a.name.localeCompare(b.name)));
         setFiles(allFiles);
 
         // Find and set the actually active file from database
@@ -129,7 +367,7 @@ export default function FunctionsCenter() {
     // Set up real-time listeners
     const unsubscribeFolders = typescriptFunctionService.subscribeToFolders(
       (folders) => {
-        setFolders(folders);
+        setFolders(folders.sort((a, b) => a.name.localeCompare(b.name)));
       }
     );
 
@@ -190,7 +428,8 @@ export default function FunctionsCenter() {
     }
 
     // Set active file from URL if not already set and files are loaded
-    if (fileParam && files.length > 0) {
+    // Only trigger if there's no manual selection in progress to avoid conflicts
+    if (fileParam && files.length > 0 && !manualSelectionRef.current) {
       const fileFromUrl = files.find((file) => file.id === fileParam);
       if (fileFromUrl && (!activeFile || activeFile.id !== fileFromUrl.id)) {
         handleFileSelect(fileFromUrl);
@@ -245,30 +484,22 @@ export default function FunctionsCenter() {
     // Update active state using TypeScript service
     try {
       await typescriptFunctionService.files.setActive(file.id);
-      // Refetch to ensure consistency with database
-      const updatedFiles = await typescriptFunctionService.files.getAll();
-      // If manual selection is still active, enforce it in the refreshed list
+
+      // Only refetch and update if manual selection is still active to avoid conflicts
       const manual = manualSelectionRef.current;
-      const enforced =
-        manual && Date.now() < manual.until
-          ? updatedFiles.map((f) =>
-              f.id === file.id
-                ? { ...f, isActive: true }
-                : { ...f, isActive: false }
-            )
-          : updatedFiles;
-      setFiles(enforced);
+      if (manual && Date.now() < manual.until && manual.id === file.id) {
+        const updatedFiles = await typescriptFunctionService.files.getAll();
+        // Ensure our selected file is still active in the database
+        const enforced = updatedFiles.map((f) => ({
+          ...f,
+          isActive: f.id === file.id,
+        }));
+        setFiles(enforced);
+        manualSelectionRef.current = null;
+      }
 
       // Clear function execution cache for this file to ensure fresh compilation
       functionExecutionService.invalidate(file.id);
-
-      // If DB confirms this file is active, clear the manual selection guard
-      const confirmedActive = updatedFiles.find(
-        (f) => f.id === file.id
-      )?.isActive;
-      if (confirmedActive) {
-        manualSelectionRef.current = null;
-      }
     } catch (error) {
       console.error("Error setting file as active:", error);
       // Revert the optimistic update on error
@@ -409,7 +640,7 @@ export default async function ${
       });
 
       const updatedFolders = await typescriptFunctionService.folders.getAll();
-      setFolders(updatedFolders);
+      setFolders(updatedFolders.sort((a, b) => a.name.localeCompare(b.name)));
       setSelectedFolder(newFolder);
 
       toast({
@@ -435,8 +666,14 @@ export default async function ${
       const updatedFolder =
         await typescriptFunctionService.folders.toggleCollapse(folder.id);
       if (updatedFolder) {
-        const updatedFolders = await typescriptFunctionService.folders.getAll();
-        setFolders(updatedFolders);
+        // Update the folder state locally to avoid reordering
+        setFolders((prevFolders) =>
+          prevFolders.map((f) =>
+            f.id === folder.id
+              ? { ...f, isCollapsed: updatedFolder.isCollapsed }
+              : f
+          )
+        );
       }
     } catch (error) {
       console.error("Error toggling folder:", error);
@@ -482,7 +719,7 @@ export default async function ${
       await typescriptFunctionService.folders.delete(folderId);
       const updatedFolders = await typescriptFunctionService.folders.getAll();
       const updatedFiles = await typescriptFunctionService.files.getAll();
-      setFolders(updatedFolders);
+      setFolders(updatedFolders.sort((a, b) => a.name.localeCompare(b.name)));
       setFiles(updatedFiles);
 
       if (selectedFolder?.id === folderId) {
@@ -823,447 +1060,394 @@ export default async function ${
   }, [activeFile, editorValue]);
 
   return (
-    <div className="flex h-[calc(100vh-120px)]">
-      {/* Sidebar */}
-      <div className="w-80 border-r border-border bg-muted flex flex-col">
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">
-                TS Functions
-              </h2>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex h-[calc(100vh-120px)]">
+        {/* Sidebar */}
+        <div
+          className="w-80 border-r border-border bg-muted flex flex-col"
+          onClick={(e) => {
+            // Only unselect if clicking on the sidebar container itself, not on interactive elements
+            if (e.target === e.currentTarget) {
+              setSelectedFolder(null);
+            }
+          }}
+        >
+          {/* Sidebar Header */}
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  TS Functions
+                </h2>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Button
+                  size="sm"
+                  variant={selectedFolder ? "outline" : "secondary"}
+                  title={
+                    selectedFolder
+                      ? "New TypeScript File"
+                      : "Click a folder to select it and create files"
+                  }
+                  onClick={() => setIsCreateFileModalOpen(true)}
+                  disabled={!selectedFolder}
+                >
+                  <Type className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  title="New Folder"
+                  onClick={() => setIsCreateFolderModalOpen(true)}
+                >
+                  <Folder className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center space-x-1">
-              <Button
-                size="sm"
-                variant={selectedFolder ? "outline" : "secondary"}
-                title={
-                  selectedFolder
-                    ? "New TypeScript File"
-                    : "Click a folder to select it and create files"
-                }
-                onClick={() => setIsCreateFileModalOpen(true)}
-                disabled={!selectedFolder}
-              >
-                <Type className="h-4 w-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                title="New Folder"
-                onClick={() => setIsCreateFolderModalOpen(true)}
-              >
-                <Folder className="h-4 w-4" />
-              </Button>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search TypeScript files..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search TypeScript files..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+
+          {/* File List */}
+          <div className="flex-1 overflow-y-auto scrollbar-hide">
+            <div className="p-1.5">
+              {folders.length === 0 ? (
+                <div className="text-center py-6">
+                  <Folder className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-xs text-muted-foreground mb-1">
+                    No folders yet
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Create a folder to get started
+                  </p>
+                </div>
+              ) : (
+                folders.map((folder) => (
+                  <DroppableFolder
+                    key={folder.id}
+                    folder={folder}
+                    onSelect={handleFolderSelect}
+                    onToggle={handleFolderToggle}
+                    onDelete={(folderId, folderName) => {
+                      setDeleteFolderModal({
+                        isOpen: true,
+                        folderId,
+                        folderName,
+                      });
+                    }}
+                    getFilesForFolder={getFilesForFolder}
+                    selectedFolder={selectedFolder}
+                  >
+                    {getFilesForFolder(folder.id).map((file) => (
+                      <DraggableFile
+                        key={file.id}
+                        file={file}
+                        onSelect={handleFileSelect}
+                        onRename={handleRenameFile}
+                        onDelete={handleDeleteFile}
+                      />
+                    ))}
+                  </DroppableFolder>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Sidebar Footer */}
+          <div className="p-4 border-t border-border">
+            <div className="text-xs text-muted-foreground">
+              <div className="flex items-center space-x-2">
+                <Type className="h-3 w-3 text-blue-600" />
+                <span>TypeScript</span>
+              </div>
+              <div className="mt-1">
+                {allFiles.length === 0
+                  ? "No files"
+                  : `${allFiles.length} files`}
+              </div>
+              {allFiles.length > 0 && (
+                <div className="mt-1 text-xs">
+                  <div className="flex items-center space-x-1">
+                    <span>
+                      TS:{" "}
+                      {
+                        allFiles.filter((f) => f.fileType === "typescript")
+                          .length
+                      }
+                    </span>
+                    <span>
+                      JS:{" "}
+                      {
+                        allFiles.filter((f) => f.fileType === "javascript")
+                          .length
+                      }
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* File List */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide">
-          <div className="p-2">
-            {folders.length === 0 ? (
-              <div className="text-center py-8">
-                <Folder className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground mb-2">
-                  No folders yet
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Create a folder to get started with TypeScript functions
-                </p>
-              </div>
-            ) : (
-              folders.map((folder) => (
-                <div key={folder.id} className="mb-2">
-                  {/* Folder Header */}
-                  <div
-                    className={`flex items-center space-x-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                      selectedFolder?.id === folder.id
-                        ? "bg-blue-50 border border-blue-200 dark:bg-primary/10 dark:border-primary/20"
-                        : "hover:bg-muted/50"
-                    }`}
-                    onClick={() => handleFolderSelect(folder)}
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFolderToggle(folder);
-                      }}
-                      className="p-1 hover:bg-gray-200 rounded"
-                    >
-                      {folder.isCollapsed ? (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </button>
-                    <Folder className="h-4 w-4 text-muted-foreground" />
-                    <span
-                      className="text-sm font-medium text-foreground flex-1 cursor-pointer select-none"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFolderSelect(folder);
-                      }}
-                    >
-                      {folder.name}
-                    </span>
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {getFilesForFolder(folder.id).length}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteFolderModal({
-                          isOpen: true,
-                          folderId: folder.id,
-                          folderName: folder.name,
-                        });
-                      }}
-                      title="Delete folder"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+        {/* Main Content - Split Layout */}
+        <div className="flex-1 flex">
+          {/* Code Editor Section */}
+          <div className="flex-1 flex flex-col">
+            {activeFile ? (
+              <>
+                {/* Editor Header */}
+                <div className="border-b border-border bg-background px-6 py-3 border border-black">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      {getFileIcon()}
+                      <div>
+                        <h3 className="text-lg font-medium text-foreground">
+                          {activeFile.name}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Modified {activeFile.lastModified.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={toggleTestConsole}
+                        className={
+                          isTestConsoleVisible
+                            ? "bg-blue-50 border-blue-200 dark:bg-primary/10 dark:border-primary/20"
+                            : ""
+                        }
+                      >
+                        <Terminal className="mr-2 h-4 w-4" />
+                        {isTestConsoleVisible ? "Hide Console" : "Show Console"}
+                      </Button>
+                      <Button
+                        variant={isEditing ? "default" : "outline"}
+                        size="sm"
+                        onClick={toggleEditMode}
+                        className="h-8 w-8 p-0"
+                        title={isEditing ? "View Mode" : "Edit Mode"}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleSave}
+                        disabled={!isEditing}
+                        className="disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Save className="mr-2 h-4 w-4" />
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsDocumentationModalOpen(true)}
+                        className="h-8 w-8 p-0"
+                        title="View Documentation"
+                      >
+                        <BookOpen className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
+                </div>
 
-                  {/* Folder Files */}
-                  {!folder.isCollapsed && (
-                    <div className="ml-10 space-y-1">
-                      {getFilesForFolder(folder.id).map((file, fileIndex) => (
-                        <div
-                          key={file.id}
-                          className={`p-2 rounded-lg cursor-pointer transition-colors relative ${
-                            file.isActive
-                              ? "bg-blue-100 border border-blue-200 dark:bg-primary/10 dark:border-primary/20"
-                              : "hover:bg-muted/50"
-                          }`}
-                          onClick={() => handleFileSelect(file)}
-                        >
-                          {/* Document tree line */}
-                          <div className="absolute left-0 top-0 bottom-0 w-px bg-border"></div>
-                          <div className="absolute left-0 top-1/2 w-3 h-px bg-border"></div>
-
-                          <div className="flex items-center space-x-2 ml-4">
-                            <FileCode className="h-4 w-4 text-muted-foreground" />
-                            <div className="flex-1 min-w-0">
-                              <p
-                                className={`text-sm font-medium truncate select-none ${
-                                  file.isActive
-                                    ? "text-blue-900 dark:text-primary"
-                                    : "text-foreground"
-                                }`}
-                              >
-                                {file.name}
-                              </p>
-                              {/* Badges removed for cleaner file list */}
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Modified{" "}
-                                {file.lastModified.toLocaleDateString()}
-                              </p>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0 text-muted-foreground hover:text-blue-500"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRenameFile(file);
-                              }}
-                              title="Rename file"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteFile(file.id);
-                              }}
-                              title="Delete file"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                {/* Code Editor with Integrated Test Console */}
+                <div className="flex-1 bg-background overflow-hidden relative">
+                  {isEditorLoading && (
+                    <div className="absolute inset-0 bg-background flex items-center justify-center z-10">
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                        <span className="text-gray-600">
+                          Loading TypeScript editor...
+                        </span>
+                      </div>
                     </div>
                   )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
 
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-border">
-          <div className="text-xs text-muted-foreground">
-            <div className="flex items-center space-x-2">
-              <Type className="h-3 w-3 text-blue-600" />
-              <span>TypeScript</span>
-            </div>
-            <div className="mt-1">
-              {allFiles.length === 0 ? "No files" : `${allFiles.length} files`}
-            </div>
-            {allFiles.length > 0 && (
-              <div className="mt-1 text-xs">
-                <div className="flex items-center space-x-1">
-                  <span>
-                    TS:{" "}
-                    {allFiles.filter((f) => f.fileType === "typescript").length}
-                  </span>
-                  <span>
-                    JS:{" "}
-                    {allFiles.filter((f) => f.fileType === "javascript").length}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content - Split Layout */}
-      <div className="flex-1 flex">
-        {/* Code Editor Section */}
-        <div className="flex-1 flex flex-col">
-          {activeFile ? (
-            <>
-              {/* Editor Header */}
-              <div className="border-b border-border bg-background px-6 py-3 border border-black">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {getFileIcon()}
-                    <div>
-                      <h3 className="text-lg font-medium text-foreground">
-                        {activeFile.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Modified {activeFile.lastModified.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={toggleTestConsole}
-                      className={
-                        isTestConsoleVisible
-                          ? "bg-blue-50 border-blue-200 dark:bg-primary/10 dark:border-primary/20"
-                          : ""
-                      }
+                  {/* Editor and Console Layout */}
+                  <div className="flex h-full overflow-hidden relative">
+                    {/* Code Editor */}
+                    <div
+                      className={`transition-all duration-300 ease-in-out border border-black ${
+                        isTestConsoleVisible ? "w-2/3" : "w-full"
+                      }`}
                     >
-                      <Terminal className="mr-2 h-4 w-4" />
-                      {isTestConsoleVisible ? "Hide Console" : "Show Console"}
-                    </Button>
-                    <Button
-                      variant={isEditing ? "default" : "outline"}
-                      size="sm"
-                      onClick={toggleEditMode}
-                      className="h-8 w-8 p-0"
-                      title={isEditing ? "View Mode" : "Edit Mode"}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleSave}
-                      disabled={!isEditing}
-                      className="disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      Save
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setIsDocumentationModalOpen(true)}
-                      className="h-8 w-8 p-0"
-                      title="View Documentation"
-                    >
-                      <BookOpen className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Code Editor with Integrated Test Console */}
-              <div className="flex-1 bg-background overflow-hidden relative">
-                {isEditorLoading && (
-                  <div className="absolute inset-0 bg-background flex items-center justify-center z-10">
-                    <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                      <span className="text-gray-600">
-                        Loading TypeScript editor...
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Editor and Console Layout */}
-                <div className="flex h-full overflow-hidden relative">
-                  {/* Code Editor */}
-                  <div
-                    className={`transition-all duration-300 ease-in-out border border-black ${
-                      isTestConsoleVisible ? "w-2/3" : "w-full"
-                    }`}
-                  >
-                    <Editor
-                      key={activeFile?.id || "empty"}
-                      height="100%"
-                      defaultLanguage="typescript"
-                      beforeMount={handleEditorBeforeMount}
-                      value={editorValue}
-                      onChange={(value) => {
-                        if (value !== undefined) {
-                          setEditorValue(value);
-                          if (activeFile) {
-                            setActiveFile({
-                              ...activeFile,
-                              content: value,
-                            });
+                      <Editor
+                        key={activeFile?.id || "empty"}
+                        height="100%"
+                        defaultLanguage="typescript"
+                        beforeMount={handleEditorBeforeMount}
+                        value={editorValue}
+                        onChange={(value) => {
+                          if (value !== undefined) {
+                            setEditorValue(value);
+                            if (activeFile) {
+                              setActiveFile({
+                                ...activeFile,
+                                content: value,
+                              });
+                            }
                           }
+                        }}
+                        onMount={handleEditorDidMount}
+                        theme={
+                          resolvedTheme === "dark" ? "vs-dark" : "vs-light"
                         }
-                      }}
-                      onMount={handleEditorDidMount}
-                      theme={resolvedTheme === "dark" ? "vs-dark" : "vs-light"}
-                      options={{
-                        readOnly: !isEditing,
-                        minimap: { enabled: false },
-                        fontSize: 14,
-                        lineNumbers: "on",
-                        roundedSelection: false,
-                        scrollBeyondLastLine: false,
-                        automaticLayout: true,
-                        wordWrap: "on",
-                        suggestOnTriggerCharacters: true,
-                        quickSuggestions: true,
-                        parameterHints: { enabled: true },
-                        formatOnPaste: true,
-                        formatOnType: true,
-                        // Add these options to reduce flashing
-                        renderWhitespace: "none",
-                        renderLineHighlight: "all",
-                        smoothScrolling: true,
-                        // Prevent cursor jumping
-                        cursorBlinking: "smooth",
-                        cursorSmoothCaretAnimation: "on",
-                      }}
-                      // Add loading component
-                      loading={
-                        <div className="flex items-center justify-center h-full">
-                          Loading TypeScript editor...
-                        </div>
-                      }
-                    />
-                  </div>
+                        options={{
+                          readOnly: !isEditing,
+                          minimap: { enabled: false },
+                          fontSize: 14,
+                          lineNumbers: "on",
+                          roundedSelection: false,
+                          scrollBeyondLastLine: false,
+                          automaticLayout: true,
+                          wordWrap: "on",
+                          suggestOnTriggerCharacters: true,
+                          quickSuggestions: true,
+                          parameterHints: { enabled: true },
+                          formatOnPaste: true,
+                          formatOnType: true,
+                          // Add these options to reduce flashing
+                          renderWhitespace: "none",
+                          renderLineHighlight: "all",
+                          smoothScrolling: true,
+                          // Prevent cursor jumping
+                          cursorBlinking: "smooth",
+                          cursorSmoothCaretAnimation: "on",
+                        }}
+                        // Add loading component
+                        loading={
+                          <div className="flex items-center justify-center h-full">
+                            Loading TypeScript editor...
+                          </div>
+                        }
+                      />
+                    </div>
 
-                  {/* Test Console - Fixed width to prevent overflow */}
-                  <div
-                    className={`absolute right-0 top-0 h-full border-l border-border bg-muted transition-transform duration-300 ease-in-out border border-black ${
-                      isTestConsoleVisible
-                        ? "w-1/3 translate-x-0"
-                        : "w-1/3 translate-x-full"
-                    }`}
-                  >
-                    <TestConsole activeFile={activeFile} />
+                    {/* Test Console - Fixed width to prevent overflow */}
+                    <div
+                      className={`absolute right-0 top-0 h-full border-l border-border bg-muted transition-transform duration-300 ease-in-out border border-black ${
+                        isTestConsoleVisible
+                          ? "w-1/3 translate-x-0"
+                          : "w-1/3 translate-x-full"
+                      }`}
+                    >
+                      <TestConsole activeFile={activeFile} />
+                    </div>
                   </div>
                 </div>
+              </>
+            ) : (
+              /* Empty State */
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <Type className="mx-auto h-12 w-12 text-blue-400" />
+                  <h3 className="mt-2 text-sm font-medium text-foreground">
+                    No TypeScript file selected
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Select a file from the sidebar to view or edit its
+                    TypeScript code.
+                  </p>
+                </div>
               </div>
-            </>
-          ) : (
-            /* Empty State */
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <Type className="mx-auto h-12 w-12 text-blue-400" />
-                <h3 className="mt-2 text-sm font-medium text-foreground">
-                  No TypeScript file selected
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Select a file from the sidebar to view or edit its TypeScript
-                  code.
-                </p>
+            )}
+          </div>
+        </div>
+
+        {/* Create Item Modals */}
+        <CreateItemModal
+          isOpen={isCreateFolderModalOpen}
+          onClose={() => setIsCreateFolderModalOpen(false)}
+          onSubmit={handleCreateFolder}
+          type="folder"
+        />
+
+        <CreateItemModal
+          isOpen={isCreateFileModalOpen}
+          onClose={() => setIsCreateFileModalOpen(false)}
+          onSubmit={handleCreateFile}
+          type="file"
+          selectedFolderName={selectedFolder?.name}
+        />
+
+        {/* Rename File Modal */}
+        <CreateItemModal
+          isOpen={renameFileModal.isOpen}
+          onClose={() => setRenameFileModal({ isOpen: false, file: null })}
+          onSubmit={handleRenameFileSubmit}
+          type="file"
+          isRenaming={true}
+          currentName={renameFileModal.file?.name || ""}
+        />
+
+        {/* Delete Confirmation Modals */}
+        <ConfirmDeleteModal
+          isOpen={deleteFolderModal.isOpen}
+          onClose={() =>
+            setDeleteFolderModal({
+              isOpen: false,
+              folderId: "",
+              folderName: "",
+            })
+          }
+          onConfirm={() => handleDeleteFolder(deleteFolderModal.folderId)}
+          title="Delete Folder"
+          description="Are you sure you want to delete this folder? All TypeScript files in it will also be deleted."
+          itemName={deleteFolderModal.folderName}
+          type="folder"
+        />
+
+        <DeleteFunctionWarningModal
+          isOpen={deleteFunctionWarningModal.isOpen}
+          onClose={() =>
+            setDeleteFunctionWarningModal({
+              isOpen: false,
+              fileId: "",
+              fileName: "",
+              affectedColumns: [],
+              affectedFunctions: [],
+            })
+          }
+          onConfirm={handleConfirmDeleteWithColumns}
+          functionName={deleteFunctionWarningModal.fileName}
+          affectedColumns={deleteFunctionWarningModal.affectedColumns}
+          affectedFunctions={deleteFunctionWarningModal.affectedFunctions}
+        />
+
+        {/* Code Editor Documentation Modal */}
+        <CodeEditorDocumentationModal
+          isOpen={isDocumentationModalOpen}
+          onClose={() => setIsDocumentationModalOpen(false)}
+        />
+
+        {/* Drag Overlay */}
+        <DragOverlay>
+          {draggedFile ? (
+            <div className="p-2 rounded-lg bg-background border border-border shadow-lg opacity-90">
+              <div className="flex items-center space-x-2">
+                <FileCode className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">{draggedFile.name}</span>
               </div>
             </div>
-          )}
-        </div>
+          ) : null}
+        </DragOverlay>
       </div>
-
-      {/* Create Item Modals */}
-      <CreateItemModal
-        isOpen={isCreateFolderModalOpen}
-        onClose={() => setIsCreateFolderModalOpen(false)}
-        onSubmit={handleCreateFolder}
-        type="folder"
-      />
-
-      <CreateItemModal
-        isOpen={isCreateFileModalOpen}
-        onClose={() => setIsCreateFileModalOpen(false)}
-        onSubmit={handleCreateFile}
-        type="file"
-        selectedFolderName={selectedFolder?.name}
-      />
-
-      {/* Rename File Modal */}
-      <CreateItemModal
-        isOpen={renameFileModal.isOpen}
-        onClose={() => setRenameFileModal({ isOpen: false, file: null })}
-        onSubmit={handleRenameFileSubmit}
-        type="file"
-        isRenaming={true}
-        currentName={renameFileModal.file?.name || ""}
-      />
-
-      {/* Delete Confirmation Modals */}
-      <ConfirmDeleteModal
-        isOpen={deleteFolderModal.isOpen}
-        onClose={() =>
-          setDeleteFolderModal({ isOpen: false, folderId: "", folderName: "" })
-        }
-        onConfirm={() => handleDeleteFolder(deleteFolderModal.folderId)}
-        title="Delete Folder"
-        description="Are you sure you want to delete this folder? All TypeScript files in it will also be deleted."
-        itemName={deleteFolderModal.folderName}
-        type="folder"
-      />
-
-      <DeleteFunctionWarningModal
-        isOpen={deleteFunctionWarningModal.isOpen}
-        onClose={() =>
-          setDeleteFunctionWarningModal({
-            isOpen: false,
-            fileId: "",
-            fileName: "",
-            affectedColumns: [],
-            affectedFunctions: [],
-          })
-        }
-        onConfirm={handleConfirmDeleteWithColumns}
-        functionName={deleteFunctionWarningModal.fileName}
-        affectedColumns={deleteFunctionWarningModal.affectedColumns}
-        affectedFunctions={deleteFunctionWarningModal.affectedFunctions}
-      />
-
-      {/* Code Editor Documentation Modal */}
-      <CodeEditorDocumentationModal
-        isOpen={isDocumentationModalOpen}
-        onClose={() => setIsDocumentationModalOpen(false)}
-      />
-    </div>
+    </DndContext>
   );
 }

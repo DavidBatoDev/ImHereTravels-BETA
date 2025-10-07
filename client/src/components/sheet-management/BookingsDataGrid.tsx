@@ -1638,7 +1638,7 @@ export default function BookingsDataGrid({
         };
 
         // Add header height styling for two-row header structure and remove padding
-        (baseColumn as any).headerCellClass = "h-20 !p-0"; // Increased height for two-row header, no padding
+        (baseColumn as any).headerCellClass = "bg-black h-20 !p-0"; // Increased height for two-row header, no padding
 
         // Add custom header with parent tab (no sorting indicators)
         baseColumn.renderHeaderCell = ({ column }) => {
@@ -1718,11 +1718,11 @@ export default function BookingsDataGrid({
 
               {/* Column Name Row */}
               <div
-                className={`flex items-center justify-between flex-1 px-2 mt-10 cursor-pointer hover:bg-royal-purple/10 transition-colors group/header ${
+                className={`flex items-center justify-between flex-1 px-2 mt-10 cursor-pointer hover:bg-gray-700 transition-colors group/header ${
                   selectedColumnId === col.id
-                    ? "bg-royal-purple/15 ring-2 ring-inset ring-royal-purple"
+                    ? "bg-gray-600 ring-2 ring-inset ring-white"
                     : ""
-                } ${frozenColumnIds.has(col.id) ? "bg-royal-purple/5" : ""}`}
+                } ${frozenColumnIds.has(col.id) ? "bg-gray-800" : ""}`}
                 onClick={() =>
                   setSelectedColumnId(
                     selectedColumnId === col.id ? null : col.id
@@ -1732,18 +1732,18 @@ export default function BookingsDataGrid({
               >
                 <div className="flex items-center gap-1 flex-1 justify-center">
                   {col.dataType === "function" && (
-                    <FunctionSquare className="h-4 w-4 text-red-600" />
+                    <FunctionSquare className="h-4 w-4 text-white" />
                   )}
                   {frozenColumnIds.has(col.id) && (
-                    <Pin className="h-3 w-3 text-royal-purple" />
+                    <Pin className="h-3 w-3 text-white" />
                   )}
-                  <span className="font-medium truncate text-foreground">
+                  <span className="font-medium truncate text-white">
                     {column.name}
                   </span>
                 </div>
                 <button
                   onClick={(e) => toggleColumnFreeze(col.id, e)}
-                  className={`p-1 hover:bg-royal-purple/20 rounded transition-all ${
+                  className={`p-1 hover:bg-gray-600 rounded transition-all ${
                     frozenColumnIds.has(col.id)
                       ? "opacity-100"
                       : "opacity-0 group-hover/header:opacity-100"
@@ -1755,9 +1755,9 @@ export default function BookingsDataGrid({
                   }
                 >
                   {frozenColumnIds.has(col.id) ? (
-                    <PinOff className="h-3 w-3 text-royal-purple" />
+                    <PinOff className="h-3 w-3 text-white" />
                   ) : (
-                    <Pin className="h-3 w-3 text-muted-foreground" />
+                    <Pin className="h-3 w-3 text-white" />
                   )}
                 </button>
               </div>

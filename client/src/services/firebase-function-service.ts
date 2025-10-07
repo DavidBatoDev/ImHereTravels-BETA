@@ -114,6 +114,9 @@ const parseTSContent = (content: string): FileAnalysisResult => {
       hasDestructuring: false,
       hasRestParameters: false,
       functionDependencies: [],
+      isAsync: false,
+      hasAwait: false,
+      returnType: "sync",
     };
   }
 };
@@ -344,6 +347,9 @@ export class TypeScriptFunctionService {
           hasDestructuring: analysis.hasDestructuring,
           hasRestParameters: analysis.hasRestParameters,
           functionDependencies: analysis.functionDependencies || [],
+          isAsync: analysis.isAsync || false,
+          hasAwait: analysis.hasAwait || false,
+          returnType: analysis.returnType || "sync",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           lastModified: serverTimestamp(),
@@ -372,7 +378,13 @@ export class TypeScriptFunctionService {
           hasDestructuring: analysis.hasDestructuring,
           hasRestParameters: analysis.hasRestParameters,
           functionDependencies: analysis.functionDependencies || [],
+          isAsync: analysis.isAsync || false,
+          hasAwait: analysis.hasAwait || false,
+          returnType: analysis.returnType || "sync",
         };
+
+        // Update folder file count
+        await this.updateFolderFileCounts([fileData.folderId]);
 
         return newFile;
       } catch (error) {
@@ -478,8 +490,18 @@ export class TypeScriptFunctionService {
     // Delete file
     async delete(id: string): Promise<boolean> {
       try {
+        // Get the file to find its folder before deleting
+        const file = await this.getById(id);
+        if (!file) {
+          throw new Error("File not found");
+        }
+
         const fileRef = doc(db, COLLECTIONS.FILES, id);
         await deleteDoc(fileRef);
+
+        // Update folder file count
+        await this.updateFolderFileCounts([file.folderId]);
+
         return true;
       } catch (error) {
         console.error("Error deleting file:", error);
@@ -582,6 +604,74 @@ export class TypeScriptFunctionService {
       } catch (error) {
         console.error("Error fetching files by type:", error);
         throw new Error("Failed to fetch files by type");
+      }
+    },
+
+    // Move file to different folder
+    async moveToFolder(
+      fileId: string,
+      newFolderId: string
+    ): Promise<TSFile | null> {
+      try {
+        // Get the file to find its current folder
+        const file = await this.getById(fileId);
+        if (!file) {
+          throw new Error("File not found");
+        }
+
+        const oldFolderId = file.folderId;
+
+        // Update the file's folder
+        const fileRef = doc(db, COLLECTIONS.FILES, fileId);
+        await updateDoc(fileRef, {
+          folderId: newFolderId,
+          updatedAt: serverTimestamp(),
+          lastModified: serverTimestamp(),
+        });
+
+        // Update file counts for both folders
+        await this.updateFolderFileCounts([oldFolderId, newFolderId]);
+
+        // Return updated file
+        const updatedDoc = await getDoc(fileRef);
+        if (updatedDoc.exists()) {
+          return convertFileDoc(
+            updatedDoc as QueryDocumentSnapshot<DocumentData>
+          );
+        }
+        return null;
+      } catch (error) {
+        console.error("Error moving file to folder:", error);
+        throw new Error("Failed to move file to folder");
+      }
+    },
+
+    // Update file counts for folders
+    async updateFolderFileCounts(folderIds: string[]): Promise<void> {
+      try {
+        const batch = writeBatch(db);
+
+        for (const folderId of folderIds) {
+          // Count files in this folder
+          const filesQuery = query(
+            collection(db, COLLECTIONS.FILES),
+            where("folderId", "==", folderId)
+          );
+          const filesSnapshot = await getDocs(filesQuery);
+          const fileCount = filesSnapshot.size;
+
+          // Update folder with new file count
+          const folderRef = doc(db, COLLECTIONS.FOLDERS, folderId);
+          batch.update(folderRef, {
+            fileCount,
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        await batch.commit();
+      } catch (error) {
+        console.error("Error updating folder file counts:", error);
+        throw new Error("Failed to update folder file counts");
       }
     },
   };
