@@ -6,20 +6,17 @@ import TelegramBot from "node-telegram-bot-api";
 // Telegram Bot Token
 const BOT_TOKEN = "7889616304:AAFAThU8KbBYTUmiCsN3rOCcR8LgNaW-efU";
 
-// Force all messages to this chat ID
-const FORCE_CHAT_ID = "1854388945";
-
 // Initialize Telegram Bot
 const bot = new TelegramBot(BOT_TOKEN, { polling: false });
 
 interface TelegramMessageRequest {
-  chatId?: string; // ignored; function forces FORCE_CHAT_ID
+  chatId: string; // Required chat ID to send message to
   message: string;
   parseMode?: "HTML" | "Markdown" | "MarkdownV2";
 }
 
 interface TelegramPhotoRequest {
-  chatId?: string; // ignored; function forces FORCE_CHAT_ID
+  chatId: string; // Required chat ID to send photo to
   photo: string; // Base64 encoded image or URL
   caption?: string;
   parseMode?: "HTML" | "Markdown" | "MarkdownV2";
@@ -104,22 +101,23 @@ export const telegramBot = onRequest(
 );
 
 async function handleSendMessage(data: TelegramMessageRequest) {
-  const { message, parseMode = "HTML" } = data;
+  const { chatId, message, parseMode = "HTML" } = data;
+
+  if (!chatId) {
+    throw new Error("Missing required parameter: chatId");
+  }
 
   if (!message) {
     throw new Error("Missing required parameter: message");
   }
 
-  const targetChatId = FORCE_CHAT_ID;
-
   logger.info("Sending message to Telegram", {
-    receivedChatId: data.chatId || null,
-    targetChatId,
+    chatId,
     messageLength: message.length,
     parseMode,
   });
 
-  const result = await bot.sendMessage(targetChatId, message, {
+  const result = await bot.sendMessage(chatId, message, {
     parse_mode: parseMode,
   });
 
@@ -132,17 +130,18 @@ async function handleSendMessage(data: TelegramMessageRequest) {
 }
 
 async function handleSendPhoto(data: TelegramPhotoRequest) {
-  const { photo, caption, parseMode = "HTML" } = data;
+  const { chatId, photo, caption, parseMode = "HTML" } = data;
+
+  if (!chatId) {
+    throw new Error("Missing required parameter: chatId");
+  }
 
   if (!photo) {
     throw new Error("Missing required parameter: photo");
   }
 
-  const targetChatId = FORCE_CHAT_ID;
-
   logger.info("Sending photo to Telegram", {
-    receivedChatId: data.chatId || null,
-    targetChatId,
+    chatId,
     photoLength: photo.length,
     hasCaption: !!caption,
     parseMode,
@@ -176,7 +175,7 @@ async function handleSendPhoto(data: TelegramPhotoRequest) {
     options.parse_mode = parseMode;
   }
 
-  const result = await bot.sendPhoto(targetChatId, photoInput, options);
+  const result = await bot.sendPhoto(chatId, photoInput, options);
 
   return {
     messageId: result.message_id,
