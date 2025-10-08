@@ -24,6 +24,16 @@ import { functions } from "@/lib/firebase";
 type CompiledFn = (...args: any[]) => any;
 type AsyncCompiledFn = (...args: any[]) => Promise<any>;
 
+// Toggle to control error logging from executed functions.
+// Set to true to re-enable detailed error logs for debugging.
+const LOG_FUNCTION_ERRORS = false;
+const logFunctionError = (...args: any[]) => {
+  if (LOG_FUNCTION_ERRORS) {
+    // eslint-disable-next-line no-console
+    console.error(...args);
+  }
+};
+
 class FunctionExecutionService {
   private cache: Map<string, CompiledFn> = new Map();
   private resultCache: Map<
@@ -106,6 +116,13 @@ class FunctionExecutionService {
       };
     }
 
+    // Optionally suppress console.error during user function execution
+    const originalConsoleError = console.error;
+    if (!LOG_FUNCTION_ERRORS) {
+      // eslint-disable-next-line no-console
+      (console as any).error = () => {};
+    }
+
     try {
       const fn = await this.getCompiledFunction(fileId);
 
@@ -150,7 +167,7 @@ class FunctionExecutionService {
       };
     } catch (error) {
       const executionTime = performance.now() - startTime;
-      console.error(
+      logFunctionError(
         `❌ [FUNCTION ERROR] Function ${fileId} with args [${args.join(
           ", "
         )}] failed after ${executionTime}ms:`,
@@ -162,6 +179,10 @@ class FunctionExecutionService {
         error: error instanceof Error ? error.message : "Unknown error",
         executionTime,
       };
+    } finally {
+      // Restore console.error regardless of outcome
+      // eslint-disable-next-line no-console
+      (console as any).error = originalConsoleError;
     }
   }
 

@@ -14,6 +14,7 @@ import {
   onSnapshot,
   DocumentData,
   Unsubscribe,
+  writeBatch,
 } from "firebase/firestore";
 
 // ============================================================================
@@ -30,6 +31,7 @@ export interface BookingService {
   // CRUD Operations
   updateBooking(bookingId: string, updates: Record<string, any>): Promise<void>;
   deleteBooking(bookingId: string): Promise<void>;
+  deleteAllBookings(): Promise<void>;
   createBooking(bookingData: Record<string, any>): Promise<string>;
   getBooking(bookingId: string): Promise<DocumentData | null>;
   getAllBookings(): Promise<DocumentData[]>;
@@ -102,6 +104,32 @@ class BookingServiceImpl implements BookingService {
     } catch (error) {
       console.error(
         `❌ Failed to delete booking ${bookingId}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      throw error;
+    }
+  }
+
+  async deleteAllBookings(): Promise<void> {
+    try {
+      const bookingsCollection = collection(db, COLLECTION_NAME);
+      const snapshot = await getDocs(bookingsCollection);
+
+      const BATCH_SIZE = 400; // keep well under the 500 limit
+      const docs = snapshot.docs;
+
+      for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+        const batch = writeBatch(db);
+        const slice = docs.slice(i, i + BATCH_SIZE);
+        slice.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
+
+      console.log(`✅ Deleted all ${snapshot.docs.length} bookings in batches`);
+    } catch (error) {
+      console.error(
+        `❌ Failed to delete all bookings: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );

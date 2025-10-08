@@ -54,6 +54,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { FunctionSquare } from "lucide-react";
 import {
   Select,
@@ -102,6 +103,9 @@ import {
   Eye,
   EyeOff,
   Maximize,
+  Upload,
+  FileSpreadsheet,
+  AlertTriangle,
 } from "lucide-react";
 import {
   SheetColumn,
@@ -140,6 +144,16 @@ const isEqual = (a: any, b: any): boolean => {
 };
 import ColumnSettingsModal from "./ColumnSettingsModal";
 import SheetConsole from "./SheetConsole";
+import CSVImport from "./CSVImport";
+
+// Toggle to control error logging from function recomputation paths
+const LOG_FUNCTION_ERRORS = false;
+const logFunctionError = (...args: any[]) => {
+  if (LOG_FUNCTION_ERRORS) {
+    // eslint-disable-next-line no-console
+    console.error(...args);
+  }
+};
 
 // Custom editors for different data types
 const DateEditor = memo(function DateEditor({
@@ -636,7 +650,7 @@ const FunctionFormatter = memo(function FunctionFormatter({
       try {
         await recomputeCell(row.id, column.key);
       } catch (error) {
-        console.error("Failed to recompute cell:", error);
+        logFunctionError("Failed to recompute cell:", error);
       } finally {
         setIsRecomputing(false);
       }
@@ -730,6 +744,9 @@ export default function BookingsDataGrid({
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [sortColumns, setSortColumns] = useState<readonly SortColumn[]>([]);
   const [localData, setLocalData] = useState<SheetData[]>([]);
+  // Keep refs of latest data to avoid stale closures in async handlers
+  const latestDataRef = useRef<SheetData[]>([]);
+  const latestLocalDataRef = useRef<SheetData[]>([]);
   const functionSubscriptionsRef = useRef<Map<string, () => void>>(new Map());
   const isInitialLoadRef = useRef<boolean>(true);
   const [isSheetConsoleVisible, setIsSheetConsoleVisible] = useState(false);
@@ -742,6 +759,32 @@ export default function BookingsDataGrid({
   const [frozenColumnIds, setFrozenColumnIds] = useState<Set<string>>(
     new Set()
   );
+  const [isRecomputingAll, setIsRecomputingAll] = useState(false);
+  const isRecomputingAllRef = useRef(false);
+  useEffect(() => {
+    isRecomputingAllRef.current = isRecomputingAll;
+  }, [isRecomputingAll]);
+  const [recomputeProgress, setRecomputeProgress] = useState<{
+    completed: number;
+    total: number;
+    phase: "init" | "acyclic" | "cyclic" | "flushing" | "done";
+    currentRowId?: string;
+    currentColId?: string;
+    attempt?: number;
+    maxAttempts?: number;
+    errorDetected?: boolean;
+    errorCount?: number;
+  }>({
+    completed: 0,
+    total: 0,
+    phase: "init",
+    attempt: 0,
+    maxAttempts: 4,
+    errorDetected: false,
+    errorCount: 0,
+  });
+  const MAX_RECOMPUTE_ATTEMPTS = 4;
+  const attemptErrorCountRef = useRef<number>(0);
 
   // Cache for function arguments to detect actual changes
   const functionArgsCacheRef = useRef<Map<string, any[]>>(new Map());
@@ -836,6 +879,21 @@ export default function BookingsDataGrid({
   // Track previous data to detect changes
   const prevDataRef = useRef<SheetData[]>([]);
 
+  // Keep refs in sync with state/props
+  useEffect(() => {
+    latestDataRef.current = data;
+  }, [data]);
+  useEffect(() => {
+    latestLocalDataRef.current = localData;
+  }, [localData]);
+
+  // Helper: get the most up-to-date rows snapshot
+  const getCurrentRows = useCallback((): SheetData[] => {
+    const ld = latestLocalDataRef.current || [];
+    const d = latestDataRef.current || [];
+    return ld.length > 0 ? ld : d;
+  }, []);
+
   // Debug selectedCell changes
 
   // Compute one function column for a single row
@@ -896,7 +954,17 @@ export default function BookingsDataGrid({
         );
 
         if (!executionResult.success) {
-          console.error(
+          // record attempt error for retry loop tracking
+          attemptErrorCountRef.current =
+            (attemptErrorCountRef.current || 0) + 1;
+          if (isRecomputingAllRef.current) {
+            setRecomputeProgress((prev) => ({
+              ...prev,
+              errorDetected: true,
+              errorCount: (prev.errorCount || 0) + 1,
+            }));
+          }
+          logFunctionError(
             `Function execution failed for ${funcCol.function}:`,
             executionResult.error
           );
@@ -912,7 +980,18 @@ export default function BookingsDataGrid({
         }
         return result;
       } catch (err) {
-        console.error(`Function execution error for ${funcCol.function}:`, err);
+        attemptErrorCountRef.current = (attemptErrorCountRef.current || 0) + 1;
+        if (isRecomputingAllRef.current) {
+          setRecomputeProgress((prev) => ({
+            ...prev,
+            errorDetected: true,
+            errorCount: (prev.errorCount || 0) + 1,
+          }));
+        }
+        logFunctionError(
+          `Function execution error for ${funcCol.function}:`,
+          err
+        );
         return undefined;
       }
     },
@@ -1182,6 +1261,280 @@ export default function BookingsDataGrid({
       batchedWriter.flush();
     },
     [columns, localData, data]
+  );
+
+  // Recompute all function columns for all rows (used after CSV import)
+  const recomputeAllFunctionColumns = useCallback(
+    async (isRetry = false, retryAttempt = 1) => {
+      if (!isRetry) {
+        console.log(
+          "🔄 [FUNCTION RECOMPUTE] Starting recomputation of all function columns"
+        );
+        setIsRecomputingAll(true);
+        setRecomputeProgress({
+          completed: 0,
+          total: 0,
+          phase: "init",
+          attempt: retryAttempt,
+          maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+          errorDetected: false,
+          errorCount: 0,
+        });
+      } else {
+        console.log(
+          `🔄 [FUNCTION RECOMPUTE] Retrying recomputation (attempt ${retryAttempt}/${MAX_RECOMPUTE_ATTEMPTS})`
+        );
+        setRecomputeProgress({
+          completed: 0,
+          total: 0,
+          phase: "init",
+          attempt: retryAttempt,
+          maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+          errorDetected: false,
+          errorCount: 0,
+        });
+      }
+
+      const functionColumns = columns.filter(
+        (c) => c.dataType === "function" && !!c.function
+      );
+
+      if (functionColumns.length === 0) {
+        console.log("✅ [FUNCTION RECOMPUTE] No function columns found");
+        setRecomputeProgress({
+          completed: 1,
+          total: 1,
+          phase: "done",
+          attempt: 0,
+          maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+          errorDetected: false,
+          errorCount: 0,
+        });
+        setIsRecomputingAll(false);
+        return;
+      }
+
+      // Use live rows to avoid stale state during async flows (like CSV import)
+      const rows = getCurrentRows();
+
+      console.log(
+        `🔄 [FUNCTION RECOMPUTE] Processing ${functionColumns.length} function columns for ${rows.length} rows`
+      );
+
+      // Build function-to-function dependency order using existing dependencyGraph
+      // Edge A -> B means B depends on A (A should be computed before B)
+      const funcIdToCol = new Map<string, SheetColumn>();
+      const funcIds = new Set<string>();
+      functionColumns.forEach((fc) => {
+        funcIdToCol.set(fc.id, fc);
+        funcIds.add(fc.id);
+      });
+
+      const adj = new Map<string, Set<string>>();
+      const indegree = new Map<string, number>();
+      functionColumns.forEach((fc) => {
+        adj.set(fc.id, new Set());
+        indegree.set(fc.id, 0);
+      });
+
+      // dependencyGraph: source column id -> function columns depending on it
+      // Only keep edges where source is also a function column
+      dependencyGraph.forEach((dependents, sourceColId) => {
+        if (!funcIds.has(sourceColId)) return;
+        dependents.forEach((depCol) => {
+          if (!funcIds.has(depCol.id)) return;
+          const set = adj.get(sourceColId)!;
+          if (!set.has(depCol.id)) {
+            set.add(depCol.id);
+            indegree.set(depCol.id, (indegree.get(depCol.id) || 0) + 1);
+          }
+        });
+      });
+
+      // Kahn's algorithm for topological sort
+      const queue: string[] = [];
+      indegree.forEach((deg, id) => {
+        if ((deg || 0) === 0) queue.push(id);
+      });
+      const topoOrderIds: string[] = [];
+      while (queue.length > 0) {
+        const id = queue.shift()!;
+        topoOrderIds.push(id);
+        (adj.get(id) || new Set()).forEach((nbr) => {
+          const nextDeg = (indegree.get(nbr) || 0) - 1;
+          indegree.set(nbr, nextDeg);
+          if (nextDeg === 0) queue.push(nbr);
+        });
+      }
+
+      const topoOrderedCols: SheetColumn[] = topoOrderIds
+        .map((id) => funcIdToCol.get(id)!)
+        .filter(Boolean);
+      const visitedIds = new Set(topoOrderIds);
+      const cyclicCols: SheetColumn[] = functionColumns.filter(
+        (fc) => !visitedIds.has(fc.id)
+      );
+
+      // Initialize progress totals (best effort upper bound)
+      const MAX_PASSES = 5;
+      const totalWorkBase =
+        rows.length * topoOrderedCols.length +
+        rows.length *
+          cyclicCols.length *
+          (cyclicCols.length > 0 ? MAX_PASSES : 0);
+
+      // Clear cache for all function columns
+      rows.forEach((row) => {
+        functionColumns.forEach((funcCol) => {
+          const cacheKey = `${row.id}:${funcCol.id}:${funcCol.function}`;
+          functionArgsCacheRef.current.delete(cacheKey);
+        });
+      });
+
+      // Reset error tracking for this attempt
+      attemptErrorCountRef.current = 0;
+
+      setRecomputeProgress({
+        completed: 0,
+        total: Math.max(totalWorkBase, 1),
+        phase: "acyclic",
+        attempt: retryAttempt,
+        maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+        errorDetected: false,
+        errorCount: 0,
+        currentRowId: undefined,
+        currentColId: undefined,
+      });
+
+      // Recompute for each row using topological order first, then fallback multi-pass for cyclic sets
+      for (const originalRow of rows) {
+        const rowSnapshot: SheetData = { ...originalRow };
+
+        // 1) Acyclic: compute in dependency order
+        for (const funcCol of topoOrderedCols) {
+          try {
+            const result = await computeFunctionForRow(
+              rowSnapshot,
+              funcCol,
+              true
+            );
+            if (!isEqual(rowSnapshot[funcCol.id], result)) {
+              rowSnapshot[funcCol.id] = result as any;
+            }
+            setRecomputeProgress((prev) => ({
+              ...prev,
+              completed: Math.min(prev.completed + 1, prev.total),
+              currentRowId: originalRow.id,
+              currentColId: funcCol.id,
+              phase: "acyclic",
+              attempt: retryAttempt,
+              maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+            }));
+          } catch (error) {
+            attemptErrorCountRef.current =
+              (attemptErrorCountRef.current || 0) + 1;
+            logFunctionError(
+              `❌ [FUNCTION RECOMPUTE] Error computing ${funcCol.id} for row ${originalRow.id}:`,
+              error
+            );
+          }
+        }
+
+        // 2) Cyclic or unresolved: bounded multi-pass across the remaining set
+        if (cyclicCols.length > 0) {
+          setRecomputeProgress((prev) => ({
+            ...prev,
+            phase: "cyclic",
+            attempt: retryAttempt,
+          }));
+          for (let pass = 1; pass <= MAX_PASSES; pass++) {
+            let changedInPass = false;
+            for (const funcCol of cyclicCols) {
+              try {
+                const result = await computeFunctionForRow(
+                  rowSnapshot,
+                  funcCol,
+                  true
+                );
+                if (!isEqual(rowSnapshot[funcCol.id], result)) {
+                  rowSnapshot[funcCol.id] = result as any;
+                  changedInPass = true;
+                }
+                setRecomputeProgress((prev) => ({
+                  ...prev,
+                  completed: Math.min(prev.completed + 1, prev.total),
+                  currentRowId: originalRow.id,
+                  currentColId: funcCol.id,
+                  phase: "cyclic",
+                  attempt: retryAttempt,
+                  maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+                }));
+              } catch (error) {
+                attemptErrorCountRef.current =
+                  (attemptErrorCountRef.current || 0) + 1;
+                logFunctionError(
+                  `❌ [FUNCTION RECOMPUTE] Error computing ${funcCol.id} for row ${originalRow.id}:`,
+                  error
+                );
+                setRecomputeProgress((prev) => ({
+                  ...prev,
+                  errorDetected: true,
+                  errorCount: (prev.errorCount || 0) + 1,
+                }));
+              }
+            }
+            if (!changedInPass) break;
+          }
+        }
+      }
+
+      // Force immediate persistence
+      setRecomputeProgress((prev) => ({ ...prev, phase: "flushing" }));
+      batchedWriter.flush();
+
+      const finalErrorCount = attemptErrorCountRef.current || 0;
+
+      // If there were errors and we haven't exceeded max attempts, retry after delay
+      if (finalErrorCount > 0 && retryAttempt < MAX_RECOMPUTE_ATTEMPTS) {
+        console.log(
+          `⏱️ [FUNCTION RECOMPUTE] Attempt ${retryAttempt} had ${finalErrorCount} errors, retrying in 2 seconds...`
+        );
+        setRecomputeProgress((prev) => ({
+          ...prev,
+          phase: "init",
+          completed: 0,
+          currentRowId: undefined,
+          currentColId: undefined,
+        }));
+
+        // Wait 2 seconds then call the function again
+        setTimeout(() => {
+          recomputeAllFunctionColumns(true, retryAttempt + 1);
+        }, 2000);
+        return;
+      }
+
+      // Completed (either successfully or max attempts reached)
+      if (finalErrorCount > 0) {
+        console.log(
+          `⚠️ [FUNCTION RECOMPUTE] Completed with ${finalErrorCount} remaining errors after ${retryAttempt} attempts`
+        );
+      } else {
+        console.log(
+          "✅ [FUNCTION RECOMPUTE] Completed recomputation of all function columns with no errors"
+        );
+      }
+
+      setRecomputeProgress((prev) => ({
+        ...prev,
+        completed: prev.total,
+        phase: "done",
+        attempt: 0,
+      }));
+      // Small delay to let users see 100%
+      setTimeout(() => setIsRecomputingAll(false), 400);
+    },
+    [columns, computeFunctionForRow, getCurrentRows]
   );
 
   // Subscribe to changes for only the functions referenced by current columns
@@ -1488,7 +1841,7 @@ export default function BookingsDataGrid({
     // Add row number column first
     const rowNumberColumn: Column<SheetData> = {
       key: "rowNumber",
-      name: "#",
+      name: "Doc #",
       width: 64,
       minWidth: 50,
       maxWidth: 100,
@@ -1504,11 +1857,11 @@ export default function BookingsDataGrid({
               className="bg-gray-400 border-b border-r border-gray-400 px-2 py-1 text-lg font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 w-full flex items-center"
               style={{ height: "40px" }}
             >
-              Row
+              #
             </div>
             {/* Column Name Row */}
             <div className="flex items-center justify-center flex-1 px-2 mt-10">
-              <span className="font-medium text-foreground">#</span>
+              <span className="font-medium text-foreground">Doc ID</span>
             </div>
           </div>
         );
@@ -1521,6 +1874,28 @@ export default function BookingsDataGrid({
         const displayIndex = (row as any)._displayIndex;
 
         if (isEmptyRow) {
+          // Calculate what the next document ID would be for the first empty row
+          let nextDocumentId = "-";
+          if (isFirstEmptyRow && data && data.length > 0) {
+            // Find the highest numeric ID from existing data
+            const numericIds = data
+              .map((item) => {
+                const id = parseInt(item.id);
+                return isNaN(id) ? 0 : id;
+              })
+              .filter((id) => id > 0);
+
+            if (numericIds.length > 0) {
+              const maxId = Math.max(...numericIds);
+              nextDocumentId = (maxId + 1).toString();
+            } else {
+              nextDocumentId = "1";
+            }
+          } else if (!isFirstEmptyRow) {
+            // For subsequent empty rows, just show placeholder
+            nextDocumentId = "-";
+          }
+
           return (
             <div
               className={`h-8 w-16 flex items-center justify-center text-xs font-mono px-2 border-r border-b border-border bg-muted relative z-[999999999] ${
@@ -1529,12 +1904,12 @@ export default function BookingsDataGrid({
                   : "text-muted-foreground/60"
               }`}
             >
-              {displayIndex}
+              {nextDocumentId}
             </div>
           );
         }
 
-        const rowNumber = parseInt(row.id);
+        const documentUID = row.id;
         const isSelected = selectedRowId === row.id;
         return (
           <div
@@ -1542,8 +1917,9 @@ export default function BookingsDataGrid({
             className={`h-8 w-16 flex items-center justify-center text-xs font-mono text-foreground px-2 border-r border-b border-border bg-muted relative z-[999999999] cursor-pointer hover:bg-royal-purple/20 transition-colors ${
               isSelected ? "ring-2 ring-inset ring-royal-purple" : ""
             }`}
+            title={documentUID} // Show full UID on hover
           >
-            {!isNaN(rowNumber) ? rowNumber : "-"}
+            {documentUID || "-"}
           </div>
         );
       },
@@ -2193,6 +2569,50 @@ export default function BookingsDataGrid({
     deleteColumn(columnId);
   };
 
+  const handleCSVImportComplete = useCallback(
+    async (info?: { expectedRows?: number }) => {
+      // Clear function cache to trigger recomputation
+      clearFunctionCache();
+
+      // Wait until Firestore subscription reflects the new dataset size.
+      // Use refs to avoid stale closures while awaiting.
+      const target = info?.expectedRows;
+      const start = Date.now();
+      const timeoutMs = 8000; // up to 8s to be safe on large imports
+      if (typeof target === "number" && target > 0) {
+        let stableCount = 0;
+        while (Date.now() - start < timeoutMs) {
+          const currentLen = getCurrentRows().length;
+          if (currentLen === target) {
+            stableCount++;
+            if (stableCount >= 3) break; // ensure it's stable for a few checks
+          } else {
+            stableCount = 0;
+          }
+          await new Promise((r) => setTimeout(r, 120));
+        }
+      } else {
+        // small debounce if no target provided
+        await new Promise((r) => setTimeout(r, 250));
+      }
+
+      // Recompute all function columns after data is refreshed
+      await recomputeAllFunctionColumns();
+
+      // Show success message
+      toast({
+        title: "Import Complete",
+        description:
+          "CSV data imported successfully. Function columns have been recomputed.",
+      });
+
+      console.log(
+        "✅ [CSV IMPORT] CSV import complete and function columns recomputed"
+      );
+    },
+    [clearFunctionCache, recomputeAllFunctionColumns, toast, getCurrentRows]
+  );
+
   return (
     <div className="booking-data-grid space-y-6 relative">
       {!isFullscreen && (
@@ -2206,6 +2626,54 @@ export default function BookingsDataGrid({
               <p className="text-muted-foreground">
                 Manage your bookings data with spreadsheets
               </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <CSVImport
+                onImportComplete={handleCSVImportComplete}
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Import CSV
+                  </Button>
+                }
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isRecomputingAll}
+                onClick={async () => {
+                  try {
+                    setIsRecomputingAll(true);
+                    // Clear caches and recompute using the same pathway as manual retry
+                    clearFunctionCache();
+                    await recomputeAllFunctionColumns();
+                    toast({
+                      title: "Recompute Complete",
+                      description: "All function columns have been recomputed.",
+                    });
+                  } catch (err) {
+                    console.error(
+                      "Failed to recompute all function columns",
+                      err
+                    );
+                    toast({
+                      title: "Recompute Failed",
+                      description:
+                        err instanceof Error ? err.message : "Unknown error",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsRecomputingAll(false);
+                  }
+                }}
+              >
+                <RefreshCw
+                  className={`w-4 h-4 mr-2 ${
+                    isRecomputingAll ? "animate-spin" : ""
+                  }`}
+                />
+                {isRecomputingAll ? "Recomputing…" : "Recompute All"}
+              </Button>
             </div>
           </div>
 
@@ -2551,6 +3019,10 @@ export default function BookingsDataGrid({
             columns={gridColumns}
             rows={dataWithEmptyRows}
             headerRowHeight={80}
+            isRowSelectable={(row) => {
+              // Prevent empty rows from being selectable/editable
+              return !(row as any)._isEmptyRow;
+            }}
             onRowsChange={(rows, { indexes, column }) => {
               // Filter out empty rows and only process data rows
               const dataRows = rows.filter(
@@ -2856,6 +3328,72 @@ export default function BookingsDataGrid({
           className="fixed inset-0 bg-black/20 z-30"
           onClick={() => setIsSheetConsoleVisible(false)}
         />
+      )}
+
+      {/* Recompute progress overlay */}
+      {isRecomputingAll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-background rounded-lg shadow-xl p-6 w-full max-w-md mx-4 border border-royal-purple/20">
+            <div className="flex items-center gap-3 mb-3">
+              <RefreshCw className="h-5 w-5 text-royal-purple animate-spin" />
+              <h3 className="text-lg font-semibold text-foreground">
+                Recomputing function columns…
+              </h3>
+            </div>
+            <div className="text-sm text-muted-foreground mb-2">
+              {recomputeProgress.phase === "acyclic" &&
+                "Computing in dependency order"}
+              {recomputeProgress.phase === "cyclic" &&
+                "Resolving cyclic dependencies"}
+              {recomputeProgress.phase === "flushing" && "Saving changes"}
+              {recomputeProgress.phase === "init" &&
+                recomputeProgress.attempt &&
+                recomputeProgress.attempt > 1 &&
+                "Waiting to retry..."}
+              {recomputeProgress.phase === "init" &&
+                (!recomputeProgress.attempt ||
+                  recomputeProgress.attempt === 1) &&
+                "Preparing"}
+              {recomputeProgress.attempt && (
+                <span className="ml-1">
+                  • Attempt {recomputeProgress.attempt}/
+                  {recomputeProgress.maxAttempts}
+                </span>
+              )}
+            </div>
+            <Progress
+              value={
+                recomputeProgress.total > 0
+                  ? Math.round(
+                      (recomputeProgress.completed / recomputeProgress.total) *
+                        100
+                    )
+                  : 0
+              }
+            />
+            <div className="mt-2 text-xs text-muted-foreground flex justify-between items-center">
+              <span>
+                {Math.min(recomputeProgress.completed, recomputeProgress.total)}
+                /{recomputeProgress.total} steps
+              </span>
+              <span className="flex items-center gap-2">
+                {recomputeProgress.currentRowId
+                  ? `Row ${recomputeProgress.currentRowId}`
+                  : ""}
+                {recomputeProgress.currentColId
+                  ? ` • Col ${recomputeProgress.currentColId}`
+                  : ""}
+                {recomputeProgress.errorDetected && (
+                  <span className="flex items-center text-amber-600">
+                    <AlertTriangle className="h-4 w-4 mr-1" />
+                    {recomputeProgress.errorCount || 0} error
+                    {(recomputeProgress.errorCount || 0) === 1 ? "" : "s"}
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
