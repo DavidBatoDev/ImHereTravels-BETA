@@ -243,7 +243,7 @@ const DateEditor = memo(function DateEditor({
       onBlur={handleSave}
       onKeyDown={handleKeyDown}
       autoFocus
-      className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none"
+      className="h-8 text-xs border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none"
     />
   );
 });
@@ -317,7 +317,7 @@ const SelectEditor = memo(function SelectEditor({
 
   return (
     <Select value={value} onValueChange={handleChange}>
-      <SelectTrigger className="h-8 border-0 focus:border-0 text-sm transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none bg-transparent">
+      <SelectTrigger className="h-8 border-0 focus:border-0 text-xs transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none bg-transparent">
         <SelectValue placeholder="Select option" />
       </SelectTrigger>
       <SelectContent className="bg-white dark:bg-background border border-royal-purple/20 dark:border-border shadow-lg max-h-60 z-50">
@@ -325,7 +325,7 @@ const SelectEditor = memo(function SelectEditor({
           <SelectItem
             key={option}
             value={option}
-            className="text-sm transition-colors duration-200 hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
+            className="text-xs transition-colors duration-200 hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
           >
             {option}
           </SelectItem>
@@ -372,7 +372,7 @@ const NumberEditor = memo(function NumberEditor({
       onBlur={handleSave}
       onKeyDown={handleKeyDown}
       autoFocus
-      className="h-8 border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none"
+      className="h-8 text-xs border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none"
     />
   );
 });
@@ -477,7 +477,7 @@ const BooleanFormatter = memo(function BooleanFormatter({
   return (
     <div className="flex items-center justify-center h-8 w-full px-2 border-r border-b border-border">
       <span
-        className={`text-sm font-medium ${
+        className={`text-xs font-medium ${
           value ? "text-royal-purple font-semibold" : "text-muted-foreground"
         }`}
       >
@@ -495,7 +495,7 @@ const DateFormatter = memo(function DateFormatter({
 
   if (!value)
     return (
-      <div className="h-8 w-full flex items-center text-sm text-muted-foreground px-2 border-r border-b border-border">
+      <div className="h-8 w-full flex items-center text-xs text-muted-foreground px-2 border-r border-b border-border">
         -
       </div>
     );
@@ -581,7 +581,7 @@ const CurrencyFormatter = memo(function CurrencyFormatter({
     ? `€${parseFloat(value.toString()).toLocaleString()}`
     : "";
   return (
-    <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-border">
+    <div className="h-8 w-full flex items-center text-xs px-2 border-r border-b border-border">
       {formatted}
     </div>
   );
@@ -652,9 +652,9 @@ const FunctionFormatter = memo(function FunctionFormatter({
 
   return (
     <>
-      <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-border relative group">
+      <div className="h-8 w-full flex items-center text-xs px-2 border-r border-b border-border relative group">
         <div className="flex-1 h-full flex items-center pr-16">
-          {value?.toString() || ""}
+          <span className="text-xs">{value?.toString() || ""}</span>
         </div>
         <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
           <button
@@ -1523,7 +1523,7 @@ export default function BookingsDataGrid({
         if (isEmptyRow) {
           return (
             <div
-              className={`h-8 w-16 flex items-center justify-center text-sm font-mono px-2 border-r border-b border-border bg-muted relative z-[999999999] ${
+              className={`h-8 w-16 flex items-center justify-center text-xs font-mono px-2 border-r border-b border-border bg-muted relative z-[999999999] ${
                 isFirstEmptyRow
                   ? "text-muted-foreground"
                   : "text-muted-foreground/60"
@@ -1539,7 +1539,7 @@ export default function BookingsDataGrid({
         return (
           <div
             onClick={() => setSelectedRowId(isSelected ? null : row.id)}
-            className={`h-8 w-16 flex items-center justify-center text-sm font-mono text-foreground px-2 border-r border-b border-border bg-muted relative z-[999999999] cursor-pointer hover:bg-royal-purple/20 transition-colors ${
+            className={`h-8 w-16 flex items-center justify-center text-xs font-mono text-foreground px-2 border-r border-b border-border bg-muted relative z-[999999999] cursor-pointer hover:bg-royal-purple/20 transition-colors ${
               isSelected ? "ring-2 ring-inset ring-royal-purple" : ""
             }`}
           >
@@ -1638,7 +1638,7 @@ export default function BookingsDataGrid({
         };
 
         // Add header height styling for two-row header structure and remove padding
-        (baseColumn as any).headerCellClass = "bg-black h-20 !p-0"; // Increased height for two-row header, no padding
+        (baseColumn as any).headerCellClass = "bg-black h-20 !p-0 text-xs"; // Increased height for two-row header, no padding
 
         // Add custom header with parent tab (no sorting indicators)
         baseColumn.renderHeaderCell = ({ column }) => {
@@ -1690,7 +1690,7 @@ export default function BookingsDataGrid({
               )}
               {isFirstInGroup && !isLastInGroup && (
                 <div
-                  className="parent-tab-seperator bg-gray-400 border-r border-gray-900 px-2 py-1 text-lg font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 flex items-center"
+                  className="parent-tab-seperator bg-gray-400 border-r border-gray-900 px-2 py-1 text-xs font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 flex items-center"
                   style={{
                     width: `${parentTabWidth}px`,
                     height: "40px",
@@ -1730,14 +1730,14 @@ export default function BookingsDataGrid({
                 }
                 title="Click to highlight column"
               >
-                <div className="flex items-center gap-1 flex-1 justify-center">
+                <div className="flex items-center gap-1 flex-1 justify-center text-xs">
                   {col.dataType === "function" && (
                     <FunctionSquare className="h-4 w-4 text-white" />
                   )}
                   {frozenColumnIds.has(col.id) && (
                     <Pin className="h-3 w-3 text-white" />
                   )}
-                  <span className="font-medium truncate text-white">
+                  <span className="font-medium truncate text-white text-xs">
                     {column.name}
                   </span>
                 </div>
@@ -1883,7 +1883,7 @@ export default function BookingsDataGrid({
                     console.error("Failed to update date field:", error);
                   }
                 }}
-                className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2 ${
+                className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
                   hasColor ? "text-black" : ""
                 } ${!cellValue ? "text-transparent" : ""}`}
                 style={{
@@ -1931,7 +1931,7 @@ export default function BookingsDataGrid({
                     console.error("Failed to update select field:", error);
                   }
                 }}
-                className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2 ${
+                className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
                   hasColor ? "text-black" : ""
                 }`}
                 style={{ backgroundColor: "transparent" }}
@@ -1976,7 +1976,7 @@ export default function BookingsDataGrid({
                     console.error("Failed to update currency field:", error);
                   }
                 }}
-                className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-sm px-2 ${
+                className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
                   hasColor ? "text-black" : ""
                 }`}
                 style={{ backgroundColor: "transparent" }}
@@ -2000,7 +2000,7 @@ export default function BookingsDataGrid({
             }
 
             return (
-              <div className="h-8 w-full flex items-center px-2 border-r border-b border-gray-200">
+              <div className="h-8 w-full flex items-center text-xs px-2 border-r border-b border-gray-200">
                 <FunctionFormatter row={row} column={column} />
               </div>
             );
@@ -2030,7 +2030,7 @@ export default function BookingsDataGrid({
 
             return (
               <div
-                className={`h-8 w-full flex items-center text-sm px-2 border-r border-b border-border ${
+                className={`h-8 w-full flex items-center text-xs px-2 border-r border-b border-border ${
                   hasColor ? "text-black" : ""
                 }`}
               >
@@ -2058,7 +2058,7 @@ export default function BookingsDataGrid({
 
             return (
               <div
-                className={`h-8 w-full flex items-center text-sm px-2 border-r border-b border-border ${
+                className={`h-8 w-full flex items-center text-xs px-2 border-r border-b border-border ${
                   hasColor ? "text-black" : ""
                 }`}
               >
@@ -2086,7 +2086,7 @@ export default function BookingsDataGrid({
             }
 
             return (
-              <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-gray-200">
+              <div className="h-8 w-full flex items-center text-xs px-2 border-r border-b border-gray-200">
                 {row[column.key as keyof SheetData]?.toString() || ""}
               </div>
             );
