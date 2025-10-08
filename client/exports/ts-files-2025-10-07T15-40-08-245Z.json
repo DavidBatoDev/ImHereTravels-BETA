@@ -1,0 +1,2902 @@
+[
+  {
+    "id": "gTl0J3RWqWZ9oQiVDOSp",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822489,
+      "nanoseconds": 167000000
+    },
+    "hasIntersectionTypes": false,
+    "content": "/**\n * Excel equivalent:\n * =IF(ISBLANK(BY),\n *     IFERROR(VLOOKUP(Q, PaymentTerms, \"Available Payment Terms\"), \"\"),\n *     \"Cancelled\")\n *\n * @param cancelMarker   (BY column) if non-blank => \"Cancelled\"\n * @param paymentCondition (Q column) one of \"Invalid Booking\", \"Last Minute Booking\", \"Standard Booking, P1-4\"\n * @returns string: Available Payment Term, \"\" if not found, or \"Cancelled\" if cancelled\n */\n\nconst paymentTerms = [\n  { condition: \"Invalid Booking\", available: \"Invalid\" },\n  { condition: \"Last Minute Booking\", available: \"Full payment required within 48hrs\" },\n  { condition: \"Standard Booking, P1\", available: \"P1\" },\n  { condition: \"Standard Booking, P2\", available: \"P2\" },\n  { condition: \"Standard Booking, P3\", available: \"P3\" },\n  { condition: \"Standard Booking, P4\", available: \"P4\" },\n];\n\nexport default function availablePaymentTerm(\n  cancelMarker: unknown,\n  paymentCondition: string | null | undefined\n): string {\n  const isBlankLike = (v: unknown) =>\n    v === null || v === undefined || (typeof v === \"string\" && v.trim() === \"\");\n\n  // If BY is not blank → \"Cancelled\"\n  if (!isBlankLike(cancelMarker)) return \"Cancelled\";\n\n  // If payment condition is blank\n  if (!paymentCondition || paymentCondition.trim() === \"\") return \"\";\n\n  const target = paymentCondition.trim().toLowerCase();\n\n  const found = paymentTerms.find(\n    t => t.condition.trim().toLowerCase() === target\n  );\n\n  return found ? found.available : \"\";\n}\n",
+    "hasGenerics": false,
+    "arguments": [
+      {
+        "type": "unknown",
+        "isOptional": false,
+        "name": "cancelMarker",
+        "hasDefault": false,
+        "isRest": false
+      },
+      {
+        "isOptional": false,
+        "name": "paymentCondition",
+        "type": "string",
+        "isRest": false,
+        "hasDefault": false
+      }
+    ],
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758000066,
+      "nanoseconds": 700000000
+    },
+    "complexity": "simple",
+    "folderId": "0qrjdfETld9N1AVKNh9P",
+    "hasUnionTypes": false,
+    "parameterCount": 2,
+    "name": "availablePaymentTerm.ts",
+    "hasDestructuring": false,
+    "hasTypeAnnotations": true,
+    "functionName": "availablePaymentTerm",
+    "exportType": "function",
+    "fileType": "typescript",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822489,
+      "nanoseconds": 167000000
+    },
+    "hasExportDefault": true,
+    "hasRestParameters": false,
+    "isActive": false
+  },
+  {
+    "id": "jSptJPyeP0httIjeVNUH",
+    "name": "bookingCode.ts",
+    "hasUnionTypes": false,
+    "hasDestructuring": false,
+    "parameterCount": 1,
+    "complexity": "simple",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757865700,
+      "nanoseconds": 414000000
+    },
+    "hasTypeAnnotations": true,
+    "hasExportDefault": true,
+    "isActive": true,
+    "hasIntersectionTypes": false,
+    "arguments": [
+      {
+        "hasDefault": false,
+        "isOptional": false,
+        "isRest": false,
+        "name": "bookingType",
+        "type": "string"
+      }
+    ],
+    "hasGenerics": false,
+    "functionName": "bookingCodeColumn",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757865700,
+      "nanoseconds": 414000000
+    },
+    "folderId": "AvMcE3NbzR1dhTg27YyM",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757865664,
+      "nanoseconds": 146000000
+    },
+    "content": "/**\n * Replicates the Excel formula:\n * =IF(L=\"Single Booking\",\"SB\",IF(L=\"Duo Booking\",\"DB\",IF(L=\"Group Booking\",\"GB\",\"\")))\n *\n * Logic:\n *  - If bookingType = \"Single Booking\" -> \"SB\"\n *  - If bookingType = \"Duo Booking\"    -> \"DB\"\n *  - If bookingType = \"Group Booking\"  -> \"GB\"\n *  - Else -> \"\"\n */\nexport default function bookingCodeColumn(bookingType: string | null | undefined): string {\n  if (!bookingType) return \"\";\n\n  if (bookingType === \"Single Booking\") return \"SB\";\n  if (bookingType === \"Duo Booking\") return \"DB\";\n  if (bookingType === \"Group Booking\") return \"GB\";\n\n  return \"\";\n}\n",
+    "fileType": "typescript",
+    "hasRestParameters": false,
+    "exportType": "function"
+  },
+  {
+    "id": "ijP8aQvTkrN40y8vUagz",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820081,
+      "nanoseconds": 926000000
+    },
+    "name": "bookingId.ts",
+    "exportType": "function",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757865482,
+      "nanoseconds": 748000000
+    },
+    "hasIntersectionTypes": false,
+    "fileType": "typescript",
+    "parameterCount": 7,
+    "arguments": [
+      {
+        "isOptional": false,
+        "isRest": false,
+        "hasDefault": false,
+        "name": "tourDate",
+        "type": "string"
+      },
+      {
+        "type": "{}",
+        "isOptional": false,
+        "isRest": false,
+        "name": "supportingFields",
+        "hasDefault": false
+      },
+      {
+        "isRest": false,
+        "hasDefault": false,
+        "isOptional": false,
+        "type": "string",
+        "name": "bookingCode"
+      },
+      {
+        "hasDefault": false,
+        "name": "tourCode",
+        "isRest": false,
+        "isOptional": false,
+        "type": "string"
+      },
+      {
+        "type": "string",
+        "isRest": false,
+        "isOptional": false,
+        "hasDefault": false,
+        "name": "formattedDate"
+      },
+      {
+        "type": "string",
+        "hasDefault": false,
+        "isRest": false,
+        "isOptional": false,
+        "name": "travelsInitial"
+      },
+      {
+        "isRest": false,
+        "type": "string",
+        "hasDefault": false,
+        "name": "tourPackageUniqueCounter",
+        "isOptional": false
+      }
+    ],
+    "folderId": "AvMcE3NbzR1dhTg27YyM",
+    "functionName": "generateBookingReference",
+    "content": "/**\n * Replicates the Excel formula:\n * =IF(N=\"\",\"\",IF(COUNTA(L:T)<6,\"\", B & \"-\" & C & \"-\" & D & \"-\" & E & F))\n *\n * Logic:\n *  - If tourDate is blank -> return \"\"\n *  - If supportingFields count < 6 -> return \"\"\n *  - Else -> bookingId-customerId-packageId-inquiryIdsequenceNumber\n */\nexport default function generateBookingReference(\n  tourDate: string | null | undefined,\n  supportingFields: (string | null | undefined)[],\n  bookingCode: string,\n  tourCode: string,\n  formattedDate: string,\n  travelsInitial: string,\n  tourPackageUniqueCounter: string\n): string {\n  // If tour date is blank\n  if (!tourDate || tourDate.trim() === \"\") return \"\";\n\n  // Count how many supporting fields are non-empty\n  const count = supportingFields.filter(\n    v => v !== null && v !== undefined && v.toString().trim() !== \"\"\n  ).length;\n  if (count < 6) return \"\";\n\n  // Concatenate values with hyphens (note: inquiryId and sequenceNumber have no hyphen between them)\n  return `${bookingCode}-${tourCode}-${formattedDate}-${travelsInitial}${tourPackageUniqueCounter}`;\n}\n",
+    "complexity": "moderate",
+    "hasUnionTypes": false,
+    "hasExportDefault": true,
+    "hasDestructuring": false,
+    "functionDependencies": [
+      "trim",
+      "filter",
+      "toString"
+    ],
+    "isActive": false,
+    "hasTypeAnnotations": true,
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820081,
+      "nanoseconds": 926000000
+    },
+    "hasRestParameters": false,
+    "hasGenerics": false
+  },
+  {
+    "id": "5Rhm3AWT3YML89jwOF90",
+    "exportType": "function",
+    "arguments": [
+      {
+        "type": "{ tourPackageName: string, reservationFee: number, fullPaymentDate: string, fullPaymentAmount: number, remainingBalance: number, p1DatePaid: string, p2DatePaid: string, p3DatePaid: string, p4DatePaid: string }",
+        "name": "destructured"
+      }
+    ],
+    "hasGenerics": false,
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759824219,
+      "nanoseconds": 833000000
+    },
+    "isAsync": true,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759824205,
+      "nanoseconds": 645000000
+    },
+    "hasExportDefault": true,
+    "isActive": false,
+    "returnType": "async",
+    "hasTypeAnnotations": true,
+    "hasUnionTypes": false,
+    "functionDependencies": [],
+    "hasRestParameters": false,
+    "functionName": "getBookingStatus",
+    "folderId": "aEaKLIgMWx2s1vxi9G1C",
+    "hasAwait": true,
+    "content": "/**\n * Description:\n * - Determines the booking status based on payments and balance.\n * - Matches Excel-like logic for status determination.\n *\n * Rules:\n * - \"\" → if no tour selected\n * - \"Reserved\" → if only reservation fee is paid\n * - \"Partially Paid\" → if some payments are made but balance > 0\n * - \"Fully Paid\" → if remaining balance <= 0\n *\n * Parameters:\n * - tourPackageName → selected tour name (M)\n * - reservationFee → reservation fee paid (AH)\n * - fullPaymentDate → date paid (AV)\n * - fullPaymentAmount → full payment amount (AU)\n * - remainingBalance → computed from remaining balance function\n * - p1DatePaid, p2DatePaid, p3DatePaid, p4DatePaid → optional partial payment dates\n */\n\nexport default function getBookingStatus({\n  tourPackageName,\n  reservationFee = 0,\n  fullPaymentDate,\n  fullPaymentAmount = 0,\n  remainingBalance = 0,\n  p1DatePaid,\n  p2DatePaid,\n  p3DatePaid,\n  p4DatePaid,\n}: {\n  tourPackageName: string;\n  reservationFee?: number;\n  fullPaymentDate?: string;\n  fullPaymentAmount?: number;\n  remainingBalance?: number;\n  p1DatePaid?: string;\n  p2DatePaid?: string;\n  p3DatePaid?: string;\n  p4DatePaid?: string;\n}): string {\n  if (!tourPackageName) return \"\";\n\n  // Fully paid\n  if (remainingBalance <= 0) {\n    return \"Fully Paid\";\n  }\n\n  // Reservation only (no other payments)\n  const hasReservation = reservationFee > 0;\n  const hasOtherPayments =\n    fullPaymentDate ||\n    p1DatePaid ||\n    p2DatePaid ||\n    p3DatePaid ||\n    p4DatePaid;\n\n  if (hasReservation && !hasOtherPayments) {\n    return \"Reserved\";\n  }\n\n  // Partial payments\n  if (hasOtherPayments && remainingBalance > 0) {\n    return \"Partially Paid\";\n  }\n\n  // Default fallback\n  return \"Pending\";\n}\n",
+    "hasIntersectionTypes": false,
+    "fileType": "typescript",
+    "parameterCount": 1,
+    "name": "bookingStatus.ts",
+    "hasDestructuring": true,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759824219,
+      "nanoseconds": 833000000
+    },
+    "complexity": "moderate"
+  },
+  {
+    "id": "1AaVxwNgHKya5k1YWhgc",
+    "hasTypeAnnotations": true,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759753772,
+      "nanoseconds": 348000000
+    },
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759832151,
+      "nanoseconds": 531000000
+    },
+    "functionDependencies": [
+      "max"
+    ],
+    "hasUnionTypes": false,
+    "complexity": "moderate",
+    "hasRestParameters": false,
+    "hasExportDefault": true,
+    "arguments": [
+      {
+        "hasDefault": false,
+        "isRest": false,
+        "type": "string",
+        "isOptional": false,
+        "name": "tourPackageName"
+      },
+      {
+        "type": "boolean",
+        "name": "useDiscountedCost",
+        "hasDefault": false,
+        "isRest": false,
+        "isOptional": true
+      },
+      {
+        "isOptional": true,
+        "isRest": false,
+        "type": "number",
+        "name": "discountedTourCost",
+        "hasDefault": false
+      },
+      {
+        "type": "number",
+        "hasDefault": false,
+        "isRest": false,
+        "isOptional": true,
+        "name": "originalTourCost"
+      },
+      {
+        "hasDefault": false,
+        "isOptional": true,
+        "name": "reservationFee",
+        "isRest": false,
+        "type": "number"
+      },
+      {
+        "type": "string",
+        "isOptional": true,
+        "name": "creditFrom",
+        "isRest": false,
+        "hasDefault": false
+      },
+      {
+        "hasDefault": false,
+        "type": "number",
+        "name": "creditAmount",
+        "isRest": false,
+        "isOptional": true
+      },
+      {
+        "name": "paymentPlan",
+        "type": "string",
+        "isRest": false,
+        "isOptional": true,
+        "hasDefault": false
+      },
+      {
+        "isRest": false,
+        "isOptional": true,
+        "name": "fullPaymentDate",
+        "hasDefault": false,
+        "type": "string"
+      },
+      {
+        "hasDefault": false,
+        "isRest": false,
+        "name": "fullPaymentAmount",
+        "isOptional": true,
+        "type": "number"
+      },
+      {
+        "isRest": false,
+        "name": "p1DatePaid",
+        "hasDefault": false,
+        "type": "string",
+        "isOptional": true
+      },
+      {
+        "hasDefault": false,
+        "isRest": false,
+        "isOptional": true,
+        "name": "p1Amount",
+        "type": "number"
+      },
+      {
+        "isOptional": true,
+        "isRest": false,
+        "hasDefault": false,
+        "type": "string",
+        "name": "p2DatePaid"
+      },
+      {
+        "isRest": false,
+        "isOptional": true,
+        "name": "p2Amount",
+        "hasDefault": false,
+        "type": "number"
+      },
+      {
+        "hasDefault": false,
+        "type": "string",
+        "isRest": false,
+        "name": "p3DatePaid",
+        "isOptional": true
+      },
+      {
+        "isOptional": true,
+        "name": "p3Amount",
+        "type": "number",
+        "isRest": false,
+        "hasDefault": false
+      },
+      {
+        "hasDefault": false,
+        "name": "p4DatePaid",
+        "isRest": false,
+        "isOptional": true,
+        "type": "string"
+      },
+      {
+        "isRest": false,
+        "name": "p4Amount",
+        "type": "number",
+        "isOptional": true,
+        "hasDefault": false
+      }
+    ],
+    "fileType": "typescript",
+    "hasDestructuring": false,
+    "exportType": "function",
+    "name": "calculateRemainingBalance.ts",
+    "folderId": "aEaKLIgMWx2s1vxi9G1C",
+    "parameterCount": 18,
+    "content": "/**\n * Excel equivalent:\n * =IF(\n *   ISBLANK(M1003),\n *   \"\",\n *   LET(\n *     total, IF($Y1003,$AG1003,$AF1003) - $AH1003 - IF($AL1003=\"Reservation\", N($AK1003), 0),\n *     plan,  $AM1003,\n *\n *     paid,\n *       IF($AV1003<>\"\", $AU1003, 0) +\n *       IF($BC1003<>\"\", $BB1003, 0) +\n *       IF($BJ1003<>\"\", $BI1003, 0) +\n *       IF($BQ1003<>\"\", $BP1003, 0) +\n *       IF($BX1003<>\"\", $BW1003, 0),\n *\n *     rem, total - paid,\n *     IF(AND(plan=\"P1\",$BC1003<>\"\"),0,MAX(rem,0))\n *   )\n * )\n *\n * Description:\n * - Computes the **remaining balance** for a given tour package.\n * - Considers discount usage, reservation fee, credits, and all payments (Full, P1–P4).\n * - If the plan is \"P1\" and P1 payment has been made, remaining balance becomes 0.\n * - Returns \"\" if no tourPackageName provided.\n */\n\nexport default function getRemainingBalance(\n  tourPackageName: string,\n  useDiscountedCost?: boolean,\n  discountedTourCost?: number,\n  originalTourCost?: number,\n  reservationFee?: number,\n  creditFrom?: string,\n  creditAmount?: number,\n  paymentPlan?: string,\n  fullPaymentDate?: string,\n  fullPaymentAmount?: number,\n  p1DatePaid?: string,\n  p1Amount?: number,\n  p2DatePaid?: string,\n  p2Amount?: number,\n  p3DatePaid?: string,\n  p3Amount?: number,\n  p4DatePaid?: string,\n  p4Amount?: number\n): number | \"\" {\n  if (!tourPackageName) return \"\";\n\n  // Determine which total cost to use (discounted or original)\n  const baseCost = useDiscountedCost ? discountedTourCost : originalTourCost;\n\n  // Subtract reservation fee and any credit from reservation\n  const total =\n    baseCost - reservationFee - (creditFrom === \"Reservation\" ? creditAmount : 0);\n\n  // Total paid amount so far\n  const paid =\n    (fullPaymentDate ? fullPaymentAmount : 0) +\n    (p1DatePaid ? p1Amount : 0) +\n    (p2DatePaid ? p2Amount : 0) +\n    (p3DatePaid ? p3Amount : 0) +\n    (p4DatePaid ? p4Amount : 0);\n\n  // Remaining balance\n  const remaining = total - paid;\n\n  // Special rule for P1 plan\n  if (paymentPlan === \"P1\" && p1DatePaid) {\n    return 0;\n  }\n\n  // Ensure non-negative balance\n  return Math.max(remaining, 0);\n}\n",
+    "hasIntersectionTypes": false,
+    "hasGenerics": false,
+    "isActive": true,
+    "functionName": "getRemainingBalance",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759832151,
+      "nanoseconds": 531000000
+    }
+  },
+  {
+    "id": "04iOigQVQJXqE1Ht4yw2",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822879,
+      "nanoseconds": 659000000
+    },
+    "folderId": "0qrjdfETld9N1AVKNh9P",
+    "hasDestructuring": false,
+    "hasIntersectionTypes": false,
+    "hasGenerics": false,
+    "isActive": false,
+    "complexity": "simple",
+    "hasRestParameters": false,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757997985,
+      "nanoseconds": 373000000
+    },
+    "content": "/**\n * Excel equivalent:\n * =IF(AND(K<>\"\", N<>\"\"), N - K, \"\")\n *\n * - K = Reservation Date\n * - N = Tour Date\n * - Returns: number of days between (N - K), or \"\" if blank/invalid\n */\nexport default function daysBetweenReservationAndTour(\n  reservationDate: unknown,\n  tourDate: unknown\n): number | \"\" {\n  const toDate = (input: unknown): Date | null => {\n    if (input === null || input === undefined) return null;\n    if (typeof input === \"string\" && input.trim() === \"\") return null;\n\n    try {\n      if (\n        typeof input === \"object\" &&\n        input !== null &&\n        \"toDate\" in (input as any) &&\n        typeof (input as any).toDate === \"function\"\n      ) {\n        return (input as any).toDate();\n      }\n      if (\n        typeof input === \"object\" &&\n        input !== null &&\n        \"seconds\" in (input as any) &&\n        typeof (input as any).seconds === \"number\"\n      ) {\n        const s = (input as any).seconds as number;\n        const ns =\n          typeof (input as any).nanoseconds === \"number\"\n            ? (input as any).nanoseconds\n            : 0;\n        return new Date(s * 1000 + Math.floor(ns / 1e6));\n      }\n      if (input instanceof Date) return input;\n      if (typeof input === \"number\") return new Date(input);\n      if (typeof input === \"string\") {\n        const raw = input.trim();\n        if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(raw)) {\n          const [dd, mm, yyyy] = raw.split(\"/\").map(Number);\n          return new Date(yyyy, mm - 1, dd);\n        }\n        if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) {\n          const [yyyy, mm, dd] = raw.split(\"-\").map(Number);\n          return new Date(yyyy, mm - 1, dd);\n        }\n        return new Date(raw);\n      }\n      return null;\n    } catch {\n      return null;\n    }\n  };\n\n  const res = toDate(reservationDate);\n  const tour = toDate(tourDate);\n\n  if (!res || isNaN(res.getTime()) || !tour || isNaN(tour.getTime())) return \"\";\n\n  const msPerDay = 1000 * 60 * 60 * 24;\n  const diff = Math.round((tour.getTime() - res.getTime()) / msPerDay);\n\n  return diff;\n}\n",
+    "name": "daysBetweenReservationAndTour.ts",
+    "arguments": [
+      {
+        "isOptional": false,
+        "type": "unknown",
+        "isRest": false,
+        "hasDefault": false,
+        "name": "reservationDate"
+      },
+      {
+        "isRest": false,
+        "hasDefault": false,
+        "name": "tourDate",
+        "type": "unknown",
+        "isOptional": false
+      }
+    ],
+    "exportType": "function",
+    "hasTypeAnnotations": true,
+    "fileType": "typescript",
+    "parameterCount": 2,
+    "functionName": "daysBetweenReservationAndTour",
+    "hasExportDefault": true,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822879,
+      "nanoseconds": 659000000
+    },
+    "hasUnionTypes": false
+  },
+  {
+    "id": "NEF6QLxcXoZKKwDZgsrq",
+    "arguments": [
+      {
+        "isRest": false,
+        "isOptional": false,
+        "type": "unknown",
+        "name": "reservationDate",
+        "hasDefault": false
+      },
+      {
+        "name": "tourDate",
+        "isOptional": false,
+        "hasDefault": false,
+        "isRest": false,
+        "type": "unknown"
+      }
+    ],
+    "functionName": "eligibleSecondsCount",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822626,
+      "nanoseconds": 823000000
+    },
+    "hasTypeAnnotations": true,
+    "content": "/**\n * Excel equivalent:\n * =IF(OR(ISBLANK(K), ISBLANK(N)), \"\",\n *   LET(\n *     resDate, K,\n *     tourDate, N,\n *     fullPaymentDue, tourDate - 30,\n *     monthCount, MAX(0, DATEDIF(resDate, fullPaymentDue, \"M\") + 1),\n *     secondDates, DATE(YEAR(resDate), MONTH(resDate) + SEQUENCE(monthCount), 2),\n *     validDates, FILTER(secondDates, (secondDates >= resDate + 3) * (secondDates <= fullPaymentDue)),\n *     IF(ISERROR(validDates), 0, COUNTA(validDates))\n *   )\n * )\n *\n * Returns: number | \"\"  (empty string if either date is blank/invalid)\n */\nexport default function eligibleSecondsCount(\n  reservationDate: unknown, // K\n  tourDate: unknown         // N\n): number | \"\" {\n  // ---------- local helpers (robust parsing like our previous funcs) ----------\n  const toDate = (input: unknown): Date | null => {\n    if (input === null || input === undefined) return null;\n    if (typeof input === \"string\" && input.trim() === \"\") return null;\n\n    try {\n      // Firestore Timestamp (has .toDate())\n      if (\n        typeof input === \"object\" &&\n        input !== null &&\n        \"toDate\" in (input as any) &&\n        typeof (input as any).toDate === \"function\"\n      ) {\n        const d = (input as any).toDate();\n        return isNaN(d.getTime()) ? null : d;\n      }\n\n      // Firestore-like { seconds, nanoseconds? }\n      if (\n        typeof input === \"object\" &&\n        input !== null &&\n        \"seconds\" in (input as any) &&\n        typeof (input as any).seconds === \"number\"\n      ) {\n        const s = (input as any).seconds as number;\n        const ns =\n          typeof (input as any).nanoseconds === \"number\"\n            ? (input as any).nanoseconds\n            : 0;\n        const d = new Date(s * 1000 + Math.floor(ns / 1e6));\n        return isNaN(d.getTime()) ? null : d;\n      }\n\n      // Already a Date\n      if (input instanceof Date) return isNaN(input.getTime()) ? null : input;\n\n      // Milliseconds timestamp\n      if (typeof input === \"number\") {\n        const d = new Date(input);\n        return isNaN(d.getTime()) ? null : d;\n      }\n\n      // String formats\n      if (typeof input === \"string\") {\n        const raw = input.trim();\n\n        // dd/mm/yyyy\n        if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(raw)) {\n          const [dd, mm, yyyy] = raw.split(\"/\").map(Number);\n          const d = new Date(yyyy, mm - 1, dd);\n          return isNaN(d.getTime()) ? null : d;\n        }\n\n        // yyyy-mm-dd\n        if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) {\n          const [yyyy, mm, dd] = raw.split(\"-\").map(Number);\n          const d = new Date(yyyy, mm - 1, dd);\n          return isNaN(d.getTime()) ? null : d;\n        }\n\n        // Natural/ISO strings (incl. \"UTC+8\")\n        const d = new Date(raw);\n        return isNaN(d.getTime()) ? null : d;\n      }\n\n      return null;\n    } catch {\n      return null;\n    }\n  };\n\n  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());\n\n  const addDays = (base: Date, days: number): Date => {\n    const out = new Date(base);\n    out.setDate(out.getDate() + days);\n    return out;\n  };\n\n  // Similar behavior to DATEDIF(res, end, \"M\")\n  const monthsBetweenInclusiveStart = (a: Date, b: Date): number => {\n    const years = b.getFullYear() - a.getFullYear();\n    const months = b.getMonth() - a.getMonth();\n    let diff = years * 12 + months;\n    if (b.getDate() < a.getDate()) diff -= 1;\n    return Math.max(0, diff);\n  };\n\n  const generateMonthSeconds = (start: Date, count: number): Date[] => {\n    const list: Date[] = [];\n    for (let i = 0; i < count; i++) {\n      list.push(new Date(start.getFullYear(), start.getMonth() + i, 2));\n    }\n    return list;\n  };\n\n  // ---------- apply logic ----------\n  const res = toDate(reservationDate);\n  const tour = toDate(tourDate);\n  if (!res || !tour) return \"\";\n\n  const resD = startOfDay(res);\n  const tourD = startOfDay(tour);\n\n  const fullPaymentDue = addDays(tourD, -30);           // tourDate - 30\n  const windowStart = addDays(resD, 3);                 // resDate + 3\n\n  // monthCount = MAX(0, DATEDIF(resDate, fullPaymentDue, \"M\") + 1)\n  const monthCount = Math.max(0, monthsBetweenInclusiveStart(resD, fullPaymentDue) + 1);\n\n  // secondDates = DATE(YEAR(resDate), MONTH(resDate) + SEQUENCE(monthCount), 2)\n  const seconds = generateMonthSeconds(resD, monthCount);\n\n  // validDates: seconds within [res+3, fullPaymentDue]\n  const eligible = seconds.filter(d => d >= windowStart && d <= fullPaymentDue);\n\n  // IF(ISERROR(validDates), 0, COUNTA(validDates))\n  // In JS, filter won't error; count is just eligible.length\n  return eligible.length;\n}\n",
+    "exportType": "function",
+    "fileType": "typescript",
+    "complexity": "simple",
+    "hasDestructuring": false,
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822626,
+      "nanoseconds": 823000000
+    },
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757998454,
+      "nanoseconds": 679000000
+    },
+    "hasRestParameters": false,
+    "hasExportDefault": true,
+    "hasUnionTypes": false,
+    "parameterCount": 2,
+    "hasIntersectionTypes": false,
+    "folderId": "0qrjdfETld9N1AVKNh9P",
+    "hasGenerics": false,
+    "isActive": false,
+    "name": "eligibleSecondsCount.ts"
+  },
+  {
+    "id": "ZIeBZVrVFdisM7pXqWZQ",
+    "name": "formattedDate.ts",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820367,
+      "nanoseconds": 668000000
+    },
+    "hasDestructuring": false,
+    "parameterCount": 1,
+    "hasTypeAnnotations": true,
+    "folderId": "AvMcE3NbzR1dhTg27YyM",
+    "hasUnionTypes": false,
+    "isActive": false,
+    "arguments": [
+      {
+        "name": "tourDate",
+        "isRest": false,
+        "isOptional": false,
+        "type": "unknown",
+        "hasDefault": false
+      }
+    ],
+    "fileType": "typescript",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820367,
+      "nanoseconds": 668000000
+    },
+    "hasIntersectionTypes": false,
+    "exportType": "function",
+    "functionName": "tourDateToYyyymmdd",
+    "hasGenerics": false,
+    "complexity": "simple",
+    "hasRestParameters": false,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757867466,
+      "nanoseconds": 293000000
+    },
+    "content": "/**\n * Excel equivalent: =IF(N=\"\",\"\",TEXT(N,\"yyyymmdd\"))\n *\n * Accepts:\n *  - null/undefined/\"\" -> returns \"\"\n *  - Date\n *  - number (ms since epoch)\n *  - string (\"September 15, 2025 at 8:00:00 AM UTC+8\", \"15/09/2025\", \"2025-09-15\")\n *  - Firestore Timestamp (has .toDate())\n *  - { seconds: number, nanoseconds?: number } shape\n *\n * Returns:\n *  - \"yyyymmdd\" for valid inputs\n *  - \"ERROR\" for invalid inputs\n */\nexport default function tourDateToYyyymmdd(tourDate: unknown): string {\n    // 1) Blank handling\n    if (tourDate === null || tourDate === undefined) return \"\";\n    if (typeof tourDate === \"string\" && tourDate.trim() === \"\") return \"\";\n\n    // 2) Try to normalize to a Date\n    let date: Date | null = null;\n\n    try {\n        // Firestore Timestamp: has .toDate()\n        if (typeof tourDate === \"object\" && tourDate !== null && \"toDate\" in (tourDate as any) && typeof (tourDate as any).toDate === \"function\") {\n            date = (tourDate as any).toDate();\n        }\n        // Firestore-like { seconds, nanoseconds }\n        else if (\n            typeof tourDate === \"object\" &&\n            tourDate !== null &&\n            \"seconds\" in (tourDate as any) &&\n            typeof (tourDate as any).seconds === \"number\"\n        ) {\n            const s = (tourDate as any).seconds as number;\n            const ns = typeof (tourDate as any).nanoseconds === \"number\" ? (tourDate as any).nanoseconds : 0;\n            date = new Date(s * 1000 + Math.floor(ns / 1e6));\n        }\n        // Already a Date\n        else if (tourDate instanceof Date) {\n            date = tourDate;\n        }\n        // Milliseconds timestamp\n        else if (typeof tourDate === \"number\") {\n            const d = new Date(tourDate);\n            date = isNaN(d.getTime()) ? null : d;\n        }\n        // String inputs\n        else if (typeof tourDate === \"string\") {\n            const raw = tourDate.trim();\n\n            // dd/mm/yyyy\n            if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(raw)) {\n                const [dd, mm, yyyy] = raw.split(\"/\").map(Number);\n                date = new Date(yyyy, mm - 1, dd);\n            }\n            // yyyy-mm-dd\n            else if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) {\n                const [yyyy, mm, dd] = raw.split(\"-\").map(Number);\n                date = new Date(yyyy, mm - 1, dd);\n            }\n            // Natural/ISO strings (includes \"UTC+8\")\n            else {\n                const parsed = new Date(raw);\n                date = isNaN(parsed.getTime()) ? null : parsed;\n            }\n        }\n\n        // 3) Validate\n        if (!date || isNaN(date.getTime())) return \"ERROR\";\n\n        // 4) Format yyyymmdd\n        const y = date.getFullYear();\n        const m = String(date.getMonth() + 1).padStart(2, \"0\");\n        const d = String(date.getDate()).padStart(2, \"0\");\n        return `${y}-${m}-${d}`;\n    } catch {\n        return \"ERROR\";\n    }\n}\n",
+    "hasExportDefault": true
+  },
+  {
+    "id": "sxT6wbtgSiUwho941kXh",
+    "arguments": [
+      {
+        "hasDefault": false,
+        "name": "f",
+        "type": "string",
+        "isOptional": false,
+        "isRest": false
+      },
+      {
+        "isOptional": false,
+        "isRest": false,
+        "type": "string",
+        "name": "l",
+        "hasDefault": false
+      }
+    ],
+    "hasGenerics": false,
+    "hasDestructuring": false,
+    "name": "fullName.ts",
+    "parameterCount": 2,
+    "functionDependencies": [],
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820540,
+      "nanoseconds": 367000000
+    },
+    "hasExportDefault": true,
+    "isActive": true,
+    "hasUnionTypes": false,
+    "folderId": "XxARSxO0rpLk5cQH1UtV",
+    "hasTypeAnnotations": true,
+    "functionName": "fullNamets",
+    "complexity": "simple",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820540,
+      "nanoseconds": 367000000
+    },
+    "content": "// fullName.ts\n// Created on 9/15/2025\n// TypeScript file with export default function\n\nexport default function fullNamets(\n  f: string | undefined | null,\n  l: string | undefined | null\n) {\n    if (f != null && l != null) {\n        return `${f} ${l}`\n    }\n\n    return \"\"  \n}",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757868990,
+      "nanoseconds": 67000000
+    },
+    "fileType": "typescript",
+    "exportType": "function",
+    "hasIntersectionTypes": false,
+    "hasRestParameters": false
+  },
+  {
+    "id": "gzdYxQzZCNawiMAZATPg",
+    "hasIntersectionTypes": false,
+    "functionName": "generateEmailDraft",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759089917,
+      "nanoseconds": 403000000
+    },
+    "fileType": "typescript",
+    "hasDestructuring": false,
+    "folderId": "un7owkF5Jwam6i1nEIq5",
+    "functionDependencies": [
+      "getCollectionData",
+      "filter",
+      "log",
+      "deleteDocument",
+      "updateDocument",
+      "httpsCallable",
+      "generateEmail",
+      "error"
+    ],
+    "hasUnionTypes": false,
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822535,
+      "nanoseconds": 343000000
+    },
+    "isActive": false,
+    "hasGenerics": false,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822535,
+      "nanoseconds": 343000000
+    },
+    "hasTypeAnnotations": true,
+    "exportType": "function",
+    "complexity": "moderate",
+    "parameterCount": 4,
+    "arguments": [
+      {
+        "name": "bookingId",
+        "hasDefault": false,
+        "isRest": false,
+        "isOptional": false,
+        "type": "string"
+      },
+      {
+        "isRest": false,
+        "isOptional": false,
+        "name": "includeBcc",
+        "hasDefault": false,
+        "type": "boolean"
+      },
+      {
+        "name": "emailAddress",
+        "isOptional": false,
+        "type": "string",
+        "isRest": false,
+        "hasDefault": false
+      },
+      {
+        "isOptional": false,
+        "hasDefault": false,
+        "type": "boolean",
+        "isRest": false,
+        "name": "generateEmailDraft"
+      }
+    ],
+    "name": "generateEmailDraft.ts",
+    "hasRestParameters": false,
+    "content": "export default async function generateEmailDraft(\n  bookingId: string,\n  includeBcc: boolean | null,\n  emailAddress: string,\n  generateEmailDraft: boolean\n): Promise<string> {\n  try {\n    // Get all bookings and filter client-side\n    const bookings = await firebaseUtils.getCollectionData(\"bookings\");\n\n    if (!bookingId) return \"\";\n\n    // Filter to find the booking with matching bookingId AND emailAddress\n    const matchingBookings = bookings.filter(booking =>\n      booking.bookingId === bookingId &&\n      booking.emailAddress === emailAddress\n    );\n\n    if (!matchingBookings || matchingBookings.length === 0) {\n      throw new Error(`Booking with bookingId ${bookingId} and email ${emailAddress} not found`);\n    }\n\n    // Get the first matching booking document\n    const bookingDoc = matchingBookings[0];\n\n    console.log(`Found booking document with ID: ${bookingDoc.id}`);\n\n    // Check if booking already has an email draft\n    const existingEmailDraftId = bookingDoc.emailDraftLink || bookingDoc.cancellationEmailDraftId;\n\n    console.log(\"Email is existing: \", existingEmailDraftId)\n\n    if (existingEmailDraftId) {\n      if (generateEmailDraft) {\n        // Return existing draft ID if Generate Email Draft is true\n        console.log(`Returning existing email draft: ${existingEmailDraftId}`);\n        return existingEmailDraftId;\n      } else {\n        // Delete existing draft if Generate Email Draft is false\n        console.log(`Deleting existing email draft: ${existingEmailDraftId}`);\n        await firebaseUtils.deleteDocument(\"emailDrafts\", existingEmailDraftId);\n\n        // Update booking to remove draft reference using document ID\n        await firebaseUtils.updateDocument(\"bookings\", bookingDoc.id, {\n          emailDraftId: null,\n          cancellationEmailDraftId: null,\n          generateEmailDraft: false\n        });\n\n        return \"\";\n      }\n    }\n\n    // If no existing draft and Generate Email Draft is true, create new draft\n    if (generateEmailDraft) {\n      console.log(`Generating new email draft for booking: ${bookingId}`);\n\n      // Use the REAL Firebase Functions client instead of the mock\n      const generateEmail = httpsCallable(functions, 'generateReservationEmail');\n\n      try {\n        const emailResult = await generateEmail({\n          bookingId: bookingDoc.id, // Use the document ID, not the bookingId field\n          generateDraftCell: true\n        });\n\n        console.log('Real function result:', emailResult.data);\n\n        if (emailResult.data && emailResult.data.success) {\n          const draftId = emailResult.data.draftId || \"\";\n          console.log(`Generated email draft with ID: ${draftId}`);\n          return draftId;\n        } else {\n          console.error('Function returned unsuccessful result:', emailResult.data);\n          throw new Error(\"Failed to generate reservation email draft\");\n        }\n      } catch (functionError) {\n        console.error('Error calling generateReservationEmail function:', functionError);\n\n        // Log detailed error information\n        if (functionError.code) {\n          console.error('Error code:', functionError.code);\n        }\n        if (functionError.message) {\n          console.error('Error message:', functionError.message);\n        }\n        if (functionError.details) {\n          console.error('Error details:', functionError.details);\n        }\n\n        // Re-throw with more context\n        throw new Error(`Cloud function error: ${functionError.code || 'unknown'} - ${functionError.message || 'Unknown error'}`);\n      }\n    }\n\n    // If Generate Email Draft is false and no existing draft, return empty string\n    console.log(`No action needed - Generate Email Draft is false and no existing draft`);\n    return \"\";\n\n  } catch (error) {\n    console.error(\"Error in generateEmailDraft:\", error);\n    throw error;\n  }\n}",
+    "hasExportDefault": true
+  },
+  {
+    "id": "nfz6VbYa7sJl1R9oexGO",
+    "complexity": "moderate",
+    "exportType": "function",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826685,
+      "nanoseconds": 140000000
+    },
+    "isActive": true,
+    "fileType": "typescript",
+    "returnType": "async",
+    "isAsync": true,
+    "functionName": "getFullPaymentAmountDue",
+    "name": "getFullPaymentAmountDue.ts",
+    "hasUnionTypes": false,
+    "hasGenerics": false,
+    "hasTypeAnnotations": true,
+    "parameterCount": 1,
+    "content": "/**\n * Excel equivalent:\n * =IF(\n *   $AT1003<>\"\",\n *   IF(\n *     $AM1003 = \"Full Payment\",\n *     ROUND(IF($Y1003, $AG1003, $AF1003) - $AH1003 - N($AK1003), 2),\n *     \"\"\n *   ),\n *   \"\"\n * )\n *\n * Description:\n * - Returns the amount due for Full Payment plan.\n * - Only applies if tour date (AT) is not blank AND paymentPlan (AM) = \"Full Payment\".\n * - Uses discounted cost (AG) if useDiscountedTourCost (Y) is true; otherwise uses originalTourCost (AF).\n * - Subtracts reservationFee (AH) and manualCredit (AK).\n */\n\nexport default function getFullPaymentAmountDue({\n  tourDate,                 // AT\n  paymentPlan,              // AM\n  useDiscountedTourCost,    // Y\n  discountedTourCost,       // AG\n  originalTourCost,         // AF\n  reservationFee,           // AH\n  manualCredit,             // AK\n}: {\n  tourDate?: string | Date;\n  paymentPlan?: string;\n  useDiscountedTourCost?: boolean;\n  discountedTourCost?: number;\n  originalTourCost?: number;\n  reservationFee?: number;\n  manualCredit?: number;\n}): number | string {\n  // If no tour date, return empty\n  if (!tourDate) return \"\";\n\n  // Only compute for \"Full Payment\" plan\n  if (paymentPlan !== \"Full Payment\") return \"\";\n\n  // Determine which tour cost to use\n  const tourCost = useDiscountedTourCost\n    ? discountedTourCost ?? 0\n    : originalTourCost ?? 0;\n\n  // Compute total\n  const total = tourCost - (reservationFee ?? 0) - (manualCredit ?? 0);\n\n  // Round to 2 decimal places\n  return Math.round(total * 100) / 100;\n}\n",
+    "hasIntersectionTypes": false,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826675,
+      "nanoseconds": 156000000
+    },
+    "hasExportDefault": true,
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826685,
+      "nanoseconds": 140000000
+    },
+    "arguments": [
+      {
+        "name": "destructured",
+        "type": "{ tourDate: any, paymentPlan: string, useDiscountedTourCost: boolean, discountedTourCost: number, originalTourCost: number, reservationFee: number, manualCredit: number }"
+      }
+    ],
+    "functionDependencies": [
+      "round"
+    ],
+    "folderId": "bDGXOYxnQAKPIR9Rpd8s",
+    "hasDestructuring": true,
+    "hasRestParameters": false,
+    "hasAwait": true
+  },
+  {
+    "id": "ip8nCHs48HKQpvvoWTs1",
+    "content": "/**\n * Excel equivalent:\n * =IF(\n *   AND(\n *     NOT(ISBLANK($K1003)),\n *     $AM1003 = \"Full Payment\"\n *   ),\n *   TEXT($K1003 + 2, \"mmm d, yyyy\"),\n *   \"\"\n * )\n *\n * Description:\n * - Returns the due date for full payment.\n * - Adds 2 days to the reservation date (K) if payment plan (AM) = \"Full Payment\".\n * - Otherwise returns an empty string.\n */\n\nexport default function getFullPaymentDueDate({\n  reservationDate,\n  paymentPlan,\n}: {\n  reservationDate?: string | Date; // K\n  paymentPlan?: string;            // AM\n}): string {\n  if (!reservationDate || paymentPlan !== \"Full Payment\") return \"\";\n\n  // Convert reservation date to Date object\n  const date = new Date(reservationDate);\n\n  // Add 2 days\n  date.setDate(date.getDate() + 2);\n\n  // Format as \"mmm d, yyyy\" (e.g., \"Oct 5, 2025\")\n  const formattedDate = date.toLocaleDateString(\"en-US\", {\n    month: \"short\",\n    day: \"numeric\",\n    year: \"numeric\",\n  });\n\n  return formattedDate;\n}\n",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826540,
+      "nanoseconds": 275000000
+    },
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826540,
+      "nanoseconds": 275000000
+    },
+    "isActive": false,
+    "complexity": "moderate",
+    "folderId": "bDGXOYxnQAKPIR9Rpd8s",
+    "hasExportDefault": true,
+    "hasIntersectionTypes": false,
+    "name": "getFullPaymentDueDate.ts",
+    "hasGenerics": false,
+    "hasRestParameters": false,
+    "returnType": "async",
+    "fileType": "typescript",
+    "functionDependencies": [
+      "setDate",
+      "getDate",
+      "toLocaleDateString"
+    ],
+    "hasDestructuring": true,
+    "isAsync": true,
+    "hasUnionTypes": false,
+    "hasAwait": true,
+    "parameterCount": 1,
+    "functionName": "getFullPaymentDueDate",
+    "arguments": [
+      {
+        "name": "destructured",
+        "type": "{ reservationDate: any, paymentPlan: string }"
+      }
+    ],
+    "hasTypeAnnotations": true,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826532,
+      "nanoseconds": 168000000
+    },
+    "exportType": "function"
+  },
+  {
+    "id": "wwQi6z9ayC4izgDYhHjM",
+    "functionName": "getEmailDraftSubject",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822585,
+      "nanoseconds": 708000000
+    },
+    "hasRestParameters": false,
+    "hasExportDefault": true,
+    "functionDependencies": [
+      "trim",
+      "getCollectionData",
+      "find",
+      "error"
+    ],
+    "arguments": [
+      {
+        "name": "draftLinkId",
+        "isRest": false,
+        "hasDefault": false,
+        "type": "string",
+        "isOptional": false
+      }
+    ],
+    "exportType": "function",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759168066,
+      "nanoseconds": 758000000
+    },
+    "hasUnionTypes": false,
+    "parameterCount": 1,
+    "isActive": true,
+    "hasDestructuring": false,
+    "complexity": "simple",
+    "hasGenerics": false,
+    "hasIntersectionTypes": false,
+    "content": "/**\n * Fetch the subject from an email draft by its ID.\n *\n * @param draftLinkId Document ID of the draft in emailDrafts collection\n * @returns Subject string if found, \"\" if missing, \"ERROR\" if not found\n */\nexport default async function getEmailDraftSubject(\n  draftLinkId: string\n): Promise<string> {\n  if (!draftLinkId || draftLinkId.trim() === \"\") return \"\";\n\n  try {\n    const drafts = await firebaseUtils.getCollectionData(\"emailDrafts\");\n\n    const draft = drafts.find((d: any) => d.id === draftLinkId);\n\n    if (!draft) return \"ERROR\";\n    return draft.subject ?? \"\";\n  } catch (err) {\n    console.error(\"Failed to fetch email draft:\", err);\n    return \"ERROR\";\n  }\n}\n",
+    "fileType": "typescript",
+    "folderId": "un7owkF5Jwam6i1nEIq5",
+    "hasTypeAnnotations": true,
+    "name": "getSubjectLineReservation.ts",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822585,
+      "nanoseconds": 708000000
+    }
+  },
+  {
+    "id": "44lREoCFp3hEYsQ3rWTC",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759830738,
+      "nanoseconds": 253000000
+    },
+    "hasIntersectionTypes": false,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759653806,
+      "nanoseconds": 775000000
+    },
+    "complexity": "simple",
+    "folderId": "aEaKLIgMWx2s1vxi9G1C",
+    "functionName": "getTourCurrencyAndDeposit",
+    "isActive": false,
+    "arguments": [
+      {
+        "hasDefault": false,
+        "name": "tourPackageName",
+        "isRest": false,
+        "type": "string",
+        "isOptional": false
+      }
+    ],
+    "hasUnionTypes": false,
+    "hasExportDefault": true,
+    "hasRestParameters": false,
+    "exportType": "function",
+    "hasGenerics": false,
+    "functionDependencies": [
+      "getCollectionData",
+      "find",
+      "trim",
+      "toLowerCase"
+    ],
+    "name": "getTourCurrencyAndDeposit.ts",
+    "fileType": "typescript",
+    "content": "/**\n * Excel equivalent:\n * =IF(M1003=\"\",\"\",INDEX(\n *     '{INDEX} Tour Packages'!$A:$ZQ,\n *     MATCH($M1003, '{INDEX} Tour Packages'!$A:$A, 0),\n *     MATCH(AH$3, '{INDEX} Tour Packages'!$4:$4, 0)\n *   ))\n *\n * Description:\n * - Retrieves a formatted string combining the tour package's `currency` and `deposit` amount.\n * - Equivalent to returning `${currency}${deposit}` based on the selected tour package name (`M1003`).\n * - If the tour package name is blank or not found, returns an empty string.\n *\n * Example:\n * - Firestore fields: pricing.currency = \"EUR\", pricing.deposit = 250\n * - Returns: \"EUR250\"\n *\n * Parameters:\n * - tourPackageName → string representing the name of the selected tour package.\n *\n * Returns:\n * - string → formatted value like \"EUR250\"\n * - \"\" → if no match or invalid input\n */\n\nexport default async function getTourCurrencyAndDeposit(\n  tourPackageName: string\n): Promise<string | \"\"> {\n  if (!tourPackageName) return \"\";\n\n  // Fetch tourPackages collection\n  const tourPackages = await firebaseUtils.getCollectionData(\"tourPackages\");\n  if (!tourPackages || tourPackages.length === 0) return \"\";\n\n  // Find matching package by name\n  const matchedPackage = tourPackages.find(\n    (pkg: any) =>\n      pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim()\n  );\n\n  if (!matchedPackage?.pricing) return \"\";\n\n  const { currency, deposit } = matchedPackage.pricing;\n\n  // Return formatted currency+deposit (e.g., \"EUR250\")\n  return currency && deposit ? deposit : \"\";\n}\n",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759830738,
+      "nanoseconds": 253000000
+    },
+    "hasDestructuring": false,
+    "hasTypeAnnotations": true,
+    "parameterCount": 1
+  },
+  {
+    "id": "u4l3qkRrDbOeDB3ISPUJ",
+    "hasRestParameters": false,
+    "hasUnionTypes": false,
+    "functionName": "getTourDiscountedCost",
+    "content": "/**\n * Excel equivalent:\n * =IF(M1002=\"\",\"\",INDEX(\n *     '{INDEX} Tour Packages'!$A:$ZQ,\n *     MATCH($M1002, '{INDEX} Tour Packages'!$A:$A, 0),\n *     MATCH(AG$3, '{INDEX} Tour Packages'!$4:$4, 0)\n *   ))\n *\n * Description:\n * - Retrieves the `deposit` amount (pricing.deposit) for a given tour package.\n * - Equivalent to the Excel formula that looks up a value from the `{INDEX} Tour Packages` sheet\n *   using the tour package name (`M1002`) as the key and the column header in `AG3`.\n * - If the tour package name is blank or not found, returns an empty string.\n *\n * Parameters:\n * - tourPackageName → string representing the name of the selected tour package.\n *\n * Returns:\n * - number → the deposit cost of the tour (pricing.deposit)\n * - \"\" → if no match or invalid input\n */\n\n\nexport default async function getTourDiscountedCost(\n  tourPackageName: string\n): Promise<number | \"\"> {\n  if (!tourPackageName) return \"\";\n\n  // Fetch all tour packages from Firestore\n  const tourPackages = await firebaseUtils.getCollectionData(\"tourPackages\");\n  if (!tourPackages || tourPackages.length === 0) return \"\";\n\n  // Find the matching document by tour package name\n  const matchedPackage = tourPackages.find(\n    (pkg: any) =>\n      pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim()\n  );\n\n  // Return the deposit field if found\n  const depositCost = matchedPackage?.pricing?.discounted ?? \"\";\n\n  return depositCost;\n}\n",
+    "exportType": "function",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822903,
+      "nanoseconds": 425000000
+    },
+    "arguments": [
+      {
+        "isOptional": false,
+        "name": "tourPackageName",
+        "hasDefault": false,
+        "type": "string",
+        "isRest": false
+      }
+    ],
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759653299,
+      "nanoseconds": 622000000
+    },
+    "fileType": "typescript",
+    "functionDependencies": [
+      "getCollectionData",
+      "find",
+      "trim",
+      "toLowerCase"
+    ],
+    "isActive": false,
+    "hasTypeAnnotations": true,
+    "name": "getTourDiscountedCost.ts",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822903,
+      "nanoseconds": 425000000
+    },
+    "parameterCount": 1,
+    "folderId": "aEaKLIgMWx2s1vxi9G1C",
+    "complexity": "simple",
+    "hasIntersectionTypes": false,
+    "hasDestructuring": false,
+    "hasExportDefault": true,
+    "hasGenerics": false
+  },
+  {
+    "id": "AnOL9G8CMPL1hVKps2NS",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759652468,
+      "nanoseconds": 30000000
+    },
+    "isActive": false,
+    "parameterCount": 1,
+    "functionDependencies": [
+      "getCollectionData",
+      "find",
+      "trim",
+      "toLowerCase"
+    ],
+    "fileType": "typescript",
+    "hasExportDefault": true,
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822907,
+      "nanoseconds": 565000000
+    },
+    "hasRestParameters": false,
+    "content": "/**\n * Excel equivalent:\n * =IF(M1003=\"\",\"\",INDEX(\n *     '{INDEX} Tour Packages'!$A:$ZQ,\n *     MATCH($M1003, '{INDEX} Tour Packages'!$A:$A, 0),\n *     MATCH(AF$3, '{INDEX} Tour Packages'!$4:$4, 0)\n *   ))\n *\n * Description:\n * - Retrieves the `originalTourCost` (pricing.original) for a given tour package.\n * - Equivalent to the Excel formula that looks up a value from the `{INDEX} Tour Packages` sheet\n *   using the tour package name (`M1003`) as the key.\n * - If the tour package name is blank or not found, returns an empty string.\n *\n * Parameters:\n * - tourPackageName → string representing the name of the selected tour package.\n *\n * Returns:\n * - number → the original cost of the tour (pricing.original)\n * - \"\" → if no match or invalid input\n */\nexport default async function getOriginalTourCost(\n  tourPackageName: string\n): Promise<number | \"\"> {\n  if (!tourPackageName) return \"\";\n\n  // Fetch all tour packages\n  const tourPackages = await firebaseUtils.getCollectionData(\"tourPackages\");\n  if (!tourPackages || tourPackages.length === 0) return \"\";\n\n  // Find the document with matching name\n  const matchedPackage = tourPackages.find(\n    (pkg: any) =>\n      pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim()\n  );\n\n  // Return the pricing.original field if found\n  const originalTourCost = matchedPackage?.pricing?.original ?? \"\";\n\n  return originalTourCost;\n}\n",
+    "name": "getTourOriginalTourCost.ts",
+    "arguments": [
+      {
+        "name": "tourPackageName",
+        "isOptional": false,
+        "isRest": false,
+        "hasDefault": false,
+        "type": "string"
+      }
+    ],
+    "exportType": "function",
+    "hasDestructuring": false,
+    "hasGenerics": false,
+    "hasTypeAnnotations": true,
+    "hasUnionTypes": false,
+    "hasIntersectionTypes": false,
+    "folderId": "aEaKLIgMWx2s1vxi9G1C",
+    "functionName": "getOriginalTourCost",
+    "complexity": "simple",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822907,
+      "nanoseconds": 565000000
+    }
+  },
+  {
+    "id": "jcKaPYU6xDH67PzB5NzB",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822638,
+      "nanoseconds": 977000000
+    },
+    "isActive": false,
+    "hasUnionTypes": false,
+    "name": "groupIdGenerator.ts",
+    "hasTypeAnnotations": true,
+    "fileType": "javascript",
+    "hasExportDefault": true,
+    "arguments": [
+      {
+        "name": "bookingType",
+        "type": "string",
+        "isRest": false,
+        "isOptional": false,
+        "hasDefault": false
+      },
+      {
+        "isRest": false,
+        "name": "tourName",
+        "type": "string",
+        "hasDefault": false,
+        "isOptional": false
+      },
+      {
+        "type": "string",
+        "isRest": false,
+        "isOptional": false,
+        "hasDefault": false,
+        "name": "firstName"
+      },
+      {
+        "isRest": false,
+        "hasDefault": false,
+        "type": "string",
+        "name": "lastName",
+        "isOptional": false
+      },
+      {
+        "hasDefault": false,
+        "isOptional": false,
+        "type": "string",
+        "name": "email",
+        "isRest": false
+      },
+      {
+        "isOptional": false,
+        "type": "boolean",
+        "hasDefault": false,
+        "isRest": false,
+        "name": "isActive"
+      }
+    ],
+    "exportType": "function",
+    "hasDestructuring": false,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822638,
+      "nanoseconds": 977000000
+    },
+    "hasRestParameters": false,
+    "complexity": "moderate",
+    "hasGenerics": false,
+    "parameterCount": 6,
+    "content": "/**\n * Generate Group/Duo Booking Member ID (standalone version, no allRows needed).\n *\n * @param bookingType  \"Duo Booking\" | \"Group Booking\"\n * @param tourName     Tour package name\n * @param firstName    Traveller's first name\n * @param lastName     Traveller's last name\n * @param email        Traveller's email\n * @param isActive     Equivalent of U column (if false => \"\")\n * @returns string ID or \"\"\n */\nexport default function generateGroupMemberId(\n  bookingType: string,\n  tourName: string,\n  firstName: string,\n  lastName: string,\n  email: string,\n  isActive: boolean\n): string {\n  // Only Duo or Group bookings apply\n  if (!(bookingType === \"Duo Booking\" || bookingType === \"Group Booking\")) {\n    return \"\";\n  }\n  if (isActive == false) return \"\";\n\n  const initials =\n    (firstName?.[0] ?? \"\").toUpperCase() + (lastName?.[0] ?? \"\").toUpperCase();\n  const idPrefix = bookingType === \"Duo Booking\" ? \"DB\" : \"GB\";\n\n  // Hash based on email + traveller identity\n  const identity = `${bookingType}|${tourName}|${firstName}|${lastName}|${email}`;\n  let hashNum = 0;\n  for (let i = 0; i < identity.length; i++) {\n    hashNum += identity.charCodeAt(i) * (i + 1);\n  }\n  const hashTag = String(Math.abs(hashNum) % 10000).padStart(4, \"0\");\n\n  // Fake member number: derive from hash as a stable 001–999\n  const memberNumber = String((Math.abs(hashNum) % 999) + 1).padStart(3, \"0\");\n\n  return `${idPrefix}-${initials}-${hashTag}-${memberNumber}`;\n}\n",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1758000504,
+      "nanoseconds": 78000000
+    },
+    "functionDependencies": [
+      "toUpperCase",
+      "charCodeAt",
+      "padStart",
+      "String",
+      "abs"
+    ],
+    "functionName": "generateGroupMemberId",
+    "folderId": "0qrjdfETld9N1AVKNh9P",
+    "hasIntersectionTypes": false
+  },
+  {
+    "id": "MmUNkgairiFyZCEIVuH8",
+    "parameterCount": 17,
+    "hasTypeAnnotations": true,
+    "content": "/**\n * Excel equivalent:\n * =ArrayFormula(IF($BA1003<>\"\", ... ))\n *\n * Description:\n * - Calculates the P1 amount based on tour cost, reservation fee,\n *   credits, payment plan, and which payments were already made.\n * - Handles proportional installment allocation with credit deduction.\n */\n\nexport default function getP1Amount(\n  p1DueDate?: string | Date,\n  useDiscountedTourCost?: boolean,\n  discountedTourCost?: number,\n  originalTourCost?: number,\n  reservationFee?: number,\n  creditFrom?: string,\n  creditAmount?: number,\n  paymentPlan?: string,\n  paymentCondition?: string,\n  fullPaymentDatePaid?: string | Date,\n  fullPaymentAmount?: number,\n  p2DatePaid?: string | Date,\n  p2Amount?: number,\n  p3DatePaid?: string | Date,\n  p3Amount?: number,\n  p4DatePaid?: string | Date,\n  p4Amount?: number,\n){\n  if (!p1DueDate) return \"\";\n\n  const total =\n    (useDiscountedTourCost ? discountedTourCost ?? 0 : originalTourCost ?? 0) -\n    (reservationFee ?? 0);\n  const cf = creditFrom ?? \"\";\n  const ca = creditAmount ?? 0;\n\n  // Case: No payment plan or condition → return unpaid balance\n  if (!paymentPlan && !paymentCondition) {\n    const paidSum =\n      (fullPaymentDatePaid ? fullPaymentAmount ?? 0 : 0) +\n      (p2DatePaid ? p2Amount ?? 0 : 0) +\n      (p3DatePaid ? p3Amount ?? 0 : 0) +\n      (p4DatePaid ? p4Amount ?? 0 : 0);\n\n    return total - paidSum;\n  }\n\n  // Determine number of terms (P1–P4)\n  const termsMap: Record<string, number> = {\n    \"\": 1,\n    P1: 1,\n    P2: 2,\n    P3: 3,\n    P4: 4,\n  };\n  const terms = termsMap[paymentPlan ?? \"\"] ?? 1;\n\n  // Detect credits and payments\n  const creditFlags = {\n    P1: cf.includes(\"P1\"),\n    P2: cf.includes(\"P2\"),\n    P3: cf.includes(\"P3\"),\n    P4: cf.includes(\"P4\"),\n  };\n  const paidFlags = {\n    P1: false,\n    P2: !!p2DatePaid,\n    P3: !!p3DatePaid,\n    P4: !!p4DatePaid,\n  };\n\n  const creditedCount = Math.min(\n    terms,\n    Object.values(creditFlags).filter(Boolean).length +\n    Object.values(paidFlags).filter(Boolean).length\n  );\n  const denom = Math.max(1, terms - creditedCount);\n\n  // Assign numeric order to credit source\n  const k =\n    cf === \"Reservation\"\n      ? 0\n      : cf === \"P1\"\n        ? 1\n        : cf === \"P2\"\n          ? 2\n          : cf === \"P3\"\n            ? 3\n            : cf === \"P4\"\n              ? 4\n              : 0;\n\n  const base = total / terms;\n\n  let amount: number;\n  if (k === 0) {\n    amount = (total - ca) / terms;\n  } else if (k === 1) {\n    amount = ca;\n  } else if (k > 1) {\n    amount = base;\n  } else {\n    amount = (total - base * (k - 1) - ca) / Math.max(1, terms - k);\n  }\n\n  return Math.round((isNaN(amount) ? 0 : amount) * 100) / 100;\n}\n",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759827908,
+      "nanoseconds": 202000000
+    },
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759836838,
+      "nanoseconds": 464000000
+    },
+    "fileType": "typescript",
+    "hasDestructuring": false,
+    "functionName": "getP1Amount",
+    "returnType": "async",
+    "hasGenerics": false,
+    "isActive": true,
+    "hasAwait": true,
+    "folderId": "sr6fcbOAb6iSczVH8PJf",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759836838,
+      "nanoseconds": 464000000
+    },
+    "hasRestParameters": false,
+    "hasIntersectionTypes": false,
+    "arguments": [
+      {
+        "type": "any",
+        "isRest": false,
+        "isOptional": true,
+        "name": "p1DueDate",
+        "hasDefault": false
+      },
+      {
+        "isOptional": true,
+        "type": "boolean",
+        "isRest": false,
+        "hasDefault": false,
+        "name": "useDiscountedTourCost"
+      },
+      {
+        "isOptional": true,
+        "hasDefault": false,
+        "name": "discountedTourCost",
+        "type": "number",
+        "isRest": false
+      },
+      {
+        "name": "originalTourCost",
+        "hasDefault": false,
+        "type": "number",
+        "isRest": false,
+        "isOptional": true
+      },
+      {
+        "hasDefault": false,
+        "name": "reservationFee",
+        "type": "number",
+        "isOptional": true,
+        "isRest": false
+      },
+      {
+        "name": "creditFrom",
+        "hasDefault": false,
+        "type": "string",
+        "isOptional": true,
+        "isRest": false
+      },
+      {
+        "type": "number",
+        "isOptional": true,
+        "isRest": false,
+        "hasDefault": false,
+        "name": "creditAmount"
+      },
+      {
+        "isRest": false,
+        "isOptional": true,
+        "hasDefault": false,
+        "name": "paymentPlan",
+        "type": "string"
+      },
+      {
+        "name": "paymentCondition",
+        "isRest": false,
+        "isOptional": true,
+        "type": "string",
+        "hasDefault": false
+      },
+      {
+        "name": "fullPaymentDatePaid",
+        "hasDefault": false,
+        "type": "any",
+        "isOptional": true,
+        "isRest": false
+      },
+      {
+        "hasDefault": false,
+        "isRest": false,
+        "isOptional": true,
+        "name": "fullPaymentAmount",
+        "type": "number"
+      },
+      {
+        "isOptional": true,
+        "hasDefault": false,
+        "name": "p2DatePaid",
+        "type": "any",
+        "isRest": false
+      },
+      {
+        "name": "p2Amount",
+        "type": "number",
+        "hasDefault": false,
+        "isOptional": true,
+        "isRest": false
+      },
+      {
+        "name": "p3DatePaid",
+        "hasDefault": false,
+        "isOptional": true,
+        "isRest": false,
+        "type": "any"
+      },
+      {
+        "isRest": false,
+        "name": "p3Amount",
+        "type": "number",
+        "isOptional": true,
+        "hasDefault": false
+      },
+      {
+        "isOptional": true,
+        "type": "any",
+        "hasDefault": false,
+        "name": "p4DatePaid",
+        "isRest": false
+      },
+      {
+        "type": "number",
+        "hasDefault": false,
+        "isOptional": true,
+        "isRest": false,
+        "name": "p4Amount"
+      }
+    ],
+    "complexity": "moderate",
+    "exportType": "function",
+    "name": "P1Amount.ts",
+    "isAsync": true,
+    "functionDependencies": [
+      "includes",
+      "min",
+      "filter",
+      "values",
+      "max",
+      "round",
+      "isNaN"
+    ],
+    "hasUnionTypes": false,
+    "hasExportDefault": true
+  },
+  {
+    "id": "kHdtv2h079uULFco91qE",
+    "hasGenerics": false,
+    "parameterCount": 4,
+    "hasExportDefault": true,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759829974,
+      "nanoseconds": 622000000
+    },
+    "functionName": "getP1DueDate",
+    "functionDependencies": [
+      "includes",
+      "tourDateToYyyymmdd",
+      "isNaN",
+      "getTime",
+      "getFullYear",
+      "getMonth",
+      "from",
+      "filter",
+      "toLocaleDateString"
+    ],
+    "folderId": "sr6fcbOAb6iSczVH8PJf",
+    "isActive": false,
+    "hasUnionTypes": false,
+    "content": "/**\n * Converts various date formats into a normalized \"yyyy-mm-dd\" string.\n * Returns:\n *  - \"\"        => for null/undefined/empty-string inputs\n *  - \"ERROR\"   => for invalid/unparseable inputs\n *  - \"yyyy-mm-dd\" => for valid inputs\n *\n * Accepts:\n *  - null/undefined/\"\"\n *  - Date\n *  - number (ms since epoch)\n *  - string (\"September 15, 2025 at 8:00:00 AM UTC+8\", \"15/09/2025\", \"2025-09-15\")\n *  - Firestore Timestamp (has .toDate())\n *  - { seconds: number, nanoseconds?: number } shape\n *\n * NOTE: This function intentionally returns the literal \"ERROR\" for inputs\n * that cannot be parsed — so callers can choose to surface that or treat it\n * as a failure case.\n */\nexport function tourDateToYyyymmdd(tourDate: unknown): string {\n  // 1) Blank handling\n  if (tourDate === null || tourDate === undefined) return \"\";\n  if (typeof tourDate === \"string\" && tourDate.trim() === \"\") return \"\";\n\n  // 2) Try to normalize to a Date\n  let date: Date | null = null;\n\n  try {\n    // Firestore Timestamp: has .toDate()\n    if (\n      typeof tourDate === \"object\" &&\n      tourDate !== null &&\n      \"toDate\" in (tourDate as any) &&\n      typeof (tourDate as any).toDate === \"function\"\n    ) {\n      date = (tourDate as any).toDate();\n    }\n    // Firestore-like { seconds, nanoseconds }\n    else if (\n      typeof tourDate === \"object\" &&\n      tourDate !== null &&\n      \"seconds\" in (tourDate as any) &&\n      typeof (tourDate as any).seconds === \"number\"\n    ) {\n      const s = (tourDate as any).seconds as number;\n      const ns =\n        typeof (tourDate as any).nanoseconds === \"number\"\n          ? (tourDate as any).nanoseconds\n          : 0;\n      date = new Date(s * 1000 + Math.floor(ns / 1e6));\n    }\n    // Already a Date\n    else if (tourDate instanceof Date) {\n      date = tourDate;\n    }\n    // Milliseconds timestamp (number)\n    else if (typeof tourDate === \"number\") {\n      const d = new Date(tourDate);\n      date = isNaN(d.getTime()) ? null : d;\n    }\n    // String inputs\n    else if (typeof tourDate === \"string\") {\n      const raw = (tourDate as string).trim();\n\n      // dd/mm/yyyy\n      if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(raw)) {\n        const [dd, mm, yyyy] = raw.split(\"/\").map((s) => Number(s));\n        date = new Date(yyyy, mm - 1, dd);\n      }\n      // yyyy-mm-dd\n      else if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) {\n        const [yyyy, mm, dd] = raw.split(\"-\").map((s) => Number(s));\n        date = new Date(yyyy, mm - 1, dd);\n      }\n      // fallback: try Date constructor (handles \"October 8, 2025 ...\", ISO, etc.)\n      else {\n        // remove common invisible characters that break parsing (e.g. narrow NBSP)\n        const cleaned = raw.replace(/[\\u200B-\\u200F\\u2028-\\u202F]/g, \"\").trim();\n        const parsed = new Date(cleaned);\n        date = isNaN(parsed.getTime()) ? null : parsed;\n      }\n    } else {\n      // unsupported type\n      return \"ERROR\";\n    }\n\n    // 3) Validate\n    if (!date || isNaN(date.getTime())) return \"ERROR\";\n\n    // 4) Format yyyy-mm-dd\n    const y = date.getFullYear();\n    const m = String(date.getMonth() + 1).padStart(2, \"0\");\n    const d = String(date.getDate()).padStart(2, \"0\");\n    return `${y}-${m}-${d}`;\n  } catch {\n    return \"ERROR\";\n  }\n}\n\n/**\n * Excel equivalent:\n * =IF( \n *   OR($AM1003=\"Full Payment\", ISBLANK($K1003)),\n *   \"\",\n *   IF(\n *     OR(\n *       Q1003=\"Standard Booking, P1\",\n *       Q1003=\"Standard Booking, P2\",\n *       Q1003=\"Standard Booking, P3\",\n *       Q1003=\"Standard Booking, P4\"\n *     ),\n *     LET(\n *       resDate, $K1003,\n *       tourDate, $N1003,\n *       monthCount, DATEDIF(resDate, tourDate, \"M\") + 1,\n *       secondDates, DATE(YEAR(resDate), MONTH(resDate) + SEQUENCE(monthCount), 2),\n *       validDates, FILTER(secondDates, (secondDates > resDate + 2) * (secondDates <= tourDate - 3)),\n *       IF(COUNTA(validDates)<1, \"\", TEXT(INDEX(validDates, 1), \"mmm d, yyyy\"))\n *     ),\n *     \"\"\n *   )\n * )\n *\n * Updated behavior:\n * - Uses tourDateToYyyymmdd to normalize inputs (supports Date, strings, Firestore shapes).\n * - If tourDateToYyyymmdd returns \"\" -> treat as blank -> returns \"\" (matches ISBLANK).\n * - If tourDateToYyyymmdd returns \"ERROR\" -> returns \"ERROR\" so caller can surface parse issues.\n *\n * Returns:\n *  - \"\"                => when reservation/tour blank or conditions not met\n *  - \"ERROR\"           => when reservation/tour could not be parsed\n *  - \"MMM d, yyyy\"     => the first valid P1 due date (e.g., \"Oct 8, 2025\")\n */\nexport default function getP1DueDate(\n  reservationDate?: unknown,\n  tourDate?: unknown,\n  paymentPlan?: string,\n  paymentCondition?: string,\n): string | \"\" | \"ERROR\" {\n  // Same guard as Excel: if payment plan is Full Payment or reservation blank => \"\"\n  if (paymentPlan === \"Full Payment\") return \"\";\n  if (reservationDate === null || reservationDate === undefined) return \"\";\n\n  const validConditions = [\n    \"Standard Booking, P1\",\n    \"Standard Booking, P2\",\n    \"Standard Booking, P3\",\n    \"Standard Booking, P4\",\n  ];\n  if (!validConditions.includes(paymentCondition ?? \"\")) return \"\";\n\n  // Normalize inputs using the helper\n  const resYmd = tourDateToYyyymmdd(reservationDate);\n  if (resYmd === \"\") return \"\"; // treated as blank\n  if (resYmd === \"ERROR\") return \"ERROR\";\n\n  const tourYmd = tourDateToYyyymmdd(tourDate);\n  if (tourYmd === \"\") return \"\"; // treated as blank\n  if (tourYmd === \"ERROR\") return \"ERROR\";\n\n  const res = new Date(resYmd);\n  const tour = new Date(tourYmd);\n\n  // If either is still invalid (paranoid guard)\n  if (isNaN(res.getTime()) || isNaN(tour.getTime())) return \"ERROR\";\n\n  // monthCount = DATEDIF(res, tour, \"M\") + 1\n  const monthCount =\n    (tour.getFullYear() - res.getFullYear()) * 12 +\n    (tour.getMonth() - res.getMonth()) +\n    1;\n\n  if (monthCount <= 0) return \"\";\n\n  // generate the 2nd day of each month between res and tour (1..monthCount)\n  const secondDates: Date[] = Array.from({ length: monthCount }, (_, i) =>\n    new Date(res.getFullYear(), res.getMonth() + i + 1, 2),\n  );\n\n  // validDates: (secondDates > res + 2) * (secondDates <= tour - 3)\n  const DAY_MS = 24 * 60 * 60 * 1000;\n  const validDates = secondDates.filter(\n    (d) =>\n      d.getTime() > res.getTime() + 2 * DAY_MS &&\n      d.getTime() <= tour.getTime() - 3 * DAY_MS,\n  );\n\n  if (validDates.length < 1) return \"\";\n\n  // Return 1st valid date formatted like \"mmm d, yyyy\"\n  return validDates[0].toLocaleDateString(\"en-US\", {\n    month: \"short\",\n    day: \"numeric\",\n    year: \"numeric\",\n  });\n}\n",
+    "hasDestructuring": false,
+    "hasTypeAnnotations": true,
+    "name": "P1DueDate.ts",
+    "isAsync": true,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759836609,
+      "nanoseconds": 822000000
+    },
+    "arguments": [
+      {
+        "isOptional": true,
+        "isRest": false,
+        "hasDefault": false,
+        "type": "unknown",
+        "name": "reservationDate"
+      },
+      {
+        "type": "unknown",
+        "isOptional": true,
+        "name": "tourDate",
+        "hasDefault": false,
+        "isRest": false
+      },
+      {
+        "name": "paymentPlan",
+        "hasDefault": false,
+        "isRest": false,
+        "isOptional": true,
+        "type": "string"
+      },
+      {
+        "name": "paymentCondition",
+        "isOptional": true,
+        "isRest": false,
+        "hasDefault": false,
+        "type": "string"
+      }
+    ],
+    "hasAwait": true,
+    "complexity": "moderate",
+    "hasIntersectionTypes": false,
+    "exportType": "function",
+    "returnType": "async",
+    "fileType": "typescript",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759836609,
+      "nanoseconds": 822000000
+    },
+    "hasRestParameters": false
+  },
+  {
+    "id": "CbCkjT8zWGvfRFzyKPkw",
+    "functionDependencies": [
+      "isNaN",
+      "getTime",
+      "getFullYear",
+      "getMonth",
+      "getDay",
+      "setDate",
+      "getDate",
+      "split",
+      "toISOString"
+    ],
+    "hasGenerics": false,
+    "hasExportDefault": true,
+    "content": "/**\n * Excel equivalent:\n * =IF(AND(ISDATE(BA1003), ISBLANK(BC1003)),\n *   LET(\n *     d, BA1003,\n *     base, EOMONTH(d,-1) - MOD(WEEKDAY(EOMONTH(d,-1),2)-1,7),\n *     IF(d - base < 7, base - 7, base)\n *   ),\n * \"\")\n *\n * Description:\n * - Returns the scheduled reminder date for P1 payment.\n * - Reminder is set to the last Monday of the previous month.\n * - If due date is within the first week of the month, reminder moves one week earlier.\n */\nexport default function getP1ScheduledReminderDate(\n  p1DueDate?: string | Date,\n  p1DatePaid?: string | Date\n): string | \"\" {\n  if (!p1DueDate || p1DatePaid) return \"\";\n\n  const d = new Date(p1DueDate);\n  if (isNaN(d.getTime())) return \"\";\n\n  const eomPrevMonth = new Date(d.getFullYear(), d.getMonth(), 0);\n  const weekday = eomPrevMonth.getDay();\n  const daysSinceMonday = (weekday + 6) % 7;\n  const base = new Date(eomPrevMonth);\n  base.setDate(eomPrevMonth.getDate() - daysSinceMonday);\n\n  const diffDays = (d.getTime() - base.getTime()) / (1000 * 60 * 60 * 24);\n  if (diffDays < 7) base.setDate(base.getDate() - 7);\n\n  return base.toISOString().split(\"T\")[0];\n}\n",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759833924,
+      "nanoseconds": 589000000
+    },
+    "name": "P1ScheduledReminderDate.ts",
+    "hasRestParameters": false,
+    "hasUnionTypes": false,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759833924,
+      "nanoseconds": 589000000
+    },
+    "hasDestructuring": false,
+    "arguments": [
+      {
+        "type": "any",
+        "isOptional": true,
+        "isRest": false,
+        "hasDefault": false,
+        "name": "p1DueDate"
+      },
+      {
+        "isOptional": true,
+        "isRest": false,
+        "type": "any",
+        "hasDefault": false,
+        "name": "p1DatePaid"
+      }
+    ],
+    "complexity": "simple",
+    "functionName": "getP1ScheduledReminderDate",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759827572,
+      "nanoseconds": 372000000
+    },
+    "parameterCount": 2,
+    "returnType": "async",
+    "folderId": "sr6fcbOAb6iSczVH8PJf",
+    "isActive": false,
+    "hasTypeAnnotations": true,
+    "hasIntersectionTypes": false,
+    "hasAwait": true,
+    "exportType": "function",
+    "fileType": "typescript",
+    "isAsync": true
+  },
+  {
+    "id": "Baf9mBJfXmjiXf01UrXg",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759844996,
+      "nanoseconds": 364000000
+    },
+    "hasTypeAnnotations": true,
+    "folderId": "7l357T6GXp4ke0AWRUUT",
+    "complexity": "moderate",
+    "hasAwait": true,
+    "functionDependencies": [
+      "round",
+      "includes",
+      "min",
+      "Number",
+      "max",
+      "isNaN"
+    ],
+    "hasIntersectionTypes": false,
+    "isActive": true,
+    "arguments": [
+      {
+        "type": "any",
+        "hasDefault": false,
+        "isRest": false,
+        "name": "p2DueDate",
+        "isOptional": true
+      },
+      {
+        "isRest": false,
+        "isOptional": true,
+        "name": "useDiscountedTourCost",
+        "hasDefault": false,
+        "type": "boolean"
+      },
+      {
+        "name": "discountedTourCost",
+        "hasDefault": false,
+        "type": "number",
+        "isOptional": true,
+        "isRest": false
+      },
+      {
+        "hasDefault": false,
+        "isOptional": true,
+        "isRest": false,
+        "name": "originalTourCost",
+        "type": "number"
+      },
+      {
+        "isRest": false,
+        "name": "reservationFee",
+        "hasDefault": false,
+        "isOptional": true,
+        "type": "number"
+      },
+      {
+        "isOptional": true,
+        "hasDefault": false,
+        "type": "string",
+        "isRest": false,
+        "name": "creditFrom"
+      },
+      {
+        "hasDefault": false,
+        "name": "creditAmount",
+        "isRest": false,
+        "type": "number",
+        "isOptional": true
+      },
+      {
+        "name": "paymentPlan",
+        "isRest": false,
+        "hasDefault": false,
+        "isOptional": true,
+        "type": "string"
+      },
+      {
+        "name": "paymentMethod",
+        "hasDefault": false,
+        "type": "string",
+        "isOptional": true,
+        "isRest": false
+      },
+      {
+        "type": "any",
+        "isOptional": true,
+        "isRest": false,
+        "hasDefault": false,
+        "name": "fullPaymentDatePaid"
+      },
+      {
+        "isRest": false,
+        "isOptional": true,
+        "name": "fullPaymentAmount",
+        "hasDefault": false,
+        "type": "number"
+      },
+      {
+        "isOptional": true,
+        "name": "p1DatePaid",
+        "isRest": false,
+        "type": "any",
+        "hasDefault": false
+      },
+      {
+        "type": "number",
+        "isRest": false,
+        "name": "p1Amount",
+        "hasDefault": false,
+        "isOptional": true
+      },
+      {
+        "name": "p2DatePaid",
+        "type": "any",
+        "isRest": false,
+        "hasDefault": false,
+        "isOptional": true
+      },
+      {
+        "name": "p2Amount",
+        "isRest": false,
+        "type": "number",
+        "isOptional": true,
+        "hasDefault": false
+      },
+      {
+        "name": "p3DatePaid",
+        "hasDefault": false,
+        "isRest": false,
+        "type": "any",
+        "isOptional": true
+      },
+      {
+        "isOptional": true,
+        "isRest": false,
+        "type": "number",
+        "hasDefault": false,
+        "name": "p3Amount"
+      },
+      {
+        "name": "p4DatePaid",
+        "isRest": false,
+        "isOptional": true,
+        "type": "any",
+        "hasDefault": false
+      },
+      {
+        "isOptional": true,
+        "type": "number",
+        "hasDefault": false,
+        "name": "p4Amount",
+        "isRest": false
+      }
+    ],
+    "isAsync": true,
+    "hasExportDefault": true,
+    "content": "export default function getP2Amount(\n  p2DueDate?: string | Date,\n  useDiscountedTourCost?: boolean,\n  discountedTourCost?: number,\n  originalTourCost?: number,\n  reservationFee?: number,\n  creditFrom?: string,\n  creditAmount?: number,\n  paymentPlan?: string,\n  paymentMethod?: string,\n  fullPaymentDatePaid?: string | Date,\n  fullPaymentAmount?: number,\n  p1DatePaid?: string | Date,\n  p1Amount?: number,\n  p2DatePaid?: string | Date,\n  p2Amount?: number,\n  p3DatePaid?: string | Date,\n  p3Amount?: number,\n  p4DatePaid?: string | Date,\n  p4Amount?: number\n) {\n  // =IF($BH1003<>\"\", ...)\n  if (!p2DueDate) return \"\";\n\n  // total, credit_from, credit_amt\n  const total =\n    (useDiscountedTourCost ? discountedTourCost ?? 0 : originalTourCost ?? 0) -\n    (reservationFee ?? 0);\n  const credit_from = creditFrom ?? \"\";\n  const credit_amt = creditAmount ?? 0;\n\n  // IF(AND($AM1003=\"\", $AN1003=\"\"), ...)\n  if (!paymentPlan && !paymentMethod) {\n    const result =\n      (total -\n        (fullPaymentDatePaid ? fullPaymentAmount ?? 0 : 0) -\n        (p1DatePaid ? p1Amount ?? 0 : 0) -\n        (p3DatePaid ? p3Amount ?? 0 : 0) -\n        (p4DatePaid ? p4Amount ?? 0 : 0)) /\n      2;\n    return Math.round(result * 100) / 100;\n  }\n\n  // LET(\n  //   terms, SWITCH($AM1003,\"\",1,\"P1\",1,\"P2\",2,\"P3\",3,\"P4\",4,\"\"),\n  const termsMap: Record<string, number> = {\n    \"\": 1,\n    P1: 1,\n    P2: 2,\n    P3: 3,\n    P4: 4,\n  };\n  const terms = termsMap[paymentPlan ?? \"\"] ?? 1;\n\n  // cf, pTwo, paid1, paid2\n  const cf = `,${credit_from},`;\n  const pTwo = cf.includes(\",P2,\");\n  const paid1 = !!p1DatePaid;\n  const paid2 = !!p2DatePaid;\n\n  // credited, unpaidCount, adjustedDenom\n  const credited = Math.min(terms, Number(pTwo) + Number(paid2));\n  const unpaidCount = terms - Number(paid1) - Number(paid2);\n  const adjustedDenom = Math.max(1, unpaidCount - credited);\n\n  // k, base\n  const k =\n    credit_from === \"Reservation\"\n      ? 0\n      : credit_from === \"P1\"\n        ? 1\n        : credit_from === \"P2\"\n          ? 2\n          : credit_from === \"P3\"\n            ? 3\n            : credit_from === \"P4\"\n              ? 4\n              : 0;\n  const base = total / terms;\n\n  // amount\n  let amount: number;\n  if (k === 0) {\n    amount = (total - credit_amt) / terms;\n  } else if (k === 2) {\n    amount = credit_amt;\n  } else if (k > 2) {\n    amount = base;\n  } else {\n    amount = (total - base * (k - 1) - credit_amt) / Math.max(1, terms - k);\n  }\n\n  // IF(terms<2,\"\", amount)\n  if (terms < 2) return \"\";\n\n  return Math.round((isNaN(amount) ? 0 : amount) * 100) / 100;\n}\n",
+    "exportType": "function",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759844996,
+      "nanoseconds": 364000000
+    },
+    "hasGenerics": false,
+    "returnType": "async",
+    "functionName": "getP2Amount",
+    "hasDestructuring": false,
+    "name": "P2Amount.ts",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759828168,
+      "nanoseconds": 290000000
+    },
+    "fileType": "typescript",
+    "hasRestParameters": false,
+    "hasUnionTypes": false,
+    "parameterCount": 19
+  },
+  {
+    "id": "9gc3Sw4heA5qOvYGI4V5",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759837640,
+      "nanoseconds": 418000000
+    },
+    "functionDependencies": [
+      "includes",
+      "tourDateToYyyymmdd",
+      "getFullYear",
+      "getMonth",
+      "from",
+      "filter",
+      "getTime",
+      "toLocaleDateString",
+      "fmt"
+    ],
+    "exportType": "function",
+    "isAsync": true,
+    "hasDestructuring": false,
+    "fileType": "typescript",
+    "complexity": "moderate",
+    "hasExportDefault": true,
+    "name": "P2DueDate.ts",
+    "folderId": "7l357T6GXp4ke0AWRUUT",
+    "parameterCount": 4,
+    "functionName": "getP2DueDate",
+    "hasTypeAnnotations": true,
+    "hasAwait": true,
+    "isActive": false,
+    "hasGenerics": false,
+    "content": "/**\n * Converts various date formats into a normalized \"yyyy-mm-dd\" string.\n * Same helper used across P1–P4 functions.\n */\nexport function tourDateToYyyymmdd(tourDate: unknown): string {\n  if (tourDate === null || tourDate === undefined) return \"\";\n  if (typeof tourDate === \"string\" && tourDate.trim() === \"\") return \"\";\n\n  let date: Date | null = null;\n  try {\n    if (\n      typeof tourDate === \"object\" &&\n      tourDate !== null &&\n      \"toDate\" in (tourDate as any) &&\n      typeof (tourDate as any).toDate === \"function\"\n    ) {\n      date = (tourDate as any).toDate();\n    } else if (\n      typeof tourDate === \"object\" &&\n      tourDate !== null &&\n      \"seconds\" in (tourDate as any)\n    ) {\n      const s = (tourDate as any).seconds as number;\n      const ns =\n        typeof (tourDate as any).nanoseconds === \"number\"\n          ? (tourDate as any).nanoseconds\n          : 0;\n      date = new Date(s * 1000 + Math.floor(ns / 1e6));\n    } else if (tourDate instanceof Date) {\n      date = tourDate;\n    } else if (typeof tourDate === \"number\") {\n      const d = new Date(tourDate);\n      date = isNaN(d.getTime()) ? null : d;\n    } else if (typeof tourDate === \"string\") {\n      const raw = tourDate.trim();\n      if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(raw)) {\n        const [dd, mm, yyyy] = raw.split(\"/\").map(Number);\n        date = new Date(yyyy, mm - 1, dd);\n      } else if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) {\n        const [yyyy, mm, dd] = raw.split(\"-\").map(Number);\n        date = new Date(yyyy, mm - 1, dd);\n      } else {\n        const parsed = new Date(raw);\n        date = isNaN(parsed.getTime()) ? null : parsed;\n      }\n    } else return \"ERROR\";\n\n    if (!date || isNaN(date.getTime())) return \"ERROR\";\n    const y = date.getFullYear();\n    const m = String(date.getMonth() + 1).padStart(2, \"0\");\n    const d = String(date.getDate()).padStart(2, \"0\");\n    return `${y}-${m}-${d}`;\n  } catch {\n    return \"ERROR\";\n  }\n}\n\n/**\n * Excel equivalent:\n * =IF(OR($AM=\"Full Payment\",$AM=\"P1\",ISBLANK($K)),\"\",\n *   IF(OR($Q=\"Standard Booking, P2\",$Q=\"Standard Booking, P3\",$Q=\"Standard Booking, P4\"),\n *     TEXTJOIN(\", \",TRUE,TEXT(INDEX(validDates,1),\"mmm d, yyyy\"),TEXT(INDEX(validDates,2),\"mmm d, yyyy\")),\n *     \"\")\n * )\n */\nexport default function getP2DueDate(\n  reservationDate?: unknown,\n  tourDate?: unknown,\n  paymentPlan?: string,\n  paymentCondition?: string,\n): string | \"\" | \"ERROR\" {\n  if (paymentPlan === \"Full Payment\" || paymentPlan === \"P1\") return \"\";\n  if (!reservationDate) return \"\";\n\n  const validConditions = [\n    \"Standard Booking, P2\",\n    \"Standard Booking, P3\",\n    \"Standard Booking, P4\",\n  ];\n  if (!validConditions.includes(paymentCondition ?? \"\")) return \"\";\n\n  const resYmd = tourDateToYyyymmdd(reservationDate);\n  const tourYmd = tourDateToYyyymmdd(tourDate);\n  if (resYmd === \"\" || tourYmd === \"\") return \"\";\n  if (resYmd === \"ERROR\" || tourYmd === \"ERROR\") return \"ERROR\";\n\n  const res = new Date(resYmd);\n  const tour = new Date(tourYmd);\n  const monthCount =\n    (tour.getFullYear() - res.getFullYear()) * 12 +\n    (tour.getMonth() - res.getMonth()) +\n    1;\n\n  const DAY_MS = 86400000;\n  const secondDates = Array.from({ length: monthCount }, (_, i) =>\n    new Date(res.getFullYear(), res.getMonth() + i + 1, 2),\n  );\n  const validDates = secondDates.filter(\n    (d) =>\n      d.getTime() > res.getTime() + 2 * DAY_MS &&\n      d.getTime() <= tour.getTime() - 3 * DAY_MS,\n  );\n\n  if (validDates.length < 2) return \"\";\n  const fmt = (d: Date) =>\n    d.toLocaleDateString(\"en-US\", { month: \"short\", day: \"numeric\", year: \"numeric\" });\n  return `${fmt(validDates[0])}, ${fmt(validDates[1])}`;\n}\n",
+    "hasRestParameters": false,
+    "arguments": [
+      {
+        "type": "unknown",
+        "name": "reservationDate",
+        "hasDefault": false,
+        "isRest": false,
+        "isOptional": true
+      },
+      {
+        "type": "unknown",
+        "hasDefault": false,
+        "name": "tourDate",
+        "isRest": false,
+        "isOptional": true
+      },
+      {
+        "type": "string",
+        "hasDefault": false,
+        "name": "paymentPlan",
+        "isOptional": true,
+        "isRest": false
+      },
+      {
+        "hasDefault": false,
+        "type": "string",
+        "isOptional": true,
+        "isRest": false,
+        "name": "paymentCondition"
+      }
+    ],
+    "returnType": "async",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759837640,
+      "nanoseconds": 418000000
+    },
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759830014,
+      "nanoseconds": 345000000
+    },
+    "hasUnionTypes": false,
+    "hasIntersectionTypes": false
+  },
+  {
+    "id": "SBZmYW16JDwEUicAnXbb",
+    "fileType": "typescript",
+    "complexity": "simple",
+    "hasIntersectionTypes": false,
+    "hasTypeAnnotations": true,
+    "folderId": "7l357T6GXp4ke0AWRUUT",
+    "hasAwait": true,
+    "isAsync": true,
+    "parameterCount": 2,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759833940,
+      "nanoseconds": 20000000
+    },
+    "functionName": "getP2ScheduledReminderDate",
+    "hasDestructuring": false,
+    "hasUnionTypes": false,
+    "isActive": false,
+    "exportType": "function",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759833940,
+      "nanoseconds": 20000000
+    },
+    "name": "P2ScheduledReminderDate.ts",
+    "hasGenerics": false,
+    "arguments": [
+      {
+        "isOptional": true,
+        "type": "any",
+        "name": "p2DueDate",
+        "hasDefault": false,
+        "isRest": false
+      },
+      {
+        "hasDefault": false,
+        "type": "any",
+        "isRest": false,
+        "isOptional": true,
+        "name": "p2DatePaid"
+      }
+    ],
+    "returnType": "async",
+    "hasExportDefault": true,
+    "content": "/**\n * Excel equivalent:\n * =IF(AND(ISDATE(BH1003), ISBLANK(BJ1003)),\n *   LET(\n *     d, BH1003,\n *     base, EOMONTH(d,-1) - MOD(WEEKDAY(EOMONTH(d,-1),2)-1,7),\n *     IF(d - base < 7, base - 7, base)\n *   ),\n * \"\")\n *\n * Description:\n * - Returns the scheduled reminder date for P2 payment.\n * - Follows the same rule as P1:\n *   → Last Monday of previous month.\n *   → Moves one week earlier if due date is less than 7 days after that Monday.\n */\nexport default function getP2ScheduledReminderDate(\n  p2DueDate?: string | Date,\n  p2DatePaid?: string | Date\n): string | \"\" {\n  if (!p2DueDate || p2DatePaid) return \"\";\n\n  const d = new Date(p2DueDate);\n  if (isNaN(d.getTime())) return \"\";\n\n  const eomPrevMonth = new Date(d.getFullYear(), d.getMonth(), 0);\n  const weekday = eomPrevMonth.getDay();\n  const daysSinceMonday = (weekday + 6) % 7;\n  const base = new Date(eomPrevMonth);\n  base.setDate(eomPrevMonth.getDate() - daysSinceMonday);\n\n  const diffDays = (d.getTime() - base.getTime()) / (1000 * 60 * 60 * 24);\n  if (diffDays < 7) base.setDate(base.getDate() - 7);\n\n  return base.toISOString().split(\"T\")[0];\n}\n",
+    "functionDependencies": [
+      "isNaN",
+      "getTime",
+      "getFullYear",
+      "getMonth",
+      "getDay",
+      "setDate",
+      "getDate",
+      "split",
+      "toISOString"
+    ],
+    "hasRestParameters": false,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759828155,
+      "nanoseconds": 675000000
+    }
+  },
+  {
+    "id": "Pj9lIcebxd88U945b4hA",
+    "name": "P3Amount.ts",
+    "functionDependencies": [
+      "round",
+      "includes",
+      "min",
+      "Number",
+      "max",
+      "isNaN"
+    ],
+    "content": "export default function getP3Amount(\n  p3DueDate?: string | Date,\n  useDiscountedTourCost?: boolean,\n  discountedTourCost?: number,\n  originalTourCost?: number,\n  reservationFee?: number,\n  creditFrom?: string,\n  creditAmount?: number,\n  paymentPlan?: string,\n  paymentMethod?: string,\n  fullPaymentDatePaid?: string | Date,\n  fullPaymentAmount?: number,\n  p1DatePaid?: string | Date,\n  p1Amount?: number,\n  p2DatePaid?: string | Date,\n  p2Amount?: number,\n  p4DatePaid?: string | Date,\n  p4Amount?: number\n) {\n  // =IF($BO1003<>\"\", ...)\n  if (!p3DueDate) return \"\";\n\n  // total, credit_from, credit_amt\n  const total =\n    (useDiscountedTourCost ? discountedTourCost ?? 0 : originalTourCost ?? 0) -\n    (reservationFee ?? 0);\n  const credit_from = creditFrom ?? \"\";\n  const credit_amt = creditAmount ?? 0;\n\n  // IF(AND($AM1003=\"\", $AN1003=\"\"), ...)\n  if (!paymentPlan && !paymentMethod) {\n    const result =\n      (total -\n        (fullPaymentDatePaid ? fullPaymentAmount ?? 0 : 0) -\n        (p1DatePaid ? p1Amount ?? 0 : 0) -\n        (p2DatePaid ? p2Amount ?? 0 : 0) -\n        (p4DatePaid ? p4Amount ?? 0 : 0)) /\n      3;\n    return Math.round(result * 100) / 100;\n  }\n\n  // LET(terms, SWITCH(...))\n  const termsMap: Record<string, number> = {\n    \"\": 1,\n    P1: 1,\n    P2: 2,\n    P3: 3,\n    P4: 4,\n  };\n  const terms = termsMap[paymentPlan ?? \"\"] ?? 1;\n\n  // cf, pThree, paid1, paid2, paid3\n  const cf = `,${credit_from},`;\n  const pThree = cf.includes(\",P3,\");\n  const paid1 = !!p1DatePaid;\n  const paid2 = !!p2DatePaid;\n  const paid3 = !!p3DueDate; // GSheet $BQ1003<>\"\" check\n\n  // credited, unpaidCount, adjustedDenom\n  const credited = Math.min(terms, Number(pThree) + Number(paid3));\n  const unpaidCount = terms - Number(paid1) - Number(paid2) - Number(paid3);\n  const adjustedDenom = Math.max(1, unpaidCount - credited);\n\n  // k, base\n  const k =\n    credit_from === \"Reservation\"\n      ? 0\n      : credit_from === \"P1\"\n        ? 1\n        : credit_from === \"P2\"\n          ? 2\n          : credit_from === \"P3\"\n            ? 3\n            : credit_from === \"P4\"\n              ? 4\n              : 0;\n  const base = total / terms;\n\n  // amount\n  let amount: number;\n  if (k === 0) {\n    amount = (total - credit_amt) / terms;\n  } else if (k === 3) {\n    amount = credit_amt;\n  } else if (k > 3) {\n    amount = base;\n  } else {\n    amount = (total - base * (k - 1) - credit_amt) / Math.max(1, terms - k);\n  }\n\n  // IF(terms<3,\"\", amount)\n  if (terms < 3) return \"\";\n\n  return Math.round((isNaN(amount) ? 0 : amount) * 100) / 100;\n}\n",
+    "arguments": [
+      {
+        "isOptional": true,
+        "name": "p3DueDate",
+        "hasDefault": false,
+        "isRest": false,
+        "type": "any"
+      },
+      {
+        "name": "useDiscountedTourCost",
+        "type": "boolean",
+        "isRest": false,
+        "hasDefault": false,
+        "isOptional": true
+      },
+      {
+        "name": "discountedTourCost",
+        "isOptional": true,
+        "isRest": false,
+        "hasDefault": false,
+        "type": "number"
+      },
+      {
+        "isRest": false,
+        "hasDefault": false,
+        "name": "originalTourCost",
+        "isOptional": true,
+        "type": "number"
+      },
+      {
+        "name": "reservationFee",
+        "hasDefault": false,
+        "isRest": false,
+        "type": "number",
+        "isOptional": true
+      },
+      {
+        "name": "creditFrom",
+        "isRest": false,
+        "isOptional": true,
+        "type": "string",
+        "hasDefault": false
+      },
+      {
+        "type": "number",
+        "name": "creditAmount",
+        "isOptional": true,
+        "hasDefault": false,
+        "isRest": false
+      },
+      {
+        "name": "paymentPlan",
+        "isRest": false,
+        "type": "string",
+        "hasDefault": false,
+        "isOptional": true
+      },
+      {
+        "name": "paymentMethod",
+        "hasDefault": false,
+        "isRest": false,
+        "type": "string",
+        "isOptional": true
+      },
+      {
+        "isOptional": true,
+        "isRest": false,
+        "name": "fullPaymentDatePaid",
+        "type": "any",
+        "hasDefault": false
+      },
+      {
+        "isOptional": true,
+        "name": "fullPaymentAmount",
+        "type": "number",
+        "isRest": false,
+        "hasDefault": false
+      },
+      {
+        "isOptional": true,
+        "name": "p1DatePaid",
+        "type": "any",
+        "isRest": false,
+        "hasDefault": false
+      },
+      {
+        "isRest": false,
+        "type": "number",
+        "isOptional": true,
+        "hasDefault": false,
+        "name": "p1Amount"
+      },
+      {
+        "isRest": false,
+        "hasDefault": false,
+        "isOptional": true,
+        "type": "any",
+        "name": "p2DatePaid"
+      },
+      {
+        "type": "number",
+        "isRest": false,
+        "name": "p2Amount",
+        "isOptional": true,
+        "hasDefault": false
+      },
+      {
+        "isRest": false,
+        "name": "p4DatePaid",
+        "hasDefault": false,
+        "isOptional": true,
+        "type": "any"
+      },
+      {
+        "hasDefault": false,
+        "isRest": false,
+        "name": "p4Amount",
+        "type": "number",
+        "isOptional": true
+      }
+    ],
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759845121,
+      "nanoseconds": 906000000
+    },
+    "returnType": "async",
+    "complexity": "moderate",
+    "hasExportDefault": true,
+    "hasAwait": true,
+    "hasDestructuring": false,
+    "hasRestParameters": false,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759845121,
+      "nanoseconds": 906000000
+    },
+    "isAsync": true,
+    "hasUnionTypes": false,
+    "hasTypeAnnotations": true,
+    "hasIntersectionTypes": false,
+    "functionName": "getP3Amount",
+    "parameterCount": 17,
+    "fileType": "typescript",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759829441,
+      "nanoseconds": 603000000
+    },
+    "folderId": "Lvg76uaLZpC1KjfDLRb9",
+    "isActive": true,
+    "hasGenerics": false,
+    "exportType": "function"
+  },
+  {
+    "id": "xCRRPbzn9hW70eg1numk",
+    "hasAwait": true,
+    "complexity": "moderate",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759830057,
+      "nanoseconds": 941000000
+    },
+    "hasUnionTypes": false,
+    "hasDestructuring": false,
+    "functionDependencies": [
+      "includes",
+      "tourDateToYyyymmdd",
+      "getFullYear",
+      "getMonth",
+      "from",
+      "filter",
+      "getTime",
+      "toLocaleDateString",
+      "fmt",
+      "join",
+      "map"
+    ],
+    "arguments": [
+      {
+        "isOptional": true,
+        "type": "unknown",
+        "isRest": false,
+        "name": "reservationDate",
+        "hasDefault": false
+      },
+      {
+        "hasDefault": false,
+        "name": "tourDate",
+        "type": "unknown",
+        "isOptional": true,
+        "isRest": false
+      },
+      {
+        "isOptional": true,
+        "type": "string",
+        "isRest": false,
+        "hasDefault": false,
+        "name": "paymentPlan"
+      },
+      {
+        "isOptional": true,
+        "type": "string",
+        "name": "paymentCondition",
+        "hasDefault": false,
+        "isRest": false
+      }
+    ],
+    "name": "P3DueDate.ts",
+    "isAsync": true,
+    "exportType": "function",
+    "hasTypeAnnotations": true,
+    "hasGenerics": false,
+    "parameterCount": 4,
+    "functionName": "getP3DueDate",
+    "returnType": "async",
+    "folderId": "Lvg76uaLZpC1KjfDLRb9",
+    "hasRestParameters": false,
+    "fileType": "typescript",
+    "hasIntersectionTypes": false,
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759837668,
+      "nanoseconds": 312000000
+    },
+    "hasExportDefault": true,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759837668,
+      "nanoseconds": 312000000
+    },
+    "isActive": false,
+    "content": "export function tourDateToYyyymmdd(tourDate: unknown): string {\n  if (tourDate === null || tourDate === undefined) return \"\";\n  if (typeof tourDate === \"string\" && tourDate.trim() === \"\") return \"\";\n  let date: Date | null = null;\n\n  try {\n    if (\n      typeof tourDate === \"object\" &&\n      tourDate !== null &&\n      \"toDate\" in (tourDate as any)\n    ) {\n      date = (tourDate as any).toDate();\n    } else if (\n      typeof tourDate === \"object\" &&\n      tourDate !== null &&\n      \"seconds\" in (tourDate as any)\n    ) {\n      const s = (tourDate as any).seconds;\n      date = new Date(s * 1000);\n    } else if (tourDate instanceof Date) {\n      date = tourDate;\n    } else if (typeof tourDate === \"number\") {\n      date = new Date(tourDate);\n    } else if (typeof tourDate === \"string\") {\n      const raw = tourDate.trim();\n      if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(raw)) {\n        const [dd, mm, yyyy] = raw.split(\"/\").map(Number);\n        date = new Date(yyyy, mm - 1, dd);\n      } else if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) {\n        const [yyyy, mm, dd] = raw.split(\"-\").map(Number);\n        date = new Date(yyyy, mm - 1, dd);\n      } else {\n        const parsed = new Date(raw);\n        date = isNaN(parsed.getTime()) ? null : parsed;\n      }\n    } else return \"ERROR\";\n\n    if (!date || isNaN(date.getTime())) return \"ERROR\";\n    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, \"0\")}-${String(\n      date.getDate(),\n    ).padStart(2, \"0\")}`;\n  } catch {\n    return \"ERROR\";\n  }\n}\n\nexport default function getP3DueDate(\n  reservationDate?: unknown,\n  tourDate?: unknown,\n  paymentPlan?: string,\n  paymentCondition?: string,\n): string | \"\" | \"ERROR\" {\n  if ([\"Full Payment\", \"P1\", \"P2\"].includes(paymentPlan ?? \"\")) return \"\";\n  if (!reservationDate) return \"\";\n\n  const validConditions = [\"Standard Booking, P3\", \"Standard Booking, P4\"];\n  if (!validConditions.includes(paymentCondition ?? \"\")) return \"\";\n\n  const resYmd = tourDateToYyyymmdd(reservationDate);\n  const tourYmd = tourDateToYyyymmdd(tourDate);\n  if (resYmd === \"\" || tourYmd === \"\") return \"\";\n  if (resYmd === \"ERROR\" || tourYmd === \"ERROR\") return \"ERROR\";\n\n  const res = new Date(resYmd);\n  const tour = new Date(tourYmd);\n  const monthCount =\n    (tour.getFullYear() - res.getFullYear()) * 12 +\n    (tour.getMonth() - res.getMonth()) +\n    1;\n\n  const DAY_MS = 86400000;\n  const secondDates = Array.from({ length: monthCount }, (_, i) =>\n    new Date(res.getFullYear(), res.getMonth() + i + 1, 2),\n  );\n  const validDates = secondDates.filter(\n    (d) =>\n      d.getTime() > res.getTime() + 2 * DAY_MS &&\n      d.getTime() <= tour.getTime() - 3 * DAY_MS,\n  );\n\n  if (validDates.length < 3) return \"\";\n  const fmt = (d: Date) =>\n    d.toLocaleDateString(\"en-US\", { month: \"short\", day: \"numeric\", year: \"numeric\" });\n\n  if (paymentPlan === \"P3\" || paymentPlan === \"P4\") return fmt(validDates[2]);\n  return [0, 1, 2].map((i) => fmt(validDates[i])).join(\", \");\n}\n"
+  },
+  {
+    "id": "F3Z2r3Jo0agv75s16mSp",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759834396,
+      "nanoseconds": 536000000
+    },
+    "isActive": false,
+    "functionName": "getP3ScheduledReminderDate",
+    "hasExportDefault": true,
+    "exportType": "function",
+    "hasAwait": true,
+    "arguments": [
+      {
+        "isOptional": true,
+        "hasDefault": false,
+        "type": "any",
+        "name": "p3DueDate",
+        "isRest": false
+      },
+      {
+        "type": "any",
+        "isRest": false,
+        "hasDefault": false,
+        "name": "p3DatePaid",
+        "isOptional": true
+      }
+    ],
+    "hasUnionTypes": false,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759829348,
+      "nanoseconds": 279000000
+    },
+    "fileType": "typescript",
+    "hasTypeAnnotations": true,
+    "folderId": "Lvg76uaLZpC1KjfDLRb9",
+    "hasGenerics": false,
+    "parameterCount": 2,
+    "content": "/**\n * Excel equivalent:\n * =IF(AND(ISDATE(BO1003), ISBLANK(BQ1003)),\n *   LET(\n *     d, BO1003,\n *     base, EOMONTH(d,-1) - MOD(WEEKDAY(EOMONTH(d,-1),2)-1,7),\n *     IF(d - base < 7, base - 7, base)\n *   ),\n * \"\")\n *\n * Description:\n * - Returns the scheduled reminder date for P3 payment.\n * - Triggered only if the P3 due date exists (BO) and P3 date paid (BQ) is blank.\n * - Finds the **last Monday of the previous month** based on the P3 due date.\n * - If the due date is within 7 days after that Monday, reminder moves one week earlier.\n * - Matches Excel date logic exactly.\n */\nexport default function getP3ScheduledReminderDate(\n  p3DueDate?: string | Date,\n  p3DatePaid?: string | Date\n) {\n  if (!p3DueDate || p3DatePaid) return \"\";\n\n  const d = new Date(p3DueDate);\n  if (isNaN(d.getTime())) return \"\";\n\n  // Get last day of the previous month\n  const eomPrevMonth = new Date(d.getFullYear(), d.getMonth(), 0);\n\n  // Get last Monday of previous month\n  const weekday = eomPrevMonth.getDay(); // Sunday=0, Monday=1\n  const daysSinceMonday = (weekday + 6) % 7; // Convert to Monday-based offset\n  const base = new Date(eomPrevMonth);\n  base.setDate(eomPrevMonth.getDate() - daysSinceMonday);\n\n  // If due date is within 7 days after base, move reminder a week earlier\n  const diffDays = (d.getTime() - base.getTime()) / (1000 * 60 * 60 * 24);\n  if (diffDays < 7) base.setDate(base.getDate() - 7);\n\n  return base.toISOString().split(\"T\")[0];\n}\n",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759834396,
+      "nanoseconds": 536000000
+    },
+    "hasIntersectionTypes": false,
+    "name": "P3ScheduledReminderDate.ts",
+    "returnType": "async",
+    "complexity": "simple",
+    "hasRestParameters": false,
+    "hasDestructuring": false,
+    "isAsync": true,
+    "functionDependencies": [
+      "isNaN",
+      "getTime",
+      "getFullYear",
+      "getMonth",
+      "getDay",
+      "setDate",
+      "getDate",
+      "split",
+      "toISOString"
+    ]
+  },
+  {
+    "id": "bcCgxTi10l6fCvvi4h2B",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759845268,
+      "nanoseconds": 58000000
+    },
+    "complexity": "moderate",
+    "returnType": "async",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759845268,
+      "nanoseconds": 58000000
+    },
+    "isActive": true,
+    "isAsync": true,
+    "hasAwait": true,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759829448,
+      "nanoseconds": 843000000
+    },
+    "name": "P4Amount.ts",
+    "arguments": [
+      {
+        "isOptional": true,
+        "isRest": false,
+        "name": "p4DueDate",
+        "type": "any",
+        "hasDefault": false
+      },
+      {
+        "name": "useDiscountedTourCost",
+        "isOptional": true,
+        "isRest": false,
+        "type": "boolean",
+        "hasDefault": false
+      },
+      {
+        "hasDefault": false,
+        "isRest": false,
+        "name": "discountedTourCost",
+        "type": "number",
+        "isOptional": true
+      },
+      {
+        "name": "originalTourCost",
+        "isOptional": true,
+        "hasDefault": false,
+        "isRest": false,
+        "type": "number"
+      },
+      {
+        "hasDefault": false,
+        "isRest": false,
+        "name": "reservationFee",
+        "type": "number",
+        "isOptional": true
+      },
+      {
+        "isRest": false,
+        "name": "creditFrom",
+        "isOptional": true,
+        "hasDefault": false,
+        "type": "string"
+      },
+      {
+        "hasDefault": false,
+        "type": "number",
+        "name": "creditAmount",
+        "isOptional": true,
+        "isRest": false
+      },
+      {
+        "type": "string",
+        "name": "paymentPlan",
+        "isRest": false,
+        "hasDefault": false,
+        "isOptional": true
+      },
+      {
+        "isOptional": true,
+        "hasDefault": false,
+        "name": "paymentMethod",
+        "isRest": false,
+        "type": "string"
+      },
+      {
+        "hasDefault": false,
+        "type": "any",
+        "name": "fullPaymentDatePaid",
+        "isRest": false,
+        "isOptional": true
+      },
+      {
+        "name": "fullPaymentAmount",
+        "isOptional": true,
+        "isRest": false,
+        "type": "number",
+        "hasDefault": false
+      },
+      {
+        "isRest": false,
+        "name": "p1DatePaid",
+        "type": "any",
+        "isOptional": true,
+        "hasDefault": false
+      },
+      {
+        "hasDefault": false,
+        "type": "number",
+        "isRest": false,
+        "isOptional": true,
+        "name": "p1Amount"
+      },
+      {
+        "name": "p2DatePaid",
+        "hasDefault": false,
+        "isOptional": true,
+        "isRest": false,
+        "type": "any"
+      },
+      {
+        "isOptional": true,
+        "hasDefault": false,
+        "type": "number",
+        "name": "p2Amount",
+        "isRest": false
+      },
+      {
+        "hasDefault": false,
+        "isOptional": true,
+        "isRest": false,
+        "name": "p3DatePaid",
+        "type": "any"
+      },
+      {
+        "type": "number",
+        "isOptional": true,
+        "hasDefault": false,
+        "isRest": false,
+        "name": "p3Amount"
+      }
+    ],
+    "hasGenerics": false,
+    "folderId": "pBV49jamuI54Z8IeSXwW",
+    "fileType": "typescript",
+    "hasRestParameters": false,
+    "functionName": "getP4Amount",
+    "hasIntersectionTypes": false,
+    "hasExportDefault": true,
+    "hasDestructuring": false,
+    "exportType": "function",
+    "functionDependencies": [
+      "round",
+      "includes",
+      "min",
+      "Number",
+      "max",
+      "isNaN"
+    ],
+    "hasUnionTypes": false,
+    "content": "export default function getP4Amount(\n  p4DueDate?: string | Date,\n  useDiscountedTourCost?: boolean,\n  discountedTourCost?: number,\n  originalTourCost?: number,\n  reservationFee?: number,\n  creditFrom?: string,\n  creditAmount?: number,\n  paymentPlan?: string,\n  paymentMethod?: string,\n  fullPaymentDatePaid?: string | Date,\n  fullPaymentAmount?: number,\n  p1DatePaid?: string | Date,\n  p1Amount?: number,\n  p2DatePaid?: string | Date,\n  p2Amount?: number,\n  p3DatePaid?: string | Date,\n  p3Amount?: number\n) {\n  // =IF($BV1003<>\"\", ...)\n  if (!p4DueDate) return \"\";\n\n  // total, credit_from, credit_amt\n  const total =\n    (useDiscountedTourCost ? discountedTourCost ?? 0 : originalTourCost ?? 0) -\n    (reservationFee ?? 0);\n  const credit_from = creditFrom ?? \"\";\n  const credit_amt = creditAmount ?? 0;\n\n  // IF(AND($AM1003=\"\", $AN1003=\"\"), ...)\n  if (!paymentPlan && !paymentMethod) {\n    const result =\n      (total -\n        (fullPaymentDatePaid ? fullPaymentAmount ?? 0 : 0) -\n        (p1DatePaid ? p1Amount ?? 0 : 0) -\n        (p2DatePaid ? p2Amount ?? 0 : 0) -\n        (p3DatePaid ? p3Amount ?? 0 : 0)) /\n      4;\n    return Math.round(result * 100) / 100;\n  }\n\n  // LET(terms, SWITCH(...))\n  const termsMap: Record<string, number> = {\n    \"\": 1,\n    P1: 1,\n    P2: 2,\n    P3: 3,\n    P4: 4,\n  };\n  const terms = termsMap[paymentPlan ?? \"\"] ?? 1;\n\n  // cf, pFour, paid1..paid4\n  const cf = `,${credit_from},`;\n  const pFour = cf.includes(\",P4,\");\n  const paid1 = !!p1DatePaid;\n  const paid2 = !!p2DatePaid;\n  const paid3 = !!p3DatePaid;\n  const paid4 = !!p4DueDate; // GSheet $BX1003<>\"\" check\n\n  // credited, unpaidCount, adjustedDenom\n  const credited = Math.min(terms, Number(pFour) + Number(paid4));\n  const unpaidCount =\n    terms - Number(paid1) - Number(paid2) - Number(paid3) - Number(paid4);\n  const adjustedDenom = Math.max(1, unpaidCount - credited);\n\n  // k, base\n  const k =\n    credit_from === \"Reservation\"\n      ? 0\n      : credit_from === \"P1\"\n        ? 1\n        : credit_from === \"P2\"\n          ? 2\n          : credit_from === \"P3\"\n            ? 3\n            : credit_from === \"P4\"\n              ? 4\n              : 0;\n  const base = total / terms;\n\n  // amount\n  let amount: number;\n  if (k === 0) {\n    amount = (total - credit_amt) / terms;\n  } else if (k === 4) {\n    amount = credit_amt;\n  } else if (k > 4) {\n    amount = base;\n  } else {\n    amount = (total - base * (k - 1) - credit_amt) / Math.max(1, terms - k);\n  }\n\n  // IF(terms<4,\"\", amount)\n  if (terms < 4) return \"\";\n\n  return Math.round((isNaN(amount) ? 0 : amount) * 100) / 100;\n}\n",
+    "hasTypeAnnotations": true,
+    "parameterCount": 17
+  },
+  {
+    "id": "EaxraC99GlOp6RnKPXZJ",
+    "arguments": [
+      {
+        "isOptional": true,
+        "isRest": false,
+        "name": "reservationDate",
+        "type": "unknown",
+        "hasDefault": false
+      },
+      {
+        "hasDefault": false,
+        "name": "tourDate",
+        "isRest": false,
+        "type": "unknown",
+        "isOptional": true
+      },
+      {
+        "isOptional": true,
+        "type": "string",
+        "isRest": false,
+        "hasDefault": false,
+        "name": "paymentPlan"
+      },
+      {
+        "type": "string",
+        "isOptional": true,
+        "name": "paymentCondition",
+        "hasDefault": false,
+        "isRest": false
+      }
+    ],
+    "functionDependencies": [
+      "includes",
+      "tourDateToYyyymmdd",
+      "getFullYear",
+      "getMonth",
+      "from",
+      "filter",
+      "getTime",
+      "toLocaleDateString",
+      "fmt",
+      "join",
+      "map"
+    ],
+    "functionName": "getP4DueDate",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759837686,
+      "nanoseconds": 299000000
+    },
+    "hasTypeAnnotations": true,
+    "content": "export function tourDateToYyyymmdd(tourDate: unknown): string {\n  if (tourDate === null || tourDate === undefined) return \"\";\n  if (typeof tourDate === \"string\" && tourDate.trim() === \"\") return \"\";\n\n  let date: Date | null = null;\n  try {\n    if (\n      typeof tourDate === \"object\" &&\n      tourDate !== null &&\n      \"toDate\" in (tourDate as any)\n    ) {\n      date = (tourDate as any).toDate();\n    } else if (\n      typeof tourDate === \"object\" &&\n      tourDate !== null &&\n      \"seconds\" in (tourDate as any)\n    ) {\n      const s = (tourDate as any).seconds;\n      date = new Date(s * 1000);\n    } else if (tourDate instanceof Date) {\n      date = tourDate;\n    } else if (typeof tourDate === \"number\") {\n      date = new Date(tourDate);\n    } else if (typeof tourDate === \"string\") {\n      const raw = tourDate.trim();\n      if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(raw)) {\n        const [dd, mm, yyyy] = raw.split(\"/\").map(Number);\n        date = new Date(yyyy, mm - 1, dd);\n      } else if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) {\n        const [yyyy, mm, dd] = raw.split(\"-\").map(Number);\n        date = new Date(yyyy, mm - 1, dd);\n      } else {\n        const parsed = new Date(raw);\n        date = isNaN(parsed.getTime()) ? null : parsed;\n      }\n    } else return \"ERROR\";\n\n    if (!date || isNaN(date.getTime())) return \"ERROR\";\n    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, \"0\")}-${String(\n      date.getDate(),\n    ).padStart(2, \"0\")}`;\n  } catch {\n    return \"ERROR\";\n  }\n}\n\nexport default function getP4DueDate(\n  reservationDate?: unknown,\n  tourDate?: unknown,\n  paymentPlan?: string,\n  paymentCondition?: string,\n): string | \"\" | \"ERROR\" {\n  if ([\"Full Payment\", \"P1\", \"P2\", \"P3\"].includes(paymentPlan ?? \"\")) return \"\";\n  if (paymentCondition !== \"Standard Booking, P4\") return \"\";\n  if (!reservationDate) return \"\";\n\n  const resYmd = tourDateToYyyymmdd(reservationDate);\n  const tourYmd = tourDateToYyyymmdd(tourDate);\n  if (resYmd === \"\" || tourYmd === \"\") return \"\";\n  if (resYmd === \"ERROR\" || tourYmd === \"ERROR\") return \"ERROR\";\n\n  const res = new Date(resYmd);\n  const tour = new Date(tourYmd);\n  const monthCount =\n    (tour.getFullYear() - res.getFullYear()) * 12 +\n    (tour.getMonth() - res.getMonth()) +\n    1;\n\n  const DAY_MS = 86400000;\n  const secondDates = Array.from({ length: monthCount }, (_, i) =>\n    new Date(res.getFullYear(), res.getMonth() + i + 1, 2),\n  );\n  const validDates = secondDates.filter(\n    (d) =>\n      d.getTime() > res.getTime() + 2 * DAY_MS &&\n      d.getTime() <= tour.getTime() - 3 * DAY_MS,\n  );\n\n  if (validDates.length < 4) return \"\";\n  const fmt = (d: Date) =>\n    d.toLocaleDateString(\"en-US\", { month: \"short\", day: \"numeric\", year: \"numeric\" });\n\n  if (paymentPlan === \"P4\") return fmt(validDates[3]);\n  return [0, 1, 2, 3].map((i) => fmt(validDates[i])).join(\", \");\n}\n",
+    "fileType": "typescript",
+    "exportType": "function",
+    "hasDestructuring": false,
+    "complexity": "moderate",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759837686,
+      "nanoseconds": 299000000
+    },
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759830129,
+      "nanoseconds": 943000000
+    },
+    "hasRestParameters": false,
+    "hasExportDefault": true,
+    "hasUnionTypes": false,
+    "returnType": "async",
+    "parameterCount": 4,
+    "hasIntersectionTypes": false,
+    "folderId": "pBV49jamuI54Z8IeSXwW",
+    "hasGenerics": false,
+    "isActive": false,
+    "hasAwait": true,
+    "name": "P4DueDate.ts",
+    "isAsync": true
+  },
+  {
+    "id": "FiQVvKcSWuYVsf7SWDHE",
+    "hasTypeAnnotations": true,
+    "hasIntersectionTypes": false,
+    "parameterCount": 2,
+    "arguments": [
+      {
+        "isRest": false,
+        "type": "any",
+        "hasDefault": false,
+        "name": "p4DueDate",
+        "isOptional": true
+      },
+      {
+        "hasDefault": false,
+        "isOptional": true,
+        "name": "p4DatePaid",
+        "isRest": false,
+        "type": "any"
+      }
+    ],
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759834454,
+      "nanoseconds": 333000000
+    },
+    "fileType": "typescript",
+    "hasUnionTypes": false,
+    "functionName": "getP4ScheduledReminderDate",
+    "isActive": false,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759829392,
+      "nanoseconds": 90000000
+    },
+    "hasExportDefault": true,
+    "name": "P4ScheduledReminderDate.ts",
+    "folderId": "pBV49jamuI54Z8IeSXwW",
+    "content": "/**\n * Excel equivalent:\n * =IF(AND(ISDATE(BV1003), ISBLANK(BX1003)),\n *   LET(\n *     d, BV1003,\n *     base, EOMONTH(d,-1) - MOD(WEEKDAY(EOMONTH(d,-1),2)-1,7),\n *     IF(d - base < 7, base - 7, base)\n *   ),\n * \"\")\n *\n * Description:\n * - Returns the scheduled reminder date for P4 payment.\n * - Triggered only if P4 due date (BV) exists and P4 date paid (BX) is blank.\n * - Reminder logic:\n *   → Find the last Monday of the previous month based on the P4 due date.\n *   → If due date is within 7 days after that Monday, reminder moves one week earlier.\n * - Fully consistent with Excel calculation.\n */\nexport default function getP4ScheduledReminderDate(\n  p4DueDate?: string | Date,\n  p4DatePaid?: string | Date\n) {\n  if (!p4DueDate || p4DatePaid) return \"\";\n\n  const d = new Date(p4DueDate);\n  if (isNaN(d.getTime())) return \"\";\n\n  // Get last day of the previous month\n  const eomPrevMonth = new Date(d.getFullYear(), d.getMonth(), 0);\n\n  // Get last Monday of previous month\n  const weekday = eomPrevMonth.getDay(); // Sunday=0, Monday=1\n  const daysSinceMonday = (weekday + 6) % 7; // Convert to Monday-based offset\n  const base = new Date(eomPrevMonth);\n  base.setDate(eomPrevMonth.getDate() - daysSinceMonday);\n\n  // If due date is within 7 days after base, move reminder a week earlier\n  const diffDays = (d.getTime() - base.getTime()) / (1000 * 60 * 60 * 24);\n  if (diffDays < 7) base.setDate(base.getDate() - 7);\n\n  return base.toISOString().split(\"T\")[0];\n}\n",
+    "exportType": "function",
+    "hasAwait": true,
+    "returnType": "async",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759834454,
+      "nanoseconds": 333000000
+    },
+    "hasGenerics": false,
+    "hasDestructuring": false,
+    "functionDependencies": [
+      "isNaN",
+      "getTime",
+      "getFullYear",
+      "getMonth",
+      "getDay",
+      "setDate",
+      "getDate",
+      "split",
+      "toISOString"
+    ],
+    "hasRestParameters": false,
+    "complexity": "simple",
+    "isAsync": true
+  },
+  {
+    "id": "BFRbRzfZ6LvBF39CCWXt",
+    "arguments": [
+      {
+        "hasDefault": false,
+        "isOptional": false,
+        "isRest": false,
+        "type": "string",
+        "name": "tourPackageName"
+      },
+      {
+        "type": "number",
+        "hasDefault": false,
+        "name": "reservationFee",
+        "isRest": false,
+        "isOptional": true
+      },
+      {
+        "hasDefault": false,
+        "name": "creditFrom",
+        "isRest": false,
+        "isOptional": true,
+        "type": "string"
+      },
+      {
+        "isOptional": true,
+        "hasDefault": false,
+        "name": "creditAmount",
+        "type": "number",
+        "isRest": false
+      },
+      {
+        "type": "string",
+        "hasDefault": false,
+        "isRest": false,
+        "isOptional": true,
+        "name": "fullPaymentDate"
+      },
+      {
+        "hasDefault": false,
+        "isRest": false,
+        "type": "number",
+        "name": "fullPaymentAmount",
+        "isOptional": true
+      },
+      {
+        "name": "p1DatePaid",
+        "isOptional": true,
+        "hasDefault": false,
+        "isRest": false,
+        "type": "string"
+      },
+      {
+        "isOptional": true,
+        "name": "p1Amount",
+        "hasDefault": false,
+        "type": "number",
+        "isRest": false
+      },
+      {
+        "hasDefault": false,
+        "type": "string",
+        "isRest": false,
+        "name": "p2DatePaid",
+        "isOptional": true
+      },
+      {
+        "name": "p2Amount",
+        "isOptional": true,
+        "isRest": false,
+        "hasDefault": false,
+        "type": "number"
+      },
+      {
+        "type": "string",
+        "name": "p3DatePaid",
+        "hasDefault": false,
+        "isOptional": true,
+        "isRest": false
+      },
+      {
+        "hasDefault": false,
+        "isRest": false,
+        "name": "p3Amount",
+        "type": "number",
+        "isOptional": true
+      },
+      {
+        "name": "p4DatePaid",
+        "isRest": false,
+        "isOptional": true,
+        "type": "string",
+        "hasDefault": false
+      },
+      {
+        "hasDefault": false,
+        "type": "number",
+        "isOptional": true,
+        "isRest": false,
+        "name": "p4Amount"
+      }
+    ],
+    "hasExportDefault": true,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759753362,
+      "nanoseconds": 270000000
+    },
+    "exportType": "function",
+    "isActive": false,
+    "hasIntersectionTypes": false,
+    "functionName": "getTotalPaidAmount",
+    "hasDestructuring": false,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759831778,
+      "nanoseconds": 315000000
+    },
+    "name": "paid.ts",
+    "hasRestParameters": false,
+    "fileType": "javascript",
+    "hasGenerics": false,
+    "content": "/**\n * Excel equivalent:\n * =IF(\n *   ISBLANK(M1003),\n *   \"\",\n *   LET(\n *     resfee,        N(AH1003),\n *     credit_from,   IFNA(AL1003,\"\"),\n *     credit_amt,    N(AK1003),\n *\n *     full_paid, IF(AV1003<>\"\", AU1003, 0),\n *     p1_paid,   IF(BC1003<>\"\", IF(credit_from=\"P1\", credit_amt, BB1003), 0),\n *     p2_paid,   IF(BJ1003<>\"\", IF(credit_from=\"P2\", credit_amt, BI1003), 0),\n *     p3_paid,   IF(BQ1003<>\"\", IF(credit_from=\"P3\", credit_amt, BP1003), 0),\n *     p4_paid,   IF(BX1003<>\"\", IF(credit_from=\"P4\", credit_amt, BW1003), 0),\n *\n *     res_paid, resfee + IF(credit_from=\"Reservation\", credit_amt, 0),\n *\n *     res_paid + full_paid + p1_paid + p2_paid + p3_paid + p4_paid\n *   )\n * )\n *\n * Description:\n * - Computes the **total paid amount** for a given tour package.\n * - Handles reservation fee, full payment, 4 partial payments, and manual credits.\n * - Returns `\"\"` if tourPackageName is empty.\n */\n\n// fullName.ts\n// Created on 9/15/2025\n// TypeScript file with export default function\n\nexport default function getTotalPaidAmount(\n  tourPackageName: string,\n  reservationFee?: number,\n  creditFrom?: string,\n  creditAmount?: number,\n  fullPaymentDate?: string,\n  fullPaymentAmount?: number,\n  p1DatePaid?: string,\n  p1Amount?: number,\n  p2DatePaid?: string,\n  p2Amount?: number,\n  p3DatePaid?: string,\n  p3Amount?: number,\n  p4DatePaid?: string,\n  p4Amount?: number,\n) {\n  if (!tourPackageName) return \"\";\n\n  // Reservation fee + possible credit\n  const resPaid =\n    reservationFee + (creditFrom === \"Reservation\" ? creditAmount : 0);\n\n  // Full payment\n  const fullPaid = fullPaymentDate ? fullPaymentAmount : 0;\n\n  // Partial payments with credit logic\n  const p1_paid = p1DatePaid\n    ? creditFrom === \"P1\"\n      ? creditAmount\n      : p1Amount\n    : 0;\n\n  const p2_paid = p2DatePaid\n    ? creditFrom === \"P2\"\n      ? creditAmount\n      : p2Amount\n    : 0;\n\n  const p3_paid = p3DatePaid\n    ? creditFrom === \"P3\"\n      ? creditAmount\n      : p3Amount\n    : 0;\n\n  const p4_paid = p4DatePaid\n    ? creditFrom === \"P4\"\n      ? creditAmount\n      : p4Amount\n    : 0;\n\n  // Total paid calculation\n  const totalPaid = resPaid + fullPaid + p1_paid + p2_paid + p3_paid + p4_paid;\n\n  return totalPaid;\n}\n",
+    "functionDependencies": [],
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759831778,
+      "nanoseconds": 315000000
+    },
+    "parameterCount": 14,
+    "folderId": "aEaKLIgMWx2s1vxi9G1C",
+    "hasTypeAnnotations": true,
+    "complexity": "moderate",
+    "hasUnionTypes": false
+  },
+  {
+    "id": "eEPeF3AAICoe7tDKcdwr",
+    "hasUnionTypes": false,
+    "complexity": "moderate",
+    "hasTypeAnnotations": true,
+    "arguments": [
+      {
+        "type": "unknown",
+        "hasDefault": false,
+        "isRest": false,
+        "isOptional": false,
+        "name": "tourDate"
+      },
+      {
+        "name": "eligibleSecondCount",
+        "isRest": false,
+        "type": "number",
+        "hasDefault": false,
+        "isOptional": false
+      },
+      {
+        "hasDefault": false,
+        "type": "number",
+        "name": "daysBetweenReservationAndTour",
+        "isOptional": false,
+        "isRest": false
+      }
+    ],
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759823217,
+      "nanoseconds": 880000000
+    },
+    "isActive": true,
+    "hasRestParameters": false,
+    "hasIntersectionTypes": false,
+    "hasExportDefault": true,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757998852,
+      "nanoseconds": 375000000
+    },
+    "content": "/**\n * Excel equivalent:\n * =IF(ISBLANK(N),\"\",\n *   IFS(\n *     AND(R=0, S<2), \"Invalid Booking\",\n *     AND(R=0, S>=2), \"Last Minute Booking\",\n *     R=1, \"Standard Booking, P1\",\n *     R=2, \"Standard Booking, P2\",\n *     R=3, \"Standard Booking, P3\",\n *     R>=4, \"Standard Booking, P4\"\n *   )\n * )\n *\n * @param tourDate                  The tour date (N column)\n * @param eligibleSecondCount       The number of eligible \"2nd of month\" dates (R column)\n * @param daysBetweenReservationAndTour  Days between reservation date and tour date (S column)\n * @returns \"\" | the payment condition string\n */\nexport default function paymentCondition(\n  tourDate: unknown,\n  eligibleSecondCount: number,\n  daysBetweenReservationAndTour: number\n): string {\n  const isBlankLike = (v: unknown) =>\n    v === null || v === undefined || (typeof v === \"string\" && v.trim() === \"\");\n\n  if (isBlankLike(tourDate)) return \"\";\n\n  if (\n    typeof eligibleSecondCount !== \"number\" ||\n    typeof daysBetweenReservationAndTour !== \"number\" ||\n    !isFinite(eligibleSecondCount) ||\n    !isFinite(daysBetweenReservationAndTour)\n  ) {\n    return \"\"; // fallback if inputs invalid\n  }\n\n  if (eligibleSecondCount === 0 && daysBetweenReservationAndTour < 2) {\n    return \"Invalid Booking\";\n  }\n  if (eligibleSecondCount === 0 && daysBetweenReservationAndTour >= 2) {\n    return \"Last Minute Booking\";\n  }\n  if (eligibleSecondCount === 1) return \"Standard Booking, P1\";\n  if (eligibleSecondCount === 2) return \"Standard Booking, P2\";\n  if (eligibleSecondCount === 3) return \"Standard Booking, P3\";\n  if (eligibleSecondCount >= 4) return \"Standard Booking, P4\";\n\n  return \"\";\n}\n",
+    "name": "paymentCondition.ts",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759823217,
+      "nanoseconds": 880000000
+    },
+    "fileType": "javascript",
+    "hasGenerics": false,
+    "functionName": "paymentCondition",
+    "parameterCount": 3,
+    "folderId": "0qrjdfETld9N1AVKNh9P",
+    "exportType": "function",
+    "hasDestructuring": false
+  },
+  {
+    "id": "idWVnjNTe8ZOzdf60NSt",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826391,
+      "nanoseconds": 627000000
+    },
+    "arguments": [
+      {
+        "type": "{ bookingStatus: string, paymentPlan: string, fullPaymentDate: string, p1DatePaid: string, p2DatePaid: string, p3DatePaid: string, p4DatePaid: string }",
+        "name": "destructured"
+      }
+    ],
+    "returnType": "async",
+    "hasDestructuring": true,
+    "functionName": "getPaymentProgress",
+    "hasRestParameters": false,
+    "parameterCount": 1,
+    "name": "paymentProgress.ts",
+    "functionDependencies": [
+      "toUpperCase",
+      "includes",
+      "round"
+    ],
+    "folderId": "aEaKLIgMWx2s1vxi9G1C",
+    "isActive": false,
+    "hasUnionTypes": false,
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826391,
+      "nanoseconds": 627000000
+    },
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826377,
+      "nanoseconds": 984000000
+    },
+    "fileType": "typescript",
+    "hasAwait": true,
+    "hasTypeAnnotations": true,
+    "hasIntersectionTypes": false,
+    "hasGenerics": false,
+    "isAsync": true,
+    "hasExportDefault": true,
+    "content": "/**\n * Excel equivalent:\n * =IF(AQ1003=\"\",\"\",IF(AQ1003=\"Cancelled\", \"\",\n *   IF(ISNUMBER(SEARCH(\"Full Payment\", AM1003)),\n *     IF(AV1003<>\"\", \"100%\", \"0%\"),\n *     IF(ISNUMBER(SEARCH(\"P1\", AM1003)),\n *       IF(BC1003<>\"\", \"100%\", \"0%\"),\n *       IF(ISNUMBER(SEARCH(\"P2\", AM1003)),\n *         ...  // and so on\n *       )\n *     )\n *   )\n * ))\n *\n * Description:\n * - Computes the **payment progress percentage** for a booking.\n * - Based on payment plan and which payments have been made.\n * - Handles \"Cancelled\" bookings and empty tourPackageName gracefully.\n *\n * Returns:\n * - \"0%\", \"50%\", \"75%\", \"100%\", etc.\n */\n\nexport default function getPaymentProgress({\n  bookingStatus,\n  paymentPlan,\n  fullPaymentDate,\n  p1DatePaid,\n  p2DatePaid,\n  p3DatePaid,\n  p4DatePaid,\n}: {\n  bookingStatus?: string; // AQ\n  paymentPlan?: string;   // AM\n  fullPaymentDate?: string; // AV\n  p1DatePaid?: string;    // BC\n  p2DatePaid?: string;    // BJ\n  p3DatePaid?: string;    // BQ\n  p4DatePaid?: string;    // BX\n}): string {\n  // --- Handle empty or cancelled bookings ---\n  if (!bookingStatus || bookingStatus === \"Cancelled\") return \"\";\n\n  const plan = paymentPlan?.toUpperCase() ?? \"\";\n\n  // --- Full Payment Plan ---\n  if (plan.includes(\"FULL\")) {\n    return fullPaymentDate ? \"100%\" : \"0%\";\n  }\n\n  // --- P1 Plan ---\n  if (plan.includes(\"P1\")) {\n    return p1DatePaid ? \"100%\" : \"0%\";\n  }\n\n  // --- P2 Plan ---\n  if (plan.includes(\"P2\")) {\n    const paidCount = (p1DatePaid ? 1 : 0) + (p2DatePaid ? 1 : 0);\n    const percent = Math.round((paidCount / 2) * 100);\n    return `${percent}%`;\n  }\n\n  // --- P3 Plan ---\n  if (plan.includes(\"P3\")) {\n    const paidCount =\n      (p1DatePaid ? 1 : 0) +\n      (p2DatePaid ? 1 : 0) +\n      (p3DatePaid ? 1 : 0);\n    const percent = Math.round((paidCount / 3) * 100);\n    return `${percent}%`;\n  }\n\n  // --- P4 Plan ---\n  if (plan.includes(\"P4\")) {\n    const paidCount =\n      (p1DatePaid ? 1 : 0) +\n      (p2DatePaid ? 1 : 0) +\n      (p3DatePaid ? 1 : 0) +\n      (p4DatePaid ? 1 : 0);\n    const percent = Math.round((paidCount / 4) * 100);\n    return `${percent}%`;\n  }\n\n  // --- Default fallback ---\n  return \"0%\";\n}\n",
+    "exportType": "function",
+    "complexity": "moderate"
+  },
+  {
+    "id": "RWgqWzjUm9haopehL5Bt",
+    "hasUnionTypes": false,
+    "complexity": "simple",
+    "name": "returnDate.ts",
+    "exportType": "function",
+    "folderId": "0qrjdfETld9N1AVKNh9P",
+    "hasRestParameters": false,
+    "isActive": false,
+    "content": "/**\n * Excel equivalent:\n * =IF(N=\"\",\"\",IFERROR(N + VALUE(REGEXEXTRACT(P, \"(\\d+)\\\\s+Days\")), \"\"))\n *\n * - N = tourDate (robust parsing like tourDateToYyyymmdd)\n * - P = durationDays (number of days from tourDurationByName)\n * - Returns: \"yyyy-mm-dd\" (end date) or \"\" if blank/error\n */\nexport default function tourEndDateFromStartAndDuration(\n  tourDate: unknown,\n  durationDays: number\n): string {\n  // --- helpers ---\n  const toDate = (input: unknown): Date | null => {\n    if (input === null || input === undefined) return null;\n    if (typeof input === \"string\" && input.trim() === \"\") return null;\n\n    try {\n      if (\n        typeof input === \"object\" &&\n        input !== null &&\n        \"toDate\" in (input as any) &&\n        typeof (input as any).toDate === \"function\"\n      ) {\n        return (input as any).toDate();\n      }\n      if (\n        typeof input === \"object\" &&\n        input !== null &&\n        \"seconds\" in (input as any) &&\n        typeof (input as any).seconds === \"number\"\n      ) {\n        const s = (input as any).seconds as number;\n        const ns =\n          typeof (input as any).nanoseconds === \"number\"\n            ? (input as any).nanoseconds\n            : 0;\n        return new Date(s * 1000 + Math.floor(ns / 1e6));\n      }\n      if (input instanceof Date) return input;\n      if (typeof input === \"number\") return new Date(input);\n      if (typeof input === \"string\") {\n        const raw = input.trim();\n        if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(raw)) {\n          const [dd, mm, yyyy] = raw.split(\"/\").map(Number);\n          return new Date(yyyy, mm - 1, dd);\n        }\n        if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) {\n          const [yyyy, mm, dd] = raw.split(\"-\").map(Number);\n          return new Date(yyyy, mm - 1, dd);\n        }\n        return new Date(raw); // ISO or natural string\n      }\n      return null;\n    } catch {\n      return null;\n    }\n  };\n\n  const toStartOfDay = (d: Date): Date =>\n    new Date(d.getFullYear(), d.getMonth(), d.getDate());\n\n  const addDays = (base: Date, days: number): Date => {\n    const out = new Date(base);\n    out.setDate(out.getDate() + days);\n    return out;\n  };\n\n  const formatYYYYMMDD = (d: Date): string => {\n    const y = d.getFullYear();\n    const m = String(d.getMonth() + 1).padStart(2, \"0\");\n    const day = String(d.getDate()).padStart(2, \"0\");\n    return `${y}-${m}-${day}`;\n  };\n\n  // --- logic ---\n  const start = toDate(tourDate);\n  if (!start || isNaN(start.getTime())) return \"\";\n  if (typeof durationDays !== \"number\" || !Number.isFinite(durationDays)) return \"\";\n\n  const end = addDays(toStartOfDay(start), durationDays);\n  return formatYYYYMMDD(end);\n}\n",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757997415,
+      "nanoseconds": 53000000
+    },
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822874,
+      "nanoseconds": 725000000
+    },
+    "hasExportDefault": true,
+    "hasIntersectionTypes": false,
+    "functionName": "tourEndDateFromStartAndDuration",
+    "parameterCount": 2,
+    "hasDestructuring": false,
+    "hasGenerics": false,
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822874,
+      "nanoseconds": 725000000
+    },
+    "hasTypeAnnotations": true,
+    "fileType": "typescript",
+    "arguments": [
+      {
+        "name": "tourDate",
+        "hasDefault": false,
+        "isOptional": false,
+        "type": "unknown",
+        "isRest": false
+      },
+      {
+        "isRest": false,
+        "name": "durationDays",
+        "hasDefault": false,
+        "type": "number",
+        "isOptional": false
+      }
+    ]
+  },
+  {
+    "id": "ZHx2xy9eB9YYbVTBaMse",
+    "hasUnionTypes": false,
+    "functionDependencies": [
+      "trim",
+      "getDocumentData",
+      "updateDocument",
+      "httpsCallable",
+      "callSend",
+      "String",
+      "error"
+    ],
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822528,
+      "nanoseconds": 979000000
+    },
+    "hasIntersectionTypes": false,
+    "folderId": "un7owkF5Jwam6i1nEIq5",
+    "isActive": false,
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822528,
+      "nanoseconds": 979000000
+    },
+    "arguments": [
+      {
+        "name": "draftLinkId",
+        "isRest": false,
+        "isOptional": false,
+        "type": "string",
+        "hasDefault": false
+      },
+      {
+        "name": "sendEmail",
+        "type": "boolean",
+        "hasDefault": false,
+        "isRest": false,
+        "isOptional": false
+      }
+    ],
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759097617,
+      "nanoseconds": 344000000
+    },
+    "fileType": "typescript",
+    "functionName": "sendEmailDraftOnce",
+    "name": "sendReservationEmail.ts",
+    "complexity": "simple",
+    "parameterCount": 2,
+    "hasExportDefault": true,
+    "hasDestructuring": false,
+    "hasGenerics": false,
+    "content": "/**\n * Safely send an email draft once (without runTransaction).\n *\n * @param draftLinkId Firestore doc ID in \"emailDrafts\"\n * @param sendEmail   Boolean flag, if false -> return \"\"\n * @returns \"\" if skipped, messageId if sent/already sent, \"ERROR\" if failure\n */\nexport default async function sendEmailDraftOnce(\n  draftLinkId: string,\n  sendEmail: boolean\n): Promise<string> {\n  if (!sendEmail) return \"\";\n  if (!draftLinkId || draftLinkId.trim() === \"\") return \"ERROR\";\n\n  try {\n    // 1) Load draft\n    const draft = await firebaseUtils.getDocumentData(\"emailDrafts\", draftLinkId);\n    if (!draft) return \"ERROR\";\n\n    // If already sent, short-circuit\n    if (draft.status === \"sent\") {\n      return typeof draft.messageId === \"string\" ? draft.messageId : \"\";\n    }\n\n    // If currently sending by another process, bail out\n    if (draft.status === \"sending\") {\n      return \"\";\n    }\n\n    // 2) Mark as \"sending\" (soft lock)\n    await firebaseUtils.updateDocument(\"emailDrafts\", draftLinkId, {\n      status: \"sending\",\n      updatedAt: new Date(),\n    });\n\n    // 3) Call Cloud Function to actually send\n    const callSend = httpsCallable(functions, \"sendReservationEmail\");\n    const result: any = await callSend({ draftId: draftLinkId });\n\n    if (result?.data?.success && typeof result.data.messageId === \"string\") {\n      return ${result.data.messageId};\n    }\n\n    // Unexpected result → mark failed\n    await firebaseUtils.updateDocument(\"emailDrafts\", draftLinkId, {\n      status: \"failed\",\n      updatedAt: new Date(),\n      errorMessage: \"Unexpected Cloud Function response\",\n    });\n\n    return \"ERROR\";\n  } catch (err) {\n    // On error, mark failed (best-effort)\n    try {\n      await firebaseUtils.updateDocument(\"emailDrafts\", draftLinkId, {\n        status: \"failed\",\n        updatedAt: new Date(),\n        errorMessage: err instanceof Error ? err.message : String(err),\n      });\n    } catch (_) {\n      // ignore fallback error\n    }\n    console.error(\"sendEmailDraftOnce error:\", err);\n    return \"ERROR\";\n  }\n}\n",
+    "hasTypeAnnotations": true,
+    "exportType": "function",
+    "hasRestParameters": false
+  },
+  {
+    "id": "rQZP8SAjOtm5DckFQdiP",
+    "complexity": "simple",
+    "parameterCount": 0,
+    "functionName": "testts",
+    "returnType": "async",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820613,
+      "nanoseconds": 5000000
+    },
+    "functionDependencies": [
+      "getCurrentUser",
+      "getCollectionData",
+      "addDocument",
+      "where",
+      "orderBy",
+      "getData"
+    ],
+    "hasTypeAnnotations": true,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820613,
+      "nanoseconds": 5000000
+    },
+    "hasRestParameters": false,
+    "hasAwait": true,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820613,
+      "nanoseconds": 5000000
+    },
+    "name": "test.ts",
+    "isActive": false,
+    "fileType": "javascript",
+    "content": "// test.ts\n// Created on 10/7/2025\n// TypeScript file with Firebase SDK access (pre-authenticated)\n\n// Firebase utilities - injected at runtime (hidden from user)\n// These variables are provided by the runtime environment\n// Users can use them without seeing the implementation details\n\n// Firebase utilities and services are automatically available\n// No need to import or define them - they're injected by the runtime\n\nexport default async function testts(\n  // Add your parameters here\n  // Example: data: any, options?: { [key: string]: any }\n) {\n  // Your implementation here\n  // Note: Functions are pre-authenticated with admin credentials\n  // Firebase utilities are automatically available (no imports needed)\n  \n  // Get current user (will be admin@imheretravels.com)\n  const user = firebaseUtils.getCurrentUser();\n  \n  // Example: Get data from Firestore\n  const getData = async () => {\n    const data = await firebaseUtils.getCollectionData('bookings');\n    return data;\n  };\n  \n  // Example: Add data to Firestore\n  const addData = async (newData: any) => {\n    const docId = await firebaseUtils.addDocument('bookings', newData);\n    return docId;\n  };\n  \n  // Example: Query with constraints\n  const getFilteredData = async () => {\n    const data = await firebaseUtils.getCollectionData('bookings', [\n      where('status', '==', 'confirmed'),\n      orderBy('createdAt', 'desc')\n    ]);\n    return data;\n  };\n  \n  // Execute the function and return the result\n  return await getData();\n}",
+    "arguments": [],
+    "folderId": "AvMcE3NbzR1dhTg27YyM",
+    "hasGenerics": false,
+    "hasExportDefault": true,
+    "hasDestructuring": false,
+    "isAsync": true,
+    "exportType": "function",
+    "hasUnionTypes": false,
+    "hasIntersectionTypes": false
+  },
+  {
+    "id": "LhdyWTqRZlHdfDYcN3Ar",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757866799,
+      "nanoseconds": 749000000
+    },
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820101,
+      "nanoseconds": 529000000
+    },
+    "hasIntersectionTypes": false,
+    "hasUnionTypes": false,
+    "hasGenerics": false,
+    "hasDestructuring": false,
+    "isActive": false,
+    "complexity": "simple",
+    "exportType": "function",
+    "fileType": "typescript",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820101,
+      "nanoseconds": 529000000
+    },
+    "arguments": [
+      {
+        "isRest": false,
+        "isOptional": false,
+        "hasDefault": false,
+        "name": "tourPackageName",
+        "type": "string"
+      }
+    ],
+    "functionName": "lookupTourCode",
+    "functionDependencies": [
+      "trim",
+      "getCollectionData",
+      "warn",
+      "toLowerCase",
+      "find",
+      "error"
+    ],
+    "hasExportDefault": true,
+    "content": "// lookup-tour-code.ts\n// Created on 9/27/2025\n// TypeScript file with Firebase SDK access (pre-authenticated)\n\n// Firebase utilities - injected at runtime (hidden from user)\n// These variables are provided by the runtime environment\n// Users can use them without seeing the implementation details\n\n// Firebase utilities and services are automatically available\n// No need to import or define them - they're injected by the runtime\n\n/**\n * Lookup Tour Code by Tour Package Name\n * Fetches tour packages from Firebase and performs lookup\n *\n * Excel equivalent:\n * =IF(M=\"\",\"\",IFERROR(<lookup>, \"XXX\"))\n */\nexport default async function lookupTourCode(\n  tourPackageName: string | null | undefined\n): Promise<string> {\n  // If blank -> \"\"\n  if (!tourPackageName || tourPackageName.trim() === \"\") return \"\";\n\n  try {\n    // Fetch tour packages from Firebase\n    const tourPackages = await firebaseUtils.getCollectionData('tourPackages');\n\n    if (!tourPackages || tourPackages.length === 0) {\n      console.warn(\"No tour packages found in Firebase\");\n      return \"XXX\";\n    }\n\n    const target = tourPackageName.trim().toLowerCase();\n\n    const found = tourPackages.find(\n      (p: any) => p.name && p.name.trim().toLowerCase() === target\n    );\n\n    return found ? found.tourCode : \"XXX\";\n  } catch (error) {\n    console.error(\"Error fetching tour packages:\", error);\n    return \"XXX\";\n  }\n}\n",
+    "hasTypeAnnotations": true,
+    "name": "tourCode.ts",
+    "folderId": "AvMcE3NbzR1dhTg27YyM",
+    "hasRestParameters": false,
+    "parameterCount": 1
+  },
+  {
+    "id": "2rRo0dpHdjTYP7IPy7jK",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822870,
+      "nanoseconds": 554000000
+    },
+    "hasGenerics": false,
+    "complexity": "simple",
+    "parameterCount": 1,
+    "folderId": "0qrjdfETld9N1AVKNh9P",
+    "name": "tourDuration.ts",
+    "arguments": [
+      {
+        "type": "string",
+        "name": "tourPackageName",
+        "isOptional": false,
+        "hasDefault": false,
+        "isRest": false
+      }
+    ],
+    "content": "// Master list with durations (your JSON)\nconst tourPackagesWithDuration = [\n  { name: \"India Discovery Tour\", tourCode: \"IDD\", duration: 13 },\n  { name: \"Argentina's Wonders\", tourCode: \"ARW\", duration: 11 },\n  { name: \"Maldives Bucketlist\", tourCode: \"MLB\", duration: 8 },\n  { name: \"New Zealand Expedition\", tourCode: \"NZE\", duration: 15 },\n  { name: \"Tanzania Exploration\", tourCode: \"TXP\", duration: 10 },\n  { name: \"Sri Lanka Wander Tour\", tourCode: \"SLW\", duration: 12 },\n  { name: \"India Holi Festival Tour\", tourCode: \"IHF\", duration: 13 },\n  { name: \"Brazil's Treasures\", tourCode: \"BZT\", duration: 12 },\n  { name: \"Philippines Sunset\", tourCode: \"PSS\", duration: 11 },\n  { name: \"Philippine Sunrise\", tourCode: \"PHS\", duration: 11 },\n  { name: \"Siargao Island Adventure\", tourCode: \"SIA\", duration: 6 },\n  { name: \"Vietnam Expedition\", tourCode: \"VNE\", duration: 11 },\n];\n\n/**\n * Extract duration (days) by tour package name (column M).\n * Excel equivalent:\n * =IFERROR(INDEX(... MATCH(M, ... \"Tour Package Name\" ... ), MATCH(\"Duration\", headers, 0)), \"\")\n *\n * @param tourPackageName value from column M\n * @returns number (days) if found, or \"\" if blank/not found\n */\nexport default function tourDurationByName(\n  tourPackageName: string | null | undefined\n): number | \"\" {\n  if (!tourPackageName || tourPackageName.trim() === \"\") return \"\";\n\n  const target = tourPackageName.trim().toLowerCase();\n  const found = tourPackagesWithDuration.find(\n    p => p.name.trim().toLowerCase() === target\n  );\n\n  return found ? found.duration : \"\";\n}\n",
+    "fileType": "typescript",
+    "hasTypeAnnotations": true,
+    "isActive": false,
+    "exportType": "function",
+    "hasDestructuring": false,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757997064,
+      "nanoseconds": 445000000
+    },
+    "functionName": "tourDurationByName",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822870,
+      "nanoseconds": 554000000
+    },
+    "hasUnionTypes": false,
+    "hasRestParameters": false,
+    "hasExportDefault": true,
+    "hasIntersectionTypes": false
+  },
+  {
+    "id": "pu7KacJCDH7Zp70NH4aI",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820263,
+      "nanoseconds": 806000000
+    },
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757868708,
+      "nanoseconds": 113000000
+    },
+    "hasUnionTypes": false,
+    "arguments": [
+      {
+        "type": "string",
+        "isRest": false,
+        "isOptional": false,
+        "name": "tourPackageName",
+        "hasDefault": false
+      },
+      {
+        "isRest": false,
+        "name": "emailAddress",
+        "isOptional": false,
+        "type": "string",
+        "hasDefault": false
+      },
+      {
+        "isRest": false,
+        "isOptional": false,
+        "name": "tourDate",
+        "hasDefault": false,
+        "type": "unknown"
+      }
+    ],
+    "content": "/**\n * Tour Package Unique Counter (by email, ordered by tour date)\n *\n * Excel-like intent:\n * - Scope to the same tourPackageName (M) and emailAddress (G)\n * - Count those whose tourDate is <= current row's tourDate\n * - Return as 3-digit string (\"001\", \"002\", ...)\n *\n * @param tourPackageName Current row's tour package name (M column)\n * @param emailAddress    Traveller's email (G column)\n * @param tourDate        Current row's tour date (can be string/Date/TS/Firestore Timestamp)\n * @returns \"\" if M/G blank, \"ERROR\" if invalid inputs, else \"000\"-formatted count\n */\nexport default async function tourPackageUniqueCounter(\n  tourPackageName: string | null | undefined,\n  emailAddress: string | null | undefined,\n  tourDate: unknown\n): Promise<string> {\n  // --- blank checks (Excel-style) ---\n  if (!tourPackageName || tourPackageName.trim() === \"\") return \"\";\n  if (!emailAddress || emailAddress.trim() === \"\") return \"\";\n\n  // --- normalize tourDate for comparison ---\n  const toDate = (input: unknown): Date | null => {\n    if (input === null || input === undefined) return null;\n    if (typeof input === \"string\" && input.trim() === \"\") return null;\n\n    try {\n      // Firestore Timestamp\n      if (\n        typeof input === \"object\" &&\n        input !== null &&\n        \"toDate\" in (input as any) &&\n        typeof (input as any).toDate === \"function\"\n      ) {\n        const d = (input as any).toDate();\n        return isNaN(d.getTime()) ? null : d;\n      }\n      // Firestore-like { seconds, nanoseconds }\n      if (\n        typeof input === \"object\" &&\n        input !== null &&\n        \"seconds\" in (input as any) &&\n        typeof (input as any).seconds === \"number\"\n      ) {\n        const s = (input as any).seconds as number;\n        const ns =\n          typeof (input as any).nanoseconds === \"number\"\n            ? (input as any).nanoseconds\n            : 0;\n        const d = new Date(s * 1000 + Math.floor(ns / 1e6));\n        return isNaN(d.getTime()) ? null : d;\n      }\n      if (input instanceof Date) return isNaN(input.getTime()) ? null : input;\n      if (typeof input === \"number\") {\n        const d = new Date(input);\n        return isNaN(d.getTime()) ? null : d;\n      }\n      if (typeof input === \"string\") {\n        const raw = input.trim();\n        // dd/mm/yyyy\n        if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(raw)) {\n          const [dd, mm, yyyy] = raw.split(\"/\").map(Number);\n          const d = new Date(yyyy, mm - 1, dd);\n          return isNaN(d.getTime()) ? null : d;\n        }\n        // yyyy-mm-dd\n        if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) {\n          const [yyyy, mm, dd] = raw.split(\"-\").map(Number);\n          const d = new Date(yyyy, mm - 1, dd);\n          return isNaN(d.getTime()) ? null : d;\n        }\n        const d = new Date(raw); // ISO/natural, respects \"UTC+8\" if present\n        return isNaN(d.getTime()) ? null : d;\n      }\n      return null;\n    } catch {\n      return null;\n    }\n  };\n\n  const currentTourDate = toDate(tourDate);\n  if (!currentTourDate) return \"ERROR\";\n\n  // --- validate tour package exists in master (tourPackages) ---\n  const tourPackages = await firebaseUtils.getCollectionData(\"tourPackages\");\n  const inMaster = tourPackages.some(\n    (p: any) =>\n      typeof p?.name === \"string\" &&\n      p.name.trim().toLowerCase() === tourPackageName.trim().toLowerCase()\n  );\n  if (!inMaster) return \"ERROR\";\n\n  // --- fetch all bookings for (tourPackageName, emailAddress) ordered by tourDate ---\n  // NOTE: Firestore: if 'tourDate' is a Timestamp field, orderBy works directly.\n  // If it's a string date, ensure consistent comparable format (ISO).\n  const sameTourSameEmail = await firebaseUtils.getCollectionData(\"bookings\", [\n    where(\"tourPackageName\", \"==\", tourPackageName),\n    where(\"emailAddress\", \"==\", emailAddress),\n    orderBy(\"tourDate\", \"asc\"),\n  ]);\n\n  // --- count bookings with tourDate <= currentTourDate ---\n  const count = sameTourSameEmail.filter((b: any) => {\n    const d = toDate(b?.tourDate);\n    return d && d.getTime() <= currentTourDate.getTime();\n  }).length;\n\n  return String(count).padStart(3, \"0\");\n}",
+    "functionDependencies": [
+      "trim",
+      "toDate",
+      "isNaN",
+      "getTime",
+      "floor",
+      "test",
+      "map",
+      "split",
+      "getCollectionData",
+      "some",
+      "toLowerCase",
+      "where",
+      "orderBy",
+      "filter",
+      "padStart",
+      "String"
+    ],
+    "folderId": "AvMcE3NbzR1dhTg27YyM",
+    "hasTypeAnnotations": true,
+    "hasDestructuring": false,
+    "isActive": false,
+    "hasGenerics": false,
+    "hasExportDefault": true,
+    "fileType": "typescript",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820263,
+      "nanoseconds": 806000000
+    },
+    "complexity": "moderate",
+    "hasIntersectionTypes": false,
+    "functionName": "tourPackageUniqueCounter",
+    "exportType": "function",
+    "parameterCount": 3,
+    "name": "tourPackageNameUniqueCounter.ts",
+    "hasRestParameters": false
+  },
+  {
+    "id": "oN7e6p0OHMXNw1M4pHVy",
+    "lastModified": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820306,
+      "nanoseconds": 954000000
+    },
+    "hasGenerics": false,
+    "hasIntersectionTypes": false,
+    "name": "travellersInitial.ts",
+    "hasUnionTypes": false,
+    "hasRestParameters": false,
+    "content": "/**\n * Excel equivalent:\n * =UPPER(LEFT(H,1) & LEFT(I,1))\n *\n * @param firstName Traveller's first name (H column)\n * @param lastName  Traveller's last name (I column)\n * @returns Uppercased initials (2 letters) or \"\" if missing\n */\nexport default function travellerInitials(\n  firstName: string | null | undefined,\n  lastName: string | null | undefined\n): string {\n  const f = firstName && firstName.length > 0 ? firstName[0] : \"\";\n  const l = lastName && lastName.length > 0 ? lastName[0] : \"\";\n\n  const initials = (f + l).toUpperCase();\n\n  return initials;\n}\n",
+    "hasDestructuring": false,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1757868325,
+      "nanoseconds": 539000000
+    },
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820306,
+      "nanoseconds": 954000000
+    },
+    "functionName": "travellerInitials",
+    "parameterCount": 2,
+    "fileType": "typescript",
+    "hasTypeAnnotations": true,
+    "isActive": false,
+    "complexity": "simple",
+    "hasExportDefault": true,
+    "folderId": "AvMcE3NbzR1dhTg27YyM",
+    "arguments": [
+      {
+        "hasDefault": false,
+        "isRest": false,
+        "name": "firstName",
+        "type": "string",
+        "isOptional": false
+      },
+      {
+        "hasDefault": false,
+        "type": "string",
+        "isOptional": false,
+        "isRest": false,
+        "name": "lastName"
+      }
+    ],
+    "exportType": "function"
+  }
+]

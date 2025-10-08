@@ -1,0 +1,172 @@
+[
+  {
+    "id": "bDGXOYxnQAKPIR9Rpd8s",
+    "fileCount": 2,
+    "isCollapsed": true,
+    "name": "Full Payment Settings",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826497,
+      "nanoseconds": 269000000
+    },
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826826,
+      "nanoseconds": 842000000
+    },
+    "description": "TypeScript functions folder: Full Payment Settings"
+  },
+  {
+    "id": "AvMcE3NbzR1dhTg27YyM",
+    "name": "Identifier Settings",
+    "isCollapsed": false,
+    "description": "TypeScript functions folder: Identifier Settings",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759836289,
+      "nanoseconds": 409000000
+    },
+    "fileCount": 7,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759818209,
+      "nanoseconds": 636000000
+    }
+  },
+  {
+    "id": "sr6fcbOAb6iSczVH8PJf",
+    "name": "P1 Settings",
+    "fileCount": 3,
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759833911,
+      "nanoseconds": 849000000
+    },
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826836,
+      "nanoseconds": 289000000
+    },
+    "isCollapsed": false,
+    "description": "TypeScript functions folder: P1 Settings"
+  },
+  {
+    "id": "7l357T6GXp4ke0AWRUUT",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759833927,
+      "nanoseconds": 674000000
+    },
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826843,
+      "nanoseconds": 243000000
+    },
+    "fileCount": 3,
+    "description": "TypeScript functions folder: P2 Settings",
+    "name": "P2 Settings",
+    "isCollapsed": false
+  },
+  {
+    "id": "Lvg76uaLZpC1KjfDLRb9",
+    "description": "TypeScript functions folder: P3 Settings",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759833943,
+      "nanoseconds": 48000000
+    },
+    "isCollapsed": false,
+    "fileCount": 3,
+    "name": "P3 Settings",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826850,
+      "nanoseconds": 343000000
+    }
+  },
+  {
+    "id": "pBV49jamuI54Z8IeSXwW",
+    "name": "P4 Settings",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759833908,
+      "nanoseconds": 507000000
+    },
+    "description": "TypeScript functions folder: P4 Settings",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759826860,
+      "nanoseconds": 332000000
+    },
+    "fileCount": 3,
+    "isCollapsed": false
+  },
+  {
+    "id": "aEaKLIgMWx2s1vxi9G1C",
+    "isCollapsed": false,
+    "fileCount": 7,
+    "description": "TypeScript functions folder: Payment Settings",
+    "name": "Payment Settings",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759831682,
+      "nanoseconds": 707000000
+    },
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759753268,
+      "nanoseconds": 675000000
+    }
+  },
+  {
+    "id": "un7owkF5Jwam6i1nEIq5",
+    "isCollapsed": true,
+    "name": "Reservation Email",
+    "description": "TypeScript functions folder: Reservation Email",
+    "fileCount": 3,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759822518,
+      "nanoseconds": 871000000
+    },
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759823337,
+      "nanoseconds": 895000000
+    }
+  },
+  {
+    "id": "0qrjdfETld9N1AVKNh9P",
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820564,
+      "nanoseconds": 510000000
+    },
+    "isCollapsed": true,
+    "description": "TypeScript functions folder: Tour Details",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759823218,
+      "nanoseconds": 378000000
+    },
+    "name": "Tour Details",
+    "fileCount": 7
+  },
+  {
+    "id": "XxARSxO0rpLk5cQH1UtV",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759831663,
+      "nanoseconds": 875000000
+    },
+    "name": "Travelers Information",
+    "isCollapsed": false,
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1759820526,
+      "nanoseconds": 468000000
+    },
+    "description": "TypeScript functions folder: Travelers Information",
+    "fileCount": 1
+  }
+]
