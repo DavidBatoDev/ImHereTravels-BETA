@@ -610,9 +610,9 @@ export const onTypeScriptFunctionUpdated = onDocumentUpdated(
   {
     document: "ts_files/{funcId}",
     region: "asia-southeast1",
-    maxInstances: 5,
+    maxInstances: 30,
     timeoutSeconds: 540,
-    memory: "1GiB",
+    memory: "2GiB",
   },
   async (event) => {
     const funcId = event.params.funcId as string;
@@ -756,10 +756,189 @@ export const onTypeScriptFunctionUpdated = onDocumentUpdated(
         }
       }
 
-      // Stream bookings and recompute
+      // Stream bookings and recompute in batches
       const bookingsRef = db.collection("bookings");
       const bookingsSnap = await bookingsRef.get();
       let updatedCount = 0;
+      const totalBookings = bookingsSnap.size;
+      const batchSize = 20; // Process 20 documents at a time
+      
+      logger.info(`Starting recomputation for ${totalBookings} bookings in batches of ${batchSize}`);
+
+      // Process in batches to avoid memory and timeout issues
+      for (let batchStart = 0; batchStart < bookingsSnap.docs.length; batchStart += batchSize) {
+        const batchEnd = Math.min(batchStart + batchSize, bookingsSnap.docs.length);
+        const batch = bookingsSnap.docs.slice(batchStart, batchEnd);
+        
+        logger.info(`Processing batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(totalBookings / batchSize)} (documents ${batchStart + 1}-${batchEnd})`);
+
+        // Process each document in the current batch
+        for (const doc of batch) {
+          const row = doc.data();
+          const updates: Record<string, any> = {};
+
+          for (const col of impactedColumns) {
+            if (!col.function) continue;
+
+            const compiled = compiledFunctions.get(col.function);
+            if (!compiled) {
+              logger.warn(
+                `No compiled function found for column ${col.id} (function ${col.function})`
+              );
+              continue;
+            }
+
+            try {
+              const args = buildArgs(col, row, allColumns);
+              logger.debug(`Computing column ${col.columnName} (${col.id}) for document ${doc.id}:`);
+              logger.debug(`  Function: ${col.function}`);
+              logger.debug(`  Arguments: ${JSON.stringify(args)}`);
+              logger.debug(`  Current row value: ${row[col.id]}`);
+
+              const result = await Promise.resolve(compiled(...args));
+              logger.debug(`  Computed result: ${result}`);
+
+              if (row[col.id] !== result) {
+                updates[col.id] = result;
+                // Update the row data so subsequent columns can use the new value
+                row[col.id] = result;
+                logger.debug(
+                  `  ✅ Will update column ${col.columnName} from "${
+                    row[col.id]
+                  }" to "${result}"`
+                );
+              } else {
+                logger.debug(`  ⏭️ No change needed for column ${col.columnName}`);
+              }
+            } catch (error) {
+              logger.error(`Error computing column ${col.id} for document ${doc.id}:`, error);
+            }
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await doc.ref.update(updates);
+            updatedCount++;
+            logger.info(`Updated document ${doc.id} with ${Object.keys(updates).length} column changes`);
+          }
+        }
+        
+        // Log progress after each batch
+        logger.info(`Completed batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(totalBookings / batchSize)}. Updated ${updatedCount} documents so far.`);
+        
+        // Small delay between batches to avoid overwhelming the system
+        if (batchEnd < bookingsSnap.docs.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      logger.info(
+        `✅ Recomputation completed! Processed ${totalBookings} bookings and updated ${updatedCount} documents for ${allAffectedFunctionIds.length} affected functions: ${allAffectedFunctionIds.join(", ")}`
+      );
+    } catch (err) {
+      logger.error(`Failed to recompute for function ${funcId}:`, err as any);
+      throw err;
+    }
+  }
+);
+
+// Simple version for testing - processes only first 10 documents
+export const onTypeScriptFunctionUpdatedSimple = onDocumentUpdated(
+  {
+    document: "ts_files/{funcId}",
+    region: "asia-southeast1",
+    maxInstances: 10,
+    timeoutSeconds: 300,
+    memory: "1GiB",
+  },
+  async (event) => {
+    const funcId = event.params.funcId as string;
+    try {
+      const after = event.data?.after?.data() as any;
+      if (!after || !after.content) {
+        logger.warn(
+          `ts_files/${funcId} updated without content; skipping recompute.`
+        );
+        return;
+      }
+
+      logger.info(`[SIMPLE] Function ${funcId} updated. Processing first 10 documents only.`);
+
+      // Build function dependency graph
+      const dependencyGraph = await buildFunctionDependencyGraph(db);
+      const dependentFunctionIds = getDependents(funcId, dependencyGraph);
+      const allAffectedFunctionIds = [funcId, ...dependentFunctionIds];
+
+      // Fetch all columns
+      const colsSnap = await db.collection("bookingSheetColumns").get();
+      const allColumns: SheetColumn[] = colsSnap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as any),
+      }));
+
+      // Find columns that directly reference the affected functions
+      const directlyImpactedColumns = allColumns.filter(
+        (c) =>
+          c.dataType === "function" &&
+          allAffectedFunctionIds.includes(c.function || "")
+      );
+
+      if (directlyImpactedColumns.length === 0) {
+        logger.info(`[SIMPLE] No columns reference affected functions. Nothing to recompute.`);
+        return;
+      }
+
+      // Build column dependency graph
+      const columnDependencyGraph = buildColumnDependencyGraph(allColumns);
+      const allColumnDependents = new Set<string>();
+
+      for (const column of directlyImpactedColumns) {
+        const dependents = getColumnDependents(column.id, columnDependencyGraph);
+        dependents.forEach((depId) => allColumnDependents.add(depId));
+        allColumnDependents.add(column.id);
+      }
+
+      const impactedColumns = allColumns.filter((col) =>
+        allColumnDependents.has(col.id)
+      );
+
+      logger.info(`[SIMPLE] Found ${impactedColumns.length} columns to recompute.`);
+
+      // Prepare compiled functions
+      const compiledFunctions = new Map<string, (...args: any[]) => any>();
+      const functionsSnap = await db.collection("ts_files").get();
+      const allFunctions: any[] = functionsSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      const functionsToCompile = new Set<string>();
+      for (const column of impactedColumns) {
+        if (column.dataType === "function" && column.function) {
+          functionsToCompile.add(column.function);
+        }
+      }
+
+      for (const functionId of functionsToCompile) {
+        const func = allFunctions.find((f) => f.id === functionId);
+        if (func && func.content) {
+          try {
+            const compiled = transpileToFunction(
+              func.content,
+              func.name || "ts-func.ts"
+            );
+            compiledFunctions.set(functionId, compiled);
+          } catch (error) {
+            logger.error(`[SIMPLE] Failed to compile function ${functionId}:`, error);
+          }
+        }
+      }
+
+      // Process only first 10 bookings
+      const bookingsRef = db.collection("bookings").limit(10);
+      const bookingsSnap = await bookingsRef.get();
+      let updatedCount = 0;
+
+      logger.info(`[SIMPLE] Processing ${bookingsSnap.size} bookings (max 10)`);
 
       for (const doc of bookingsSnap.docs) {
         const row = doc.data();
@@ -770,36 +949,21 @@ export const onTypeScriptFunctionUpdated = onDocumentUpdated(
 
           const compiled = compiledFunctions.get(col.function);
           if (!compiled) {
-            logger.warn(
-              `No compiled function found for column ${col.id} (function ${col.function})`
-            );
+            logger.warn(`[SIMPLE] No compiled function found for column ${col.id}`);
             continue;
           }
 
           try {
             const args = buildArgs(col, row, allColumns);
-            logger.info(`Computing column ${col.columnName} (${col.id}):`);
-            logger.info(`  Function: ${col.function}`);
-            logger.info(`  Arguments: ${JSON.stringify(args)}`);
-            logger.info(`  Current row value: ${row[col.id]}`);
-
             const result = await Promise.resolve(compiled(...args));
-            logger.info(`  Computed result: ${result}`);
 
             if (row[col.id] !== result) {
               updates[col.id] = result;
-              // Update the row data so subsequent columns can use the new value
               row[col.id] = result;
-              logger.info(
-                `  ✅ Will update column ${col.columnName} from "${
-                  row[col.id]
-                }" to "${result}"`
-              );
-            } else {
-              logger.info(`  ⏭️ No change needed for column ${col.columnName}`);
+              logger.info(`[SIMPLE] Will update ${col.columnName} in ${doc.id}: "${row[col.id]}" → "${result}"`);
             }
           } catch (error) {
-            logger.error(`Error computing column ${col.id}:`, error);
+            logger.error(`[SIMPLE] Error computing column ${col.id} for document ${doc.id}:`, error);
           }
         }
 
@@ -809,11 +973,9 @@ export const onTypeScriptFunctionUpdated = onDocumentUpdated(
         }
       }
 
-      logger.info(
-        `Recomputed columns for ${allAffectedFunctionIds.length} functions across ${bookingsSnap.size} bookings; updated ${updatedCount} documents.`
-      );
+      logger.info(`[SIMPLE] ✅ Completed! Updated ${updatedCount} of ${bookingsSnap.size} documents.`);
     } catch (err) {
-      logger.error(`Failed to recompute for function ${funcId}:`, err as any);
+      logger.error(`[SIMPLE] Failed to recompute for function ${funcId}:`, err as any);
       throw err;
     }
   }
