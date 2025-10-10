@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +32,9 @@ import { BsCalendar3, BsCalendarEvent } from "react-icons/bs";
 import { IoWallet } from "react-icons/io5";
 import { HiTrendingUp } from "react-icons/hi";
 import type { Booking } from "@/types/bookings";
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, query } from "firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 
 // Mock data for demonstration - replace with real data
 const mockBookings: Booking[] = [
@@ -144,6 +147,41 @@ const mockBookings: Booking[] = [
     generateCancellationEmailDraft: false,
     sendCancellationEmail: false,
   },
+  {
+    id: "4",
+    bookingId: "BK-2024-004",
+    bookingCode: "BK004",
+    tourCode: "AR-004",
+    reservationDate: new Date("2024-02-01"),
+    bookingType: "Individual",
+    bookingStatus: "Pending",
+    daysBetweenBookingAndTour: 30,
+    isMainBooker: true,
+    travellerInitials: "AB",
+    firstName: "Anna",
+    lastName: "Brown",
+    fullName: "Anna Brown",
+    emailAddress: "anna.brown@example.com",
+    tourPackageNameUniqueCounter: 1,
+    tourPackageName: "Argentina Wine Tour",
+    formattedDate: "Mar 1, 2024",
+    tourDate: new Date("2024-03-01"),
+    tourDuration: 5,
+    useDiscountedTourCost: false,
+    originalTourCost: 1100,
+    includeBccReservation: false,
+    generateEmailDraft: false,
+    sendEmail: false,
+    eligible2ndOfMonths: false,
+    availablePaymentTerms: "P1 - 1 Month",
+    enablePaymentReminder: true,
+    paymentProgress: 14, // 150/1100 = 13.6% rounded to 14%
+    paid: 150,
+    remainingBalance: 950,
+    includeBccCancellation: false,
+    generateCancellationEmailDraft: false,
+    sendCancellationEmail: false,
+  },
 ];
 
 export default function BookingsSection() {
@@ -153,32 +191,213 @@ export default function BookingsSection() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFilterSticky, setIsFilterSticky] = useState(false);
 
-  // Calculate statistics
-  const totalBookings = mockBookings.length;
-  const confirmedBookings = mockBookings.filter(
-    (b) => b.bookingStatus === "Confirmed"
-  ).length;
-  const pendingBookings = mockBookings.filter(
-    (b) => b.bookingStatus === "Pending"
-  ).length;
-  const cancelledBookings = mockBookings.filter(
-    (b) => b.bookingStatus === "Cancelled"
-  ).length;
-  const completedBookings = mockBookings.filter(
-    (b) => b.bookingStatus === "Completed"
-  ).length;
-  const totalRevenue = mockBookings.reduce(
-    (sum, booking) => sum + booking.paid,
-    0
-  );
-  const pendingPayments = mockBookings.reduce(
-    (sum, booking) => sum + booking.remainingBalance,
-    0
-  );
+  // Subscribe to real-time bookings data
+  useEffect(() => {
+    console.log(
+      "🔍 [BOOKINGS SECTION] Setting up real-time booking subscription..."
+    );
 
-  const getStatusBgColor = (status: string) => {
-    switch (status) {
+    const unsubscribe = onSnapshot(
+      query(collection(db, "bookings")),
+      (querySnapshot) => {
+        const fetchedBookings = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Booking[];
+
+        // Sort bookings numerically by ID
+        const sortedBookings = fetchedBookings.sort((a, b) => {
+          const aId = parseInt(a.id);
+          const bId = parseInt(b.id);
+          if (isNaN(aId) && isNaN(bId)) return 0;
+          if (isNaN(aId)) return 1;
+          if (isNaN(bId)) return -1;
+          return aId - bId;
+        });
+
+        console.log(
+          `✅ [BOOKINGS SECTION] Received ${sortedBookings.length} bookings from Firestore`
+        );
+
+        // Debug: Log first booking's payment and date data
+        if (sortedBookings.length > 0) {
+          const firstBooking = sortedBookings[0];
+          console.log("🔍 [DEBUG] First booking payment data:", {
+            id: firstBooking.id,
+            paid: firstBooking.paid,
+            paidType: typeof firstBooking.paid,
+            originalTourCost: firstBooking.originalTourCost,
+            originalTourCostType: typeof firstBooking.originalTourCost,
+            discountedTourCost: firstBooking.discountedTourCost,
+            discountedTourCostType: typeof firstBooking.discountedTourCost,
+            useDiscountedTourCost: firstBooking.useDiscountedTourCost,
+          });
+
+          console.log("🔍 [DEBUG] First booking date data:", {
+            id: firstBooking.id,
+            reservationDate: firstBooking.reservationDate,
+            reservationDateType: typeof firstBooking.reservationDate,
+            reservationDateIsTimestamp:
+              firstBooking.reservationDate &&
+              typeof firstBooking.reservationDate === "object" &&
+              (firstBooking.reservationDate as any).toDate,
+            tourDate: firstBooking.tourDate,
+            tourDateType: typeof firstBooking.tourDate,
+            tourDateIsTimestamp:
+              firstBooking.tourDate &&
+              typeof firstBooking.tourDate === "object" &&
+              (firstBooking.tourDate as any).toDate,
+          });
+        }
+
+        // Use real data if available, otherwise fall back to mock data
+        if (sortedBookings.length > 0) {
+          setBookings(sortedBookings);
+        } else {
+          console.log(
+            "📝 [BOOKINGS SECTION] No real data found, using mock data"
+          );
+          setBookings(mockBookings);
+        }
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error("❌ Error listening to bookings:", error);
+        console.log(
+          "📝 [BOOKINGS SECTION] Error occurred, falling back to mock data"
+        );
+        setBookings(mockBookings);
+        setIsLoading(false);
+      }
+    );
+
+    // Cleanup subscription on unmount
+    return () => {
+      console.log("🧹 [BOOKINGS SECTION] Cleaning up booking subscription");
+      unsubscribe();
+    };
+  }, []);
+
+  // Track scroll position to detect when filter becomes sticky
+  useEffect(() => {
+    const handleScroll = () => {
+      const filterSection = document.querySelector("[data-filter-section]");
+      if (filterSection) {
+        const rect = filterSection.getBoundingClientRect();
+        setIsFilterSticky(rect.top <= 16); // 16px is the top-4 offset
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Get total cost for a booking with validation
+  const getTotalCost = (booking: Booking) => {
+    const originalCost = Number(booking.originalTourCost) || 0;
+    const discountedCost = Number(booking.discountedTourCost) || 0;
+
+    if (booking.useDiscountedTourCost && discountedCost > 0) {
+      return discountedCost;
+    }
+    return originalCost;
+  };
+
+  // Safe number conversion with fallback
+  const safeNumber = (value: any, fallback: number = 0): number => {
+    const num = Number(value);
+    return isNaN(num) ? fallback : num;
+  };
+
+  // Safe date conversion for Firebase Timestamps
+  const safeDate = (value: any): Date => {
+    // If it's already a Date object, return it
+    if (value instanceof Date) {
+      return value;
+    }
+
+    // If it's a Firebase Timestamp, convert to Date
+    if (
+      value &&
+      typeof value === "object" &&
+      value.toDate &&
+      typeof value.toDate === "function"
+    ) {
+      return value.toDate();
+    }
+
+    // If it's a string or number, try to create a Date
+    if (typeof value === "string" || typeof value === "number") {
+      const date = new Date(value);
+      return isNaN(date.getTime()) ? new Date() : date;
+    }
+
+    // Fallback to current date
+    return new Date();
+  };
+
+  // Helper function to determine booking status category
+  const getBookingStatusCategory = (
+    status: string | null | undefined
+  ): string => {
+    if (!status) return "Pending";
+
+    const statusLower = status.toLowerCase();
+    if (statusLower.includes("confirmed")) return "Confirmed";
+    if (statusLower.includes("cancelled")) return "Cancelled";
+    if (statusLower.includes("installment")) return "Pending"; // Installments are pending payments
+    if (statusLower.includes("completed")) return "Completed";
+
+    return "Pending"; // Default fallback
+  };
+
+  // Calculate statistics with validation
+  const totalBookings = bookings.length;
+  const confirmedBookings = bookings.filter(
+    (b) => getBookingStatusCategory(b.bookingStatus) === "Confirmed"
+  ).length;
+  const pendingBookings = bookings.filter(
+    (b) => getBookingStatusCategory(b.bookingStatus) === "Pending"
+  ).length;
+  const cancelledBookings = bookings.filter(
+    (b) => getBookingStatusCategory(b.bookingStatus) === "Cancelled"
+  ).length;
+  const completedBookings = bookings.filter(
+    (b) => getBookingStatusCategory(b.bookingStatus) === "Completed"
+  ).length;
+
+  // Debug: Log statistics calculation
+  console.log("🔍 [DEBUG] Booking statistics:", {
+    totalBookings,
+    confirmedBookings,
+    pendingBookings,
+    cancelledBookings,
+    completedBookings,
+    bookingStatuses: bookings.map((b) => ({
+      id: b.id,
+      status: b.bookingStatus,
+    })),
+  });
+
+  const totalRevenue = bookings.reduce((sum, booking) => {
+    const paid = safeNumber(booking.paid, 0);
+    return sum + paid;
+  }, 0);
+
+  const pendingPayments = bookings.reduce((sum, booking) => {
+    const totalCost = getTotalCost(booking);
+    const paid = safeNumber(booking.paid, 0);
+    const remaining = Math.max(0, totalCost - paid);
+    return sum + remaining;
+  }, 0);
+
+  const getStatusBgColor = (booking: Booking) => {
+    const category = getBookingStatusCategory(booking.bookingStatus);
+    switch (category) {
       case "Confirmed":
         return "bg-spring-green/20";
       case "Pending":
@@ -226,6 +445,17 @@ export default function BookingsSection() {
     }).format(amount);
   };
 
+  // Calculate payment progress dynamically
+  const calculatePaymentProgress = (booking: Booking) => {
+    const totalCost = getTotalCost(booking);
+    const paid = safeNumber(booking.paid, 0);
+
+    if (totalCost === 0) return 0;
+
+    const progress = Math.round((paid / totalCost) * 100);
+    return Math.min(progress, 100); // Cap at 100%
+  };
+
   // Get active filters count
   const getActiveFiltersCount = () => {
     let count = 0;
@@ -235,7 +465,7 @@ export default function BookingsSection() {
   };
 
   // Filter bookings based on search and filters
-  const filteredBookings = mockBookings.filter((booking) => {
+  const filteredBookings = bookings.filter((booking) => {
     const matchesSearch =
       searchTerm === "" ||
       booking.bookingId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -244,13 +474,28 @@ export default function BookingsSection() {
       booking.tourPackageName.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
-      statusFilter === "All" || booking.bookingStatus === statusFilter;
+      statusFilter === "All" ||
+      getBookingStatusCategory(booking.bookingStatus) === statusFilter;
 
     const matchesType =
       typeFilter === "All" || booking.bookingType === typeFilter;
 
     return matchesSearch && matchesStatus && matchesType;
   });
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="border border-border">
+          <CardContent className="p-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-crimson-red mx-auto mb-4"></div>
+            <p className="text-muted-foreground text-lg">Loading bookings...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -368,7 +613,14 @@ export default function BookingsSection() {
       </div>
 
       {/* Search and Filters Section */}
-      <Card className="border border-border">
+      <Card
+        data-filter-section
+        className={`sticky top-4 z-50 border border-border bg-white backdrop-blur-sm transition-all duration-300 ${
+          isFilterSticky
+            ? "shadow-[0_-12px_60px_0px_rgba(0,0,0,0.6)]"
+            : "shadow-lg"
+        }`}
+      >
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
             {/* Search Bar */}
@@ -573,27 +825,36 @@ export default function BookingsSection() {
           {filteredBookings.map((booking) => (
             <Card
               key={booking.id}
-              className="group border border-border hover:border-crimson-red/50 transition-all duration-300 cursor-pointer overflow-hidden"
+              className="group border border-border hover:border-crimson-red/50 transition-all duration-300 cursor-pointer overflow-hidden relative"
             >
+              {/* Document ID - Upper Left */}
+              <div className="absolute top-2 left-2 z-10">
+                <div className="bg-crimson-red/90 text-white text-[10px] font-mono font-bold px-1.5 py-0.5 rounded rounded-br-none shadow-sm">
+                  {booking.id}
+                </div>
+              </div>
+
               {/* Card Header */}
               <CardHeader className="p-3 pb-2 border-b border-border/50">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1 mb-1">
+                    <div className="flex items-center gap-1 mb-1 pl-1">
                       <Badge
                         variant="outline"
-                        className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full ${getStatusBgColor(
-                          booking.bookingStatus
+                        className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
+                          booking
                         )}`}
+                        title={booking.bookingStatus || "Pending"}
                       >
-                        {booking.bookingStatus}
+                        {getBookingStatusCategory(booking.bookingStatus)}
                       </Badge>
                       {booking.bookingType !== "Individual" && (
                         <Badge
                           variant="outline"
-                          className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full ${getBookingTypeBgColor(
+                          className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getBookingTypeBgColor(
                             booking.bookingType
                           )}`}
+                          title={booking.bookingType}
                         >
                           {booking.bookingType}
                         </Badge>
@@ -653,7 +914,7 @@ export default function BookingsSection() {
                         Reserved
                       </p>
                       <p className="text-xs font-semibold text-foreground">
-                        {new Date(booking.reservationDate).toLocaleDateString(
+                        {safeDate(booking.reservationDate).toLocaleDateString(
                           "en-US",
                           { month: "short", day: "numeric" }
                         )}
@@ -667,7 +928,7 @@ export default function BookingsSection() {
                         Tour
                       </p>
                       <p className="text-xs font-semibold text-foreground">
-                        {new Date(booking.tourDate).toLocaleDateString(
+                        {safeDate(booking.tourDate).toLocaleDateString(
                           "en-US",
                           {
                             month: "short",
@@ -690,12 +951,12 @@ export default function BookingsSection() {
                     </div>
                     <span
                       className={`text-xs font-bold ${
-                        booking.paymentProgress === 100
+                        calculatePaymentProgress(booking) === 100
                           ? "text-spring-green"
                           : "text-crimson-red"
                       }`}
                     >
-                      {booking.paymentProgress}%
+                      {calculatePaymentProgress(booking)}%
                     </span>
                   </div>
 
@@ -703,11 +964,11 @@ export default function BookingsSection() {
                   <div className="w-full bg-background/50 rounded-full h-2 mb-1.5 border border-border/30">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
-                        booking.paymentProgress === 100
+                        calculatePaymentProgress(booking) === 100
                           ? "bg-gradient-to-r from-spring-green to-spring-green/80"
                           : "bg-gradient-to-r from-crimson-red to-crimson-red/80"
                       }`}
-                      style={{ width: `${booking.paymentProgress}%` }}
+                      style={{ width: `${calculatePaymentProgress(booking)}%` }}
                     />
                   </div>
 
@@ -717,17 +978,21 @@ export default function BookingsSection() {
                       <span className="text-muted-foreground">
                         Paid:{" "}
                         <span className="font-bold text-spring-green">
-                          {formatCurrency(booking.paid)}
+                          {formatCurrency(safeNumber(booking.paid, 0))}
                         </span>
                       </span>
                     </div>
-                    {booking.remainingBalance > 0 && (
+                    {getTotalCost(booking) - safeNumber(booking.paid, 0) >
+                      0 && (
                       <div className="flex items-center gap-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-crimson-red"></div>
                         <span className="text-muted-foreground">
                           Due:{" "}
                           <span className="font-bold text-crimson-red">
-                            {formatCurrency(booking.remainingBalance)}
+                            {formatCurrency(
+                              getTotalCost(booking) -
+                                safeNumber(booking.paid, 0)
+                            )}
                           </span>
                         </span>
                       </div>
@@ -794,14 +1059,15 @@ export default function BookingsSection() {
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 pl-5 pr-4">
                         <Badge
                           variant="outline"
-                          className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full ${getStatusBgColor(
-                            booking.bookingStatus
+                          className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
+                            booking
                           )}`}
+                          title={booking.bookingStatus || "Pending"}
                         >
-                          {booking.bookingStatus}
+                          {getBookingStatusCategory(booking.bookingStatus)}
                         </Badge>
                       </td>
                       <td className="py-3 px-4">
@@ -816,7 +1082,7 @@ export default function BookingsSection() {
                         <div className="flex items-center gap-1.5">
                           <BsCalendarEvent className="h-3 w-3 text-foreground" />
                           <span className="text-xs text-foreground">
-                            {new Date(
+                            {safeDate(
                               booking.reservationDate
                             ).toLocaleDateString("en-US", {
                               month: "short",
@@ -830,7 +1096,14 @@ export default function BookingsSection() {
                         <div className="flex items-center gap-1.5">
                           <FaPlane className="h-3 w-3 text-foreground" />
                           <span className="text-xs text-foreground">
-                            {booking.formattedDate}
+                            {safeDate(booking.tourDate).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              }
+                            )}
                           </span>
                         </div>
                       </td>
@@ -839,22 +1112,24 @@ export default function BookingsSection() {
                           <div className="flex items-center justify-between gap-2">
                             <span
                               className={`text-xs font-bold ${
-                                booking.paymentProgress === 100
+                                calculatePaymentProgress(booking) === 100
                                   ? "text-spring-green"
                                   : "text-crimson-red"
                               }`}
                             >
-                              {booking.paymentProgress}%
+                              {calculatePaymentProgress(booking)}%
                             </span>
                           </div>
                           <div className="w-24 bg-muted rounded-full h-1.5">
                             <div
                               className={`h-full rounded-full ${
-                                booking.paymentProgress === 100
+                                calculatePaymentProgress(booking) === 100
                                   ? "bg-spring-green"
                                   : "bg-crimson-red"
                               }`}
-                              style={{ width: `${booking.paymentProgress}%` }}
+                              style={{
+                                width: `${calculatePaymentProgress(booking)}%`,
+                              }}
                             />
                           </div>
                         </div>
