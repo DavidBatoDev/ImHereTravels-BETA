@@ -13,7 +13,10 @@ import { setGlobalOptions } from "firebase-functions";
 export { helloWorld } from "./hello-world";
 export { sendVerificationEmail } from "./send-verification-email";
 export { verifyEmail } from "./verify-email";
-export { onTypeScriptFunctionUpdated, onTypeScriptFunctionUpdatedSimple } from "./recompute-on-function-update";
+export {
+  onTypeScriptFunctionUpdated,
+  onTypeScriptFunctionUpdatedSimple,
+} from "./recompute-on-function-update";
 export { testRecompute } from "./test-recompute";
 export { generateReservationEmail } from "./generate-reservation-email";
 export { sendReservationEmail } from "./send-reservation-email";

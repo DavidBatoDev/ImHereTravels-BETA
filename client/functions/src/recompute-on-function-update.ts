@@ -762,15 +762,30 @@ export const onTypeScriptFunctionUpdated = onDocumentUpdated(
       let updatedCount = 0;
       const totalBookings = bookingsSnap.size;
       const batchSize = 20; // Process 20 documents at a time
-      
-      logger.info(`Starting recomputation for ${totalBookings} bookings in batches of ${batchSize}`);
+
+      logger.info(
+        `Starting recomputation for ${totalBookings} bookings in batches of ${batchSize}`
+      );
 
       // Process in batches to avoid memory and timeout issues
-      for (let batchStart = 0; batchStart < bookingsSnap.docs.length; batchStart += batchSize) {
-        const batchEnd = Math.min(batchStart + batchSize, bookingsSnap.docs.length);
+      for (
+        let batchStart = 0;
+        batchStart < bookingsSnap.docs.length;
+        batchStart += batchSize
+      ) {
+        const batchEnd = Math.min(
+          batchStart + batchSize,
+          bookingsSnap.docs.length
+        );
         const batch = bookingsSnap.docs.slice(batchStart, batchEnd);
-        
-        logger.info(`Processing batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(totalBookings / batchSize)} (documents ${batchStart + 1}-${batchEnd})`);
+
+        logger.info(
+          `Processing batch ${
+            Math.floor(batchStart / batchSize) + 1
+          }/${Math.ceil(totalBookings / batchSize)} (documents ${
+            batchStart + 1
+          }-${batchEnd})`
+        );
 
         // Process each document in the current batch
         for (const doc of batch) {
@@ -790,7 +805,9 @@ export const onTypeScriptFunctionUpdated = onDocumentUpdated(
 
             try {
               const args = buildArgs(col, row, allColumns);
-              logger.debug(`Computing column ${col.columnName} (${col.id}) for document ${doc.id}:`);
+              logger.debug(
+                `Computing column ${col.columnName} (${col.id}) for document ${doc.id}:`
+              );
               logger.debug(`  Function: ${col.function}`);
               logger.debug(`  Arguments: ${JSON.stringify(args)}`);
               logger.debug(`  Current row value: ${row[col.id]}`);
@@ -808,31 +825,48 @@ export const onTypeScriptFunctionUpdated = onDocumentUpdated(
                   }" to "${result}"`
                 );
               } else {
-                logger.debug(`  ⏭️ No change needed for column ${col.columnName}`);
+                logger.debug(
+                  `  ⏭️ No change needed for column ${col.columnName}`
+                );
               }
             } catch (error) {
-              logger.error(`Error computing column ${col.id} for document ${doc.id}:`, error);
+              logger.error(
+                `Error computing column ${col.id} for document ${doc.id}:`,
+                error
+              );
             }
           }
 
           if (Object.keys(updates).length > 0) {
             await doc.ref.update(updates);
             updatedCount++;
-            logger.info(`Updated document ${doc.id} with ${Object.keys(updates).length} column changes`);
+            logger.info(
+              `Updated document ${doc.id} with ${
+                Object.keys(updates).length
+              } column changes`
+            );
           }
         }
-        
+
         // Log progress after each batch
-        logger.info(`Completed batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(totalBookings / batchSize)}. Updated ${updatedCount} documents so far.`);
-        
+        logger.info(
+          `Completed batch ${
+            Math.floor(batchStart / batchSize) + 1
+          }/${Math.ceil(
+            totalBookings / batchSize
+          )}. Updated ${updatedCount} documents so far.`
+        );
+
         // Small delay between batches to avoid overwhelming the system
         if (batchEnd < bookingsSnap.docs.length) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
       }
 
       logger.info(
-        `✅ Recomputation completed! Processed ${totalBookings} bookings and updated ${updatedCount} documents for ${allAffectedFunctionIds.length} affected functions: ${allAffectedFunctionIds.join(", ")}`
+        `✅ Recomputation completed! Processed ${totalBookings} bookings and updated ${updatedCount} documents for ${
+          allAffectedFunctionIds.length
+        } affected functions: ${allAffectedFunctionIds.join(", ")}`
       );
     } catch (err) {
       logger.error(`Failed to recompute for function ${funcId}:`, err as any);
@@ -861,7 +895,9 @@ export const onTypeScriptFunctionUpdatedSimple = onDocumentUpdated(
         return;
       }
 
-      logger.info(`[SIMPLE] Function ${funcId} updated. Processing first 10 documents only.`);
+      logger.info(
+        `[SIMPLE] Function ${funcId} updated. Processing first 10 documents only.`
+      );
 
       // Build function dependency graph
       const dependencyGraph = await buildFunctionDependencyGraph(db);
@@ -883,7 +919,9 @@ export const onTypeScriptFunctionUpdatedSimple = onDocumentUpdated(
       );
 
       if (directlyImpactedColumns.length === 0) {
-        logger.info(`[SIMPLE] No columns reference affected functions. Nothing to recompute.`);
+        logger.info(
+          `[SIMPLE] No columns reference affected functions. Nothing to recompute.`
+        );
         return;
       }
 
@@ -892,7 +930,10 @@ export const onTypeScriptFunctionUpdatedSimple = onDocumentUpdated(
       const allColumnDependents = new Set<string>();
 
       for (const column of directlyImpactedColumns) {
-        const dependents = getColumnDependents(column.id, columnDependencyGraph);
+        const dependents = getColumnDependents(
+          column.id,
+          columnDependencyGraph
+        );
         dependents.forEach((depId) => allColumnDependents.add(depId));
         allColumnDependents.add(column.id);
       }
@@ -901,7 +942,9 @@ export const onTypeScriptFunctionUpdatedSimple = onDocumentUpdated(
         allColumnDependents.has(col.id)
       );
 
-      logger.info(`[SIMPLE] Found ${impactedColumns.length} columns to recompute.`);
+      logger.info(
+        `[SIMPLE] Found ${impactedColumns.length} columns to recompute.`
+      );
 
       // Prepare compiled functions
       const compiledFunctions = new Map<string, (...args: any[]) => any>();
@@ -928,7 +971,10 @@ export const onTypeScriptFunctionUpdatedSimple = onDocumentUpdated(
             );
             compiledFunctions.set(functionId, compiled);
           } catch (error) {
-            logger.error(`[SIMPLE] Failed to compile function ${functionId}:`, error);
+            logger.error(
+              `[SIMPLE] Failed to compile function ${functionId}:`,
+              error
+            );
           }
         }
       }
@@ -949,7 +995,9 @@ export const onTypeScriptFunctionUpdatedSimple = onDocumentUpdated(
 
           const compiled = compiledFunctions.get(col.function);
           if (!compiled) {
-            logger.warn(`[SIMPLE] No compiled function found for column ${col.id}`);
+            logger.warn(
+              `[SIMPLE] No compiled function found for column ${col.id}`
+            );
             continue;
           }
 
@@ -960,10 +1008,17 @@ export const onTypeScriptFunctionUpdatedSimple = onDocumentUpdated(
             if (row[col.id] !== result) {
               updates[col.id] = result;
               row[col.id] = result;
-              logger.info(`[SIMPLE] Will update ${col.columnName} in ${doc.id}: "${row[col.id]}" → "${result}"`);
+              logger.info(
+                `[SIMPLE] Will update ${col.columnName} in ${doc.id}: "${
+                  row[col.id]
+                }" → "${result}"`
+              );
             }
           } catch (error) {
-            logger.error(`[SIMPLE] Error computing column ${col.id} for document ${doc.id}:`, error);
+            logger.error(
+              `[SIMPLE] Error computing column ${col.id} for document ${doc.id}:`,
+              error
+            );
           }
         }
 
@@ -973,9 +1028,14 @@ export const onTypeScriptFunctionUpdatedSimple = onDocumentUpdated(
         }
       }
 
-      logger.info(`[SIMPLE] ✅ Completed! Updated ${updatedCount} of ${bookingsSnap.size} documents.`);
+      logger.info(
+        `[SIMPLE] ✅ Completed! Updated ${updatedCount} of ${bookingsSnap.size} documents.`
+      );
     } catch (err) {
-      logger.error(`[SIMPLE] Failed to recompute for function ${funcId}:`, err as any);
+      logger.error(
+        `[SIMPLE] Failed to recompute for function ${funcId}:`,
+        err as any
+      );
       throw err;
     }
   }

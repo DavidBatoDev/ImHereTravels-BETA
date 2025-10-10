@@ -2642,7 +2642,7 @@ export default function BookingsDataGrid({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-foreground font-hk-grotesk">
-                All Bookings Data
+                Sheet Management (Legacy)
               </h2>
               <p className="text-muted-foreground">
                 Manage your bookings data with spreadsheets

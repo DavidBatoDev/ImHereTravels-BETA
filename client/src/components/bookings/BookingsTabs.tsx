@@ -10,11 +10,17 @@ import BookingsColumnsTab from "./BookingsColumnsTab";
 // Tab mapping utilities
 const urlToInternalTab = (urlTab: string | null): string => {
   switch (urlTab) {
-    case "booking-list":
+    case "bookings":
       return "list";
-    case "sheet-management-tab":
+    case "booking-list": // Backward compatibility
+      return "list";
+    case "bookings-sheet":
       return "sheet";
-    case "columns":
+    case "sheet-management-tab": // Backward compatibility
+      return "sheet";
+    case "fields-management":
+      return "columns";
+    case "columns": // Backward compatibility
       return "columns";
     default:
       return "list"; // Default to booking list
@@ -24,13 +30,13 @@ const urlToInternalTab = (urlTab: string | null): string => {
 const internalTabToUrl = (internalTab: string): string => {
   switch (internalTab) {
     case "list":
-      return "booking-list";
+      return "bookings";
     case "sheet":
-      return "sheet-management-tab";
+      return "bookings-sheet";
     case "columns":
-      return "columns";
+      return "fields-management";
     default:
-      return "booking-list";
+      return "bookings";
   }
 };
 
@@ -86,19 +92,19 @@ export default function BookingsTabs() {
             value="list"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
           >
-            Bookings List
+            Bookings
           </TabsTrigger>
           <TabsTrigger
             value="sheet"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
           >
-            Sheet Management
+            Bookings Sheet
           </TabsTrigger>
           <TabsTrigger
             value="columns"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
           >
-            Columns
+            Fields Management
           </TabsTrigger>
         </TabsList>
 
