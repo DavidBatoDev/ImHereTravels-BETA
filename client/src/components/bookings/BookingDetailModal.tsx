@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,11 +21,24 @@ import {
   FaEuroSign,
   FaClock,
   FaFileInvoice,
+  FaHashtag,
+  FaTag,
+  FaCode,
+  FaEye,
+  FaEyeSlash,
+  FaCopy,
 } from "react-icons/fa";
 import { MdEmail } from "react-icons/md";
-import { BsCalendarEvent, BsPersonCheck } from "react-icons/bs";
+import {
+  BsCalendarEvent,
+  BsPersonCheck,
+  BsGrid3X3Gap,
+  BsListUl,
+} from "react-icons/bs";
 import { HiTrendingUp } from "react-icons/hi";
 import type { Booking } from "@/types/bookings";
+import { SheetColumn } from "@/types/sheet-management";
+import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
 
 interface BookingDetailModalProps {
   isOpen: boolean;
@@ -37,6 +51,147 @@ export default function BookingDetailModal({
   onClose,
   booking,
 }: BookingDetailModalProps) {
+  const [columns, setColumns] = useState<SheetColumn[]>([]);
+  const [isLoadingColumns, setIsLoadingColumns] = useState(true);
+  const [showEmptyFields, setShowEmptyFields] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const isScrollingProgrammatically = React.useRef(false);
+
+  // Fetch booking sheet columns
+  useEffect(() => {
+    if (!isOpen) return;
+
+    console.log("🔍 [BOOKING DETAIL MODAL] Fetching columns...");
+    setIsLoadingColumns(true);
+
+    const unsubscribe = bookingSheetColumnService.subscribeToColumns(
+      (fetchedColumns) => {
+        console.log(
+          `✅ [BOOKING DETAIL MODAL] Received ${fetchedColumns.length} columns`
+        );
+        setColumns(fetchedColumns);
+        setIsLoadingColumns(false);
+      }
+    );
+
+    return () => {
+      console.log("🧹 [BOOKING DETAIL MODAL] Cleaning up column subscription");
+      unsubscribe();
+    };
+  }, [isOpen]);
+
+  // Set first tab as active on load - must be unconditional and placed with other hooks
+  useEffect(() => {
+    if (!booking || !isOpen) return;
+
+    // Group columns by parentTab
+    const groupedColumns = columns.reduce((groups, column) => {
+      const parentTab = column.parentTab || "General";
+      if (!groups[parentTab]) {
+        groups[parentTab] = [];
+      }
+      groups[parentTab].push(column);
+      return groups;
+    }, {} as Record<string, SheetColumn[]>);
+
+    // Sort parentTabs by the order they first appear in the columns
+    const sortedParentTabs = Object.keys(groupedColumns).sort((a, b) => {
+      const aFirstOrder = Math.min(
+        ...groupedColumns[a].map((col) => col.order)
+      );
+      const bFirstOrder = Math.min(
+        ...groupedColumns[b].map((col) => col.order)
+      );
+      return aFirstOrder - bFirstOrder;
+    });
+
+    if (sortedParentTabs.length > 0 && !activeTab) {
+      setActiveTab(sortedParentTabs[0]);
+    }
+  }, [isOpen, columns, booking, activeTab]);
+
+  // Track active section on scroll
+  useEffect(() => {
+    if (!isOpen || isLoadingColumns) return;
+
+    const handleScroll = () => {
+      // Skip if we're scrolling programmatically
+      if (isScrollingProgrammatically.current) return;
+
+      if (!scrollContainerRef.current) return;
+
+      // Get all section elements
+      const sections =
+        scrollContainerRef.current.querySelectorAll('[id^="tab-"]');
+      if (sections.length === 0) return;
+
+      const container = scrollContainerRef.current;
+      const scrollTop = container.scrollTop;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      const containerRect = container.getBoundingClientRect();
+      const headerHeight = 120; // Account for sticky header
+
+      // Check if we're at the very bottom
+      const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
+
+      // Check if we're at the very top
+      const isAtTop = scrollTop < 10;
+
+      let mostVisibleSection = "";
+      let maxVisibleArea = 0;
+
+      sections.forEach((section, index) => {
+        const rect = section.getBoundingClientRect();
+
+        // If at the bottom, select the last section
+        if (isAtBottom && index === sections.length - 1) {
+          mostVisibleSection = section.id.replace("tab-", "");
+          maxVisibleArea = 1000; // Force this to be selected
+          return;
+        }
+
+        // If at the top, select the first section
+        if (isAtTop && index === 0) {
+          mostVisibleSection = section.id.replace("tab-", "");
+          maxVisibleArea = 1000; // Force this to be selected
+          return;
+        }
+
+        // Calculate visible area of the section relative to scroll container
+        const visibleTop = Math.max(rect.top, containerRect.top + headerHeight);
+        const visibleBottom = Math.min(rect.bottom, containerRect.bottom);
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+
+        if (visibleHeight > maxVisibleArea) {
+          maxVisibleArea = visibleHeight;
+          mostVisibleSection = section.id.replace("tab-", "");
+        }
+      });
+
+      if (mostVisibleSection && mostVisibleSection !== activeTab) {
+        setActiveTab(mostVisibleSection);
+      }
+    };
+
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer) {
+      scrollContainer.addEventListener("scroll", handleScroll);
+      // Also listen to wheel events for when at boundaries
+      scrollContainer.addEventListener("wheel", handleScroll);
+
+      // Initial check
+      setTimeout(handleScroll, 100);
+
+      return () => {
+        scrollContainer.removeEventListener("scroll", handleScroll);
+        scrollContainer.removeEventListener("wheel", handleScroll);
+      };
+    }
+  }, [isOpen, isLoadingColumns, activeTab]);
+
   if (!booking) return null;
 
   // Safe date conversion for Firebase Timestamps
@@ -158,316 +313,614 @@ export default function BookingDetailModal({
   const remaining = Math.max(0, totalCost - paid);
   const progress = calculatePaymentProgress(booking);
 
+  // Group columns by parentTab
+  const groupedColumns = columns.reduce((groups, column) => {
+    const parentTab = column.parentTab || "General";
+    if (!groups[parentTab]) {
+      groups[parentTab] = [];
+    }
+    groups[parentTab].push(column);
+    return groups;
+  }, {} as Record<string, SheetColumn[]>);
+
+  // Sort parentTabs by the order they first appear in the columns
+  const sortedParentTabs = Object.keys(groupedColumns).sort((a, b) => {
+    const aFirstOrder = Math.min(...groupedColumns[a].map((col) => col.order));
+    const bFirstOrder = Math.min(...groupedColumns[b].map((col) => col.order));
+    return aFirstOrder - bFirstOrder;
+  });
+
+  // Sort columns within each group by order
+  sortedParentTabs.forEach((parentTab) => {
+    groupedColumns[parentTab].sort((a, b) => a.order - b.order);
+  });
+
+  // Scroll to a specific parent tab
+  const scrollToTab = (parentTab: string) => {
+    const element = document.getElementById(`tab-${parentTab}`);
+    if (element) {
+      // Set flag to prevent tracking during programmatic scroll
+      isScrollingProgrammatically.current = true;
+      setActiveTab(parentTab);
+
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      // Re-enable tracking after scroll animation completes
+      setTimeout(() => {
+        isScrollingProgrammatically.current = false;
+      }, 1000); // Smooth scroll typically takes ~500-800ms
+    }
+  };
+
+  // Copy email to clipboard
+  const copyEmailToClipboard = async () => {
+    if (booking?.emailAddress) {
+      try {
+        await navigator.clipboard.writeText(booking.emailAddress);
+        // You could add a toast notification here if desired
+      } catch (err) {
+        console.error("Failed to copy email:", err);
+      }
+    }
+  };
+
+  // Get icon for parent tab
+  const getParentTabIcon = (parentTab: string) => {
+    if (parentTab.includes("Identifier") || parentTab.includes("🆔"))
+      return FaHashtag;
+    if (parentTab.includes("Traveler") || parentTab.includes("👤"))
+      return FaUser;
+    if (parentTab.includes("Tour") || parentTab.includes("🗺️"))
+      return FaMapMarkerAlt;
+    if (parentTab.includes("Group") || parentTab.includes("👥")) return FaUser;
+    if (parentTab.includes("Email") || parentTab.includes("📧")) return MdEmail;
+    if (parentTab.includes("Payment") || parentTab.includes("💰"))
+      return FaWallet;
+    if (parentTab.includes("Cancellation") || parentTab.includes("❌"))
+      return FaTag;
+    return HiTrendingUp;
+  };
+
+  // Get value for a column from booking data
+  const getColumnValue = (column: SheetColumn) => {
+    const value = (booking as any)[column.id];
+    if (value === null || value === undefined) return null;
+
+    if (column.dataType === "date") {
+      return safeDate(value).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    }
+
+    if (column.dataType === "currency") {
+      return formatCurrency(safeNumber(value, 0));
+    }
+
+    if (column.dataType === "boolean") {
+      return value ? "Yes" : "No";
+    }
+
+    const stringValue = String(value).trim();
+    return stringValue === "" ? null : stringValue;
+  };
+
+  // Check if column should be displayed (skip certain columns)
+  const shouldDisplayColumn = (column: SheetColumn) => {
+    // Skip columns that are not meant to be displayed in detail view
+    if (column.columnName.toLowerCase().includes("delete")) return false;
+    if (column.columnName.toLowerCase().includes("action")) return false;
+
+    // If showEmptyFields is true, show all columns
+    if (showEmptyFields) return true;
+
+    // Skip if value is empty/null/undefined
+    const value = getColumnValue(column);
+    if (value === null || value === undefined) return false;
+
+    return true;
+  };
+
+  // Check if a column is empty (for graying out)
+  const isColumnEmpty = (column: SheetColumn) => {
+    const value = getColumnValue(column);
+    return value === null || value === undefined;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
-        <DialogHeader className="pb-4">
-          <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
-            <div className="p-2 bg-crimson-red/10 rounded-full rounded-br-none">
-              <FaUser className="h-6 w-6 text-crimson-red" />
+      <DialogContent className="max-w-5xl max-h-[90vh] bg-[#F2F0EE] p-0 rounded-full overflow-hidden">
+        <DialogHeader className="sticky top-0 z-50 bg-white shadow-md border-b border-border/50 pb-3 pt-6 px-6">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
+                <FaUser className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <span className="block text-base">Booking Details</span>
+                <span className="text-2xl font-mono font-semibold text-crimson-red block">
+                  {booking.bookingId}
+                </span>
+              </div>
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              {/* View Mode Toggle */}
+              <div className="flex border border-border rounded-md bg-background shadow-sm">
+                <Button
+                  variant={viewMode === "card" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("card")}
+                  className={`rounded-r-none border-r border-border transition-colors ${
+                    viewMode === "card"
+                      ? "bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25"
+                      : "hover:bg-crimson-red/10"
+                  }`}
+                  title="Card view"
+                >
+                  <BsGrid3X3Gap className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  className={`rounded-l-none transition-colors ${
+                    viewMode === "list"
+                      ? "bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25"
+                      : "hover:bg-crimson-red/10"
+                  }`}
+                  title="List view"
+                >
+                  <BsListUl className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowEmptyFields(!showEmptyFields)}
+                className="h-8 px-2 hover:bg-muted"
+                title={
+                  showEmptyFields ? "Hide empty fields" : "Show empty fields"
+                }
+              >
+                {showEmptyFields ? (
+                  <FaEyeSlash className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <FaEye className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
             </div>
-            Booking Details
-          </DialogTitle>
+          </div>
+          <div className="mt-2 ml-[56px] space-y-1">
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">
+                {booking.emailAddress}
+              </p>
+              <button
+                onClick={copyEmailToClipboard}
+                className="p-1 hover:bg-muted rounded transition-colors"
+                title="Copy email"
+              >
+                <FaCopy className="h-3 w-3 text-muted-foreground hover:text-crimson-red" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Row #:{" "}
+              <span className="font-mono font-semibold text-crimson-red">
+                {booking.id}
+              </span>
+            </p>
+          </div>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Header Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Booking Info */}
-            <Card className="lg:col-span-2">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-bold text-foreground">
-                    {booking.bookingId}
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className={`text-xs font-medium border-0 text-foreground px-2 py-1 rounded-full ${getStatusBgColor(
-                        booking
-                      )}`}
-                    >
-                      {getBookingStatusCategory(booking.bookingStatus)}
-                    </Badge>
-                    {booking.bookingType !== "Individual" && (
-                      <Badge
-                        variant="outline"
-                        className={`text-xs font-medium border-0 text-foreground px-2 py-1 rounded-full ${getBookingTypeBgColor(
-                          booking.bookingType
-                        )}`}
-                      >
-                        {booking.bookingType}
-                      </Badge>
-                    )}
+        <div className="flex overflow-hidden max-h-[calc(90vh-120px)]">
+          {/* Main Content */}
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide"
+          >
+            <div className="space-y-3 pt-4">
+              {/* Summary Section */}
+              <div
+                id="tab-Summary"
+                className="scroll-mt-4 pb-4 mb-4 border-b-2 border-border/30"
+              >
+                <h2 className="text-lg font-bold text-foreground flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-crimson-red/20 rounded-full rounded-br-none shadow-sm">
+                    <HiTrendingUp className="h-5 w-5 text-crimson-red" />
                   </div>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Document ID:{" "}
-                  <span className="font-mono font-semibold text-crimson-red">
-                    {booking.id}
-                  </span>
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Traveler Info */}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <FaUser className="h-5 w-5 text-crimson-red flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground">
+                  <span>Booking Summary</span>
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* Full Name */}
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
+                      Traveler
+                    </p>
+                    <p className="text-base font-bold text-foreground">
                       {booking.fullName}
                     </p>
-                    <p className="text-sm text-muted-foreground flex items-center gap-2">
-                      <MdEmail className="h-4 w-4" />
-                      {booking.emailAddress}
-                    </p>
                   </div>
-                </div>
 
-                {/* Tour Package */}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <FaMapMarkerAlt className="h-5 w-5 text-crimson-red flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground">
+                  {/* Booking Type */}
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
+                      Type
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className={`text-sm font-medium border-0 text-foreground px-2.5 py-1 rounded-full rounded-br-none ${getBookingTypeBgColor(
+                        booking.bookingType
+                      )}`}
+                    >
+                      {booking.bookingType}
+                    </Badge>
+                  </div>
+
+                  {/* Tour Package */}
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
+                      Tour Package
+                    </p>
+                    <p className="text-base font-bold text-foreground">
                       {booking.tourPackageName}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      Duration: {booking.tourDuration} days
-                    </p>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Payment Summary */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <FaWallet className="h-5 w-5 text-crimson-red" />
-                  Payment Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-foreground">
-                    {formatCurrency(totalCost)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Total Cost</p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span
-                      className={`font-semibold ${
-                        progress === 100
-                          ? "text-spring-green"
-                          : "text-crimson-red"
-                      }`}
-                    >
-                      {progress}%
-                    </span>
-                  </div>
-                  <Progress
-                    value={progress}
-                    className={`h-2 ${
-                      progress === 100
-                        ? "[&>div]:bg-spring-green"
-                        : "[&>div]:bg-crimson-red"
-                    }`}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="text-center p-2 rounded-lg bg-spring-green/10">
-                    <p className="font-semibold text-spring-green">
-                      {formatCurrency(paid)}
-                    </p>
-                    <p className="text-muted-foreground">Paid</p>
-                  </div>
-                  <div className="text-center p-2 rounded-lg bg-crimson-red/10">
-                    <p className="font-semibold text-crimson-red">
-                      {formatCurrency(remaining)}
-                    </p>
-                    <p className="text-muted-foreground">Remaining</p>
-                  </div>
-                </div>
-
-                {getPaymentPlanCode(booking) && (
-                  <div className="text-center">
-                    <Badge className="bg-crimson-red/10 text-crimson-red font-mono text-lg px-4 py-2 rounded-full rounded-br-none">
-                      {getPaymentPlanCode(booking)}
-                    </Badge>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Payment Plan
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Dates Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <BsCalendarEvent className="h-5 w-5 text-crimson-red" />
-                  Reservation Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <FaCalendarAlt className="h-5 w-5 text-crimson-red flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-foreground">
-                      {safeDate(booking.reservationDate).toLocaleDateString(
-                        "en-US",
-                        {
-                          weekday: "long",
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        }
-                      )}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Reservation Date
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <FaPlane className="h-5 w-5 text-crimson-red flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-foreground">
-                      {safeDate(booking.tourDate).toLocaleDateString("en-US", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Tour Date</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <FaClock className="h-5 w-5 text-crimson-red flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-foreground">
-                      {booking.daysBetweenBookingAndTour} days
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Days between booking and tour
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <BsPersonCheck className="h-5 w-5 text-crimson-red" />
-                  Booking Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <FaFileInvoice className="h-5 w-5 text-crimson-red flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-foreground">
-                      {booking.bookingCode}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Booking Code
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <FaMapMarkerAlt className="h-5 w-5 text-crimson-red flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-foreground">
-                      {booking.tourCode}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Tour Code</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <FaUser className="h-5 w-5 text-crimson-red flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-foreground">
-                      {booking.travellerInitials}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Traveler Initials
-                    </p>
-                  </div>
-                </div>
-
-                {booking.groupId && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                    <FaUser className="h-5 w-5 text-crimson-red flex-shrink-0" />
+                  {/* Booking Status */}
+                  {booking.bookingStatus && (
                     <div>
-                      <p className="font-semibold text-foreground">
-                        {booking.groupId}
+                      <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
+                        Status
                       </p>
-                      <p className="text-sm text-muted-foreground">Group ID</p>
+                      <Badge
+                        variant="outline"
+                        className={`text-sm font-medium border-0 text-foreground px-2.5 py-1 rounded-full rounded-br-none ${getStatusBgColor(
+                          booking
+                        )}`}
+                      >
+                        {getBookingStatusCategory(booking.bookingStatus)}
+                      </Badge>
+                    </div>
+                  )}
+
+                  {/* Dates */}
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
+                      Dates
+                    </p>
+                    <div className="text-sm space-y-1">
+                      <div className="flex items-center gap-2">
+                        <BsCalendarEvent className="h-3.5 w-3.5 text-crimson-red" />
+                        <span className="font-bold">
+                          {safeDate(booking.reservationDate).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                            }
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <FaPlane className="h-3.5 w-3.5 text-crimson-red" />
+                        <span className="font-bold">
+                          {safeDate(booking.tourDate).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                            }
+                          )}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
 
-          {/* Additional Information */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-                <HiTrendingUp className="h-5 w-5 text-crimson-red" />
-                Additional Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <FaEuroSign className="h-5 w-5 text-crimson-red flex-shrink-0" />
+                  {/* Payment Plan */}
                   <div>
-                    <p className="font-semibold text-foreground">
-                      {booking.useDiscountedTourCost ? "Yes" : "No"}
+                    <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
+                      Payment Plan
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      Discounted Tour Cost
+                    <p className="text-base font-bold text-foreground">
+                      {booking.paymentPlan ||
+                        booking.availablePaymentTerms ||
+                        "N/A"}
                     </p>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <FaFileInvoice className="h-5 w-5 text-crimson-red flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-foreground">
-                      {booking.availablePaymentTerms || "N/A"}
+                  {/* Payment Progress */}
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground font-medium mb-2 uppercase">
+                      Payment Progress
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      Payment Terms
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <BsPersonCheck className="h-5 w-5 text-crimson-red flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-foreground">
-                      {booking.isMainBooker ? "Yes" : "No"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Main Booker</p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-spring-green font-bold">
+                          Paid: {formatCurrency(paid)}
+                        </span>
+                        <span
+                          className={`font-bold ${
+                            progress === 100
+                              ? "text-spring-green"
+                              : "text-crimson-red"
+                          }`}
+                        >
+                          {progress}%
+                        </span>
+                      </div>
+                      <Progress
+                        value={progress}
+                        className={`h-2.5 ${
+                          progress === 100
+                            ? "[&>div]:bg-gradient-to-r [&>div]:from-spring-green [&>div]:to-spring-green/80"
+                            : "[&>div]:bg-gradient-to-r [&>div]:from-crimson-red [&>div]:to-crimson-red/80"
+                        }`}
+                      />
+                      {remaining > 0 && (
+                        <p className="text-sm text-crimson-red font-bold">
+                          Due: {formatCurrency(remaining)}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+
+              {/* Dynamic Columns by Parent Tab */}
+              {isLoadingColumns ? (
+                <Card className="bg-white shadow-sm">
+                  <CardContent className="p-6 text-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-crimson-red mx-auto mb-2"></div>
+                    <p className="text-xs text-muted-foreground">Loading...</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                sortedParentTabs.map((parentTab) => {
+                  const IconComponent = getParentTabIcon(parentTab);
+                  const filteredColumns =
+                    groupedColumns[parentTab].filter(shouldDisplayColumn);
+
+                  if (filteredColumns.length === 0) return null;
+
+                  return (
+                    <Card
+                      key={parentTab}
+                      id={`tab-${parentTab}`}
+                      className="bg-white shadow-sm border border-border/50 scroll-mt-4"
+                    >
+                      <CardHeader className="pb-2 bg-crimson-red/10 border-b border-crimson-red/20 py-2">
+                        <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                          <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
+                            <IconComponent className="h-4 w-4 text-crimson-red" />
+                          </div>
+                          {parentTab}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent
+                        className={viewMode === "card" ? "pt-3 pb-3" : "p-0"}
+                      >
+                        {viewMode === "card" ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                            {filteredColumns.map((column) => {
+                              const isEmpty = isColumnEmpty(column);
+                              return (
+                                <div
+                                  key={column.id}
+                                  className={`flex items-start gap-2 p-2 rounded-lg border transition-all hover:shadow-sm ${
+                                    isEmpty
+                                      ? "bg-muted/10 border-border/20 opacity-50"
+                                      : column.dataType === "function"
+                                      ? "bg-purple-50 border-purple-200 hover:border-purple-300"
+                                      : "bg-muted/20 border-border/30 hover:border-crimson-red/30"
+                                  }`}
+                                >
+                                  <div className="flex-shrink-0 mt-0.5">
+                                    <div
+                                      className={`p-1 rounded-full rounded-br-none ${
+                                        column.dataType === "function"
+                                          ? "bg-purple-500/10"
+                                          : "bg-crimson-red/10"
+                                      }`}
+                                    >
+                                      {column.dataType === "function" && (
+                                        <FaCode className="h-3 w-3 text-purple-600" />
+                                      )}
+                                      {column.dataType === "date" && (
+                                        <FaCalendarAlt className="h-3 w-3 text-crimson-red" />
+                                      )}
+                                      {column.dataType === "currency" && (
+                                        <FaEuroSign className="h-3 w-3 text-crimson-red" />
+                                      )}
+                                      {column.dataType === "boolean" && (
+                                        <BsPersonCheck className="h-3 w-3 text-crimson-red" />
+                                      )}
+                                      {column.dataType === "string" &&
+                                        column.columnName
+                                          .toLowerCase()
+                                          .includes("email") && (
+                                          <MdEmail className="h-3 w-3 text-crimson-red" />
+                                        )}
+                                      {column.dataType === "string" &&
+                                        column.columnName
+                                          .toLowerCase()
+                                          .includes("name") && (
+                                          <FaUser className="h-3 w-3 text-crimson-red" />
+                                        )}
+                                      {![
+                                        "date",
+                                        "currency",
+                                        "boolean",
+                                        "function",
+                                      ].includes(column.dataType) &&
+                                        !column.columnName
+                                          .toLowerCase()
+                                          .includes("email") &&
+                                        !column.columnName
+                                          .toLowerCase()
+                                          .includes("name") && (
+                                          <FaTag className="h-3 w-3 text-crimson-red" />
+                                        )}
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] text-muted-foreground font-medium mb-0.5 uppercase tracking-wide">
+                                      {column.columnName}
+                                    </p>
+                                    <p className="text-xs font-semibold text-foreground break-words">
+                                      {getColumnValue(column) || "N/A"}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-border/50">
+                            {filteredColumns.map((column) => {
+                              const isEmpty = isColumnEmpty(column);
+                              return (
+                                <div
+                                  key={column.id}
+                                  className={`flex items-center justify-between px-4 py-2 hover:bg-muted/20 transition-colors ${
+                                    isEmpty ? "opacity-50" : ""
+                                  } ${
+                                    column.dataType === "function"
+                                      ? "bg-purple-50/50"
+                                      : ""
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className="flex-shrink-0">
+                                      <div
+                                        className={`p-1 rounded-full rounded-br-none ${
+                                          column.dataType === "function"
+                                            ? "bg-purple-500/10"
+                                            : "bg-crimson-red/10"
+                                        }`}
+                                      >
+                                        {column.dataType === "function" && (
+                                          <FaCode className="h-3 w-3 text-purple-600" />
+                                        )}
+                                        {column.dataType === "date" && (
+                                          <FaCalendarAlt className="h-3 w-3 text-crimson-red" />
+                                        )}
+                                        {column.dataType === "currency" && (
+                                          <FaEuroSign className="h-3 w-3 text-crimson-red" />
+                                        )}
+                                        {column.dataType === "boolean" && (
+                                          <BsPersonCheck className="h-3 w-3 text-crimson-red" />
+                                        )}
+                                        {column.dataType === "string" &&
+                                          column.columnName
+                                            .toLowerCase()
+                                            .includes("email") && (
+                                            <MdEmail className="h-3 w-3 text-crimson-red" />
+                                          )}
+                                        {column.dataType === "string" &&
+                                          column.columnName
+                                            .toLowerCase()
+                                            .includes("name") && (
+                                            <FaUser className="h-3 w-3 text-crimson-red" />
+                                          )}
+                                        {![
+                                          "date",
+                                          "currency",
+                                          "boolean",
+                                          "function",
+                                        ].includes(column.dataType) &&
+                                          !column.columnName
+                                            .toLowerCase()
+                                            .includes("email") &&
+                                          !column.columnName
+                                            .toLowerCase()
+                                            .includes("name") && (
+                                            <FaTag className="h-3 w-3 text-crimson-red" />
+                                          )}
+                                      </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                                      {column.columnName}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm font-semibold text-foreground">
+                                      {getColumnValue(column) || "N/A"}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Navigation Sidebar */}
+          {!isLoadingColumns && sortedParentTabs.length > 0 && (
+            <div className="w-48 border-l border-border/50 p-4 overflow-y-auto scrollbar-hide">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Sections
+              </h3>
+              <nav className="space-y-1">
+                {/* Summary Navigation Button */}
+                <button
+                  onClick={() => scrollToTab("Summary")}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
+                    activeTab === "Summary"
+                      ? "bg-crimson-red text-white shadow-sm"
+                      : "text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  <HiTrendingUp
+                    className={`h-3 w-3 flex-shrink-0 ${
+                      activeTab === "Summary"
+                        ? "text-white"
+                        : "text-crimson-red"
+                    }`}
+                  />
+                  <span className="text-xs font-medium truncate">Summary</span>
+                </button>
+                {sortedParentTabs.map((parentTab) => {
+                  const IconComponent = getParentTabIcon(parentTab);
+                  const filteredColumns =
+                    groupedColumns[parentTab].filter(shouldDisplayColumn);
+
+                  if (filteredColumns.length === 0 && !showEmptyFields)
+                    return null;
+
+                  return (
+                    <button
+                      key={parentTab}
+                      onClick={() => scrollToTab(parentTab)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
+                        activeTab === parentTab
+                          ? "bg-crimson-red text-white shadow-sm"
+                          : "text-foreground hover:bg-muted/50"
+                      }`}
+                    >
+                      <IconComponent
+                        className={`h-3 w-3 flex-shrink-0 ${
+                          activeTab === parentTab
+                            ? "text-white"
+                            : "text-crimson-red"
+                        }`}
+                      />
+                      <span className="text-xs font-medium truncate">
+                        {parentTab}
+                      </span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

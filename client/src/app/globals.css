@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide scrollbar utility */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* React Data Grid Custom Styling */
 .custom-grid {
   border-collapse: separate;
