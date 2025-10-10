@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import BookingsList from "./BookingsList";
+import BookingsSection from "./BookingsSection";
 import BookingsSheet from "../sheet-management/BookingsSheet";
 import BookingsColumnsTab from "./BookingsColumnsTab";
 
@@ -109,7 +109,7 @@ export default function BookingsTabs() {
         </TabsList>
 
         <TabsContent value="list" className="mt-6">
-          <BookingsList />
+          <BookingsSection />
         </TabsContent>
 
         <TabsContent value="sheet" className="mt-6">

@@ -7,7 +7,7 @@ export interface Booking {
   bookingCode: string;
   tourCode: string;
   reservationDate: Date;
-  bookingType: "Individual" | "Group" | "Corporate";
+  bookingType: "Individual" | "Group";
   bookingStatus: "Confirmed" | "Pending" | "Cancelled" | "Completed";
   daysBetweenBookingAndTour: number;
   groupId?: string;
