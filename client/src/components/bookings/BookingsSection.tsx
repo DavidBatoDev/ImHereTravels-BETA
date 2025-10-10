@@ -483,7 +483,8 @@ export default function BookingsSection() {
   const filteredBookings = bookings.filter((booking) => {
     const matchesSearch =
       searchTerm === "" ||
-      booking.bookingId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (booking.bookingId &&
+        booking.bookingId.toLowerCase().includes(searchTerm.toLowerCase())) ||
       booking.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.emailAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.tourPackageName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -837,187 +838,196 @@ export default function BookingsSection() {
         </Card>
       ) : viewMode === "cards" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {filteredBookings.map((booking) => (
-            <Card
-              key={booking.id}
-              onClick={() => handleBookingClick(booking)}
-              className="group border border-border hover:border-crimson-red/50 transition-all duration-300 cursor-pointer overflow-hidden relative"
-            >
-              {/* Document ID - Upper Left */}
-              <div className="absolute top-2 left-2 z-10">
-                <div className="bg-crimson-red/90 text-white text-[10px] font-mono font-bold px-1.5 py-0.5 rounded rounded-br-none shadow-sm">
-                  {booking.id}
+          {filteredBookings.map((booking) => {
+            const isInvalid = !booking.bookingId;
+            return (
+              <Card
+                key={booking.id}
+                onClick={() => handleBookingClick(booking)}
+                className={`group border transition-all duration-300 cursor-pointer overflow-hidden relative ${
+                  isInvalid
+                    ? "border-crimson-red bg-crimson-red/5 hover:border-crimson-red hover:bg-crimson-red/10"
+                    : "border-border hover:border-crimson-red/50"
+                }`}
+              >
+                {/* Document ID - Upper Left */}
+                <div className="absolute top-2 left-2 z-10">
+                  <div className="bg-crimson-red/90 text-white text-[10px] font-mono font-bold px-1.5 py-0.5 rounded rounded-br-none shadow-sm">
+                    {booking.id}
+                  </div>
                 </div>
-              </div>
 
-              {/* Card Header */}
-              <CardHeader className="p-3 pb-2 border-b border-border/50">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1 mb-1 pl-8">
-                      <Badge
-                        variant="outline"
-                        className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
-                          booking
-                        )}`}
-                        title={booking.bookingStatus || "Pending"}
-                      >
-                        {getBookingStatusCategory(booking.bookingStatus)}
-                      </Badge>
-                      {booking.bookingType !== "Individual" && (
+                {/* Card Header */}
+                <CardHeader className="p-3 pb-2 border-b border-border/50">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1 mb-1 pl-8">
                         <Badge
                           variant="outline"
-                          className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getBookingTypeBgColor(
-                            booking.bookingType
+                          className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
+                            booking
                           )}`}
-                          title={booking.bookingType}
+                          title={booking.bookingStatus || "Pending"}
                         >
-                          {booking.bookingType}
+                          {getBookingStatusCategory(booking.bookingStatus)}
                         </Badge>
-                      )}
-                    </div>
-                    <h3 className="font-bold text-lg text-foreground group-hover:text-crimson-red transition-colors truncate font-mono">
-                      {booking.bookingId}
-                    </h3>
-                    <CardDescription className="text-xs flex items-center gap-1 mt-0.5 truncate">
-                      <MdEmail className="h-3 w-3 flex-shrink-0 text-foreground" />
-                      <span className="truncate">{booking.emailAddress}</span>
-                    </CardDescription>
-                  </div>
-                  {/* Payment Plan Code */}
-                  {getPaymentPlanCode(booking) && (
-                    <div className="text-2xl bg-crimson-red/10 font-bold text-crimson-red font-mono  px-2 py-1 rounded-full rounded-br-none">
-                      {getPaymentPlanCode(booking)}
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-
-              {/* Card Content */}
-              <CardContent className="p-3 pt-2 space-y-2">
-                {/* Full Name */}
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                  <FaUser className="h-4 w-4 text-foreground flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-muted-foreground font-medium">
-                      Traveler
-                    </p>
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {booking.fullName}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Tour Package */}
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                  <FaMapMarkerAlt className="h-4 w-4 text-foreground flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-muted-foreground font-medium">
-                      Tour Package
-                    </p>
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {booking.tourPackageName}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Dates */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <BsCalendarEvent className="h-4 w-4 text-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-muted-foreground font-medium">
-                        Reserved
-                      </p>
-                      <p className="text-xs font-semibold text-foreground">
-                        {safeDate(booking.reservationDate).toLocaleDateString(
-                          "en-US",
-                          { month: "short", day: "numeric" }
+                        {booking.bookingType !== "Individual" && (
+                          <Badge
+                            variant="outline"
+                            className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getBookingTypeBgColor(
+                              booking.bookingType
+                            )}`}
+                            title={booking.bookingType}
+                          >
+                            {booking.bookingType}
+                          </Badge>
                         )}
-                      </p>
+                      </div>
+                      <h3 className="font-bold text-lg text-foreground group-hover:text-crimson-red transition-colors truncate font-mono">
+                        {booking.bookingId || "Invalid Booking"}
+                      </h3>
+                      <CardDescription className="text-xs flex items-center gap-1 mt-0.5 truncate">
+                        <MdEmail className="h-3 w-3 flex-shrink-0 text-foreground" />
+                        <span className="truncate">{booking.emailAddress}</span>
+                      </CardDescription>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <FaPlane className="h-4 w-4 text-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-muted-foreground font-medium">
-                        Tour
-                      </p>
-                      <p className="text-xs font-semibold text-foreground">
-                        {safeDate(booking.tourDate).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "short",
-                            day: "numeric",
-                          }
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Info */}
-                <div className="p-2.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <IoWallet className="h-4 w-4 text-foreground" />
-                      <span className="text-xs font-semibold text-foreground">
-                        Payment Status
-                      </span>
-                    </div>
-                    <span
-                      className={`text-xs font-bold ${
-                        calculatePaymentProgress(booking) === 100
-                          ? "text-spring-green"
-                          : "text-crimson-red"
-                      }`}
-                    >
-                      {calculatePaymentProgress(booking)}%
-                    </span>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-full bg-background/50 rounded-full h-2 mb-1.5 border border-border/30">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        calculatePaymentProgress(booking) === 100
-                          ? "bg-gradient-to-r from-spring-green to-spring-green/80"
-                          : "bg-gradient-to-r from-crimson-red to-crimson-red/80"
-                      }`}
-                      style={{ width: `${calculatePaymentProgress(booking)}%` }}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-spring-green"></div>
-                      <span className="text-muted-foreground">
-                        Paid:{" "}
-                        <span className="font-bold text-spring-green">
-                          {formatCurrency(safeNumber(booking.paid, 0))}
-                        </span>
-                      </span>
-                    </div>
-                    {getTotalCost(booking) - safeNumber(booking.paid, 0) >
-                      0 && (
-                      <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-crimson-red"></div>
-                        <span className="text-muted-foreground">
-                          Due:{" "}
-                          <span className="font-bold text-crimson-red">
-                            {formatCurrency(
-                              getTotalCost(booking) -
-                                safeNumber(booking.paid, 0)
-                            )}
-                          </span>
-                        </span>
+                    {/* Payment Plan Code */}
+                    {getPaymentPlanCode(booking) && (
+                      <div className="text-2xl bg-crimson-red/10 font-bold text-crimson-red font-mono  px-2 py-1 rounded-full rounded-br-none">
+                        {getPaymentPlanCode(booking)}
                       </div>
                     )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardHeader>
+
+                {/* Card Content */}
+                <CardContent className="p-3 pt-2 space-y-2">
+                  {/* Full Name */}
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <FaUser className="h-4 w-4 text-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-muted-foreground font-medium">
+                        Traveler
+                      </p>
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {booking.fullName}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Tour Package */}
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <FaMapMarkerAlt className="h-4 w-4 text-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-muted-foreground font-medium">
+                        Tour Package
+                      </p>
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {booking.tourPackageName}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Dates */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <BsCalendarEvent className="h-4 w-4 text-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-muted-foreground font-medium">
+                          Reserved
+                        </p>
+                        <p className="text-xs font-semibold text-foreground">
+                          {safeDate(booking.reservationDate).toLocaleDateString(
+                            "en-US",
+                            { month: "short", day: "numeric" }
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <FaPlane className="h-4 w-4 text-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-muted-foreground font-medium">
+                          Tour
+                        </p>
+                        <p className="text-xs font-semibold text-foreground">
+                          {safeDate(booking.tourDate).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                            }
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Info */}
+                  <div className="p-2.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <IoWallet className="h-4 w-4 text-foreground" />
+                        <span className="text-xs font-semibold text-foreground">
+                          Payment Status
+                        </span>
+                      </div>
+                      <span
+                        className={`text-xs font-bold ${
+                          calculatePaymentProgress(booking) === 100
+                            ? "text-spring-green"
+                            : "text-crimson-red"
+                        }`}
+                      >
+                        {calculatePaymentProgress(booking)}%
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-background/50 rounded-full h-2 mb-1.5 border border-border/30">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          calculatePaymentProgress(booking) === 100
+                            ? "bg-gradient-to-r from-spring-green to-spring-green/80"
+                            : "bg-gradient-to-r from-crimson-red to-crimson-red/80"
+                        }`}
+                        style={{
+                          width: `${calculatePaymentProgress(booking)}%`,
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-spring-green"></div>
+                        <span className="text-muted-foreground">
+                          Paid:{" "}
+                          <span className="font-bold text-spring-green">
+                            {formatCurrency(safeNumber(booking.paid, 0))}
+                          </span>
+                        </span>
+                      </div>
+                      {getTotalCost(booking) - safeNumber(booking.paid, 0) >
+                        0 && (
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-crimson-red"></div>
+                          <span className="text-muted-foreground">
+                            Due:{" "}
+                            <span className="font-bold text-crimson-red">
+                              {formatCurrency(
+                                getTotalCost(booking) -
+                                  safeNumber(booking.paid, 0)
+                              )}
+                            </span>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       ) : (
         // List View
@@ -1057,117 +1067,126 @@ export default function BookingsSection() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBookings.map((booking) => (
-                    <tr
-                      key={booking.id}
-                      onClick={() => handleBookingClick(booking)}
-                      className="border-b border-border transition-colors duration-200 hover:bg-crimson-red/5 cursor-pointer"
-                    >
-                      <td className="py-3 px-4">
-                        <span className="font-mono text-xs font-semibold text-crimson-red bg-crimson-red/10 px-2 py-0.5 rounded-full rounded-br-none">
-                          {booking.id}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-mono text-sm font-semibold text-crimson-red">
-                          {booking.bookingId}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <div className="text-sm font-semibold text-foreground">
-                            {booking.fullName}
-                          </div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-1">
-                            <MdEmail className="h-3 w-3" />
-                            {booking.emailAddress}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 pl-5 pr-4">
-                        <Badge
-                          variant="outline"
-                          className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
-                            booking
-                          )}`}
-                          title={booking.bookingStatus || "Pending"}
-                        >
-                          {getBookingStatusCategory(booking.bookingStatus)}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5">
-                          <FaMapMarkerAlt className="h-3 w-3 text-foreground" />
-                          <span className="text-sm text-foreground">
-                            {booking.tourPackageName}
+                  {filteredBookings.map((booking) => {
+                    const isInvalid = !booking.bookingId;
+                    return (
+                      <tr
+                        key={booking.id}
+                        onClick={() => handleBookingClick(booking)}
+                        className={`border-b transition-colors duration-200 cursor-pointer ${
+                          isInvalid
+                            ? "border-crimson-red bg-crimson-red/10 hover:bg-crimson-red/20"
+                            : "border-border hover:bg-crimson-red/5"
+                        }`}
+                      >
+                        <td className="py-3 px-4">
+                          <span className="font-mono text-xs font-semibold text-crimson-red bg-crimson-red/10 px-2 py-0.5 rounded-full rounded-br-none">
+                            {booking.id}
                           </span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5">
-                          <BsCalendarEvent className="h-3 w-3 text-foreground" />
-                          <span className="text-xs text-foreground">
-                            {safeDate(
-                              booking.reservationDate
-                            ).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-mono text-sm font-semibold text-crimson-red">
+                            {booking.bookingId || "Invalid Booking"}
                           </span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5">
-                          <FaPlane className="h-3 w-3 text-foreground" />
-                          <span className="text-xs text-foreground">
-                            {safeDate(booking.tourDate).toLocaleDateString(
-                              "en-US",
-                              {
+                        </td>
+                        <td className="py-3 px-4">
+                          <div>
+                            <div className="text-sm font-semibold text-foreground">
+                              {booking.fullName}
+                            </div>
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <MdEmail className="h-3 w-3" />
+                              {booking.emailAddress}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 pl-5 pr-4">
+                          <Badge
+                            variant="outline"
+                            className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
+                              booking
+                            )}`}
+                            title={booking.bookingStatus || "Pending"}
+                          >
+                            {getBookingStatusCategory(booking.bookingStatus)}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <FaMapMarkerAlt className="h-3 w-3 text-foreground" />
+                            <span className="text-sm text-foreground">
+                              {booking.tourPackageName}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <BsCalendarEvent className="h-3 w-3 text-foreground" />
+                            <span className="text-xs text-foreground">
+                              {safeDate(
+                                booking.reservationDate
+                              ).toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",
-                              }
-                            )}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <span
-                              className={`text-xs font-bold ${
-                                calculatePaymentProgress(booking) === 100
-                                  ? "text-spring-green"
-                                  : "text-crimson-red"
-                              }`}
-                            >
-                              {calculatePaymentProgress(booking)}%
+                              })}
                             </span>
                           </div>
-                          <div className="w-24 bg-muted rounded-full h-1.5">
-                            <div
-                              className={`h-full rounded-full ${
-                                calculatePaymentProgress(booking) === 100
-                                  ? "bg-spring-green"
-                                  : "bg-crimson-red"
-                              }`}
-                              style={{
-                                width: `${calculatePaymentProgress(booking)}%`,
-                              }}
-                            />
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <FaPlane className="h-3 w-3 text-foreground" />
+                            <span className="text-xs text-foreground">
+                              {safeDate(booking.tourDate).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                }
+                              )}
+                            </span>
                           </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        {getPaymentPlanCode(booking) && (
-                          <div className="text-xs font-bold text-crimson-red font-mono bg-crimson-red/10 px-2 py-0.5 rounded-full rounded-br-none inline-block">
-                            {getPaymentPlanCode(booking)}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className={`text-xs font-bold ${
+                                  calculatePaymentProgress(booking) === 100
+                                    ? "text-spring-green"
+                                    : "text-crimson-red"
+                                }`}
+                              >
+                                {calculatePaymentProgress(booking)}%
+                              </span>
+                            </div>
+                            <div className="w-24 bg-muted rounded-full h-1.5">
+                              <div
+                                className={`h-full rounded-full ${
+                                  calculatePaymentProgress(booking) === 100
+                                    ? "bg-spring-green"
+                                    : "bg-crimson-red"
+                                }`}
+                                style={{
+                                  width: `${calculatePaymentProgress(
+                                    booking
+                                  )}%`,
+                                }}
+                              />
+                            </div>
                           </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="py-3 px-4">
+                          {getPaymentPlanCode(booking) && (
+                            <div className="text-xs font-bold text-crimson-red font-mono bg-crimson-red/10 px-2 py-0.5 rounded-full rounded-br-none inline-block">
+                              {getPaymentPlanCode(booking)}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
