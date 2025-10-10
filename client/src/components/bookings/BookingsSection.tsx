@@ -35,6 +35,7 @@ import type { Booking } from "@/types/bookings";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { Timestamp } from "firebase/firestore";
+import BookingDetailModal from "./BookingDetailModal";
 
 // Mock data for demonstration - replace with real data
 const mockBookings: Booking[] = [
@@ -194,6 +195,8 @@ export default function BookingsSection() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFilterSticky, setIsFilterSticky] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   // Subscribe to real-time bookings data
   useEffect(() => {
@@ -464,6 +467,18 @@ export default function BookingsSection() {
     return count;
   };
 
+  // Handle booking card click
+  const handleBookingClick = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setIsDetailModalOpen(true);
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setIsDetailModalOpen(false);
+    setSelectedBooking(null);
+  };
+
   // Filter bookings based on search and filters
   const filteredBookings = bookings.filter((booking) => {
     const matchesSearch =
@@ -606,7 +621,7 @@ export default function BookingsSection() {
           >
             <FaPlus className="h-10 w-10 absolute group-hover:opacity-0 group-hover:scale-0 transition-all duration-300" />
             <span className="text-[9px] font-medium opacity-0 scale-0 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 whitespace-nowrap font-hk-grotesk">
-              Add booking
+              ADD BOOKING
             </span>
           </Button>
         </div>
@@ -825,6 +840,7 @@ export default function BookingsSection() {
           {filteredBookings.map((booking) => (
             <Card
               key={booking.id}
+              onClick={() => handleBookingClick(booking)}
               className="group border border-border hover:border-crimson-red/50 transition-all duration-300 cursor-pointer overflow-hidden relative"
             >
               {/* Document ID - Upper Left */}
@@ -838,7 +854,7 @@ export default function BookingsSection() {
               <CardHeader className="p-3 pb-2 border-b border-border/50">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1 mb-1 pl-1">
+                    <div className="flex items-center gap-1 mb-1 pl-8">
                       <Badge
                         variant="outline"
                         className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
@@ -1012,6 +1028,9 @@ export default function BookingsSection() {
                 <thead>
                   <tr className="bg-muted/30 border-b border-border">
                     <th className="text-left py-3 px-4 font-semibold text-foreground text-xs">
+                      ID
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-foreground text-xs">
                       Booking ID
                     </th>
                     <th className="text-left py-3 px-4 font-semibold text-foreground text-xs">
@@ -1041,8 +1060,14 @@ export default function BookingsSection() {
                   {filteredBookings.map((booking) => (
                     <tr
                       key={booking.id}
+                      onClick={() => handleBookingClick(booking)}
                       className="border-b border-border transition-colors duration-200 hover:bg-crimson-red/5 cursor-pointer"
                     >
+                      <td className="py-3 px-4">
+                        <span className="font-mono text-xs font-semibold text-crimson-red bg-crimson-red/10 px-2 py-0.5 rounded-full rounded-br-none">
+                          {booking.id}
+                        </span>
+                      </td>
                       <td className="py-3 px-4">
                         <span className="font-mono text-sm font-semibold text-crimson-red">
                           {booking.bookingId}
@@ -1171,6 +1196,13 @@ export default function BookingsSection() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Booking Detail Modal */}
+      <BookingDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={handleModalClose}
+        booking={selectedBooking}
+      />
     </div>
   );
 }
