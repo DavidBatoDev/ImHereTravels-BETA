@@ -475,6 +475,15 @@ export default function ColumnSettingsModal({
                                       <SelectValue placeholder="Choose a column to add" />
                                     </SelectTrigger>
                                     <SelectContent>
+                                      {/* Add ID as a special reference option */}
+                                      <SelectItem key="__id__" value="ID">
+                                        <div className="flex items-center justify-between">
+                                          <span>ID</span>
+                                          <span className="text-xs text-gray-500 ml-2">
+                                            string
+                                          </span>
+                                        </div>
+                                      </SelectItem>
                                       {existingColumns
                                         .filter((c) => c.id !== column?.id)
                                         .map((col) => (
@@ -573,6 +582,15 @@ export default function ColumnSettingsModal({
                                       <SelectValue placeholder="Choose a column to reference" />
                                     </SelectTrigger>
                                     <SelectContent>
+                                      {/* Add ID as a special reference option */}
+                                      <SelectItem key="__id__" value="ID">
+                                        <div className="flex items-center justify-between">
+                                          <span>ID</span>
+                                          <span className="text-xs text-gray-500 ml-2">
+                                            string
+                                          </span>
+                                        </div>
+                                      </SelectItem>
                                       {existingColumns
                                         .filter((c) => c.id !== column?.id)
                                         .map((col) => (

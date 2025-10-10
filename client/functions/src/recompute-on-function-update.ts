@@ -394,6 +394,11 @@ function buildArgs(
 
     if (Array.isArray(arg.columnReferences) && arg.columnReferences.length) {
       const result = arg.columnReferences.map((refName) => {
+        // Special case: "ID" refers to the document ID
+        if (refName === "ID") {
+          logger.info(`    ID reference -> value "${row.id}"`);
+          return row.id;
+        }
         const refCol = allColumns.find((c) => c.columnName === refName);
         const value = refCol ? row[refCol.id] : undefined;
         logger.info(
@@ -407,6 +412,11 @@ function buildArgs(
       return result;
     }
     if (arg.columnReference !== undefined && arg.columnReference !== "") {
+      // Special case: "ID" refers to the document ID
+      if (arg.columnReference === "ID") {
+        logger.info(`    ID reference -> value "${row.id}"`);
+        return row.id;
+      }
       const refCol = allColumns.find(
         (c) => c.columnName === arg.columnReference
       );
@@ -529,20 +539,26 @@ function buildColumnDependencyGraph(
       column.arguments.forEach((arg) => {
         // Check for single column reference by column name
         if (arg.columnReference) {
-          const refColumn = columns.find(
-            (c) => c.columnName === arg.columnReference
-          );
-          if (refColumn) {
-            dependencies.push(refColumn.id);
+          // Skip "ID" reference since it's not a column dependency
+          if (arg.columnReference !== "ID") {
+            const refColumn = columns.find(
+              (c) => c.columnName === arg.columnReference
+            );
+            if (refColumn) {
+              dependencies.push(refColumn.id);
+            }
           }
         }
 
         // Check for multiple column references by column name
         if (arg.columnReferences && Array.isArray(arg.columnReferences)) {
           arg.columnReferences.forEach((refName) => {
-            const refColumn = columns.find((c) => c.columnName === refName);
-            if (refColumn) {
-              dependencies.push(refColumn.id);
+            // Skip "ID" reference since it's not a column dependency
+            if (refName !== "ID") {
+              const refColumn = columns.find((c) => c.columnName === refName);
+              if (refColumn) {
+                dependencies.push(refColumn.id);
+              }
             }
           });
         }

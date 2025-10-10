@@ -306,6 +306,10 @@ class FunctionExecutionService {
       // If multiple column references are supplied (array-like param)
       if (Array.isArray(arg.columnReferences) && arg.columnReferences.length) {
         const values = arg.columnReferences.map((refName) => {
+          // Special case: "ID" refers to the document ID
+          if (refName === "ID") {
+            return row.id;
+          }
           const refCol = refName ? columnsByName.get(refName) : undefined;
           return refCol ? row[refCol.id] : undefined;
         });
@@ -314,6 +318,10 @@ class FunctionExecutionService {
 
       // Single column reference
       if (arg.columnReference !== undefined && arg.columnReference !== "") {
+        // Special case: "ID" refers to the document ID
+        if (arg.columnReference === "ID") {
+          return row.id;
+        }
         const refCol = columnsByName.get(arg.columnReference);
         const value = refCol ? row[refCol.id] : undefined;
         return value;

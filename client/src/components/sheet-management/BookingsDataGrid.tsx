@@ -428,6 +428,14 @@ function FunctionEditor({
     columnDef?.arguments
       ?.map((arg) => {
         if (arg.columnReference) {
+          // Special case: "ID" refers to the document ID
+          if (arg.columnReference === "ID") {
+            const value = row.id;
+            if (value === undefined || value === null) return "null";
+            if (typeof value === "string") return `"${value}"`;
+            if (typeof value === "object") return JSON.stringify(value);
+            return String(value);
+          }
           // Find the column and get value from row
           const refCol = globalAllColumns.find(
             (c) => c.columnName === arg.columnReference
@@ -443,6 +451,13 @@ function FunctionEditor({
         }
         if (arg.columnReferences && arg.columnReferences.length > 0) {
           const values = arg.columnReferences.map((ref) => {
+            // Special case: "ID" refers to the document ID
+            if (ref === "ID") {
+              const value = row.id;
+              if (value === undefined || value === null) return "null";
+              if (typeof value === "string") return `"${value}"`;
+              return String(value);
+            }
             const refCol = globalAllColumns.find((c) => c.columnName === ref);
             if (refCol) {
               const value = row[refCol.id];
@@ -1005,25 +1020,31 @@ export default function BookingsDataGrid({
       if (col.dataType === "function" && Array.isArray(col.arguments)) {
         col.arguments.forEach((arg) => {
           if (arg.columnReference) {
-            // Find the column ID for the referenced column name
-            const refCol = columns.find(
-              (c) => c.columnName === arg.columnReference
-            );
-            if (refCol) {
-              const list = map.get(refCol.id) || [];
-              list.push(col);
-              map.set(refCol.id, list);
+            // Skip "ID" reference since it's not a column dependency
+            if (arg.columnReference !== "ID") {
+              // Find the column ID for the referenced column name
+              const refCol = columns.find(
+                (c) => c.columnName === arg.columnReference
+              );
+              if (refCol) {
+                const list = map.get(refCol.id) || [];
+                list.push(col);
+                map.set(refCol.id, list);
+              }
             }
           }
           if (Array.isArray(arg.columnReferences)) {
             arg.columnReferences.forEach((ref) => {
               if (!ref) return;
-              // Find the column ID for the referenced column name
-              const refCol = columns.find((c) => c.columnName === ref);
-              if (refCol) {
-                const list = map.get(refCol.id) || [];
-                list.push(col);
-                map.set(refCol.id, list);
+              // Skip "ID" reference since it's not a column dependency
+              if (ref !== "ID") {
+                // Find the column ID for the referenced column name
+                const refCol = columns.find((c) => c.columnName === ref);
+                if (refCol) {
+                  const list = map.get(refCol.id) || [];
+                  list.push(col);
+                  map.set(refCol.id, list);
+                }
               }
             });
           }
@@ -2637,43 +2658,6 @@ export default function BookingsDataGrid({
                   </Button>
                 }
               />
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isRecomputingAll}
-                onClick={async () => {
-                  try {
-                    setIsRecomputingAll(true);
-                    // Clear caches and recompute using the same pathway as manual retry
-                    clearFunctionCache();
-                    await recomputeAllFunctionColumns();
-                    toast({
-                      title: "Recompute Complete",
-                      description: "All function columns have been recomputed.",
-                    });
-                  } catch (err) {
-                    console.error(
-                      "Failed to recompute all function columns",
-                      err
-                    );
-                    toast({
-                      title: "Recompute Failed",
-                      description:
-                        err instanceof Error ? err.message : "Unknown error",
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setIsRecomputingAll(false);
-                  }
-                }}
-              >
-                <RefreshCw
-                  className={`w-4 h-4 mr-2 ${
-                    isRecomputingAll ? "animate-spin" : ""
-                  }`}
-                />
-                {isRecomputingAll ? "Recomputing…" : "Recompute All"}
-              </Button>
             </div>
           </div>
 
