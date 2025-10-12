@@ -118,6 +118,7 @@ import { functionExecutionService } from "@/services/function-execution-service"
 import { batchedWriter } from "@/services/batched-writer";
 import { bookingService } from "@/services/booking-service";
 import { typescriptFunctionsService } from "@/services/typescript-functions-service";
+import { typescriptFunctionService } from "@/services/firebase-function-service";
 import { useRouter } from "next/navigation";
 // Simple deep equality check
 const isEqual = (a: any, b: any): boolean => {
@@ -248,15 +249,102 @@ export default function BookingsDataGrid({
     errorDetected: false,
     errorCount: 0,
   });
-  const MAX_RECOMPUTE_ATTEMPTS = 4;
+  const MAX_RECOMPUTE_ATTEMPTS = 30;
   const attemptErrorCountRef = useRef<number>(0);
+
+  // Progress update throttling to reduce React re-renders
+  const progressUpdateCountRef = useRef<number>(0);
+  const PROGRESS_UPDATE_INTERVAL = 10; // Only update progress every 10 operations
+
+  // Configuration for handling slow/async functions during recompute
+  const FUNCTION_EXECUTION_DELAY = 0; // 0ms delay between function executions
+  const ASYNC_FUNCTION_DELAY = 10; // Reduced from 100ms to 10ms for async functions
+  const executionTimesRef = useRef<Map<string, number[]>>(new Map());
 
   // Cache for function arguments to detect actual changes
   const functionArgsCacheRef = useRef<Map<string, any[]>>(new Map());
 
+  // Cache for row dependency values to detect changes
+  const rowDependencyCacheRef = useRef<Map<string, any[]>>(new Map());
+
+  // Cache for async function detection results
+  const asyncFunctionCacheRef = useRef<Map<string, boolean>>(new Map());
+
+  // Helper to check if a function is likely to be slow/async
+  const isFunctionLikelyAsync = useCallback(
+    async (functionId: string): Promise<boolean> => {
+      // Check cache first to avoid repeated expensive checks
+      const cached = asyncFunctionCacheRef.current.get(functionId);
+      if (cached !== undefined) {
+        return cached;
+      }
+
+      try {
+        // First check function metadata for async indicators
+        const tsFunction = await typescriptFunctionsService.getFunction(
+          functionId
+        );
+        if (tsFunction) {
+          // Check if function has async-related metadata
+          if (
+            tsFunction.functionName?.toLowerCase().includes("async") ||
+            tsFunction.name?.toLowerCase().includes("async")
+          ) {
+            return true;
+          }
+        }
+
+        // Then check the actual function content
+        const tsFile = await typescriptFunctionService.files.getById(
+          functionId
+        );
+        if (!tsFile?.content) return false;
+
+        const content = tsFile.content.toLowerCase();
+        // Check for async/await patterns, HTTP calls, database operations, etc.
+        const isAsync = (
+          content.includes("async") ||
+          content.includes("await") ||
+          content.includes("fetch") ||
+          content.includes("httpscallable") ||
+          content.includes("getdocs") ||
+          content.includes("updatedoc") ||
+          content.includes("adddoc") ||
+          content.includes("deletedoc") ||
+          content.includes("settimeout") ||
+          content.includes("setinterval") ||
+          content.includes("promise") ||
+          content.includes("sendemail") ||
+          content.includes("generateemail") ||
+          content.includes(".then(") ||
+          content.includes(".catch(")
+        );
+        
+        // Cache the result
+        asyncFunctionCacheRef.current.set(functionId, isAsync);
+        return isAsync;
+      } catch {
+        // Cache false result for failed checks
+        asyncFunctionCacheRef.current.set(functionId, false);
+        return false;
+      }
+    },
+    []
+  );
+
+  // Track execution times and determine if function is consistently slow
+  const isSlowFunction = useCallback((functionId: string): boolean => {
+    const times = executionTimesRef.current.get(functionId) || [];
+    if (times.length < 3) return false; // Need at least 3 samples
+    const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
+    return avgTime > 1000; // Consider slow if average > 1 second
+  }, []);
+
   // Clear function cache when data changes
   const clearFunctionCache = useCallback(() => {
     functionArgsCacheRef.current.clear();
+    rowDependencyCacheRef.current.clear();
+    asyncFunctionCacheRef.current.clear();
     functionExecutionService.clearAllResultCache();
   }, []);
 
@@ -412,10 +500,12 @@ export default function BookingsDataGrid({
 
         // Execute function with proper async handling
         // The function execution service will handle caching based on arguments
+        // Use longer timeout during recompute process for slow functions
+        const timeout = skipInitialCheck ? 30000 : 10000; // 30s for recompute, 10s for normal
         const executionResult = await functionExecutionService.executeFunction(
           funcCol.function,
           args,
-          10000 // 10 second timeout
+          timeout
         );
 
         if (!executionResult.success) {
@@ -734,276 +824,545 @@ export default function BookingsDataGrid({
     [columns, localData, data]
   );
 
-  // Recompute all function columns for all rows (used after CSV import)
-  const recomputeAllFunctionColumns = useCallback(
-    async (isRetry = false, retryAttempt = 1) => {
-      if (!isRetry) {
-        console.log(
-          "🔄 [FUNCTION RECOMPUTE] Starting recomputation of all function columns"
-        );
-        setIsRecomputingAll(true);
-        setRecomputeProgress({
-          completed: 0,
-          total: 0,
-          phase: "init",
-          attempt: retryAttempt,
-          maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
-          errorDetected: false,
-          errorCount: 0,
-        });
-      } else {
-        console.log(
-          `🔄 [FUNCTION RECOMPUTE] Retrying recomputation (attempt ${retryAttempt}/${MAX_RECOMPUTE_ATTEMPTS})`
-        );
-        setRecomputeProgress({
-          completed: 0,
-          total: 0,
-          phase: "init",
-          attempt: retryAttempt,
-          maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
-          errorDetected: false,
-          errorCount: 0,
-        });
+  // Check if dependencies for a function have changed to optimize recomputation
+  const haveDependenciesChanged = useCallback(
+    (funcCol: SheetColumn, rowSnapshot: SheetData): boolean => {
+      if (!funcCol.arguments || funcCol.arguments.length === 0) {
+        return true; // No dependencies, always compute
       }
 
-      const functionColumns = columns.filter(
-        (c) => c.dataType === "function" && !!c.function
-      );
+      const cacheKey = `${rowSnapshot.id}:${funcCol.id}`;
+      const previousDependencies = rowDependencyCacheRef.current.get(cacheKey);
+      
+      // Build current dependency values
+      const currentDependencies: any[] = [];
+      
+      funcCol.arguments.forEach((arg) => {
+        if (arg.columnReference && arg.columnReference !== "ID") {
+          // Single column reference
+          const refCol = columns.find((c) => c.columnName === arg.columnReference);
+          if (refCol) {
+            currentDependencies.push(rowSnapshot[refCol.id]);
+          }
+        }
+        
+        if (arg.columnReferences && Array.isArray(arg.columnReferences)) {
+          // Multiple column references
+          arg.columnReferences.forEach((refName) => {
+            if (refName && refName !== "ID") {
+              const refCol = columns.find((c) => c.columnName === refName);
+              if (refCol) {
+                currentDependencies.push(rowSnapshot[refCol.id]);
+              }
+            }
+          });
+        }
+        
+        // Include direct argument values
+        if (arg.value !== undefined) {
+          currentDependencies.push(arg.value);
+        }
+      });
 
-      if (functionColumns.length === 0) {
-        console.log("✅ [FUNCTION RECOMPUTE] No function columns found");
+      // Cache the current dependencies for next check
+      rowDependencyCacheRef.current.set(cacheKey, currentDependencies);
+
+      // If no previous dependencies, this is first run - always compute
+      if (!previousDependencies) {
+        console.log(
+          `🔄 [DEPENDENCY] First computation for ${funcCol.columnName} (${funcCol.id}) in row ${rowSnapshot.id}`
+        );
+        return true;
+      }
+
+      // Compare with previous dependencies using deep equality
+      const hasChanged = !isEqual(previousDependencies, currentDependencies);
+      
+      if (hasChanged) {
+        console.log(
+          `🔄 [DEPENDENCY] Dependencies changed for ${funcCol.columnName} (${funcCol.id}) in row ${rowSnapshot.id}`,
+          {
+            previous: previousDependencies,
+            current: currentDependencies,
+          }
+        );
+      } else {
+        console.log(
+          `⏭️ [DEPENDENCY] Skipping ${funcCol.columnName} (${funcCol.id}) in row ${rowSnapshot.id} - dependencies unchanged`
+        );
+      }
+      
+      return hasChanged;
+    },
+    [columns, isEqual]
+  );
+
+  // Recompute all function columns for all rows (used after CSV import)
+  // This function is RECURSIVE - it calls itself on errors with progressive backoff
+  // Maximum attempts: MAX_RECOMPUTE_ATTEMPTS (30)
+  // Backoff strategy: 2s, 4s, 8s, 16s, 30s, then 30s for remaining attempts
+  const recomputeAllFunctionColumns = useCallback(
+    async (isRetry = false, retryAttempt = 1) => {
+      try {
+        // Safety check to prevent infinite recursion
+        if (retryAttempt > MAX_RECOMPUTE_ATTEMPTS) {
+          console.error(
+            `🚫 [FUNCTION RECOMPUTE] Maximum attempts (${MAX_RECOMPUTE_ATTEMPTS}) exceeded, aborting recursion`
+          );
+          setRecomputeProgress({
+            completed: 1,
+            total: 1,
+            phase: "done",
+            attempt: retryAttempt,
+            maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+            errorDetected: true,
+            errorCount: attemptErrorCountRef.current || 0,
+          });
+          setIsRecomputingAll(false);
+          return;
+        }
+
+        if (!isRetry) {
+          console.log(
+            "🔄 [FUNCTION RECOMPUTE] Starting recomputation of all function columns"
+          );
+          setIsRecomputingAll(true);
+          // Reset error count for fresh start
+          attemptErrorCountRef.current = 0;
+          setRecomputeProgress({
+            completed: 0,
+            total: 0,
+            phase: "init",
+            attempt: retryAttempt,
+            maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+            errorDetected: false,
+            errorCount: 0,
+          });
+        } else {
+          console.log(
+            `🔄 [FUNCTION RECOMPUTE] Retrying recomputation (attempt ${retryAttempt}/${MAX_RECOMPUTE_ATTEMPTS})`
+          );
+          setRecomputeProgress({
+            completed: 0,
+            total: 0,
+            phase: "init",
+            attempt: retryAttempt,
+            maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+            errorDetected: false,
+            errorCount: 0,
+          });
+        }
+
+        const functionColumns = columns.filter(
+          (c) => c.dataType === "function" && !!c.function
+        );
+
+        if (functionColumns.length === 0) {
+          console.log("✅ [FUNCTION RECOMPUTE] No function columns found");
+          setRecomputeProgress({
+            completed: 1,
+            total: 1,
+            phase: "done",
+            attempt: 0,
+            maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+            errorDetected: false,
+            errorCount: 0,
+          });
+          setIsRecomputingAll(false);
+          return;
+        }
+
+        // Use live rows to avoid stale state during async flows (like CSV import)
+        const rows = getCurrentRows();
+
+        console.log(
+          `🔄 [FUNCTION RECOMPUTE] Processing ${functionColumns.length} function columns for ${rows.length} rows`
+        );
+
+        // Build function-to-function dependency order using existing dependencyGraph
+        // Edge A -> B means B depends on A (A should be computed before B)
+        const funcIdToCol = new Map<string, SheetColumn>();
+        const funcIds = new Set<string>();
+        functionColumns.forEach((fc) => {
+          funcIdToCol.set(fc.id, fc);
+          funcIds.add(fc.id);
+        });
+
+        const adj = new Map<string, Set<string>>();
+        const indegree = new Map<string, number>();
+        functionColumns.forEach((fc) => {
+          adj.set(fc.id, new Set());
+          indegree.set(fc.id, 0);
+        });
+
+        // dependencyGraph: source column id -> function columns depending on it
+        // Only keep edges where source is also a function column
+        dependencyGraph.forEach((dependents, sourceColId) => {
+          if (!funcIds.has(sourceColId)) return;
+          dependents.forEach((depCol) => {
+            if (!funcIds.has(depCol.id)) return;
+            const set = adj.get(sourceColId)!;
+            if (!set.has(depCol.id)) {
+              set.add(depCol.id);
+              indegree.set(depCol.id, (indegree.get(depCol.id) || 0) + 1);
+            }
+          });
+        });
+
+        // Kahn's algorithm for topological sort
+        const queue: string[] = [];
+        indegree.forEach((deg, id) => {
+          if ((deg || 0) === 0) queue.push(id);
+        });
+        const topoOrderIds: string[] = [];
+        while (queue.length > 0) {
+          const id = queue.shift()!;
+          topoOrderIds.push(id);
+          (adj.get(id) || new Set()).forEach((nbr) => {
+            const nextDeg = (indegree.get(nbr) || 0) - 1;
+            indegree.set(nbr, nextDeg);
+            if (nextDeg === 0) queue.push(nbr);
+          });
+        }
+
+        const topoOrderedCols: SheetColumn[] = topoOrderIds
+          .map((id) => funcIdToCol.get(id)!)
+          .filter(Boolean);
+        const visitedIds = new Set(topoOrderIds);
+        const cyclicCols: SheetColumn[] = functionColumns.filter(
+          (fc) => !visitedIds.has(fc.id)
+        );
+
+        // Initialize progress totals (best effort upper bound)
+        const MAX_PASSES = 5;
+        const totalWorkBase =
+          rows.length * topoOrderedCols.length +
+          rows.length *
+            cyclicCols.length *
+            (cyclicCols.length > 0 ? MAX_PASSES : 0);
+
+        // Clear cache for all function columns and reset dependency tracking
+        rowDependencyCacheRef.current.clear(); // Clear dependency cache
+        rows.forEach((row) => {
+          functionColumns.forEach((funcCol) => {
+            const cacheKey = `${row.id}:${funcCol.id}:${funcCol.function}`;
+            functionArgsCacheRef.current.delete(cacheKey);
+          });
+        });
+
+        // Reset error tracking for this attempt
+        attemptErrorCountRef.current = 0;
+        progressUpdateCountRef.current = 0; // Reset progress counter
+
+        setRecomputeProgress({
+          completed: 0,
+          total: Math.max(totalWorkBase, 1),
+          phase: "acyclic",
+          attempt: retryAttempt,
+          maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+          errorDetected: false,
+          errorCount: 0,
+          currentRowId: undefined,
+          currentColId: undefined,
+        });
+
+        // Recompute for each row using topological order first, then fallback multi-pass for cyclic sets
+        for (const originalRow of rows) {
+          const rowSnapshot: SheetData = { ...originalRow };
+
+          // 1) Acyclic: compute in dependency order
+          for (const funcCol of topoOrderedCols) {
+            try {
+              // Skip computation if dependencies haven't changed
+              if (!haveDependenciesChanged(funcCol, rowSnapshot)) {
+                continue;
+              }
+
+              // Check if function is likely to be slow/async (cached)
+              const isLikelyAsync = await isFunctionLikelyAsync(
+                funcCol.function || ""
+              );
+              const isSlow = isSlowFunction(funcCol.function || "");
+
+              // Track execution time
+              const executionStart = performance.now();
+              const result = await computeFunctionForRow(
+                rowSnapshot,
+                funcCol,
+                true
+              );
+              const executionTime = performance.now() - executionStart;
+
+              // Update execution time tracking
+              const functionId = funcCol.function || "";
+              const times = executionTimesRef.current.get(functionId) || [];
+              times.push(executionTime);
+              if (times.length > 10) times.shift(); // Keep only last 10 measurements
+              executionTimesRef.current.set(functionId, times);
+
+              // Log slow functions for monitoring
+              if (executionTime > 2000) {
+                console.log(
+                  `⏰ [SLOW FUNCTION] ${
+                    funcCol.columnName
+                  } (${functionId}) took ${executionTime.toFixed(2)}ms`
+                );
+              }
+
+              if (!isEqual(rowSnapshot[funcCol.id], result)) {
+                // Log revenue-related changes for debugging
+                if (funcCol.columnName?.toLowerCase().includes('revenue') || 
+                    funcCol.columnName?.toLowerCase().includes('total') ||
+                    funcCol.columnName?.toLowerCase().includes('price')) {
+                  console.log(
+                    `💰 [REVENUE] ${funcCol.columnName} changed for row ${rowSnapshot.id}:`,
+                    {
+                      from: rowSnapshot[funcCol.id],
+                      to: result,
+                      function: funcCol.function,
+                      attempt: retryAttempt,
+                    }
+                  );
+                }
+                rowSnapshot[funcCol.id] = result as any;
+              }
+
+              // Batch progress updates every 10 functions to reduce UI overhead
+              progressUpdateCountRef.current += 1;
+              if (progressUpdateCountRef.current % PROGRESS_UPDATE_INTERVAL === 0) {
+                setRecomputeProgress((prev) => ({
+                  ...prev,
+                  completed: Math.min(prev.completed + PROGRESS_UPDATE_INTERVAL, prev.total),
+                  currentRowId: originalRow.id,
+                  currentColId: funcCol.id,
+                  phase: "acyclic",
+                  attempt: retryAttempt,
+                  maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+                }));
+              }
+
+              // Only add delay for consistently slow functions (>2s average)
+              // Skip delays for most functions to improve performance
+              if (isSlow && executionTime > 2000) {
+                await new Promise((resolve) => setTimeout(resolve, ASYNC_FUNCTION_DELAY));
+              }
+            } catch (error) {
+              attemptErrorCountRef.current =
+                (attemptErrorCountRef.current || 0) + 1;
+              logFunctionError(
+                `❌ [FUNCTION RECOMPUTE] Error computing ${funcCol.id} for row ${originalRow.id}:`,
+                error
+              );
+            }
+          }
+
+          // 2) Cyclic or unresolved: bounded multi-pass across the remaining set
+          if (cyclicCols.length > 0) {
+            setRecomputeProgress((prev) => ({
+              ...prev,
+              phase: "cyclic",
+              attempt: retryAttempt,
+            }));
+            for (let pass = 1; pass <= MAX_PASSES; pass++) {
+              let changedInPass = false;
+              for (const funcCol of cyclicCols) {
+                try {
+                  // Skip computation if dependencies haven't changed (except for first pass)
+                  if (pass > 1 && !haveDependenciesChanged(funcCol, rowSnapshot)) {
+                    continue;
+                  }
+
+                  // Check if function is likely to be slow/async and add appropriate delay
+                  const isLikelyAsync = await isFunctionLikelyAsync(
+                    funcCol.function || ""
+                  );
+                  const isSlow = isSlowFunction(funcCol.function || "");
+
+                  // Track execution time
+                  const executionStart = performance.now();
+                  const result = await computeFunctionForRow(
+                    rowSnapshot,
+                    funcCol,
+                    true
+                  );
+                  const executionTime = performance.now() - executionStart;
+
+                  // Update execution time tracking
+                  const functionId = funcCol.function || "";
+                  const times = executionTimesRef.current.get(functionId) || [];
+                  times.push(executionTime);
+                  if (times.length > 10) times.shift(); // Keep only last 10 measurements
+                  executionTimesRef.current.set(functionId, times);
+
+                  // Log slow functions for monitoring
+                  if (executionTime > 2000) {
+                    console.log(
+                      `⏰ [SLOW FUNCTION] ${
+                        funcCol.columnName
+                      } (${functionId}) took ${executionTime.toFixed(
+                        2
+                      )}ms (cyclic pass ${pass})`
+                    );
+                  }
+
+                  if (!isEqual(rowSnapshot[funcCol.id], result)) {
+                    // Log revenue-related changes for debugging (cyclic computation)
+                    if (funcCol.columnName?.toLowerCase().includes('revenue') || 
+                        funcCol.columnName?.toLowerCase().includes('total') ||
+                        funcCol.columnName?.toLowerCase().includes('price')) {
+                      console.log(
+                        `💰 [REVENUE-CYCLIC] ${funcCol.columnName} changed for row ${rowSnapshot.id} (pass ${pass}):`,
+                        {
+                          from: rowSnapshot[funcCol.id],
+                          to: result,
+                          function: funcCol.function,
+                          attempt: retryAttempt,
+                          pass: pass,
+                        }
+                      );
+                    }
+                    rowSnapshot[funcCol.id] = result as any;
+                    changedInPass = true;
+                  }
+                  
+                  // Batch progress updates for cyclic computation as well
+                  progressUpdateCountRef.current += 1;
+                  if (progressUpdateCountRef.current % PROGRESS_UPDATE_INTERVAL === 0) {
+                    setRecomputeProgress((prev) => ({
+                      ...prev,
+                      completed: Math.min(prev.completed + PROGRESS_UPDATE_INTERVAL, prev.total),
+                      currentRowId: originalRow.id,
+                      currentColId: funcCol.id,
+                      phase: "cyclic",
+                      attempt: retryAttempt,
+                      maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+                    }));
+                  }
+
+                  // Only add minimal delay for very slow cyclic functions
+                  if (isSlow && executionTime > 3000) {
+                    await new Promise((resolve) => setTimeout(resolve, ASYNC_FUNCTION_DELAY));
+                  }
+                } catch (error) {
+                  attemptErrorCountRef.current =
+                    (attemptErrorCountRef.current || 0) + 1;
+                  logFunctionError(
+                    `❌ [FUNCTION RECOMPUTE] Error computing ${funcCol.id} for row ${originalRow.id}:`,
+                    error
+                  );
+                  setRecomputeProgress((prev) => ({
+                    ...prev,
+                    errorDetected: true,
+                    errorCount: (prev.errorCount || 0) + 1,
+                  }));
+                }
+              }
+              if (!changedInPass) break;
+            }
+          }
+        }
+
+        // Force immediate persistence
+        setRecomputeProgress((prev) => ({ ...prev, phase: "flushing" }));
+        batchedWriter.flush();
+
+        const finalErrorCount = attemptErrorCountRef.current || 0;
+
+        // If there were errors and we haven't exceeded max attempts, retry after progressive delay
+        if (finalErrorCount > 0 && retryAttempt < MAX_RECOMPUTE_ATTEMPTS) {
+          // Progressive backoff: 2s, 4s, 8s, 16s, 30s, then 30s for remaining attempts
+          const baseDelay = 2000;
+          const progressiveDelay = Math.min(
+            baseDelay * Math.pow(2, retryAttempt - 1),
+            30000
+          );
+
+          console.log(
+            `⏱️ [FUNCTION RECOMPUTE] Attempt ${retryAttempt} had ${finalErrorCount} errors, retrying in ${
+              progressiveDelay / 1000
+            } seconds...`
+          );
+          console.log(
+            `🔄 [RECURSION] Will recursively call recomputeAllFunctionColumns(true, ${
+              retryAttempt + 1
+            })`
+          );
+          setRecomputeProgress((prev) => ({
+            ...prev,
+            phase: "init",
+            completed: 0,
+            currentRowId: undefined,
+            currentColId: undefined,
+          }));
+
+          // Progressive delay before retry to give async functions more time
+          setTimeout(() => {
+            console.log(
+              `🔄 [FUNCTION RECOMPUTE] Initiating recursive retry attempt ${
+                retryAttempt + 1
+              }/${MAX_RECOMPUTE_ATTEMPTS}`
+            );
+            // Wrap recursive call in try-catch to prevent unhandled errors
+            try {
+              recomputeAllFunctionColumns(true, retryAttempt + 1);
+            } catch (error) {
+              console.error(
+                `❌ [FUNCTION RECOMPUTE] Error in recursive call attempt ${
+                  retryAttempt + 1
+                }:`,
+                error
+              );
+              // If recursive call fails, mark as done with error
+              setRecomputeProgress((prev) => ({
+                ...prev,
+                completed: prev.total,
+                phase: "done",
+                attempt: retryAttempt,
+                errorDetected: true,
+                errorCount: (prev.errorCount || 0) + 1,
+              }));
+              setIsRecomputingAll(false);
+            }
+          }, progressiveDelay);
+          return;
+        }
+
+        // Completed (either successfully or max attempts reached)
+        if (finalErrorCount > 0) {
+          console.log(
+            `⚠️ [FUNCTION RECOMPUTE] Completed with ${finalErrorCount} remaining errors after ${retryAttempt} attempts`
+          );
+        } else {
+          console.log(
+            "✅ [FUNCTION RECOMPUTE] Completed recomputation of all function columns with no errors"
+          );
+        }
+
+        setRecomputeProgress((prev) => ({
+          ...prev,
+          completed: prev.total,
+          phase: "done",
+          attempt: 0,
+        }));
+        // Small delay to let users see 100%
+        setTimeout(() => setIsRecomputingAll(false), 400);
+      } catch (error) {
+        console.error(
+          `❌ [FUNCTION RECOMPUTE] Critical error in recompute process (attempt ${retryAttempt}):`,
+          error
+        );
+        // Mark as failed and stop recomputing
         setRecomputeProgress({
           completed: 1,
           total: 1,
           phase: "done",
-          attempt: 0,
+          attempt: retryAttempt,
           maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
-          errorDetected: false,
-          errorCount: 0,
+          errorDetected: true,
+          errorCount: (attemptErrorCountRef.current || 0) + 1,
         });
         setIsRecomputingAll(false);
-        return;
       }
-
-      // Use live rows to avoid stale state during async flows (like CSV import)
-      const rows = getCurrentRows();
-
-      console.log(
-        `🔄 [FUNCTION RECOMPUTE] Processing ${functionColumns.length} function columns for ${rows.length} rows`
-      );
-
-      // Build function-to-function dependency order using existing dependencyGraph
-      // Edge A -> B means B depends on A (A should be computed before B)
-      const funcIdToCol = new Map<string, SheetColumn>();
-      const funcIds = new Set<string>();
-      functionColumns.forEach((fc) => {
-        funcIdToCol.set(fc.id, fc);
-        funcIds.add(fc.id);
-      });
-
-      const adj = new Map<string, Set<string>>();
-      const indegree = new Map<string, number>();
-      functionColumns.forEach((fc) => {
-        adj.set(fc.id, new Set());
-        indegree.set(fc.id, 0);
-      });
-
-      // dependencyGraph: source column id -> function columns depending on it
-      // Only keep edges where source is also a function column
-      dependencyGraph.forEach((dependents, sourceColId) => {
-        if (!funcIds.has(sourceColId)) return;
-        dependents.forEach((depCol) => {
-          if (!funcIds.has(depCol.id)) return;
-          const set = adj.get(sourceColId)!;
-          if (!set.has(depCol.id)) {
-            set.add(depCol.id);
-            indegree.set(depCol.id, (indegree.get(depCol.id) || 0) + 1);
-          }
-        });
-      });
-
-      // Kahn's algorithm for topological sort
-      const queue: string[] = [];
-      indegree.forEach((deg, id) => {
-        if ((deg || 0) === 0) queue.push(id);
-      });
-      const topoOrderIds: string[] = [];
-      while (queue.length > 0) {
-        const id = queue.shift()!;
-        topoOrderIds.push(id);
-        (adj.get(id) || new Set()).forEach((nbr) => {
-          const nextDeg = (indegree.get(nbr) || 0) - 1;
-          indegree.set(nbr, nextDeg);
-          if (nextDeg === 0) queue.push(nbr);
-        });
-      }
-
-      const topoOrderedCols: SheetColumn[] = topoOrderIds
-        .map((id) => funcIdToCol.get(id)!)
-        .filter(Boolean);
-      const visitedIds = new Set(topoOrderIds);
-      const cyclicCols: SheetColumn[] = functionColumns.filter(
-        (fc) => !visitedIds.has(fc.id)
-      );
-
-      // Initialize progress totals (best effort upper bound)
-      const MAX_PASSES = 5;
-      const totalWorkBase =
-        rows.length * topoOrderedCols.length +
-        rows.length *
-          cyclicCols.length *
-          (cyclicCols.length > 0 ? MAX_PASSES : 0);
-
-      // Clear cache for all function columns
-      rows.forEach((row) => {
-        functionColumns.forEach((funcCol) => {
-          const cacheKey = `${row.id}:${funcCol.id}:${funcCol.function}`;
-          functionArgsCacheRef.current.delete(cacheKey);
-        });
-      });
-
-      // Reset error tracking for this attempt
-      attemptErrorCountRef.current = 0;
-
-      setRecomputeProgress({
-        completed: 0,
-        total: Math.max(totalWorkBase, 1),
-        phase: "acyclic",
-        attempt: retryAttempt,
-        maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
-        errorDetected: false,
-        errorCount: 0,
-        currentRowId: undefined,
-        currentColId: undefined,
-      });
-
-      // Recompute for each row using topological order first, then fallback multi-pass for cyclic sets
-      for (const originalRow of rows) {
-        const rowSnapshot: SheetData = { ...originalRow };
-
-        // 1) Acyclic: compute in dependency order
-        for (const funcCol of topoOrderedCols) {
-          try {
-            const result = await computeFunctionForRow(
-              rowSnapshot,
-              funcCol,
-              true
-            );
-            if (!isEqual(rowSnapshot[funcCol.id], result)) {
-              rowSnapshot[funcCol.id] = result as any;
-            }
-            setRecomputeProgress((prev) => ({
-              ...prev,
-              completed: Math.min(prev.completed + 1, prev.total),
-              currentRowId: originalRow.id,
-              currentColId: funcCol.id,
-              phase: "acyclic",
-              attempt: retryAttempt,
-              maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
-            }));
-          } catch (error) {
-            attemptErrorCountRef.current =
-              (attemptErrorCountRef.current || 0) + 1;
-            logFunctionError(
-              `❌ [FUNCTION RECOMPUTE] Error computing ${funcCol.id} for row ${originalRow.id}:`,
-              error
-            );
-          }
-        }
-
-        // 2) Cyclic or unresolved: bounded multi-pass across the remaining set
-        if (cyclicCols.length > 0) {
-          setRecomputeProgress((prev) => ({
-            ...prev,
-            phase: "cyclic",
-            attempt: retryAttempt,
-          }));
-          for (let pass = 1; pass <= MAX_PASSES; pass++) {
-            let changedInPass = false;
-            for (const funcCol of cyclicCols) {
-              try {
-                const result = await computeFunctionForRow(
-                  rowSnapshot,
-                  funcCol,
-                  true
-                );
-                if (!isEqual(rowSnapshot[funcCol.id], result)) {
-                  rowSnapshot[funcCol.id] = result as any;
-                  changedInPass = true;
-                }
-                setRecomputeProgress((prev) => ({
-                  ...prev,
-                  completed: Math.min(prev.completed + 1, prev.total),
-                  currentRowId: originalRow.id,
-                  currentColId: funcCol.id,
-                  phase: "cyclic",
-                  attempt: retryAttempt,
-                  maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
-                }));
-              } catch (error) {
-                attemptErrorCountRef.current =
-                  (attemptErrorCountRef.current || 0) + 1;
-                logFunctionError(
-                  `❌ [FUNCTION RECOMPUTE] Error computing ${funcCol.id} for row ${originalRow.id}:`,
-                  error
-                );
-                setRecomputeProgress((prev) => ({
-                  ...prev,
-                  errorDetected: true,
-                  errorCount: (prev.errorCount || 0) + 1,
-                }));
-              }
-            }
-            if (!changedInPass) break;
-          }
-        }
-      }
-
-      // Force immediate persistence
-      setRecomputeProgress((prev) => ({ ...prev, phase: "flushing" }));
-      batchedWriter.flush();
-
-      const finalErrorCount = attemptErrorCountRef.current || 0;
-
-      // If there were errors and we haven't exceeded max attempts, retry after delay
-      if (finalErrorCount > 0 && retryAttempt < MAX_RECOMPUTE_ATTEMPTS) {
-        console.log(
-          `⏱️ [FUNCTION RECOMPUTE] Attempt ${retryAttempt} had ${finalErrorCount} errors, retrying in 2 seconds...`
-        );
-        setRecomputeProgress((prev) => ({
-          ...prev,
-          phase: "init",
-          completed: 0,
-          currentRowId: undefined,
-          currentColId: undefined,
-        }));
-
-        // Wait 2 seconds then call the function again
-        setTimeout(() => {
-          recomputeAllFunctionColumns(true, retryAttempt + 1);
-        }, 2000);
-        return;
-      }
-
-      // Completed (either successfully or max attempts reached)
-      if (finalErrorCount > 0) {
-        console.log(
-          `⚠️ [FUNCTION RECOMPUTE] Completed with ${finalErrorCount} remaining errors after ${retryAttempt} attempts`
-        );
-      } else {
-        console.log(
-          "✅ [FUNCTION RECOMPUTE] Completed recomputation of all function columns with no errors"
-        );
-      }
-
-      setRecomputeProgress((prev) => ({
-        ...prev,
-        completed: prev.total,
-        phase: "done",
-        attempt: 0,
-      }));
-      // Small delay to let users see 100%
-      setTimeout(() => setIsRecomputingAll(false), 400);
     },
     [columns, computeFunctionForRow, getCurrentRows]
   );
@@ -2318,8 +2677,19 @@ export default function BookingsDataGrid({
 
   const handleCSVImportComplete = useCallback(
     async (info?: { expectedRows?: number }) => {
+      console.log(
+        `📊 [CSV IMPORT] Starting post-import processing for ${info?.expectedRows || '?'} rows`
+      );
+      
       // Clear function cache to trigger recomputation
       clearFunctionCache();
+      
+      // Clear execution time tracking to ensure fresh performance assessment
+      executionTimesRef.current.clear();
+
+      console.log(
+        `🧹 [CSV IMPORT] Cleared all caches - ready for fresh computation`
+      );
 
       // Wait until Firestore subscription reflects the new dataset size.
       // Use refs to avoid stale closures while awaiting.
@@ -2345,6 +2715,10 @@ export default function BookingsDataGrid({
 
       // Recompute all function columns after data is refreshed
       await recomputeAllFunctionColumns();
+
+      console.log(
+        `✅ [CSV IMPORT] Recomputation completed - revenue values should now be consistent`
+      );
 
       // Show success message
       toast({

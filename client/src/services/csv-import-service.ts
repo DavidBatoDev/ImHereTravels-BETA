@@ -282,6 +282,131 @@ class CSVImportService {
   }
 
   /**
+   * Parse currency value by stripping currency symbols
+   * Handles formats like: $123.45, €100, £50.00, ¥1000, 123.45, $1,234.56, (100.00), -$50
+   *
+   * Test cases:
+   * - "$123.45" → 123.45
+   * - "€1,234.56" → 1234.56
+   * - "£50.00" → 50.00
+   * - "¥1000" → 1000
+   * - "123.45" → 123.45
+   * - "$1,234,567.89" → 1234567.89
+   * - "(100.00)" → -100.00
+   * - "-$50.25" → -50.25
+   * - "$-75.50" → -75.50
+   * - "USD 500" → 500
+   * - "500 EUR" → 500
+   * - "$" → null
+   * - "" → null
+   * - "abc" → null
+   */
+  private parseCurrencyValue(value: string): number | null {
+    if (!value || value.trim() === "") {
+      return null;
+    }
+
+    const trimmedValue = value.toString().trim();
+
+    // Handle negative values in parentheses (e.g., "(100.00)" = -100.00)
+    let isNegative = false;
+    let workingValue = trimmedValue;
+
+    if (workingValue.startsWith("(") && workingValue.endsWith(")")) {
+      isNegative = true;
+      workingValue = workingValue.substring(1, workingValue.length - 1).trim();
+    }
+
+    // Common currency symbols to strip (including less common ones)
+    const currencySymbols = [
+      "$",
+      "€",
+      "£",
+      "¥",
+      "₹",
+      "₽",
+      "¢",
+      "₱",
+      "₦",
+      "₩",
+      "₪",
+      "₨",
+      "₡",
+      "₵",
+      "₫",
+      "﷼",
+      "USD",
+      "EUR",
+      "GBP",
+      "JPY",
+      "CAD",
+      "AUD",
+      "CNY",
+      "INR",
+      "PHP",
+      "SGD",
+      "HKD",
+      "THB",
+      "MYR",
+      "KRW",
+      "TWD",
+      "VND",
+    ];
+
+    // Remove currency symbols from the beginning and end
+    let cleanValue = workingValue;
+
+    // Strip currency symbols from the beginning
+    for (const symbol of currencySymbols) {
+      if (cleanValue.toLowerCase().startsWith(symbol.toLowerCase())) {
+        cleanValue = cleanValue.substring(symbol.length).trim();
+        break;
+      }
+    }
+
+    // Strip currency symbols from the end
+    for (const symbol of currencySymbols) {
+      if (cleanValue.toLowerCase().endsWith(symbol.toLowerCase())) {
+        cleanValue = cleanValue
+          .substring(0, cleanValue.length - symbol.length)
+          .trim();
+        break;
+      }
+    }
+
+    // Remove common thousand separators (commas, spaces) but keep decimal points
+    cleanValue = cleanValue.replace(/[,\s]/g, "");
+
+    // Handle minus signs
+    if (cleanValue.startsWith("-") || cleanValue.endsWith("-")) {
+      isNegative = true;
+      cleanValue = cleanValue.replace(/-/g, "");
+    }
+
+    // Remove any remaining non-numeric characters except decimal point
+    cleanValue = cleanValue.replace(/[^\d.]/g, "");
+
+    // Ensure only one decimal point exists
+    const decimalParts = cleanValue.split(".");
+    if (decimalParts.length > 2) {
+      // If multiple decimal points, take first as integer part and last as decimal part
+      cleanValue =
+        decimalParts[0] + "." + decimalParts[decimalParts.length - 1];
+    }
+
+    // Parse the cleaned value
+    const numValue = parseFloat(cleanValue);
+
+    // Return null if parsing failed or if the result is not a valid number
+    if (isNaN(numValue)) {
+      return null;
+    }
+
+    // Apply negative sign if needed
+    return isNegative ? -numValue : numValue;
+  }
+
+  /**
    * Convert cell value to the appropriate data type
    */
   private convertValue(value: any, dataType: string): any {
@@ -298,9 +423,24 @@ class CSVImportService {
         return stringValue;
 
       case "number":
-      case "currency":
         const numValue = parseFloat(stringValue);
         return isNaN(numValue) ? null : numValue;
+
+      case "currency":
+        // Handle currency values that may have currency symbols
+        const currencyValue = this.parseCurrencyValue(stringValue);
+
+        // Log currency parsing for debugging when actual transformation occurs
+        const originalHadSymbols = /[$€£¥₹₽¢₱₦₩₪₨₡₵₫﷼,\(\)\-\s]/.test(
+          stringValue
+        );
+        if (originalHadSymbols && currencyValue !== null) {
+          console.log(
+            `💱 [CURRENCY PARSE] "${stringValue}" → ${currencyValue}`
+          );
+        }
+
+        return currencyValue;
 
       case "boolean":
         const lowerValue = stringValue.toLowerCase();
