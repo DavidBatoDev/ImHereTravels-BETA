@@ -252,33 +252,17 @@ export default function BookingsDataGrid({
   const MAX_RECOMPUTE_ATTEMPTS = 30;
   const attemptErrorCountRef = useRef<number>(0);
 
-  // Progress update throttling to reduce React re-renders
-  const progressUpdateCountRef = useRef<number>(0);
-  const PROGRESS_UPDATE_INTERVAL = 10; // Only update progress every 10 operations
-
   // Configuration for handling slow/async functions during recompute
   const FUNCTION_EXECUTION_DELAY = 0; // 0ms delay between function executions
-  const ASYNC_FUNCTION_DELAY = 10; // Reduced from 100ms to 10ms for async functions
+  const ASYNC_FUNCTION_DELAY = 100; // 100ms delay for async functions
   const executionTimesRef = useRef<Map<string, number[]>>(new Map());
 
   // Cache for function arguments to detect actual changes
   const functionArgsCacheRef = useRef<Map<string, any[]>>(new Map());
 
-  // Cache for row dependency values to detect changes
-  const rowDependencyCacheRef = useRef<Map<string, any[]>>(new Map());
-
-  // Cache for async function detection results
-  const asyncFunctionCacheRef = useRef<Map<string, boolean>>(new Map());
-
   // Helper to check if a function is likely to be slow/async
   const isFunctionLikelyAsync = useCallback(
     async (functionId: string): Promise<boolean> => {
-      // Check cache first to avoid repeated expensive checks
-      const cached = asyncFunctionCacheRef.current.get(functionId);
-      if (cached !== undefined) {
-        return cached;
-      }
-
       try {
         // First check function metadata for async indicators
         const tsFunction = await typescriptFunctionsService.getFunction(
@@ -302,7 +286,7 @@ export default function BookingsDataGrid({
 
         const content = tsFile.content.toLowerCase();
         // Check for async/await patterns, HTTP calls, database operations, etc.
-        const isAsync = (
+        return (
           content.includes("async") ||
           content.includes("await") ||
           content.includes("fetch") ||
@@ -319,13 +303,7 @@ export default function BookingsDataGrid({
           content.includes(".then(") ||
           content.includes(".catch(")
         );
-        
-        // Cache the result
-        asyncFunctionCacheRef.current.set(functionId, isAsync);
-        return isAsync;
       } catch {
-        // Cache false result for failed checks
-        asyncFunctionCacheRef.current.set(functionId, false);
         return false;
       }
     },
@@ -343,8 +321,6 @@ export default function BookingsDataGrid({
   // Clear function cache when data changes
   const clearFunctionCache = useCallback(() => {
     functionArgsCacheRef.current.clear();
-    rowDependencyCacheRef.current.clear();
-    asyncFunctionCacheRef.current.clear();
     functionExecutionService.clearAllResultCache();
   }, []);
 
@@ -824,79 +800,6 @@ export default function BookingsDataGrid({
     [columns, localData, data]
   );
 
-  // Check if dependencies for a function have changed to optimize recomputation
-  const haveDependenciesChanged = useCallback(
-    (funcCol: SheetColumn, rowSnapshot: SheetData): boolean => {
-      if (!funcCol.arguments || funcCol.arguments.length === 0) {
-        return true; // No dependencies, always compute
-      }
-
-      const cacheKey = `${rowSnapshot.id}:${funcCol.id}`;
-      const previousDependencies = rowDependencyCacheRef.current.get(cacheKey);
-      
-      // Build current dependency values
-      const currentDependencies: any[] = [];
-      
-      funcCol.arguments.forEach((arg) => {
-        if (arg.columnReference && arg.columnReference !== "ID") {
-          // Single column reference
-          const refCol = columns.find((c) => c.columnName === arg.columnReference);
-          if (refCol) {
-            currentDependencies.push(rowSnapshot[refCol.id]);
-          }
-        }
-        
-        if (arg.columnReferences && Array.isArray(arg.columnReferences)) {
-          // Multiple column references
-          arg.columnReferences.forEach((refName) => {
-            if (refName && refName !== "ID") {
-              const refCol = columns.find((c) => c.columnName === refName);
-              if (refCol) {
-                currentDependencies.push(rowSnapshot[refCol.id]);
-              }
-            }
-          });
-        }
-        
-        // Include direct argument values
-        if (arg.value !== undefined) {
-          currentDependencies.push(arg.value);
-        }
-      });
-
-      // Cache the current dependencies for next check
-      rowDependencyCacheRef.current.set(cacheKey, currentDependencies);
-
-      // If no previous dependencies, this is first run - always compute
-      if (!previousDependencies) {
-        console.log(
-          `🔄 [DEPENDENCY] First computation for ${funcCol.columnName} (${funcCol.id}) in row ${rowSnapshot.id}`
-        );
-        return true;
-      }
-
-      // Compare with previous dependencies using deep equality
-      const hasChanged = !isEqual(previousDependencies, currentDependencies);
-      
-      if (hasChanged) {
-        console.log(
-          `🔄 [DEPENDENCY] Dependencies changed for ${funcCol.columnName} (${funcCol.id}) in row ${rowSnapshot.id}`,
-          {
-            previous: previousDependencies,
-            current: currentDependencies,
-          }
-        );
-      } else {
-        console.log(
-          `⏭️ [DEPENDENCY] Skipping ${funcCol.columnName} (${funcCol.id}) in row ${rowSnapshot.id} - dependencies unchanged`
-        );
-      }
-      
-      return hasChanged;
-    },
-    [columns, isEqual]
-  );
-
   // Recompute all function columns for all rows (used after CSV import)
   // This function is RECURSIVE - it calls itself on errors with progressive backoff
   // Maximum attempts: MAX_RECOMPUTE_ATTEMPTS (30)
@@ -1041,8 +944,7 @@ export default function BookingsDataGrid({
             cyclicCols.length *
             (cyclicCols.length > 0 ? MAX_PASSES : 0);
 
-        // Clear cache for all function columns and reset dependency tracking
-        rowDependencyCacheRef.current.clear(); // Clear dependency cache
+        // Clear cache for all function columns
         rows.forEach((row) => {
           functionColumns.forEach((funcCol) => {
             const cacheKey = `${row.id}:${funcCol.id}:${funcCol.function}`;
@@ -1052,7 +954,6 @@ export default function BookingsDataGrid({
 
         // Reset error tracking for this attempt
         attemptErrorCountRef.current = 0;
-        progressUpdateCountRef.current = 0; // Reset progress counter
 
         setRecomputeProgress({
           completed: 0,
@@ -1073,12 +974,7 @@ export default function BookingsDataGrid({
           // 1) Acyclic: compute in dependency order
           for (const funcCol of topoOrderedCols) {
             try {
-              // Skip computation if dependencies haven't changed
-              if (!haveDependenciesChanged(funcCol, rowSnapshot)) {
-                continue;
-              }
-
-              // Check if function is likely to be slow/async (cached)
+              // Check if function is likely to be slow/async and add appropriate delay
               const isLikelyAsync = await isFunctionLikelyAsync(
                 funcCol.function || ""
               );
@@ -1110,41 +1006,27 @@ export default function BookingsDataGrid({
               }
 
               if (!isEqual(rowSnapshot[funcCol.id], result)) {
-                // Log revenue-related changes for debugging
-                if (funcCol.columnName?.toLowerCase().includes('revenue') || 
-                    funcCol.columnName?.toLowerCase().includes('total') ||
-                    funcCol.columnName?.toLowerCase().includes('price')) {
-                  console.log(
-                    `💰 [REVENUE] ${funcCol.columnName} changed for row ${rowSnapshot.id}:`,
-                    {
-                      from: rowSnapshot[funcCol.id],
-                      to: result,
-                      function: funcCol.function,
-                      attempt: retryAttempt,
-                    }
-                  );
-                }
                 rowSnapshot[funcCol.id] = result as any;
               }
 
-              // Batch progress updates every 10 functions to reduce UI overhead
-              progressUpdateCountRef.current += 1;
-              if (progressUpdateCountRef.current % PROGRESS_UPDATE_INTERVAL === 0) {
-                setRecomputeProgress((prev) => ({
-                  ...prev,
-                  completed: Math.min(prev.completed + PROGRESS_UPDATE_INTERVAL, prev.total),
-                  currentRowId: originalRow.id,
-                  currentColId: funcCol.id,
-                  phase: "acyclic",
-                  attempt: retryAttempt,
-                  maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
-                }));
-              }
+              setRecomputeProgress((prev) => ({
+                ...prev,
+                completed: Math.min(prev.completed + 1, prev.total),
+                currentRowId: originalRow.id,
+                currentColId: funcCol.id,
+                phase: "acyclic",
+                attempt: retryAttempt,
+                maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+              }));
 
-              // Only add delay for consistently slow functions (>2s average)
-              // Skip delays for most functions to improve performance
-              if (isSlow && executionTime > 2000) {
-                await new Promise((resolve) => setTimeout(resolve, ASYNC_FUNCTION_DELAY));
+              // Add delay between function executions to prevent overwhelming
+              // More delay for async/slow functions
+              const delay =
+                isLikelyAsync || isSlow
+                  ? ASYNC_FUNCTION_DELAY
+                  : FUNCTION_EXECUTION_DELAY;
+              if (delay > 0) {
+                await new Promise((resolve) => setTimeout(resolve, delay));
               }
             } catch (error) {
               attemptErrorCountRef.current =
@@ -1167,11 +1049,6 @@ export default function BookingsDataGrid({
               let changedInPass = false;
               for (const funcCol of cyclicCols) {
                 try {
-                  // Skip computation if dependencies haven't changed (except for first pass)
-                  if (pass > 1 && !haveDependenciesChanged(funcCol, rowSnapshot)) {
-                    continue;
-                  }
-
                   // Check if function is likely to be slow/async and add appropriate delay
                   const isLikelyAsync = await isFunctionLikelyAsync(
                     funcCol.function || ""
@@ -1206,42 +1083,26 @@ export default function BookingsDataGrid({
                   }
 
                   if (!isEqual(rowSnapshot[funcCol.id], result)) {
-                    // Log revenue-related changes for debugging (cyclic computation)
-                    if (funcCol.columnName?.toLowerCase().includes('revenue') || 
-                        funcCol.columnName?.toLowerCase().includes('total') ||
-                        funcCol.columnName?.toLowerCase().includes('price')) {
-                      console.log(
-                        `💰 [REVENUE-CYCLIC] ${funcCol.columnName} changed for row ${rowSnapshot.id} (pass ${pass}):`,
-                        {
-                          from: rowSnapshot[funcCol.id],
-                          to: result,
-                          function: funcCol.function,
-                          attempt: retryAttempt,
-                          pass: pass,
-                        }
-                      );
-                    }
                     rowSnapshot[funcCol.id] = result as any;
                     changedInPass = true;
                   }
-                  
-                  // Batch progress updates for cyclic computation as well
-                  progressUpdateCountRef.current += 1;
-                  if (progressUpdateCountRef.current % PROGRESS_UPDATE_INTERVAL === 0) {
-                    setRecomputeProgress((prev) => ({
-                      ...prev,
-                      completed: Math.min(prev.completed + PROGRESS_UPDATE_INTERVAL, prev.total),
-                      currentRowId: originalRow.id,
-                      currentColId: funcCol.id,
-                      phase: "cyclic",
-                      attempt: retryAttempt,
-                      maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
-                    }));
-                  }
+                  setRecomputeProgress((prev) => ({
+                    ...prev,
+                    completed: Math.min(prev.completed + 1, prev.total),
+                    currentRowId: originalRow.id,
+                    currentColId: funcCol.id,
+                    phase: "cyclic",
+                    attempt: retryAttempt,
+                    maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+                  }));
 
-                  // Only add minimal delay for very slow cyclic functions
-                  if (isSlow && executionTime > 3000) {
-                    await new Promise((resolve) => setTimeout(resolve, ASYNC_FUNCTION_DELAY));
+                  // Add delay between function executions, especially for cyclic dependencies
+                  const delay =
+                    isLikelyAsync || isSlow
+                      ? ASYNC_FUNCTION_DELAY
+                      : FUNCTION_EXECUTION_DELAY;
+                  if (delay > 0) {
+                    await new Promise((resolve) => setTimeout(resolve, delay));
                   }
                 } catch (error) {
                   attemptErrorCountRef.current =
@@ -2677,19 +2538,8 @@ export default function BookingsDataGrid({
 
   const handleCSVImportComplete = useCallback(
     async (info?: { expectedRows?: number }) => {
-      console.log(
-        `📊 [CSV IMPORT] Starting post-import processing for ${info?.expectedRows || '?'} rows`
-      );
-      
       // Clear function cache to trigger recomputation
       clearFunctionCache();
-      
-      // Clear execution time tracking to ensure fresh performance assessment
-      executionTimesRef.current.clear();
-
-      console.log(
-        `🧹 [CSV IMPORT] Cleared all caches - ready for fresh computation`
-      );
 
       // Wait until Firestore subscription reflects the new dataset size.
       // Use refs to avoid stale closures while awaiting.
@@ -2715,10 +2565,6 @@ export default function BookingsDataGrid({
 
       // Recompute all function columns after data is refreshed
       await recomputeAllFunctionColumns();
-
-      console.log(
-        `✅ [CSV IMPORT] Recomputation completed - revenue values should now be consistent`
-      );
 
       // Show success message
       toast({
