@@ -155,561 +155,11 @@ const logFunctionError = (...args: any[]) => {
   }
 };
 
-// Custom editors for different data types
-const DateEditor = memo(function DateEditor({
-  row,
-  column,
-  onRowChange,
-  onClose,
-}: RenderEditCellProps<SheetData>) {
-  const [value, setValue] = useState(() => {
-    const cellValue = row[column.key as keyof SheetData];
-
-    if (cellValue) {
-      try {
-        let date: Date | null = null;
-
-        // Handle Firestore Timestamp objects
-        if (
-          cellValue &&
-          typeof cellValue === "object" &&
-          "toDate" in cellValue &&
-          typeof (cellValue as any).toDate === "function"
-        ) {
-          date = (cellValue as any).toDate();
-        }
-        // Handle Firestore timestamp objects with seconds property
-        else if (
-          cellValue &&
-          typeof cellValue === "object" &&
-          "seconds" in cellValue &&
-          typeof (cellValue as any).seconds === "number"
-        ) {
-          date = new Date((cellValue as any).seconds * 1000);
-        }
-        // Handle numeric timestamps (milliseconds)
-        else if (typeof cellValue === "number") {
-          // Check if it's a timestamp in milliseconds or seconds
-          if (cellValue > 1000000000000) {
-            // Milliseconds timestamp
-            date = new Date(cellValue);
-          } else {
-            // Seconds timestamp
-            date = new Date(cellValue * 1000);
-          }
-        }
-        // Handle string timestamps or date strings
-        else if (typeof cellValue === "string") {
-          // Check if it's a numeric string (timestamp)
-          const numericValue = parseFloat(cellValue);
-          if (!isNaN(numericValue)) {
-            if (numericValue > 1000000000000) {
-              // Milliseconds timestamp
-              date = new Date(numericValue);
-            } else {
-              // Seconds timestamp
-              date = new Date(numericValue * 1000);
-            }
-          } else {
-            // Regular date string
-            date = new Date(cellValue);
-          }
-        }
-        // Handle Date objects
-        else if (cellValue instanceof Date) {
-          date = cellValue;
-        }
-
-        if (date && !isNaN(date.getTime())) {
-          const isoString = date.toISOString().split("T")[0];
-          return isoString;
-        }
-      } catch (error) {
-        // Handle date parsing errors silently
-      }
-    }
-    return "";
-  });
-
-  const handleSave = useCallback(() => {
-    const processedValue = value ? new Date(value) : null;
-    onRowChange({ ...row, [column.key]: processedValue });
-    onClose(true);
-  }, [value, row, column.key, onRowChange, onClose]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleSave();
-      } else if (e.key === "Escape") {
-        onClose(false);
-      }
-    },
-    [handleSave, onClose]
-  );
-
-  return (
-    <Input
-      type="date"
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      onBlur={handleSave}
-      onKeyDown={handleKeyDown}
-      autoFocus
-      className="h-8 text-xs border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none"
-    />
-  );
-});
-
-const BooleanEditor = memo(function BooleanEditor({
-  row,
-  column,
-  onRowChange,
-  onClose,
-}: RenderEditCellProps<SheetData>) {
-  const value = !!row[column.key as keyof SheetData];
-
-  const handleToggle = useCallback(() => {
-    onRowChange({ ...row, [column.key]: !value });
-    onClose(true);
-  }, [row, column.key, value, onRowChange, onClose]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        handleToggle();
-      } else if (e.key === "Escape") {
-        onClose(false);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleToggle, onClose]);
-
-  return (
-    <div className="flex items-center justify-center h-8 w-full">
-      <input
-        type="checkbox"
-        checked={value}
-        onChange={handleToggle}
-        className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
-      />
-    </div>
-  );
-});
-
-const SelectEditor = memo(function SelectEditor({
-  row,
-  column,
-  onRowChange,
-  onClose,
-}: RenderEditCellProps<SheetData>) {
-  const value = row[column.key as keyof SheetData]?.toString() || "";
-  const options = (column as any).options || [];
-
-  const handleChange = useCallback(
-    (newValue: string) => {
-      onRowChange({ ...row, [column.key]: newValue });
-      onClose(true);
-    },
-    [row, column.key, onRowChange, onClose]
-  );
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose(false);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  return (
-    <Select value={value} onValueChange={handleChange}>
-      <SelectTrigger className="h-8 border-0 focus:border-0 text-xs transition-colors duration-200 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none bg-transparent">
-        <SelectValue placeholder="Select option" />
-      </SelectTrigger>
-      <SelectContent className="bg-white dark:bg-background border border-royal-purple/20 dark:border-border shadow-lg max-h-60 z-50">
-        {options.map((option: string) => (
-          <SelectItem
-            key={option}
-            value={option}
-            className="text-xs transition-colors duration-200 hover:bg-royal-purple/10 focus:bg-royal-purple/20 focus:text-royal-purple"
-          >
-            {option}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-});
-
-const NumberEditor = memo(function NumberEditor({
-  row,
-  column,
-  onRowChange,
-  onClose,
-}: RenderEditCellProps<SheetData>) {
-  const [value, setValue] = useState(() => {
-    const cellValue = row[column.key as keyof SheetData];
-    return cellValue?.toString() || "";
-  });
-
-  const handleSave = useCallback(() => {
-    const processedValue = parseFloat(value) || 0;
-    onRowChange({ ...row, [column.key]: processedValue });
-    onClose(true);
-  }, [value, row, column.key, onRowChange, onClose]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleSave();
-      } else if (e.key === "Escape") {
-        onClose(false);
-      }
-    },
-    [handleSave, onClose]
-  );
-
-  return (
-    <Input
-      type="number"
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      onBlur={handleSave}
-      onKeyDown={handleKeyDown}
-      autoFocus
-      className="h-8 text-xs border-2 border-royal-purple focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none"
-    />
-  );
-});
-
 // Store navigation function and column metadata globally for function editor
 let globalNavigateToFunctions: (() => void) | null = null;
 let globalAvailableFunctions: TypeScriptFunction[] = [];
 let globalColumnDefs: Map<string, SheetColumn> = new Map();
 let globalAllColumns: SheetColumn[] = [];
-
-function FunctionEditor({
-  row,
-  column,
-  onRowChange,
-  onClose,
-}: RenderEditCellProps<SheetData>) {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose(false);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  // Get function name from global column defs map
-  const columnDef = globalColumnDefs.get(column.key);
-  const functionId = columnDef?.function;
-  const functionDetails = globalAvailableFunctions?.find(
-    (f) => f.id === functionId
-  );
-  const functionName = functionDetails?.functionName || "EditFunction";
-
-  // Build function signature with arguments
-  // Build function signature with actual values from row
-  const args =
-    columnDef?.arguments
-      ?.map((arg) => {
-        if (arg.columnReference) {
-          // Special case: "ID" refers to the document ID
-          if (arg.columnReference === "ID") {
-            const value = row.id;
-            if (value === undefined || value === null) return "null";
-            if (typeof value === "string") return `"${value}"`;
-            if (typeof value === "object") return JSON.stringify(value);
-            return String(value);
-          }
-          // Find the column and get value from row
-          const refCol = globalAllColumns.find(
-            (c) => c.columnName === arg.columnReference
-          );
-          if (refCol) {
-            const value = row[refCol.id];
-            if (value === undefined || value === null) return "null";
-            if (typeof value === "string") return `"${value}"`;
-            if (typeof value === "object") return JSON.stringify(value);
-            return String(value);
-          }
-          return arg.columnReference;
-        }
-        if (arg.columnReferences && arg.columnReferences.length > 0) {
-          const values = arg.columnReferences.map((ref) => {
-            // Special case: "ID" refers to the document ID
-            if (ref === "ID") {
-              const value = row.id;
-              if (value === undefined || value === null) return "null";
-              if (typeof value === "string") return `"${value}"`;
-              return String(value);
-            }
-            const refCol = globalAllColumns.find((c) => c.columnName === ref);
-            if (refCol) {
-              const value = row[refCol.id];
-              if (value === undefined || value === null) return "null";
-              if (typeof value === "string") return `"${value}"`;
-              return String(value);
-            }
-            return ref;
-          });
-          return `[${values.join(", ")}]`;
-        }
-        if (arg.value !== undefined) {
-          return typeof arg.value === "string"
-            ? `"${arg.value}"`
-            : String(arg.value);
-        }
-        return arg.name;
-      })
-      .join(", ") || "";
-  const signature = `${functionName}(${args})`;
-
-  return (
-    <div className="h-8 w-full flex items-center justify-center px-2">
-      <button
-        onClick={() => {
-          if (globalNavigateToFunctions) {
-            globalNavigateToFunctions();
-          }
-          onClose(false);
-        }}
-        className="text-sm text-royal-purple hover:text-royal-purple/80 underline flex items-center gap-1 hover:no-underline transition-all"
-      >
-        <ExternalLink className="h-4 w-4" />
-        {signature}
-      </button>
-    </div>
-  );
-}
-
-// Custom cell renderers
-const BooleanFormatter = memo(function BooleanFormatter({
-  row,
-  column,
-}: RenderCellProps<SheetData>) {
-  const value = !!row[column.key as keyof SheetData];
-  return (
-    <div className="flex items-center justify-center h-8 w-full px-2 border-r border-b border-border">
-      <span
-        className={`text-xs font-medium ${
-          value ? "text-royal-purple font-semibold" : "text-muted-foreground"
-        }`}
-      >
-        {value ? "Yes" : "No"}
-      </span>
-    </div>
-  );
-});
-
-const DateFormatter = memo(function DateFormatter({
-  row,
-  column,
-}: RenderCellProps<SheetData>) {
-  const value = row[column.key as keyof SheetData];
-
-  if (!value)
-    return (
-      <div className="h-8 w-full flex items-center text-xs text-muted-foreground px-2 border-r border-b border-border">
-        -
-      </div>
-    );
-
-  try {
-    let date: Date | null = null;
-
-    // Handle Firestore Timestamp objects
-    if (
-      value &&
-      typeof value === "object" &&
-      "toDate" in value &&
-      typeof (value as any).toDate === "function"
-    ) {
-      date = (value as any).toDate();
-    }
-    // Handle Firestore timestamp objects with seconds property
-    else if (
-      value &&
-      typeof value === "object" &&
-      "seconds" in value &&
-      typeof (value as any).seconds === "number"
-    ) {
-      date = new Date((value as any).seconds * 1000);
-    }
-    // Handle numeric timestamps (milliseconds)
-    else if (typeof value === "number") {
-      // Check if it's a timestamp in milliseconds or seconds
-      if (value > 1000000000000) {
-        // Milliseconds timestamp
-        date = new Date(value);
-      } else {
-        // Seconds timestamp
-        date = new Date(value * 1000);
-      }
-    }
-    // Handle string timestamps or date strings
-    else if (typeof value === "string") {
-      // Check if it's a numeric string (timestamp)
-      const numericValue = parseFloat(value);
-      if (!isNaN(numericValue)) {
-        if (numericValue > 1000000000000) {
-          // Milliseconds timestamp
-          date = new Date(numericValue);
-        } else {
-          // Seconds timestamp
-          date = new Date(numericValue * 1000);
-        }
-      } else {
-        // Regular date string
-        date = new Date(value);
-      }
-    }
-    // Handle Date objects
-    else if (value instanceof Date) {
-      date = value;
-    }
-
-    if (date && !isNaN(date.getTime())) {
-      return (
-        <div className="h-8 w-full flex items-center text-sm px-2 border-r border-b border-border">
-          {date.toLocaleDateString()}
-        </div>
-      );
-    }
-  } catch (error) {
-    // Handle date parsing errors silently
-  }
-
-  return (
-    <div className="h-8 w-full flex items-center text-sm text-destructive px-2 border-r border-b border-border">
-      Invalid Date
-    </div>
-  );
-});
-
-const CurrencyFormatter = memo(function CurrencyFormatter({
-  row,
-  column,
-}: RenderCellProps<SheetData>) {
-  const value = row[column.key as keyof SheetData];
-  const formatted = value
-    ? `€${parseFloat(value.toString()).toLocaleString()}`
-    : "";
-  return (
-    <div className="h-8 w-full flex items-center text-xs px-2 border-r border-b border-border">
-      {formatted}
-    </div>
-  );
-});
-
-const FunctionFormatter = memo(function FunctionFormatter({
-  row,
-  column,
-}: RenderCellProps<SheetData>) {
-  const columnDef = (column as any).columnDef as SheetColumn;
-  const deleteRow = (column as any).deleteRow as
-    | ((rowId: string) => void)
-    | undefined;
-  const availableFunctions = (column as any)
-    .availableFunctions as TypeScriptFunction[];
-  const recomputeCell = (column as any).recomputeCell as
-    | ((rowId: string, columnId: string) => Promise<void>)
-    | undefined;
-  const openDebugConsole = (column as any).openDebugConsole as
-    | ((rowId: string, columnId: string) => void)
-    | undefined;
-
-  const [isRecomputing, setIsRecomputing] = useState(false);
-
-  if (columnDef.id === "delete") {
-    return (
-      <div className="h-8 w-full flex items-center justify-center px-2 border-r border-b border-border">
-        <Button
-          variant="destructive"
-          size="sm"
-          className="bg-crimson-red hover:bg-crimson-red/90"
-          onClick={() => {
-            if (deleteRow) {
-              deleteRow(row.id);
-            }
-          }}
-        >
-          Delete
-        </Button>
-      </div>
-    );
-  }
-
-  const value = row[column.key as keyof SheetData];
-  const functionId = columnDef.function;
-  const functionDetails = availableFunctions?.find((f) => f.id === functionId);
-
-  const handleRetry = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent cell click
-    if (recomputeCell && !isRecomputing) {
-      setIsRecomputing(true);
-      try {
-        await recomputeCell(row.id, column.key);
-      } catch (error) {
-        logFunctionError("Failed to recompute cell:", error);
-      } finally {
-        setIsRecomputing(false);
-      }
-    }
-  };
-
-  const handleDebug = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent cell click
-    if (openDebugConsole) {
-      openDebugConsole(row.id, column.key);
-    }
-  };
-
-  return (
-    <>
-      <div className="h-8 w-full flex items-center text-xs px-2 border-r border-b border-border relative group">
-        <div className="flex-1 h-full flex items-center pr-16">
-          <span className="text-xs">{value?.toString() || ""}</span>
-        </div>
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          <button
-            onClick={handleDebug}
-            className="p-1 hover:bg-blue-50 rounded transition-all opacity-0 group-hover:opacity-100"
-            title="Debug in console"
-          >
-            <Bug className="h-3 w-3 text-blue-600" />
-          </button>
-          <button
-            onClick={handleRetry}
-            disabled={isRecomputing}
-            className="p-1 hover:bg-royal-purple/10 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Retry computation"
-          >
-            <RefreshCw
-              className={`h-3 w-3 text-royal-purple ${
-                isRecomputing ? "animate-spin" : ""
-              }`}
-            />
-          </button>
-        </div>
-      </div>
-    </>
-  );
-});
 
 interface BookingsDataGridProps {
   columns: SheetColumn[];
@@ -1852,6 +1302,256 @@ export default function BookingsDataGrid({
     getActiveFiltersCount,
   ]);
 
+  // Custom currency editor that only allows numeric characters and decimal point
+  const currencyEditor = useCallback(
+    ({ row, column, onRowChange, onClose }: RenderEditCellProps<SheetData>) => {
+      const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const inputValue = e.target.value;
+        // Only allow numeric characters and one decimal point
+        const filteredValue = inputValue.replace(/[^0-9.]/g, "");
+        // Ensure only one decimal point
+        const parts = filteredValue.split(".");
+        const finalValue =
+          parts.length > 2
+            ? parts[0] + "." + parts.slice(1).join("")
+            : filteredValue;
+
+        // Keep as string during editing, convert only when saving
+        // This allows users to type decimals like "100." without losing the dot
+        onRowChange({ ...row, [column.key]: finalValue });
+      };
+
+      const handleSave = () => {
+        const currentValue = row[column.key as keyof SheetData];
+        const stringValue = currentValue?.toString() || "";
+
+        // Convert to number for final storage
+        const numericValue =
+          stringValue === "" ? "" : parseFloat(stringValue) || 0;
+        onRowChange({ ...row, [column.key]: numericValue });
+        onClose(true);
+      };
+
+      const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter" || e.key === "Tab") {
+          e.preventDefault();
+          handleSave();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          onClose(false);
+        }
+      };
+
+      const cellValue = row[column.key as keyof SheetData];
+      const displayValue = cellValue?.toString() || "";
+
+      return (
+        <input
+          type="text"
+          value={displayValue}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onBlur={handleSave}
+          autoFocus
+          onFocus={(e) => e.target.select()}
+          className="h-8 w-full px-2 text-xs border-none outline-none bg-white"
+        />
+      );
+    },
+    []
+  );
+
+  function FunctionEditor({
+    row,
+    column,
+    onRowChange,
+    onClose,
+  }: RenderEditCellProps<SheetData>) {
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          onClose(false);
+        }
+      };
+
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }, [onClose]);
+
+    // Get function name from global column defs map
+    const columnDef = globalColumnDefs.get(column.key);
+    const functionId = columnDef?.function;
+    const functionDetails = globalAvailableFunctions?.find(
+      (f) => f.id === functionId
+    );
+    const functionName = functionDetails?.functionName || "EditFunction";
+
+    // Build function signature with arguments
+    // Build function signature with actual values from row
+    const args =
+      columnDef?.arguments
+        ?.map((arg) => {
+          if (arg.columnReference) {
+            // Special case: "ID" refers to the document ID
+            if (arg.columnReference === "ID") {
+              const value = row.id;
+              if (value === undefined || value === null) return "null";
+              if (typeof value === "string") return `"${value}"`;
+              if (typeof value === "object") return JSON.stringify(value);
+              return String(value);
+            }
+            // Find the column and get value from row
+            const refCol = globalAllColumns.find(
+              (c) => c.columnName === arg.columnReference
+            );
+            if (refCol) {
+              const value = row[refCol.id];
+              if (value === undefined || value === null) return "null";
+              if (typeof value === "string") return `"${value}"`;
+              if (typeof value === "object") return JSON.stringify(value);
+              return String(value);
+            }
+            return arg.columnReference;
+          }
+          if (arg.columnReferences && arg.columnReferences.length > 0) {
+            const values = arg.columnReferences.map((ref) => {
+              // Special case: "ID" refers to the document ID
+              if (ref === "ID") {
+                const value = row.id;
+                if (value === undefined || value === null) return "null";
+                if (typeof value === "string") return `"${value}"`;
+                return String(value);
+              }
+              const refCol = globalAllColumns.find((c) => c.columnName === ref);
+              if (refCol) {
+                const value = row[refCol.id];
+                if (value === undefined || value === null) return "null";
+                if (typeof value === "string") return `"${value}"`;
+                return String(value);
+              }
+              return ref;
+            });
+            return `[${values.join(", ")}]`;
+          }
+          if (arg.value !== undefined) {
+            return typeof arg.value === "string"
+              ? `"${arg.value}"`
+              : String(arg.value);
+          }
+          return arg.name;
+        })
+        .join(", ") || "";
+    const signature = `${functionName}(${args})`;
+
+    return (
+      <div className="h-8 w-full flex items-center justify-center px-2">
+        <button
+          onClick={() => {
+            if (globalNavigateToFunctions) {
+              globalNavigateToFunctions();
+            }
+            onClose(false);
+          }}
+          className="text-sm text-royal-purple hover:text-royal-purple/80 underline flex items-center gap-1 hover:no-underline transition-all"
+        >
+          <ExternalLink className="h-4 w-4" />
+          {signature}
+        </button>
+      </div>
+    );
+  }
+
+  const FunctionFormatter = memo(function FunctionFormatter({
+    row,
+    column,
+  }: RenderCellProps<SheetData>) {
+    const columnDef = (column as any).columnDef as SheetColumn;
+    const deleteRow = (column as any).deleteRow as
+      | ((rowId: string) => void)
+      | undefined;
+    const recomputeCell = (column as any).recomputeCell as
+      | ((rowId: string, columnId: string) => Promise<void>)
+      | undefined;
+    const openDebugConsole = (column as any).openDebugConsole as
+      | ((rowId: string, columnId: string) => void)
+      | undefined;
+
+    const [isRecomputing, setIsRecomputing] = useState(false);
+
+    if (columnDef.id === "delete") {
+      return (
+        <div className="h-8 w-full flex items-center justify-center px-2 border-r border-b border-border">
+          <Button
+            variant="destructive"
+            size="sm"
+            className="bg-crimson-red hover:bg-crimson-red/90"
+            onClick={() => {
+              if (deleteRow) {
+                deleteRow(row.id);
+              }
+            }}
+          >
+            Delete
+          </Button>
+        </div>
+      );
+    }
+
+    const value = row[column.key as keyof SheetData];
+
+    const handleRetry = async (e: React.MouseEvent) => {
+      e.stopPropagation(); // Prevent cell click
+      if (recomputeCell && !isRecomputing) {
+        setIsRecomputing(true);
+        try {
+          await recomputeCell(row.id, column.key);
+        } catch (error) {
+          logFunctionError("Failed to recompute cell:", error);
+        } finally {
+          setIsRecomputing(false);
+        }
+      }
+    };
+
+    const handleDebug = (e: React.MouseEvent) => {
+      e.stopPropagation(); // Prevent cell click
+      if (openDebugConsole) {
+        openDebugConsole(row.id, column.key);
+      }
+    };
+
+    return (
+      <>
+        <div className="h-8 w-full flex items-center text-xs px-2 border-r border-b border-border relative group">
+          <div className="flex-1 h-full flex items-center pr-16">
+            <span className="text-xs">{value?.toString() || ""}</span>
+          </div>
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            <button
+              onClick={handleDebug}
+              className="p-1 hover:bg-blue-50 rounded transition-all opacity-0 group-hover:opacity-100"
+              title="Debug in console"
+            >
+              <Bug className="h-3 w-3 text-blue-600" />
+            </button>
+            <button
+              onClick={handleRetry}
+              disabled={isRecomputing}
+              className="p-1 hover:bg-royal-purple/10 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Retry computation"
+            >
+              <RefreshCw
+                className={`h-3 w-3 text-royal-purple ${
+                  isRecomputing ? "animate-spin" : ""
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  });
+
   // Convert SheetColumn to react-data-grid Column format
   const gridColumns = useMemo<Column<SheetData>[]>(() => {
     // Safety check for columns
@@ -2344,44 +2044,33 @@ export default function BookingsDataGrid({
           };
           baseColumn.editable = false; // We handle editing through the select
         } else if (col.dataType === "currency") {
-          // Always render currency input for currency columns
+          // Default renderer for currency
           baseColumn.renderCell = ({ row, column }) => {
-            const cellValue = row[column.key as keyof SheetData];
-            const numericValue =
-              typeof cellValue === "number"
-                ? cellValue
-                : parseFloat(cellValue?.toString() || "0") || 0;
+            const isEmptyRow = (row as any)._isEmptyRow;
+            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+            const shouldShowAddButton = (row as any)._shouldShowAddButton;
             const hasColor = col.color && col.color !== "none";
 
-            return (
-              <input
-                type="number"
-                step="0.01"
-                value={numericValue.toString()}
-                onChange={async (e) => {
-                  const newValue = parseFloat(e.target.value) || 0;
+            if (isEmptyRow) {
+              return renderEmptyRowCell(
+                column,
+                isFirstEmptyRow,
+                shouldShowAddButton
+              );
+            }
 
-                  // Save to Firestore - Firebase listener will update the UI
-                  try {
-                    await bookingService.updateBookingField(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                    // Note: Recomputation will be triggered by Firebase listener
-                  } catch (error) {
-                    console.error("Failed to update currency field:", error);
-                  }
-                }}
-                className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
+            return (
+              <div
+                className={`h-8 w-full flex items-center text-xs px-2 border-r border-b border-border ${
                   hasColor ? "text-black" : ""
                 }`}
-                style={{ backgroundColor: "transparent" }}
-                placeholder="0.00"
-              />
+              >
+                {row[column.key as keyof SheetData]?.toString() || ""}
+              </div>
             );
           };
-          baseColumn.editable = false; // We handle editing through the input
+          baseColumn.renderEditCell = currencyEditor; // Use custom currency editor
+          baseColumn.editable = true;
         } else if (col.dataType === "function") {
           baseColumn.renderCell = ({ row, column }) => {
             const isEmptyRow = (row as any)._isEmptyRow;
@@ -2410,33 +2099,6 @@ export default function BookingsDataGrid({
           (baseColumn as any).availableFunctions = availableFunctions;
           (baseColumn as any).recomputeCell = recomputeCell;
           (baseColumn as any).openDebugConsole = openDebugConsole;
-        } else if (col.dataType === "number") {
-          baseColumn.renderCell = ({ row, column }) => {
-            const isEmptyRow = (row as any)._isEmptyRow;
-            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-            const shouldShowAddButton = (row as any)._shouldShowAddButton;
-            const hasColor = col.color && col.color !== "none";
-
-            if (isEmptyRow) {
-              return renderEmptyRowCell(
-                column,
-                isFirstEmptyRow,
-                shouldShowAddButton
-              );
-            }
-
-            return (
-              <div
-                className={`h-8 w-full flex items-center text-xs px-2 border-r border-b border-border ${
-                  hasColor ? "text-black" : ""
-                }`}
-              >
-                {row[column.key as keyof SheetData]?.toString() || ""}
-              </div>
-            );
-          };
-          baseColumn.renderEditCell = NumberEditor; // Use direct reference
-          baseColumn.editable = true;
         } else {
           // Default renderer for string, email, etc.
           baseColumn.renderCell = ({ row, column }) => {
@@ -3020,6 +2682,25 @@ export default function BookingsDataGrid({
                 ? columns.find((col) => col.id === column.key)
                 : null;
 
+              // Helper function to convert value based on column type
+              const convertValueByType = (
+                value: any,
+                columnDef: SheetColumn | undefined
+              ) => {
+                if (!columnDef) return value;
+
+                // Convert currency to number
+                if (columnDef.dataType === "currency") {
+                  if (value === "" || value === null || value === undefined)
+                    return 0;
+                  const numericValue =
+                    typeof value === "number" ? value : parseFloat(value);
+                  return isNaN(numericValue) ? 0 : numericValue;
+                }
+
+                return value;
+              };
+
               // Update Firestore for each changed row
               indexes.forEach(async (index) => {
                 const changedRow = rows[index] as SheetData;
@@ -3031,7 +2712,10 @@ export default function BookingsDataGrid({
                   // Single field change
                   const fieldKey = column.key as string;
                   const oldValue = originalRow[fieldKey as keyof SheetData];
-                  const newValue = changedRow[fieldKey as keyof SheetData];
+                  let newValue = changedRow[fieldKey as keyof SheetData];
+
+                  // Convert value based on column type
+                  newValue = convertValueByType(newValue, columnDef);
 
                   if (oldValue !== newValue) {
                     batchedWriter.queueFieldUpdate(
@@ -3050,10 +2734,13 @@ export default function BookingsDataGrid({
 
                   // Process each changed field
                   for (const fieldKey of changedFields) {
-                    const newValue = changedRow[fieldKey as keyof SheetData];
+                    let newValue = changedRow[fieldKey as keyof SheetData];
                     const fieldColumnDef = columns.find(
                       (col) => col.id === fieldKey
                     );
+
+                    // Convert value based on column type
+                    newValue = convertValueByType(newValue, fieldColumnDef);
 
                     batchedWriter.queueFieldUpdate(
                       changedRow.id,
