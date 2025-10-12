@@ -1361,6 +1361,65 @@ export default function BookingsDataGrid({
     []
   );
 
+  // Custom select editor with dropdown functionality
+  const selectEditor = useCallback(
+    ({ row, column, onRowChange, onClose }: RenderEditCellProps<SheetData>) => {
+      // Get column definition to access options
+      const columnDef = columns.find((col) => col.id === column.key);
+      const options = columnDef?.options || [];
+
+      const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newValue = e.target.value;
+
+        // Update local row state
+        onRowChange({ ...row, [column.key]: newValue });
+
+        // Save to Firestore
+        try {
+          await bookingService.updateBookingField(row.id, column.key, newValue);
+          // Trigger recomputation for dependent function columns
+          await recomputeDirectDependentsForRow(row.id, column.key, newValue);
+        } catch (error) {
+          console.error("Failed to update select field:", error);
+        }
+
+        onClose(true); // Auto-close after selection
+      };
+
+      const handleKeyDown = (e: React.KeyboardEvent<HTMLSelectElement>) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          onClose(false);
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          onClose(true);
+        }
+      };
+
+      const cellValue = row[column.key as keyof SheetData];
+      const displayValue = cellValue?.toString() || "";
+
+      return (
+        <select
+          value={displayValue}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onBlur={() => onClose(true)}
+          autoFocus
+          className="h-8 w-full px-2 text-xs border-none outline-none bg-white cursor-pointer"
+        >
+          <option value=""></option>
+          {options.map((option: string) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    },
+    [columns, recomputeDirectDependentsForRow]
+  );
+
   function FunctionEditor({
     row,
     column,
@@ -2046,7 +2105,8 @@ export default function BookingsDataGrid({
               </select>
             );
           };
-          baseColumn.editable = false; // We handle editing through the select
+          baseColumn.renderEditCell = selectEditor;
+          baseColumn.editable = true;
         } else if (col.dataType === "currency") {
           // Default renderer for currency
           baseColumn.renderCell = ({ row, column }) => {
@@ -2073,7 +2133,7 @@ export default function BookingsDataGrid({
               </div>
             );
           };
-          baseColumn.renderEditCell = currencyEditor; // Use custom currency editor
+          baseColumn.renderEditCell = currencyEditor;
           baseColumn.editable = true;
         } else if (col.dataType === "function") {
           baseColumn.renderCell = ({ row, column }) => {
