@@ -479,15 +479,25 @@ export default function BookingDetailModal({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowEmptyFields(!showEmptyFields)}
-                className="h-8 px-2 hover:bg-muted"
+                className="h-8 px-3 hover:bg-muted flex items-center gap-2"
                 title={
                   showEmptyFields ? "Hide empty fields" : "Show empty fields"
                 }
               >
                 {showEmptyFields ? (
-                  <FaEyeSlash className="h-4 w-4 text-muted-foreground" />
+                  <>
+                    <FaEyeSlash className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">
+                      Hide empty fields
+                    </span>
+                  </>
                 ) : (
-                  <FaEye className="h-4 w-4 text-muted-foreground" />
+                  <>
+                    <FaEye className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">
+                      Show empty fields
+                    </span>
+                  </>
                 )}
               </Button>
             </div>
