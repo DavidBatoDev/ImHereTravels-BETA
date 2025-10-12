@@ -1537,7 +1537,11 @@ export default function BookingsDataGrid({
             <button
               onClick={handleRetry}
               disabled={isRecomputing}
-              className="p-1 hover:bg-royal-purple/10 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`p-1 hover:bg-royal-purple/10 rounded transition-all disabled:cursor-not-allowed ${
+                isRecomputing
+                  ? "opacity-50"
+                  : "opacity-0 group-hover:opacity-100"
+              }`}
               title="Retry computation"
             >
               <RefreshCw
@@ -1980,7 +1984,7 @@ export default function BookingsDataGrid({
                     console.error("Failed to update date field:", error);
                   }
                 }}
-                className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
+                className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
                   hasColor ? "text-black" : ""
                 } ${!cellValue ? "text-transparent" : ""}`}
                 style={{
@@ -2028,7 +2032,7 @@ export default function BookingsDataGrid({
                     console.error("Failed to update select field:", error);
                   }
                 }}
-                className={`h-8 w-full border-0 focus:border-2 focus:border-royal-purple focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
+                className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
                   hasColor ? "text-black" : ""
                 }`}
                 style={{ backgroundColor: "transparent" }}
