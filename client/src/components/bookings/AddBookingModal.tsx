@@ -29,6 +29,7 @@ import {
   FaMapMarkerAlt,
   FaWallet,
   FaTag,
+  FaPlus,
 } from "react-icons/fa";
 import { BsListUl, BsCalendarEvent } from "react-icons/bs";
 import { MdEmail } from "react-icons/md";
@@ -41,23 +42,22 @@ import { bookingSheetColumnService } from "@/services/booking-sheet-columns-serv
 import { functionExecutionService } from "@/services/function-execution-service";
 import { typescriptFunctionsService } from "@/services/typescript-functions-service";
 import { batchedWriter } from "@/services/batched-writer";
+import { bookingService } from "@/services/booking-service";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { isEqual } from "lodash";
 
-interface EditBookingModalProps {
+interface AddBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  booking: Booking | null;
-  onSave?: (updatedBooking: Booking) => void;
+  onSave?: (newBooking: Partial<Booking>) => void;
 }
 
-export default function EditBookingModal({
+export default function AddBookingModal({
   isOpen,
   onClose,
-  booking,
   onSave,
-}: EditBookingModalProps) {
+}: AddBookingModalProps) {
   const [columns, setColumns] = useState<SheetColumn[]>([]);
   const [availableFunctions, setAvailableFunctions] = useState<
     TypeScriptFunction[]
@@ -79,6 +79,7 @@ export default function EditBookingModal({
   const [localFieldValues, setLocalFieldValues] = useState<Record<string, any>>(
     {}
   );
+  const [isSaving, setIsSaving] = useState(false);
 
   const { toast } = useToast();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -87,86 +88,85 @@ export default function EditBookingModal({
   // Debounce timer for function execution
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  // Real-time Firebase listener for booking updates (like BookingsDataGrid)
+  // Load columns and functions on mount (for new booking creation)
   useEffect(() => {
-    if (!booking?.id || !isOpen) return;
+    if (!isOpen) return;
 
-    console.log(
-      "🔍 [EDIT BOOKING MODAL] Setting up real-time booking listener for:",
-      booking.id
-    );
+    console.log("🔍 [ADD BOOKING MODAL] Setting up subscriptions");
 
-    const unsubscribe = onSnapshot(
-      doc(db, "bookings", booking.id),
-      (docSnapshot) => {
-        if (docSnapshot.exists()) {
-          const updatedBooking = {
-            id: docSnapshot.id,
-            ...docSnapshot.data(),
-          } as Booking;
+    const unsubscribeColumns = bookingSheetColumnService.subscribeToColumns(
+      (newColumns) => {
+        console.log("� [ADD BOOKING MODAL] Columns updated:", newColumns);
+        setColumns(newColumns);
+        setIsLoadingColumns(false);
 
-          console.log(
-            "📄 [EDIT BOOKING MODAL] Real-time booking update received"
-          );
+        // Initialize form with default values when columns are loaded
+        const initialData: Partial<Booking> = {};
+        newColumns.forEach((column) => {
+          if (column.defaultValue !== undefined && column.defaultValue !== "") {
+            initialData[column.id as keyof Booking] = column.defaultValue;
+          } else if (column.dataType === "boolean") {
+            // Explicitly initialize boolean fields to false when no default is set
+            initialData[column.id as keyof Booking] = false;
+          }
+        });
 
-          // Update form data with real-time changes (LOCAL FIRST pattern like BookingsDataGrid)
-          setFormData((prevFormData) => {
-            const updatedData = { ...prevFormData };
-
-            // Update all fields from Firebase, but be smart about it
-            Object.keys(updatedBooking).forEach((key) => {
-              const firebaseValue = updatedBooking[key as keyof Booking];
-              const formValue = prevFormData[key as keyof Booking];
-
-              // Find the column for this field
-              const column = columns.find((col) => col.id === key);
-
-              // LOCAL FIRST: Skip updating if user is actively editing this field
-              if (activeEditingFields.has(key)) {
-                console.log(
-                  `🚫 [EDIT BOOKING MODAL] Skipping Firebase update for actively edited field: ${key}`
-                );
-                return;
-              }
-
-              // Always update function fields since they're computed externally
-              if (column?.dataType === "function") {
-                updatedData[key as keyof Booking] = firebaseValue;
-              }
-              // For other fields, only update if they're different (deep comparison)
-              // This prevents overwriting user input while they're typing
-              else if (!isEqual(firebaseValue, formValue)) {
-                updatedData[key as keyof Booking] = firebaseValue;
-              }
-            });
-
-            return updatedData;
-          });
-        }
-      },
-      (error) => {
-        console.error(
-          "🚨 [EDIT BOOKING MODAL] Real-time listener error:",
-          error
+        // Set current date for reservation date if column exists
+        const reservationDateColumn = newColumns.find(
+          (col) => col.columnName === "Reservation Date"
         );
+        if (
+          reservationDateColumn &&
+          !initialData[reservationDateColumn.id as keyof Booking]
+        ) {
+          initialData[reservationDateColumn.id as keyof Booking] = new Date();
+        }
+
+        setFormData(initialData);
+
+        // Set first parent tab as active
+        const parentTabs = [
+          ...new Set(
+            newColumns
+              .filter((col) => col.parentTab)
+              .map((col) => col.parentTab!)
+          ),
+        ];
+        if (parentTabs.length > 0 && typeof parentTabs[0] === "string") {
+          setActiveTab(parentTabs[0]);
+        }
       }
     );
 
-    return () => {
-      console.log(
-        "🧹 [EDIT BOOKING MODAL] Cleaning up real-time booking listener"
-      );
-      unsubscribe();
+    const loadFunctions = async () => {
+      try {
+        const functions = await typescriptFunctionsService.getAllFunctions();
+        console.log("🔧 [ADD BOOKING MODAL] Functions loaded:", functions);
+        setAvailableFunctions(functions);
+      } catch (error) {
+        console.error("❌ [ADD BOOKING MODAL] Error loading functions:", error);
+      }
     };
-  }, [booking?.id, isOpen, columns]);
 
-  // Initialize form data when modal opens
+    loadFunctions();
+
+    return () => {
+      console.log("🔄 [ADD BOOKING MODAL] Cleaning up subscriptions");
+      unsubscribeColumns();
+    };
+  }, [isOpen]);
+
+  // Reset form when modal closes
   useEffect(() => {
-    if (booking && isOpen) {
-      setFormData({ ...booking });
+    if (!isOpen) {
+      console.log("🧹 [ADD BOOKING MODAL] Resetting form data");
+      setFormData({});
+      setLocalFieldValues({});
+      setActiveEditingFields(new Set());
       setFieldErrors({});
+      setComputingFields(new Set());
     }
-  }, [booking, isOpen]);
+  }, [isOpen]);
 
   // Fetch booking sheet columns and functions
   useEffect(() => {
@@ -252,7 +252,7 @@ export default function EditBookingModal({
 
   // Set first tab as active on load
   useEffect(() => {
-    if (!booking || !isOpen || !columns.length) return;
+    if (!isOpen || !columns.length) return;
 
     // Group columns by parentTab
     const groupedColumns = columns.reduce((groups, column) => {
@@ -278,7 +278,7 @@ export default function EditBookingModal({
     if (sortedParentTabs.length > 0 && !activeTab) {
       setActiveTab(sortedParentTabs[0]);
     }
-  }, [isOpen, columns, booking, activeTab]);
+  }, [isOpen, columns, activeTab]);
 
   // Safe date conversion for Firebase Timestamps
   const safeDate = (value: any): Date => {
@@ -491,11 +491,6 @@ export default function EditBookingModal({
             if (oldValue !== result) {
               updatedData[columnId as keyof Booking] = result;
               hasChanges = true;
-
-              // Queue the computed result to Firebase
-              if (booking?.id) {
-                batchedWriter.queueFieldUpdate(booking.id, columnId, result);
-              }
             }
           }
         }
@@ -521,7 +516,7 @@ export default function EditBookingModal({
         return currentData;
       }
     },
-    [dependencyGraph, executeFunction, booking?.id]
+    [dependencyGraph, executeFunction]
   );
 
   // Debounced wrapper to avoid excessive calls while maintaining responsiveness
@@ -577,15 +572,10 @@ export default function EditBookingModal({
         });
       }
 
-      // Queue update to Firebase for persistence
-      if (booking?.id) {
-        batchedWriter.queueFieldUpdate(booking.id, columnId, value);
-      }
-
       // Trigger debounced function execution for immediate UI feedback
       debouncedExecuteFunctions(columnId, updatedData);
     },
-    [formData, fieldErrors, booking?.id, debouncedExecuteFunctions]
+    [formData, fieldErrors, debouncedExecuteFunctions]
   );
 
   // Get form value for a column (LOCAL FIRST pattern)
@@ -595,7 +585,15 @@ export default function EditBookingModal({
       return localFieldValues[column.id];
     }
     // Otherwise use formData (which gets updated by Firebase)
-    return formData[column.id as keyof Booking] || "";
+    const value = formData[column.id as keyof Booking];
+    if (value !== undefined) {
+      return value;
+    }
+    // Return appropriate default for field type when undefined
+    if (column.dataType === "boolean") {
+      return false;
+    }
+    return "";
   };
 
   // Handle when user finishes editing a field (LOCAL FIRST pattern)
@@ -866,7 +864,33 @@ export default function EditBookingModal({
     }
   };
 
-  // Handle close with computation check
+  // Check if form has unsaved changes
+  const hasUnsavedChanges = React.useMemo(() => {
+    // Check if any form data exists (excluding empty values)
+    const hasData = Object.entries(formData).some(([key, value]) => {
+      if (value === null || value === undefined || value === "") {
+        return false;
+      }
+      // For boolean fields, consider false as no change (since they start as false)
+      if (typeof value === "boolean" && value === false) {
+        return false;
+      }
+      // For dates, check if it's different from today (reservation date defaults to today)
+      if (value instanceof Date && key.includes("reservationDate")) {
+        const today = new Date();
+        const isSameDay =
+          value.getFullYear() === today.getFullYear() &&
+          value.getMonth() === today.getMonth() &&
+          value.getDate() === today.getDate();
+        return !isSameDay;
+      }
+      return true;
+    });
+
+    return hasData || activeEditingFields.size > 0;
+  }, [formData, activeEditingFields]);
+
+  // Handle close with computation check and unsaved changes warning
   const handleClose = React.useCallback(() => {
     if (computingFields.size > 0) {
       toast({
@@ -877,6 +901,16 @@ export default function EditBookingModal({
       return;
     }
 
+    // Check for unsaved changes and show confirmation
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm(
+        "You have unsaved changes. Are you sure you want to leave? All changes will be lost."
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
     // Clear any pending debounced executions
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -884,9 +918,68 @@ export default function EditBookingModal({
     }
 
     onClose();
-  }, [computingFields.size, onClose, toast]);
+  }, [computingFields.size, hasUnsavedChanges, onClose, toast]);
 
-  if (!booking) return null;
+  // Handle save
+  const handleSave = React.useCallback(async () => {
+    if (computingFields.size > 0) {
+      toast({
+        title: "Please Wait",
+        description: `Please wait for ${computingFields.size} computation(s) to complete before saving.`,
+        variant: "default",
+      });
+      return;
+    }
+
+    try {
+      // Clear any validation errors
+      setFieldErrors({});
+
+      // Get the next incremental ID using the booking service
+      const nextId = await bookingService.getNextRowNumber();
+
+      // Create the new booking document with incremental ID
+      const bookingData = {
+        ...formData,
+        id: nextId.toString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Use setDoc with custom numeric ID instead of addDoc
+      const docRef = doc(db, "bookings", nextId.toString());
+      await setDoc(docRef, bookingData);
+
+      toast({
+        title: "Success",
+        description: `Booking #${nextId} created successfully!`,
+        variant: "default",
+      });
+
+      // Call onSave callback if provided
+      if (onSave) {
+        onSave({ id: nextId.toString(), ...bookingData });
+      } // Clear any pending debounced executions
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+
+      onClose();
+    } catch (error) {
+      console.error("Error creating booking:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create booking. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [computingFields.size, formData, toast, onClose, onSave]);
+
+  // Don't render if modal is closed
+  if (!isOpen) {
+    return null;
+  }
 
   // Group columns by parentTab
   const groupedColumns = columns.reduce((groups, column) => {
@@ -918,13 +1011,17 @@ export default function EditBookingModal({
         <DialogHeader className="sticky top-0 z-50 bg-white shadow-md border-b border-border/50 pb-3 pt-6 px-6">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
-                <FaCog className="h-5 w-5 text-white" />
+              <div className="p-2 bg-green-100 rounded-full rounded-br-none shadow-sm">
+                <FaPlus className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <span className="block text-base">Edit Booking</span>
-                <span className="text-2xl font-mono font-semibold text-crimson-red block">
-                  {booking.bookingId}
+                <span className="block text-xl">
+                  Add New Booking
+                  {hasUnsavedChanges && (
+                    <span className="ml-2 text-sm text-orange-600">
+                      ● Unsaved
+                    </span>
+                  )}
                 </span>
               </div>
             </DialogTitle>
@@ -1078,6 +1175,40 @@ export default function EditBookingModal({
               </nav>
             </div>
           )}
+        </div>
+
+        {/* Footer with action buttons */}
+        <div className="sticky bottom-0 z-50 bg-white border-t border-border/50 px-6 py-4">
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              disabled={computingFields.size > 0}
+              className="min-w-[100px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={computingFields.size > 0}
+              className={cn(
+                "min-w-[100px] bg-red-600 hover:bg-red-700 text-white",
+                computingFields.size > 0 && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {computingFields.size > 0 ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Computing...
+                </>
+              ) : (
+                <>
+                  <FaPlus className="h-4 w-4 mr-2" />
+                  Save Booking
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

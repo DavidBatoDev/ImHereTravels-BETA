@@ -52,6 +52,7 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { Timestamp } from "firebase/firestore";
 import BookingDetailModal from "./BookingDetailModal";
+import AddBookingModal from "./AddBookingModal";
 
 // Mock data for demonstration - replace with real data
 const mockBookings: Booking[] = [
@@ -621,6 +622,18 @@ export default function BookingsSection() {
 
     // Update the selected booking as well
     setSelectedBooking(updatedBooking);
+  };
+
+  // Handle new booking creation
+  const handleBookingCreate = (newBookingData: Partial<Booking>) => {
+    // Close the modal - the Firebase listener will automatically add the booking
+    // in the correct sorted position when AddBookingModal saves it to Firebase
+    setIsAddModalOpen(false);
+
+    console.log(
+      "✅ [BOOKINGS SECTION] New booking created, Firebase will handle updates:",
+      newBookingData
+    );
   };
 
   // Get column label from column ID
@@ -2110,26 +2123,11 @@ export default function BookingsSection() {
       )}
 
       {/* Add Booking Modal */}
-      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <FaPlus className="h-6 w-6 text-crimson-red" />
-              Add New Booking
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-8">
-            <div className="flex flex-col items-center justify-center text-center space-y-4">
-              <div className="p-6 bg-crimson-red/10 rounded-full rounded-br-none">
-                <FaPlus className="h-12 w-12 text-crimson-red" />
-              </div>
-              <p className="text-muted-foreground text-lg">
-                Booking form coming soon
-              </p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AddBookingModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSave={handleBookingCreate}
+      />
 
       {/* Booking Detail Modal */}
       <BookingDetailModal
