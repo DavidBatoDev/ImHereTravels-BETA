@@ -57,7 +57,8 @@ import {
 } from "lucide-react";
 import TemplateDialog from "./TemplateDialog";
 import TestTab from "./TestTab";
-import EmailDraftsTab from "./EmailDraftsTab";
+import EmailsTab from "./EmailsTab";
+import ScheduledEmailsTab from "./ScheduledEmailsTab";
 import RecycleBinTab from "./RecycleBinTab";
 import EmailTemplateService from "@/services/email-template-service";
 import { useAuthStore } from "@/store/auth-store";
@@ -853,13 +854,20 @@ export default function CommunicationsCenter() {
 
       {/* Tabs */}
       <Tabs defaultValue="drafts" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-muted border border-royal-purple/20 dark:border-border">
+        <TabsList className="grid w-full grid-cols-5 bg-muted border border-royal-purple/20 dark:border-border">
           <TabsTrigger
             value="drafts"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
           >
             <Mail className="mr-2 h-4 w-4" />
-            Email Drafts
+            Emails
+          </TabsTrigger>
+          <TabsTrigger
+            value="scheduled"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            <Clock className="mr-2 h-4 w-4" />
+            Scheduled
           </TabsTrigger>
           <TabsTrigger
             value="recycle"
@@ -885,7 +893,11 @@ export default function CommunicationsCenter() {
         </TabsList>
 
         <TabsContent value="drafts" className="mt-6">
-          <EmailDraftsTab />
+          <EmailsTab />
+        </TabsContent>
+
+        <TabsContent value="scheduled" className="mt-6">
+          <ScheduledEmailsTab />
         </TabsContent>
 
         <TabsContent value="recycle" className="mt-6">

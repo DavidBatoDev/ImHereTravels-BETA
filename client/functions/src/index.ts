@@ -21,6 +21,30 @@ export { testRecompute } from "./test-recompute";
 export { generateReservationEmail } from "./generate-reservation-email";
 export { sendReservationEmail } from "./send-reservation-email";
 export { telegramBot } from "./telegram-bot";
+export {
+  fetchGmailEmails,
+  sendGmailEmail,
+  getGmailLabels,
+  createGmailDraft,
+  updateGmailDraft,
+  deleteGmailDraft,
+  fetchGmailDrafts,
+  sendGmailDraft,
+  getGmailThread,
+  fetchGmailThreads,
+  replyToGmailEmail,
+  forwardGmailEmail,
+} from "./gmail-functions";
+
+// Export scheduled email functions
+export {
+  scheduleEmail,
+  cancelScheduledEmail,
+  getScheduledEmails,
+  rescheduleEmail,
+  processScheduledEmails,
+  triggerScheduledEmailProcessing,
+} from "./scheduled-emails";
 
 // Export email utilities
 export { EmailTemplateLoader } from "./email-template-loader";

@@ -2,7 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
-import * as nodemailer from "nodemailer";
+import GmailApiService from "./gmail-api-service";
 import * as dotenv from "dotenv";
 
 // Load environment variables from .env
@@ -13,17 +13,6 @@ if (getApps().length === 0) {
   initializeApp();
 }
 const db = getFirestore();
-
-// Create SMTP transporter
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
-};
 
 export const sendReservationEmail = onCall(
   {
@@ -58,43 +47,43 @@ export const sendReservationEmail = onCall(
         throw new HttpsError("already-exists", "Email has already been sent");
       }
 
-      // Create SMTP transporter
-      const transporter = createTransporter();
+      // Initialize Gmail API service
+      const gmailService = new GmailApiService();
 
-      // Prepare email options
-      const mailOptions = {
+      // Prepare email data
+      const emailData = {
         from:
           draftData.from || "Bella | ImHereTravels <bella@imheretravels.com>",
         to: draftData.to,
         subject: draftData.subject,
-        html: draftData.htmlContent,
+        htmlContent: draftData.htmlContent,
         bcc: draftData.bcc || [],
       };
 
-      logger.info("Sending email with options:", {
-        from: mailOptions.from,
-        to: mailOptions.to,
-        subject: mailOptions.subject,
-        bcc: mailOptions.bcc,
-        htmlLength: mailOptions.html.length,
+      logger.info("Sending email with Gmail API:", {
+        from: emailData.from,
+        to: emailData.to,
+        subject: emailData.subject,
+        bcc: emailData.bcc,
+        htmlLength: emailData.htmlContent.length,
       });
 
-      // Send the email
-      const info = await transporter.sendMail(mailOptions);
+      // Send the email using Gmail API
+      const result = await gmailService.sendEmail(emailData);
 
-      logger.info("Email sent successfully:", info.messageId);
+      logger.info("Email sent successfully:", result.messageId);
 
       // Update the draft status to "sent"
       await db.collection("emailDrafts").doc(draftId).update({
         status: "sent",
         updatedAt: new Date(),
         sentAt: new Date(),
-        messageId: info.messageId,
+        messageId: result.messageId,
       });
 
       return {
         success: true,
-        messageId: info.messageId,
+        messageId: result.messageId,
         status: "sent",
         draftId: draftId,
       };

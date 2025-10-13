@@ -19,6 +19,7 @@
     "dotenv": "^17.2.2",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^6.5.0",
+    "google-auth-library": "^10.4.0",
     "googleapis": "^144.0.0",
     "node-telegram-bot-api": "^0.66.0",
     "nodemailer": "^7.0.6",
