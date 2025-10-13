@@ -716,9 +716,11 @@ export default function EmailsTab() {
 
                     {/* Star */}
 
-
                     {/* Avatar/Sender */}
-                    <div className="flex items-center min-w-0 flex-shrink-0" style={{ width: "180px" }}>
+                    <div
+                      className="flex items-center min-w-0 flex-shrink-0"
+                      style={{ width: "180px" }}
+                    >
                       <Avatar className="w-8 h-8 mr-3 flex-shrink-0">
                         <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
                           {getAvatarInitials(getCorrespondent(email))}
