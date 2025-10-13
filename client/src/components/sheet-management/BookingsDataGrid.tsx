@@ -253,8 +253,8 @@ export default function BookingsDataGrid({
   const attemptErrorCountRef = useRef<number>(0);
 
   // Configuration for handling slow/async functions during recompute
-  const FUNCTION_EXECUTION_DELAY = 0; // 0ms delay between function executions
-  const ASYNC_FUNCTION_DELAY = 100; // 100ms delay for async functions
+  const FUNCTION_EXECUTION_DELAY = 10; // 0ms delay between function executions
+  const ASYNC_FUNCTION_DELAY = 50; // 100ms delay for async functions
   const executionTimesRef = useRef<Map<string, number[]>>(new Map());
 
   // Cache for function arguments to detect actual changes

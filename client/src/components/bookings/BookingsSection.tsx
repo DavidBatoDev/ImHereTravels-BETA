@@ -204,7 +204,7 @@ const mockBookings: Booking[] = [
 export default function BookingsSection() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const [viewMode, setViewMode] = useState<"cards" | "list">("list");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
@@ -608,6 +608,19 @@ export default function BookingsSection() {
   const handleModalClose = () => {
     setIsDetailModalOpen(false);
     setSelectedBooking(null);
+  };
+
+  // Handle booking update
+  const handleBookingUpdate = (updatedBooking: Booking) => {
+    // Update the booking in the local bookings array
+    setBookings((prevBookings) =>
+      prevBookings.map((booking) =>
+        booking.id === updatedBooking.id ? updatedBooking : booking
+      )
+    );
+
+    // Update the selected booking as well
+    setSelectedBooking(updatedBooking);
   };
 
   // Get column label from column ID
@@ -2123,6 +2136,7 @@ export default function BookingsSection() {
         isOpen={isDetailModalOpen}
         onClose={handleModalClose}
         booking={selectedBooking}
+        onBookingUpdate={handleBookingUpdate}
       />
     </div>
   );

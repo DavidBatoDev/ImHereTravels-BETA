@@ -27,6 +27,7 @@ import {
   FaEye,
   FaEyeSlash,
   FaCopy,
+  FaEdit,
 } from "react-icons/fa";
 import { MdEmail } from "react-icons/md";
 import {
@@ -39,23 +40,27 @@ import { HiTrendingUp } from "react-icons/hi";
 import type { Booking } from "@/types/bookings";
 import { SheetColumn } from "@/types/sheet-management";
 import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
+import EditBookingModal from "./EditBookingModal";
 
 interface BookingDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   booking: Booking | null;
+  onBookingUpdate?: (updatedBooking: Booking) => void;
 }
 
 export default function BookingDetailModal({
   isOpen,
   onClose,
   booking,
+  onBookingUpdate,
 }: BookingDetailModalProps) {
   const [columns, setColumns] = useState<SheetColumn[]>([]);
   const [isLoadingColumns, setIsLoadingColumns] = useState(true);
   const [showEmptyFields, setShowEmptyFields] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"card" | "list">("card");
+  const [viewMode, setViewMode] = useState<"card" | "list">("list");
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const isScrollingProgrammatically = React.useRef(false);
 
@@ -500,6 +505,17 @@ export default function BookingDetailModal({
                   </>
                 )}
               </Button>
+
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setIsEditModalOpen(true)}
+                className="h-8 px-4 bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25 flex items-center gap-2"
+                title="Edit booking"
+              >
+                <FaEdit className="h-4 w-4" />
+                <span className="text-xs font-medium">Edit</span>
+              </Button>
             </div>
           </div>
           <div className="mt-2 ml-[56px] space-y-1">
@@ -933,6 +949,20 @@ export default function BookingDetailModal({
           )}
         </div>
       </DialogContent>
+
+      {/* Edit Booking Modal */}
+      <EditBookingModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        booking={booking}
+        onSave={(updatedBooking) => {
+          // Call the parent callback to refresh the booking data
+          if (onBookingUpdate) {
+            onBookingUpdate(updatedBooking);
+          }
+          setIsEditModalOpen(false);
+        }}
+      />
     </Dialog>
   );
 }
