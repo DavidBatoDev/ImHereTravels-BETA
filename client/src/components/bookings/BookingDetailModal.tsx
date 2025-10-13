@@ -41,6 +41,8 @@ import type { Booking } from "@/types/bookings";
 import { SheetColumn } from "@/types/sheet-management";
 import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
 import EditBookingModal from "./EditBookingModal";
+import { db } from "@/lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 
 interface BookingDetailModalProps {
   isOpen: boolean;
@@ -61,8 +63,66 @@ export default function BookingDetailModal({
   const [activeTab, setActiveTab] = useState<string>("");
   const [viewMode, setViewMode] = useState<"card" | "list">("list");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Real-time booking data state (similar to EditBookingModal)
+  const [realtimeBooking, setRealtimeBooking] = useState<Booking | null>(null);
+
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const isScrollingProgrammatically = React.useRef(false);
+
+  // Use real-time booking data if available, otherwise fall back to prop
+  const currentBooking = realtimeBooking || booking;
+
+  // Real-time Firebase listener for booking updates (like EditBookingModal)
+  useEffect(() => {
+    if (!booking?.id || !isOpen) {
+      setRealtimeBooking(booking);
+      return;
+    }
+
+    console.log(
+      "🔍 [BOOKING DETAIL MODAL] Setting up real-time booking listener for:",
+      booking.id
+    );
+
+    const unsubscribe = onSnapshot(
+      doc(db, "bookings", booking.id),
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const updatedBooking = {
+            id: docSnapshot.id,
+            ...docSnapshot.data(),
+          } as Booking;
+
+          console.log(
+            "📄 [BOOKING DETAIL MODAL] Real-time booking update received"
+          );
+
+          setRealtimeBooking(updatedBooking);
+
+          // Call the onBookingUpdate callback if provided
+          if (onBookingUpdate) {
+            onBookingUpdate(updatedBooking);
+          }
+        }
+      },
+      (error) => {
+        console.error(
+          "🚨 [BOOKING DETAIL MODAL] Real-time listener error:",
+          error
+        );
+        // Fallback to the original booking data on error
+        setRealtimeBooking(booking);
+      }
+    );
+
+    return () => {
+      console.log(
+        "🧹 [BOOKING DETAIL MODAL] Cleaning up real-time booking listener"
+      );
+      unsubscribe();
+    };
+  }, [booking?.id, isOpen, booking, onBookingUpdate]);
 
   // Fetch booking sheet columns
   useEffect(() => {
@@ -89,7 +149,7 @@ export default function BookingDetailModal({
 
   // Set first tab as active on load - must be unconditional and placed with other hooks
   useEffect(() => {
-    if (!booking || !isOpen) return;
+    if (!currentBooking || !isOpen) return;
 
     // Group columns by parentTab
     const groupedColumns = columns.reduce((groups, column) => {
@@ -115,7 +175,7 @@ export default function BookingDetailModal({
     if (sortedParentTabs.length > 0 && !activeTab) {
       setActiveTab(sortedParentTabs[0]);
     }
-  }, [isOpen, columns, booking, activeTab]);
+  }, [isOpen, columns, currentBooking, activeTab]);
 
   // Track active section on scroll
   useEffect(() => {
@@ -197,7 +257,16 @@ export default function BookingDetailModal({
     }
   }, [isOpen, isLoadingColumns, activeTab]);
 
-  if (!booking) return null;
+  // Prevent rendering if modal is closed or no booking data
+  if (!isOpen || !currentBooking) {
+    console.log(
+      "🚫 [BOOKING DETAIL MODAL] Preventing render - isOpen:",
+      isOpen,
+      "currentBooking:",
+      !!currentBooking
+    );
+    return null;
+  }
 
   // Safe date conversion for Firebase Timestamps
   const safeDate = (value: any): Date => {
@@ -229,7 +298,9 @@ export default function BookingDetailModal({
   };
 
   // Get total cost for a booking with validation
-  const getTotalCost = (booking: Booking) => {
+  const getTotalCost = (booking: Booking | null) => {
+    if (!booking) return 0;
+
     const originalCost = Number(booking.originalTourCost) || 0;
     const discountedCost = Number(booking.discountedTourCost) || 0;
 
@@ -240,7 +311,9 @@ export default function BookingDetailModal({
   };
 
   // Calculate payment progress dynamically
-  const calculatePaymentProgress = (booking: Booking) => {
+  const calculatePaymentProgress = (booking: Booking | null) => {
+    if (!booking) return 0;
+
     const totalCost = getTotalCost(booking);
     const paid = safeNumber(booking.paid, 0);
 
@@ -266,7 +339,9 @@ export default function BookingDetailModal({
   };
 
   // Get payment plan code
-  const getPaymentPlanCode = (booking: Booking) => {
+  const getPaymentPlanCode = (booking: Booking | null) => {
+    if (!booking) return null;
+
     if (booking.paymentPlan) {
       return booking.paymentPlan.substring(0, 2).toUpperCase();
     }
@@ -286,7 +361,9 @@ export default function BookingDetailModal({
     }).format(amount);
   };
 
-  const getStatusBgColor = (booking: Booking) => {
+  const getStatusBgColor = (booking: Booking | null) => {
+    if (!booking) return "bg-gray-100";
+
     const category = getBookingStatusCategory(booking.bookingStatus);
     switch (category) {
       case "Confirmed":
@@ -313,10 +390,10 @@ export default function BookingDetailModal({
     }
   };
 
-  const totalCost = getTotalCost(booking);
-  const paid = safeNumber(booking.paid, 0);
+  const totalCost = getTotalCost(currentBooking);
+  const paid = safeNumber(currentBooking?.paid, 0);
   const remaining = Math.max(0, totalCost - paid);
-  const progress = calculatePaymentProgress(booking);
+  const progress = calculatePaymentProgress(currentBooking);
 
   // Group columns by parentTab
   const groupedColumns = columns.reduce((groups, column) => {
@@ -359,9 +436,9 @@ export default function BookingDetailModal({
 
   // Copy email to clipboard
   const copyEmailToClipboard = async () => {
-    if (booking?.emailAddress) {
+    if (currentBooking?.emailAddress) {
       try {
-        await navigator.clipboard.writeText(booking.emailAddress);
+        await navigator.clipboard.writeText(currentBooking.emailAddress);
         // You could add a toast notification here if desired
       } catch (err) {
         console.error("Failed to copy email:", err);
@@ -388,7 +465,9 @@ export default function BookingDetailModal({
 
   // Get value for a column from booking data
   const getColumnValue = (column: SheetColumn) => {
-    const value = (booking as any)[column.id];
+    if (!currentBooking) return null;
+
+    const value = (currentBooking as any)[column.id];
     if (value === null || value === undefined) return null;
 
     if (column.dataType === "date") {
@@ -445,7 +524,7 @@ export default function BookingDetailModal({
               <div>
                 <span className="block text-base">Booking Details</span>
                 <span className="text-2xl font-mono font-semibold text-crimson-red block">
-                  {booking.bookingId}
+                  {currentBooking?.bookingId}
                 </span>
               </div>
             </DialogTitle>
@@ -521,7 +600,7 @@ export default function BookingDetailModal({
           <div className="mt-2 ml-[56px] space-y-1">
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground">
-                {booking.emailAddress}
+                {currentBooking?.emailAddress}
               </p>
               <button
                 onClick={copyEmailToClipboard}
@@ -534,7 +613,7 @@ export default function BookingDetailModal({
             <p className="text-xs text-muted-foreground">
               Row #:{" "}
               <span className="font-mono font-semibold text-crimson-red">
-                {booking.id}
+                {currentBooking?.id}
               </span>
             </p>
           </div>
@@ -565,7 +644,7 @@ export default function BookingDetailModal({
                       Traveler
                     </p>
                     <p className="text-base font-bold text-foreground">
-                      {booking.fullName}
+                      {currentBooking?.fullName}
                     </p>
                   </div>
 
@@ -577,10 +656,10 @@ export default function BookingDetailModal({
                     <Badge
                       variant="outline"
                       className={`text-sm font-medium border-0 text-foreground px-2.5 py-1 rounded-full rounded-br-none ${getBookingTypeBgColor(
-                        booking.bookingType
+                        currentBooking?.bookingType
                       )}`}
                     >
-                      {booking.bookingType}
+                      {currentBooking?.bookingType}
                     </Badge>
                   </div>
 
@@ -590,12 +669,12 @@ export default function BookingDetailModal({
                       Tour Package
                     </p>
                     <p className="text-base font-bold text-foreground">
-                      {booking.tourPackageName}
+                      {currentBooking?.tourPackageName}
                     </p>
                   </div>
 
                   {/* Booking Status */}
-                  {booking.bookingStatus && (
+                  {currentBooking?.bookingStatus && (
                     <div>
                       <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
                         Status
@@ -603,10 +682,12 @@ export default function BookingDetailModal({
                       <Badge
                         variant="outline"
                         className={`text-sm font-medium border-0 text-foreground px-2.5 py-1 rounded-full rounded-br-none ${getStatusBgColor(
-                          booking
+                          currentBooking
                         )}`}
                       >
-                        {getBookingStatusCategory(booking.bookingStatus)}
+                        {getBookingStatusCategory(
+                          currentBooking?.bookingStatus
+                        )}
                       </Badge>
                     </div>
                   )}
@@ -620,25 +701,23 @@ export default function BookingDetailModal({
                       <div className="flex items-center gap-2">
                         <BsCalendarEvent className="h-3.5 w-3.5 text-crimson-red" />
                         <span className="font-bold">
-                          {safeDate(booking.reservationDate).toLocaleDateString(
-                            "en-US",
-                            {
-                              month: "short",
-                              day: "numeric",
-                            }
-                          )}
+                          {safeDate(
+                            currentBooking?.reservationDate
+                          ).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <FaPlane className="h-3.5 w-3.5 text-crimson-red" />
                         <span className="font-bold">
-                          {safeDate(booking.tourDate).toLocaleDateString(
-                            "en-US",
-                            {
-                              month: "short",
-                              day: "numeric",
-                            }
-                          )}
+                          {safeDate(
+                            currentBooking?.tourDate
+                          ).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
                         </span>
                       </div>
                     </div>
@@ -650,8 +729,8 @@ export default function BookingDetailModal({
                       Payment Plan
                     </p>
                     <p className="text-base font-bold text-foreground">
-                      {booking.paymentPlan ||
-                        booking.availablePaymentTerms ||
+                      {currentBooking?.paymentPlan ||
+                        currentBooking?.availablePaymentTerms ||
                         "N/A"}
                     </p>
                   </div>
@@ -736,10 +815,10 @@ export default function BookingDetailModal({
                                   key={column.id}
                                   className={`flex items-start gap-2 p-2 rounded-lg border transition-all hover:shadow-sm ${
                                     isEmpty
-                                      ? "bg-muted/10 border-border/20 opacity-50"
+                                      ? "bg-muted/10 border-purple-200/50 opacity-50"
                                       : column.dataType === "function"
                                       ? "bg-purple-50 border-purple-200 hover:border-purple-300"
-                                      : "bg-muted/20 border-border/30 hover:border-crimson-red/30"
+                                      : "bg-muted/20 border-purple-300 hover:border-purple-400"
                                   }`}
                                 >
                                   <div className="flex-shrink-0 mt-0.5">
@@ -954,7 +1033,7 @@ export default function BookingDetailModal({
       <EditBookingModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        booking={booking}
+        booking={currentBooking}
         onSave={(updatedBooking) => {
           // Call the parent callback to refresh the booking data
           if (onBookingUpdate) {

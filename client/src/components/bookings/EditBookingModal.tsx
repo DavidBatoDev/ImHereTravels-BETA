@@ -41,6 +41,9 @@ import { bookingSheetColumnService } from "@/services/booking-sheet-columns-serv
 import { functionExecutionService } from "@/services/function-execution-service";
 import { typescriptFunctionsService } from "@/services/typescript-functions-service";
 import { batchedWriter } from "@/services/batched-writer";
+import { db } from "@/lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+import { isEqual } from "lodash";
 
 interface EditBookingModalProps {
   isOpen: boolean;
@@ -69,6 +72,14 @@ export default function EditBookingModal({
   );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // Local editing state - tracks which fields are currently being edited (local first pattern)
+  const [activeEditingFields, setActiveEditingFields] = useState<Set<string>>(
+    new Set()
+  );
+  const [localFieldValues, setLocalFieldValues] = useState<Record<string, any>>(
+    {}
+  );
+
   const { toast } = useToast();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const isScrollingProgrammatically = React.useRef(false);
@@ -76,7 +87,80 @@ export default function EditBookingModal({
   // Debounce timer for function execution
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize form data when booking changes
+  // Real-time Firebase listener for booking updates (like BookingsDataGrid)
+  useEffect(() => {
+    if (!booking?.id || !isOpen) return;
+
+    console.log(
+      "🔍 [EDIT BOOKING MODAL] Setting up real-time booking listener for:",
+      booking.id
+    );
+
+    const unsubscribe = onSnapshot(
+      doc(db, "bookings", booking.id),
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const updatedBooking = {
+            id: docSnapshot.id,
+            ...docSnapshot.data(),
+          } as Booking;
+
+          console.log(
+            "📄 [EDIT BOOKING MODAL] Real-time booking update received"
+          );
+
+          // Update form data with real-time changes (LOCAL FIRST pattern like BookingsDataGrid)
+          setFormData((prevFormData) => {
+            const updatedData = { ...prevFormData };
+
+            // Update all fields from Firebase, but be smart about it
+            Object.keys(updatedBooking).forEach((key) => {
+              const firebaseValue = updatedBooking[key as keyof Booking];
+              const formValue = prevFormData[key as keyof Booking];
+
+              // Find the column for this field
+              const column = columns.find((col) => col.id === key);
+
+              // LOCAL FIRST: Skip updating if user is actively editing this field
+              if (activeEditingFields.has(key)) {
+                console.log(
+                  `🚫 [EDIT BOOKING MODAL] Skipping Firebase update for actively edited field: ${key}`
+                );
+                return;
+              }
+
+              // Always update function fields since they're computed externally
+              if (column?.dataType === "function") {
+                updatedData[key as keyof Booking] = firebaseValue;
+              }
+              // For other fields, only update if they're different (deep comparison)
+              // This prevents overwriting user input while they're typing
+              else if (!isEqual(firebaseValue, formValue)) {
+                updatedData[key as keyof Booking] = firebaseValue;
+              }
+            });
+
+            return updatedData;
+          });
+        }
+      },
+      (error) => {
+        console.error(
+          "🚨 [EDIT BOOKING MODAL] Real-time listener error:",
+          error
+        );
+      }
+    );
+
+    return () => {
+      console.log(
+        "🧹 [EDIT BOOKING MODAL] Cleaning up real-time booking listener"
+      );
+      unsubscribe();
+    };
+  }, [booking?.id, isOpen, columns]);
+
+  // Initialize form data when modal opens
   useEffect(() => {
     if (booking && isOpen) {
       setFormData({ ...booking });
@@ -84,36 +168,7 @@ export default function EditBookingModal({
     }
   }, [booking, isOpen]);
 
-  // Sync form data with booking updates from Firebase (for function recalculations)
-  useEffect(() => {
-    if (booking && isOpen) {
-      // Update form data when booking changes (e.g., from function recalculation)
-      // Only update fields that aren't currently being edited
-      setFormData((prevFormData) => {
-        const updatedData = { ...prevFormData };
-
-        // Update function fields and any fields that changed in Firebase
-        Object.keys(booking).forEach((key) => {
-          const bookingValue = booking[key as keyof Booking];
-          const formValue = prevFormData[key as keyof Booking];
-
-          // Find the column for this field
-          const column = columns.find((col) => col.id === key);
-
-          // Always update function fields since they're computed
-          if (column?.dataType === "function") {
-            updatedData[key as keyof Booking] = bookingValue;
-          }
-          // For other fields, only update if they're different and not currently focused
-          else if (bookingValue !== formValue) {
-            updatedData[key as keyof Booking] = bookingValue;
-          }
-        });
-
-        return updatedData;
-      });
-    }
-  }, [booking, isOpen, columns]); // Fetch booking sheet columns and functions
+  // Fetch booking sheet columns and functions
   useEffect(() => {
     if (!isOpen) return;
 
@@ -260,6 +315,86 @@ export default function EditBookingModal({
     }
   };
 
+  // Track active section on scroll
+  useEffect(() => {
+    if (!isOpen || isLoadingColumns) return;
+
+    const handleScroll = () => {
+      // Skip if we're scrolling programmatically
+      if (isScrollingProgrammatically.current) return;
+
+      if (!scrollContainerRef.current) return;
+
+      // Get all section elements
+      const sections =
+        scrollContainerRef.current.querySelectorAll('[id^="edit-tab-"]');
+      if (sections.length === 0) return;
+
+      const container = scrollContainerRef.current;
+      const scrollTop = container.scrollTop;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      const containerRect = container.getBoundingClientRect();
+      const headerHeight = 120; // Account for sticky header
+
+      // Check if we're at the very bottom
+      const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
+
+      // Check if we're at the very top
+      const isAtTop = scrollTop < 10;
+
+      let mostVisibleSection = "";
+      let maxVisibleArea = 0;
+
+      sections.forEach((section, index) => {
+        const rect = section.getBoundingClientRect();
+
+        // If at the bottom, select the last section
+        if (isAtBottom && index === sections.length - 1) {
+          mostVisibleSection = section.id.replace("edit-tab-", "");
+          maxVisibleArea = 1000; // Force this to be selected
+          return;
+        }
+
+        // If at the top, select the first section
+        if (isAtTop && index === 0) {
+          mostVisibleSection = section.id.replace("edit-tab-", "");
+          maxVisibleArea = 1000; // Force this to be selected
+          return;
+        }
+
+        // Calculate visible area of the section relative to scroll container
+        const visibleTop = Math.max(rect.top, containerRect.top + headerHeight);
+        const visibleBottom = Math.min(rect.bottom, containerRect.bottom);
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+
+        if (visibleHeight > maxVisibleArea) {
+          maxVisibleArea = visibleHeight;
+          mostVisibleSection = section.id.replace("edit-tab-", "");
+        }
+      });
+
+      if (mostVisibleSection && mostVisibleSection !== activeTab) {
+        setActiveTab(mostVisibleSection);
+      }
+    };
+
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer) {
+      scrollContainer.addEventListener("scroll", handleScroll);
+      // Also listen to wheel events for when at boundaries
+      scrollContainer.addEventListener("wheel", handleScroll);
+
+      // Initial check
+      setTimeout(handleScroll, 100);
+
+      return () => {
+        scrollContainer.removeEventListener("scroll", handleScroll);
+        scrollContainer.removeEventListener("wheel", handleScroll);
+      };
+    }
+  }, [isOpen, isLoadingColumns, activeTab]);
+
   // Get icon for parent tab
   const getParentTabIcon = (parentTab: string) => {
     if (parentTab.includes("Identifier") || parentTab.includes("🆔"))
@@ -318,53 +453,78 @@ export default function EditBookingModal({
     [columns]
   );
 
-  // Recursive function to compute dependencies with cascade effect (like BookingsDataGrid)
-  const computeCascadingDependencies = React.useCallback(
-    async (
-      changedColumnId: string,
-      currentData: Partial<Booking>,
-      processedFunctions = new Set<string>()
-    ): Promise<Partial<Booking>> => {
-      let updatedData = { ...currentData };
+  // Immediate function execution with parallel direct dependents (like BookingsDataGrid)
+  const executeDirectDependents = React.useCallback(
+    async (changedColumnId: string, currentData: Partial<Booking>) => {
+      try {
+        // Find function columns that depend on the changed field
+        const directDependents = dependencyGraph.get(changedColumnId) || [];
 
-      // Find function columns that depend on the changed field
-      const dependentColumns = dependencyGraph.get(changedColumnId) || [];
+        if (directDependents.length === 0) return currentData;
 
-      for (const funcCol of dependentColumns) {
-        // Avoid infinite loops by tracking processed functions in this cascade
-        if (processedFunctions.has(funcCol.id)) continue;
-        processedFunctions.add(funcCol.id);
+        let updatedData = { ...currentData };
 
-        if (funcCol.function && funcCol.dataType === "function") {
-          const result = await executeFunction(funcCol, updatedData);
-
-          if (result !== undefined) {
-            const oldValue = updatedData[funcCol.id as keyof Booking];
-            updatedData[funcCol.id as keyof Booking] = result;
-
-            // Also queue the computed result to Firebase
-            if (booking?.id) {
-              batchedWriter.queueFieldUpdate(booking.id, funcCol.id, result);
+        // Execute all direct dependents in parallel for speed (like BookingsDataGrid)
+        const results = await Promise.all(
+          directDependents.map(async (funcCol) => {
+            if (funcCol.function && funcCol.dataType === "function") {
+              try {
+                const result = await executeFunction(funcCol, updatedData);
+                return { columnId: funcCol.id, result };
+              } catch (error) {
+                console.error(
+                  `Error executing function ${funcCol.columnName}:`,
+                  error
+                );
+                return { columnId: funcCol.id, result: undefined };
+              }
             }
+            return { columnId: funcCol.id, result: undefined };
+          })
+        );
 
-            // If the result changed, recursively compute its dependents (CASCADE EFFECT)
+        // Apply results and queue Firebase updates
+        let hasChanges = false;
+        for (const { columnId, result } of results) {
+          if (result !== undefined) {
+            const oldValue = updatedData[columnId as keyof Booking];
             if (oldValue !== result) {
-              updatedData = await computeCascadingDependencies(
-                funcCol.id,
-                updatedData,
-                processedFunctions
-              );
+              updatedData[columnId as keyof Booking] = result;
+              hasChanges = true;
+
+              // Queue the computed result to Firebase
+              if (booking?.id) {
+                batchedWriter.queueFieldUpdate(booking.id, columnId, result);
+              }
             }
           }
         }
-      }
 
-      return updatedData;
+        // If any results changed, recursively compute their dependents
+        if (hasChanges) {
+          for (const { columnId, result } of results) {
+            if (result !== undefined) {
+              const oldValue = currentData[columnId as keyof Booking];
+              if (oldValue !== result) {
+                updatedData = await executeDirectDependents(
+                  columnId,
+                  updatedData
+                );
+              }
+            }
+          }
+        }
+
+        return updatedData;
+      } catch (error) {
+        console.error(`Error in direct dependents execution:`, error);
+        return currentData;
+      }
     },
     [dependencyGraph, executeFunction, booking?.id]
   );
 
-  // Debounced function execution with cascading dependencies
+  // Debounced wrapper to avoid excessive calls while maintaining responsiveness
   const debouncedExecuteFunctions = React.useCallback(
     (changedColumnId: string, currentData: Partial<Booking>) => {
       // Clear existing timer
@@ -372,10 +532,10 @@ export default function EditBookingModal({
         clearTimeout(debounceTimerRef.current);
       }
 
-      // Set new timer for function execution (500ms to avoid excessive calls)
+      // Set new timer for function execution (100ms for better responsiveness)
       debounceTimerRef.current = setTimeout(async () => {
         try {
-          const updatedData = await computeCascadingDependencies(
+          const updatedData = await executeDirectDependents(
             changedColumnId,
             currentData
           );
@@ -383,15 +543,23 @@ export default function EditBookingModal({
           // Update form data with all computed results
           setFormData(updatedData);
         } catch (error) {
-          console.error(`Error in cascading function execution:`, error);
+          console.error(`Error in function execution:`, error);
         }
-      }, 500); // 500ms debounce to balance responsiveness and performance
+      }, 100); // Reduced to 100ms for better responsiveness like BookingsDataGrid
     },
-    [computeCascadingDependencies]
+    [executeDirectDependents]
   );
 
   const handleFieldChange = useCallback(
     (columnId: string, value: any) => {
+      console.log(
+        `⌨️ [EDIT BOOKING MODAL] Field change: ${columnId} = ${value}`
+      );
+
+      // LOCAL FIRST: Mark this field as actively being edited
+      setActiveEditingFields((prev) => new Set([...prev, columnId]));
+      setLocalFieldValues((prev) => ({ ...prev, [columnId]: value }));
+
       // Update form data immediately for responsive UI
       const updatedData = {
         ...formData,
@@ -420,10 +588,60 @@ export default function EditBookingModal({
     [formData, fieldErrors, booking?.id, debouncedExecuteFunctions]
   );
 
-  // Get form value for a column
+  // Get form value for a column (LOCAL FIRST pattern)
   const getFormValue = (column: SheetColumn): any => {
+    // LOCAL FIRST: If user is actively editing this field, use local value
+    if (activeEditingFields.has(column.id) && column.id in localFieldValues) {
+      return localFieldValues[column.id];
+    }
+    // Otherwise use formData (which gets updated by Firebase)
     return formData[column.id as keyof Booking] || "";
   };
+
+  // Handle when user finishes editing a field (LOCAL FIRST pattern)
+  const handleFieldBlur = useCallback((columnId: string) => {
+    console.log(`📝 [EDIT BOOKING MODAL] Field editing finished: ${columnId}`);
+    // Remove from active editing set after a short delay to allow for quick refocusing
+    setTimeout(() => {
+      setActiveEditingFields((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(columnId);
+        return newSet;
+      });
+      setLocalFieldValues((prev) => {
+        const newValues = { ...prev };
+        delete newValues[columnId];
+        return newValues;
+      });
+    }, 100); // Small delay to handle rapid focus changes
+  }, []);
+
+  // Handle key events during editing
+  const handleFieldKeyDown = useCallback(
+    (e: React.KeyboardEvent, columnId: string) => {
+      if (e.key === "Enter" || e.key === "Tab") {
+        // User is done editing this field
+        handleFieldBlur(columnId);
+      }
+      if (e.key === "Escape") {
+        // User cancelled editing - revert to Firebase value
+        setActiveEditingFields((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(columnId);
+          return newSet;
+        });
+        setLocalFieldValues((prev) => {
+          const newValues = { ...prev };
+          delete newValues[columnId];
+          return newValues;
+        });
+        // Revert to Firebase value
+        const firebaseValue = formData[columnId as keyof Booking];
+        setFormData((prev) => ({ ...prev, [columnId]: firebaseValue }));
+      }
+    },
+    [handleFieldBlur, formData]
+  );
 
   // Check if column should be displayed
   const shouldDisplayColumn = (column: SheetColumn) => {
@@ -441,7 +659,8 @@ export default function EditBookingModal({
     const isComputing = computingFields.has(column.id);
     const error = fieldErrors[column.id];
     const isFunction = column.dataType === "function";
-    const isReadOnly = isFunction || !column.includeInForms;
+    // Only disable function columns, allow editing of all other fields regardless of includeInForms
+    const isReadOnly = isFunction;
 
     const baseClasses = cn(
       "w-full",
@@ -458,9 +677,11 @@ export default function EditBookingModal({
             <Switch
               id={fieldId}
               checked={Boolean(value)}
-              onCheckedChange={(checked) =>
-                handleFieldChange(column.id, checked)
-              }
+              onCheckedChange={(checked) => {
+                handleFieldChange(column.id, checked);
+                // For switches, immediately finish editing since it's a discrete choice
+                setTimeout(() => handleFieldBlur(column.id), 50);
+              }}
               disabled={isReadOnly || isComputing}
             />
             <Label htmlFor={fieldId} className="text-sm font-medium">
@@ -527,6 +748,8 @@ export default function EditBookingModal({
                 : null;
               handleFieldChange(column.id, dateValue);
             }}
+            onBlur={() => handleFieldBlur(column.id)}
+            onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
             className={baseClasses}
             disabled={isReadOnly || isComputing}
           />
@@ -536,7 +759,11 @@ export default function EditBookingModal({
         return (
           <Select
             value={String(value || "")}
-            onValueChange={(newValue) => handleFieldChange(column.id, newValue)}
+            onValueChange={(newValue) => {
+              handleFieldChange(column.id, newValue);
+              // For select, immediately finish editing since it's a discrete choice
+              setTimeout(() => handleFieldBlur(column.id), 50);
+            }}
             disabled={isReadOnly || isComputing}
           >
             <SelectTrigger className={baseClasses}>
@@ -563,6 +790,8 @@ export default function EditBookingModal({
             onChange={(e) =>
               handleFieldChange(column.id, Number(e.target.value) || 0)
             }
+            onBlur={() => handleFieldBlur(column.id)}
+            onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
             className={baseClasses}
             disabled={isReadOnly || isComputing}
             placeholder={`Enter ${column.columnName}`}
@@ -596,6 +825,8 @@ export default function EditBookingModal({
             type="email"
             value={String(value || "")}
             onChange={(e) => handleFieldChange(column.id, e.target.value)}
+            onBlur={() => handleFieldBlur(column.id)}
+            onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
             className={baseClasses}
             disabled={isReadOnly || isComputing}
             placeholder={`Enter ${column.columnName}`}
@@ -610,6 +841,8 @@ export default function EditBookingModal({
             id={fieldId}
             value={String(value || "")}
             onChange={(e) => handleFieldChange(column.id, e.target.value)}
+            onBlur={() => handleFieldBlur(column.id)}
+            onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
             className={baseClasses}
             disabled={isReadOnly || isComputing}
             placeholder={`Enter ${column.columnName}`}
@@ -620,6 +853,8 @@ export default function EditBookingModal({
             id={fieldId}
             value={String(value || "")}
             onChange={(e) => handleFieldChange(column.id, e.target.value)}
+            onBlur={() => handleFieldBlur(column.id)}
+            onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
             className={baseClasses}
             disabled={isReadOnly || isComputing}
             placeholder={`Enter ${column.columnName}`}
@@ -627,6 +862,26 @@ export default function EditBookingModal({
         );
     }
   };
+
+  // Handle close with computation check
+  const handleClose = React.useCallback(() => {
+    if (computingFields.size > 0) {
+      toast({
+        title: "Please Wait",
+        description: `Please wait for ${computingFields.size} computation(s) to complete before closing.`,
+        variant: "default",
+      });
+      return;
+    }
+
+    // Clear any pending debounced executions
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
+    onClose();
+  }, [computingFields.size, onClose, toast]);
 
   if (!booking) return null;
 
@@ -655,7 +910,7 @@ export default function EditBookingModal({
   });
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] bg-[#F2F0EE] p-0 rounded-full overflow-hidden">
         <DialogHeader className="sticky top-0 z-50 bg-white shadow-md border-b border-border/50 pb-3 pt-6 px-6">
           <div className="flex items-center justify-between">
@@ -675,10 +930,23 @@ export default function EditBookingModal({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onClose}
-                className="h-8 w-8 p-0 hover:bg-gray-100"
+                onClick={handleClose}
+                className={cn(
+                  "h-8 w-8 p-0 hover:bg-gray-100",
+                  computingFields.size > 0 && "opacity-50 cursor-not-allowed"
+                )}
+                disabled={computingFields.size > 0}
+                title={
+                  computingFields.size > 0
+                    ? `Please wait for ${computingFields.size} computation(s) to complete`
+                    : "Close"
+                }
               >
-                <FaTimes className="h-4 w-4" />
+                {computingFields.size > 0 ? (
+                  <RefreshCw className="h-4 w-4 animate-spin text-royal-purple" />
+                ) : (
+                  <FaTimes className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>
@@ -721,7 +989,7 @@ export default function EditBookingModal({
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-0">
-                        <div className="border border-black">
+                        <div className="border border-purple-300">
                           {filteredColumns.map((column) => {
                             const error = fieldErrors[column.id];
                             const isFunction = column.dataType === "function";
@@ -730,14 +998,14 @@ export default function EditBookingModal({
                               <div
                                 key={column.id}
                                 className={cn(
-                                  "flex items-center justify-between border border-black transition-colors",
+                                  "flex items-center justify-between border border-purple-300 transition-colors",
                                   error && "bg-red-50/50",
                                   isFunction
-                                    ? "bg-royal-purple/10 hover:bg-royal-purple/20"
+                                    ? "bg-yellow-50 hover:bg-yellow-100"
                                     : "hover:bg-muted/10"
                                 )}
                               >
-                                <div className="flex items-center gap-3 min-w-0 w-[40%] px-4 py-3 border-r border-black">
+                                <div className="flex items-center gap-3 min-w-0 w-[40%] px-4 py-3 border-r border-purple-300">
                                   <Label
                                     htmlFor={`field-${column.id}`}
                                     className="text-sm font-medium"
