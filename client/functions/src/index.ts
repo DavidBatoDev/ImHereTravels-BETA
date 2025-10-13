@@ -34,6 +34,7 @@ export {
   fetchGmailThreads,
   replyToGmailEmail,
   forwardGmailEmail,
+  fetchFullEmailContent,
 } from "./gmail-functions";
 
 // Export scheduled email functions

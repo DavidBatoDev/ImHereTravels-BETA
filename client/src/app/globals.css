@@ -362,3 +362,70 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Custom scrollbar styles for email list */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scroll-behavior: smooth;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.scrollbar-thumb-gray-300::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+.scrollbar-track-gray-100::-webkit-scrollbar-track {
+  background-color: #f3f4f6;
+  border-radius: 4px;
+}
+
+/* Email list container specific styles */
+.email-list-container {
+  scroll-behavior: smooth;
+  overflow-anchor: auto;
+  position: relative;
+  /* Ensure proper scrolling */
+  max-height: 100%;
+}
+
+/* Email text styling */
+.email-text-14 {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Email list item content styling for proper width management */
+.email-list-item-content {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Temporarily disabled to fix scrolling issues */
+/*
+.email-list-container::after {
+  content: "";
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(transparent, rgba(255, 255, 255, 0.9));
+  pointer-events: none;
+  z-index: 10;
+}
+*/
+
+/* Hide the fade overlay when scrolled to bottom */
+.email-list-container.scrolled-to-bottom::after {
+  display: none;
+}

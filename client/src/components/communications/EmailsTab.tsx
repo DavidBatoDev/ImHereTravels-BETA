@@ -170,7 +170,9 @@ const gmailCategories = [
 
 export default function EmailsTab() {
   const [emails, setEmails] = useState<GmailEmail[]>([]);
-  const [emailCache, setEmailCache] = useState<Map<string, GmailEmail>>(new Map());
+  const [emailCache, setEmailCache] = useState<Map<string, GmailEmail>>(
+    new Map()
+  );
   const [labels, setLabels] = useState<GmailLabel[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmail, setSelectedEmail] = useState<GmailEmail | null>(null);
@@ -183,22 +185,30 @@ export default function EmailsTab() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [sortBy, setSortBy] = useState<"date" | "sender" | "subject">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [lastFetchTime, setLastFetchTime] = useState<Map<string, number>>(new Map());
+  const [lastFetchTime, setLastFetchTime] = useState<Map<string, number>>(
+    new Map()
+  );
 
   // Check if we should use cached data
   const shouldUseCachedData = (cacheKey: string) => {
     const lastFetch = lastFetchTime.get(cacheKey);
     if (!lastFetch) return false;
-    
+
     // Use cache for 30 seconds to avoid unnecessary API calls
     const cacheTimeout = 30 * 1000;
     return Date.now() - lastFetch < cacheTimeout;
   };
 
   // Fetch emails from Gmail (optimized with caching)
-  const fetchEmails = async (searchQuery?: string, pageToken?: string, forceRefresh = false) => {
-    const cacheKey = `${activeCategory}-${searchQuery || ''}-${pageToken || ''}`;
-    
+  const fetchEmails = async (
+    searchQuery?: string,
+    pageToken?: string,
+    forceRefresh = false
+  ) => {
+    const cacheKey = `${activeCategory}-${searchQuery || ""}-${
+      pageToken || ""
+    }`;
+
     // Check cache first (unless force refresh)
     if (!forceRefresh && shouldUseCachedData(cacheKey)) {
       console.log("Using cached data for", cacheKey);
@@ -212,7 +222,7 @@ export default function EmailsTab() {
       const fetchGmailEmailsFunc = httpsCallable(functions, "fetchGmailEmails");
 
       // Get query for active category
-      const category = gmailCategories.find(cat => cat.id === activeCategory);
+      const category = gmailCategories.find((cat) => cat.id === activeCategory);
       let query = category?.query || "in:sent OR in:inbox";
 
       if (searchQuery) {
@@ -249,12 +259,12 @@ export default function EmailsTab() {
         }
 
         setNextPageToken(data.nextPageToken || null);
-        
+
         // Update last fetch time
         const newFetchTimes = new Map(lastFetchTime);
         newFetchTimes.set(cacheKey, Date.now());
         setLastFetchTime(newFetchTimes);
-        
+
         // Show success toast for manual refreshes
         if (forceRefresh && !pageToken && !searchQuery) {
           toast({
@@ -289,7 +299,10 @@ export default function EmailsTab() {
 
     setIsLoadingFullContent(true);
     try {
-      const fetchFullContentFunc = httpsCallable(functions, "fetchFullEmailContent");
+      const fetchFullContentFunc = httpsCallable(
+        functions,
+        "fetchFullEmailContent"
+      );
       const result = await fetchFullContentFunc({ messageId });
 
       const data = result.data as any;
@@ -298,12 +311,12 @@ export default function EmailsTab() {
           ...data.email,
           date: new Date(data.email.date),
         };
-        
+
         // Update cache with full content
         const newCache = new Map(emailCache);
         newCache.set(messageId, fullEmail);
         setEmailCache(newCache);
-        
+
         return fullEmail;
       } else {
         throw new Error("Failed to fetch full email content");
@@ -364,7 +377,7 @@ export default function EmailsTab() {
   const viewEmail = async (email: GmailEmail) => {
     setSelectedEmail(email);
     setIsViewDialogOpen(true);
-    
+
     // Load full content if not already cached
     if (!email.htmlContent && !email.textContent) {
       const fullEmail = await fetchFullEmailContent(email.id);
@@ -447,13 +460,13 @@ export default function EmailsTab() {
     if (selectedEmails.size === filteredEmails.length) {
       setSelectedEmails(new Set());
     } else {
-      setSelectedEmails(new Set(filteredEmails.map(email => email.id)));
+      setSelectedEmails(new Set(filteredEmails.map((email) => email.id)));
     }
   };
 
   // Get avatar initials
   const getAvatarInitials = (email: string) => {
-    const name = email.split('@')[0];
+    const name = email.split("@")[0];
     return name.charAt(0).toUpperCase();
   };
 
@@ -475,14 +488,17 @@ export default function EmailsTab() {
   });
 
   return (
-    <div className="flex h-full bg-white">
+    <div
+      className="flex bg-white overflow-hidden"
+      style={{ height: "calc(100vh - 100px)", minHeight: "600px" }}
+    >
       {/* Gmail Sidebar */}
-      <div className="w-64 border-r border-gray-200 flex-shrink-0">
+      <div className="w-64 border-r border-gray-200 flex-shrink-0 overflow-y-auto h-full">
         <div className="p-4">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Gmail</h2>
-          
+
           {/* Compose Button */}
-          <Button className="w-full mb-6 bg-blue-600 hover:bg-blue-700">
+          <Button className="w-full mb-6 bg-white border hover:bg-gray-50 text-black rounded-xl">
             <Edit className="w-4 h-4 mr-2" />
             Compose
           </Button>
@@ -492,15 +508,15 @@ export default function EmailsTab() {
             {gmailCategories.map((category) => {
               const Icon = category.icon;
               const isActive = activeCategory === category.id;
-              
+
               return (
                 <button
                   key={category.id}
                   onClick={() => handleCategoryChange(category.id)}
                   className={cn(
                     "w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                    isActive 
-                      ? "bg-red-100 text-red-700 border-r-4 border-red-500" 
+                    isActive
+                      ? "bg-red-100 text-red-700 border-r-4 border-red-500"
                       : "text-gray-700 hover:bg-gray-100"
                   )}
                 >
@@ -509,7 +525,10 @@ export default function EmailsTab() {
                     {category.label}
                   </div>
                   {category.unreadCount > 0 && (
-                    <Badge variant="secondary" className="bg-red-500 text-white text-xs">
+                    <Badge
+                      variant="secondary"
+                      className="bg-red-500 text-white text-xs"
+                    >
                       {category.unreadCount}
                     </Badge>
                   )}
@@ -521,7 +540,7 @@ export default function EmailsTab() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0">
         {/* Top Toolbar */}
         <div className="border-b border-gray-200 bg-white">
           {/* Search Bar */}
@@ -542,11 +561,14 @@ export default function EmailsTab() {
           <div className="px-4 py-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Checkbox
-                checked={selectedEmails.size === filteredEmails.length && filteredEmails.length > 0}
+                checked={
+                  selectedEmails.size === filteredEmails.length &&
+                  filteredEmails.length > 0
+                }
                 onCheckedChange={selectAllEmails}
                 className="mr-2"
               />
-              
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm">
@@ -566,16 +588,30 @@ export default function EmailsTab() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm">
-                    {sortOrder === "desc" ? <SortDesc className="w-4 h-4 mr-1" /> : <SortAsc className="w-4 h-4 mr-1" />}
+                    {sortOrder === "desc" ? (
+                      <SortDesc className="w-4 h-4 mr-1" />
+                    ) : (
+                      <SortAsc className="w-4 h-4 mr-1" />
+                    )}
                     Sort
                     <ChevronDown className="w-3 h-3 ml-1" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => {setSortBy("date"); setSortOrder("desc")}}>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSortBy("date");
+                      setSortOrder("desc");
+                    }}
+                  >
                     Newest first
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {setSortBy("date"); setSortOrder("asc")}}>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSortBy("date");
+                      setSortOrder("asc");
+                    }}
+                  >
                     Oldest first
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSortBy("sender")}>
@@ -608,29 +644,32 @@ export default function EmailsTab() {
 
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500">
-                {isLoading 
-                  ? `Loading...` 
-                  : `${filteredEmails.length} of ${emails.length} emails`
-                }
+                {isLoading
+                  ? `Loading...`
+                  : `${filteredEmails.length} of ${emails.length} emails`}
               </span>
               <Button
-                onClick={() => fetchEmails(searchTerm || undefined, undefined, true)}
+                onClick={() =>
+                  fetchEmails(searchTerm || undefined, undefined, true)
+                }
                 disabled={isLoading}
                 variant="ghost"
                 size="sm"
                 title="Refresh emails"
               >
-                <RotateCcw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <RotateCcw
+                  className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+                />
               </Button>
             </div>
           </div>
         </div>
 
         {/* Email List */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
           {/* Error Display */}
           {error && (
-            <div className="mx-4 mt-4">
+            <div className="mx-4 mt-4 flex-shrink-0">
               <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg">
                 <AlertCircle className="w-4 h-4" />
                 <span>{error}</span>
@@ -640,16 +679,16 @@ export default function EmailsTab() {
 
           {/* Loading State */}
           {isLoading && (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center h-64 flex-shrink-0">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           )}
 
-          {/* Emails List */}
-          <div className="overflow-y-auto h-full">
+          {/* Emails List Container with Fixed Height and Scroll */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 border-t border-gray-100 email-list-container min-h-0 min-w-0">
             {filteredEmails.map((email, index) => {
               const isSelected = selectedEmails.has(email.id);
-              
+
               return (
                 <div
                   key={email.id}
@@ -665,76 +704,60 @@ export default function EmailsTab() {
                     viewEmail(cachedEmail || email);
                   }}
                 >
-                  <div className="flex items-center gap-4 px-4 py-3">
+                  <div className="flex items-center gap-3 px-4 py-3 email-list-item-content">
                     {/* Checkbox */}
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => toggleEmailSelection(email.id)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
+                    <div className="flex-shrink-0">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleEmailSelection(email.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
 
                     {/* Star */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // TODO: Toggle star functionality
-                      }}
-                      className="text-gray-400 hover:text-yellow-500 transition-colors"
-                    >
-                      {email.isStarred ? (
-                        <Star className="w-4 h-4 fill-current text-yellow-500" />
-                      ) : (
-                        <StarOff className="w-4 h-4" />
-                      )}
-                    </button>
 
-                    {/* Important */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // TODO: Toggle important functionality
-                      }}
-                      className="text-gray-400 hover:text-yellow-600 transition-colors"
-                    >
-                      {email.isImportant ? (
-                        <AlertCircle className="w-4 h-4 fill-current text-yellow-600" />
-                      ) : (
-                        <div className="w-4 h-4" />
-                      )}
-                    </button>
 
                     {/* Avatar/Sender */}
-                    <div className="flex items-center min-w-0 flex-shrink-0 w-48">
-                      <Avatar className="w-8 h-8 mr-3">
+                    <div className="flex items-center min-w-0 flex-shrink-0" style={{ width: "180px" }}>
+                      <Avatar className="w-8 h-8 mr-3 flex-shrink-0">
                         <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
                           {getAvatarInitials(getCorrespondent(email))}
                         </AvatarFallback>
                       </Avatar>
-                      <span className={cn(
-                        "truncate text-sm",
-                        !email.isRead ? "font-semibold text-gray-900" : "font-normal text-gray-700"
-                      )}>
+                      <span
+                        className={cn(
+                          "truncate email-text-14 min-w-0",
+                          !email.isRead
+                            ? "font-semibold text-gray-900"
+                            : "font-normal text-gray-700"
+                        )}
+                      >
                         {getCorrespondent(email)}
                       </span>
                     </div>
 
                     {/* Subject and Snippet */}
-                    <div className="flex-1 min-w-0 mr-4">
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "truncate text-sm",
-                          !email.isRead ? "font-semibold text-gray-900" : "font-normal text-gray-700"
-                        )}>
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                        <span
+                          className={cn(
+                            "email-text-14 flex-shrink-0",
+                            !email.isRead
+                              ? "font-semibold text-gray-900"
+                              : "font-normal text-gray-700"
+                          )}
+                          style={{ maxWidth: "250px" }}
+                        >
                           {email.subject || "(no subject)"}
                         </span>
-                        <span className="text-sm text-gray-500 font-normal">
+                        <span className="text-gray-500 font-normal truncate min-w-0 email-text-14">
                           — {email.snippet}
                         </span>
                       </div>
                     </div>
 
                     {/* Labels/Badges */}
-                    <div className="flex items-center gap-1 mr-4">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       {email.hasAttachments && (
                         <FileText className="w-4 h-4 text-gray-400" />
                       )}
@@ -744,41 +767,46 @@ export default function EmailsTab() {
                     </div>
 
                     {/* Date */}
-                    <div className="flex-shrink-0 text-sm text-gray-500 w-16 text-right">
+                    <div
+                      className="flex-shrink-0 text-gray-500 text-right"
+                      style={{ fontSize: "14px", width: "80px" }}
+                    >
                       {formatDate(email.date)}
                     </div>
 
                     {/* Actions Menu */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="email-actions"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Reply className="w-4 h-4 mr-2" />
-                          Reply
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Forward className="w-4 h-4 mr-2" />
-                          Forward
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Archive className="w-4 h-4 mr-2" />
-                          Archive
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex-shrink-0">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="email-actions"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Reply className="w-4 h-4 mr-2" />
+                            Reply
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Forward className="w-4 h-4 mr-2" />
+                            Forward
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Archive className="w-4 h-4 mr-2" />
+                            Archive
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600">
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </div>
               );
@@ -808,7 +836,10 @@ export default function EmailsTab() {
                 <p className="text-gray-400 text-center">
                   {searchTerm
                     ? "Try adjusting your search terms"
-                    : `No emails in ${gmailCategories.find(c => c.id === activeCategory)?.label}`}
+                    : `No emails in ${
+                        gmailCategories.find((c) => c.id === activeCategory)
+                          ?.label
+                      }`}
                 </p>
               </div>
             )}
@@ -852,7 +883,7 @@ export default function EmailsTab() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-2 ml-4">
                 <Button variant="outline" size="sm">
                   <Reply className="w-4 h-4 mr-1" />
@@ -913,7 +944,9 @@ export default function EmailsTab() {
                     {selectedEmail?.snippet ? (
                       <div>
                         <p className="mb-2">Preview:</p>
-                        <p className="text-gray-700 italic">{selectedEmail.snippet}</p>
+                        <p className="text-gray-700 italic">
+                          {selectedEmail.snippet}
+                        </p>
                         <p className="text-sm mt-2">Loading full content...</p>
                       </div>
                     ) : (

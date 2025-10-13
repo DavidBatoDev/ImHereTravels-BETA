@@ -56,7 +56,7 @@ export class GmailApiService {
       });
 
       const messageIds = listResponse.data.messages || [];
-      
+
       if (messageIds.length === 0) {
         return {
           emails: [],
@@ -87,11 +87,11 @@ export class GmailApiService {
   private async batchFetchEmails(messageIds: any[]) {
     const batchSize = 10; // Process 10 emails concurrently
     const emails: any[] = [];
-    
+
     // Process messages in batches for better performance
     for (let i = 0; i < messageIds.length; i += batchSize) {
       const batch = messageIds.slice(i, i + batchSize);
-      
+
       // Fetch messages concurrently within each batch
       const batchPromises = batch.map(async (message) => {
         try {
@@ -102,13 +102,13 @@ export class GmailApiService {
             format: "metadata",
             metadataHeaders: [
               "From",
-              "To", 
+              "To",
               "Subject",
               "Date",
               "Message-ID",
               "In-Reply-To",
-              "References"
-            ]
+              "References",
+            ],
           });
 
           return this.parseEmailMessageMetadata(messageResponse.data);
@@ -206,9 +206,10 @@ export class GmailApiService {
     const isImportant = message.labelIds?.includes("IMPORTANT") || false;
 
     // Check for attachments
-    const hasAttachments = message.payload?.parts?.some((part: any) => 
-      part.filename && part.filename.length > 0
-    ) || false;
+    const hasAttachments =
+      message.payload?.parts?.some(
+        (part: any) => part.filename && part.filename.length > 0
+      ) || false;
 
     return {
       id: message.id,
@@ -273,9 +274,10 @@ export class GmailApiService {
     const isImportant = message.labelIds?.includes("IMPORTANT") || false;
 
     // Check for attachments
-    const hasAttachments = message.payload?.parts?.some((part: any) => 
-      part.filename && part.filename.length > 0
-    ) || false;
+    const hasAttachments =
+      message.payload?.parts?.some(
+        (part: any) => part.filename && part.filename.length > 0
+      ) || false;
 
     return {
       id: message.id,
@@ -317,7 +319,10 @@ export class GmailApiService {
 
       return this.parseEmailMessage(messageResponse.data);
     } catch (error) {
-      logger.error(`Error fetching full email content for ${messageId}:`, error);
+      logger.error(
+        `Error fetching full email content for ${messageId}:`,
+        error
+      );
       throw new Error(`Failed to fetch email content: ${error}`);
     }
   }
