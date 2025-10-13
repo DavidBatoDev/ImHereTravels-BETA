@@ -15,6 +15,8 @@ if (getApps().length === 0) {
 export const fetchGmailEmails = onCall(
   {
     region: "asia-southeast1",
+    memory: "1GiB", // Increase memory for better performance
+    timeoutSeconds: 30, // Reduce timeout for faster failures
   },
   async (request) => {
     try {
@@ -24,7 +26,7 @@ export const fetchGmailEmails = onCall(
       );
 
       const {
-        maxResults = 50,
+        maxResults = 25, // Reduce default to load faster
         query = "in:sent OR in:inbox",
         labelIds,
         pageToken,
@@ -40,7 +42,7 @@ export const fetchGmailEmails = onCall(
         // Use search functionality if search query is provided
         emails = await gmailService.searchEmails(searchQuery, maxResults);
       } else {
-        // Fetch emails with the provided options
+        // Fetch emails with the provided options (now optimized)
         emails = await gmailService.fetchEmails({
           maxResults,
           query,
@@ -70,6 +72,58 @@ export const fetchGmailEmails = onCall(
       throw new HttpsError(
         "internal",
         "Unknown error occurred while fetching emails"
+      );
+    }
+  }
+);
+
+export const fetchFullEmailContent = onCall(
+  {
+    region: "asia-southeast1",
+    memory: "512MiB",
+    timeoutSeconds: 15,
+  },
+  async (request) => {
+    try {
+      logger.info(
+        "Fetch full email content function called with data:",
+        request.data
+      );
+
+      const { messageId } = request.data;
+
+      if (!messageId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Missing required field: messageId"
+        );
+      }
+
+      // Initialize Gmail API service
+      const gmailService = new GmailApiService();
+
+      // Fetch full email content
+      const email = await gmailService.fetchFullEmailContent(messageId);
+
+      logger.info(`Successfully fetched full content for email ${messageId}`);
+
+      return {
+        success: true,
+        email,
+      };
+    } catch (error) {
+      logger.error("Error fetching full email content:", error);
+
+      if (error instanceof Error) {
+        throw new HttpsError(
+          "internal",
+          `Failed to fetch email content: ${error.message}`
+        );
+      }
+
+      throw new HttpsError(
+        "internal",
+        "Unknown error occurred while fetching email content"
       );
     }
   }

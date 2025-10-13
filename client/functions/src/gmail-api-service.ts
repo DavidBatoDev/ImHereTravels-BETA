@@ -24,7 +24,7 @@ export class GmailApiService {
   }
 
   /**
-   * Fetch emails from Gmail account
+   * Fetch emails from Gmail account (optimized for performance)
    * @param options - Filtering options for emails
    * @returns Array of email messages
    */
@@ -56,23 +56,17 @@ export class GmailApiService {
       });
 
       const messageIds = listResponse.data.messages || [];
-      const emails = [];
-
-      // Fetch full message details for each message
-      for (const message of messageIds) {
-        try {
-          const messageResponse = await this.gmail.users.messages.get({
-            userId: "me",
-            id: message.id,
-            format: "full",
-          });
-
-          const email = this.parseEmailMessage(messageResponse.data);
-          emails.push(email);
-        } catch (error) {
-          logger.error(`Error fetching message ${message.id}:`, error);
-        }
+      
+      if (messageIds.length === 0) {
+        return {
+          emails: [],
+          nextPageToken: listResponse.data.nextPageToken,
+          resultSizeEstimate: listResponse.data.resultSizeEstimate || 0,
+        };
       }
+
+      // Batch fetch with metadata format for faster loading
+      const emails = await this.batchFetchEmails(messageIds);
 
       return {
         emails,
@@ -83,6 +77,52 @@ export class GmailApiService {
       logger.error("Error fetching emails:", error);
       throw new Error(`Failed to fetch emails: ${error}`);
     }
+  }
+
+  /**
+   * Batch fetch emails with concurrent requests for better performance
+   * @param messageIds - Array of message IDs to fetch
+   * @returns Array of parsed email messages
+   */
+  private async batchFetchEmails(messageIds: any[]) {
+    const batchSize = 10; // Process 10 emails concurrently
+    const emails: any[] = [];
+    
+    // Process messages in batches for better performance
+    for (let i = 0; i < messageIds.length; i += batchSize) {
+      const batch = messageIds.slice(i, i + batchSize);
+      
+      // Fetch messages concurrently within each batch
+      const batchPromises = batch.map(async (message) => {
+        try {
+          // Use 'metadata' format for faster fetching (headers only, no body)
+          const messageResponse = await this.gmail.users.messages.get({
+            userId: "me",
+            id: message.id,
+            format: "metadata",
+            metadataHeaders: [
+              "From",
+              "To", 
+              "Subject",
+              "Date",
+              "Message-ID",
+              "In-Reply-To",
+              "References"
+            ]
+          });
+
+          return this.parseEmailMessageMetadata(messageResponse.data);
+        } catch (error) {
+          logger.error(`Error fetching message ${message.id}:`, error);
+          return null;
+        }
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      emails.push(...batchResults.filter((email: any) => email !== null));
+    }
+
+    return emails;
   }
 
   /**
@@ -147,6 +187,52 @@ export class GmailApiService {
    * @param message - Raw Gmail message data
    * @returns Parsed email object
    */
+  /**
+   * Parse email metadata for fast list display (headers only, no body content)
+   * @param message - Gmail message with metadata format
+   * @returns Parsed email object optimized for list display
+   */
+  private parseEmailMessageMetadata(message: any) {
+    const headers = message.payload?.headers || [];
+    const getHeader = (name: string) =>
+      headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())
+        ?.value || "";
+
+    // Determine if email was sent or received
+    const sentLabels = message.labelIds?.includes("SENT") || false;
+    const inboxLabels = message.labelIds?.includes("INBOX") || false;
+    const isUnread = message.labelIds?.includes("UNREAD") || false;
+    const isStarred = message.labelIds?.includes("STARRED") || false;
+    const isImportant = message.labelIds?.includes("IMPORTANT") || false;
+
+    // Check for attachments
+    const hasAttachments = message.payload?.parts?.some((part: any) => 
+      part.filename && part.filename.length > 0
+    ) || false;
+
+    return {
+      id: message.id,
+      threadId: message.threadId,
+      from: getHeader("From"),
+      to: getHeader("To"),
+      subject: getHeader("Subject") || "(no subject)",
+      date: new Date(parseInt(message.internalDate)),
+      htmlContent: "", // Will be loaded on demand when email is opened
+      textContent: "", // Will be loaded on demand when email is opened
+      labels: message.labelIds || [],
+      snippet: message.snippet || "",
+      isRead: !isUnread,
+      isSent: sentLabels,
+      isReceived: inboxLabels,
+      messageId: getHeader("Message-ID"),
+      inReplyTo: getHeader("In-Reply-To"),
+      references: getHeader("References"),
+      isStarred,
+      isImportant,
+      hasAttachments,
+    };
+  }
+
   private parseEmailMessage(message: any) {
     const headers = message.payload.headers;
     const getHeader = (name: string) =>
@@ -182,19 +268,27 @@ export class GmailApiService {
     // Determine if email was sent or received
     const sentLabels = message.labelIds?.includes("SENT") || false;
     const inboxLabels = message.labelIds?.includes("INBOX") || false;
+    const isUnread = message.labelIds?.includes("UNREAD") || false;
+    const isStarred = message.labelIds?.includes("STARRED") || false;
+    const isImportant = message.labelIds?.includes("IMPORTANT") || false;
+
+    // Check for attachments
+    const hasAttachments = message.payload?.parts?.some((part: any) => 
+      part.filename && part.filename.length > 0
+    ) || false;
 
     return {
       id: message.id,
       threadId: message.threadId,
       from: getHeader("From"),
       to: getHeader("To"),
-      subject: getHeader("Subject"),
+      subject: getHeader("Subject") || "(no subject)",
       date: new Date(parseInt(message.internalDate)),
       htmlContent: htmlContent || textContent,
       textContent,
       labels: message.labelIds || [],
-      snippet: message.snippet,
-      isRead: !message.labelIds?.includes("UNREAD"),
+      snippet: message.snippet || "",
+      isRead: !isUnread,
       isSent: sentLabels,
       isReceived: inboxLabels,
       messageId: getHeader("Message-ID"),
@@ -202,7 +296,30 @@ export class GmailApiService {
       references: getHeader("References"),
       bcc: getHeader("Bcc"),
       cc: getHeader("Cc"),
+      isStarred,
+      isImportant,
+      hasAttachments,
     };
+  }
+
+  /**
+   * Fetch full email content on demand (for when user opens an email)
+   * @param messageId - Gmail message ID
+   * @returns Full email content including body
+   */
+  async fetchFullEmailContent(messageId: string) {
+    try {
+      const messageResponse = await this.gmail.users.messages.get({
+        userId: "me",
+        id: messageId,
+        format: "full",
+      });
+
+      return this.parseEmailMessage(messageResponse.data);
+    } catch (error) {
+      logger.error(`Error fetching full email content for ${messageId}:`, error);
+      throw new Error(`Failed to fetch email content: ${error}`);
+    }
   }
 
   /**

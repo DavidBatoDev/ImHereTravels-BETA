@@ -11,6 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -29,6 +31,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import {
   Search,
   Mail,
   CheckCircle,
@@ -43,6 +53,15 @@ import {
   Send as SendIcon,
   Archive,
   Star,
+  StarOff,
+  Trash2,
+  Edit,
+  Reply,
+  Forward,
+  ChevronDown,
+  Filter,
+  SortAsc,
+  SortDesc,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { httpsCallable } from "firebase/functions";
@@ -68,6 +87,9 @@ interface GmailEmail {
   references?: string;
   bcc?: string;
   cc?: string;
+  isStarred?: boolean;
+  hasAttachments?: boolean;
+  isImportant?: boolean;
 }
 
 // Gmail Label type
@@ -79,65 +101,126 @@ interface GmailLabel {
   messagesUnread?: number;
 }
 
-const emailTypes = [
+const gmailCategories = [
   {
-    value: "all",
-    label: "All Emails",
-    color: "bg-blue-100 text-blue-800 border border-blue-200",
+    id: "inbox",
+    label: "Inbox",
+    icon: Inbox,
+    query: "in:inbox",
+    count: 0,
+    unreadCount: 0,
   },
   {
-    value: "sent",
+    id: "sent",
     label: "Sent",
-    color: "bg-green-100 text-green-800 border border-green-200",
+    icon: SendIcon,
+    query: "in:sent",
+    count: 0,
+    unreadCount: 0,
   },
   {
-    value: "received",
-    label: "Received",
-    color: "bg-purple-100 text-purple-800 border border-purple-200",
+    id: "drafts",
+    label: "Drafts",
+    icon: Edit,
+    query: "in:drafts",
+    count: 0,
+    unreadCount: 0,
   },
   {
-    value: "unread",
-    label: "Unread",
-    color: "bg-orange-100 text-orange-800 border border-orange-200",
+    id: "starred",
+    label: "Starred",
+    icon: Star,
+    query: "is:starred",
+    count: 0,
+    unreadCount: 0,
+  },
+  {
+    id: "important",
+    label: "Important",
+    icon: AlertCircle,
+    query: "is:important",
+    count: 0,
+    unreadCount: 0,
+  },
+  {
+    id: "all",
+    label: "All Mail",
+    icon: Mail,
+    query: "in:sent OR in:inbox",
+    count: 0,
+    unreadCount: 0,
+  },
+  {
+    id: "spam",
+    label: "Spam",
+    icon: AlertCircle,
+    query: "in:spam",
+    count: 0,
+    unreadCount: 0,
+  },
+  {
+    id: "trash",
+    label: "Trash",
+    icon: Trash2,
+    query: "in:trash",
+    count: 0,
+    unreadCount: 0,
   },
 ];
 
 export default function EmailsTab() {
   const [emails, setEmails] = useState<GmailEmail[]>([]);
+  const [emailCache, setEmailCache] = useState<Map<string, GmailEmail>>(new Map());
   const [labels, setLabels] = useState<GmailLabel[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmail, setSelectedEmail] = useState<GmailEmail | null>(null);
+  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingFullContent, setIsLoadingFullContent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [emailTypeFilter, setEmailTypeFilter] = useState("all");
+  const [activeCategory, setActiveCategory] = useState("inbox");
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<"date" | "sender" | "subject">("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [lastFetchTime, setLastFetchTime] = useState<Map<string, number>>(new Map());
 
-  // Fetch emails from Gmail
-  const fetchEmails = async (searchQuery?: string, pageToken?: string) => {
+  // Check if we should use cached data
+  const shouldUseCachedData = (cacheKey: string) => {
+    const lastFetch = lastFetchTime.get(cacheKey);
+    if (!lastFetch) return false;
+    
+    // Use cache for 30 seconds to avoid unnecessary API calls
+    const cacheTimeout = 30 * 1000;
+    return Date.now() - lastFetch < cacheTimeout;
+  };
+
+  // Fetch emails from Gmail (optimized with caching)
+  const fetchEmails = async (searchQuery?: string, pageToken?: string, forceRefresh = false) => {
+    const cacheKey = `${activeCategory}-${searchQuery || ''}-${pageToken || ''}`;
+    
+    // Check cache first (unless force refresh)
+    if (!forceRefresh && shouldUseCachedData(cacheKey)) {
+      console.log("Using cached data for", cacheKey);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
       const fetchGmailEmailsFunc = httpsCallable(functions, "fetchGmailEmails");
 
-      let query = "in:sent OR in:inbox";
-
-      // Build search query based on filters
-      if (emailTypeFilter === "sent") {
-        query = "in:sent";
-      } else if (emailTypeFilter === "received") {
-        query = "in:inbox";
-      } else if (emailTypeFilter === "unread") {
-        query = "is:unread";
-      }
+      // Get query for active category
+      const category = gmailCategories.find(cat => cat.id === activeCategory);
+      let query = category?.query || "in:sent OR in:inbox";
 
       if (searchQuery) {
         query = `${query} ${searchQuery}`;
       }
 
       const result = await fetchGmailEmailsFunc({
-        maxResults: 50,
+        maxResults: 25, // Reduced for faster loading
         query,
         pageToken,
         searchQuery: searchQuery || undefined,
@@ -150,6 +233,13 @@ export default function EmailsTab() {
           date: new Date(email.date),
         }));
 
+        // Update cache
+        const newCache = new Map(emailCache);
+        fetchedEmails.forEach((email: GmailEmail) => {
+          newCache.set(email.id, email);
+        });
+        setEmailCache(newCache);
+
         if (pageToken) {
           // Append to existing emails for pagination
           setEmails((prev) => [...prev, ...fetchedEmails]);
@@ -159,6 +249,20 @@ export default function EmailsTab() {
         }
 
         setNextPageToken(data.nextPageToken || null);
+        
+        // Update last fetch time
+        const newFetchTimes = new Map(lastFetchTime);
+        newFetchTimes.set(cacheKey, Date.now());
+        setLastFetchTime(newFetchTimes);
+        
+        // Show success toast for manual refreshes
+        if (forceRefresh && !pageToken && !searchQuery) {
+          toast({
+            title: "Success",
+            description: `Loaded ${fetchedEmails.length} emails`,
+            variant: "default",
+          });
+        }
       } else {
         throw new Error("Failed to fetch emails");
       }
@@ -172,6 +276,48 @@ export default function EmailsTab() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Fetch full email content on demand
+  const fetchFullEmailContent = async (messageId: string) => {
+    // Check cache first
+    const cachedEmail = emailCache.get(messageId);
+    if (cachedEmail?.htmlContent || cachedEmail?.textContent) {
+      return cachedEmail;
+    }
+
+    setIsLoadingFullContent(true);
+    try {
+      const fetchFullContentFunc = httpsCallable(functions, "fetchFullEmailContent");
+      const result = await fetchFullContentFunc({ messageId });
+
+      const data = result.data as any;
+      if (data?.success) {
+        const fullEmail = {
+          ...data.email,
+          date: new Date(data.email.date),
+        };
+        
+        // Update cache with full content
+        const newCache = new Map(emailCache);
+        newCache.set(messageId, fullEmail);
+        setEmailCache(newCache);
+        
+        return fullEmail;
+      } else {
+        throw new Error("Failed to fetch full email content");
+      }
+    } catch (error: any) {
+      console.error("Error fetching full email content:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load email content",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setIsLoadingFullContent(false);
     }
   };
 
@@ -199,11 +345,12 @@ export default function EmailsTab() {
     }
   };
 
-  // Handle email type filter change
-  const handleEmailTypeFilter = (type: string) => {
-    setEmailTypeFilter(type);
+  // Handle category change
+  const handleCategoryChange = (categoryId: string) => {
+    setActiveCategory(categoryId);
     setEmails([]); // Clear current emails
     setNextPageToken(null); // Reset pagination
+    setSelectedEmails(new Set()); // Clear selections
   };
 
   // Load more emails (pagination)
@@ -213,10 +360,18 @@ export default function EmailsTab() {
     }
   };
 
-  // View email details
-  const viewEmail = (email: GmailEmail) => {
+  // View email details (with on-demand content loading)
+  const viewEmail = async (email: GmailEmail) => {
     setSelectedEmail(email);
     setIsViewDialogOpen(true);
+    
+    // Load full content if not already cached
+    if (!email.htmlContent && !email.textContent) {
+      const fullEmail = await fetchFullEmailContent(email.id);
+      if (fullEmail) {
+        setSelectedEmail(fullEmail);
+      }
+    }
   };
 
   // Get email type badge
@@ -276,10 +431,36 @@ export default function EmailsTab() {
     });
   };
 
+  // Toggle email selection
+  const toggleEmailSelection = (emailId: string) => {
+    const newSelection = new Set(selectedEmails);
+    if (newSelection.has(emailId)) {
+      newSelection.delete(emailId);
+    } else {
+      newSelection.add(emailId);
+    }
+    setSelectedEmails(newSelection);
+  };
+
+  // Select all emails
+  const selectAllEmails = () => {
+    if (selectedEmails.size === filteredEmails.length) {
+      setSelectedEmails(new Set());
+    } else {
+      setSelectedEmails(new Set(filteredEmails.map(email => email.id)));
+    }
+  };
+
+  // Get avatar initials
+  const getAvatarInitials = (email: string) => {
+    const name = email.split('@')[0];
+    return name.charAt(0).toUpperCase();
+  };
+
   useEffect(() => {
     fetchEmails();
     fetchLabels();
-  }, [emailTypeFilter]);
+  }, [activeCategory]);
 
   // Filter emails based on search term
   const filteredEmails = emails.filter((email) => {
@@ -294,230 +475,457 @@ export default function EmailsTab() {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Gmail Emails</h2>
-          <p className="text-gray-600">
-            View and manage emails from your Gmail account
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => fetchEmails()}
-            disabled={isLoading}
-            variant="outline"
-            size="sm"
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Refresh
+    <div className="flex h-full bg-white">
+      {/* Gmail Sidebar */}
+      <div className="w-64 border-r border-gray-200 flex-shrink-0">
+        <div className="p-4">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Gmail</h2>
+          
+          {/* Compose Button */}
+          <Button className="w-full mb-6 bg-blue-600 hover:bg-blue-700">
+            <Edit className="w-4 h-4 mr-2" />
+            Compose
           </Button>
+
+          {/* Categories */}
+          <nav className="space-y-1">
+            {gmailCategories.map((category) => {
+              const Icon = category.icon;
+              const isActive = activeCategory === category.id;
+              
+              return (
+                <button
+                  key={category.id}
+                  onClick={() => handleCategoryChange(category.id)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                    isActive 
+                      ? "bg-red-100 text-red-700 border-r-4 border-red-500" 
+                      : "text-gray-700 hover:bg-gray-100"
+                  )}
+                >
+                  <div className="flex items-center">
+                    <Icon className="w-5 h-5 mr-3" />
+                    {category.label}
+                  </div>
+                  {category.unreadCount > 0 && (
+                    <Badge variant="secondary" className="bg-red-500 text-white text-xs">
+                      {category.unreadCount}
+                    </Badge>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex gap-4 items-center">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Toolbar */}
+        <div className="border-b border-gray-200 bg-white">
+          {/* Search Bar */}
+          <div className="p-4 border-b border-gray-100">
+            <div className="relative max-w-2xl">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <Input
-                placeholder="Search emails..."
+                placeholder="Search mail"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="pl-10"
+                className="pl-12 h-12 text-base border-gray-300 rounded-full"
               />
             </div>
-            <Button onClick={handleSearch} disabled={isLoading}>
-              Search
-            </Button>
-            <Select
-              value={emailTypeFilter}
-              onValueChange={handleEmailTypeFilter}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Email Type" />
-              </SelectTrigger>
-              <SelectContent>
-                {emailTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Error Display */}
-      {error && (
-        <Card className="border-red-200">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-red-600">
-              <AlertCircle className="w-4 h-4" />
-              <span>{error}</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Loading State */}
-      {isLoading && (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading emails...</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Emails List */}
-      <div className="grid gap-4">
-        {filteredEmails.map((email) => (
-          <Card
-            key={email.id}
-            className={`cursor-pointer transition-all hover:shadow-md ${
-              !email.isRead ? "border-l-4 border-l-blue-500 bg-blue-50/30" : ""
-            }`}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  {email.isSent ? (
-                    <SendIcon className="w-5 h-5 text-green-600" />
-                  ) : (
-                    <Inbox className="w-5 h-5 text-blue-600" />
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {getEmailTypeBadge(email)}
-                    <span className="text-sm text-gray-500">
-                      {formatDate(email.date)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 mb-2">
-                    <User className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-900 truncate">
-                      {getCorrespondent(email)}
-                    </span>
-                  </div>
-
-                  <h3
-                    className={`font-medium mb-1 truncate ${
-                      !email.isRead ? "font-bold" : ""
-                    }`}
-                  >
-                    {email.subject}
-                  </h3>
-
-                  <p className="text-sm text-gray-600 line-clamp-2">
-                    {email.snippet}
-                  </p>
-                </div>
-
-                <div className="flex-shrink-0 flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      viewEmail(email);
-                    }}
-                  >
-                    <Eye className="w-4 h-4" />
+          {/* Email Actions Toolbar */}
+          <div className="px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={selectedEmails.size === filteredEmails.length && filteredEmails.length > 0}
+                onCheckedChange={selectAllEmails}
+                className="mr-2"
+              />
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <Filter className="w-4 h-4 mr-1" />
+                    Filter
+                    <ChevronDown className="w-3 h-3 ml-1" />
                   </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem>All</DropdownMenuItem>
+                  <DropdownMenuItem>Unread</DropdownMenuItem>
+                  <DropdownMenuItem>Read</DropdownMenuItem>
+                  <DropdownMenuItem>Starred</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-      {/* Load More Button */}
-      {nextPageToken && (
-        <div className="text-center">
-          <Button
-            onClick={loadMoreEmails}
-            disabled={isLoading}
-            variant="outline"
-          >
-            Load More Emails
-          </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    {sortOrder === "desc" ? <SortDesc className="w-4 h-4 mr-1" /> : <SortAsc className="w-4 h-4 mr-1" />}
+                    Sort
+                    <ChevronDown className="w-3 h-3 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => {setSortBy("date"); setSortOrder("desc")}}>
+                    Newest first
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {setSortBy("date"); setSortOrder("asc")}}>
+                    Oldest first
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy("sender")}>
+                    By sender
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy("subject")}>
+                    By subject
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {selectedEmails.size > 0 && (
+                <>
+                  <Separator orientation="vertical" className="mx-2 h-6" />
+                  <Button variant="ghost" size="sm">
+                    <Archive className="w-4 h-4 mr-1" />
+                    Archive
+                  </Button>
+                  <Button variant="ghost" size="sm">
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete
+                  </Button>
+                  <Button variant="ghost" size="sm">
+                    <Star className="w-4 h-4 mr-1" />
+                    Star
+                  </Button>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">
+                {isLoading 
+                  ? `Loading...` 
+                  : `${filteredEmails.length} of ${emails.length} emails`
+                }
+              </span>
+              <Button
+                onClick={() => fetchEmails(searchTerm || undefined, undefined, true)}
+                disabled={isLoading}
+                variant="ghost"
+                size="sm"
+                title="Refresh emails"
+              >
+                <RotateCcw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* No Emails State */}
-      {!isLoading && filteredEmails.length === 0 && (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No emails found
-            </h3>
-            <p className="text-gray-600">
-              {searchTerm
-                ? "Try adjusting your search terms or filters"
-                : "No emails available in the selected category"}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+        {/* Email List */}
+        <div className="flex-1 overflow-hidden">
+          {/* Error Display */}
+          {error && (
+            <div className="mx-4 mt-4">
+              <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg">
+                <AlertCircle className="w-4 h-4" />
+                <span>{error}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          )}
+
+          {/* Emails List */}
+          <div className="overflow-y-auto h-full">
+            {filteredEmails.map((email, index) => {
+              const isSelected = selectedEmails.has(email.id);
+              
+              return (
+                <div
+                  key={email.id}
+                  className={cn(
+                    "email-list-item group border-b border-gray-100 cursor-pointer",
+                    !email.isRead && "bg-white font-medium",
+                    email.isRead && "bg-gray-50/50",
+                    isSelected && "bg-blue-50 border-blue-200"
+                  )}
+                  onClick={() => {
+                    // Use cached version if available for instant loading
+                    const cachedEmail = emailCache.get(email.id);
+                    viewEmail(cachedEmail || email);
+                  }}
+                >
+                  <div className="flex items-center gap-4 px-4 py-3">
+                    {/* Checkbox */}
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleEmailSelection(email.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+
+                    {/* Star */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // TODO: Toggle star functionality
+                      }}
+                      className="text-gray-400 hover:text-yellow-500 transition-colors"
+                    >
+                      {email.isStarred ? (
+                        <Star className="w-4 h-4 fill-current text-yellow-500" />
+                      ) : (
+                        <StarOff className="w-4 h-4" />
+                      )}
+                    </button>
+
+                    {/* Important */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // TODO: Toggle important functionality
+                      }}
+                      className="text-gray-400 hover:text-yellow-600 transition-colors"
+                    >
+                      {email.isImportant ? (
+                        <AlertCircle className="w-4 h-4 fill-current text-yellow-600" />
+                      ) : (
+                        <div className="w-4 h-4" />
+                      )}
+                    </button>
+
+                    {/* Avatar/Sender */}
+                    <div className="flex items-center min-w-0 flex-shrink-0 w-48">
+                      <Avatar className="w-8 h-8 mr-3">
+                        <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
+                          {getAvatarInitials(getCorrespondent(email))}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className={cn(
+                        "truncate text-sm",
+                        !email.isRead ? "font-semibold text-gray-900" : "font-normal text-gray-700"
+                      )}>
+                        {getCorrespondent(email)}
+                      </span>
+                    </div>
+
+                    {/* Subject and Snippet */}
+                    <div className="flex-1 min-w-0 mr-4">
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "truncate text-sm",
+                          !email.isRead ? "font-semibold text-gray-900" : "font-normal text-gray-700"
+                        )}>
+                          {email.subject || "(no subject)"}
+                        </span>
+                        <span className="text-sm text-gray-500 font-normal">
+                          — {email.snippet}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Labels/Badges */}
+                    <div className="flex items-center gap-1 mr-4">
+                      {email.hasAttachments && (
+                        <FileText className="w-4 h-4 text-gray-400" />
+                      )}
+                      {!email.isRead && (
+                        <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                      )}
+                    </div>
+
+                    {/* Date */}
+                    <div className="flex-shrink-0 text-sm text-gray-500 w-16 text-right">
+                      {formatDate(email.date)}
+                    </div>
+
+                    {/* Actions Menu */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="email-actions"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>
+                          <Reply className="w-4 h-4 mr-2" />
+                          Reply
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Forward className="w-4 h-4 mr-2" />
+                          Forward
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Archive className="w-4 h-4 mr-2" />
+                          Archive
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600">
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Load More Button */}
+            {nextPageToken && (
+              <div className="p-4 text-center border-t">
+                <Button
+                  onClick={loadMoreEmails}
+                  disabled={isLoading}
+                  variant="outline"
+                  size="sm"
+                >
+                  Load More Emails
+                </Button>
+              </div>
+            )}
+
+            {/* No Emails State */}
+            {!isLoading && filteredEmails.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                <Mail className="w-16 h-16 text-gray-300 mb-4" />
+                <h3 className="text-lg font-medium text-gray-400 mb-2">
+                  No emails found
+                </h3>
+                <p className="text-gray-400 text-center">
+                  {searchTerm
+                    ? "Try adjusting your search terms"
+                    : `No emails in ${gmailCategories.find(c => c.id === activeCategory)?.label}`}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Email View Dialog */}
       <AlertDialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <AlertDialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl">
-              {selectedEmail?.subject}
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  <span>
-                    <strong>From:</strong> {selectedEmail?.from}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4" />
-                  <span>
-                    <strong>To:</strong> {selectedEmail?.to}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  <span>
-                    <strong>Date:</strong>{" "}
-                    {selectedEmail?.date.toLocaleString()}
-                  </span>
+        <AlertDialogContent className="max-w-5xl max-h-[85vh] overflow-hidden">
+          <AlertDialogHeader className="border-b pb-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <AlertDialogTitle className="text-xl font-semibold mb-2">
+                  {selectedEmail?.subject || "(no subject)"}
+                </AlertDialogTitle>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
+                        {selectedEmail && getAvatarInitials(selectedEmail.from)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        {selectedEmail?.from}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        to {selectedEmail?.to}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <span>{selectedEmail?.date.toLocaleString()}</span>
+                    {selectedEmail?.hasAttachments && (
+                      <span className="flex items-center gap-1">
+                        <FileText className="w-3 h-3" />
+                        Attachments
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </AlertDialogDescription>
+              
+              <div className="flex items-center gap-2 ml-4">
+                <Button variant="outline" size="sm">
+                  <Reply className="w-4 h-4 mr-1" />
+                  Reply
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Forward className="w-4 h-4 mr-1" />
+                  Forward
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <Archive className="w-4 h-4 mr-2" />
+                      Archive
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Star className="w-4 h-4 mr-2" />
+                      Star
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-red-600">
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
           </AlertDialogHeader>
 
-          <div className="flex-1 overflow-auto border rounded-lg p-4 bg-gray-50">
-            {selectedEmail?.htmlContent && (
-              <div
-                dangerouslySetInnerHTML={{
-                  __html: selectedEmail.htmlContent,
-                }}
-                className="prose prose-sm max-w-none"
-              />
-            )}
-            {!selectedEmail?.htmlContent && selectedEmail?.textContent && (
-              <div className="whitespace-pre-wrap font-mono text-sm">
-                {selectedEmail.textContent}
+          <div className="flex-1 overflow-auto p-6 bg-white">
+            {isLoadingFullContent ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+                <span className="text-gray-600">Loading email content...</span>
               </div>
+            ) : (
+              <>
+                {selectedEmail?.htmlContent && (
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: selectedEmail.htmlContent,
+                    }}
+                    className="prose prose-sm max-w-none"
+                  />
+                )}
+                {!selectedEmail?.htmlContent && selectedEmail?.textContent && (
+                  <div className="whitespace-pre-wrap font-mono text-sm">
+                    {selectedEmail.textContent}
+                  </div>
+                )}
+                {!selectedEmail?.htmlContent && !selectedEmail?.textContent && (
+                  <div className="text-gray-500 text-center py-8">
+                    {selectedEmail?.snippet ? (
+                      <div>
+                        <p className="mb-2">Preview:</p>
+                        <p className="text-gray-700 italic">{selectedEmail.snippet}</p>
+                        <p className="text-sm mt-2">Loading full content...</p>
+                      </div>
+                    ) : (
+                      "No content available"
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
-          <AlertDialogFooter>
+          <AlertDialogFooter className="border-t pt-4">
             <AlertDialogCancel>Close</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
