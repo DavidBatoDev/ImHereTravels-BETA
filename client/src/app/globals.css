@@ -69,63 +69,6 @@
   background-color: hsl(var(--muted) / 0.5) !important;
 }
 
-/* Monaco Editor Optimizations */
-.monaco-editor {
-  transition: none !important;
-}
-
-.monaco-editor .overflow-guard {
-  transition: none !important;
-}
-
-/* Prevent flash during editor transitions */
-.monaco-editor-container {
-  background: white !important;
-}
-
-/* Smooth transitions for editor content */
-.editor-content {
-  transition: opacity 0.15s ease-in-out;
-}
-
-/* Loading state animations */
-.editor-loading {
-  animation: fadeIn 0.2s ease-in-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* Prevent text selection flash */
-.monaco-editor .view-lines {
-  user-select: text;
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-}
-
-/* Optimize cursor rendering */
-.monaco-editor .cursor {
-  transition: none !important;
-}
-
-/* Smooth scrollbar */
-.monaco-editor .scrollbar .slider {
-  transition: background-color 0.1s ease;
-}
-
-/* Prevent layout shifts */
-.monaco-editor .margin,
-.monaco-editor .monaco-editor-background {
-  transition: none !important;
-}
-
 @layer base {
   :root {
     --background: 30 11% 94%; /* #F2F0EE - light-grey */
@@ -237,6 +180,134 @@
     --sidebar-border: 220 25% 20%;
     --sidebar-ring: 0 78% 67%;
   }
+}
+
+/* Gmail-rendered email content */
+.gmail-email-content {
+  font-family: "Roboto", "RobotoDraft", "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #202124;
+  word-break: break-word;
+}
+
+.gmail-email-content * {
+  font-family: inherit;
+}
+
+.gmail-email-content table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.gmail-email-content img {
+  max-width: 100%;
+  height: auto;
+  border: 0;
+}
+
+.gmail-email-content a {
+  color: #1a73e8;
+}
+
+.gmail-email-content pre,
+.gmail-email-content code {
+  font-family: "Roboto Mono", "Consolas", "Courier New", monospace;
+  white-space: pre-wrap;
+}
+
+/* Gmail-specific CSS classes and elements */
+.gmail-email-content .CToWUd {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+}
+
+.gmail-email-content .a6T {
+  outline: none;
+  cursor: pointer;
+}
+
+.gmail-email-content .a6S {
+  display: none !important;
+}
+
+.gmail-email-content .VYBDae-JX-I,
+.gmail-email-content .VYBDae-JX-I-ql-ay5-ays,
+.gmail-email-content .CgzRE {
+  display: none !important;
+}
+
+.gmail-email-content .ne2Ple-oshW8e-J9 {
+  display: none !important;
+}
+
+.gmail-email-content .OiePBf-zPjgPe,
+.gmail-email-content .bHC-Q,
+.gmail-email-content .VYBDae-JX-ank-Rtc0Jf {
+  display: none !important;
+}
+
+.gmail-email-content .aoH {
+  display: none !important;
+}
+
+.gmail-email-content span[style*="display:inline-block"] {
+  display: inline-block !important;
+}
+
+.gmail-email-content span[style*="overflow:hidden"] {
+  overflow: hidden;
+}
+
+.gmail-email-content td[style*="vertical-align:top"] {
+  vertical-align: top;
+}
+
+.gmail-email-content td[style*="overflow:hidden"] {
+  overflow: hidden;
+}
+
+/* Gmail signature styling */
+.gmail-email-content p[dir="ltr"] {
+  margin: 0;
+  line-height: inherit;
+}
+
+.gmail-email-content span[style*="font-weight:700"] {
+  font-weight: 700 !important;
+}
+
+.gmail-email-content span[style*="font-family"] {
+  font-family: inherit;
+}
+
+.gmail-email-content img[width][height] {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+}
+
+/* Handle Gmail's inline styles properly */
+.gmail-email-content [style*="color:rgb("] {
+  color: inherit;
+}
+
+.gmail-email-content [style*="font-size:"] {
+  font-size: inherit;
+}
+
+.gmail-email-content [style*="margin-left:0pt"] {
+  margin-left: 0;
+}
+
+.gmail-email-content [style*="margin-top:0pt"] {
+  margin-top: 0;
+}
+
+.gmail-email-content [style*="margin-bottom:0pt"] {
+  margin-bottom: 0;
 }
 
 @layer base {
@@ -428,4 +499,142 @@
 /* Hide the fade overlay when scrolled to bottom */
 .email-list-container.scrolled-to-bottom::after {
   display: none;
+}
+
+/* Gmail-like email content styling */
+.gmail-email-content {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+}
+
+.gmail-email-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin: 16px 0;
+}
+
+.gmail-email-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gmail-email-content th,
+.gmail-email-content td {
+  border: 1px solid #e5e7eb;
+  padding: 12px;
+  text-align: left;
+}
+
+.gmail-email-content th {
+  background-color: #f9fafb;
+  font-weight: 600;
+}
+
+.gmail-email-content blockquote {
+  border-left: 4px solid #3b82f6;
+  background-color: #eff6ff;
+  padding: 16px;
+  margin: 16px 0;
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+}
+
+.gmail-email-content pre {
+  background-color: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+  font-family: "Courier New", monospace;
+  margin: 16px 0;
+}
+
+.gmail-email-content code {
+  background-color: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: "Courier New", monospace;
+  font-size: 0.9em;
+}
+
+.gmail-email-content a {
+  color: #1d4ed8;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.gmail-email-content a:hover {
+  color: #1e40af;
+  text-decoration: underline;
+}
+
+.gmail-email-content h1,
+.gmail-email-content h2,
+.gmail-email-content h3,
+.gmail-email-content h4,
+.gmail-email-content h5,
+.gmail-email-content h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.gmail-email-content h1 {
+  font-size: 1.5rem;
+}
+.gmail-email-content h2 {
+  font-size: 1.25rem;
+}
+.gmail-email-content h3 {
+  font-size: 1.125rem;
+}
+
+.gmail-email-content p {
+  margin-bottom: 16px;
+  color: #374151;
+}
+
+.gmail-email-content ul,
+.gmail-email-content ol {
+  margin: 16px 0;
+  padding-left: 24px;
+}
+
+.gmail-email-content li {
+  margin-bottom: 8px;
+}
+
+/* Email signature styling */
+.gmail-email-content [data-smartmail="gmail_signature"],
+.gmail-email-content .gmail_signature {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+  margin-top: 24px;
+  color: #6b7280;
+  font-size: 0.9em;
+}
+
+/* Quoted text styling (common in email threads) */
+.gmail-email-content .gmail_quote,
+.gmail-email-content blockquote[type="cite"] {
+  border-left: 3px solid #d1d5db;
+  background-color: #f9fafb;
+  padding: 12px 16px;
+  margin: 16px 0;
+  color: #6b7280;
+  font-size: 0.95em;
+}
+
+/* Email thread divider */
+.gmail-email-content .gmail_extra {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+  margin-top: 24px;
 }

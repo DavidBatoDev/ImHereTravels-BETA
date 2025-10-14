@@ -255,37 +255,160 @@ export class GmailApiService {
     };
   }
 
-  private parseEmailMessage(message: any) {
+  private async parseEmailMessage(message: any) {
     const headers = message.payload.headers;
     const getHeader = (name: string) =>
       headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())
         ?.value || "";
 
-    // Get email body
+    // Enhanced email body extraction
     let htmlContent = "";
     let textContent = "";
+    const inlineAttachments: Record<
+      string,
+      { base64: string; mimeType: string }
+    > = {};
+    const attachmentPromises: Promise<void>[] = [];
+    const attachmentCache = new Map<string, Promise<Buffer>>();
 
-    const extractBody = (payload: any) => {
-      if (payload.parts) {
-        for (const part of payload.parts) {
-          if (part.mimeType === "text/html" && part.body.data) {
-            htmlContent = Buffer.from(part.body.data, "base64").toString();
-          } else if (part.mimeType === "text/plain" && part.body.data) {
-            textContent = Buffer.from(part.body.data, "base64").toString();
-          } else if (part.parts) {
-            extractBody(part);
+    const extractBody = (payload: any, depth: number = 0) => {
+      logger.info(
+        `Extracting body at depth ${depth}, mimeType: ${payload.mimeType}`
+      );
+
+      // Handle direct content (no parts)
+      if (payload.body?.data) {
+        try {
+          const content = Buffer.from(payload.body.data, "base64url").toString(
+            "utf-8"
+          );
+
+          if (payload.mimeType === "text/html") {
+            // Clean up Gmail-specific elements from HTML content
+            const cleanedContent = this.cleanGmailHtml(content);
+            if (!htmlContent || cleanedContent.length > htmlContent.length) {
+              htmlContent = cleanedContent;
+              logger.info(
+                `Found HTML content: ${cleanedContent.substring(0, 100)}...`
+              );
+            }
+          } else if (payload.mimeType === "text/plain") {
+            if (!textContent || content.length > textContent.length) {
+              textContent = content;
+              logger.info(
+                `Found text content: ${content.substring(0, 100)}...`
+              );
+            }
           }
+        } catch (error) {
+          logger.error(`Error decoding direct body content: ${error}`);
         }
-      } else if (payload.body.data) {
-        if (payload.mimeType === "text/html") {
-          htmlContent = Buffer.from(payload.body.data, "base64").toString();
-        } else if (payload.mimeType === "text/plain") {
-          textContent = Buffer.from(payload.body.data, "base64").toString();
+      }
+
+      // Handle body stored as attachment (common for HTML with inline styles)
+      if (payload.body?.attachmentId) {
+        const attachmentId = payload.body.attachmentId;
+        if (!attachmentCache.has(attachmentId)) {
+          attachmentCache.set(
+            attachmentId,
+            this.fetchAttachmentBuffer(message.id, attachmentId)
+          );
+        }
+
+        const attachmentPromise = attachmentCache
+          .get(attachmentId)!
+          .then((buffer) => {
+            if (!buffer || buffer.length === 0) {
+              return;
+            }
+
+            if (payload.mimeType === "text/html") {
+              const content = buffer.toString("utf-8");
+              const cleanedContent = this.cleanGmailHtml(content);
+              if (!htmlContent || cleanedContent.length > htmlContent.length) {
+                htmlContent = cleanedContent;
+                logger.info(
+                  `Updated HTML content from attachment: ${cleanedContent.substring(
+                    0,
+                    100
+                  )}...`
+                );
+              }
+            } else if (payload.mimeType === "text/plain") {
+              const content = buffer.toString("utf-8");
+              if (!textContent || content.length > textContent.length) {
+                textContent = content;
+                logger.info(
+                  `Updated text content from attachment: ${content.substring(
+                    0,
+                    100
+                  )}...`
+                );
+              }
+            } else {
+              const contentIdHeader = payload.headers?.find(
+                (h: any) => h.name.toLowerCase() === "content-id"
+              )?.value;
+              const contentDisposition = payload.headers?.find(
+                (h: any) => h.name.toLowerCase() === "content-disposition"
+              )?.value;
+
+              const normalizedContentId = contentIdHeader
+                ? this.normalizeContentId(contentIdHeader)
+                : "";
+              const isInline =
+                !!normalizedContentId ||
+                (contentDisposition && /inline/i.test(contentDisposition));
+
+              if (isInline && normalizedContentId) {
+                inlineAttachments[normalizedContentId] = {
+                  base64: buffer.toString("base64"),
+                  mimeType: payload.mimeType,
+                };
+                logger.info(
+                  `Cached inline attachment ${normalizedContentId} (${payload.mimeType})`
+                );
+              }
+            }
+          })
+          .catch((error) =>
+            logger.error(
+              `Error fetching attachment ${attachmentId} for message ${message.id}:`,
+              error
+            )
+          );
+
+        attachmentPromises.push(attachmentPromise);
+      }
+
+      // Handle multipart content
+      if (payload.parts && payload.parts.length > 0) {
+        logger.info(`Processing ${payload.parts.length} parts`);
+
+        for (const part of payload.parts) {
+          logger.info(
+            `Part mimeType: ${part.mimeType}, hasData: ${!!part.body
+              ?.data}, size: ${part.body?.size || 0}, attachmentId: ${
+              part.body?.attachmentId || "none"
+            }`
+          );
+
+          extractBody(part, depth + 1);
         }
       }
     };
 
+    logger.info(`Starting email body extraction for message ${message.id}`);
     extractBody(message.payload);
+    await Promise.all(attachmentPromises);
+
+    if (htmlContent && Object.keys(inlineAttachments).length > 0) {
+      htmlContent = this.inlineCidAttachments(htmlContent, inlineAttachments);
+    }
+
+    logger.info(
+      `Extraction complete. HTML length: ${htmlContent.length}, Text length: ${textContent.length}`
+    );
 
     // Determine if email was sent or received
     const sentLabels = message.labelIds?.includes("SENT") || false;
@@ -326,7 +449,7 @@ export class GmailApiService {
       to: getHeader("To"),
       subject: getHeader("Subject") || "(no subject)",
       date: emailDate.toISOString(), // Convert to ISO string for proper JSON serialization
-      htmlContent: htmlContent || textContent,
+      htmlContent: htmlContent, // Keep HTML content separate from text content
       textContent,
       labels: message.labelIds || [],
       snippet: message.snippet || "",
@@ -351,13 +474,38 @@ export class GmailApiService {
    */
   async fetchFullEmailContent(messageId: string) {
     try {
+      logger.info(`Fetching full content for message ${messageId}`);
+
       const messageResponse = await this.gmail.users.messages.get({
         userId: "me",
         id: messageId,
-        format: "full",
+        format: "full", // Use 'full' format to get complete message including body
       });
 
-      return this.parseEmailMessage(messageResponse.data);
+      logger.info(`Message response received for ${messageId}:`, {
+        id: messageResponse.data.id,
+        threadId: messageResponse.data.threadId,
+        labelIds: messageResponse.data.labelIds,
+        snippet: messageResponse.data.snippet,
+        payloadMimeType: messageResponse.data.payload?.mimeType,
+        hasPayloadParts: !!messageResponse.data.payload?.parts,
+        partsCount: messageResponse.data.payload?.parts?.length || 0,
+        hasDirectBody: !!messageResponse.data.payload?.body?.data,
+        directBodySize: messageResponse.data.payload?.body?.size || 0,
+      });
+
+      const parsedMessage = await this.parseEmailMessage(messageResponse.data);
+
+      logger.info(`Parsed message ${messageId}:`, {
+        id: parsedMessage.id,
+        subject: parsedMessage.subject,
+        htmlContentLength: parsedMessage.htmlContent?.length || 0,
+        textContentLength: parsedMessage.textContent?.length || 0,
+        hasHtmlContent: !!parsedMessage.htmlContent,
+        hasTextContent: !!parsedMessage.textContent,
+      });
+
+      return parsedMessage;
     } catch (error) {
       logger.error(
         `Error fetching full email content for ${messageId}:`,
@@ -742,7 +890,7 @@ export class GmailApiService {
 
       // Parse each message in the thread
       for (const message of thread.messages || []) {
-        const parsedMessage = this.parseEmailMessage(message);
+        const parsedMessage = await this.parseEmailMessage(message);
         messages.push(parsedMessage);
       }
 
@@ -1017,6 +1165,140 @@ export class GmailApiService {
     };
 
     return checkParts(message.payload.parts || []);
+  }
+
+  /**
+   * Fetch attachment data buffer using Gmail API
+   * @param messageId - Gmail message ID
+   * @param attachmentId - Attachment ID
+   * @returns Buffer containing attachment data
+   */
+  private async fetchAttachmentBuffer(
+    messageId: string,
+    attachmentId: string
+  ): Promise<Buffer> {
+    try {
+      const attachmentResponse =
+        await this.gmail.users.messages.attachments.get({
+          userId: "me",
+          messageId,
+          id: attachmentId,
+        });
+
+      const attachmentData = attachmentResponse.data?.data;
+      if (!attachmentData) {
+        logger.warn(
+          `No data returned for attachment ${attachmentId} on message ${messageId}`
+        );
+        return Buffer.alloc(0);
+      }
+
+      return Buffer.from(attachmentData, "base64url");
+    } catch (error) {
+      logger.error(
+        `Failed to fetch attachment ${attachmentId} for message ${messageId}:`,
+        error
+      );
+      return Buffer.alloc(0);
+    }
+  }
+
+  /**
+   * Normalize a Content-ID header value
+   * @param contentId - Content-ID header raw value
+   * @returns Normalized content ID without angle brackets
+   */
+  private normalizeContentId(contentId: string): string {
+    return contentId.replace(/[<>]/g, "").trim().toLowerCase();
+  }
+
+  /**
+   * Clean Gmail-specific HTML elements and attributes
+   * @param html - Raw HTML content from Gmail
+   * @returns Cleaned HTML suitable for display
+   */
+  private cleanGmailHtml(html: string): string {
+    if (!html) return html;
+
+    let cleaned = html;
+
+    // Remove Gmail UI overlay elements
+    cleaned = cleaned.replace(/<div class="a6S"[^>]*>.*?<\/div>/gs, "");
+
+    // Remove Gmail button elements and their containers
+    cleaned = cleaned.replace(
+      /<button[^>]*class="[^"]*VYBDae[^"]*"[^>]*>.*?<\/button>/gs,
+      ""
+    );
+    cleaned = cleaned.replace(
+      /<span[^>]*class="[^"]*VYBDae[^"]*"[^>]*>.*?<\/span>/gs,
+      ""
+    );
+
+    // Remove tooltip elements
+    cleaned = cleaned.replace(/<div[^>]*id="tt-c[^"]*"[^>]*>.*?<\/div>/gs, "");
+
+    // Remove SVG icons and UI elements
+    cleaned = cleaned.replace(/<svg[^>]*>.*?<\/svg>/gs, "");
+
+    // Remove Gmail-specific span elements with UI classes
+    cleaned = cleaned.replace(
+      /<span[^>]*class="[^"]*(?:OiePBf-zPjgPe|bHC-Q|VYBDae-JX-ank-Rtc0Jf|notranslate|bzc-ank)[^"]*"[^>]*>.*?<\/span>/gs,
+      ""
+    );
+
+    // Clean up Gmail data attributes
+    cleaned = cleaned.replace(
+      /\s+data-(?:idom-class|use-native-focus-logic|tooltip-[^=]*|is-tooltip-wrapper)="[^"]*"/gi,
+      ""
+    );
+
+    // Remove js attributes
+    cleaned = cleaned.replace(
+      /\s+js(?:action|controller|name|log)="[^"]*"/gi,
+      ""
+    );
+
+    // Remove aria attributes from interactive elements we're removing
+    cleaned = cleaned.replace(/\s+aria-(?:label|hidden)="[^"]*"/gi, "");
+
+    // Remove tabindex from images
+    cleaned = cleaned.replace(/(<img[^>]*)\s+tabindex="[^"]*"/gi, "$1");
+
+    // Remove crossorigin attributes from images
+    cleaned = cleaned.replace(/(<img[^>]*)\s+crossorigin="[^"]*"/gi, "$1");
+
+    // Clean up empty elements that might be left behind
+    cleaned = cleaned.replace(/<([^>\/]+)>\s*<\/\1>/gi, "");
+
+    // Remove multiple consecutive spaces
+    cleaned = cleaned.replace(/\s{2,}/g, " ");
+
+    return cleaned;
+  }
+
+  /**
+   * Inline CID-referenced attachments into HTML content
+   * @param html - HTML content string
+   * @param attachments - Map of normalized content IDs to attachment data
+   * @returns HTML with CID references replaced with data URIs
+   */
+  private inlineCidAttachments(
+    html: string,
+    attachments: Record<string, { base64: string; mimeType: string }>
+  ): string {
+    const cidRegex = /cid:([^"'<>\s]+)/gi;
+
+    return html.replace(cidRegex, (match, cid) => {
+      const normalizedCid = this.normalizeContentId(cid);
+      const attachment = attachments[normalizedCid];
+
+      if (!attachment) {
+        return match;
+      }
+
+      return `data:${attachment.mimeType};base64,${attachment.base64}`;
+    });
   }
 
   /**
