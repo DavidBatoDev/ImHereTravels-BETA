@@ -238,12 +238,13 @@ export default function EmailsTab() {
 
       const data = result.data as any;
       if (data?.success) {
-        const fetchedEmails = data.emails.map((email: any) => ({
-          ...email,
-          date: new Date(email.date),
-        }));
-
-        // Update cache
+        const fetchedEmails = data.emails.map((email: any) => {
+          return {
+            ...email,
+            // Convert ISO string back to Date object
+            date: new Date(email.date),
+          };
+        }); // Update cache
         const newCache = new Map(emailCache);
         fetchedEmails.forEach((email: GmailEmail) => {
           newCache.set(email.id, email);
@@ -309,6 +310,7 @@ export default function EmailsTab() {
       if (data?.success) {
         const fullEmail = {
           ...data.email,
+          // Convert ISO string back to Date object
           date: new Date(data.email.date),
         };
 
@@ -427,21 +429,31 @@ export default function EmailsTab() {
 
   // Format date
   const formatDate = (date: Date) => {
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-    if (diffInHours < 24) {
-      return date.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+    // Check if date is valid
+    if (!date || isNaN(date.getTime())) {
+      return "Unknown";
     }
 
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: diffInHours > 8760 ? "numeric" : undefined,
-    });
+    try {
+      const now = new Date();
+      const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+      if (diffInHours < 24 && diffInHours >= 0) {
+        return date.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: diffInHours > 8760 ? "numeric" : undefined,
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Unknown";
+    }
   };
 
   // Toggle email selection
@@ -743,7 +755,7 @@ export default function EmailsTab() {
                       <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                         <span
                           className={cn(
-                            "email-text-14 flex-shrink-0",
+                            "email-text-14 flex-shrink-0 truncate whitespace-nowrap",
                             !email.isRead
                               ? "font-semibold text-gray-900"
                               : "font-normal text-gray-700"

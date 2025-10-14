@@ -211,13 +211,34 @@ export class GmailApiService {
         (part: any) => part.filename && part.filename.length > 0
       ) || false;
 
+    // Parse date safely - Gmail internalDate is a string timestamp in milliseconds
+    let emailDate = new Date(0); // Use epoch as default instead of current time
+
+    if (message.internalDate) {
+      const timestamp = parseInt(message.internalDate);
+      if (!isNaN(timestamp)) {
+        emailDate = new Date(timestamp);
+      }
+    }
+
+    // Fallback to Date header if internalDate is not available
+    if (isNaN(emailDate.getTime()) || emailDate.getTime() === 0) {
+      const dateHeader = getHeader("Date");
+      if (dateHeader) {
+        const parsedDate = new Date(dateHeader);
+        if (!isNaN(parsedDate.getTime())) {
+          emailDate = parsedDate;
+        }
+      }
+    }
+
     return {
       id: message.id,
       threadId: message.threadId,
       from: getHeader("From"),
       to: getHeader("To"),
       subject: getHeader("Subject") || "(no subject)",
-      date: new Date(parseInt(message.internalDate)),
+      date: emailDate.toISOString(), // Convert to ISO string for proper JSON serialization
       htmlContent: "", // Will be loaded on demand when email is opened
       textContent: "", // Will be loaded on demand when email is opened
       labels: message.labelIds || [],
@@ -279,13 +300,32 @@ export class GmailApiService {
         (part: any) => part.filename && part.filename.length > 0
       ) || false;
 
+    // Parse date safely - Gmail internalDate is a string timestamp in milliseconds
+    let emailDate = new Date(0); // Use epoch as default instead of current time
+    if (message.internalDate) {
+      const timestamp = parseInt(message.internalDate);
+      if (!isNaN(timestamp)) {
+        emailDate = new Date(timestamp);
+      }
+    }
+    // Fallback to Date header if internalDate is not available
+    if (isNaN(emailDate.getTime()) || emailDate.getTime() === 0) {
+      const dateHeader = getHeader("Date");
+      if (dateHeader) {
+        const parsedDate = new Date(dateHeader);
+        if (!isNaN(parsedDate.getTime())) {
+          emailDate = parsedDate;
+        }
+      }
+    }
+
     return {
       id: message.id,
       threadId: message.threadId,
       from: getHeader("From"),
       to: getHeader("To"),
       subject: getHeader("Subject") || "(no subject)",
-      date: new Date(parseInt(message.internalDate)),
+      date: emailDate.toISOString(), // Convert to ISO string for proper JSON serialization
       htmlContent: htmlContent || textContent,
       textContent,
       labels: message.labelIds || [],
@@ -709,7 +749,9 @@ export class GmailApiService {
       return {
         id: thread.id,
         historyId: thread.historyId,
-        messages: messages.sort((a, b) => a.date.getTime() - b.date.getTime()), // Sort by date
+        messages: messages.sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        ), // Sort by date
         snippet: thread.snippet,
         messageCount: messages.length,
       };
