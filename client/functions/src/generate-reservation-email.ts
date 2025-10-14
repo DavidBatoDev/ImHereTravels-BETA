@@ -18,6 +18,11 @@ const db = getFirestore();
 // Initialize Gmail API Service
 const gmailService = new GmailApiService();
 
+// Helper function to generate Gmail draft URL
+function getGmailDraftUrl(draftId: string): string {
+  return `https://mail.google.com/mail/u/0/#drafts/${draftId}`;
+}
+
 // Helper function to format GBP currency
 function formatGBP(value: number | string): string {
   if (!value) return "";
@@ -112,40 +117,6 @@ function getBCCList(): string[] {
   return [];
 }
 
-// Helper function to delete existing Gmail draft and local record
-async function deleteExistingGmailDraft(bookingId: string): Promise<void> {
-  try {
-    const existingDrafts = await db
-      .collection("emailDrafts")
-      .where("bookingId", "==", bookingId)
-      .where("gmailDraftId", "!=", null)
-      .get();
-
-    for (const draftDoc of existingDrafts.docs) {
-      const draftData = draftDoc.data();
-      const gmailDraftId = draftData.gmailDraftId;
-
-      if (gmailDraftId) {
-        try {
-          // Delete Gmail draft
-          await gmailService.deleteDraft(gmailDraftId);
-          logger.info(`Deleted Gmail draft: ${gmailDraftId}`);
-        } catch (error) {
-          logger.warn(`Failed to delete Gmail draft ${gmailDraftId}:`, error);
-          // Continue with local deletion even if Gmail deletion fails
-        }
-      }
-
-      // Delete local record
-      await draftDoc.ref.delete();
-      logger.info(`Deleted local draft record: ${draftDoc.id}`);
-    }
-  } catch (error) {
-    logger.error("Error deleting existing Gmail drafts:", error);
-    throw error;
-  }
-}
-
 // Main function to generate email draft
 export const generateReservationEmail = onCall(
   {
@@ -167,21 +138,13 @@ export const generateReservationEmail = onCall(
         `Processing email draft for booking: ${bookingId}, generateDraftCell: ${generateDraftCell}`
       );
 
-      // If generateDraftCell is false, delete existing drafts and return
+      // If generateDraftCell is false, just return without doing anything
+      // No need to delete since we're not storing local drafts anymore
       if (!generateDraftCell) {
-        await deleteExistingGmailDraft(bookingId);
-
-        // Update booking document to clear draft references
-        await db.collection("bookings").doc(bookingId).update({
-          emailDraftId: null,
-          cancellationEmailDraftId: null,
-          generateEmailDraft: false,
-        });
-
         return {
           success: true,
-          status: "deleted_draft",
-          message: "Existing Gmail draft deleted successfully",
+          status: "skipped",
+          message: "Draft generation skipped as requested",
         };
       }
 
@@ -194,7 +157,7 @@ export const generateReservationEmail = onCall(
       }
 
       const bookingData = bookingDoc.data()!;
-      logger.info(`Booking data:`, bookingData);
+      logger.info(`Booking data retrieved for booking: ${bookingId}`);
 
       // Validate email
       const email = (bookingData.emailAddress as string)?.trim();
@@ -212,7 +175,7 @@ export const generateReservationEmail = onCall(
       }
 
       const templateData = templateDoc.data()!;
-      logger.info(`Template data:`, templateData);
+      logger.info(`Email template retrieved`);
 
       // Extract booking data for template variables
       const fullName = bookingData.fullName || "";
@@ -288,14 +251,7 @@ export const generateReservationEmail = onCall(
         cancelledRefundAmount: isCancelled ? formatGBP(reservationFee) : "",
       };
 
-      logger.info(`Template variables:`, templateVariables);
-
-      // Debug: Log each template variable to identify problematic dates
-      Object.entries(templateVariables).forEach(([key, value]) => {
-        if (typeof value === "string" && value.includes("Invalid time value")) {
-          logger.error(`Problematic template variable: ${key} = ${value}`);
-        }
-      });
+      logger.info(`Template variables prepared for booking: ${bookingId}`);
 
       // Process template content
       let processedHtml: string;
@@ -304,10 +260,11 @@ export const generateReservationEmail = onCall(
           templateData.content,
           templateVariables
         );
-        logger.info(`Processed HTML length:`, processedHtml.length);
+        logger.info(
+          `Template processed successfully, HTML length: ${processedHtml.length}`
+        );
       } catch (templateError) {
         logger.error(`Template processing error:`, templateError);
-        logger.error(`Template variables causing error:`, templateVariables);
         throw new HttpsError(
           "internal",
           `Template processing failed: ${
@@ -318,50 +275,11 @@ export const generateReservationEmail = onCall(
         );
       }
 
-      // Check for existing Gmail drafts for this booking
-      let existingGmailDraftId: string | null = null;
-      try {
-        const existingDrafts = await db
-          .collection("emailDrafts")
-          .where("bookingId", "==", bookingId)
-          .where("gmailDraftId", "!=", null)
-          .limit(1)
-          .get();
-
-        if (!existingDrafts.empty) {
-          const existingDraftData = existingDrafts.docs[0].data();
-          existingGmailDraftId = existingDraftData.gmailDraftId;
-          logger.info(
-            `Found existing Gmail draft ${existingGmailDraftId} for booking ${bookingId}, returning existing draft`
-          );
-
-          return {
-            success: true,
-            draftId: existingGmailDraftId,
-            localDraftId: existingDrafts.docs[0].id,
-            subject: existingDraftData.subject || subject,
-            email: existingDraftData.to || email,
-            isCancellation: existingDraftData.isCancellation || isCancelled,
-            emailType:
-              existingDraftData.emailType ||
-              (isCancelled ? "cancellation" : "reservation"),
-            status: "existing_gmail_draft",
-            message:
-              "Returned existing Gmail draft instead of creating new one",
-          };
-        }
-      } catch (error) {
-        logger.warn("Error checking for existing Gmail drafts:", error);
-        // Continue with draft creation even if check fails
-      }
-
       // Create Gmail draft using Gmail API service
-      logger.info(
-        `No existing Gmail draft found for booking ${bookingId}, creating new Gmail draft`
-      );
+      logger.info(`Creating Gmail draft for booking: ${bookingId}`);
 
       try {
-        // Create Gmail draft
+        // Create Gmail draft in Bella's account
         const gmailDraftResult = await gmailService.createDraft({
           to: email,
           subject: subject,
@@ -374,52 +292,23 @@ export const generateReservationEmail = onCall(
           `Gmail draft created successfully: ${gmailDraftResult.draftId}`
         );
 
-        // Create local record in emailDrafts collection for tracking
-        const draftRef = db.collection("emailDrafts").doc();
-        const localDraftId = draftRef.id;
-
-        const emailDraftData = {
-          id: localDraftId,
-          gmailDraftId: gmailDraftResult.draftId, // Store Gmail draft ID
-          messageId: gmailDraftResult.messageId,
-          threadId: gmailDraftResult.threadId,
-          to: email,
-          subject: subject,
-          htmlContent: processedHtml,
-          bcc: getBCCList(),
-          from: "Bella | ImHereTravels <bella@imheretravels.com>",
-          emailType: isCancelled ? "cancellation" : "reservation",
-          bookingId: bookingId,
-          status: "gmail_draft",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          // Additional metadata
-          templateId: "BnRGgT6E8SVrXZH961LT",
-          templateVariables: templateVariables,
-          isCancellation: isCancelled,
-          fullName: fullName,
-          tourPackage: tourPackage,
-        };
-
-        // Save the local draft record
-        await draftRef.set(emailDraftData);
-
-        logger.info(
-          `Local draft record created with ID: ${localDraftId} for Gmail draft: ${gmailDraftResult.draftId}`
-        );
+        // Generate the Gmail draft URL
+        const draftUrl = getGmailDraftUrl(gmailDraftResult.draftId);
 
         return {
           success: true,
           draftId: gmailDraftResult.draftId,
-          localDraftId: localDraftId,
+          draftUrl: draftUrl,
           messageId: gmailDraftResult.messageId,
           threadId: gmailDraftResult.threadId,
           subject: subject,
           email: email,
+          fullName: fullName,
+          tourPackage: tourPackage,
           isCancellation: isCancelled,
-          emailType: emailDraftData.emailType,
-          status: "new_gmail_draft",
-          message: "Created new Gmail draft",
+          emailType: isCancelled ? "cancellation" : "reservation",
+          status: "gmail_draft_created",
+          message: `Gmail draft created successfully. Click the URL to open: ${draftUrl}`,
         };
       } catch (gmailError) {
         logger.error("Error creating Gmail draft:", gmailError);
@@ -438,8 +327,6 @@ export const generateReservationEmail = onCall(
       if (error instanceof HttpsError) {
         throw error;
       }
-
-      // Don't update booking document with error - just log it
 
       throw new HttpsError(
         "internal",

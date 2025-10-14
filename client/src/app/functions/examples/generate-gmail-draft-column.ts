@@ -6,7 +6,15 @@ import { firebaseUtils } from "@/app/functions/firebase-utils";
 interface GmailDraftResult {
   success: boolean;
   draftId?: string;
-  localDraftId?: string;
+  draftUrl?: string; // NEW: The actual Gmail draft URL
+  messageId?: string;
+  threadId?: string;
+  subject?: string;
+  email?: string;
+  fullName?: string;
+  tourPackage?: string;
+  isCancellation?: boolean;
+  emailType?: string;
   status: string;
   message: string;
 }
@@ -16,14 +24,20 @@ interface BookingData {
   id: string;
   bookingId?: string;
   emailAddress?: string;
-  emailDraftLink?: string;
+  emailDraftUrl?: string; // Changed from emailDraftLink to emailDraftUrl
   cancellationEmailDraftId?: string;
   [key: string]: any;
 }
 
 /**
- * Column function to generate Gmail drafts using the new Gmail API service
- * This replaces the old email draft approach with Gmail integration
+ * Column function to generate Gmail drafts and return clickable URLs
+ * Creates drafts directly in Bella's Gmail account and returns the direct URL
+ *
+ * @param bookingId - The booking ID to generate draft for
+ * @param includeBcc - Not used in current implementation
+ * @param emailAddress - Customer's email address
+ * @param generateEmailDraft - True to create draft, false to clear existing
+ * @returns Gmail draft URL that Bella can click to open the draft
  */
 export default async function generateGmailDraft(
   bookingId: string,
@@ -56,38 +70,33 @@ export default async function generateGmailDraft(
 
     console.log(`Found booking document with ID: ${bookingDoc.id}`);
 
-    // Check if booking already has a Gmail draft
-    const existingGmailDraftId =
-      bookingDoc.emailDraftLink || bookingDoc.cancellationEmailDraftId;
+    // Check if booking already has a Gmail draft URL
+    const existingGmailDraftUrl =
+      bookingDoc.emailDraftUrl || bookingDoc.cancellationEmailDraftId;
 
-    console.log("Gmail draft exists: ", existingGmailDraftId);
+    console.log("Gmail draft URL exists: ", existingGmailDraftUrl);
 
-    if (existingGmailDraftId) {
+    if (existingGmailDraftUrl) {
       if (generateEmailDraft) {
-        // Return existing Gmail draft ID if Generate Email Draft is true
-        console.log(`Returning existing Gmail draft: ${existingGmailDraftId}`);
-        return existingGmailDraftId;
-      } else {
-        // Delete existing Gmail draft if Generate Email Draft is false
-        console.log(`Deleting existing Gmail draft: ${existingGmailDraftId}`);
-
-        // Call the generate reservation email function to delete the draft
-        const generateEmail = httpsCallable(
-          functions,
-          "generateReservationEmail"
+        // Return existing Gmail draft URL if Generate Email Draft is true
+        console.log(
+          `Returning existing Gmail draft URL: ${existingGmailDraftUrl}`
         );
-        const result = await generateEmail({
-          bookingId: bookingDoc.id, // Use the document ID, not the bookingId field
-          generateDraftCell: false, // This will trigger deletion
+        return existingGmailDraftUrl;
+      } else {
+        // Clear existing Gmail draft URL if Generate Email Draft is false
+        console.log(
+          `Clearing existing Gmail draft URL: ${existingGmailDraftUrl}`
+        );
+
+        // Since we're not storing local drafts anymore, we just clear the URL from booking
+        await firebaseUtils.updateDocument("bookings", bookingDoc.id, {
+          emailDraftUrl: null,
+          generateEmailDraft: false,
         });
 
-        const resultData = result.data as GmailDraftResult;
-        if (resultData && resultData.success) {
-          console.log("Gmail draft deleted successfully");
-          return "";
-        } else {
-          throw new Error("Failed to delete Gmail draft");
-        }
+        console.log("Gmail draft URL cleared successfully");
+        return "";
       }
     }
 
@@ -111,19 +120,19 @@ export default async function generateGmailDraft(
 
         const emailResultData = emailResult.data as GmailDraftResult;
         if (emailResultData && emailResultData.success) {
+          const gmailDraftUrl = emailResultData.draftUrl || "";
           const gmailDraftId = emailResultData.draftId || "";
-          const localDraftId = emailResultData.localDraftId || "";
 
           console.log(`Generated Gmail draft with ID: ${gmailDraftId}`);
-          console.log(`Local draft record ID: ${localDraftId}`);
+          console.log(`Generated Gmail draft URL: ${gmailDraftUrl}`);
 
-          // Update booking document with Gmail draft ID
+          // Update booking document with Gmail draft URL (not just ID)
           await firebaseUtils.updateDocument("bookings", bookingDoc.id, {
-            emailDraftLink: gmailDraftId,
+            emailDraftUrl: gmailDraftUrl, // Store the clickable URL
             generateEmailDraft: true,
           });
 
-          return gmailDraftId; // Return Gmail draft ID for the column
+          return gmailDraftUrl; // Return Gmail draft URL for the column
         } else {
           console.error(
             "Function returned unsuccessful result:",
