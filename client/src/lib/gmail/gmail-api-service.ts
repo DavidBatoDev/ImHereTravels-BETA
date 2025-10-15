@@ -203,6 +203,7 @@ export class GmailApiService {
       isStarred: message.labelIds?.includes("STARRED"),
       hasAttachments:
         message.payload?.parts?.some((part: any) => part.filename) || false,
+      attachments: this.extractAttachments(message.payload),
       isImportant: message.labelIds?.includes("IMPORTANT"),
       threadMessageCount: 1, // Will be updated in batchFetchEmails
     };
@@ -464,6 +465,128 @@ export class GmailApiService {
     } catch (error) {
       console.error("Error fetching thread emails:", error);
       throw new Error(`Failed to fetch thread emails: ${error}`);
+    }
+  }
+
+  /**
+   * Extract attachment information from message payload
+   * @param payload - Gmail message payload
+   * @returns Array of attachment metadata
+   */
+  private extractAttachments(payload: any): any[] {
+    const attachments: any[] = [];
+
+    const extractFromParts = (parts: any[]) => {
+      parts.forEach((part: any) => {
+        // Check if this part has a filename (attachment)
+        if (part.filename && part.filename.trim() !== "") {
+          const attachment = {
+            attachmentId: part.body?.attachmentId,
+            filename: part.filename,
+            mimeType: part.mimeType,
+            size: part.body?.size || 0,
+            contentId: part.headers?.find(
+              (h: any) => h.name.toLowerCase() === "content-id"
+            )?.value,
+          };
+
+          // Only add if it has an attachmentId (actual attachment, not inline content)
+          if (attachment.attachmentId) {
+            attachments.push(attachment);
+          }
+        }
+
+        // Recursively check nested parts
+        if (part.parts && part.parts.length > 0) {
+          extractFromParts(part.parts);
+        }
+      });
+    };
+
+    if (payload?.parts) {
+      extractFromParts(payload.parts);
+    }
+
+    return attachments;
+  }
+
+  /**
+   * Download attachment data from Gmail
+   * @param messageId - Gmail message ID
+   * @param attachmentId - Gmail attachment ID
+   * @returns Attachment data with base64 content
+   */
+  async downloadAttachment(messageId: string, attachmentId: string) {
+    try {
+      console.log("Downloading attachment:", { messageId, attachmentId });
+
+      const attachmentResponse =
+        await this.gmail.users.messages.attachments.get({
+          userId: "me",
+          messageId: messageId,
+          id: attachmentId,
+        });
+
+      const attachmentData = attachmentResponse.data;
+
+      return {
+        data: attachmentData.data, // Base64 encoded content
+        size: attachmentData.size,
+      };
+    } catch (error) {
+      console.error("Error downloading attachment:", error);
+      throw new Error(`Failed to download attachment: ${error}`);
+    }
+  }
+
+  /**
+   * Get attachment metadata from Gmail
+   * @param messageId - Gmail message ID
+   * @param attachmentId - Gmail attachment ID
+   * @returns Attachment metadata including MIME type
+   */
+  async getAttachmentInfo(messageId: string, attachmentId: string) {
+    try {
+      console.log("Getting attachment info:", { messageId, attachmentId });
+
+      // Get the full message to find attachment metadata
+      const messageResponse = await this.gmail.users.messages.get({
+        userId: "me",
+        id: messageId,
+        format: "full",
+      });
+
+      const message = messageResponse.data;
+      
+      // Find the attachment in the message parts
+      const findAttachment = (parts: any[]): any => {
+        for (const part of parts) {
+          if (part.body?.attachmentId === attachmentId) {
+            return {
+              filename: part.filename,
+              mimeType: part.mimeType,
+              size: part.body.size,
+            };
+          }
+          if (part.parts) {
+            const found = findAttachment(part.parts);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      if (message.payload?.parts) {
+        const attachmentInfo = findAttachment(message.payload.parts);
+        if (attachmentInfo) {
+          return attachmentInfo;
+        }
+      }
+
+      throw new Error("Attachment not found in message");
+    } catch (error) {
+      console.error("Error getting attachment info:", error);
+      throw new Error(`Failed to get attachment info: ${error}`);
     }
   }
 }

@@ -30,9 +30,19 @@ import {
   MoreHorizontal,
   ChevronDown,
   ChevronUp,
+  Paperclip,
+  Download,
 } from "lucide-react";
 
 // Gmail Email type
+interface GmailAttachment {
+  attachmentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  contentId?: string; // For inline attachments
+}
+
 interface GmailEmail {
   id: string;
   threadId: string;
@@ -54,6 +64,7 @@ interface GmailEmail {
   cc?: string;
   isStarred?: boolean;
   hasAttachments?: boolean;
+  attachments?: GmailAttachment[];
   isImportant?: boolean;
 }
 
@@ -165,6 +176,236 @@ export function EmailViewModal({
     setExpandedQuotes(newExpandedQuotes);
   };
 
+  // Handle attachment download
+  const handleAttachmentDownload = async (
+    messageId: string,
+    attachment: GmailAttachment
+  ) => {
+    try {
+      console.log("Downloading attachment:", attachment.filename);
+
+      const response = await fetch(
+        `/api/gmail/attachments/${messageId}/${attachment.attachmentId}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to download attachment");
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Convert base64 to blob and download
+        const base64Data = data.data.data.replace(/-/g, "+").replace(/_/g, "/");
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const blob = new Blob([bytes], { type: attachment.mimeType });
+        const url = URL.createObjectURL(blob);
+
+        // Create download link
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = attachment.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        console.log("Download completed:", attachment.filename);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error("Error downloading attachment:", error);
+      // You could add a toast notification here
+    }
+  };
+
+  // Format file size for display
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  };
+
+  // Get file icon/preview based on MIME type
+  const getFileIcon = (mimeType: string, filename: string, messageId: string, attachmentId: string) => {
+    const extension = filename.split(".").pop()?.toLowerCase() || "";
+
+    // Image files - show actual preview
+    if (mimeType.startsWith("image/")) {
+      return (
+        <div className="w-full h-full rounded-lg overflow-hidden bg-gray-100">
+          <img
+            src={`/api/gmail/attachments/${messageId}/${attachmentId}?preview=true`}
+            alt={filename}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              // Fallback to generic icon if image fails to load
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                parent.innerHTML = `
+                  <div class="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
+                    <div class="text-green-700 font-bold text-xs">IMG</div>
+                  </div>
+                `;
+              }
+            }}
+          />
+        </div>
+      );
+    }
+
+    // PDF files
+    if (mimeType === "application/pdf" || extension === "pdf") {
+      return (
+        <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-red-200 rounded-lg flex items-center justify-center relative">
+          <div className="text-red-700 font-bold text-xs">PDF</div>
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
+            <span className="text-white text-xs leading-none">📄</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Word documents
+    if (mimeType.includes("word") || ["doc", "docx"].includes(extension)) {
+      return (
+        <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center relative">
+          <div className="text-blue-700 font-bold text-xs">DOC</div>
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+            <span className="text-white text-xs leading-none">📝</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Excel files
+    if (mimeType.includes("sheet") || ["xls", "xlsx"].includes(extension)) {
+      return (
+        <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center relative">
+          <div className="text-green-700 font-bold text-xs">XLS</div>
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+            <span className="text-white text-xs leading-none">📊</span>
+          </div>
+        </div>
+      );
+    }
+
+    // PowerPoint files
+    if (
+      mimeType.includes("presentation") ||
+      ["ppt", "pptx"].includes(extension)
+    ) {
+      return (
+        <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center relative">
+          <div className="text-orange-700 font-bold text-xs">PPT</div>
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full flex items-center justify-center">
+            <span className="text-white text-xs leading-none">📊</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ZIP/Archive files
+    if (
+      mimeType.includes("zip") ||
+      mimeType.includes("archive") ||
+      ["zip", "rar", "7z"].includes(extension)
+    ) {
+      return (
+        <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg flex items-center justify-center relative">
+          <div className="text-purple-700 font-bold text-xs">ZIP</div>
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full flex items-center justify-center">
+            <span className="text-white text-xs leading-none">🗜️</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Text files
+    if (mimeType.startsWith("text/") || ["txt", "csv"].includes(extension)) {
+      return (
+        <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center relative">
+          <div className="text-gray-700 font-bold text-xs">TXT</div>
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-gray-500 rounded-full flex items-center justify-center">
+            <span className="text-white text-xs leading-none">📄</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Video files
+    if (mimeType.startsWith("video/")) {
+      return (
+        <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-lg flex items-center justify-center relative">
+          <div className="text-indigo-700 font-bold text-xs">VID</div>
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-500 rounded-full flex items-center justify-center">
+            <span className="text-white text-xs leading-none">🎥</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Audio files
+    if (mimeType.startsWith("audio/")) {
+      return (
+        <div className="w-12 h-12 bg-gradient-to-br from-pink-100 to-pink-200 rounded-lg flex items-center justify-center relative">
+          <div className="text-pink-700 font-bold text-xs">AUD</div>
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-pink-500 rounded-full flex items-center justify-center">
+            <span className="text-white text-xs leading-none">🎵</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Default file icon
+    return (
+      <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center">
+        <Paperclip className="w-6 h-6 text-gray-600" />
+      </div>
+    );
+  };
+
+  // Get human-readable file type
+  const getFileTypeDisplay = (mimeType: string): string => {
+    const typeMap: Record<string, string> = {
+      "application/pdf": "PDF Document",
+      "application/msword": "Word Document",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        "Word Document",
+      "application/vnd.ms-excel": "Excel Spreadsheet",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        "Excel Spreadsheet",
+      "application/vnd.ms-powerpoint": "PowerPoint Presentation",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+        "PowerPoint Presentation",
+      "application/zip": "ZIP Archive",
+      "text/plain": "Text File",
+      "text/csv": "CSV File",
+    };
+
+    if (typeMap[mimeType]) {
+      return typeMap[mimeType];
+    }
+
+    if (mimeType.startsWith("image/")) return "Image";
+    if (mimeType.startsWith("video/")) return "Video";
+    if (mimeType.startsWith("audio/")) return "Audio";
+    if (mimeType.startsWith("text/")) return "Text File";
+
+    return "File";
+  };
+
   // Process HTML content to handle gmail_quote expansion
   const processEmailContent = (htmlContent: string, emailId: string) => {
     const isQuoteExpanded = expandedQuotes.has(emailId);
@@ -176,10 +417,8 @@ export function EmailViewModal({
     // Check if content has various quote patterns
     const hasGmailQuote =
       htmlContent.includes("gmail_quote") ||
-      htmlContent.includes('class="gmail_quote"') ||
-      htmlContent.includes("class='gmail_quote'") ||
-      htmlContent.includes('div class="gmail_quote"') ||
-      htmlContent.includes("div class='gmail_quote'");
+      /class[^>]*=["'][^"']*gmail_quote[^"']*["']/i.test(htmlContent) ||
+      /<div[^>]*class[^>]*gmail_quote[^>]*>/i.test(htmlContent);
 
     const hasZmailQuote =
       htmlContent.includes("blockquote_zmail") ||
@@ -191,6 +430,16 @@ export function EmailViewModal({
     console.log("Gmail quote found:", hasGmailQuote);
     console.log("Zmail quote found:", hasZmailQuote);
     console.log("Generic blockquote found:", hasGenericBlockquote);
+
+    // Additional debug for Gmail quote patterns
+    if (hasGmailQuote) {
+      const gmailQuoteMatch = htmlContent.match(
+        /<div[^>]*class[^>]*gmail_quote[^>]*>/i
+      );
+      if (gmailQuoteMatch) {
+        console.log("Gmail quote element found:", gmailQuoteMatch[0]);
+      }
+    }
 
     if (!hasGmailQuote && !hasZmailQuote && !hasGenericBlockquote) {
       console.log("No quote patterns found in content");
@@ -205,7 +454,17 @@ export function EmailViewModal({
 
     if (hasGmailQuote) {
       // Handle Gmail quotes first (highest priority)
-      if (htmlContent.includes('<div class="gmail_quote">')) {
+      // Try to find the exact Gmail quote div with flexible class matching
+      const gmailQuoteMatch = htmlContent.match(
+        /<div[^>]*class[^>]*gmail_quote[^>]*>/i
+      );
+
+      if (gmailQuoteMatch) {
+        parts = htmlContent.split(gmailQuoteMatch[0]);
+        splitPattern = gmailQuoteMatch[0];
+        quoteMark = "gmail";
+        console.log("Found Gmail quote with pattern:", gmailQuoteMatch[0]);
+      } else if (htmlContent.includes('<div class="gmail_quote">')) {
         parts = htmlContent.split('<div class="gmail_quote">');
         splitPattern = '<div class="gmail_quote">';
         quoteMark = "gmail";
@@ -213,16 +472,6 @@ export function EmailViewModal({
         parts = htmlContent.split("<div class='gmail_quote'>");
         splitPattern = "<div class='gmail_quote'>";
         quoteMark = "gmail";
-      } else if (htmlContent.includes("gmail_quote")) {
-        // More flexible Gmail quote detection
-        const gmailQuoteMatch = htmlContent.match(
-          /<div[^>]*class[^>]*gmail_quote[^>]*>/
-        );
-        if (gmailQuoteMatch) {
-          parts = htmlContent.split(gmailQuoteMatch[0]);
-          splitPattern = gmailQuoteMatch[0];
-          quoteMark = "gmail";
-        }
       }
     } else if (hasZmailQuote) {
       // Handle Zoho Mail quotes (zmail_extra is usually the separator)
@@ -386,6 +635,9 @@ export function EmailViewModal({
                   <span className="text-sm font-medium text-gray-900 truncate">
                     {email.from?.match(/^([^<]+)/)?.[1]?.trim() || email.from}
                   </span>
+                  {email.hasAttachments && (
+                    <Paperclip className="w-3 h-3 text-gray-500 flex-shrink-0" />
+                  )}
                   {!email.isRead && (
                     <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0"></div>
                   )}
@@ -528,6 +780,73 @@ export function EmailViewModal({
                 </div>
               )}
             </div>
+
+            {/* Attachments Section */}
+            {email.attachments && email.attachments.length > 0 && (
+              <div className="mt-6 border-t border-gray-100 pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Paperclip className="w-4 h-4 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">
+                    {email.attachments.length} attachment
+                    {email.attachments.length > 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {email.attachments.map((attachment, index) => (
+                    <div
+                      key={`${email.id}-attachment-${index}`}
+                      className="gmail-attachment-card group relative w-32 h-32 bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm cursor-pointer"
+                      onClick={() =>
+                        handleAttachmentDownload(email.id, attachment)
+                      }
+                    >
+                      {/* Preview/Icon Area */}
+                      <div className="w-full h-20 flex items-center justify-center bg-gray-50 group-hover:bg-gray-100 transition-colors">
+                        <div className="file-type-icon">
+                          {getFileIcon(
+                            attachment.mimeType,
+                            attachment.filename,
+                            email.id,
+                            attachment.attachmentId
+                          )}
+                        </div>
+                      </div>
+
+                      {/* File Info */}
+                      <div className="p-2 h-12 flex flex-col justify-center bg-white">
+                        <div className="text-xs text-gray-900 font-medium truncate leading-tight">
+                          {attachment.filename}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {formatFileSize(attachment.size)}
+                        </div>
+                      </div>
+
+                      {/* Hover Overlay */}
+                      <div className="attachment-overlay absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <div className="bg-white rounded-full p-2 shadow-lg transform scale-90 group-hover:scale-100 transition-transform duration-200 border border-gray-200">
+                          <Download className="w-4 h-4 text-gray-700" />
+                        </div>
+                      </div>
+
+                      {/* Tooltip on Hover */}
+                      <div className="gmail-attachment-tooltip absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+                        <div className="font-medium">{attachment.filename}</div>
+                        <div className="text-gray-300 mt-0.5">
+                          {formatFileSize(attachment.size)} •{" "}
+                          {getFileTypeDisplay(attachment.mimeType)}
+                        </div>
+                        <div className="text-gray-400 text-xs mt-1">
+                          Click to download
+                        </div>
+                        {/* Tooltip Arrow */}
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Reply/Forward Buttons for Latest Email */}
             {isLatest && (
