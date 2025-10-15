@@ -28,6 +28,8 @@ import {
   Archive,
   Trash2,
   MoreHorizontal,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 // Gmail Email type
@@ -83,6 +85,7 @@ export function EmailViewModal({
   const [isLoadingThread, setIsLoadingThread] = useState(false);
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
   const [expandedQuotes, setExpandedQuotes] = useState<Set<string>>(new Set());
+  const [showAllEmails, setShowAllEmails] = useState(false); // New state for collapsing middle emails
 
   // Fetch thread emails when selectedEmail changes
   useEffect(() => {
@@ -325,8 +328,231 @@ export function EmailViewModal({
       setThreadEmails([]);
       setExpandedEmails(new Set());
       setExpandedQuotes(new Set());
+      setShowAllEmails(false);
     }
   }, [isOpen]);
+
+  // Constants for email collapsing logic
+  const COLLAPSE_THRESHOLD = 5; // Start collapsing when more than 5 emails
+  const SHOW_FROM_START = 2; // Always show first 2 emails
+  const SHOW_FROM_END = 2; // Always show last 2 emails
+
+  // Calculate which emails to display
+  const getVisibleEmails = () => {
+    if (threadEmails.length <= COLLAPSE_THRESHOLD || showAllEmails) {
+      return threadEmails;
+    }
+
+    const startEmails = threadEmails.slice(0, SHOW_FROM_START);
+    const endEmails = threadEmails.slice(-SHOW_FROM_END);
+    const collapsedCount =
+      threadEmails.length - SHOW_FROM_START - SHOW_FROM_END;
+
+    return { startEmails, endEmails, collapsedCount };
+  };
+
+  const toggleShowAllEmails = () => {
+    setShowAllEmails(!showAllEmails);
+  };
+
+  // Function to render individual email item
+  const renderEmailItem = (
+    email: GmailEmail,
+    index: number,
+    isExpanded: boolean,
+    isLatest: boolean
+  ) => {
+    return (
+      <div
+        key={email.id}
+        className={`w-full ${isLatest ? "bg-blue-50/30" : ""}`}
+      >
+        {/* Email Header - Always Visible */}
+        <div
+          className={`py-3 cursor-pointer hover:bg-gray-50 ${
+            isExpanded ? "border-b border-gray-200 pb-4" : ""
+          }`}
+          onClick={() => toggleEmailExpansion(email.id)}
+        >
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <Avatar className="w-8 h-8 flex-shrink-0">
+                <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-xs">
+                  {getAvatarInitials(email.from)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-900 truncate">
+                    {email.from?.match(/^([^<]+)/)?.[1]?.trim() || email.from}
+                  </span>
+                  {!email.isRead && (
+                    <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0"></div>
+                  )}
+                </div>
+                <div className="text-xs text-gray-600 truncate">
+                  to {email.to}
+                  {email.cc && <span>, cc: {email.cc}</span>}
+                </div>
+                {!isExpanded && (
+                  <div className="text-xs text-gray-500 mt-1 truncate">
+                    {email.snippet}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="text-right min-w-0">
+                <div className="text-xs text-gray-500 whitespace-nowrap">
+                  {email.date?.toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year:
+                      email.date.getFullYear() !== new Date().getFullYear()
+                        ? "numeric"
+                        : undefined,
+                  })}{" "}
+                  {email.date?.toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </div>
+              </div>
+              {/* Actions for expanded emails */}
+              {isExpanded && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreVertical className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="text-xs">
+                    <DropdownMenuItem>
+                      <Reply className="w-3 h-3 mr-2" />
+                      Reply
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Forward className="w-3 h-3 mr-2" />
+                      Forward
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Archive className="w-3 h-3 mr-2" />
+                      Archive
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </div>
+
+          {/* Labels for expanded emails */}
+          {isExpanded && (
+            <div className="flex items-center gap-2 mt-3">
+              {email.isImportant && (
+                <Badge
+                  variant="outline"
+                  className="text-yellow-600 border-yellow-600 text-xs"
+                >
+                  Important
+                </Badge>
+              )}
+              {email.labels
+                ?.filter(
+                  (label) => !["INBOX", "SENT", "UNREAD"].includes(label)
+                )
+                .map((label) => (
+                  <Badge key={label} variant="outline" className="text-xs">
+                    {label.toLowerCase()}
+                  </Badge>
+                ))}
+            </div>
+          )}
+        </div>
+
+        {/* Email Content - Only Visible When Expanded */}
+        {isExpanded && (
+          <div className="p-4 pt-0 max-w-full">
+            <div className="mt-4 max-w-full">
+              {email.htmlContent ? (
+                <div
+                  key={`${email.id}-${expandedQuotes.has(email.id)}`}
+                  className="gmail-email-content prose-sm max-w-full text-sm overflow-hidden"
+                  dangerouslySetInnerHTML={{
+                    __html: processEmailContent(email.htmlContent, email.id),
+                  }}
+                  style={{
+                    // Gmail-specific styles for proper quote rendering
+                    lineHeight: "1.5",
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "13px",
+                    color: "#222",
+                  }}
+                  onClick={(e) => {
+                    // Handle quote toggle button clicks
+                    const target = e.target as HTMLElement;
+                    if (
+                      target.classList.contains("gmail-quote-toggle-btn") ||
+                      target.closest(".gmail-quote-toggle-btn")
+                    ) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const btn = target.closest(
+                        ".gmail-quote-toggle-btn"
+                      ) as HTMLElement;
+                      const emailId = btn?.getAttribute("data-email-id");
+                      if (emailId) {
+                        console.log(
+                          "Toggling quote expansion for email:",
+                          emailId
+                        );
+                        toggleQuoteExpansion(emailId);
+                      }
+                    }
+                  }}
+                />
+              ) : email.textContent ? (
+                <div className="gmail-email-content max-w-full">
+                  <div className="whitespace-pre-wrap text-gray-800 leading-relaxed text-sm overflow-hidden break-words">
+                    {email.textContent}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Mail className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-xs">No content available</p>
+                </div>
+              )}
+            </div>
+
+            {/* Reply/Forward Buttons for Latest Email */}
+            {isLatest && (
+              <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-100">
+                <Button
+                  variant="outline"
+                  className="rounded-full border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-1 text-xs"
+                >
+                  <Reply className="w-3 h-3 mr-1" />
+                  Reply
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-full border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-1 text-xs"
+                >
+                  <Forward className="w-3 h-3 mr-1" />
+                  Forward
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
@@ -399,219 +625,84 @@ export function EmailViewModal({
           ) : (
             <div className="flex-1 overflow-auto h-full w-full">
               <div className="px-6 py-4 space-y-6 w-full">
-                {threadEmails.map((email, index) => {
-                  const isExpanded = expandedEmails.has(email.id);
-                  const isLatest = index === threadEmails.length - 1;
+                {(() => {
+                  const visibleEmails = getVisibleEmails();
 
-                  return (
-                    <div
-                      key={email.id}
-                      className={`w-full ${isLatest ? "bg-blue-50/30" : ""}`}
+                  // If emails should be collapsed
+                  if (
+                    typeof visibleEmails === "object" &&
+                    "startEmails" in visibleEmails
+                  ) {
+                    const { startEmails, endEmails, collapsedCount } =
+                      visibleEmails;
+
+                    return (
+                      <>
+                        {/* First batch of emails */}
+                        {startEmails.map((email, index) => {
+                          const isExpanded = expandedEmails.has(email.id);
+                          const isLatest = false; // None of the start emails are latest
+                          return renderEmailItem(
+                            email,
+                            index,
+                            isExpanded,
+                            isLatest
+                          );
+                        })}
+
+                        {/* Collapsed emails indicator */}
+                        <div className="flex items-center justify-center py-4">
+                          <Button
+                            variant="ghost"
+                            onClick={toggleShowAllEmails}
+                            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                            <span>
+                              Show {collapsedCount} hidden{" "}
+                              {collapsedCount === 1 ? "message" : "messages"}
+                            </span>
+                          </Button>
+                        </div>
+
+                        {/* Last batch of emails */}
+                        {endEmails.map((email, index) => {
+                          const isExpanded = expandedEmails.has(email.id);
+                          const isLatest = index === endEmails.length - 1; // Last email in endEmails is the latest
+                          const actualIndex =
+                            threadEmails.length - endEmails.length + index;
+                          return renderEmailItem(
+                            email,
+                            actualIndex,
+                            isExpanded,
+                            isLatest
+                          );
+                        })}
+                      </>
+                    );
+                  }
+
+                  // Show all emails (either small thread or expanded view)
+                  return (visibleEmails as GmailEmail[]).map((email, index) => {
+                    const isExpanded = expandedEmails.has(email.id);
+                    const isLatest = index === threadEmails.length - 1;
+                    return renderEmailItem(email, index, isExpanded, isLatest);
+                  });
+                })()}
+
+                {/* Show collapse button when all emails are visible and thread is large */}
+                {showAllEmails && threadEmails.length > COLLAPSE_THRESHOLD && (
+                  <div className="flex items-center justify-center py-4">
+                    <Button
+                      variant="ghost"
+                      onClick={toggleShowAllEmails}
+                      className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm"
                     >
-                      {/* Email Header - Always Visible */}
-                      <div
-                        className={`py-3 cursor-pointer hover:bg-gray-50 ${
-                          isExpanded ? "border-b border-gray-200 pb-4" : ""
-                        }`}
-                        onClick={() => toggleEmailExpansion(email.id)}
-                      >
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <Avatar className="w-8 h-8 flex-shrink-0">
-                              <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-xs">
-                                {getAvatarInitials(email.from)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-gray-900 truncate">
-                                  {email.from?.match(/^([^<]+)/)?.[1]?.trim() ||
-                                    email.from}
-                                </span>
-                                {!email.isRead && (
-                                  <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0"></div>
-                                )}
-                              </div>
-                              <div className="text-xs text-gray-600 truncate">
-                                to {email.to}
-                                {email.cc && <span>, cc: {email.cc}</span>}
-                              </div>
-                              {!isExpanded && (
-                                <div className="text-xs text-gray-500 mt-1 truncate">
-                                  {email.snippet}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <div className="text-right min-w-0">
-                              <div className="text-xs text-gray-500 whitespace-nowrap">
-                                {email.date?.toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  year:
-                                    email.date.getFullYear() !==
-                                    new Date().getFullYear()
-                                      ? "numeric"
-                                      : undefined,
-                                })}{" "}
-                                {email.date?.toLocaleTimeString("en-US", {
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                })}
-                              </div>
-                            </div>
-                            {/* Actions for expanded emails */}
-                            {isExpanded && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <MoreVertical className="w-3 h-3" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                  align="end"
-                                  className="text-xs"
-                                >
-                                  <DropdownMenuItem>
-                                    <Reply className="w-3 h-3 mr-2" />
-                                    Reply
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <Forward className="w-3 h-3 mr-2" />
-                                    Forward
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <Archive className="w-3 h-3 mr-2" />
-                                    Archive
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Labels for expanded emails */}
-                        {isExpanded && (
-                          <div className="flex items-center gap-2 mt-3">
-                            {email.isImportant && (
-                              <Badge
-                                variant="outline"
-                                className="text-yellow-600 border-yellow-600 text-xs"
-                              >
-                                Important
-                              </Badge>
-                            )}
-                            {email.labels
-                              ?.filter(
-                                (label) =>
-                                  !["INBOX", "SENT", "UNREAD"].includes(label)
-                              )
-                              .map((label) => (
-                                <Badge
-                                  key={label}
-                                  variant="outline"
-                                  className="text-xs"
-                                >
-                                  {label.toLowerCase()}
-                                </Badge>
-                              ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Email Content - Only Visible When Expanded */}
-                      {isExpanded && (
-                        <div className="p-4 pt-0 max-w-full">
-                          <div className="mt-4 max-w-full">
-                            {email.htmlContent ? (
-                              <div
-                                key={`${email.id}-${expandedQuotes.has(
-                                  email.id
-                                )}`}
-                                className="gmail-email-content prose-sm max-w-full text-sm overflow-hidden"
-                                dangerouslySetInnerHTML={{
-                                  __html: processEmailContent(
-                                    email.htmlContent,
-                                    email.id
-                                  ),
-                                }}
-                                style={{
-                                  // Gmail-specific styles for proper quote rendering
-                                  lineHeight: "1.5",
-                                  fontFamily: "Arial, sans-serif",
-                                  fontSize: "13px",
-                                  color: "#222",
-                                }}
-                                onClick={(e) => {
-                                  // Handle quote toggle button clicks
-                                  const target = e.target as HTMLElement;
-                                  if (
-                                    target.classList.contains(
-                                      "gmail-quote-toggle-btn"
-                                    ) ||
-                                    target.closest(".gmail-quote-toggle-btn")
-                                  ) {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    const btn = target.closest(
-                                      ".gmail-quote-toggle-btn"
-                                    ) as HTMLElement;
-                                    const emailId =
-                                      btn?.getAttribute("data-email-id");
-                                    if (emailId) {
-                                      console.log(
-                                        "Toggling quote expansion for email:",
-                                        emailId
-                                      );
-                                      toggleQuoteExpansion(emailId);
-                                    }
-                                  }
-                                }}
-                              />
-                            ) : email.textContent ? (
-                              <div className="gmail-email-content max-w-full">
-                                <div className="whitespace-pre-wrap text-gray-800 leading-relaxed text-sm overflow-hidden break-words">
-                                  {email.textContent}
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="text-center py-8 text-gray-500">
-                                <Mail className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                                <p className="text-xs">No content available</p>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Reply/Forward Buttons for Latest Email */}
-                          {isLatest && (
-                            <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-100">
-                              <Button
-                                variant="outline"
-                                className="rounded-full border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-1 text-xs"
-                              >
-                                <Reply className="w-3 h-3 mr-1" />
-                                Reply
-                              </Button>
-                              <Button
-                                variant="outline"
-                                className="rounded-full border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-1 text-xs"
-                              >
-                                <Forward className="w-3 h-3 mr-1" />
-                                Forward
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                      <ChevronUp className="w-4 h-4" />
+                      <span>Hide messages</span>
+                    </Button>
+                  </div>
+                )}
 
                 {threadEmails.length === 0 && !isLoadingThread && (
                   <div className="text-center py-12 text-gray-500">
