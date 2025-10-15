@@ -410,6 +410,62 @@ export class GmailApiService {
       throw new Error(`Failed to send email: ${error}`);
     }
   }
+
+  /**
+   * Fetch all emails in a thread
+   * @param threadId - Gmail thread ID
+   * @returns Array of emails in the thread, sorted chronologically
+   */
+  async fetchThreadEmails(threadId: string) {
+    try {
+      console.log("Fetching thread emails for:", threadId);
+
+      // Get thread details
+      const threadResponse = await this.gmail.users.threads.get({
+        userId: "me",
+        id: threadId,
+        format: "full", // Get full details for all messages
+      });
+
+      const thread = threadResponse.data;
+      const messages = thread.messages || [];
+
+      if (messages.length === 0) {
+        return [];
+      }
+
+      // Parse each message in the thread
+      const threadEmails = messages.map((message: any) => {
+        const parsedEmail = this.parseEmailMessage(message);
+
+        // Extract full content for each message
+        const { htmlContent, textContent } = this.extractEmailBody(
+          message.payload
+        );
+
+        return {
+          ...parsedEmail,
+          htmlContent,
+          textContent,
+          threadMessageCount: messages.length,
+        };
+      });
+
+      // Sort by date (oldest first for conversation flow)
+      threadEmails.sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+
+      console.log(
+        `Fetched ${threadEmails.length} emails from thread ${threadId}`
+      );
+
+      return threadEmails;
+    } catch (error) {
+      console.error("Error fetching thread emails:", error);
+      throw new Error(`Failed to fetch thread emails: ${error}`);
+    }
+  }
 }
 
 export default GmailApiService;
