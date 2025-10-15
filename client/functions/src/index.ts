@@ -21,31 +21,10 @@ export { testRecompute } from "./test-recompute";
 export { generateReservationEmail } from "./generate-reservation-email";
 export { sendReservationEmail } from "./send-reservation-email";
 export { telegramBot } from "./telegram-bot";
-export {
-  fetchGmailEmails,
-  sendGmailEmail,
-  getGmailLabels,
-  createGmailDraft,
-  updateGmailDraft,
-  deleteGmailDraft,
-  fetchGmailDrafts,
-  sendGmailDraft,
-  getGmailThread,
-  fetchGmailThreads,
-  replyToGmailEmail,
-  forwardGmailEmail,
-  fetchFullEmailContent,
-} from "./gmail-functions";
 
-// Export scheduled email functions
-export {
-  scheduleEmail,
-  cancelScheduledEmail,
-  getScheduledEmails,
-  rescheduleEmail,
-  processScheduledEmails,
-  triggerScheduledEmailProcessing,
-} from "./scheduled-emails";
+// Export only the scheduled email processor (cron job)
+// Other email functions have been migrated to Next.js API routes
+export { processScheduledEmails } from "./scheduled-emails";
 
 // Export email utilities
 export { EmailTemplateLoader } from "./email-template-loader";

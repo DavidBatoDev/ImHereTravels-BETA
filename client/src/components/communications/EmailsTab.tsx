@@ -64,8 +64,6 @@ import {
   SortDesc,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { httpsCallable } from "firebase/functions";
-import { functions } from "@/lib/firebase";
 
 // Gmail Email type
 interface GmailEmail {
@@ -219,8 +217,6 @@ export default function EmailsTab() {
     setError(null);
 
     try {
-      const fetchGmailEmailsFunc = httpsCallable(functions, "fetchGmailEmails");
-
       // Get query for active category
       const category = gmailCategories.find((cat) => cat.id === activeCategory);
       let query = category?.query || "in:sent OR in:inbox";
@@ -229,16 +225,28 @@ export default function EmailsTab() {
         query = `${query} ${searchQuery}`;
       }
 
-      const result = await fetchGmailEmailsFunc({
-        maxResults: 25, // Reduced for faster loading
-        query,
-        pageToken,
-        searchQuery: searchQuery || undefined,
+      // Call Next.js API route instead of Firebase Functions
+      const response = await fetch("/api/gmail/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          maxResults: 25, // Reduced for faster loading
+          query,
+          pageToken,
+          searchQuery: searchQuery || undefined,
+        }),
       });
 
-      const data = result.data as any;
-      if (data?.success) {
-        const fetchedEmails = data.emails.map((email: any) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result?.success) {
+        const fetchedEmails = result.data.emails.map((email: any) => {
           return {
             ...email,
             // Convert ISO string back to Date object
@@ -259,7 +267,7 @@ export default function EmailsTab() {
           setEmails(fetchedEmails);
         }
 
-        setNextPageToken(data.nextPageToken || null);
+        setNextPageToken(result.data.nextPageToken || null);
 
         // Update last fetch time
         const newFetchTimes = new Map(lastFetchTime);
@@ -275,7 +283,7 @@ export default function EmailsTab() {
           });
         }
       } else {
-        throw new Error("Failed to fetch emails");
+        throw new Error(result.error || "Failed to fetch emails");
       }
     } catch (error: any) {
       console.error("Error fetching emails:", error);
@@ -352,22 +360,29 @@ export default function EmailsTab() {
 
     setIsLoadingFullContent(true);
     try {
-      const fetchFullContentFunc = httpsCallable(
-        functions,
-        "fetchFullEmailContent"
-      );
-      const result = await fetchFullContentFunc({ messageId });
+      // Call Next.js API route instead of Firebase Functions
+      const response = await fetch(`/api/gmail/emails/${messageId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
-      const data = result.data as any;
-      if (data?.success) {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result?.success) {
         const fullEmail = {
-          ...data.email,
+          ...result.data,
           // Convert ISO string back to Date object
-          date: new Date(data.email.date),
+          date: new Date(result.data.date),
           // Sanitize HTML content
-          htmlContent: data.email.htmlContent
-            ? sanitizeGmailHtml(data.email.htmlContent)
-            : data.email.htmlContent,
+          htmlContent: result.data.htmlContent
+            ? sanitizeGmailHtml(result.data.htmlContent)
+            : result.data.htmlContent,
         };
 
         // Update cache with full content
@@ -377,7 +392,7 @@ export default function EmailsTab() {
 
         return fullEmail;
       } else {
-        throw new Error("Failed to fetch full email content");
+        throw new Error(result.error || "Failed to fetch full email content");
       }
     } catch (error: any) {
       console.error("Error fetching full email content:", error);
@@ -395,12 +410,24 @@ export default function EmailsTab() {
   // Fetch Gmail labels
   const fetchLabels = async () => {
     try {
-      const getGmailLabelsFunc = httpsCallable(functions, "getGmailLabels");
-      const result = await getGmailLabelsFunc({});
+      // Call Next.js API route instead of Firebase Functions
+      const response = await fetch("/api/gmail/labels", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
-      const data = result.data as any;
-      if (data?.success) {
-        setLabels(data.labels);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result?.success) {
+        setLabels(result.data);
+      } else {
+        throw new Error(result.error || "Failed to fetch labels");
       }
     } catch (error: any) {
       console.error("Error fetching labels:", error);
@@ -475,12 +502,32 @@ export default function EmailsTab() {
     );
   };
 
+  // Extract name from email string (removes email address part)
+  const extractNameFromEmail = (emailString: string) => {
+    if (!emailString) return "Unknown";
+
+    // Handle format "Name <email@domain.com>"
+    const match = emailString.match(/^(.+?)\s*<.+@.+>$/);
+    if (match) {
+      return match[1].trim().replace(/^["']|["']$/g, ""); // Remove quotes if present
+    }
+
+    // Handle format "email@domain.com" (just email, no name)
+    if (emailString.includes("@")) {
+      const emailPart = emailString.split("@")[0];
+      return emailPart
+        .replace(/[._]/g, " ")
+        .replace(/\b\w/g, (l) => l.toUpperCase());
+    }
+
+    // Return as-is if no email format detected
+    return emailString;
+  };
+
   // Get sender/recipient display
   const getCorrespondent = (email: GmailEmail) => {
-    if (email.isSent) {
-      return email.to;
-    }
-    return email.from;
+    const emailString = email.isSent ? email.to : email.from;
+    return extractNameFromEmail(emailString);
   };
 
   // Format date
@@ -796,10 +843,8 @@ export default function EmailsTab() {
                       </Avatar>
                       <span
                         className={cn(
-                          "truncate email-text-14 min-w-0",
-                          !email.isRead
-                            ? "font-semibold text-gray-900"
-                            : "font-normal text-gray-700"
+                          "truncate text-xs min-w-0 text-black",
+                          !email.isRead ? "font-semibold" : "font-normal"
                         )}
                       >
                         {getCorrespondent(email)}
@@ -811,16 +856,14 @@ export default function EmailsTab() {
                       <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                         <span
                           className={cn(
-                            "email-text-14 flex-shrink-0 truncate whitespace-nowrap",
-                            !email.isRead
-                              ? "font-semibold text-gray-900"
-                              : "font-normal text-gray-700"
+                            "text-xs flex-shrink-0 truncate whitespace-nowrap text-black",
+                            !email.isRead ? "font-semibold" : "font-normal"
                           )}
                           style={{ maxWidth: "250px" }}
                         >
                           {email.subject || "(no subject)"}
                         </span>
-                        <span className="text-gray-500 font-normal truncate min-w-0 email-text-14">
+                        <span className="text-gray-500 font-normal truncate min-w-0 text-xs">
                           — {email.snippet}
                         </span>
                       </div>

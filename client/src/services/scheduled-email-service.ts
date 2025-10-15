@@ -1,6 +1,3 @@
-import { httpsCallable } from "firebase/functions";
-import { functions } from "@/lib/firebase";
-
 // Types for scheduled emails
 export interface ScheduledEmailData {
   to: string;
@@ -48,8 +45,6 @@ export class ScheduledEmailService {
    * Schedule an email to be sent at a specific time
    */
   static async scheduleEmail(emailData: ScheduledEmailData) {
-    const scheduleEmailFunc = httpsCallable(functions, "scheduleEmail");
-
     const scheduledFor =
       typeof emailData.scheduledFor === "string"
         ? emailData.scheduledFor
@@ -71,17 +66,51 @@ export class ScheduledEmailService {
       maxAttempts: emailData.maxAttempts,
     };
 
-    const result = await scheduleEmailFunc(requestData);
-    return result.data as any;
+    // Call Next.js API route instead of Firebase Functions
+    const response = await fetch("/api/scheduled-emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestData),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to schedule email");
+    }
+
+    return result.data;
   }
 
   /**
    * Cancel a scheduled email
    */
   static async cancelScheduledEmail(scheduledEmailId: string) {
-    const cancelFunc = httpsCallable(functions, "cancelScheduledEmail");
-    const result = await cancelFunc({ scheduledEmailId });
-    return result.data as any;
+    // Call Next.js API route instead of Firebase Functions
+    const response = await fetch(`/api/scheduled-emails/${scheduledEmailId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to cancel scheduled email");
+    }
+
+    return result.data;
   }
 
   /**
@@ -94,13 +123,34 @@ export class ScheduledEmailService {
     limit?: number;
     offset?: number;
   }) {
-    const getFunc = httpsCallable(functions, "getScheduledEmails");
-    const result = await getFunc(filters || {});
+    // Build query parameters
+    const queryParams = new URLSearchParams();
 
-    const data = result.data as any;
+    if (filters?.status) queryParams.append("status", filters.status);
+    if (filters?.emailType) queryParams.append("emailType", filters.emailType);
+    if (filters?.bookingId) queryParams.append("bookingId", filters.bookingId);
+    if (filters?.limit) queryParams.append("limit", filters.limit.toString());
+
+    // Call Next.js API route instead of Firebase Functions
+    const response = await fetch(`/api/scheduled-emails?${queryParams}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to fetch scheduled emails");
+    }
 
     // Convert Firebase timestamps to Date objects
-    const scheduledEmails = data.scheduledEmails.map((email: any) => ({
+    const scheduledEmails = result.data.scheduledEmails.map((email: any) => ({
       id: email.id,
       to: email.to,
       subject: email.subject,
@@ -125,9 +175,9 @@ export class ScheduledEmailService {
     }));
 
     return {
-      success: data.success,
+      success: result.success,
       scheduledEmails,
-      count: data.count,
+      count: result.data.count,
     };
   }
 
@@ -138,31 +188,58 @@ export class ScheduledEmailService {
     scheduledEmailId: string,
     newScheduledFor: string | Date
   ) {
-    const rescheduleFunc = httpsCallable(functions, "rescheduleEmail");
-
     const newScheduledForISO =
       typeof newScheduledFor === "string"
         ? newScheduledFor
         : newScheduledFor.toISOString();
 
-    const result = await rescheduleFunc({
-      scheduledEmailId,
-      newScheduledFor: newScheduledForISO,
+    // Call Next.js API route instead of Firebase Functions
+    const response = await fetch(`/api/scheduled-emails/${scheduledEmailId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        newScheduledFor: newScheduledForISO,
+      }),
     });
 
-    return result.data as any;
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to reschedule email");
+    }
+
+    return result.data;
   }
 
   /**
    * Manually trigger scheduled email processing (for testing)
    */
   static async triggerProcessing() {
-    const triggerFunc = httpsCallable(
-      functions,
-      "triggerScheduledEmailProcessing"
-    );
-    const result = await triggerFunc({});
-    return result.data as any;
+    // Call Next.js API route instead of Firebase Functions
+    const response = await fetch("/api/scheduled-emails/trigger", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to trigger processing");
+    }
+
+    return result;
   }
 
   // Utility methods for common scheduling scenarios
