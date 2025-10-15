@@ -86,6 +86,7 @@ export class GmailApiService {
   private async batchFetchEmails(messageIds: any[]) {
     const batchSize = 10; // Process 10 emails concurrently
     const emails: any[] = [];
+    const threadCounts = new Map<string, number>(); // Cache thread counts
 
     // Process messages in batches for better performance
     for (let i = 0; i < messageIds.length; i += batchSize) {
@@ -112,7 +113,33 @@ export class GmailApiService {
             ],
           });
 
-          return this.parseEmailMessage(messageResponse.data);
+          const parsedEmail = this.parseEmailMessage(messageResponse.data);
+
+          // Get thread message count if not already cached
+          if (parsedEmail.threadId && !threadCounts.has(parsedEmail.threadId)) {
+            try {
+              const threadResponse = await this.gmail.users.threads.get({
+                userId: "me",
+                id: parsedEmail.threadId,
+                format: "minimal", // Just get basic thread info
+              });
+
+              const messageCount = threadResponse.data.messages?.length || 1;
+              threadCounts.set(parsedEmail.threadId, messageCount);
+            } catch (threadError) {
+              console.warn(
+                `Could not fetch thread info for ${parsedEmail.threadId}:`,
+                threadError
+              );
+              threadCounts.set(parsedEmail.threadId, 1);
+            }
+          }
+
+          // Add thread message count to the email
+          parsedEmail.threadMessageCount =
+            threadCounts.get(parsedEmail.threadId) || 1;
+
+          return parsedEmail;
         } catch (error) {
           console.error(`Error fetching message ${message.id}:`, error);
           return null;
@@ -177,6 +204,7 @@ export class GmailApiService {
       hasAttachments:
         message.payload?.parts?.some((part: any) => part.filename) || false,
       isImportant: message.labelIds?.includes("IMPORTANT"),
+      threadMessageCount: 1, // Will be updated in batchFetchEmails
     };
   }
 

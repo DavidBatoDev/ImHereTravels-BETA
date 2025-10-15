@@ -20,23 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { EmailViewModal } from "./EmailViewModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
   Search,
@@ -64,6 +54,7 @@ import {
   SortDesc,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { Separator } from "../ui/separator";
 
 // Gmail Email type
 interface GmailEmail {
@@ -88,6 +79,7 @@ interface GmailEmail {
   isStarred?: boolean;
   hasAttachments?: boolean;
   isImportant?: boolean;
+  threadMessageCount?: number; // Number of messages in this conversation thread
 }
 
 // Gmail Label type
@@ -585,6 +577,12 @@ export default function EmailsTab() {
     return name.charAt(0).toUpperCase();
   };
 
+  // Get conversation count for a thread
+  const getConversationCount = (email: GmailEmail) => {
+    // Use the thread message count from Gmail API if available
+    return email.threadMessageCount || 1;
+  };
+
   useEffect(() => {
     fetchEmails();
     fetchLabels();
@@ -605,7 +603,7 @@ export default function EmailsTab() {
   return (
     <div
       className="flex bg-white overflow-hidden"
-      style={{ height: "calc(100vh - 100px)", minHeight: "600px" }}
+      style={{ height: "calc(100vh - 25vh)", minHeight: "600px" }}
     >
       {/* Gmail Sidebar */}
       <div className="w-64 border-r border-gray-200 flex-shrink-0 overflow-y-auto h-full">
@@ -870,9 +868,17 @@ export default function EmailsTab() {
                     </div>
 
                     {/* Labels/Badges */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       {email.hasAttachments && (
                         <FileText className="w-4 h-4 text-gray-400" />
+                      )}
+                      {getConversationCount(email) > 1 && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs text-gray-600 border-gray-300 bg-gray-50"
+                        >
+                          {getConversationCount(email)}
+                        </Badge>
                       )}
                       {!email.isRead && (
                         <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
@@ -960,235 +966,13 @@ export default function EmailsTab() {
         </div>
       </div>
 
-      {/* Enhanced Gmail-like Email View Dialog */}
-      <AlertDialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <AlertDialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
-          <AlertDialogHeader className="sr-only">
-            <AlertDialogTitle>
-              {selectedEmail?.subject || "(no subject)"}
-            </AlertDialogTitle>
-          </AlertDialogHeader>
-
-          {/* Gmail-style Header */}
-          <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4">
-            {/* Top action bar */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsViewDialogOpen(false)}
-                  className="text-gray-600 hover:text-gray-900"
-                >
-                  ← Back to inbox
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" title="Archive">
-                  <Archive className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm" title="Delete">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm" title="Mark as unread">
-                  <Mail className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm" title="Add to Tasks">
-                  <Calendar className="w-4 h-4" />
-                </Button>
-                <Separator orientation="vertical" className="mx-2 h-6" />
-                <Button variant="ghost" size="sm" title="Star">
-                  {selectedEmail?.isStarred ? (
-                    <Star className="w-4 h-4 fill-current text-yellow-500" />
-                  ) : (
-                    <StarOff className="w-4 h-4" />
-                  )}
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Reply className="w-4 h-4 mr-2" />
-                      Reply
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Forward className="w-4 h-4 mr-2" />
-                      Forward
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Archive className="w-4 h-4 mr-2" />
-                      Archive
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-600">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-
-            {/* Email Header Information */}
-            <div className="space-y-3">
-              {/* Subject */}
-              <h1 className="text-2xl font-normal text-gray-900 leading-tight">
-                {selectedEmail?.subject || "(no subject)"}
-              </h1>
-
-              {/* Labels and importance */}
-              <div className="flex items-center gap-2">
-                {selectedEmail?.isImportant && (
-                  <Badge
-                    variant="outline"
-                    className="text-yellow-600 border-yellow-600"
-                  >
-                    Important
-                  </Badge>
-                )}
-                {selectedEmail?.labels
-                  ?.filter(
-                    (label) => !["INBOX", "SENT", "UNREAD"].includes(label)
-                  )
-                  .map((label) => (
-                    <Badge key={label} variant="outline" className="text-xs">
-                      {label.toLowerCase()}
-                    </Badge>
-                  ))}
-              </div>
-
-              {/* Sender info */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-10 h-10">
-                    <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold">
-                      {selectedEmail && getAvatarInitials(selectedEmail.from)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900">
-                        {selectedEmail?.from?.match(/^([^<]+)/)?.[1]?.trim() ||
-                          selectedEmail?.from}
-                      </span>
-                      <span className="text-gray-500 text-sm">
-                        &lt;
-                        {selectedEmail?.from?.match(/<([^>]+)>/)?.[1] ||
-                          selectedEmail?.from}
-                        &gt;
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      to {selectedEmail?.to}
-                      {selectedEmail?.cc && (
-                        <span>, cc: {selectedEmail.cc}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className="text-sm text-gray-600">
-                    {selectedEmail?.date?.toLocaleDateString("en-US", {
-                      weekday: "short",
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {selectedEmail?.date?.toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Email Content */}
-          <div className="flex-1 overflow-hidden flex flex-col">
-            {isLoadingFullContent ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
-                <span className="text-gray-600">Loading email content...</span>
-              </div>
-            ) : (
-              <div className="flex-1 overflow-auto">
-                {/* Email body container with Gmail-like styling */}
-                <div className="px-6 py-4">
-                  {selectedEmail?.htmlContent ? (
-                    <div
-                      className="gmail-email-content"
-                      dangerouslySetInnerHTML={{
-                        __html: selectedEmail.htmlContent,
-                      }}
-                    />
-                  ) : selectedEmail?.textContent ? (
-                    <div className="gmail-email-content">
-                      <div className="whitespace-pre-wrap text-gray-800 leading-relaxed font-mono text-sm bg-gray-50 p-4 rounded-lg border">
-                        {selectedEmail.textContent}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-gray-500">
-                      {selectedEmail?.snippet ? (
-                        <div className="max-w-md mx-auto">
-                          <Mail className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                          <h3 className="font-medium text-gray-700 mb-2">
-                            Preview
-                          </h3>
-                          <p className="text-gray-600 italic leading-relaxed">
-                            {selectedEmail.snippet}
-                          </p>
-                          <p className="text-sm mt-4 text-gray-500">
-                            Loading full content...
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="max-w-md mx-auto">
-                          <Mail className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                          <p className="text-gray-500">No content available</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Gmail-style Action Footer */}
-          <div className="flex-shrink-0 border-t border-gray-200 bg-gray-50 px-6 py-4">
-            <div className="flex items-center gap-3">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Reply className="w-4 h-4 mr-2" />
-                Reply
-              </Button>
-              <Button variant="outline">
-                <Forward className="w-4 h-4 mr-2" />
-                Forward
-              </Button>
-              <Button variant="ghost" size="sm">
-                <Archive className="w-4 h-4 mr-2" />
-                Archive
-              </Button>
-              <div className="flex-1"></div>
-              <Button
-                variant="ghost"
-                onClick={() => setIsViewDialogOpen(false)}
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Email View Modal */}
+      <EmailViewModal
+        isOpen={isViewDialogOpen}
+        onOpenChange={setIsViewDialogOpen}
+        selectedEmail={selectedEmail}
+        isLoadingFullContent={isLoadingFullContent}
+      />
     </div>
   );
 }
