@@ -404,11 +404,11 @@ export const rescheduleEmail = onCall(
 );
 
 /**
- * Cloud Scheduler function that runs every minute to check for emails to send
+ * Cloud Scheduler function that runs once daily at 9 AM to check for emails to send
  */
 export const processScheduledEmails = onSchedule(
   {
-    schedule: "* * * * *", // Run every minute
+    schedule: "0 9 * * *", // Run daily at 9 AM
     region: "asia-southeast1",
     timeZone: "Asia/Singapore", // Adjust to your timezone
   },
@@ -423,7 +423,7 @@ export const processScheduledEmails = onSchedule(
         .collection("scheduledEmails")
         .where("status", "==", "pending")
         .where("scheduledFor", "<=", now)
-        .limit(10); // Process max 10 emails per run to avoid timeout
+        .limit(50); // Process max 50 emails per run since we run daily
 
       const snapshot = await query.get();
 
