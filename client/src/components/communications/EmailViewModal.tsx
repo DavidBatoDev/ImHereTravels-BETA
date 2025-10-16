@@ -73,6 +73,8 @@ interface EmailViewModalProps {
   onOpenChange: (open: boolean) => void;
   selectedEmail: GmailEmail | null;
   isLoadingFullContent: boolean;
+  onReply?: (email: GmailEmail) => void;
+  onForward?: (email: GmailEmail) => void;
 }
 
 // Helper function to get avatar initials
@@ -91,6 +93,8 @@ export function EmailViewModal({
   onOpenChange,
   selectedEmail,
   isLoadingFullContent,
+  onReply,
+  onForward,
 }: EmailViewModalProps) {
   const [threadEmails, setThreadEmails] = useState<GmailEmail[]>([]);
   const [isLoadingThread, setIsLoadingThread] = useState(false);
@@ -176,6 +180,19 @@ export function EmailViewModal({
     setExpandedQuotes(newExpandedQuotes);
   };
 
+  // Handle reply and forward - delegate to parent
+  const handleReply = (email: GmailEmail) => {
+    if (onReply) {
+      onReply(email);
+    }
+  };
+
+  const handleForward = (email: GmailEmail) => {
+    if (onForward) {
+      onForward(email);
+    }
+  };
+
   // Handle attachment download
   const handleAttachmentDownload = async (
     messageId: string,
@@ -236,7 +253,12 @@ export function EmailViewModal({
   };
 
   // Get file icon/preview based on MIME type
-  const getFileIcon = (mimeType: string, filename: string, messageId: string, attachmentId: string) => {
+  const getFileIcon = (
+    mimeType: string,
+    filename: string,
+    messageId: string,
+    attachmentId: string
+  ) => {
     const extension = filename.split(".").pop()?.toLowerCase() || "";
 
     // Image files - show actual preview
@@ -250,7 +272,7 @@ export function EmailViewModal({
             onError={(e) => {
               // Fallback to generic icon if image fails to load
               const target = e.target as HTMLImageElement;
-              target.style.display = 'none';
+              target.style.display = "none";
               const parent = target.parentElement;
               if (parent) {
                 parent.innerHTML = `
@@ -853,6 +875,7 @@ export function EmailViewModal({
               <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-100">
                 <Button
                   variant="outline"
+                  onClick={() => handleReply(email)}
                   className="rounded-full border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-1 text-xs"
                 >
                   <Reply className="w-3 h-3 mr-1" />
@@ -860,6 +883,7 @@ export function EmailViewModal({
                 </Button>
                 <Button
                   variant="outline"
+                  onClick={() => handleForward(email)}
                   className="rounded-full border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-1 text-xs"
                 >
                   <Forward className="w-3 h-3 mr-1" />
@@ -905,11 +929,17 @@ export function EmailViewModal({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="text-xs">
-                  <DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => selectedEmail && handleReply(selectedEmail)}
+                  >
                     <Reply className="w-3 h-3 mr-2" />
                     Reply
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      selectedEmail && handleForward(selectedEmail)
+                    }
+                  >
                     <Forward className="w-3 h-3 mr-2" />
                     Forward
                   </DropdownMenuItem>

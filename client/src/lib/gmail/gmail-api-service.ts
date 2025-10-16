@@ -557,7 +557,7 @@ export class GmailApiService {
       });
 
       const message = messageResponse.data;
-      
+
       // Find the attachment in the message parts
       const findAttachment = (parts: any[]): any => {
         for (const part of parts) {

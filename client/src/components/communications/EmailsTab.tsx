@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EmailViewModal } from "./EmailViewModal";
+import { ComposeEmail } from "./ComposeEmail";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -178,6 +179,18 @@ export default function EmailsTab() {
   const [lastFetchTime, setLastFetchTime] = useState<Map<string, number>>(
     new Map()
   );
+
+  // Compose email state
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [composeType, setComposeType] = useState<"new" | "reply" | "forward">(
+    "new"
+  );
+  const [composeData, setComposeData] = useState<{
+    to?: string;
+    subject?: string;
+    body?: string;
+    replyToEmail?: GmailEmail;
+  }>({});
 
   // Check if we should use cached data
   const shouldUseCachedData = (cacheKey: string) => {
@@ -583,6 +596,47 @@ export default function EmailsTab() {
     return email.threadMessageCount || 1;
   };
 
+  // Compose functions
+  const handleCompose = () => {
+    setIsComposeOpen(true);
+    setComposeType("new");
+    setComposeData({});
+  };
+
+  const handleReply = (email: GmailEmail) => {
+    setIsComposeOpen(true);
+    setComposeType("reply");
+    setComposeData({
+      to: email.from,
+      subject: email.subject.startsWith("Re:")
+        ? email.subject
+        : `Re: ${email.subject}`,
+      replyToEmail: email,
+    });
+  };
+
+  const handleForward = (email: GmailEmail) => {
+    setIsComposeOpen(true);
+    setComposeType("forward");
+    setComposeData({
+      subject: email.subject.startsWith("Fwd:")
+        ? email.subject
+        : `Fwd: ${email.subject}`,
+      body: `\n\n---------- Forwarded message ---------\nFrom: ${
+        email.from
+      }\nDate: ${new Date(email.date).toLocaleString()}\nSubject: ${
+        email.subject
+      }\nTo: ${email.to}\n\n${email.snippet}`,
+      replyToEmail: email,
+    });
+  };
+
+  const handleCloseCompose = () => {
+    setIsComposeOpen(false);
+    setComposeType("new");
+    setComposeData({});
+  };
+
   useEffect(() => {
     fetchEmails();
     fetchLabels();
@@ -611,7 +665,10 @@ export default function EmailsTab() {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Gmail</h2>
 
           {/* Compose Button */}
-          <Button className="w-full mb-6 bg-white border hover:bg-gray-50 text-black rounded-xl">
+          <Button
+            onClick={handleCompose}
+            className="w-full mb-6 bg-white border hover:bg-gray-50 text-black rounded-xl"
+          >
             <Edit className="w-4 h-4 mr-2" />
             Compose
           </Button>
@@ -972,7 +1029,21 @@ export default function EmailsTab() {
         onOpenChange={setIsViewDialogOpen}
         selectedEmail={selectedEmail}
         isLoadingFullContent={isLoadingFullContent}
+        onReply={handleReply}
+        onForward={handleForward}
       />
+
+      {/* Compose Email Component */}
+      {isComposeOpen && (
+        <ComposeEmail
+          isOpen={isComposeOpen}
+          onClose={handleCloseCompose}
+          initialTo={composeData.to || ""}
+          initialSubject={composeData.subject || ""}
+          initialBody={composeData.body || ""}
+          replyToEmail={composeData.replyToEmail}
+        />
+      )}
     </div>
   );
 }
