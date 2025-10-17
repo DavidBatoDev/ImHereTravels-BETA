@@ -65,7 +65,7 @@ export function ComposeEmail({
   const [showSizeMenu, setShowSizeMenu] = useState(false);
   const [showColorMenu, setShowColorMenu] = useState(false);
   const [showAlignMenu, setShowAlignMenu] = useState(false);
-  const [currentFontSize, setCurrentFontSize] = useState("14");
+  const [currentFontSize, setCurrentFontSize] = useState("Normal");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -80,7 +80,12 @@ export function ComposeEmail({
     { label: "Verdana", value: "Verdana, sans-serif" },
   ];
 
-  const fontSizes = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
+  const fontSizes = [
+    { label: "Small", value: "1" },
+    { label: "Normal", value: "3" },
+    { label: "Large", value: "4" },
+    { label: "Huge", value: "6" },
+  ];
 
   // Gmail-like execCommand functions
   const execCommand = (cmd: string, value?: string) => {
@@ -374,6 +379,29 @@ export function ComposeEmail({
         /* Empty paragraphs should be 17px */
         [contenteditable="true"] p:empty {
           height: 17px !important;
+        }
+
+        /* Handle font size attributes properly - Gmail style (1=smallest, 7=largest) */
+        [contenteditable="true"] font[size="1"] {
+          font-size: 8pt !important;
+        }
+        [contenteditable="true"] font[size="2"] {
+          font-size: 10pt !important;
+        }
+        [contenteditable="true"] font[size="3"] {
+          font-size: 12pt !important;
+        }
+        [contenteditable="true"] font[size="4"] {
+          font-size: 14pt !important;
+        }
+        [contenteditable="true"] font[size="5"] {
+          font-size: 18pt !important;
+        }
+        [contenteditable="true"] font[size="6"] {
+          font-size: 24pt !important;
+        }
+        [contenteditable="true"] font[size="7"] {
+          font-size: 36pt !important;
         }
 
         [contenteditable="true"] span {
@@ -692,15 +720,15 @@ export function ComposeEmail({
                 <div className="absolute bottom-9 left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-[80px]">
                   {fontSizes.map((size) => (
                     <button
-                      key={size}
+                      key={size.value}
                       className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
                       onClick={() => {
-                        execCommand("fontSize", size.toString());
-                        setCurrentFontSize(size.toString());
+                        execCommand("fontSize", size.value);
+                        setCurrentFontSize(size.label);
                         setShowSizeMenu(false);
                       }}
                     >
-                      {size}
+                      {size.label}
                     </button>
                   ))}
                 </div>
