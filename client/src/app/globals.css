@@ -616,9 +616,6 @@
 /* Email signature styling */
 .gmail-email-content [data-smartmail="gmail_signature"],
 .gmail-email-content .gmail_signature {
-  border-top: 1px solid #e5e7eb;
-  padding-top: 16px;
-  margin-top: 24px;
   color: #6b7280;
   font-size: 0.9em;
 }
