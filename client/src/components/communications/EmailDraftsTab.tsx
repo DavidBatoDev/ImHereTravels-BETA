@@ -63,6 +63,7 @@ interface EmailDraft {
   status: "draft" | "sent" | "failed";
   createdAt: any;
   updatedAt: any;
+  deletedAt?: any;
   templateId?: string;
   templateVariables?: Record<string, any>;
   isCancellation?: boolean;

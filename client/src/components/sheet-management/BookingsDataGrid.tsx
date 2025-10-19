@@ -151,7 +151,6 @@ import CSVImport from "./CSVImport";
 const LOG_FUNCTION_ERRORS = false;
 const logFunctionError = (...args: any[]) => {
   if (LOG_FUNCTION_ERRORS) {
-    // eslint-disable-next-line no-console
     console.error(...args);
   }
 };
@@ -159,7 +158,7 @@ const logFunctionError = (...args: any[]) => {
 // Store navigation function and column metadata globally for function editor
 let globalNavigateToFunctions: (() => void) | null = null;
 let globalAvailableFunctions: TypeScriptFunction[] = [];
-let globalColumnDefs: Map<string, SheetColumn> = new Map();
+const globalColumnDefs: Map<string, SheetColumn> = new Map();
 let globalAllColumns: SheetColumn[] = [];
 
 interface BookingsDataGridProps {

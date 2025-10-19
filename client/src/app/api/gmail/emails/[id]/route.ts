@@ -3,10 +3,10 @@ import GmailApiService from "@/lib/gmail/gmail-api-service";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const messageId = params.id;
+    const { id: messageId } = await params;
 
     if (!messageId) {
       return NextResponse.json(

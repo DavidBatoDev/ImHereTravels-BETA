@@ -4,10 +4,10 @@ import { db } from "@/lib/firebase";
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const scheduledEmailId = params.id;
+    const { id: scheduledEmailId } = await params;
 
     if (!scheduledEmailId) {
       return NextResponse.json(
@@ -89,10 +89,10 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const scheduledEmailId = params.id;
+    const { id: scheduledEmailId } = await params;
     const body = await request.json();
     const { newScheduledFor } = body;
 

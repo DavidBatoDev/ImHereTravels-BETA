@@ -90,13 +90,13 @@ const navigation = [
     description: "Automation tools",
   },
   {
-    name: "Reports",
+    name: "Reports (Coming Soon)",
     href: "/reports",
     icon: BarChart3,
     description: "Analytics & insights",
   },
   {
-    name: "Settings",
+    name: "Settings (Coming Soon)",
     href: "/settings",
     icon: Settings,
     description: "System configuration",

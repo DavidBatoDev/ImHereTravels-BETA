@@ -29,7 +29,6 @@ type AsyncCompiledFn = (...args: any[]) => Promise<any>;
 const LOG_FUNCTION_ERRORS = false;
 const logFunctionError = (...args: any[]) => {
   if (LOG_FUNCTION_ERRORS) {
-    // eslint-disable-next-line no-console
     console.error(...args);
   }
 };
@@ -119,7 +118,6 @@ class FunctionExecutionService {
     // Optionally suppress console.error during user function execution
     const originalConsoleError = console.error;
     if (!LOG_FUNCTION_ERRORS) {
-      // eslint-disable-next-line no-console
       (console as any).error = () => {};
     }
 
@@ -181,7 +179,6 @@ class FunctionExecutionService {
       };
     } finally {
       // Restore console.error regardless of outcome
-      // eslint-disable-next-line no-console
       (console as any).error = originalConsoleError;
     }
   }
@@ -206,7 +203,7 @@ class FunctionExecutionService {
   }
 
   // Detect if a function is async (basic detection)
-  private isFunctionAsync(fn: Function): boolean {
+  private isFunctionAsync(fn: (...args: any[]) => any): boolean {
     // Check function string representation for async keyword
     const fnString = fn.toString();
     return fnString.includes("async") || fnString.includes("await");

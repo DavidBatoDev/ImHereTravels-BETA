@@ -10,7 +10,7 @@
  *   npx tsx src/scripts/log-bookings.ts
  */
 
-import { writeFileSync } from "fs";
+import { writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../migrations/firebase-config";
@@ -74,10 +74,9 @@ async function main() {
     const outputPath = join(process.cwd(), "exports", filename);
 
     // Ensure exports directory exists
-    const fs = require("fs");
     const exportsDir = join(process.cwd(), "exports");
-    if (!fs.existsSync(exportsDir)) {
-      fs.mkdirSync(exportsDir, { recursive: true });
+    if (!existsSync(exportsDir)) {
+      mkdirSync(exportsDir, { recursive: true });
     }
 
     // Write JSON file with all document data

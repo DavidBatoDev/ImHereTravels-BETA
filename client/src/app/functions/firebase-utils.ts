@@ -402,7 +402,7 @@ export interface QueryConstraint {
 }
 
 // Export default for easy importing
-export default {
+const firebaseUtilsDefault = {
   auth,
   db,
   storage,
@@ -428,3 +428,5 @@ export default {
   arrayUnion: firestoreArrayUnion,
   arrayRemove: firestoreArrayRemove,
 };
+
+export default firebaseUtilsDefault;

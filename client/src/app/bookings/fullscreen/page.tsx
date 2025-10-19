@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Search, Filter, Eye, EyeOff, X } from "lucide-react";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { typescriptFunctionsService } from "@/services/typescript-functions-service";
+import { TypeScriptFunction } from "@/types/sheet-management";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +30,6 @@ export default function BookingsFullscreenPage() {
   const {
     columns,
     data,
-    availableFunctions,
     updateColumn,
     deleteColumn,
     updateData,
@@ -46,6 +47,27 @@ export default function BookingsFullscreenPage() {
   const [currencyRangeFilters, setCurrencyRangeFilters] = useState<
     Record<string, { min?: number; max?: number }>
   >({});
+  const [availableFunctions, setAvailableFunctions] = useState<
+    TypeScriptFunction[]
+  >([]);
+  const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
+
+  // Fetch TypeScript functions
+  useEffect(() => {
+    const fetchFunctions = async () => {
+      setIsLoadingFunctions(true);
+      try {
+        const functions = await typescriptFunctionsService.getAllFunctions();
+        setAvailableFunctions(functions);
+      } catch (error) {
+        console.error("Failed to fetch TypeScript functions:", error);
+      } finally {
+        setIsLoadingFunctions(false);
+      }
+    };
+
+    fetchFunctions();
+  }, []);
 
   // Filter management functions
   const clearAllFilters = useCallback(() => {

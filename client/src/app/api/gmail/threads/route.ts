@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import GmailApiService from "@/lib/gmail/gmail-api-service";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const threadId = searchParams.get("threadId");

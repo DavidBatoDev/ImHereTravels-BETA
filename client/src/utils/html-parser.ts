@@ -627,7 +627,7 @@ export function simplifyGmailHtml(html: string): string {
   const cleaned = parseGmailHtml(html);
 
   // Additional simplifications
-  let simplified = cleaned
+  const simplified = cleaned
     // Remove excessive whitespace
     .replace(/\s+/g, " ")
     // Remove empty paragraphs

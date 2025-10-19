@@ -3,10 +3,10 @@ import GmailApiService from "@/lib/gmail/gmail-api-service";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { threadId: string } }
+  { params }: { params: Promise<{ threadId: string }> }
 ) {
   try {
-    const { threadId } = params;
+    const { threadId } = await params;
 
     console.log("Gmail thread API called with threadId:", threadId);
 
