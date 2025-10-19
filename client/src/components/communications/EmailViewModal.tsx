@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { EmailAvatar } from "@/components/ui/email-avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -647,11 +648,12 @@ export function EmailViewModal({
         >
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <Avatar className="w-8 h-8 flex-shrink-0">
-                <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-xs">
-                  {getAvatarInitials(email.from)}
-                </AvatarFallback>
-              </Avatar>
+              <EmailAvatar
+                email={email.from}
+                name={email.fromName || email.from}
+                size="md"
+                className="flex-shrink-0"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-900 truncate">

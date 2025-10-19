@@ -1,9 +1,11 @@
 import { google } from "googleapis";
+import { avatarService } from "../avatar-service";
 
 // Gmail API service class for Next.js
 export class GmailApiService {
   private gmail: any;
   private oauth2Client: any;
+  private people: any;
 
   constructor() {
     // Initialize OAuth2 client
@@ -20,6 +22,9 @@ export class GmailApiService {
 
     // Initialize Gmail API client
     this.gmail = google.gmail({ version: "v1", auth: this.oauth2Client });
+
+    // Initialize People API client for avatars
+    this.people = google.people({ version: "v1", auth: this.oauth2Client });
   }
 
   /**
@@ -587,6 +592,77 @@ export class GmailApiService {
     } catch (error) {
       console.error("Error getting attachment info:", error);
       throw new Error(`Failed to get attachment info: ${error}`);
+    }
+  }
+
+  /**
+   * Get avatar URL for an email address
+   * @param email - Email address
+   * @returns Promise<string> - Avatar URL
+   */
+  async getAvatarUrl(email: string): Promise<string> {
+    return await avatarService.getAvatarUrl(email);
+  }
+
+  /**
+   * Get avatar URLs for multiple email addresses
+   * @param emails - Array of email addresses
+   * @returns Promise<Map<string, string>> - Map of email to avatar URL
+   */
+  async getBatchAvatars(emails: string[]): Promise<Map<string, string>> {
+    return await avatarService.getBatchAvatars(emails);
+  }
+
+  /**
+   * Get avatar initials for an email address
+   * @param email - Email address
+   * @returns string - Initials
+   */
+  getAvatarInitials(email: string): string {
+    return avatarService.getAvatarInitials(email);
+  }
+
+  /**
+   * Fetch emails with avatar data included
+   * @param options - Filtering options for emails
+   * @returns Array of email messages with avatar URLs
+   */
+  async fetchEmailsWithAvatars(
+    options: {
+      maxResults?: number;
+      query?: string;
+      labelIds?: string[];
+      pageToken?: string;
+    } = {}
+  ) {
+    try {
+      // First fetch the emails
+      const result = await this.fetchEmails(options);
+
+      // Extract unique email addresses from the emails
+      const emails = new Set<string>();
+      result.emails.forEach((email: any) => {
+        if (email.from) emails.add(email.from);
+        if (email.to) emails.add(email.to);
+      });
+
+      // Get avatars for all unique emails
+      const avatarMap = await this.getBatchAvatars(Array.from(emails));
+
+      // Add avatar URLs to emails
+      const emailsWithAvatars = result.emails.map((email: any) => ({
+        ...email,
+        fromAvatarUrl: avatarMap.get(email.from) || null,
+        toAvatarUrl: avatarMap.get(email.to) || null,
+      }));
+
+      return {
+        ...result,
+        emails: emailsWithAvatars,
+      };
+    } catch (error) {
+      console.error("Error fetching emails with avatars:", error);
+      throw new Error(`Failed to fetch emails with avatars: ${error}`);
     }
   }
 }

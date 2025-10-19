@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -81,6 +80,8 @@ interface GmailEmail {
   hasAttachments?: boolean;
   isImportant?: boolean;
   threadMessageCount?: number; // Number of messages in this conversation thread
+  fromAvatarUrl?: string; // Avatar URL for sender
+  toAvatarUrl?: string; // Avatar URL for recipient
 }
 
 // Gmail Label type
@@ -278,6 +279,8 @@ export default function EmailsTab() {
         const newFetchTimes = new Map(lastFetchTime);
         newFetchTimes.set(cacheKey, Date.now());
         setLastFetchTime(newFetchTimes);
+
+        // Fetch avatars for the emails
 
         // Show success toast for manual refreshes
         if (forceRefresh && !pageToken && !searchQuery) {
@@ -886,16 +889,11 @@ export default function EmailsTab() {
 
                     {/* Star */}
 
-                    {/* Avatar/Sender */}
+                    {/* Sender */}
                     <div
                       className="flex items-center min-w-0 flex-shrink-0"
                       style={{ width: "180px" }}
                     >
-                      <Avatar className="w-8 h-8 mr-3 flex-shrink-0">
-                        <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
-                          {getAvatarInitials(getCorrespondent(email))}
-                        </AvatarFallback>
-                      </Avatar>
                       <span
                         className={cn(
                           "truncate text-xs min-w-0 text-black",
