@@ -132,7 +132,7 @@ export function EmailAvatar({
 
   return (
     <Avatar className={cn(sizeClass, className)}>
-      {avatarUrl && !error && (
+      {avatarUrl && !error && !isLoading && (
         <AvatarImage
           src={avatarUrl}
           alt={name || email}
@@ -140,7 +140,7 @@ export function EmailAvatar({
           onError={() => setError(true)}
         />
       )}
-      {showFallback && (!avatarUrl || error || isLoading) && (
+      {showFallback && (
         <AvatarFallback
           className={cn(
             "bg-gradient-to-br from-blue-500 to-purple-600 text-white font-medium",

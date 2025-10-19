@@ -38,7 +38,7 @@ export class AvatarService {
    * @returns Promise<string> - Avatar URL or fallback
    */
   async getAvatarUrl(email: string): Promise<string> {
-    if (!email) return this.getDefaultAvatarUrl();
+    if (!email) return this.getDefaultAvatarUrl(email);
 
     // Check cache first
     const cached = this.avatarCache.get(email);
@@ -102,7 +102,7 @@ export class AvatarService {
       console.log(
         `🔄 AvatarService: No avatar found for ${email}, using default`
       );
-      const defaultUrl = this.getDefaultAvatarUrl();
+      const defaultUrl = this.getDefaultAvatarUrl(email);
       this.avatarCache.set(email, defaultUrl);
       return defaultUrl;
     } catch (error) {
@@ -111,7 +111,7 @@ export class AvatarService {
         error
       );
       // Return default avatar as fallback
-      const defaultUrl = this.getDefaultAvatarUrl();
+      const defaultUrl = this.getDefaultAvatarUrl(email);
       this.avatarCache.set(email, defaultUrl);
       return defaultUrl;
     }
@@ -305,7 +305,7 @@ export class AvatarService {
    * @returns string - Gravatar URL
    */
   private getGravatarUrl(email: string): string {
-    if (!email) return this.getDefaultAvatarUrl();
+    if (!email) return this.getDefaultAvatarUrl(email);
 
     // Create MD5 hash of email
     const hash = crypto
@@ -337,7 +337,7 @@ export class AvatarService {
       | "retro"
       | "robohash" = "mp"
   ): string {
-    if (!email) return this.getDefaultAvatarUrl();
+    if (!email) return this.getDefaultAvatarUrl(email);
 
     const hash = crypto
       .createHash("md5")
@@ -349,11 +349,16 @@ export class AvatarService {
 
   /**
    * Get default avatar URL for unknown users
+   * @param email - Email address to generate initials from
    * @returns string - Default avatar URL
    */
-  private getDefaultAvatarUrl(): string {
+  private getDefaultAvatarUrl(email?: string): string {
+    // Generate initials from email if provided
+    const name = email ? this.getAvatarInitials(email) : "User";
     // Use a professional default avatar service
-    return `https://ui-avatars.com/api/?name=User&background=6b7280&color=fff&size=128&bold=true`;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      name
+    )}&background=6b7280&color=fff&size=128&bold=true`;
   }
 
   /**
@@ -665,7 +670,7 @@ export class AvatarService {
       | "retro"
       | "robohash"
   ): Promise<string> {
-    if (!email) return this.getDefaultAvatarUrl();
+    if (!email) return this.getDefaultAvatarUrl(email);
 
     // Check cache first
     const cacheKey = `${email}_${fallbackType}`;

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EmailAutocomplete } from "@/components/ui/email-autocomplete";
 import DOMPurify from "dompurify";
 import {
   X,
@@ -37,29 +38,53 @@ interface ComposeEmailProps {
   isOpen: boolean;
   onClose: () => void;
   initialTo?: string;
+  initialCc?: string;
+  initialBcc?: string;
   initialSubject?: string;
   initialBody?: string;
   replyToEmail?: any; // For reply/forward functionality
+  onDraftSaved?: () => void; // Callback when draft is saved
 }
 
 export function ComposeEmail({
   isOpen,
   onClose,
   initialTo = "",
+  initialCc = "",
+  initialBcc = "",
   initialSubject = "",
   initialBody = "",
   replyToEmail,
+  onDraftSaved,
 }: ComposeEmailProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
-  const [to, setTo] = useState(initialTo);
+  const [to, setTo] = useState("");
+  const [toEmails, setToEmails] = useState<string[]>(
+    initialTo ? initialTo.split(",").map((email) => email.trim()) : []
+  );
   const [cc, setCc] = useState("");
+  const [ccEmails, setCcEmails] = useState<string[]>(
+    initialCc ? initialCc.split(",").map((email) => email.trim()) : []
+  );
   const [bcc, setBcc] = useState("");
+  const [bccEmails, setBccEmails] = useState<string[]>(
+    initialBcc ? initialBcc.split(",").map((email) => email.trim()) : []
+  );
   const [subject, setSubject] = useState(initialSubject);
   const [body, setBody] = useState(initialBody);
-  const [showCc, setShowCc] = useState(false);
-  const [showBcc, setShowBcc] = useState(false);
+  const [showCc, setShowCc] = useState(!!initialCc);
+  const [showBcc, setShowBcc] = useState(!!initialBcc);
   const [isSending, setIsSending] = useState(false);
+
+  // Draft management
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [isDraftSaving, setIsDraftSaving] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<
+    "saved" | "saving" | "error" | null
+  >(null);
+  const [isOpeningDraft, setIsOpeningDraft] = useState(false);
+  const [hasOpenedDraft, setHasOpenedDraft] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showFontMenu, setShowFontMenu] = useState(false);
   const [showSizeMenu, setShowSizeMenu] = useState(false);
@@ -69,6 +94,7 @@ export function ComposeEmail({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const draftTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Font and style options
   const fontFamilies = [
@@ -97,6 +123,11 @@ export function ComposeEmail({
     if (editorRef.current) {
       const html = editorRef.current.innerHTML;
       setBody(html);
+      // Reset the hasOpenedDraft flag when user starts typing
+      if (hasOpenedDraft) {
+        setHasOpenedDraft(false);
+        console.log("User started typing, enabling auto-save");
+      }
     }
   };
 
@@ -126,12 +157,66 @@ export function ComposeEmail({
     "#800080",
   ];
 
+  // Helper function to check if signature is already present
+  const hasSignature = (content: string): boolean => {
+    if (!content) return false;
+
+    // Check for our specific signature indicators
+    const signatureIndicators = [
+      "gmail_signature",
+      'data-smartmail="gmail_signature"',
+      "Kind regards",
+      "Bella Millan", // Our specific signature name
+      "Outreach Manager", // Our specific signature title
+      "imheretravels.com", // Our website
+    ];
+
+    // Check if any signature indicator is present
+    const hasSignatureIndicator = signatureIndicators.some((indicator) =>
+      content.toLowerCase().includes(indicator.toLowerCase())
+    );
+
+    // Also check if the content is exactly our signature (for edge cases)
+    const isOnlySignature = content.trim() === EMAIL_SIGNATURE.trim();
+
+    return hasSignatureIndicator || isOnlySignature;
+  };
+
   // Set initial content with signature
   useEffect(() => {
     if (editorRef.current) {
-      const content = initialBody
-        ? initialBody + EMAIL_SIGNATURE
-        : EMAIL_SIGNATURE;
+      let content = "";
+
+      // Check if we're opening an existing draft
+      const isExistingDraft = initialBody && initialBody !== EMAIL_SIGNATURE;
+      if (isExistingDraft) {
+        setIsOpeningDraft(true);
+        setHasOpenedDraft(true);
+        // Set the draft ID if we're opening an existing draft
+        if (replyToEmail?.isDraft && replyToEmail?.id) {
+          setDraftId(replyToEmail.id);
+        }
+        // Clear input fields when opening existing draft to avoid duplicates
+        setTo("");
+        setCc("");
+        setBcc("");
+        // Clear the flag after a longer delay to ensure all initial content is loaded
+        setTimeout(() => {
+          setIsOpeningDraft(false);
+          console.log("Draft opening complete, auto-save enabled");
+        }, 2000);
+      }
+
+      if (initialBody) {
+        // Check if signature is already present
+        if (hasSignature(initialBody)) {
+          content = initialBody; // Use content as-is if signature exists
+        } else {
+          content = initialBody + EMAIL_SIGNATURE; // Add signature if not present
+        }
+      } else {
+        content = EMAIL_SIGNATURE; // Add signature for new emails
+      }
 
       // Preprocess HTML with DOMPurify to allow inline styles
       const cleanHTML = DOMPurify.sanitize(content, {
@@ -178,7 +263,151 @@ export function ComposeEmail({
       editorRef.current.innerHTML = cleanHTML;
       setBody(cleanHTML);
     }
-  }, [initialBody]);
+  }, [initialBody, replyToEmail]);
+
+  // Manual save draft function (for explicit saves)
+  const saveDraftManually = async () => {
+    // Only save if there are recipients and body content
+    if (toEmails.length === 0 || !body.trim() || body === EMAIL_SIGNATURE) {
+      return;
+    }
+
+    setIsDraftSaving(true);
+    setDraftStatus("saving");
+
+    try {
+      const response = await fetch("/api/gmail/drafts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: toEmails,
+          cc: ccEmails,
+          bcc: bccEmails,
+          subject: subject || "",
+          content: body,
+          draftId: draftId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setDraftId(result.draftId);
+        setDraftStatus("saved");
+        console.log("Draft saved successfully:", result.draftId);
+
+        // Notify parent component to refresh drafts list
+        if (onDraftSaved) {
+          onDraftSaved();
+        }
+      } else {
+        setDraftStatus("error");
+        console.error("Failed to save draft:", result.error);
+      }
+    } catch (error) {
+      setDraftStatus("error");
+      console.error("Error saving draft:", error);
+    } finally {
+      setIsDraftSaving(false);
+    }
+  };
+
+  // Auto-save draft function
+  const saveDraft = async () => {
+    // Don't auto-save if we're opening an existing draft
+    if (isOpeningDraft) {
+      console.log("Auto-save blocked: Opening draft");
+      return;
+    }
+
+    // Don't auto-save if we just opened a draft (additional safety check)
+    if (hasOpenedDraft && !isOpeningDraft) {
+      console.log(
+        "Auto-save blocked: Just opened draft, waiting for user interaction"
+      );
+      return;
+    }
+
+    // Only save if there are recipients and body content
+    if (toEmails.length === 0 || !body.trim() || body === EMAIL_SIGNATURE) {
+      console.log("Auto-save skipped: No recipients or empty body");
+      return;
+    }
+
+    console.log("Auto-save triggered for draft:", draftId);
+
+    setIsDraftSaving(true);
+    setDraftStatus("saving");
+
+    try {
+      const response = await fetch("/api/gmail/drafts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: toEmails,
+          cc: ccEmails,
+          bcc: bccEmails,
+          subject: subject || "",
+          content: body,
+          draftId: draftId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setDraftId(result.draftId);
+        setDraftStatus("saved");
+        console.log("Draft saved successfully:", result.draftId);
+
+        // Notify parent component to refresh drafts list
+        if (onDraftSaved) {
+          onDraftSaved();
+        }
+      } else {
+        setDraftStatus("error");
+        console.error("Failed to save draft:", result.error);
+      }
+    } catch (error) {
+      setDraftStatus("error");
+      console.error("Error saving draft:", error);
+    } finally {
+      setIsDraftSaving(false);
+    }
+  };
+
+  // Debounced auto-save
+  const debouncedSaveDraft = () => {
+    if (draftTimeoutRef.current) {
+      clearTimeout(draftTimeoutRef.current);
+    }
+
+    draftTimeoutRef.current = setTimeout(() => {
+      saveDraft();
+    }, 2000); // 2 second delay
+  };
+
+  // Auto-save when recipients or body changes
+  useEffect(() => {
+    // Don't auto-save if we're opening an existing draft
+    if (isOpeningDraft) {
+      return;
+    }
+
+    debouncedSaveDraft();
+
+    return () => {
+      if (draftTimeoutRef.current) {
+        clearTimeout(draftTimeoutRef.current);
+      }
+    };
+  }, [toEmails, ccEmails, bccEmails, subject, body, isOpeningDraft]);
+
+  // Note: We don't cleanup drafts on window close so users can continue working on them later
 
   // Handle clicks outside dropdowns to close them
   useEffect(() => {
@@ -196,9 +425,37 @@ export function ComposeEmail({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+S or Cmd+S to save draft
+      if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+        event.preventDefault();
+        saveDraftManually();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [toEmails, ccEmails, bccEmails, subject, body, draftId]);
+
+  // Clean up draft
+  const cleanupDraft = async () => {
+    if (draftId) {
+      try {
+        await fetch(`/api/gmail/drafts?draftId=${draftId}`, {
+          method: "DELETE",
+        });
+        console.log("Draft cleaned up:", draftId);
+      } catch (error) {
+        console.error("Error cleaning up draft:", error);
+      }
+    }
+  };
+
   // Handle send email
   const handleSend = async () => {
-    if (!to.trim() || !subject.trim()) {
+    if (toEmails.length === 0 || !subject.trim()) {
       alert("Please fill in the recipient and subject fields.");
       return;
     }
@@ -206,9 +463,9 @@ export function ComposeEmail({
     setIsSending(true);
     try {
       console.log("Sending email:", {
-        to,
-        cc,
-        bcc,
+        to: toEmails,
+        cc: ccEmails,
+        bcc: bccEmails,
         subject,
         body,
       });
@@ -219,9 +476,9 @@ export function ComposeEmail({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          to: to.trim(),
-          cc: cc.trim() || undefined,
-          bcc: bcc.trim() || undefined,
+          to: toEmails.join(", "),
+          cc: ccEmails.length > 0 ? ccEmails.join(", ") : undefined,
+          bcc: bccEmails.length > 0 ? bccEmails.join(", ") : undefined,
           subject: subject.trim(),
           body: body,
         }),
@@ -232,13 +489,19 @@ export function ComposeEmail({
       if (result.success) {
         console.log("Email sent successfully:", result.data);
 
+        // Clean up draft after successful send
+        await cleanupDraft();
+
         // Close compose window after sending
         onClose();
 
         // Reset form
         setTo("");
+        setToEmails([]);
         setCc("");
+        setCcEmails([]);
         setBcc("");
+        setBccEmails([]);
         setSubject("");
         setBody(EMAIL_SIGNATURE);
         setAttachments([]);
@@ -292,6 +555,7 @@ export function ComposeEmail({
         [contenteditable="true"] {
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
             sans-serif !important;
+          font-size: 12px !important;
         }
 
         /* Gmail signature styling - more specific selectors */
@@ -473,8 +737,36 @@ export function ComposeEmail({
         <div className="flex items-center justify-between px-4 py-2 bg-slate-100 border-b rounded-t-lg border-gray-200">
           <div className="flex items-center gap-2 ">
             <span className="text-sm font-medium text-[#041e49]">
-              {isMinimized ? `New Message - ${to || "Compose"}` : "New Message"}
+              {isMinimized
+                ? `New Message - ${
+                    toEmails.length > 0 ? toEmails.join(", ") : "Compose"
+                  }`
+                : "New Message"}
             </span>
+
+            {/* Draft Status Indicator */}
+            {draftStatus && (
+              <div className="flex items-center gap-1 text-xs">
+                {draftStatus === "saving" && (
+                  <>
+                    <div className="w-3 h-3 border border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-blue-600">Saving draft...</span>
+                  </>
+                )}
+                {draftStatus === "saved" && (
+                  <>
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-green-600">Draft saved</span>
+                  </>
+                )}
+                {draftStatus === "error" && (
+                  <>
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <span className="text-red-600">Save failed</span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-1">
@@ -534,11 +826,29 @@ export function ComposeEmail({
               <label className="text-sm text-gray-600 w-4 flex-shrink-0 hidden group-focus-within:block">
                 To
               </label>
-              <Input
+              <EmailAutocomplete
                 value={to}
-                onChange={(e) => setTo(e.target.value)}
+                onChange={(value) => {
+                  setTo(value);
+                  // Reset the hasOpenedDraft flag when user starts typing
+                  if (hasOpenedDraft) {
+                    setHasOpenedDraft(false);
+                    console.log(
+                      "User started typing in To field, enabling auto-save"
+                    );
+                  }
+                }}
+                selectedEmails={toEmails}
+                onSelectedEmailsChange={(emails) => {
+                  setToEmails(emails);
+                  // Reset the hasOpenedDraft flag when user changes recipients
+                  if (hasOpenedDraft) {
+                    setHasOpenedDraft(false);
+                    console.log("User changed recipients, enabling auto-save");
+                  }
+                }}
                 placeholder="Recipients"
-                className="flex-1 border-none shadow-none focus:ring-0 px-0 bg-transparent outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 h-6 text-sm"
+                className="flex-1"
                 style={{ outline: "none", boxShadow: "none" }}
               />
               <div className="flex items-center gap-2">
@@ -567,11 +877,13 @@ export function ComposeEmail({
                 <label className="text-xs text-gray-600 w-8 flex-shrink-0 hidden group-focus-within:block">
                   Cc
                 </label>
-                <Input
+                <EmailAutocomplete
                   value={cc}
-                  onChange={(e) => setCc(e.target.value)}
+                  onChange={setCc}
+                  selectedEmails={ccEmails}
+                  onSelectedEmailsChange={setCcEmails}
                   placeholder="Carbon copy"
-                  className="flex-1 border-none shadow-none focus:ring-0 px-0 bg-transparent outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 h-6 text-sm"
+                  className="flex-1"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
               </div>
@@ -583,11 +895,13 @@ export function ComposeEmail({
                 <label className="text-xs text-gray-600 w-8 flex-shrink-0 hidden group-focus-within:block">
                   Bcc
                 </label>
-                <Input
+                <EmailAutocomplete
                   value={bcc}
-                  onChange={(e) => setBcc(e.target.value)}
+                  onChange={setBcc}
+                  selectedEmails={bccEmails}
+                  onSelectedEmailsChange={setBccEmails}
                   placeholder="Blind carbon copy"
-                  className="flex-1 border-none shadow-none focus:ring-0 px-0 bg-transparent outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 h-6 text-sm"
+                  className="flex-1"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
               </div>
@@ -597,7 +911,16 @@ export function ComposeEmail({
             <div className="flex items-center gap-2 border-b py-2 border-gray-200 pb-1">
               <Input
                 value={subject}
-                onChange={(e) => setSubject(e.target.value)}
+                onChange={(e) => {
+                  setSubject(e.target.value);
+                  // Reset the hasOpenedDraft flag when user starts typing
+                  if (hasOpenedDraft) {
+                    setHasOpenedDraft(false);
+                    console.log(
+                      "User started typing in Subject field, enabling auto-save"
+                    );
+                  }
+                }}
                 placeholder="Subject"
                 className="flex-1 border-none shadow-none focus:ring-0 px-0 font-medium bg-transparent outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 h-6 text-sm"
                 style={{ outline: "none", boxShadow: "none" }}
@@ -621,6 +944,7 @@ export function ComposeEmail({
                 style={{
                   fontFamily:
                     "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                  fontSize: "12px",
                   minHeight: "150px",
                   whiteSpace: "pre-wrap",
                 }}

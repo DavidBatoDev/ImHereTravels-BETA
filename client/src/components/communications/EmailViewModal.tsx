@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -87,6 +87,43 @@ function getAvatarInitials(email: string): string {
     .join("")
     .toUpperCase()
     .slice(0, 2);
+}
+
+// Helper function to format sender name with email
+function formatSenderWithEmail(fromString: string): React.ReactNode {
+  if (!fromString) return "Unknown";
+
+  // Handle format "Name <email@domain.com>"
+  const match = fromString.match(/^(.+?)\s*<(.+@.+)>$/);
+  if (match) {
+    const name = match[1].trim().replace(/^["']|["']$/g, ""); // Remove quotes if present
+    const email = match[2].trim();
+    return (
+      <>
+        <span className="text-sm font-medium text-gray-900">{name}</span>
+        <span className="text-xs text-gray-500 ml-1">&lt;{email}&gt;</span>
+      </>
+    );
+  }
+
+  // Handle format "email@domain.com" (just email, no name)
+  if (fromString.includes("@")) {
+    const emailPart = fromString.split("@")[0];
+    const name = emailPart
+      .replace(/[._]/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+    return (
+      <>
+        <span className="text-sm font-medium text-gray-900">{name}</span>
+        <span className="text-xs text-gray-500 ml-1">&lt;{fromString}&gt;</span>
+      </>
+    );
+  }
+
+  // Return as-is if no email format detected
+  return (
+    <span className="text-sm font-medium text-gray-900">{fromString}</span>
+  );
 }
 
 export function EmailViewModal({
@@ -650,15 +687,15 @@ export function EmailViewModal({
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <EmailAvatar
                 email={email.from}
-                name={email.fromName || email.from}
+                name={email.from}
                 size="md"
                 className="flex-shrink-0"
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-900 truncate">
-                    {email.from?.match(/^([^<]+)/)?.[1]?.trim() || email.from}
-                  </span>
+                  <div className="truncate">
+                    {formatSenderWithEmail(email.from)}
+                  </div>
                   {email.hasAttachments && (
                     <Paperclip className="w-3 h-3 text-gray-500 flex-shrink-0" />
                   )}
@@ -967,11 +1004,13 @@ export function EmailViewModal({
         {/* Thread Conversation View */}
         <div className="flex-1 overflow-hidden flex flex-col min-h-[90vh]">
           {isLoadingThread ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
-              <span className="text-gray-600 text-sm">
-                Loading conversation...
-              </span>
+            <div className="flex items-center justify-center flex-1 min-h-0">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="text-gray-600 text-sm">
+                  Loading conversation...
+                </span>
+              </div>
             </div>
           ) : (
             <div className="flex-1 overflow-auto h-full w-full">
