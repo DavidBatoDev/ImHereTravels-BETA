@@ -254,49 +254,19 @@ class CSVImportService {
       const documents: BookingDocument[] = [];
       const now = Timestamp.now();
 
-      // Get existing row numbers to find gaps
-      const existingBookings = await bookingService.getAllBookings();
-      const existingRowNumbers = existingBookings
-        .map((booking) => booking.row)
-        .filter((row) => typeof row === "number" && row > 0)
-        .sort((a, b) => a - b);
-
-      // Find available row numbers (fill gaps first, then append)
-      const availableRowNumbers: number[] = [];
-      let nextRowNumber = 1;
-
-      for (let i = 0; i < existingRowNumbers.length; i++) {
-        if (existingRowNumbers[i] !== i + 1) {
-          // Found a gap, fill it
-          for (let gap = i + 1; gap < existingRowNumbers[i]; gap++) {
-            availableRowNumbers.push(gap);
-          }
-        }
-      }
-
-      // Add remaining numbers after the highest existing row
-      const maxExistingRow =
-        existingRowNumbers.length > 0 ? Math.max(...existingRowNumbers) : 0;
-      for (
-        let i = maxExistingRow + 1;
-        i <= maxExistingRow + parsedData.rows.length;
-        i++
-      ) {
-        availableRowNumbers.push(i);
-      }
-
+      // For CSV import, use sequential row numbers starting from 1
+      // Gap-filling will be handled by the individual add booking functionality
       console.log("🔍 [CSV IMPORT DEBUG]", {
-        existingRowNumbers,
-        availableRowNumbers: availableRowNumbers.slice(
-          0,
-          parsedData.rows.length
-        ),
         totalRowsToImport: parsedData.rows.length,
+        rowNumbers: Array.from(
+          { length: parsedData.rows.length },
+          (_, i) => i + 1
+        ),
       });
 
       for (let i = 0; i < parsedData.rows.length; i++) {
         const row = parsedData.rows[i];
-        const rowNumber = availableRowNumbers[i]; // Use gap-filled row numbers
+        const rowNumber = i + 1; // Use sequential row numbers starting from 1
 
         const document: BookingDocument = {
           row: rowNumber, // Add row field for ordering
