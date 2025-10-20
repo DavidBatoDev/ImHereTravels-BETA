@@ -44,7 +44,7 @@ import { typescriptFunctionsService } from "@/services/typescript-functions-serv
 import { batchedWriter } from "@/services/batched-writer";
 import { bookingService } from "@/services/booking-service";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { onSnapshot } from "firebase/firestore";
 import { isEqual } from "lodash";
 
 interface AddBookingModalProps {
@@ -935,31 +935,53 @@ export default function AddBookingModal({
       // Clear any validation errors
       setFieldErrors({});
 
-      // Get the next incremental ID using the booking service
-      const nextId = await bookingService.getNextRowNumber();
+      // Get all existing bookings to find the next row number (gap-filling logic)
+      const allBookings = await bookingService.getAllBookings();
+      const rowNumbers = allBookings
+        .map((booking) => {
+          const row = booking.row;
+          return typeof row === "number" ? row : 0;
+        })
+        .filter((row) => row > 0)
+        .sort((a, b) => a - b);
 
-      // Create the new booking document with incremental ID
+      // Find the first missing row number
+      let nextRowNumber = 1;
+      for (let i = 0; i < rowNumbers.length; i++) {
+        if (rowNumbers[i] !== i + 1) {
+          nextRowNumber = i + 1;
+          break;
+        }
+        nextRowNumber = i + 2; // If no gap found, use next number
+      }
+
+      // Let Firebase generate the document ID automatically first
+      const newBookingId = await bookingService.createBooking({});
+
+      // Create the booking data with row field and id field populated
       const bookingData = {
         ...formData,
-        id: nextId.toString(),
+        id: newBookingId, // Save the document UID as a field in the document
+        row: nextRowNumber,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      // Use setDoc with custom numeric ID instead of addDoc
-      const docRef = doc(db, "bookings", nextId.toString());
-      await setDoc(docRef, bookingData);
+      // Update the document with the complete data including the id field
+      await bookingService.updateBooking(newBookingId, bookingData);
 
       toast({
         title: "Success",
-        description: `Booking #${nextId} created successfully!`,
+        description: `Booking created successfully in row ${nextRowNumber}!`,
         variant: "default",
       });
 
       // Call onSave callback if provided
       if (onSave) {
-        onSave({ id: nextId.toString(), ...bookingData });
-      } // Clear any pending debounced executions
+        onSave({ id: newBookingId, ...bookingData });
+      }
+
+      // Clear any pending debounced executions
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;

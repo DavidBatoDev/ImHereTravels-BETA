@@ -25,7 +25,7 @@ export interface ParsedCSVData {
 }
 
 export interface BookingDocument {
-  id: string;
+  id?: string; // Optional since it will be added after Firebase document creation
   createdAt: Timestamp;
   updatedAt: Timestamp;
   [key: string]: any;
@@ -254,12 +254,52 @@ class CSVImportService {
       const documents: BookingDocument[] = [];
       const now = Timestamp.now();
 
+      // Get existing row numbers to find gaps
+      const existingBookings = await bookingService.getAllBookings();
+      const existingRowNumbers = existingBookings
+        .map((booking) => booking.row)
+        .filter((row) => typeof row === "number" && row > 0)
+        .sort((a, b) => a - b);
+
+      // Find available row numbers (fill gaps first, then append)
+      const availableRowNumbers: number[] = [];
+      let nextRowNumber = 1;
+
+      for (let i = 0; i < existingRowNumbers.length; i++) {
+        if (existingRowNumbers[i] !== i + 1) {
+          // Found a gap, fill it
+          for (let gap = i + 1; gap < existingRowNumbers[i]; gap++) {
+            availableRowNumbers.push(gap);
+          }
+        }
+      }
+
+      // Add remaining numbers after the highest existing row
+      const maxExistingRow =
+        existingRowNumbers.length > 0 ? Math.max(...existingRowNumbers) : 0;
+      for (
+        let i = maxExistingRow + 1;
+        i <= maxExistingRow + parsedData.rows.length;
+        i++
+      ) {
+        availableRowNumbers.push(i);
+      }
+
+      console.log("🔍 [CSV IMPORT DEBUG]", {
+        existingRowNumbers,
+        availableRowNumbers: availableRowNumbers.slice(
+          0,
+          parsedData.rows.length
+        ),
+        totalRowsToImport: parsedData.rows.length,
+      });
+
       for (let i = 0; i < parsedData.rows.length; i++) {
         const row = parsedData.rows[i];
-        const documentId = (i + 1).toString(); // Sequential IDs: "1", "2", "3"...
+        const rowNumber = availableRowNumbers[i]; // Use gap-filled row numbers
 
         const document: BookingDocument = {
-          id: documentId,
+          row: rowNumber, // Add row field for ordering
           createdAt: now,
           updatedAt: now,
         };
@@ -492,9 +532,25 @@ class CSVImportService {
       for (let i = 0; i < documents.length; i += BATCH_SIZE) {
         const slice = documents.slice(i, i + BATCH_SIZE);
         await Promise.all(
-          slice.map(async (document) => {
-            const { id, ...documentData } = document;
-            await bookingService.createOrUpdateBooking(id, documentData);
+          slice.map(async (document, index) => {
+            // Create booking with Firebase auto-generated ID (empty object to get UID)
+            const newId = await bookingService.createBooking({});
+
+            // Ensure we have a valid ID
+            if (!newId) {
+              throw new Error(
+                `Failed to generate ID for document at index ${i + index}`
+              );
+            }
+
+            // Create the complete document with the generated ID
+            const documentWithId = {
+              ...document,
+              id: newId, // Use the Firebase-generated UID
+            };
+
+            // Update the document with all the data including the id field
+            await bookingService.updateBooking(newId, documentWithId);
           })
         );
       }

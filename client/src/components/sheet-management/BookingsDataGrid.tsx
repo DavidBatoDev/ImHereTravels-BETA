@@ -168,7 +168,7 @@ interface BookingsDataGridProps {
   deleteColumn: (columnId: string) => void;
   updateData: (data: SheetData[]) => void;
   updateRow: (rowId: string, updates: Partial<SheetData>) => void;
-  deleteRow: (rowId: string) => void;
+  deleteRow: (rowId: string) => Promise<void>;
   availableFunctions: TypeScriptFunction[];
   // Fullscreen mode props
   isFullscreen?: boolean;
@@ -1371,6 +1371,13 @@ export default function BookingsDataGrid({
         }
         return 0;
       });
+    } else {
+      // Default sorting by row field if no explicit sorting is applied
+      filtered = [...filtered].sort((a, b) => {
+        const aRow = typeof a.row === "number" ? a.row : 0;
+        const bRow = typeof b.row === "number" ? b.row : 0;
+        return aRow - bRow;
+      });
     }
 
     return filtered;
@@ -1428,7 +1435,8 @@ export default function BookingsDataGrid({
 
   // Calculate if we need to show empty rows
   const hasSpaceForMoreRows = currentPageData.length < pageSize;
-  const rowsToShow = hasSpaceForMoreRows ? pageSize : currentPageData.length;
+  // Always show at least one empty row for the add button, even when page is full
+  const rowsToShow = Math.max(pageSize, currentPageData.length + 1);
 
   // Calculate dynamic height based on number of rows
   const rowHeight = 32; // Height of each row in pixels
@@ -1455,6 +1463,18 @@ export default function BookingsDataGrid({
   ) => {
     const isFirstColumn = column.key === columns[0]?.id;
 
+    // Debug logging
+    if (isFirstEmptyRow) {
+      console.log("🔍 [ADD BUTTON DEBUG]", {
+        columnKey: column.key,
+        firstColumnId: columns[0]?.id,
+        isFirstColumn,
+        shouldShowAddButton,
+        hasActiveFilters: getActiveFiltersCount() > 0,
+        activeFiltersCount: getActiveFiltersCount(),
+      });
+    }
+
     if (isFirstColumn && shouldShowAddButton) {
       return (
         <div
@@ -1468,7 +1488,7 @@ export default function BookingsDataGrid({
             className="bg-royal-purple hover:bg-royal-purple/90 h-6 px-2 text-xs"
           >
             <Plus className="h-3 w-3 mr-1" />
-            Add Row
+            Add Booking
           </Button>
         </div>
       );
@@ -1500,6 +1520,19 @@ export default function BookingsDataGrid({
     for (let i = currentPageData.length; i < rowsToShow; i++) {
       const isFirstEmptyRow = i === currentPageData.length;
       const actualRowNumber = startIndex + i;
+      const shouldShowAddButton = isFirstEmptyRow && !hasActiveFilters;
+
+      // Debug logging for first empty row
+      if (isFirstEmptyRow) {
+        console.log("🔍 [EMPTY ROW DEBUG]", {
+          currentPageDataLength: currentPageData.length,
+          rowsToShow,
+          hasActiveFilters,
+          activeFiltersCount: getActiveFiltersCount(),
+          shouldShowAddButton,
+          isFirstEmptyRow,
+        });
+      }
 
       emptyRows.push({
         id: `empty-${i}`,
@@ -1507,8 +1540,7 @@ export default function BookingsDataGrid({
         _isEmptyRow: true,
         _isFirstEmptyRow: isFirstEmptyRow,
         _displayIndex: actualRowNumber,
-        _shouldShowAddButton:
-          hasSpaceForMoreRows && isFirstEmptyRow && !hasActiveFilters,
+        _shouldShowAddButton: shouldShowAddButton,
       });
     }
 
@@ -1745,7 +1777,7 @@ export default function BookingsDataGrid({
   }: RenderCellProps<SheetData>) {
     const columnDef = (column as any).columnDef as SheetColumn;
     const deleteRow = (column as any).deleteRow as
-      | ((rowId: string) => void)
+      | ((rowId: string) => Promise<void>)
       | undefined;
     const recomputeCell = (column as any).recomputeCell as
       | ((rowId: string, columnId: string) => Promise<void>)
@@ -1763,9 +1795,14 @@ export default function BookingsDataGrid({
             variant="destructive"
             size="sm"
             className="bg-crimson-red hover:bg-crimson-red/90"
-            onClick={() => {
+            onClick={async () => {
               if (deleteRow) {
-                deleteRow(row.id);
+                try {
+                  await deleteRow(row.id);
+                } catch (error) {
+                  console.error("Failed to delete row:", error);
+                  // The error will be handled by the hook's error handling
+                }
               }
             }}
           >
@@ -1864,7 +1901,7 @@ export default function BookingsDataGrid({
             </div>
             {/* Column Name Row */}
             <div className="flex items-center justify-center flex-1 px-2 mt-10">
-              <span className="font-medium text-foreground">Doc ID</span>
+              <span className="font-medium text-foreground">Row #</span>
             </div>
           </div>
         );
@@ -1877,26 +1914,45 @@ export default function BookingsDataGrid({
         const displayIndex = (row as any)._displayIndex;
 
         if (isEmptyRow) {
-          // Calculate what the next document ID would be for the first empty row
-          let nextDocumentId = "-";
-          if (isFirstEmptyRow && data && data.length > 0) {
-            // Find the highest numeric ID from existing data
-            const numericIds = data
-              .map((item) => {
-                const id = parseInt(item.id);
-                return isNaN(id) ? 0 : id;
-              })
-              .filter((id) => id > 0);
+          // Show add button in first empty row
+          if (isFirstEmptyRow && shouldShowAddButton) {
+            return (
+              <div className="h-8 w-16 flex items-center justify-center px-2 border-r border-b border-border bg-muted relative z-[999999999]">
+                <Button
+                  onClick={handleAddNewRow}
+                  disabled={isAddingRow}
+                  className="bg-royal-purple hover:bg-royal-purple/90 h-6 px-2 text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                </Button>
+              </div>
+            );
+          }
 
-            if (numericIds.length > 0) {
-              const maxId = Math.max(...numericIds);
-              nextDocumentId = (maxId + 1).toString();
-            } else {
-              nextDocumentId = "1";
+          // Calculate what the next row number would be for the first empty row (filling gaps)
+          let nextRowNumber = "-";
+          if (isFirstEmptyRow && data && data.length > 0) {
+            // Find the first missing row number (same logic as handleAddNewRow)
+            const rowNumbers = data
+              .map((item) => {
+                const row = item.row;
+                return typeof row === "number" ? row : 0;
+              })
+              .filter((row) => row > 0)
+              .sort((a, b) => a - b);
+
+            let firstGap = 1;
+            for (let i = 0; i < rowNumbers.length; i++) {
+              if (rowNumbers[i] !== i + 1) {
+                firstGap = i + 1;
+                break;
+              }
+              firstGap = i + 2;
             }
+            nextRowNumber = firstGap.toString();
           } else if (!isFirstEmptyRow) {
             // For subsequent empty rows, just show placeholder
-            nextDocumentId = "-";
+            nextRowNumber = "-";
           }
 
           return (
@@ -1907,12 +1963,12 @@ export default function BookingsDataGrid({
                   : "text-muted-foreground/60"
               }`}
             >
-              {nextDocumentId}
+              {nextRowNumber}
             </div>
           );
         }
 
-        const documentUID = row.id;
+        const rowNumber = row.row;
         const isSelected = selectedRowId === row.id;
         return (
           <div
@@ -1920,9 +1976,9 @@ export default function BookingsDataGrid({
             className={`h-8 w-16 flex items-center justify-center text-xs font-mono text-foreground px-2 border-r border-b border-border bg-muted relative z-[999999999] cursor-pointer hover:bg-royal-purple/20 transition-colors ${
               isSelected ? "ring-2 ring-inset ring-royal-purple" : ""
             }`}
-            title={documentUID} // Show full UID on hover
+            title={`Row ${rowNumber} (ID: ${row.id})`} // Show row number and ID on hover
           >
-            {documentUID || "-"}
+            {rowNumber || "-"}
           </div>
         );
       },
@@ -2493,26 +2549,64 @@ export default function BookingsDataGrid({
   const handleAddNewRow = async () => {
     try {
       setIsAddingRow(true);
-      const nextRowNumber = await bookingService.getNextRowNumber();
-      const newRowId = nextRowNumber.toString();
-      const newRow: SheetData = {
-        id: newRowId,
+
+      // Get all existing row numbers and find the first gap
+      const existingRows = data || [];
+      const rowNumbers = existingRows
+        .map((item) => {
+          const row = item.row;
+          return typeof row === "number" ? row : 0;
+        })
+        .filter((row) => row > 0)
+        .sort((a, b) => a - b); // Sort ascending
+
+      // Find the first missing row number
+      let nextRowNumber = 1;
+      for (let i = 0; i < rowNumbers.length; i++) {
+        if (rowNumbers[i] !== i + 1) {
+          nextRowNumber = i + 1;
+          break;
+        }
+        nextRowNumber = i + 2; // If no gap found, use next number
+      }
+
+      console.log("🔍 [ADD ROW DEBUG]", {
+        existingRowNumbers: rowNumbers,
+        nextRowNumber,
+        totalRows: existingRows.length,
+      });
+
+      // Let Firebase generate the document ID automatically first
+      const newRowId = await bookingService.createBooking({});
+
+      // Create new row data with row field and id field populated
+      const newRowData = {
+        id: newRowId, // Save the document UID as a field in the document
+        row: nextRowNumber,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      await bookingService.createOrUpdateBooking(newRowId, newRow);
+      // Update the document with the complete data including the id field
+      await bookingService.updateBooking(newRowId, newRowData);
+
+      // Create the complete SheetData object for local state
+      const newRow: SheetData = {
+        id: newRowId,
+        ...newRowData,
+      };
+
       updateData([...data, newRow]);
 
       toast({
-        title: "✅ New Row Added",
-        description: `Row ${newRowId} created successfully`,
+        title: "✅ Booking Created",
+        description: `Successfully created a booking in row ${nextRowNumber}`,
         variant: "default",
       });
     } catch (error) {
       console.error("❌ Failed to add new row:", error);
       toast({
-        title: "❌ Failed to Add New Row",
+        title: "❌ Failed to Create Booking",
         description: `Error: ${
           error instanceof Error ? error.message : "Unknown error"
         }`,
@@ -2594,6 +2688,15 @@ export default function BookingsDataGrid({
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                onClick={handleAddNewRow}
+                disabled={isAddingRow}
+                className="bg-royal-purple hover:bg-royal-purple/90"
+                size="sm"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Booking
+              </Button>
               <CSVImport
                 onImportComplete={handleCSVImportComplete}
                 trigger={
@@ -3282,6 +3385,21 @@ export default function BookingsDataGrid({
           className="fixed inset-0 bg-black/20 z-30"
           onClick={() => setIsSheetConsoleVisible(false)}
         />
+      )}
+
+      {/* Floating Add Row Button for Fullscreen Mode */}
+      {isFullscreen && (
+        <div className="fixed bottom-6 right-6 z-40">
+          <Button
+            onClick={handleAddNewRow}
+            disabled={isAddingRow}
+            className="bg-royal-purple hover:bg-royal-purple/90 shadow-lg"
+            size="lg"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Add Row
+          </Button>
+        </div>
       )}
 
       {/* Recompute progress overlay */}

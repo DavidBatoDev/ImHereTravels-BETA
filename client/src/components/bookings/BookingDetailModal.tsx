@@ -7,6 +7,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +38,7 @@ import {
   FaEyeSlash,
   FaCopy,
   FaEdit,
+  FaTrash,
 } from "react-icons/fa";
 import { MdEmail } from "react-icons/md";
 import {
@@ -40,6 +51,8 @@ import { HiTrendingUp } from "react-icons/hi";
 import type { Booking } from "@/types/bookings";
 import { SheetColumn } from "@/types/sheet-management";
 import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
+import { bookingService } from "@/services/booking-service";
+import { useToast } from "@/hooks/use-toast";
 import EditBookingModal from "./EditBookingModal";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -57,12 +70,15 @@ export default function BookingDetailModal({
   booking,
   onBookingUpdate,
 }: BookingDetailModalProps) {
+  const { toast } = useToast();
   const [columns, setColumns] = useState<SheetColumn[]>([]);
   const [isLoadingColumns, setIsLoadingColumns] = useState(true);
   const [showEmptyFields, setShowEmptyFields] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("");
   const [viewMode, setViewMode] = useState<"card" | "list">("list");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Real-time booking data state (similar to EditBookingModal)
   const [realtimeBooking, setRealtimeBooking] = useState<Booking | null>(null);
@@ -446,6 +462,37 @@ export default function BookingDetailModal({
     }
   };
 
+  // Handle booking deletion
+  const handleDeleteBooking = async () => {
+    if (!currentBooking?.id) return;
+
+    try {
+      setIsDeleting(true);
+      await bookingService.deleteBookingWithRowShift(currentBooking.id);
+
+      toast({
+        title: "🗑️ Booking Deleted",
+        description: "Booking deleted and subsequent rows shifted down",
+        variant: "default",
+      });
+
+      // Close the modal after successful deletion
+      onClose();
+    } catch (error) {
+      console.error("Failed to delete booking:", error);
+      toast({
+        title: "❌ Delete Failed",
+        description: `Failed to delete booking: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
   // Get icon for parent tab
   const getParentTabIcon = (parentTab: string) => {
     if (parentTab.includes("Identifier") || parentTab.includes("🆔"))
@@ -594,6 +641,17 @@ export default function BookingDetailModal({
               >
                 <FaEdit className="h-4 w-4" />
                 <span className="text-xs font-medium">Edit</span>
+              </Button>
+
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setIsDeleteDialogOpen(true)}
+                className="h-8 px-4 bg-red-600 hover:bg-red-700 text-white shadow shadow-red-600/25 flex items-center gap-2"
+                title="Delete booking"
+              >
+                <FaTrash className="h-4 w-4" />
+                <span className="text-xs font-medium">Delete</span>
               </Button>
             </div>
           </div>
@@ -1042,6 +1100,43 @@ export default function BookingDetailModal({
           setIsEditModalOpen(false);
         }}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this booking? This action cannot
+              be undone.
+              <br />
+              <br />
+              <strong>Booking Details:</strong>
+              <br />• Row: {currentBooking?.row || "N/A"}
+              <br />• Name: {currentBooking?.fullName || "N/A"}
+              <br />• Email: {currentBooking?.emailAddress || "N/A"}
+              <br />
+              <br />
+              <span className="text-red-600 font-semibold">
+                This will also shift all subsequent rows down by one position.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBooking}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? "Deleting..." : "Delete Booking"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

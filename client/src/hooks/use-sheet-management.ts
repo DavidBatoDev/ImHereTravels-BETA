@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect } from "react";
 import { SheetColumn, SheetData, SheetConfig } from "@/types/sheet-management";
 import { defaultBookingColumns } from "@/lib/default-booking-columns";
 import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
+import { bookingService } from "@/services/booking-service";
+import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -12,6 +14,7 @@ import {
 } from "firebase/firestore";
 
 export function useSheetManagement() {
+  const { toast } = useToast();
   const [columns, setColumns] = useState<SheetColumn[]>([]);
   const [data, setData] = useState<SheetData[]>([]);
   const [config, setConfig] = useState<SheetConfig>({
@@ -259,9 +262,43 @@ export function useSheetManagement() {
     []
   );
 
-  const deleteRow = useCallback((rowId: string) => {
-    setData((prev) => prev.filter((row) => row.id !== rowId));
-  }, []);
+  const deleteRow = useCallback(
+    async (rowId: string) => {
+      try {
+        console.log(`🗑️ Deleting row ${rowId} with row shifting...`);
+
+        // Use the new delete function that removes document and shifts rows
+        await bookingService.deleteBookingWithRowShift(rowId);
+
+        // The real-time listener will automatically update the local state
+        // when the Firestore changes are detected
+        console.log(
+          `✅ Successfully deleted row ${rowId} and shifted subsequent rows`
+        );
+
+        // Show success toast
+        toast({
+          title: "🗑️ Booking Deleted",
+          description: "Booking deleted and subsequent rows shifted down",
+          variant: "default",
+        });
+      } catch (error) {
+        console.error(`❌ Failed to delete row ${rowId}:`, error);
+
+        // Show error toast
+        toast({
+          title: "❌ Delete Failed",
+          description: `Failed to delete booking: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+          variant: "destructive",
+        });
+
+        throw error; // Re-throw so the UI can handle the error
+      }
+    },
+    [toast]
+  );
 
   // ============================================================================
   // UTILITY METHODS

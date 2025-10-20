@@ -30,7 +30,7 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
-import { Search, Filter, X, User, Grid3X3, List } from "lucide-react";
+import { Search, Filter, X, User, Grid3X3, List, Trash2 } from "lucide-react";
 import {
   FaUser,
   FaMapMarkerAlt,
@@ -51,158 +51,13 @@ import { bookingSheetColumnService } from "@/services/booking-sheet-columns-serv
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { Timestamp } from "firebase/firestore";
+import { bookingService } from "@/services/booking-service";
+import { useToast } from "@/hooks/use-toast";
 import BookingDetailModal from "./BookingDetailModal";
 import AddBookingModal from "./AddBookingModal";
 
-// Mock data for demonstration - replace with real data
-const mockBookings: Booking[] = [
-  {
-    id: "1",
-    bookingId: "BK-2024-001",
-    bookingCode: "BK001",
-    tourCode: "EC-001",
-    reservationDate: new Date("2024-01-15"),
-    bookingType: "Individual",
-    bookingStatus: "Confirmed",
-    daysBetweenBookingAndTour: 45,
-    isMainBooker: true,
-    travellerInitials: "JD",
-    firstName: "John",
-    lastName: "Doe",
-    fullName: "John Doe",
-    emailAddress: "john.doe@example.com",
-    tourPackageNameUniqueCounter: 1,
-    tourPackageName: "Ecuador Adventure Tour",
-    formattedDate: "Mar 1, 2024",
-    tourDate: new Date("2024-03-01"),
-    tourDuration: 7,
-    useDiscountedTourCost: false,
-    originalTourCost: 2500,
-    includeBccReservation: false,
-    generateEmailDraft: false,
-    sendEmail: false,
-    eligible2ndOfMonths: false,
-    availablePaymentTerms: "FU - Full Payment",
-    enablePaymentReminder: true,
-    paymentProgress: 100,
-    paid: 2500,
-    remainingBalance: 0,
-    includeBccCancellation: false,
-    generateCancellationEmailDraft: false,
-    sendCancellationEmail: false,
-  },
-  {
-    id: "2",
-    bookingId: "BK-2024-002",
-    bookingCode: "BK002",
-    tourCode: "PE-002",
-    reservationDate: new Date("2024-01-20"),
-    bookingType: "Group",
-    bookingStatus: "Pending",
-    daysBetweenBookingAndTour: 60,
-    groupId: "GRP-001",
-    isMainBooker: true,
-    travellerInitials: "SW",
-    firstName: "Sarah",
-    lastName: "Wilson",
-    fullName: "Sarah Wilson",
-    emailAddress: "sarah.wilson@example.com",
-    tourPackageNameUniqueCounter: 1,
-    tourPackageName: "Peru Cultural Experience",
-    formattedDate: "Mar 20, 2024",
-    tourDate: new Date("2024-03-20"),
-    tourDuration: 10,
-    useDiscountedTourCost: true,
-    originalTourCost: 3200,
-    discountedTourCost: 2800,
-    includeBccReservation: false,
-    generateEmailDraft: false,
-    sendEmail: false,
-    paymentCondition: "Partial Payment",
-    eligible2ndOfMonths: true,
-    availablePaymentTerms: "P2 - 2 Months",
-    enablePaymentReminder: true,
-    paymentProgress: 50,
-    paid: 1400,
-    remainingBalance: 1400,
-    includeBccCancellation: false,
-    generateCancellationEmailDraft: false,
-    sendCancellationEmail: false,
-  },
-  {
-    id: "3",
-    bookingId: "BK-2024-003",
-    bookingCode: "BK003",
-    tourCode: "CL-003",
-    reservationDate: new Date("2024-01-25"),
-    bookingType: "Individual",
-    bookingStatus: "Confirmed",
-    daysBetweenBookingAndTour: 90,
-    isMainBooker: true,
-    travellerInitials: "MJ",
-    firstName: "Michael",
-    lastName: "Johnson",
-    fullName: "Michael Johnson",
-    emailAddress: "michael.johnson@company.com",
-    tourPackageNameUniqueCounter: 1,
-    tourPackageName: "Chile Patagonia Trek",
-    formattedDate: "Apr 25, 2024",
-    tourDate: new Date("2024-04-25"),
-    tourDuration: 14,
-    useDiscountedTourCost: false,
-    originalTourCost: 4500,
-    includeBccReservation: false,
-    generateEmailDraft: false,
-    sendEmail: false,
-    paymentCondition: "Installment",
-    eligible2ndOfMonths: false,
-    availablePaymentTerms: "P4 - 4 Months",
-    enablePaymentReminder: true,
-    paymentProgress: 25,
-    paid: 1125,
-    remainingBalance: 3375,
-    includeBccCancellation: false,
-    generateCancellationEmailDraft: false,
-    sendCancellationEmail: false,
-  },
-  {
-    id: "4",
-    bookingId: "BK-2024-004",
-    bookingCode: "BK004",
-    tourCode: "AR-004",
-    reservationDate: new Date("2024-02-01"),
-    bookingType: "Individual",
-    bookingStatus: "Pending",
-    daysBetweenBookingAndTour: 30,
-    isMainBooker: true,
-    travellerInitials: "AB",
-    firstName: "Anna",
-    lastName: "Brown",
-    fullName: "Anna Brown",
-    emailAddress: "anna.brown@example.com",
-    tourPackageNameUniqueCounter: 1,
-    tourPackageName: "Argentina Wine Tour",
-    formattedDate: "Mar 1, 2024",
-    tourDate: new Date("2024-03-01"),
-    tourDuration: 5,
-    useDiscountedTourCost: false,
-    originalTourCost: 1100,
-    includeBccReservation: false,
-    generateEmailDraft: false,
-    sendEmail: false,
-    eligible2ndOfMonths: false,
-    availablePaymentTerms: "P1 - 1 Month",
-    enablePaymentReminder: true,
-    paymentProgress: 14, // 150/1100 = 13.6% rounded to 14%
-    paid: 150,
-    remainingBalance: 950,
-    includeBccCancellation: false,
-    generateCancellationEmailDraft: false,
-    sendCancellationEmail: false,
-  },
-];
-
 export default function BookingsSection() {
+  const { toast } = useToast();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "list">("list");
@@ -282,14 +137,14 @@ export default function BookingsSection() {
           ...doc.data(),
         })) as Booking[];
 
-        // Sort bookings numerically by ID
+        // Sort bookings numerically by row number
         const sortedBookings = fetchedBookings.sort((a, b) => {
-          const aId = parseInt(a.id);
-          const bId = parseInt(b.id);
-          if (isNaN(aId) && isNaN(bId)) return 0;
-          if (isNaN(aId)) return 1;
-          if (isNaN(bId)) return -1;
-          return aId - bId;
+          const aRow = typeof a.row === "number" ? a.row : 0;
+          const bRow = typeof b.row === "number" ? b.row : 0;
+          if (aRow === 0 && bRow === 0) return 0;
+          if (aRow === 0) return 1;
+          if (bRow === 0) return -1;
+          return aRow - bRow;
         });
 
         console.log(
@@ -327,23 +182,23 @@ export default function BookingsSection() {
           });
         }
 
-        // Use real data if available, otherwise fall back to mock data
+        // Use real data if available, otherwise show empty state
         if (sortedBookings.length > 0) {
           setBookings(sortedBookings);
         } else {
           console.log(
-            "📝 [BOOKINGS SECTION] No real data found, using mock data"
+            "📝 [BOOKINGS SECTION] No real data found, showing empty state"
           );
-          setBookings(mockBookings);
+          setBookings([]);
         }
         setIsLoading(false);
       },
       (error) => {
         console.error("❌ Error listening to bookings:", error);
         console.log(
-          "📝 [BOOKINGS SECTION] Error occurred, falling back to mock data"
+          "📝 [BOOKINGS SECTION] Error occurred, showing empty state"
         );
-        setBookings(mockBookings);
+        setBookings([]);
         setIsLoading(false);
       }
     );
@@ -426,6 +281,41 @@ export default function BookingsSection() {
     if (statusLower.includes("completed")) return "Completed";
 
     return "Pending"; // Default fallback
+  };
+
+  // Check if a booking is invalid (missing essential data)
+  const isBookingInvalid = (booking: Booking): boolean => {
+    // A booking is considered invalid if it's missing critical identifying information
+    // Check if the booking has no meaningful data at all
+    const hasNoName = !booking.fullName || booking.fullName.trim() === "";
+    const hasNoEmail =
+      !booking.emailAddress || booking.emailAddress.trim() === "";
+    const hasNoPackage =
+      !booking.tourPackageName || booking.tourPackageName.trim() === "";
+
+    // A booking is invalid if it's missing all three critical fields
+    return hasNoName && hasNoEmail && hasNoPackage;
+  };
+
+  // Handle booking deletion
+  const handleDeleteBooking = async (bookingId: string) => {
+    try {
+      await bookingService.deleteBookingWithRowShift(bookingId);
+      toast({
+        title: "🗑️ Booking Deleted",
+        description: "Booking deleted and subsequent rows shifted down",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Failed to delete booking:", error);
+      toast({
+        title: "❌ Delete Failed",
+        description: `Failed to delete booking: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+        variant: "destructive",
+      });
+    }
   };
 
   // Calculate statistics with validation
@@ -648,7 +538,7 @@ export default function BookingsSection() {
     if (!column) return "Sample Data";
 
     // Return appropriate sample based on data type
-    if (column.dataType === "date") return "Jan 15";
+    if (column.dataType === "date") return "Jan 15, 2024";
     if (column.dataType === "currency") return "€1,250";
     if (column.dataType === "boolean") return "Yes";
     if (columnId === "bookingId") return "BOOK-001";
@@ -750,6 +640,7 @@ export default function BookingsSection() {
       return safeDate(value).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
+        year: "numeric",
       });
     }
 
@@ -1259,10 +1150,10 @@ export default function BookingsSection() {
                       style={{ width: "111%", height: "auto" }}
                     >
                       <Card className="group border border-border overflow-hidden relative pointer-events-none">
-                        {/* Document ID - Upper Left */}
+                        {/* Row Number - Upper Left */}
                         <div className="absolute top-2 left-2 z-10">
                           <div className="bg-crimson-red/90 text-white text-[10px] font-mono font-bold px-1.5 py-0.5 rounded rounded-br-none shadow-sm">
-                            ID-001
+                            1
                           </div>
                         </div>
 
@@ -1702,221 +1593,247 @@ export default function BookingsSection() {
         </Card>
       ) : viewMode === "cards" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {filteredBookings.map((booking) => {
-            const isInvalid = !booking.bookingId;
-            return (
-              <Card
-                key={booking.id}
-                onClick={() => handleBookingClick(booking)}
-                className={`group border transition-all duration-300 cursor-pointer overflow-hidden relative ${
-                  isInvalid
-                    ? "border-crimson-red bg-crimson-red/5 hover:border-crimson-red hover:bg-crimson-red/10"
-                    : "border-border hover:border-crimson-red/50"
-                }`}
-              >
-                {/* Document ID - Upper Left */}
-                <div className="absolute top-2 left-2 z-10">
-                  <div className="bg-crimson-red/90 text-white text-[10px] font-mono font-bold px-1.5 py-0.5 rounded rounded-br-none shadow-sm">
-                    {booking.id}
+          {filteredBookings
+            .filter((booking) => booking.id && booking.id.trim() !== "") // Filter out bookings with empty IDs
+            .map((booking) => {
+              const isInvalid = isBookingInvalid(booking);
+              return (
+                <Card
+                  key={booking.id}
+                  onClick={() => handleBookingClick(booking)}
+                  className={`group border transition-all duration-300 cursor-pointer overflow-hidden relative ${
+                    isInvalid
+                      ? "border-crimson-red bg-crimson-red/5 hover:border-crimson-red hover:bg-crimson-red/10"
+                      : "border-border hover:border-crimson-red/50"
+                  }`}
+                >
+                  {/* Row Number - Upper Left */}
+                  <div className="absolute top-2 left-2 z-10">
+                    <div className="bg-crimson-red/90 text-white text-[10px] font-mono font-bold px-1.5 py-0.5 rounded rounded-br-none shadow-sm">
+                      {booking.row || "-"}
+                    </div>
                   </div>
-                </div>
 
-                {/* Card Header */}
-                <CardHeader className="p-3 pb-2 border-b border-border/50">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1 mb-1 pl-8">
-                        <Badge
-                          variant="outline"
-                          className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
-                            booking
-                          )}`}
-                          title={booking.bookingStatus || "Pending"}
-                        >
-                          {getBookingStatusCategory(booking.bookingStatus)}
-                        </Badge>
-                        {booking.bookingType !== "Individual" && (
+                  {/* Delete Button - Center (only for invalid bookings) */}
+                  {isInvalid && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <Button
+                        variant="destructive"
+                        className="h-20 w-20 rounded-full rounded-br-none bg-crimson-red hover:bg-crimson-red/90 text-white transition-all duration-300 hover:scale-105 shadow-lg"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteBooking(booking.id);
+                        }}
+                        title="Delete invalid booking"
+                      >
+                        <Trash2 className="h-8 w-8" />
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Blur overlay for invalid bookings on hover */}
+                  {isInvalid && (
+                    <div className="absolute inset-0 bg-white/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-5" />
+                  )}
+
+                  {/* Card Header */}
+                  <CardHeader className="p-3 pb-2 border-b border-border/50">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1 mb-1 pl-8">
                           <Badge
                             variant="outline"
-                            className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getBookingTypeBgColor(
-                              booking.bookingType
+                            className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
+                              booking
                             )}`}
-                            title={booking.bookingType}
+                            title={booking.bookingStatus || "Pending"}
                           >
-                            {booking.bookingType}
+                            {getBookingStatusCategory(booking.bookingStatus)}
                           </Badge>
-                        )}
-                      </div>
-                      <h3 className="font-bold text-lg text-foreground group-hover:text-crimson-red transition-colors truncate font-mono">
-                        {booking.bookingId || "Invalid Booking"}
-                      </h3>
-                      <CardDescription className="text-xs flex items-center gap-1 mt-0.5 truncate">
-                        <MdEmail className="h-3 w-3 flex-shrink-0 text-foreground" />
-                        <span className="truncate">{booking.emailAddress}</span>
-                      </CardDescription>
-                    </div>
-                    {/* Payment Plan Code */}
-                    {getPaymentPlanCode(booking) && (
-                      <div className="text-2xl bg-crimson-red/10 font-bold text-crimson-red font-mono  px-2 py-1 rounded-full rounded-br-none">
-                        {getPaymentPlanCode(booking)}
-                      </div>
-                    )}
-                  </div>
-                </CardHeader>
-
-                {/* Card Content */}
-                <CardContent className="p-3 pt-2 space-y-2">
-                  {/* Field 1 - Dynamic */}
-                  {(() => {
-                    const IconComponent = getFieldIcon(
-                      cardFieldMappings.field1
-                    );
-                    return (
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                        <IconComponent className="h-4 w-4 text-foreground flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] text-muted-foreground font-medium">
-                            {getColumnLabel(cardFieldMappings.field1)}
-                          </p>
-                          <p className="text-sm font-semibold text-foreground truncate">
-                            {getFieldValue(booking, cardFieldMappings.field1)}
-                          </p>
+                          {booking.bookingType !== "Individual" && (
+                            <Badge
+                              variant="outline"
+                              className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getBookingTypeBgColor(
+                                booking.bookingType
+                              )}`}
+                              title={booking.bookingType}
+                            >
+                              {booking.bookingType}
+                            </Badge>
+                          )}
                         </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Field 2 - Dynamic */}
-                  {(() => {
-                    const IconComponent = getFieldIcon(
-                      cardFieldMappings.field2
-                    );
-                    return (
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                        <IconComponent className="h-4 w-4 text-foreground flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] text-muted-foreground font-medium">
-                            {getColumnLabel(cardFieldMappings.field2)}
-                          </p>
-                          <p className="text-sm font-semibold text-foreground truncate">
-                            {getFieldValue(booking, cardFieldMappings.field2)}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Fields 3 - Dynamic Dates */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {(() => {
-                      const IconComponentLeft = getFieldIcon(
-                        cardFieldMappings.field3_left
-                      );
-                      return (
-                        <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                          <IconComponentLeft className="h-4 w-4 text-foreground flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-muted-foreground font-medium">
-                              {getColumnLabel(cardFieldMappings.field3_left)}
-                            </p>
-                            <p className="text-xs font-semibold text-foreground">
-                              {getFieldValue(
-                                booking,
-                                cardFieldMappings.field3_left
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    {(() => {
-                      const IconComponentRight = getFieldIcon(
-                        cardFieldMappings.field3_right
-                      );
-                      return (
-                        <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                          <IconComponentRight className="h-4 w-4 text-foreground flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-muted-foreground font-medium">
-                              {getColumnLabel(cardFieldMappings.field3_right)}
-                            </p>
-                            <p className="text-xs font-semibold text-foreground">
-                              {getFieldValue(
-                                booking,
-                                cardFieldMappings.field3_right
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Field 4 - Dynamic Payment */}
-                  <div className="p-2.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <IoWallet className="h-4 w-4 text-foreground" />
-                        <span className="text-xs font-semibold text-foreground">
-                          {getColumnLabel(cardFieldMappings.field4)}
-                        </span>
-                      </div>
-                      <span
-                        className={`text-xs font-bold ${
-                          calculatePaymentProgress(booking) === 100
-                            ? "text-spring-green"
-                            : "text-crimson-red"
-                        }`}
-                      >
-                        {calculatePaymentProgress(booking)}%
-                      </span>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full bg-background/50 rounded-full h-2 mb-1.5 border border-border/30">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${
-                          calculatePaymentProgress(booking) === 100
-                            ? "bg-gradient-to-r from-spring-green to-spring-green/80"
-                            : "bg-gradient-to-r from-crimson-red to-crimson-red/80"
-                        }`}
-                        style={{
-                          width: `${calculatePaymentProgress(booking)}%`,
-                        }}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-spring-green"></div>
-                        <span className="text-muted-foreground">
-                          Paid:{" "}
-                          <span className="font-bold text-spring-green">
-                            {formatCurrency(safeNumber(booking.paid, 0))}
+                        <h3 className="font-bold text-lg text-foreground group-hover:text-crimson-red transition-colors truncate font-mono">
+                          {booking.bookingId || "Invalid Booking"}
+                        </h3>
+                        <CardDescription className="text-xs flex items-center gap-1 mt-0.5 truncate">
+                          <MdEmail className="h-3 w-3 flex-shrink-0 text-foreground" />
+                          <span className="truncate">
+                            {booking.emailAddress}
                           </span>
-                        </span>
+                        </CardDescription>
                       </div>
-                      {getTotalCost(booking) - safeNumber(booking.paid, 0) >
-                        0 && (
-                        <div className="flex items-center gap-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-crimson-red"></div>
-                          <span className="text-muted-foreground">
-                            Due:{" "}
-                            <span className="font-bold text-crimson-red">
-                              {formatCurrency(
-                                getTotalCost(booking) -
-                                  safeNumber(booking.paid, 0)
-                              )}
-                            </span>
-                          </span>
+                      {/* Payment Plan Code */}
+                      {getPaymentPlanCode(booking) && (
+                        <div className="text-2xl bg-crimson-red/10 font-bold text-crimson-red font-mono  px-2 py-1 rounded-full rounded-br-none">
+                          {getPaymentPlanCode(booking)}
                         </div>
                       )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  </CardHeader>
+
+                  {/* Card Content */}
+                  <CardContent className="p-3 pt-2 space-y-2">
+                    {/* Field 1 - Dynamic */}
+                    {(() => {
+                      const IconComponent = getFieldIcon(
+                        cardFieldMappings.field1
+                      );
+                      return (
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                          <IconComponent className="h-4 w-4 text-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-muted-foreground font-medium">
+                              {getColumnLabel(cardFieldMappings.field1)}
+                            </p>
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {getFieldValue(booking, cardFieldMappings.field1)}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Field 2 - Dynamic */}
+                    {(() => {
+                      const IconComponent = getFieldIcon(
+                        cardFieldMappings.field2
+                      );
+                      return (
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                          <IconComponent className="h-4 w-4 text-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-muted-foreground font-medium">
+                              {getColumnLabel(cardFieldMappings.field2)}
+                            </p>
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {getFieldValue(booking, cardFieldMappings.field2)}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Fields 3 - Dynamic Dates */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {(() => {
+                        const IconComponentLeft = getFieldIcon(
+                          cardFieldMappings.field3_left
+                        );
+                        return (
+                          <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                            <IconComponentLeft className="h-4 w-4 text-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] text-muted-foreground font-medium">
+                                {getColumnLabel(cardFieldMappings.field3_left)}
+                              </p>
+                              <p className="text-xs font-semibold text-foreground">
+                                {getFieldValue(
+                                  booking,
+                                  cardFieldMappings.field3_left
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {(() => {
+                        const IconComponentRight = getFieldIcon(
+                          cardFieldMappings.field3_right
+                        );
+                        return (
+                          <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                            <IconComponentRight className="h-4 w-4 text-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] text-muted-foreground font-medium">
+                                {getColumnLabel(cardFieldMappings.field3_right)}
+                              </p>
+                              <p className="text-xs font-semibold text-foreground">
+                                {getFieldValue(
+                                  booking,
+                                  cardFieldMappings.field3_right
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Field 4 - Dynamic Payment */}
+                    <div className="p-2.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <IoWallet className="h-4 w-4 text-foreground" />
+                          <span className="text-xs font-semibold text-foreground">
+                            {getColumnLabel(cardFieldMappings.field4)}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-xs font-bold ${
+                            calculatePaymentProgress(booking) === 100
+                              ? "text-spring-green"
+                              : "text-crimson-red"
+                          }`}
+                        >
+                          {calculatePaymentProgress(booking)}%
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="w-full bg-background/50 rounded-full h-2 mb-1.5 border border-border/30">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            calculatePaymentProgress(booking) === 100
+                              ? "bg-gradient-to-r from-spring-green to-spring-green/80"
+                              : "bg-gradient-to-r from-crimson-red to-crimson-red/80"
+                          }`}
+                          style={{
+                            width: `${calculatePaymentProgress(booking)}%`,
+                          }}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-spring-green"></div>
+                          <span className="text-muted-foreground">
+                            Paid:{" "}
+                            <span className="font-bold text-spring-green">
+                              {formatCurrency(safeNumber(booking.paid, 0))}
+                            </span>
+                          </span>
+                        </div>
+                        {getTotalCost(booking) - safeNumber(booking.paid, 0) >
+                          0 && (
+                          <div className="flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-crimson-red"></div>
+                            <span className="text-muted-foreground">
+                              Due:{" "}
+                              <span className="font-bold text-crimson-red">
+                                {formatCurrency(
+                                  getTotalCost(booking) -
+                                    safeNumber(booking.paid, 0)
+                                )}
+                              </span>
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
         </div>
       ) : (
         // List View
@@ -1927,7 +1844,7 @@ export default function BookingsSection() {
                 <thead>
                   <tr className="bg-muted/30 border-b border-border">
                     <th className="text-left py-2 px-3 font-semibold text-foreground text-[10px]">
-                      ID
+                      Row #
                     </th>
                     <th className="text-left py-2 px-3 font-semibold text-foreground text-[10px]">
                       Booking ID
@@ -1959,162 +1876,186 @@ export default function BookingsSection() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBookings.map((booking) => {
-                    const isInvalid = !booking.bookingId;
-                    return (
-                      <tr
-                        key={booking.id}
-                        onClick={() => handleBookingClick(booking)}
-                        className={`border-b transition-colors duration-200 cursor-pointer ${
-                          isInvalid
-                            ? "border-crimson-red bg-crimson-red/10 hover:bg-crimson-red/20"
-                            : "border-border hover:bg-crimson-red/5"
-                        }`}
-                      >
-                        <td className="py-2 px-3">
-                          <span className="font-mono text-[10px] font-semibold text-crimson-red bg-crimson-red/10 px-1.5 py-0.5 rounded-full rounded-br-none">
-                            {booking.id}
-                          </span>
-                        </td>
-                        <td className="py-2 px-3">
-                          <span className="font-mono text-[10px] font-semibold text-crimson-red">
-                            {booking.bookingId || "Invalid Booking"}
-                          </span>
-                        </td>
-                        <td className="py-2 px-3">
-                          <div className="flex items-center gap-1">
-                            <MdEmail className="h-2.5 w-2.5 text-foreground" />
-                            <span className="text-[10px] text-foreground truncate">
-                              {booking.emailAddress}
+                  {filteredBookings
+                    .filter((booking) => booking.id && booking.id.trim() !== "") // Filter out bookings with empty IDs
+                    .map((booking) => {
+                      const isInvalid = isBookingInvalid(booking);
+                      return (
+                        <tr
+                          key={booking.id}
+                          onClick={() => handleBookingClick(booking)}
+                          className={`group border-b transition-colors duration-200 cursor-pointer relative ${
+                            isInvalid
+                              ? "border-crimson-red bg-crimson-red/10 hover:bg-crimson-red/20"
+                              : "border-border hover:bg-crimson-red/5"
+                          }`}
+                        >
+                          <td className="py-2 px-3">
+                            <span className="font-mono text-[10px] font-semibold text-crimson-red bg-crimson-red/10 px-1.5 py-0.5 rounded-full rounded-br-none">
+                              {booking.row || "-"}
                             </span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-3">
-                          {(() => {
-                            const IconComponent = getFieldIcon(
-                              cardFieldMappings.field1
-                            );
-                            const value = getFieldValue(
-                              booking,
-                              cardFieldMappings.field1
-                            );
-                            return (
-                              <div className="flex items-center gap-1">
-                                <IconComponent className="h-2.5 w-2.5 text-foreground" />
-                                <span className="text-[10px] text-foreground truncate">
-                                  {value}
-                                </span>
-                              </div>
-                            );
-                          })()}
-                        </td>
-                        <td className="py-2 px-3">
-                          {(() => {
-                            const IconComponent = getFieldIcon(
-                              cardFieldMappings.field2
-                            );
-                            const value = getFieldValue(
-                              booking,
-                              cardFieldMappings.field2
-                            );
-                            return (
-                              <div className="flex items-center gap-1">
-                                <IconComponent className="h-2.5 w-2.5 text-foreground" />
-                                <span className="text-[10px] text-foreground truncate">
-                                  {value}
-                                </span>
-                              </div>
-                            );
-                          })()}
-                        </td>
-                        <td className="py-2 px-3">
-                          {(() => {
-                            const IconComponent = getFieldIcon(
-                              cardFieldMappings.field3_left
-                            );
-                            const value = getFieldValue(
-                              booking,
-                              cardFieldMappings.field3_left
-                            );
-                            return (
-                              <div className="flex items-center gap-1">
-                                <IconComponent className="h-2.5 w-2.5 text-foreground" />
-                                <span className="text-[10px] text-foreground">
-                                  {value}
-                                </span>
-                              </div>
-                            );
-                          })()}
-                        </td>
-                        <td className="py-2 px-3">
-                          {(() => {
-                            const IconComponent = getFieldIcon(
-                              cardFieldMappings.field3_right
-                            );
-                            const value = getFieldValue(
-                              booking,
-                              cardFieldMappings.field3_right
-                            );
-                            return (
-                              <div className="flex items-center gap-1">
-                                <IconComponent className="h-2.5 w-2.5 text-foreground" />
-                                <span className="text-[10px] text-foreground">
-                                  {value}
-                                </span>
-                              </div>
-                            );
-                          })()}
-                        </td>
-                        <td className="py-2 pl-3 pr-3">
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] font-medium border-0 text-foreground px-1 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
-                              booking
-                            )}`}
-                            title={booking.bookingStatus || "Pending"}
-                          >
-                            {getBookingStatusCategory(booking.bookingStatus)}
-                          </Badge>
-                        </td>
-                        <td className="py-2 px-3">
-                          <div className="space-y-0.5">
-                            <div className="flex items-center justify-between gap-1">
-                              <span
-                                className={`text-[10px] font-bold ${
-                                  calculatePaymentProgress(booking) === 100
-                                    ? "text-spring-green"
-                                    : "text-crimson-red"
-                                }`}
-                              >
-                                {calculatePaymentProgress(booking)}%
+                          </td>
+                          <td className="py-2 px-3">
+                            <span className="font-mono text-[10px] font-semibold text-crimson-red">
+                              {booking.bookingId || "Invalid Booking"}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3">
+                            <div className="flex items-center gap-1">
+                              <MdEmail className="h-2.5 w-2.5 text-foreground" />
+                              <span className="text-[10px] text-foreground truncate">
+                                {booking.emailAddress}
                               </span>
                             </div>
-                            <div className="w-20 bg-muted rounded-full h-1">
-                              <div
-                                className={`h-full rounded-full ${
-                                  calculatePaymentProgress(booking) === 100
-                                    ? "bg-spring-green"
-                                    : "bg-crimson-red"
-                                }`}
-                                style={{
-                                  width: `${calculatePaymentProgress(
-                                    booking
-                                  )}%`,
-                                }}
-                              />
+                          </td>
+                          <td className="py-2 px-3">
+                            {(() => {
+                              const IconComponent = getFieldIcon(
+                                cardFieldMappings.field1
+                              );
+                              const value = getFieldValue(
+                                booking,
+                                cardFieldMappings.field1
+                              );
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <IconComponent className="h-2.5 w-2.5 text-foreground" />
+                                  <span className="text-[10px] text-foreground truncate">
+                                    {value}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td className="py-2 px-3">
+                            {(() => {
+                              const IconComponent = getFieldIcon(
+                                cardFieldMappings.field2
+                              );
+                              const value = getFieldValue(
+                                booking,
+                                cardFieldMappings.field2
+                              );
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <IconComponent className="h-2.5 w-2.5 text-foreground" />
+                                  <span className="text-[10px] text-foreground truncate">
+                                    {value}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td className="py-2 px-3">
+                            {(() => {
+                              const IconComponent = getFieldIcon(
+                                cardFieldMappings.field3_left
+                              );
+                              const value = getFieldValue(
+                                booking,
+                                cardFieldMappings.field3_left
+                              );
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <IconComponent className="h-2.5 w-2.5 text-foreground" />
+                                  <span className="text-[10px] text-foreground">
+                                    {value}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td className="py-2 px-3">
+                            {(() => {
+                              const IconComponent = getFieldIcon(
+                                cardFieldMappings.field3_right
+                              );
+                              const value = getFieldValue(
+                                booking,
+                                cardFieldMappings.field3_right
+                              );
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <IconComponent className="h-2.5 w-2.5 text-foreground" />
+                                  <span className="text-[10px] text-foreground">
+                                    {value}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td className="py-2 pl-3 pr-3">
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] font-medium border-0 text-foreground px-1 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
+                                booking
+                              )}`}
+                              title={booking.bookingStatus || "Pending"}
+                            >
+                              {getBookingStatusCategory(booking.bookingStatus)}
+                            </Badge>
+                          </td>
+                          <td className="py-2 px-3">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center justify-between gap-1">
+                                <span
+                                  className={`text-[10px] font-bold ${
+                                    calculatePaymentProgress(booking) === 100
+                                      ? "text-spring-green"
+                                      : "text-crimson-red"
+                                  }`}
+                                >
+                                  {calculatePaymentProgress(booking)}%
+                                </span>
+                              </div>
+                              <div className="w-20 bg-muted rounded-full h-1">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    calculatePaymentProgress(booking) === 100
+                                      ? "bg-spring-green"
+                                      : "bg-crimson-red"
+                                  }`}
+                                  style={{
+                                    width: `${calculatePaymentProgress(
+                                      booking
+                                    )}%`,
+                                  }}
+                                />
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-2 px-3">
-                          {getPaymentPlanCode(booking) && (
-                            <div className="text-[10px] font-bold text-crimson-red font-mono bg-crimson-red/10 px-1.5 py-0.5 rounded-full rounded-br-none inline-block">
-                              {getPaymentPlanCode(booking)}
+                          </td>
+                          <td className="py-2 px-3">
+                            {getPaymentPlanCode(booking) && (
+                              <div className="text-[10px] font-bold text-crimson-red font-mono bg-crimson-red/10 px-1.5 py-0.5 rounded-full rounded-br-none inline-block">
+                                {getPaymentPlanCode(booking)}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Delete Button Overlay - Center (only for invalid bookings) */}
+                          {isInvalid && (
+                            <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              <Button
+                                variant="destructive"
+                                className="h-8 w-8 rounded-full rounded-br-none bg-crimson-red hover:bg-crimson-red/90 text-white transition-all duration-300 hover:scale-105 shadow-lg"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteBooking(booking.id);
+                                }}
+                                title="Delete invalid booking"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
                             </div>
                           )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+
+                          {/* Blur overlay for invalid bookings on hover */}
+                          {isInvalid && (
+                            <div className="absolute inset-0 bg-white/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-5" />
+                          )}
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
