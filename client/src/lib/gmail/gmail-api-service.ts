@@ -371,6 +371,12 @@ export class GmailApiService {
     cc?: string[];
     from?: string;
     replyTo?: string;
+    attachments?: Array<{
+      name: string;
+      type: string;
+      size: number;
+      data: string; // base64 data
+    }>;
   }) {
     try {
       console.log("GmailApiService.sendEmail called with:", {
@@ -389,6 +395,7 @@ export class GmailApiService {
         from:
           emailData.from || "Bella | ImHereTravels <bella@imheretravels.com>",
         replyTo: emailData.replyTo,
+        attachments: emailData.attachments || [],
       });
 
       console.log("Final message being sent to Gmail:", {
@@ -636,6 +643,12 @@ export class GmailApiService {
     cc?: string[];
     from?: string;
     replyTo?: string;
+    attachments?: Array<{
+      name: string;
+      type: string;
+      size: number;
+      data: string; // base64 data
+    }>;
   }): string {
     const {
       to,
@@ -645,8 +658,24 @@ export class GmailApiService {
       cc = [],
       from,
       replyTo,
+      attachments = [],
     } = emailData;
 
+    // If there are attachments, create a multipart email
+    if (attachments.length > 0) {
+      return this.createMultipartEmail({
+        to,
+        subject,
+        htmlContent,
+        bcc,
+        cc,
+        from,
+        replyTo,
+        attachments,
+      });
+    }
+
+    // Simple email without attachments
     const lines = [
       `To: ${to}`,
       `From: ${from}`,
@@ -669,6 +698,80 @@ export class GmailApiService {
 
     lines.push("");
     lines.push(htmlContent);
+
+    const message = lines.join("\r\n");
+    return Buffer.from(message).toString("base64url");
+  }
+
+  /**
+   * Create a multipart email message with attachments
+   * @param emailData - Email data with attachments
+   * @returns Base64 encoded multipart email message
+   */
+  private createMultipartEmail(emailData: {
+    to: string;
+    subject: string;
+    htmlContent: string;
+    bcc: string[];
+    cc: string[];
+    from: string;
+    replyTo?: string;
+    attachments: Array<{
+      name: string;
+      type: string;
+      size: number;
+      data: string; // base64 data
+    }>;
+  }): string {
+    const { to, subject, htmlContent, bcc, cc, from, replyTo, attachments } =
+      emailData;
+
+    const boundary = "----=_Part_" + Math.random().toString(36).substr(2, 9);
+
+    const lines = [
+      `To: ${to}`,
+      `From: ${from}`,
+      `Subject: ${subject}`,
+      "MIME-Version: 1.0",
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    ];
+
+    if (cc.length > 0) {
+      lines.push(`Cc: ${cc.join(", ")}`);
+    }
+
+    if (bcc.length > 0) {
+      lines.push(`Bcc: ${bcc.join(", ")}`);
+    }
+
+    if (replyTo) {
+      lines.push(`Reply-To: ${replyTo}`);
+    }
+
+    lines.push("");
+
+    // Add HTML content part
+    lines.push(`--${boundary}`);
+    lines.push("Content-Type: text/html; charset=utf-8");
+    lines.push("Content-Transfer-Encoding: 7bit");
+    lines.push("");
+    lines.push(htmlContent);
+
+    // Add attachment parts
+    for (const attachment of attachments) {
+      lines.push(`--${boundary}`);
+      lines.push(`Content-Type: ${attachment.type}`);
+      lines.push(
+        `Content-Disposition: attachment; filename="${attachment.name}"`
+      );
+      lines.push("Content-Transfer-Encoding: base64");
+      lines.push("");
+
+      // Add the base64 data directly
+      lines.push(attachment.data);
+    }
+
+    lines.push(`--${boundary}--`);
 
     const message = lines.join("\r\n");
     return Buffer.from(message).toString("base64url");

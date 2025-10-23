@@ -489,6 +489,30 @@ export function ComposeEmail({
         body: body,
       });
 
+      // Convert attachments to base64
+      const attachmentData = await Promise.all(
+        attachments.map(async (file) => {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result as string;
+              // Remove the data URL prefix (e.g., "data:image/png;base64,")
+              const base64Data = result.split(",")[1];
+              resolve(base64Data);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          return {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: base64,
+          };
+        })
+      );
+
       const response = await fetch("/api/gmail/send", {
         method: "POST",
         headers: {
@@ -500,6 +524,7 @@ export function ComposeEmail({
           bcc: bccEmails.length > 0 ? bccEmails.join(", ") : undefined,
           subject: subject.trim(),
           body: body,
+          attachments: attachmentData,
         }),
       });
 

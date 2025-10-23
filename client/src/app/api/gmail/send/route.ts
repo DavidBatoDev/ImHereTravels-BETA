@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       bcc: bcc ? [bcc] : undefined,
       subject,
       htmlContent: emailBody,
+      attachments: attachments || [],
     });
 
     console.log("Email sent successfully via Gmail API:", result);
