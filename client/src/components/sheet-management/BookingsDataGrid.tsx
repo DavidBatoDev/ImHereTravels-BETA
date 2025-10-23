@@ -966,160 +966,179 @@ export default function BookingsDataGrid({
           currentColId: undefined,
         });
 
-        // Recompute for each row using topological order first, then fallback multi-pass for cyclic sets
-        for (const originalRow of rows) {
-          const rowSnapshot: SheetData = { ...originalRow };
+        // Process rows in parallel batches for better performance
+        const BATCH_SIZE = 10; // Process 10 rows at a time
+        const totalBatches = Math.ceil(rows.length / BATCH_SIZE);
 
-          // 1) Acyclic: compute in dependency order
-          for (const funcCol of topoOrderedCols) {
-            try {
-              // Check if function is likely to be slow/async and add appropriate delay
-              const isLikelyAsync = await isFunctionLikelyAsync(
-                funcCol.function || ""
-              );
-              const isSlow = isSlowFunction(funcCol.function || "");
+        console.log(
+          `🚀 [FUNCTION RECOMPUTE] Processing ${rows.length} rows in ${totalBatches} parallel batches of ${BATCH_SIZE}`
+        );
 
-              // Track execution time
-              const executionStart = performance.now();
-              const result = await computeFunctionForRow(
-                rowSnapshot,
-                funcCol,
-                true
-              );
-              const executionTime = performance.now() - executionStart;
+        for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+          const batchStart = batchIndex * BATCH_SIZE;
+          const batchEnd = Math.min(batchStart + BATCH_SIZE, rows.length);
+          const batchRows = rows.slice(batchStart, batchEnd);
 
-              // Update execution time tracking
-              const functionId = funcCol.function || "";
-              const times = executionTimesRef.current.get(functionId) || [];
-              times.push(executionTime);
-              if (times.length > 10) times.shift(); // Keep only last 10 measurements
-              executionTimesRef.current.set(functionId, times);
+          console.log(
+            `📦 [BATCH ${batchIndex + 1}/${totalBatches}] Processing rows ${
+              batchStart + 1
+            }-${batchEnd}`
+          );
 
-              // Log slow functions for monitoring
-              if (executionTime > 2000) {
-                console.log(
-                  `⏰ [SLOW FUNCTION] ${
-                    funcCol.columnName
-                  } (${functionId}) took ${executionTime.toFixed(2)}ms`
+          // Process all rows in this batch in parallel
+          const batchPromises = batchRows.map(async (originalRow) => {
+            const rowSnapshot: SheetData = { ...originalRow };
+            let rowErrors = 0;
+
+            // 1) Acyclic: compute in dependency order
+            for (const funcCol of topoOrderedCols) {
+              try {
+                // Check if function is likely to be slow/async
+                const isLikelyAsync = await isFunctionLikelyAsync(
+                  funcCol.function || ""
+                );
+                const isSlow = isSlowFunction(funcCol.function || "");
+
+                // Track execution time
+                const executionStart = performance.now();
+                const result = await computeFunctionForRow(
+                  rowSnapshot,
+                  funcCol,
+                  true
+                );
+                const executionTime = performance.now() - executionStart;
+
+                // Update execution time tracking
+                const functionId = funcCol.function || "";
+                const times = executionTimesRef.current.get(functionId) || [];
+                times.push(executionTime);
+                if (times.length > 10) times.shift(); // Keep only last 10 measurements
+                executionTimesRef.current.set(functionId, times);
+
+                // Log slow functions for monitoring
+                if (executionTime > 2000) {
+                  console.log(
+                    `⏰ [SLOW FUNCTION] ${
+                      funcCol.columnName
+                    } (${functionId}) took ${executionTime.toFixed(2)}ms`
+                  );
+                }
+
+                if (!isEqual(rowSnapshot[funcCol.id], result)) {
+                  rowSnapshot[funcCol.id] = result as any;
+                }
+
+                // Add minimal delay for async/slow functions only
+                if (isLikelyAsync || isSlow) {
+                  await new Promise((resolve) => setTimeout(resolve, 50)); // Reduced delay
+                }
+              } catch (error) {
+                rowErrors++;
+                logFunctionError(
+                  `❌ [FUNCTION RECOMPUTE] Error computing ${funcCol.id} for row ${originalRow.id}:`,
+                  error
                 );
               }
-
-              if (!isEqual(rowSnapshot[funcCol.id], result)) {
-                rowSnapshot[funcCol.id] = result as any;
-              }
-
-              setRecomputeProgress((prev) => ({
-                ...prev,
-                completed: Math.min(prev.completed + 1, prev.total),
-                currentRowId: originalRow.id,
-                currentColId: funcCol.id,
-                phase: "acyclic",
-                attempt: retryAttempt,
-                maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
-              }));
-
-              // Add delay between function executions to prevent overwhelming
-              // More delay for async/slow functions
-              const delay =
-                isLikelyAsync || isSlow
-                  ? ASYNC_FUNCTION_DELAY
-                  : FUNCTION_EXECUTION_DELAY;
-              if (delay > 0) {
-                await new Promise((resolve) => setTimeout(resolve, delay));
-              }
-            } catch (error) {
-              attemptErrorCountRef.current =
-                (attemptErrorCountRef.current || 0) + 1;
-              logFunctionError(
-                `❌ [FUNCTION RECOMPUTE] Error computing ${funcCol.id} for row ${originalRow.id}:`,
-                error
-              );
             }
-          }
 
-          // 2) Cyclic or unresolved: bounded multi-pass across the remaining set
-          if (cyclicCols.length > 0) {
-            setRecomputeProgress((prev) => ({
-              ...prev,
-              phase: "cyclic",
-              attempt: retryAttempt,
-            }));
-            for (let pass = 1; pass <= MAX_PASSES; pass++) {
-              let changedInPass = false;
-              for (const funcCol of cyclicCols) {
-                try {
-                  // Check if function is likely to be slow/async and add appropriate delay
-                  const isLikelyAsync = await isFunctionLikelyAsync(
-                    funcCol.function || ""
-                  );
-                  const isSlow = isSlowFunction(funcCol.function || "");
+            // 2) Cyclic or unresolved: bounded multi-pass across the remaining set
+            if (cyclicCols.length > 0) {
+              for (let pass = 1; pass <= MAX_PASSES; pass++) {
+                let changedInPass = false;
+                for (const funcCol of cyclicCols) {
+                  try {
+                    // Check if function is likely to be slow/async
+                    const isLikelyAsync = await isFunctionLikelyAsync(
+                      funcCol.function || ""
+                    );
+                    const isSlow = isSlowFunction(funcCol.function || "");
 
-                  // Track execution time
-                  const executionStart = performance.now();
-                  const result = await computeFunctionForRow(
-                    rowSnapshot,
-                    funcCol,
-                    true
-                  );
-                  const executionTime = performance.now() - executionStart;
+                    // Track execution time
+                    const executionStart = performance.now();
+                    const result = await computeFunctionForRow(
+                      rowSnapshot,
+                      funcCol,
+                      true
+                    );
+                    const executionTime = performance.now() - executionStart;
 
-                  // Update execution time tracking
-                  const functionId = funcCol.function || "";
-                  const times = executionTimesRef.current.get(functionId) || [];
-                  times.push(executionTime);
-                  if (times.length > 10) times.shift(); // Keep only last 10 measurements
-                  executionTimesRef.current.set(functionId, times);
+                    // Update execution time tracking
+                    const functionId = funcCol.function || "";
+                    const times =
+                      executionTimesRef.current.get(functionId) || [];
+                    times.push(executionTime);
+                    if (times.length > 10) times.shift(); // Keep only last 10 measurements
+                    executionTimesRef.current.set(functionId, times);
 
-                  // Log slow functions for monitoring
-                  if (executionTime > 2000) {
-                    console.log(
-                      `⏰ [SLOW FUNCTION] ${
-                        funcCol.columnName
-                      } (${functionId}) took ${executionTime.toFixed(
-                        2
-                      )}ms (cyclic pass ${pass})`
+                    // Log slow functions for monitoring
+                    if (executionTime > 2000) {
+                      console.log(
+                        `⏰ [SLOW FUNCTION] ${
+                          funcCol.columnName
+                        } (${functionId}) took ${executionTime.toFixed(
+                          2
+                        )}ms (cyclic pass ${pass})`
+                      );
+                    }
+
+                    if (!isEqual(rowSnapshot[funcCol.id], result)) {
+                      rowSnapshot[funcCol.id] = result as any;
+                      changedInPass = true;
+                    }
+
+                    // Add minimal delay for async/slow functions only
+                    if (isLikelyAsync || isSlow) {
+                      await new Promise((resolve) => setTimeout(resolve, 50)); // Reduced delay
+                    }
+                  } catch (error) {
+                    rowErrors++;
+                    logFunctionError(
+                      `❌ [FUNCTION RECOMPUTE] Error computing ${funcCol.id} for row ${originalRow.id}:`,
+                      error
                     );
                   }
-
-                  if (!isEqual(rowSnapshot[funcCol.id], result)) {
-                    rowSnapshot[funcCol.id] = result as any;
-                    changedInPass = true;
-                  }
-                  setRecomputeProgress((prev) => ({
-                    ...prev,
-                    completed: Math.min(prev.completed + 1, prev.total),
-                    currentRowId: originalRow.id,
-                    currentColId: funcCol.id,
-                    phase: "cyclic",
-                    attempt: retryAttempt,
-                    maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
-                  }));
-
-                  // Add delay between function executions, especially for cyclic dependencies
-                  const delay =
-                    isLikelyAsync || isSlow
-                      ? ASYNC_FUNCTION_DELAY
-                      : FUNCTION_EXECUTION_DELAY;
-                  if (delay > 0) {
-                    await new Promise((resolve) => setTimeout(resolve, delay));
-                  }
-                } catch (error) {
-                  attemptErrorCountRef.current =
-                    (attemptErrorCountRef.current || 0) + 1;
-                  logFunctionError(
-                    `❌ [FUNCTION RECOMPUTE] Error computing ${funcCol.id} for row ${originalRow.id}:`,
-                    error
-                  );
-                  setRecomputeProgress((prev) => ({
-                    ...prev,
-                    errorDetected: true,
-                    errorCount: (prev.errorCount || 0) + 1,
-                  }));
                 }
+                if (!changedInPass) break;
               }
-              if (!changedInPass) break;
             }
+
+            return { rowId: originalRow.id, errors: rowErrors };
+          });
+
+          // Wait for all rows in this batch to complete
+          const batchResults = await Promise.all(batchPromises);
+
+          // Update error count for this batch
+          const batchErrors = batchResults.reduce(
+            (sum, result) => sum + result.errors,
+            0
+          );
+          attemptErrorCountRef.current =
+            (attemptErrorCountRef.current || 0) + batchErrors;
+
+          // Update progress for this batch (throttled to reduce UI updates)
+          const batchProgress =
+            batchRows.length *
+            (topoOrderedCols.length + cyclicCols.length * MAX_PASSES);
+
+          // Only update progress every 2 batches to reduce UI update frequency
+          if (batchIndex % 2 === 0 || batchIndex === totalBatches - 1) {
+            setRecomputeProgress((prev) => ({
+              ...prev,
+              completed: Math.min(prev.completed + batchProgress, prev.total),
+              phase: batchIndex === totalBatches - 1 ? "flushing" : "acyclic",
+              attempt: retryAttempt,
+              maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+              errorDetected: batchErrors > 0,
+              errorCount: (prev.errorCount || 0) + batchErrors,
+            }));
           }
+
+          console.log(
+            `✅ [BATCH ${
+              batchIndex + 1
+            }/${totalBatches}] Completed with ${batchErrors} errors`
+          );
         }
 
         // Force immediate persistence
