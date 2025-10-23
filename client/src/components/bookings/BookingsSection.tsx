@@ -30,7 +30,17 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
-import { Search, Filter, X, User, Grid3X3, List, Trash2 } from "lucide-react";
+import {
+  Search,
+  Filter,
+  X,
+  User,
+  Grid3X3,
+  List,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import {
   FaUser,
   FaMapMarkerAlt,
@@ -112,6 +122,8 @@ export default function BookingsSection() {
   const [isFilterSticky, setIsFilterSticky] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+  // Remove scroll button states - using CSS-only approach
 
   // Fetch booking sheet columns
   useEffect(() => {
@@ -221,6 +233,29 @@ export default function BookingsSection() {
     };
 
     window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Minimal JavaScript for CSS-only scroll button visibility
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop =
+        window.pageYOffset || document.documentElement.scrollTop;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+
+      const isAtTop = scrollTop <= 10;
+      const isAtBottom = scrollTop >= documentHeight - windowHeight - 10;
+
+      // Set data attributes for CSS
+      document.body.setAttribute(
+        "data-scroll",
+        isAtTop ? "top" : isAtBottom ? "bottom" : "middle"
+      );
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    handleScroll(); // Initial call
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -655,6 +690,21 @@ export default function BookingsSection() {
     return String(value);
   };
 
+  // Scroll functions
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
+  const scrollToBottom = () => {
+    window.scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: "smooth",
+    });
+  };
+
   // Filter bookings based on search and filters
   const filteredBookings = bookings.filter((booking) => {
     const matchesSearch =
@@ -856,9 +906,7 @@ export default function BookingsSection() {
       <Card
         data-filter-section
         className={`sticky top-4 z-50 border border-border bg-white backdrop-blur-sm transition-all duration-300 ${
-          isFilterSticky
-            ? "shadow-[0_-12px_60px_0px_rgba(0,0,0,0.6)]"
-            : "shadow-lg"
+          isFilterSticky ? "shadow-[0_-12px_60px_0px_rgba(0,0,0,0.6)]" : ""
         }`}
       >
         <CardContent className="p-4">
@@ -2077,6 +2125,24 @@ export default function BookingsSection() {
         booking={selectedBooking}
         onBookingUpdate={handleBookingUpdate}
       />
+
+      {/* Fixed Scroll Buttons - CSS-only visibility */}
+      <Button
+        onClick={scrollToTop}
+        size="sm"
+        className="fixed right-6 bottom-20 z-50 h-10 w-10 rounded-full bg-crimson-red hover:bg-crimson-red/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 scroll-to-top-btn"
+        title="Scroll to top"
+      >
+        <ChevronUp className="h-4 w-4" />
+      </Button>
+      <Button
+        onClick={scrollToBottom}
+        size="sm"
+        className="fixed right-6 bottom-6 z-50 h-10 w-10 rounded-full bg-crimson-red hover:bg-crimson-red/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 scroll-to-bottom-btn"
+        title="Scroll to bottom"
+      >
+        <ChevronDown className="h-4 w-4" />
+      </Button>
     </div>
   );
 }

@@ -762,6 +762,7 @@ export default function BookingDetailModal({
                           {safeDate(
                             currentBooking?.reservationDate
                           ).toLocaleDateString("en-US", {
+                            year: "numeric",
                             month: "short",
                             day: "numeric",
                           })}
@@ -773,6 +774,7 @@ export default function BookingDetailModal({
                           {safeDate(
                             currentBooking?.tourDate
                           ).toLocaleDateString("en-US", {
+                            year: "numeric",
                             month: "short",
                             day: "numeric",
                           })}

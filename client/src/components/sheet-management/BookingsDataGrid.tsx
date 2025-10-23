@@ -1458,8 +1458,6 @@ export default function BookingsDataGrid({
   const rowsToShow = Math.max(pageSize, currentPageData.length + 1);
 
   // Calculate dynamic height based on number of rows
-  const rowHeight = 32; // Height of each row in pixels
-  const headerHeight = 40; // Height of header row in pixels
   //   const dynamicHeight = rowsToShow * rowHeight + headerHeight + 150;
 
   // Use state for dynamic height to avoid hydration mismatch
@@ -1469,8 +1467,14 @@ export default function BookingsDataGrid({
 
   // Update height after component mounts to avoid hydration mismatch
   useEffect(() => {
-    if (isFullscreen && typeof window !== "undefined") {
-      setDynamicHeight(window.innerHeight - 150);
+    if (typeof window !== "undefined") {
+      if (isFullscreen) {
+        setDynamicHeight(window.innerHeight - 150);
+      } else {
+        // Calculate 20vh in pixels
+        const vh20 = window.innerHeight * 0.48;
+        setDynamicHeight(window.innerHeight - vh20);
+      }
     }
   }, [isFullscreen]);
 
@@ -1496,8 +1500,8 @@ export default function BookingsDataGrid({
 
     if (isFirstColumn && shouldShowAddButton) {
       return (
-        <div
-          className={`h-8 w-full flex items-center px-2 border-r border-b border-border ${
+        <span
+          className={`h-8 w-full flex items-center px-2 ${
             isFirstEmptyRow ? "opacity-100" : "opacity-60"
           }`}
         >
@@ -1509,18 +1513,18 @@ export default function BookingsDataGrid({
             <Plus className="h-3 w-3 mr-1" />
             Add Booking
           </Button>
-        </div>
+        </span>
       );
     }
 
     return (
-      <div
-        className={`h-8 w-full flex items-center text-sm px-2 border-r border-b border-border ${
+      <span
+        className={`h-8 w-full flex items-center text-sm px-2 ${
           isFirstEmptyRow ? "opacity-100" : "opacity-60"
         }`}
       >
         -
-      </div>
+      </span>
     );
   };
 
@@ -1773,7 +1777,7 @@ export default function BookingsDataGrid({
     const signature = `${functionName}(${args})`;
 
     return (
-      <div className="h-8 w-full flex items-center justify-center px-2">
+      <span className="h-8 w-full flex items-center justify-center px-2">
         <button
           onClick={() => {
             if (globalNavigateToFunctions) {
@@ -1786,7 +1790,7 @@ export default function BookingsDataGrid({
           <ExternalLink className="h-4 w-4" />
           {signature}
         </button>
-      </div>
+      </span>
     );
   }
 
@@ -1809,7 +1813,7 @@ export default function BookingsDataGrid({
 
     if (columnDef.id === "delete") {
       return (
-        <div className="h-8 w-full flex items-center justify-center px-2 border-r border-b border-border">
+        <span className="h-8 w-full flex items-center justify-center px-2">
           <Button
             variant="destructive"
             size="sm"
@@ -1827,7 +1831,7 @@ export default function BookingsDataGrid({
           >
             Delete
           </Button>
-        </div>
+        </span>
       );
     }
 
@@ -1856,11 +1860,11 @@ export default function BookingsDataGrid({
 
     return (
       <>
-        <div className="h-8 w-full flex items-center text-xs px-2 border-r border-b border-border relative group">
-          <div className="flex-1 h-full flex items-center pr-16">
+        <span className="h-8 w-full flex items-center text-xs px-2 relative group">
+          <span className="flex-1 h-full flex items-center pr-16">
             <span className="text-xs">{value?.toString() || ""}</span>
-          </div>
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          </span>
+          <span className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
             <button
               onClick={handleDebug}
               className="p-1 hover:bg-blue-50 rounded transition-all opacity-0 group-hover:opacity-100"
@@ -1884,8 +1888,8 @@ export default function BookingsDataGrid({
                 }`}
               />
             </button>
-          </div>
-        </div>
+          </span>
+        </span>
       </>
     );
   });
@@ -1936,7 +1940,7 @@ export default function BookingsDataGrid({
           // Show add button in first empty row
           if (isFirstEmptyRow && shouldShowAddButton) {
             return (
-              <div className="h-8 w-16 flex items-center justify-center px-2 border-r border-b border-border bg-muted relative z-[999999999]">
+              <span className="h-8 w-16 flex items-center justify-center px-2 bg-muted relative z-[999999999]">
                 <Button
                   onClick={handleAddNewRow}
                   disabled={isAddingRow}
@@ -1944,7 +1948,7 @@ export default function BookingsDataGrid({
                 >
                   <Plus className="h-3 w-3 mr-1" />
                 </Button>
-              </div>
+              </span>
             );
           }
 
@@ -1975,30 +1979,30 @@ export default function BookingsDataGrid({
           }
 
           return (
-            <div
-              className={`h-8 w-16 flex items-center justify-center text-xs font-mono px-2 border-r border-b border-border bg-muted relative z-[999999999] ${
+            <span
+              className={`h-8 w-16 flex items-center justify-center text-xs font-mono px-2 bg-muted relative z-[999999999] ${
                 isFirstEmptyRow
                   ? "text-muted-foreground"
                   : "text-muted-foreground/60"
               }`}
             >
               {nextRowNumber}
-            </div>
+            </span>
           );
         }
 
         const rowNumber = row.row;
         const isSelected = selectedRowId === row.id;
         return (
-          <div
+          <span
             onClick={() => setSelectedRowId(isSelected ? null : row.id)}
-            className={`h-8 w-16 flex items-center justify-center text-xs font-mono text-foreground px-2 border-r border-b border-border bg-muted relative z-[999999999] cursor-pointer hover:bg-royal-purple/20 transition-colors ${
+            className={`h-8 w-16 flex items-center justify-center text-xs font-mono text-foreground px-2 bg-muted relative z-[999999999] cursor-pointer hover:bg-royal-purple/20 transition-colors ${
               isSelected ? "ring-2 ring-inset ring-royal-purple" : ""
             }`}
             title={`Row ${rowNumber} (ID: ${row.id})`} // Show row number and ID on hover
           >
             {rowNumber || "-"}
-          </div>
+          </span>
         );
       },
     };
@@ -2228,7 +2232,7 @@ export default function BookingsDataGrid({
             const hasColor = col.color && col.color !== "none";
 
             return (
-              <div className="h-8 w-full flex items-center justify-center px-2 border-r border-b border-border">
+              <span className="h-8 w-full flex items-center justify-center px-2">
                 <input
                   type="checkbox"
                   checked={cellValue}
@@ -2249,7 +2253,7 @@ export default function BookingsDataGrid({
                   }}
                   className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
                 />
-              </div>
+              </span>
             );
           };
           baseColumn.editable = false; // We handle editing through the checkbox
@@ -2418,13 +2422,13 @@ export default function BookingsDataGrid({
             }
 
             return (
-              <div
-                className={`h-8 w-full flex items-center text-xs px-2 border-r border-b border-border ${
+              <span
+                className={`h-8 w-full flex items-center text-xs px-2 ${
                   hasColor ? "text-black" : ""
                 }`}
               >
                 {row[column.key as keyof SheetData]?.toString() || ""}
-              </div>
+              </span>
             );
           };
           baseColumn.renderEditCell = currencyEditor;
@@ -2444,9 +2448,9 @@ export default function BookingsDataGrid({
             }
 
             return (
-              <div className="h-8 w-full flex items-center text-xs px-2 border-r border-b border-gray-200">
+              <span className="h-8 w-full flex items-center text-xs px-2">
                 <FunctionFormatter row={row} column={column} />
-              </div>
+              </span>
             );
           };
           baseColumn.renderEditCell = FunctionEditor; // Show button when editing
@@ -2474,13 +2478,13 @@ export default function BookingsDataGrid({
             }
 
             return (
-              <div
-                className={`h-8 w-full flex items-center text-xs px-2 border-r border-b border-border ${
+              <span
+                className={`h-8 w-full flex items-center text-xs px-2 ${
                   hasColor ? "text-black" : ""
                 }`}
               >
                 {row[column.key as keyof SheetData]?.toString() || ""}
-              </div>
+              </span>
             );
           };
           baseColumn.renderEditCell = textEditor; // Use direct reference
@@ -2503,9 +2507,9 @@ export default function BookingsDataGrid({
             }
 
             return (
-              <div className="h-8 w-full flex items-center text-xs px-2 border-r border-b border-gray-200">
+              <span className="h-8 w-full flex items-center text-xs px-2">
                 {row[column.key as keyof SheetData]?.toString() || ""}
-              </div>
+              </span>
             );
           };
           baseColumn.renderEditCell = textEditor; // Use direct reference
@@ -2526,13 +2530,13 @@ export default function BookingsDataGrid({
           renderCell: ({ row }: { row: SheetData }) => {
             const hasColor = col.color && col.color !== "none";
             return (
-              <div
-                className={`h-8 w-full flex items-center text-sm px-2 border-r border-b border-border ${
+              <span
+                className={`h-8 w-full flex items-center text-sm px-2 ${
                   hasColor ? "text-black" : ""
                 }`}
               >
                 {row[col.key as keyof SheetData]?.toString() || ""}
-              </div>
+              </span>
             );
           },
           renderEditCell: textEditor, // Use direct reference
@@ -3253,13 +3257,13 @@ export default function BookingsDataGrid({
                 const hasColor = columnDef?.color && columnDef.color !== "none";
 
                 return (
-                  <div
-                    className={`h-8 w-full flex items-center text-sm px-2 border-r border-b border-border ${
+                  <span
+                    className={`h-8 w-full flex items-center text-sm px-2 ${
                       hasColor ? "text-black" : ""
                     }`}
                   >
                     {row[column.key as keyof SheetData]?.toString() || ""}
-                  </div>
+                  </span>
                 );
               },
               // Don't set a default renderEditCell - let each column define its own

@@ -13,6 +13,37 @@
   }
 }
 
+/* CSS-only scroll button visibility */
+@layer components {
+  .scroll-to-top-btn {
+    /* Hide by default */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .scroll-to-bottom-btn {
+    /* Hide by default */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  /* Show up button when not at top */
+  body[data-scroll="middle"] .scroll-to-top-btn,
+  body[data-scroll="bottom"] .scroll-to-top-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Show down button when not at bottom */
+  body[data-scroll="middle"] .scroll-to-bottom-btn,
+  body[data-scroll="top"] .scroll-to-bottom-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 /* React Data Grid Custom Styling */
 .custom-grid {
   border-collapse: separate;
