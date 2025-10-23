@@ -84,7 +84,7 @@ const navigation = [
     description: "File management",
   },
   {
-    name: "Apps Script",
+    name: "Functions",
     href: "/functions",
     icon: Code,
     description: "Automation tools",
@@ -96,7 +96,7 @@ const navigation = [
     description: "Analytics & insights",
   },
   {
-    name: "Settings (Coming Soon)",
+    name: "Settings",
     href: "/settings",
     icon: Settings,
     description: "System configuration",
