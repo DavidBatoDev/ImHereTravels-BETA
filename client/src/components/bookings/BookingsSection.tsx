@@ -1882,6 +1882,67 @@ export default function BookingsSection() {
                 </Card>
               );
             })}
+
+          {/* Add Booking Card */}
+          <Card
+            onClick={() => setIsAddModalOpen(true)}
+            className="group border-2 border-dashed border-crimson-red/30 hover:border-crimson-red/50 hover:bg-crimson-red/5 transition-all duration-300 cursor-pointer overflow-hidden relative"
+          >
+            <CardHeader className="p-3 pb-2 border-b border-border/50">
+              <div className="flex items-center justify-center">
+                <div className="p-2 bg-crimson-red/10 rounded-full rounded-br-none">
+                  <FaPlus className="h-5 w-5 text-crimson-red" />
+                </div>
+              </div>
+              <h3 className="font-bold text-lg text-crimson-red text-center mt-2">
+                Add New Booking
+              </h3>
+              <CardDescription className="text-xs text-center text-muted-foreground">
+                Click to create a new booking
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="p-3 pt-2 space-y-2">
+              <div className="flex items-center justify-center gap-2 p-2 rounded-lg bg-muted/30">
+                <div className="text-center">
+                  <p className="text-[10px] text-muted-foreground font-medium">
+                    New Booking
+                  </p>
+                  <p className="text-sm font-semibold text-crimson-red">
+                    Click to start
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 p-2 rounded-lg bg-muted/30">
+                <div className="text-center">
+                  <p className="text-[10px] text-muted-foreground font-medium">
+                    Status
+                  </p>
+                  <Badge
+                    variant="outline"
+                    className="text-xs font-medium border-crimson-red/30 text-crimson-red px-2 py-1 rounded-full"
+                  >
+                    New
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-muted/30">
+                <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                  <IoWallet className="h-4 w-4 text-foreground" />
+                  <span className="text-xs font-semibold text-foreground">
+                    Payment
+                  </span>
+                </div>
+                <div className="text-center">
+                  <span className="text-xs text-muted-foreground">
+                    Will be calculated
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       ) : (
         // List View
@@ -2104,6 +2165,58 @@ export default function BookingsSection() {
                         </tr>
                       );
                     })}
+
+                  {/* Add Booking Row */}
+                  <tr
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="group border-b border-dashed border-crimson-red/30 hover:border-crimson-red/50 hover:bg-crimson-red/5 transition-all duration-300 cursor-pointer"
+                  >
+                    <td className="py-4 px-3 text-center">
+                      <div className="flex items-center justify-center">
+                        <div className="p-2 bg-crimson-red/10 rounded-full rounded-br-none">
+                          <FaPlus className="h-4 w-4 text-crimson-red" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      <span className="text-[10px] font-medium text-crimson-red">
+                        Add New Booking
+                      </span>
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      <span className="text-xs text-muted-foreground">
+                        Click to create
+                      </span>
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      <span className="text-xs text-muted-foreground">
+                        New booking
+                      </span>
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      <Badge
+                        variant="outline"
+                        className="text-xs font-medium border-crimson-red/30 text-crimson-red px-2 py-1 rounded-full"
+                      >
+                        New
+                      </Badge>
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </td>
+                    <td className="py-4 px-3 text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
