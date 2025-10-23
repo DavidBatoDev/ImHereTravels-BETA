@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import BookingsTabs from "@/components/bookings/BookingsTabs";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
 export const metadata: Metadata = {
   title: "Bookings - ImHereTravels Admin",
@@ -10,7 +11,9 @@ export const metadata: Metadata = {
 export default function BookingsPage() {
   return (
     <DashboardLayout>
-      <BookingsTabs />
+      <PermissionGuard permission="canManageBookings">
+        <BookingsTabs />
+      </PermissionGuard>
     </DashboardLayout>
   );
 }

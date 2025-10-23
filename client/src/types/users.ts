@@ -38,6 +38,7 @@ export interface UserPermissions {
   canManageStorage: boolean;
   canManageFunctions: boolean;
   canManageEmails: boolean;
+  canManageBcc: boolean;
 }
 
 export interface UserPreferences {

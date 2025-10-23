@@ -421,6 +421,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           canManageStorage: false,
           canManageFunctions: false,
           canManageEmails: false,
+          canManageBcc: false,
         },
         preferences: {
           notifications: {

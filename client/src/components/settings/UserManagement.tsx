@@ -46,6 +46,7 @@ import {
   Database,
   Settings,
   Mail,
+  Copy,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -416,7 +417,7 @@ export default function UserManagement() {
                               <div className="flex items-center space-x-2">
                                 <MapPin className="h-4 w-4 text-spring-green" />
                                 <Label className="text-xs font-medium text-foreground">
-                                  Tours
+                                  Tour Packages
                                 </Label>
                               </div>
                               <Switch
@@ -443,7 +444,7 @@ export default function UserManagement() {
                               <div className="flex items-center space-x-2">
                                 <MessageSquare className="h-4 w-4 text-royal-purple" />
                                 <Label className="text-xs font-medium text-foreground">
-                                  Communications
+                                  Email Templates
                                 </Label>
                               </div>
                               <Switch
@@ -591,6 +592,33 @@ export default function UserManagement() {
                                   togglePermission(
                                     user.id,
                                     "canManageUsers",
+                                    checked
+                                  )
+                                }
+                                disabled={
+                                  !user.isApproved || updatingUser === user.id
+                                }
+                              />
+                            </div>
+
+                            {/* BCC Management Permission */}
+                            <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-royal-purple/20 dark:border-border">
+                              <div className="flex items-center space-x-2">
+                                <Copy className="h-4 w-4 text-spring-green" />
+                                <Label className="text-xs font-medium text-foreground">
+                                  BCC Management
+                                </Label>
+                              </div>
+                              <Switch
+                                checked={
+                                  user.isApproved
+                                    ? user.permissions.canManageBcc
+                                    : false
+                                }
+                                onCheckedChange={(checked) =>
+                                  togglePermission(
+                                    user.id,
+                                    "canManageBcc",
                                     checked
                                   )
                                 }
