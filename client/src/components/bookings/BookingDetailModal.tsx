@@ -551,6 +551,7 @@ export default function BookingDetailModal({
     const value = getColumnValue(column);
     return <span>{value || "N/A"}</span>;
   });
+  MemoizedColumnValue.displayName = "MemoizedColumnValue";
 
   // Check if column should be displayed (skip certain columns)
   const shouldDisplayColumn = (column: SheetColumn) => {
