@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { collection, onSnapshot, query } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { Booking } from "@/types/bookings";
 import {
   Card,
   CardContent,
@@ -45,6 +48,8 @@ import {
   Trash2,
   MoreHorizontal,
   RefreshCw,
+  Calendar,
+  TrendingUp,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -70,6 +75,7 @@ import TourDetails from "./TourDetails";
 
 export default function ToursList() {
   const [tours, setTours] = useState<TourPackage[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -81,6 +87,43 @@ export default function ToursList() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { toast } = useToast();
+
+  // Load bookings data
+  const loadBookings = () => {
+    try {
+      const bookingsQuery = query(collection(db, "bookings"));
+
+      const unsubscribe = onSnapshot(bookingsQuery, (snapshot) => {
+        const bookingData = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          // Convert Firebase Timestamps to JavaScript Date objects
+          return {
+            id: doc.id,
+            ...data,
+            reservationDate: data.reservationDate?.toDate
+              ? data.reservationDate.toDate()
+              : new Date(data.reservationDate),
+            tourDate: data.tourDate?.toDate
+              ? data.tourDate.toDate()
+              : new Date(data.tourDate),
+            returnDate: data.returnDate?.toDate
+              ? data.returnDate.toDate()
+              : data.returnDate
+              ? new Date(data.returnDate)
+              : null,
+          };
+        }) as Booking[];
+
+        setBookings(bookingData);
+        console.log("Loaded bookings:", bookingData.length, bookingData);
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.error("Error loading bookings:", error);
+      return () => {}; // Return empty function as fallback
+    }
+  };
 
   // Load tours
   const loadTours = async () => {
@@ -127,6 +170,13 @@ export default function ToursList() {
 
   useEffect(() => {
     loadTours();
+    const unsubscribeBookings = loadBookings();
+
+    return () => {
+      if (unsubscribeBookings) {
+        unsubscribeBookings();
+      }
+    };
   }, [searchTerm, statusFilter]);
 
   // Create tour
@@ -297,111 +347,220 @@ export default function ToursList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground font-hk-grotesk">
-            Tour Packages
-          </h1>
-          <p className="text-muted-foreground mt-2 text-lg">
-            Manage your tour packages and itineraries
-          </p>
-        </div>
-        <Button
-          onClick={openCreateForm}
-          className="mt-4 md:mt-0 bg-primary hover:bg-primary/90 text-white shadow shadow-primary/25 transition-all duration-200"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add New Tour
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold text-foreground font-hk-grotesk">
+          Tour Packages
+        </h1>
+        <p className="text-muted-foreground mt-2 text-lg">
+          Manage your tour packages and itineraries
+        </p>
       </div>
 
-      {/* Summary Cards */}
-      {tours.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 bg-royal-purple/20 rounded-xl">
-                  <MapPin className="h-6 w-6 text-royal-purple" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Total Tours
-                  </p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {tours.length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 bg-spring-green/20 rounded-xl">
-                  <Users className="h-6 w-6 text-spring-green" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Total Bookings
-                  </p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {tours.reduce(
-                      (sum, tour) => sum + tour.metadata.bookingsCount,
-                      0
-                    )}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 bg-sunglow-yellow/20 rounded-xl">
-                  <Banknote className="h-6 w-6 text-vivid-orange" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Avg. Price
-                  </p>
-                  <p className="text-2xl font-bold text-foreground">
-                    €
-                    {tours.length > 0
-                      ? Math.round(
-                          tours.reduce(
-                            (sum, tour) =>
-                              sum +
-                              (tour.pricing.discounted ||
-                                tour.pricing.original),
-                            0
-                          ) / tours.length
-                        )
-                      : 0}
-                  </p>
+      {/* Statistics Cards with Add Button */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-4">
+        {/* Total Tours */}
+        <Card className="border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
+                  Total Tours
+                </p>
+                <p className="text-3xl font-bold text-foreground">
+                  {tours.length}
+                </p>
+                {/* Breakdown */}
+                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                  {tours.filter((tour) => tour.status === "active").length >
+                    0 && (
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-spring-green"></div>
+                      <p className="text-xs text-muted-foreground">
+                        Active:{" "}
+                        <span className="text-spring-green font-bold">
+                          {
+                            tours.filter((tour) => tour.status === "active")
+                              .length
+                          }
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                  {tours.filter((tour) => tour.status === "draft").length >
+                    0 && (
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
+                      <p className="text-xs text-muted-foreground">
+                        Draft:{" "}
+                        <span className="text-vivid-orange font-bold">
+                          {
+                            tours.filter((tour) => tour.status === "draft")
+                              .length
+                          }
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                  {tours.filter((tour) => tour.status === "archived").length >
+                    0 && (
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      <p className="text-xs text-muted-foreground">
+                        Archived:{" "}
+                        <span className="text-blue-500 font-bold">
+                          {
+                            tours.filter((tour) => tour.status === "archived")
+                              .length
+                          }
+                        </span>
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="border border-royal-purple/20 dark:border-border shadow hover:shadow-md transition-all duration-200">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 bg-crimson-red/20 rounded-xl">
-                  <Star className="h-6 w-6 text-crimson-red" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Active Tours
-                  </p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {tours.filter((tour) => tour.status === "active").length}
-                  </p>
-                </div>
+              <div className="p-4 bg-gradient-to-br from-blue-500/20 to-blue-500/10 rounded-full rounded-br-none">
+                <MapPin className="h-6 w-6 text-foreground" />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Average Cost */}
+        <Card className="border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
+                  Total Bookings
+                </p>
+                <p className="text-2xl font-bold text-vivid-orange">
+                  {bookings.length}
+                </p>
+                {bookings.length > 0 && (
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
+                    <p className="text-xs text-muted-foreground">
+                      From all tours
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div className="p-4 bg-gradient-to-br from-vivid-orange/20 to-vivid-orange/10 rounded-full rounded-br-none">
+                <Banknote className="h-6 w-6 text-foreground" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Most Selected Tour */}
+        <Card className="border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
+                  Most Selected Tour
+                </p>
+                {(() => {
+                  // Calculate actual booking counts from bookings collection
+                  const tourBookingCounts: { [tourName: string]: number } = {};
+                  bookings.forEach((booking) => {
+                    const tourName =
+                      booking.tourPackageName ||
+                      booking.tourPackage ||
+                      booking.tourName ||
+                      booking.tour ||
+                      booking.package;
+                    if (tourName && tourName.trim() !== "") {
+                      tourBookingCounts[tourName] =
+                        (tourBookingCounts[tourName] || 0) + 1;
+                    }
+                  });
+
+                  // Sort tours by actual booking count and get top 3
+                  const sortedTours = [...tours]
+                    .map((tour) => ({
+                      ...tour,
+                      actualBookingsCount: tourBookingCounts[tour.name] || 0,
+                    }))
+                    .sort(
+                      (a, b) => b.actualBookingsCount - a.actualBookingsCount
+                    )
+                    .slice(0, 3);
+
+                  const mostSelectedTour = sortedTours[0] || {
+                    name: "No tours",
+                    actualBookingsCount: 0,
+                  };
+
+                  return (
+                    <>
+                      <p
+                        className="text-lg font-bold text-royal-purple truncate"
+                        title={mostSelectedTour.name}
+                      >
+                        {mostSelectedTour.name}
+                      </p>
+                      {tours.length > 0 &&
+                        mostSelectedTour.actualBookingsCount > 0 && (
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <div className="w-2 h-2 rounded-full bg-royal-purple"></div>
+                            <p className="text-xs text-muted-foreground">
+                              {mostSelectedTour.actualBookingsCount} bookings
+                            </p>
+                          </div>
+                        )}
+
+                      {/* Show 2nd and 3rd place */}
+                      {sortedTours.length > 1 && (
+                        <div className="mt-3 space-y-1">
+                          {sortedTours.slice(1).map((tour, index) => (
+                            <div
+                              key={tour.id || index}
+                              className="flex items-center justify-between"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-muted-foreground">
+                                  #{index + 2}
+                                </span>
+                                <p
+                                  className="text-xs text-muted-foreground truncate flex-1"
+                                  title={tour.name}
+                                >
+                                  {tour.name}
+                                </p>
+                              </div>
+                              <span className="text-xs font-medium text-royal-purple">
+                                {tour.actualBookingsCount}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+              <div className="p-4 bg-gradient-to-br from-royal-purple/20 to-royal-purple/10 rounded-full rounded-br-none">
+                <Star className="h-6 w-6 text-foreground" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Add Tour Button */}
+        <div className="flex items-center justify-center">
+          <Button
+            onClick={openCreateForm}
+            className="group h-20 w-20 rounded-full rounded-br-none bg-crimson-red hover:bg-royal-purple text-white transition-all duration-300 hover:scale-105 shadow-lg relative"
+            title="Add New Tour"
+          >
+            <Plus className="h-10 w-10 absolute group-hover:opacity-0 group-hover:scale-0 transition-all duration-300" />
+            <span className="text-[9px] font-medium opacity-0 scale-0 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 whitespace-nowrap font-hk-grotesk">
+              ADD TOUR
+            </span>
+          </Button>
         </div>
-      )}
+      </div>
 
       {/* Filters */}
       <Card className="border border-royal-purple/20 dark:border-border shadow">
