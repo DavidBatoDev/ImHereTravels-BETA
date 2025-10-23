@@ -373,35 +373,36 @@ export class GmailApiService {
     replyTo?: string;
   }) {
     try {
-      // Create the email message
-      const messageParts = [
-        `To: ${emailData.to}`,
-        emailData.cc && emailData.cc.length > 0
-          ? `Cc: ${emailData.cc.join(", ")}`
-          : "",
-        emailData.bcc && emailData.bcc.length > 0
-          ? `Bcc: ${emailData.bcc.join(", ")}`
-          : "",
-        `From: ${emailData.from || "bella@imheretravels.com"}`,
-        emailData.replyTo ? `Reply-To: ${emailData.replyTo}` : "",
-        `Subject: ${emailData.subject}`,
-        "Content-Type: text/html; charset=utf-8",
-        "",
-        emailData.htmlContent,
-      ].filter(Boolean);
+      console.log("GmailApiService.sendEmail called with:", {
+        to: emailData.to,
+        subject: emailData.subject,
+        htmlContentLength: emailData.htmlContent?.length || 0,
+        htmlContentPreview: emailData.htmlContent?.substring(0, 200) + "...",
+      });
+      // Use the same approach as the working Firebase Functions version
+      const message = this.createEmailMessage({
+        to: emailData.to,
+        subject: emailData.subject,
+        htmlContent: emailData.htmlContent,
+        bcc: emailData.bcc || [],
+        cc: emailData.cc || [],
+        from:
+          emailData.from || "Bella | ImHereTravels <bella@imheretravels.com>",
+        replyTo: emailData.replyTo,
+      });
 
-      const message = messageParts.join("\n");
-      const encodedMessage = Buffer.from(message)
-        .toString("base64")
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/, "");
+      console.log("Final message being sent to Gmail:", {
+        messageLength: message.length,
+        messagePreview: message.substring(0, 500) + "...",
+        hasHtmlContent: message.includes(emailData.htmlContent),
+        htmlContentLength: emailData.htmlContent.length,
+      });
 
       // Send the email
       const response = await this.gmail.users.messages.send({
         userId: "me",
         requestBody: {
-          raw: encodedMessage,
+          raw: message,
         },
       });
 
@@ -620,6 +621,57 @@ export class GmailApiService {
    */
   getAvatarInitials(email: string): string {
     return avatarService.getAvatarInitials(email);
+  }
+
+  /**
+   * Create a raw email message for Gmail API (same as Firebase Functions version)
+   * @param emailData - Email data
+   * @returns Base64 encoded email message
+   */
+  private createEmailMessage(emailData: {
+    to: string;
+    subject: string;
+    htmlContent: string;
+    bcc?: string[];
+    cc?: string[];
+    from?: string;
+    replyTo?: string;
+  }): string {
+    const {
+      to,
+      subject,
+      htmlContent,
+      bcc = [],
+      cc = [],
+      from,
+      replyTo,
+    } = emailData;
+
+    const lines = [
+      `To: ${to}`,
+      `From: ${from}`,
+      `Subject: ${subject}`,
+      "Content-Type: text/html; charset=utf-8",
+      "MIME-Version: 1.0",
+    ];
+
+    if (cc.length > 0) {
+      lines.push(`Cc: ${cc.join(", ")}`);
+    }
+
+    if (bcc.length > 0) {
+      lines.push(`Bcc: ${bcc.join(", ")}`);
+    }
+
+    if (replyTo) {
+      lines.push(`Reply-To: ${replyTo}`);
+    }
+
+    lines.push("");
+    lines.push(htmlContent);
+
+    const message = lines.join("\r\n");
+    return Buffer.from(message).toString("base64url");
   }
 
   /**

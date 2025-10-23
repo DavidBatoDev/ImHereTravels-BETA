@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmailAutocomplete } from "@/components/ui/email-autocomplete";
+import { useToast } from "@/hooks/use-toast";
 import DOMPurify from "dompurify";
 import {
   X,
@@ -57,6 +58,7 @@ export function ComposeEmail({
   replyToEmail,
   onDraftSaved,
 }: ComposeEmailProps) {
+  const { toast } = useToast();
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [to, setTo] = useState("");
@@ -456,7 +458,22 @@ export function ComposeEmail({
   // Handle send email
   const handleSend = async () => {
     if (toEmails.length === 0 || !subject.trim()) {
-      alert("Please fill in the recipient and subject fields.");
+      toast({
+        title: "Missing Information",
+        description: "Please fill in the recipient and subject fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if body has meaningful content (not just signature)
+    const bodyWithoutSignature = body.replace(EMAIL_SIGNATURE, "").trim();
+    if (!bodyWithoutSignature) {
+      toast({
+        title: "Empty Email Body",
+        description: "Please add some content to your email body.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -467,7 +484,9 @@ export function ComposeEmail({
         cc: ccEmails,
         bcc: bccEmails,
         subject,
-        body,
+        bodyLength: body?.length || 0,
+        bodyPreview: body?.substring(0, 200) + "...",
+        body: body,
       });
 
       const response = await fetch("/api/gmail/send", {
@@ -508,18 +527,21 @@ export function ComposeEmail({
         setShowCc(false);
         setShowBcc(false);
 
-        // Show success message (you could replace with a toast notification)
-        alert("Email sent successfully!");
+        // Show success toast
+        toast({
+          title: "Email Sent Successfully",
+          description: "Your email has been sent successfully.",
+        });
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
       console.error("Error sending email:", error);
-      alert(
-        `Failed to send email: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      toast({
+        title: "Failed to Send Email",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
     } finally {
       setIsSending(false);
     }
@@ -724,7 +746,7 @@ export function ComposeEmail({
             ? "top-12 left-20 right-20 bottom-12"
             : isMinimized
             ? "bottom-0 right-12 w-80 h-12"
-            : "bottom-0 right-12 w-[620px] h-[620px]"
+            : "bottom-0 right-12 w-[620px] h-[700px]"
         } ${isMinimized ? "overflow-hidden" : ""}`}
         style={{
           transitionProperty:
@@ -931,7 +953,7 @@ export function ComposeEmail({
           {/* Rich Text Editor Container */}
           <div
             className="flex-1 mb-2 overflow-y-auto bg-white flex flex-col rounded-lg"
-            style={{ height: "250px" }}
+            style={{ height: "180px" }}
           >
             {/* Message Body */}
             <div className="flex-1 min-h-0">
@@ -1221,11 +1243,11 @@ export function ComposeEmail({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between px-4 py-1 border-t border-gray-200 bg-gray-50 flex-shrink-0 mt-auto">
+          <div className="flex items-center justify-between mb-16 px-4 py-1 border-t border-gray-200 bg-gray-50 flex-shrink-0 mt-auto">
             <div className="flex items-center gap-2">
               <Button
                 onClick={handleSend}
-                disabled={isSending || !to.trim() || !subject.trim()}
+                disabled={isSending || toEmails.length === 0 || !subject.trim()}
                 className="bg-[#0b57d0] rounded-3xl  hover:bg-blue-700 text-white px-6"
               >
                 {isSending ? (
