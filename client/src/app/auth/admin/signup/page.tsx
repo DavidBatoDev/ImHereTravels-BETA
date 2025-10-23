@@ -26,8 +26,10 @@ import { updateProfile } from "firebase/auth";
 import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 export default function AdminSignupPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
@@ -499,9 +501,12 @@ export default function AdminSignupPage() {
               Admin
             </span>
           </div>
-          <button className="text-grey hover:text-black font-dm-sans text-sm transition-colors flex items-center space-x-1">
+          <button
+            onClick={() => router.push("/auth/admin/login")}
+            className="text-grey hover:text-black font-dm-sans text-sm transition-colors flex items-center space-x-1"
+          >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Site</span>
+            <span>Back to Login</span>
           </button>
         </div>
 
@@ -707,7 +712,7 @@ export default function AdminSignupPage() {
                           )}
                           {!existingAccount && (
                             <p className="text-grey text-xs mt-1">
-                              Password must be at least 6 characters long
+                              Password must be at least 8 characters long
                             </p>
                           )}
                         </div>
