@@ -19,6 +19,7 @@ import {
   BarChart3,
   Edit,
   RefreshCw,
+  Lock,
 } from "lucide-react";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
@@ -48,7 +49,7 @@ export default function AdminSignupPage() {
     firstName: "",
     lastName: "",
     email: "",
-    role: "agent" as "agent" | "admin",
+    role: "admin" as "agent" | "admin",
     password: "",
     confirmPassword: "",
     avatar: null as File | null,
@@ -620,7 +621,7 @@ export default function AdminSignupPage() {
                     {(step1State === "password" ||
                       step1State === "existing-password") && (
                       <>
-                        {/* Role Selection - Only for new accounts */}
+                        {/* Role Selection - Agent locked, Admin only */}
                         {step1State === "password" && (
                           <div>
                             <label className="block text-black font-dm-sans text-sm mb-2">
@@ -629,15 +630,10 @@ export default function AdminSignupPage() {
                             <div className="flex border border-grey rounded-lg overflow-hidden">
                               <button
                                 type="button"
-                                onClick={() =>
-                                  handleInputChange("role", "agent")
-                                }
-                                className={`flex-1 px-4 py-3 font-dm-sans text-sm font-medium transition-all ${
-                                  formData.role === "agent"
-                                    ? "bg-crimson-red text-white"
-                                    : "bg-light-grey text-grey hover:bg-grey hover:text-black"
-                                }`}
+                                disabled
+                                className="flex-1 px-4 py-3 font-dm-sans text-sm font-medium bg-light-grey text-grey cursor-not-allowed opacity-50 flex items-center justify-center gap-2"
                               >
+                                <Lock className="h-4 w-4" />
                                 Agent
                               </button>
                               <button
@@ -654,6 +650,10 @@ export default function AdminSignupPage() {
                                 Administrator
                               </button>
                             </div>
+                            <p className="text-grey text-xs mt-1">
+                              Agent accounts are currently disabled. Only
+                              Administrator accounts can be created.
+                            </p>
                             {errors.role && (
                               <p className="text-red-500 text-xs mt-1">
                                 {errors.role}
