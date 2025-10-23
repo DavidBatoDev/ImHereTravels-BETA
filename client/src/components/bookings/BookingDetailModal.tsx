@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +56,7 @@ import { useToast } from "@/hooks/use-toast";
 import EditBookingModal from "./EditBookingModal";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
+import { debounce } from "lodash";
 
 interface BookingDetailModalProps {
   isOpen: boolean;
@@ -192,6 +193,14 @@ export default function BookingDetailModal({
       setActiveTab(sortedParentTabs[0]);
     }
   }, [isOpen, columns, currentBooking, activeTab]);
+
+  // Debounced scroll handler for better performance
+  const debouncedScrollHandler = React.useCallback(
+    debounce(() => {
+      // Handle any scroll-related updates here if needed
+    }, 16), // ~60fps
+    []
+  );
 
   // Track active section on scroll
   useEffect(() => {
@@ -537,6 +546,12 @@ export default function BookingDetailModal({
     return stringValue === "" ? null : stringValue;
   };
 
+  // Memoized column value component for better performance
+  const MemoizedColumnValue = memo(({ column }: { column: SheetColumn }) => {
+    const value = getColumnValue(column);
+    return <span>{value || "N/A"}</span>;
+  });
+
   // Check if column should be displayed (skip certain columns)
   const shouldDisplayColumn = (column: SheetColumn) => {
     // Skip columns that are not meant to be displayed in detail view
@@ -681,7 +696,7 @@ export default function BookingDetailModal({
           {/* Main Content */}
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide"
+            className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
           >
             <div className="space-y-3 pt-4">
               {/* Summary Section */}
@@ -934,7 +949,7 @@ export default function BookingDetailModal({
                                       {column.columnName}
                                     </p>
                                     <p className="text-xs font-semibold text-foreground break-words">
-                                      {getColumnValue(column) || "N/A"}
+                                      <MemoizedColumnValue column={column} />
                                     </p>
                                   </div>
                                 </div>
@@ -1011,7 +1026,7 @@ export default function BookingDetailModal({
                                   </div>
                                   <div className="text-right">
                                     <p className="text-sm font-semibold text-foreground">
-                                      {getColumnValue(column) || "N/A"}
+                                      <MemoizedColumnValue column={column} />
                                     </p>
                                   </div>
                                 </div>

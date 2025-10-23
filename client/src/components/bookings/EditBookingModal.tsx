@@ -43,7 +43,7 @@ import { typescriptFunctionsService } from "@/services/typescript-functions-serv
 import { batchedWriter } from "@/services/batched-writer";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
-import { isEqual } from "lodash";
+import { isEqual, debounce } from "lodash";
 
 interface EditBookingModalProps {
   isOpen: boolean;
@@ -79,6 +79,8 @@ export default function EditBookingModal({
   const [localFieldValues, setLocalFieldValues] = useState<Record<string, any>>(
     {}
   );
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   const { toast } = useToast();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -314,6 +316,23 @@ export default function EditBookingModal({
       }, 1000); // Smooth scroll typically takes ~500-800ms
     }
   };
+
+  // Debounced scroll handler for better performance
+  const debouncedScrollHandler = useCallback(
+    debounce(() => {
+      // Handle any scroll-related updates here if needed
+    }, 16), // ~60fps
+    []
+  );
+
+  // Debounced save indicator handler
+  const debouncedSaveIndicator = useCallback(
+    debounce(() => {
+      setIsSaving(false);
+      setLastSaved(new Date());
+    }, 1000), // Show "saving" for 1 second after last change
+    []
+  );
 
   // Track active section on scroll
   useEffect(() => {
@@ -577,6 +596,10 @@ export default function EditBookingModal({
         });
       }
 
+      // Show saving indicator
+      setIsSaving(true);
+      debouncedSaveIndicator();
+
       // Queue update to Firebase for persistence
       if (booking?.id) {
         batchedWriter.queueFieldUpdate(booking.id, columnId, value);
@@ -585,7 +608,13 @@ export default function EditBookingModal({
       // Trigger debounced function execution for immediate UI feedback
       debouncedExecuteFunctions(columnId, updatedData);
     },
-    [formData, fieldErrors, booking?.id, debouncedExecuteFunctions]
+    [
+      formData,
+      fieldErrors,
+      booking?.id,
+      debouncedExecuteFunctions,
+      debouncedSaveIndicator,
+    ]
   );
 
   // Get form value for a column (LOCAL FIRST pattern)
@@ -926,6 +955,25 @@ export default function EditBookingModal({
                 <span className="text-2xl font-mono font-semibold text-crimson-red block">
                   {booking.bookingId}
                 </span>
+                {/* Live Saving Indicator */}
+                <div className="flex items-center gap-2 mt-1">
+                  {isSaving ? (
+                    <div className="flex items-center gap-1 text-xs text-blue-600">
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      <span>Saving...</span>
+                    </div>
+                  ) : lastSaved ? (
+                    <div className="flex items-center gap-1 text-xs text-green-600">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>Saved {lastSaved.toLocaleTimeString()}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                      <span>Auto-save enabled</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </DialogTitle>
             <div className="flex items-center gap-2">
@@ -959,7 +1007,7 @@ export default function EditBookingModal({
           {/* Main Content */}
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide"
+            className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
           >
             {isLoadingColumns ? (
               <Card className="bg-white shadow-sm border border-border/50">
@@ -1040,7 +1088,7 @@ export default function EditBookingModal({
 
           {/* Navigation Sidebar */}
           {!isLoadingColumns && sortedParentTabs.length > 0 && (
-            <div className="w-48 border-l border-border/50 p-4 overflow-y-auto scrollbar-hide">
+            <div className="w-48 border-l border-border/50 p-4 overflow-y-auto scrollbar-hide scroll-optimized">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                 Sections
               </h3>

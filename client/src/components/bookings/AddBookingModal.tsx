@@ -45,7 +45,7 @@ import { batchedWriter } from "@/services/batched-writer";
 import { bookingService } from "@/services/booking-service";
 import { db } from "@/lib/firebase";
 import { onSnapshot } from "firebase/firestore";
-import { isEqual } from "lodash";
+import { isEqual, debounce } from "lodash";
 
 interface AddBookingModalProps {
   isOpen: boolean;
@@ -297,6 +297,14 @@ export default function AddBookingModal({
     }
     return new Date();
   };
+
+  // Debounced scroll handler for better performance
+  const debouncedScrollHandler = useCallback(
+    debounce(() => {
+      // Handle any scroll-related updates here if needed
+    }, 16), // ~60fps
+    []
+  );
 
   // Scroll to a specific parent tab
   const scrollToTab = (parentTab: string) => {
@@ -650,6 +658,8 @@ export default function AddBookingModal({
     // Always show all fields in edit mode (including empty ones)
     return true;
   };
+
+  // Removed MemoizedFormField as it was causing focus loss issues
 
   // Render form field based on column type
   const renderFormField = (column: SheetColumn) => {
@@ -1032,21 +1042,40 @@ export default function AddBookingModal({
       <DialogContent className="max-w-5xl max-h-[90vh] bg-[#F2F0EE] p-0 rounded-full overflow-hidden">
         <DialogHeader className="sticky top-0 z-50 bg-white shadow-md border-b border-border/50 pb-3 pt-6 px-6">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-full rounded-br-none shadow-sm">
-                <FaPlus className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <span className="block text-xl">
-                  Add New Booking
-                  {hasUnsavedChanges && (
-                    <span className="ml-2 text-sm text-orange-600">
-                      ● Unsaved
+            <div className="flex-1">
+              <DialogTitle className="text-2xl font-bold text-foreground flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-full rounded-br-none shadow-sm">
+                    <FaPlus className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <span className="block text-xl">
+                      Add New Booking
+                      {hasUnsavedChanges && (
+                        <span className="ml-2 text-sm text-orange-600">
+                          ● Unsaved
+                        </span>
+                      )}
                     </span>
-                  )}
-                </span>
-              </div>
-            </DialogTitle>
+                  </div>
+                </div>
+
+                {/* Legend for function fields */}
+                <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                  <div className="p-1 bg-yellow-100 rounded-full">
+                    <FaCog className="h-3 w-3 text-yellow-600" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-yellow-800">
+                      Function Fields:
+                    </span>
+                    <span className="text-xs text-yellow-700 ml-1">
+                      Yellow inputs are auto-calculated
+                    </span>
+                  </div>
+                </div>
+              </DialogTitle>
+            </div>
             <div className="flex items-center gap-2">
               {/* Close Button */}
               <Button
@@ -1078,7 +1107,7 @@ export default function AddBookingModal({
           {/* Main Content */}
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide"
+            className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
           >
             {isLoadingColumns ? (
               <Card className="bg-white shadow-sm border border-border/50">

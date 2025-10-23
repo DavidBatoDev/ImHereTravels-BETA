@@ -13,6 +13,21 @@
   }
 }
 
+/* Scroll performance optimizations */
+@layer utilities {
+  .scroll-optimized {
+    will-change: scroll-position;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    contain: layout style paint;
+    transform: translateZ(0);
+  }
+
+  .scroll-optimized * {
+    will-change: auto;
+  }
+}
+
 /* CSS-only scroll button visibility */
 @layer components {
   .scroll-to-top-btn {
