@@ -1039,7 +1039,7 @@ export default function AddBookingModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl min-h-[90vh] max-h-[90vh] bg-[#F2F0EE] p-0 rounded-full overflow-hidden">
+      <DialogContent className="max-w-5xl max-h-[90vh] bg-[#F2F0EE] p-0 rounded-full overflow-hidden">
         <DialogHeader className="sticky top-0 z-50 bg-white shadow-md border-b border-border/50 pb-3 pt-6 px-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
