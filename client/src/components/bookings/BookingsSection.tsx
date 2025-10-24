@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,6 +69,8 @@ import AddBookingModal from "./AddBookingModal";
 
 export default function BookingsSection() {
   const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "list">("list");
@@ -222,6 +225,23 @@ export default function BookingsSection() {
     };
   }, []);
 
+  // Handle query parameters for opening modals
+  useEffect(() => {
+    const bookingId = searchParams.get("bookingId");
+    const action = searchParams.get("action");
+    const mode = searchParams.get("mode");
+
+    if (bookingId && bookings.length > 0) {
+      const booking = bookings.find((b) => b.id === bookingId);
+      if (booking) {
+        setSelectedBooking(booking);
+        setIsDetailModalOpen(true);
+      }
+    } else if (action === "new") {
+      setIsAddModalOpen(true);
+    }
+  }, [searchParams, bookings]);
+
   // Track scroll position to detect when filter becomes sticky
   useEffect(() => {
     const handleScroll = () => {
@@ -353,45 +373,54 @@ export default function BookingsSection() {
     }
   };
 
-  // Calculate statistics with validation
-  const totalBookings = bookings.length;
-  const confirmedBookings = bookings.filter(
-    (b) => getBookingStatusCategory(b.bookingStatus) === "Confirmed"
-  ).length;
-  const pendingBookings = bookings.filter(
-    (b) => getBookingStatusCategory(b.bookingStatus) === "Pending"
-  ).length;
-  const cancelledBookings = bookings.filter(
-    (b) => getBookingStatusCategory(b.bookingStatus) === "Cancelled"
-  ).length;
-  const completedBookings = bookings.filter(
-    (b) => getBookingStatusCategory(b.bookingStatus) === "Completed"
-  ).length;
+  // Calculate statistics with validation - memoized to prevent unnecessary recalculations
+  const statistics = useMemo(() => {
+    const totalBookings = bookings.length;
+    const confirmedBookings = bookings.filter(
+      (b) => getBookingStatusCategory(b.bookingStatus) === "Confirmed"
+    ).length;
+    const pendingBookings = bookings.filter(
+      (b) => getBookingStatusCategory(b.bookingStatus) === "Pending"
+    ).length;
+    const cancelledBookings = bookings.filter(
+      (b) => getBookingStatusCategory(b.bookingStatus) === "Cancelled"
+    ).length;
+    const completedBookings = bookings.filter(
+      (b) => getBookingStatusCategory(b.bookingStatus) === "Completed"
+    ).length;
 
-  // Debug: Log statistics calculation
-  console.log("🔍 [DEBUG] Booking statistics:", {
+    const totalRevenue = bookings.reduce((sum, booking) => {
+      const paid = safeNumber(booking.paid, 0);
+      return sum + paid;
+    }, 0);
+
+    const pendingPayments = bookings.reduce((sum, booking) => {
+      const totalCost = getTotalCost(booking);
+      const paid = safeNumber(booking.paid, 0);
+      const remaining = Math.max(0, totalCost - paid);
+      return sum + remaining;
+    }, 0);
+
+    return {
+      totalBookings,
+      confirmedBookings,
+      pendingBookings,
+      cancelledBookings,
+      completedBookings,
+      totalRevenue,
+      pendingPayments,
+    };
+  }, [bookings]);
+
+  const {
     totalBookings,
     confirmedBookings,
     pendingBookings,
     cancelledBookings,
     completedBookings,
-    bookingStatuses: bookings.map((b) => ({
-      id: b.id,
-      status: b.bookingStatus,
-    })),
-  });
-
-  const totalRevenue = bookings.reduce((sum, booking) => {
-    const paid = safeNumber(booking.paid, 0);
-    return sum + paid;
-  }, 0);
-
-  const pendingPayments = bookings.reduce((sum, booking) => {
-    const totalCost = getTotalCost(booking);
-    const paid = safeNumber(booking.paid, 0);
-    const remaining = Math.max(0, totalCost - paid);
-    return sum + remaining;
-  }, 0);
+    totalRevenue,
+    pendingPayments,
+  } = statistics;
 
   const getStatusBgColor = (booking: Booking) => {
     const category = getBookingStatusCategory(booking.bookingStatus);
@@ -528,12 +557,24 @@ export default function BookingsSection() {
   const handleBookingClick = (booking: Booking) => {
     setSelectedBooking(booking);
     setIsDetailModalOpen(true);
+
+    // Add booking ID to URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("bookingId", booking.id);
+    router.push(`/bookings?${params.toString()}`, { scroll: false });
   };
 
   // Handle modal close
   const handleModalClose = () => {
     setIsDetailModalOpen(false);
     setSelectedBooking(null);
+
+    // Remove booking ID from URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("bookingId");
+    params.delete("action");
+    params.delete("mode");
+    router.push(`/bookings?${params.toString()}`, { scroll: false });
   };
 
   // Handle booking update
@@ -890,7 +931,12 @@ export default function BookingsSection() {
         {/* Add Booking Button */}
         <div className="flex items-center justify-center">
           <Button
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => {
+              setIsAddModalOpen(true);
+              const params = new URLSearchParams(searchParams.toString());
+              params.set("action", "new");
+              router.push(`/bookings?${params.toString()}`, { scroll: false });
+            }}
             className="group h-20 w-20 rounded-full rounded-br-none bg-crimson-red hover:bg-royal-purple text-white transition-all duration-300 hover:scale-105 shadow-lg relative"
             title="Add New Booking"
           >
@@ -1885,7 +1931,12 @@ export default function BookingsSection() {
 
           {/* Add Booking Card */}
           <Card
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => {
+              setIsAddModalOpen(true);
+              const params = new URLSearchParams(searchParams.toString());
+              params.set("action", "new");
+              router.push(`/bookings?${params.toString()}`, { scroll: false });
+            }}
             className="group border-2 border-dashed border-crimson-red/30 hover:border-crimson-red/50 hover:bg-crimson-red/5 transition-all duration-300 cursor-pointer overflow-hidden relative"
           >
             <CardHeader className="p-3 pb-2 border-b border-border/50">
@@ -2168,7 +2219,16 @@ export default function BookingsSection() {
 
                   {/* Add Booking Row */}
                   <tr
-                    onClick={() => setIsAddModalOpen(true)}
+                    onClick={() => {
+                      setIsAddModalOpen(true);
+                      const params = new URLSearchParams(
+                        searchParams.toString()
+                      );
+                      params.set("action", "new");
+                      router.push(`/bookings?${params.toString()}`, {
+                        scroll: false,
+                      });
+                    }}
                     className="group border-b border-dashed border-crimson-red/30 hover:border-crimson-red/50 hover:bg-crimson-red/5 transition-all duration-300 cursor-pointer"
                   >
                     <td className="py-4 px-3 text-center">
@@ -2227,7 +2287,13 @@ export default function BookingsSection() {
       {/* Add Booking Modal */}
       <AddBookingModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          // Remove action from URL
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete("action");
+          router.push(`/bookings?${params.toString()}`, { scroll: false });
+        }}
         onSave={handleBookingCreate}
       />
 
@@ -2237,6 +2303,8 @@ export default function BookingsSection() {
         onClose={handleModalClose}
         booking={selectedBooking}
         onBookingUpdate={handleBookingUpdate}
+        router={router}
+        searchParams={searchParams}
       />
 
       {/* Fixed Scroll Buttons - CSS-only visibility */}

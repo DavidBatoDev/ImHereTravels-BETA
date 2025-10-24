@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, memo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import type { ReadonlyURLSearchParams } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -63,6 +65,8 @@ interface BookingDetailModalProps {
   onClose: () => void;
   booking: Booking | null;
   onBookingUpdate?: (updatedBooking: Booking) => void;
+  router: ReturnType<typeof useRouter>;
+  searchParams: ReadonlyURLSearchParams;
 }
 
 export default function BookingDetailModal({
@@ -70,6 +74,8 @@ export default function BookingDetailModal({
   onClose,
   booking,
   onBookingUpdate,
+  router,
+  searchParams,
 }: BookingDetailModalProps) {
   const { toast } = useToast();
   const [columns, setColumns] = useState<SheetColumn[]>([]);
@@ -87,8 +93,26 @@ export default function BookingDetailModal({
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const isScrollingProgrammatically = React.useRef(false);
 
+  // Stable reference to onBookingUpdate to avoid re-subscribing the listener
+  const onBookingUpdateRef =
+    React.useRef<(updated: Booking) => void | undefined>(onBookingUpdate);
+  useEffect(() => {
+    onBookingUpdateRef.current = onBookingUpdate;
+  }, [onBookingUpdate]);
+
   // Use real-time booking data if available, otherwise fall back to prop
   const currentBooking = realtimeBooking || booking;
+
+  // On first mount while open, initialize from URL once; later rely solely on local state
+  const initializedEditFromUrlRef = React.useRef(false);
+  useEffect(() => {
+    if (!initializedEditFromUrlRef.current && isOpen && currentBooking) {
+      initializedEditFromUrlRef.current = true;
+      if (searchParams.get("mode") === "edit") {
+        setIsEditModalOpen(true);
+      }
+    }
+  }, [isOpen, currentBooking, searchParams]);
 
   // Real-time Firebase listener for booking updates (like EditBookingModal)
   useEffect(() => {
@@ -118,9 +142,7 @@ export default function BookingDetailModal({
           setRealtimeBooking(updatedBooking);
 
           // Call the onBookingUpdate callback if provided
-          if (onBookingUpdate) {
-            onBookingUpdate(updatedBooking);
-          }
+          onBookingUpdateRef.current?.(updatedBooking);
         }
       },
       (error) => {
@@ -139,7 +161,7 @@ export default function BookingDetailModal({
       );
       unsubscribe();
     };
-  }, [booking?.id, isOpen, booking, onBookingUpdate]);
+  }, [booking?.id, isOpen]);
 
   // Fetch booking sheet columns
   useEffect(() => {
@@ -282,14 +304,10 @@ export default function BookingDetailModal({
     }
   }, [isOpen, isLoadingColumns, activeTab]);
 
+  // Removed local state syncing to avoid flicker; using URL-derived state instead
+
   // Prevent rendering if modal is closed or no booking data
   if (!isOpen || !currentBooking) {
-    console.log(
-      "🚫 [BOOKING DETAIL MODAL] Preventing render - isOpen:",
-      isOpen,
-      "currentBooking:",
-      !!currentBooking
-    );
     return null;
   }
 
@@ -651,7 +669,9 @@ export default function BookingDetailModal({
               <Button
                 variant="default"
                 size="sm"
-                onClick={() => setIsEditModalOpen(true)}
+                onClick={() => {
+                  setIsEditModalOpen(true);
+                }}
                 className="h-8 px-4 bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25 flex items-center gap-2"
                 title="Edit booking"
               >
@@ -1108,7 +1128,9 @@ export default function BookingDetailModal({
       {/* Edit Booking Modal */}
       <EditBookingModal
         isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
+        onClose={() => {
+          setIsEditModalOpen(false);
+        }}
         booking={currentBooking}
         onSave={(updatedBooking) => {
           // Call the parent callback to refresh the booking data
