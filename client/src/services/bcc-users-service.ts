@@ -14,28 +14,28 @@ import {
 import { db } from "@/lib/firebase";
 
 // ============================================================================
-// BBC USERS SERVICE
+// BCC USERS SERVICE
 // ============================================================================
-// This service handles CRUD operations for BBC users using Firebase
-// BBC users only have email and name (no roles, departments, etc.)
+// This service handles CRUD operations for BCC users using Firebase
+// BCC users only have email and name (no roles, departments, etc.)
 // ============================================================================
 
-export interface BBCUserCreateRequest {
+export interface BCCUserCreateRequest {
   email: string;
   firstName: string;
   lastName: string;
 }
 
-export interface BBCUserUpdateRequest {
+export interface BCCUserUpdateRequest {
   email?: string;
   firstName?: string;
   lastName?: string;
   isActive?: boolean;
 }
 
-export interface BBCUserResponse {
+export interface BCCUserResponse {
   id: string;
-  bbcId: string;
+  bccId: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -44,20 +44,20 @@ export interface BBCUserResponse {
   updatedAt: Date | any; // Firebase FieldValue
 }
 
-// Firebase collection reference
-const BBC_USERS_COLLECTION = "bbc-users";
+// Firebase collection reference - keeping "bbc-users" for backwards compatibility
+const BCC_USERS_COLLECTION = "bbc-users";
 
 // ============================================================================
 // CRUD OPERATIONS
 // ============================================================================
 
 /**
- * Get all BBC users
+ * Get all BCC users
  */
-export const getAllBBCUsers = async (): Promise<BBCUserResponse[]> => {
+export const getAllBCCUsers = async (): Promise<BCCUserResponse[]> => {
   try {
     const q = query(
-      collection(db, BBC_USERS_COLLECTION),
+      collection(db, BCC_USERS_COLLECTION),
       orderBy("createdAt", "desc")
     );
     const querySnapshot = await getDocs(q);
@@ -65,46 +65,46 @@ export const getAllBBCUsers = async (): Promise<BBCUserResponse[]> => {
     return querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-    })) as BBCUserResponse[];
+    })) as BCCUserResponse[];
   } catch (error) {
-    console.error("Error fetching BBC users:", error);
-    throw new Error("Failed to fetch BBC users");
+    console.error("Error fetching BCC users:", error);
+    throw new Error("Failed to fetch BCC users");
   }
 };
 
 /**
- * Get a single BBC user by ID
+ * Get a single BCC user by ID
  */
-export const getBBCUserById = async (
+export const getBCCUserById = async (
   id: string
-): Promise<BBCUserResponse | null> => {
+): Promise<BCCUserResponse | null> => {
   try {
-    const docRef = doc(db, BBC_USERS_COLLECTION, id);
+    const docRef = doc(db, BCC_USERS_COLLECTION, id);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
       return {
         id: docSnap.id,
         ...docSnap.data(),
-      } as BBCUserResponse;
+      } as BCCUserResponse;
     }
     return null;
   } catch (error) {
-    console.error("Error fetching BBC user:", error);
-    throw new Error("Failed to fetch BBC user");
+    console.error("Error fetching BCC user:", error);
+    throw new Error("Failed to fetch BCC user");
   }
 };
 
 /**
- * Get a single BBC user by BBC ID
+ * Get a single BCC user by BCC ID
  */
-export const getBBCUserByBBCId = async (
-  bbcId: string
-): Promise<BBCUserResponse | null> => {
+export const getBCCUserByBCCId = async (
+  bccId: string
+): Promise<BCCUserResponse | null> => {
   try {
     const q = query(
-      collection(db, BBC_USERS_COLLECTION),
-      where("bbcId", "==", bbcId)
+      collection(db, BCC_USERS_COLLECTION),
+      where("bccId", "==", bccId)
     );
     const querySnapshot = await getDocs(q);
 
@@ -113,27 +113,27 @@ export const getBBCUserByBBCId = async (
       return {
         id: doc.id,
         ...doc.data(),
-      } as BBCUserResponse;
+      } as BCCUserResponse;
     }
     return null;
   } catch (error) {
-    console.error("Error fetching BBC user by BBC ID:", error);
-    throw new Error("Failed to fetch BBC user");
+    console.error("Error fetching BCC user by BCC ID:", error);
+    throw new Error("Failed to fetch BCC user");
   }
 };
 
 /**
- * Create a new BBC user
+ * Create a new BCC user
  */
-export const createBBCUser = async (
-  userData: BBCUserCreateRequest
-): Promise<BBCUserResponse> => {
+export const createBCCUser = async (
+  userData: BCCUserCreateRequest
+): Promise<BCCUserResponse> => {
   try {
-    // Generate BBC ID
-    const bbcId = await generateBBCId();
+    // Generate BCC ID
+    const bccId = await generateBCCId();
 
     const newUserData = {
-      bbcId,
+      bccId,
       email: userData.email,
       firstName: userData.firstName,
       lastName: userData.lastName,
@@ -143,29 +143,29 @@ export const createBBCUser = async (
     };
 
     const docRef = await addDoc(
-      collection(db, BBC_USERS_COLLECTION),
+      collection(db, BCC_USERS_COLLECTION),
       newUserData
     );
 
     return {
       id: docRef.id,
       ...newUserData,
-    } as BBCUserResponse;
+    } as BCCUserResponse;
   } catch (error) {
-    console.error("Error creating BBC user:", error);
-    throw new Error("Failed to create BBC user");
+    console.error("Error creating BCC user:", error);
+    throw new Error("Failed to create BCC user");
   }
 };
 
 /**
- * Update an existing BBC user
+ * Update an existing BCC user
  */
-export const updateBBCUser = async (
+export const updateBCCUser = async (
   id: string,
-  userData: BBCUserUpdateRequest
-): Promise<BBCUserResponse | null> => {
+  userData: BCCUserUpdateRequest
+): Promise<BCCUserResponse | null> => {
   try {
-    const docRef = doc(db, BBC_USERS_COLLECTION, id);
+    const docRef = doc(db, BCC_USERS_COLLECTION, id);
 
     const updateData: any = {
       updatedAt: serverTimestamp(),
@@ -190,64 +190,64 @@ export const updateBBCUser = async (
     await updateDoc(docRef, updateData);
 
     // Return updated user
-    return await getBBCUserById(id);
+    return await getBCCUserById(id);
   } catch (error) {
-    console.error("Error updating BBC user:", error);
-    throw new Error("Failed to update BBC user");
+    console.error("Error updating BCC user:", error);
+    throw new Error("Failed to update BCC user");
   }
 };
 
 /**
- * Delete a BBC user
+ * Delete a BCC user
  */
-export const deleteBBCUser = async (id: string): Promise<boolean> => {
+export const deleteBCCUser = async (id: string): Promise<boolean> => {
   try {
-    const docRef = doc(db, BBC_USERS_COLLECTION, id);
+    const docRef = doc(db, BCC_USERS_COLLECTION, id);
     await deleteDoc(docRef);
     return true;
   } catch (error) {
-    console.error("Error deleting BBC user:", error);
-    throw new Error("Failed to delete BBC user");
+    console.error("Error deleting BCC user:", error);
+    throw new Error("Failed to delete BCC user");
   }
 };
 
 /**
- * Search BBC users by name or email
+ * Search BCC users by name or email
  */
-export const searchBBCUsers = async (
+export const searchBCCUsers = async (
   searchTerm: string
-): Promise<BBCUserResponse[]> => {
+): Promise<BCCUserResponse[]> => {
   try {
     if (!searchTerm.trim()) {
-      return await getAllBBCUsers();
+      return await getAllBCCUsers();
     }
 
     const term = searchTerm.toLowerCase();
-    const allUsers = await getAllBBCUsers();
+    const allUsers = await getAllBCCUsers();
 
     return allUsers.filter(
       (user) =>
         user.firstName.toLowerCase().includes(term) ||
         user.lastName.toLowerCase().includes(term) ||
         user.email.toLowerCase().includes(term) ||
-        user.bbcId.toLowerCase().includes(term)
+        user.bccId.toLowerCase().includes(term)
     );
   } catch (error) {
-    console.error("Error searching BBC users:", error);
-    throw new Error("Failed to search BBC users");
+    console.error("Error searching BCC users:", error);
+    throw new Error("Failed to search BCC users");
   }
 };
 
 /**
- * Get BBC users count
+ * Get BCC users count
  */
-export const getBBCUsersCount = async (): Promise<number> => {
+export const getBCCUsersCount = async (): Promise<number> => {
   try {
-    const querySnapshot = await getDocs(collection(db, BBC_USERS_COLLECTION));
+    const querySnapshot = await getDocs(collection(db, BCC_USERS_COLLECTION));
     return querySnapshot.size;
   } catch (error) {
-    console.error("Error getting BBC users count:", error);
-    throw new Error("Failed to get BBC users count");
+    console.error("Error getting BCC users count:", error);
+    throw new Error("Failed to get BCC users count");
   }
 };
 
@@ -256,16 +256,16 @@ export const getBBCUsersCount = async (): Promise<number> => {
 // ============================================================================
 
 /**
- * Generate a unique BBC ID
+ * Generate a unique BCC ID
  */
-export const generateBBCId = async (): Promise<string> => {
+export const generateBCCId = async (): Promise<string> => {
   try {
-    const count = await getBBCUsersCount();
+    const count = await getBCCUsersCount();
     const nextNumber = count + 1;
-    return `BBC${String(nextNumber).padStart(3, "0")}`;
+    return `BCC${String(nextNumber).padStart(3, "0")}`;
   } catch (error) {
     // Fallback to timestamp-based ID if count fails
-    return `BBC${Date.now().toString().slice(-6)}`;
+    return `BCC${Date.now().toString().slice(-6)}`;
   }
 };
 
@@ -278,7 +278,7 @@ export const isEmailExists = async (
 ): Promise<boolean> => {
   try {
     const q = query(
-      collection(db, BBC_USERS_COLLECTION),
+      collection(db, BCC_USERS_COLLECTION),
       where("email", "==", email.toLowerCase())
     );
     const querySnapshot = await getDocs(q);
@@ -301,10 +301,10 @@ export const isEmailExists = async (
 };
 
 /**
- * Validate BBC user data
+ * Validate BCC user data
  */
-export const validateBBCUserData = (
-  data: BBCUserCreateRequest
+export const validateBCCUserData = (
+  data: BCCUserCreateRequest
 ): { isValid: boolean; errors: string[] } => {
   const errors: string[] = [];
 

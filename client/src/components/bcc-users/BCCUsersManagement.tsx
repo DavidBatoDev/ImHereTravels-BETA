@@ -40,22 +40,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Search, Edit, Trash2, UserPlus, Power } from "lucide-react";
-import { BBCUser } from "@/types/bbc-users";
+import { BCCUser } from "@/types/bcc-users";
 import {
-  getAllBBCUsers,
-  createBBCUser,
-  updateBBCUser,
-  deleteBBCUser,
-  searchBBCUsers,
-} from "@/services/bbc-users-service";
+  getAllBCCUsers,
+  createBCCUser,
+  updateBCCUser,
+  deleteBCCUser,
+  searchBCCUsers,
+} from "@/services/bcc-users-service";
 import { toast } from "@/hooks/use-toast";
 
-export default function BBCUsersManagement() {
-  const [users, setUsers] = useState<BBCUser[]>([]);
+export default function BCCUsersManagement() {
+  const [users, setUsers] = useState<BCCUser[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<BBCUser | null>(null);
+  const [editingUser, setEditingUser] = useState<BCCUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Fetch users from Firebase on component mount
@@ -63,13 +63,13 @@ export default function BBCUsersManagement() {
     const fetchUsers = async () => {
       try {
         setIsLoading(true);
-        const fetchedUsers = await getAllBBCUsers();
+        const fetchedUsers = await getAllBCCUsers();
         setUsers(fetchedUsers);
       } catch (error) {
         console.error("Error fetching users:", error);
         toast({
           title: "Error",
-          description: "Failed to fetch BBC users",
+          description: "Failed to fetch BCC users",
           variant: "destructive",
         });
       } finally {
@@ -85,16 +85,16 @@ export default function BBCUsersManagement() {
       user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.bbcId.toLowerCase().includes(searchTerm.toLowerCase());
+      user.bccId.toLowerCase().includes(searchTerm.toLowerCase());
 
     return matchesSearch;
   });
 
-  const handleCreateUser = async (userData: Partial<BBCUser>) => {
+  const handleCreateUser = async (userData: Partial<BCCUser>) => {
     try {
       setIsLoading(true);
 
-      const newUser = await createBBCUser({
+      const newUser = await createBCCUser({
         email: userData.email || "",
         firstName: userData.firstName || "",
         lastName: userData.lastName || "",
@@ -105,13 +105,13 @@ export default function BBCUsersManagement() {
 
       toast({
         title: "Success",
-        description: "BBC user created successfully",
+        description: "BCC user created successfully",
       });
     } catch (error) {
       console.error("Error creating user:", error);
       toast({
         title: "Error",
-        description: "Failed to create BBC user",
+        description: "Failed to create BCC user",
         variant: "destructive",
       });
     } finally {
@@ -119,12 +119,12 @@ export default function BBCUsersManagement() {
     }
   };
 
-  const handleEditUser = async (userData: Partial<BBCUser>) => {
+  const handleEditUser = async (userData: Partial<BCCUser>) => {
     if (editingUser) {
       try {
         setIsLoading(true);
 
-        const updatedUser = await updateBBCUser(editingUser.id, {
+        const updatedUser = await updateBCCUser(editingUser.id, {
           email: userData.email,
           firstName: userData.firstName,
           lastName: userData.lastName,
@@ -141,14 +141,14 @@ export default function BBCUsersManagement() {
 
           toast({
             title: "Success",
-            description: "BBC user updated successfully",
+            description: "BCC user updated successfully",
           });
         }
       } catch (error) {
         console.error("Error updating user:", error);
         toast({
           title: "Error",
-          description: "Failed to update BBC user",
+          description: "Failed to update BCC user",
           variant: "destructive",
         });
       } finally {
@@ -161,20 +161,20 @@ export default function BBCUsersManagement() {
     try {
       setIsLoading(true);
 
-      const success = await deleteBBCUser(userId);
+      const success = await deleteBCCUser(userId);
 
       if (success) {
         setUsers(users.filter((user) => user.id !== userId));
         toast({
           title: "Success",
-          description: "BBC user deleted successfully",
+          description: "BCC user deleted successfully",
         });
       }
     } catch (error) {
       console.error("Error deleting user:", error);
       toast({
         title: "Error",
-        description: "Failed to delete BBC user",
+        description: "Failed to delete BCC user",
         variant: "destructive",
       });
     } finally {
@@ -186,7 +186,7 @@ export default function BBCUsersManagement() {
     try {
       setIsLoading(true);
 
-      const updatedUser = await updateBBCUser(userId, {
+      const updatedUser = await updateBCCUser(userId, {
         isActive: !currentStatus,
       });
 
@@ -365,7 +365,7 @@ export default function BBCUsersManagement() {
                         variant="outline"
                         className="border-royal-purple/30 text-royal-purple"
                       >
-                        {user.bbcId}
+                        {user.bccId}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -451,7 +451,7 @@ export default function BBCUsersManagement() {
 function CreateUserForm({
   onSubmit,
 }: {
-  onSubmit: (data: Partial<BBCUser>) => Promise<void>;
+  onSubmit: (data: Partial<BCCUser>) => Promise<void>;
 }) {
   const [formData, setFormData] = useState({
     firstName: "",
@@ -555,8 +555,8 @@ function EditUserForm({
   onSubmit,
   onCancel,
 }: {
-  user: BBCUser;
-  onSubmit: (data: Partial<BBCUser>) => Promise<void>;
+  user: BCCUser;
+  onSubmit: (data: Partial<BCCUser>) => Promise<void>;
   onCancel: () => void;
 }) {
   const [formData, setFormData] = useState({

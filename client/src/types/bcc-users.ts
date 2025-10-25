@@ -1,10 +1,10 @@
 // ============================================================================
-// BBC USER TYPES
+// BCC USER TYPES
 // ============================================================================
 
-export interface BBCUser {
+export interface BCCUser {
   id: string;
-  bbcId: string;
+  bccId: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -14,16 +14,16 @@ export interface BBCUser {
 }
 
 // ============================================================================
-// BBC USER FORM TYPES
+// BCC USER FORM TYPES
 // ============================================================================
 
-export interface BBCUserFormData {
+export interface BCCUserFormData {
   firstName: string;
   lastName: string;
   email: string;
 }
 
-export interface BBCUserUpdateData {
+export interface BCCUserUpdateData {
   firstName?: string;
   lastName?: string;
   email?: string;
