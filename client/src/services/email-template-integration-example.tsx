@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import EmailTemplateService from "./email-template-service";
-import {
-  CommunicationTemplate,
-  TemplateType,
-  TemplateStatus,
-} from "@/types/communications";
+import { MailTemplate, TemplateType, TemplateStatus } from "@/types/mail";
 
 /**
  * Example component showing how to integrate EmailTemplateService
@@ -14,7 +10,7 @@ import {
 
 export function EmailTemplateIntegrationExample() {
   const { user } = useAuthStore();
-  const [templates, setTemplates] = useState<CommunicationTemplate[]>([]);
+  const [templates, setTemplates] = useState<MailTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +62,7 @@ export function EmailTemplateIntegrationExample() {
   };
 
   const handleCreateTemplate = async (
-    templateData: Omit<CommunicationTemplate, "id">
+    templateData: Omit<MailTemplate, "id">
   ) => {
     if (!user?.uid) {
       setError("User not authenticated");
@@ -99,7 +95,7 @@ export function EmailTemplateIntegrationExample() {
     }
   };
 
-  const handleUpdateTemplate = async (templateData: CommunicationTemplate) => {
+  const handleUpdateTemplate = async (templateData: MailTemplate) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -141,7 +137,7 @@ export function EmailTemplateIntegrationExample() {
     }
   };
 
-  const handleDuplicateTemplate = async (template: CommunicationTemplate) => {
+  const handleDuplicateTemplate = async (template: MailTemplate) => {
     if (!user?.uid) {
       setError("User not authenticated");
       return;
@@ -327,7 +323,7 @@ export function EmailTemplateIntegrationExample() {
  * Hook for using email templates in your components
  */
 export function useEmailTemplates(userId?: string) {
-  const [templates, setTemplates] = useState<CommunicationTemplate[]>([]);
+  const [templates, setTemplates] = useState<MailTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -349,7 +345,7 @@ export function useEmailTemplates(userId?: string) {
   }, [userId]);
 
   const createTemplate = async (
-    data: Omit<CommunicationTemplate, "id">,
+    data: Omit<MailTemplate, "id">,
     userId: string
   ) => {
     try {
@@ -370,7 +366,7 @@ export function useEmailTemplates(userId?: string) {
   };
 
   const updateTemplate = async (
-    data: Partial<CommunicationTemplate> & { id: string }
+    data: Partial<MailTemplate> & { id: string }
   ) => {
     try {
       setIsLoading(true);

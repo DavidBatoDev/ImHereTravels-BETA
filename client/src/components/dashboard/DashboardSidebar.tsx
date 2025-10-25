@@ -65,8 +65,8 @@ const navigation = [
     description: "Billing options",
   },
   {
-    name: "Communications",
-    href: "/communications",
+    name: "Mail",
+    href: "/mail",
     icon: MessageSquare,
     description: "Customer messages",
   },

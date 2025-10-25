@@ -9,7 +9,7 @@ export * from "./index";
 export * from "./bookings";
 export * from "./tours";
 export * from "./users";
-export * from "./communications";
+export * from "./mail";
 export * from "./settings";
 
 // NEW V2 TYPES

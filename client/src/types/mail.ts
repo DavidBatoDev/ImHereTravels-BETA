@@ -1,10 +1,10 @@
 import { Timestamp } from "firebase/firestore";
 
 // ============================================================================
-// COMMUNICATION TEMPLATE TYPES
+// MAIL TEMPLATE TYPES
 // ============================================================================
 
-export interface CommunicationTemplate {
+export interface MailTemplate {
   id: string; // Auto-generated Firestore ID
   name: string;
   subject: string;
@@ -14,10 +14,10 @@ export interface CommunicationTemplate {
   status: "active" | "draft" | "archived";
   // NEW V2 FIELDS
   bccGroups: string[]; // References to bccGroups
-  metadata: CommunicationMetadata;
+  metadata: MailMetadata;
 }
 
-export interface CommunicationMetadata {
+export interface MailMetadata {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   createdBy: string; // Reference to users
@@ -180,7 +180,7 @@ export interface TemplateFilters {
   search?: string;
 }
 
-export interface CommunicationSearchParams {
+export interface MailSearchParams {
   query: string;
   filters: EmailFilters | TemplateFilters;
   sortBy: string;

@@ -3,7 +3,9 @@
 ## Core Collections
 
 ### 1. **Bookings** (`bookings`)
-*Primary booking data storage*
+
+_Primary booking data storage_
+
 ```ts
 {
   id: string; // Auto-generated Firestore ID
@@ -95,7 +97,9 @@ interface ReminderStatus {
 ```
 
 ### 2. **Tour Packages** (`tourPackages`)
-*Tour product catalog*
+
+_Tour product catalog_
+
 ```ts
 {
   id: string; // Auto-generated Firestore ID
@@ -134,7 +138,9 @@ interface ReminderStatus {
 ```
 
 ### 3. **Users** (`users`)
-*Admin and agent accounts*
+
+_Admin and agent accounts_
+
 ```ts
 {
   id: string; // Matches Firebase Auth UID
@@ -175,7 +181,9 @@ interface ReminderStatus {
 ```
 
 ### 4. **Communications** (`communications`)
-*Email templates and history*
+
+_Email templates and history_
+
 ```ts
 {
   id: string; // Auto-generated Firestore ID
@@ -211,7 +219,9 @@ interface ReminderStatus {
 ```
 
 ### 5. **Settings** (`settings`)
-*System configuration*
+
+_System configuration_
+
 ```ts
 {
   id: "paymentTerms";
@@ -251,7 +261,9 @@ interface ReminderStatus {
 ## Subcollections
 
 ### 1. **Booking Activity** (`bookings/{bookingId}/activity`)
-*Audit log for booking changes*
+
+_Audit log for booking changes_
+
 ```ts
 {
   id: string; // Auto-generated
@@ -266,7 +278,9 @@ interface ReminderStatus {
 ```
 
 ### 2. **Tour Statistics** (`tourPackages/{tourId}/stats`)
-*Monthly performance data*
+
+_Monthly performance data_
+
 ```ts
 {
   id: string; // "2025-06"
@@ -284,37 +298,37 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // User permissions
     function isAdmin() {
       return request.auth.token.role == "admin";
     }
-    
+
     function isAgent() {
       return request.auth.token.role == "agent";
     }
-    
+
     function userOwnsData() {
       return request.auth.uid == resource.data.userId;
     }
-    
+
     // Bookings rules
     match /bookings/{bookingId} {
       allow read: if isAdmin() || isAgent();
       allow create: if isAdmin() || isAgent();
-      allow update: if isAdmin() || 
-                    (isAgent() && 
+      allow update: if isAdmin() ||
+                    (isAgent() &&
                      !request.resource.data.payment.hasOwnProperty('originalCost') &&
                      !request.resource.data.payment.hasOwnProperty('discountedCost'));
       allow delete: if false; // Soft delete only
     }
-    
+
     // Tour packages rules
     match /tourPackages/{tourId} {
       allow read: if isAdmin() || isAgent();
       allow create, update, delete: if isAdmin();
     }
-    
+
     // User management rules
     match /users/{userId} {
       allow read: if isAdmin() || request.auth.uid == userId;
@@ -322,19 +336,19 @@ service cloud.firestore {
       allow update: if isAdmin() || request.auth.uid == userId;
       allow delete: if false; // Deactivate instead
     }
-    
+
     // Settings rules
     match /settings/{settingId} {
       allow read: if isAdmin();
       allow write: if isAdmin();
     }
-    
+
     // Communications templates
     match /communications/{templateId} {
       allow read: if isAdmin() || isAgent();
       allow write: if isAdmin();
     }
-    
+
     // Sent emails
     match /communications/{templateId}/sentEmails/{emailId} {
       allow read: if isAdmin() || isAgent();
@@ -347,16 +361,19 @@ service cloud.firestore {
 ## Indexes
 
 ### Bookings Collection
+
 1. `tour.date` ASC + `payment.terms` ASC
 2. `payment.remainingBalance` DESC
 3. `traveler.email` ASC
 4. `metadata.createdAt` DESC
 
 ### Tour Packages Collection
+
 1. `status` ASC + `metadata.bookingsCount` DESC
 2. `location` ASC + `name` ASC
 
 ### Users Collection
+
 1. `role` ASC + `profile.lastName` ASC
 2. `metadata.lastActivity` DESC
 
@@ -398,38 +415,38 @@ erDiagram
 ## Key Business Logic Implementation
 
 ### Payment Calculation (Cloud Function)
+
 ```ts
 export const calculateBookingPayment = functions.firestore
-  .document('bookings/{bookingId}')
+  .document("bookings/{bookingId}")
   .onWrite(async (change, context) => {
     const newData = change.after.data();
     const oldData = change.before.data();
-    
+
     if (!newData) return; // Document deleted
-    
+
     // Recalculate if relevant fields change
-    const recalcNeeded = (
+    const recalcNeeded =
       !oldData ||
       newData.tour.packageId !== oldData.tour.packageId ||
       newData.tour.date !== oldData.tour.date ||
       newData.reservation.date !== oldData.reservation.date ||
-      newData.payment.terms !== oldData.payment.terms
-    );
-    
+      newData.payment.terms !== oldData.payment.terms;
+
     if (!recalcNeeded) return;
-    
+
     // Get tour package
     const tour = await getTourPackage(newData.tour.packageId);
-    
+
     // Calculate costs
     const originalCost = tour.pricing.original;
-    const discountedCost = newData.payment.useDiscount ? 
-      tour.pricing.discounted || originalCost : 
-      originalCost;
-    
+    const discountedCost = newData.payment.useDiscount
+      ? tour.pricing.discounted || originalCost
+      : originalCost;
+
     const reservationFee = tour.pricing.deposit;
     const remainingBalance = discountedCost - reservationFee;
-    
+
     // Calculate payment schedule
     const schedule = calculatePaymentSchedule(
       newData.payment.plan,
@@ -437,19 +454,20 @@ export const calculateBookingPayment = functions.firestore
       newData.tour.date,
       remainingBalance
     );
-    
+
     // Update booking
     await change.after.ref.update({
-      'payment.originalCost': originalCost,
-      'payment.discountedCost': discountedCost,
-      'payment.reservationFee': reservationFee,
-      'payment.remainingBalance': remainingBalance,
-      'schedule': schedule
+      "payment.originalCost": originalCost,
+      "payment.discountedCost": discountedCost,
+      "payment.reservationFee": reservationFee,
+      "payment.remainingBalance": remainingBalance,
+      schedule: schedule,
     });
   });
 ```
 
 ### Due Date Calculation
+
 ```ts
 function calculatePaymentSchedule(
   plan: PaymentPlan,
@@ -458,39 +476,41 @@ function calculatePaymentSchedule(
   balance: number
 ) {
   const schedule: any = {};
-  const months = {P1:1, P2:2, P3:3, P4:4}[plan] || 0;
-  
+  const months = { P1: 1, P2: 2, P3: 3, P4: 4 }[plan] || 0;
+
   // Full payment special case
-  if (plan === 'Full') {
+  if (plan === "Full") {
     const dueDate = new Date(reservationDate);
     dueDate.setDate(dueDate.getDate() + 2);
     schedule.full = {
       amount: balance,
       dueDate: dueDate,
       scheduledReminder: new Date(dueDate.setDate(dueDate.getDate() - 3)),
-      paid: false
+      paid: false,
     };
     return schedule;
   }
-  
+
   // Generate payment dates (2nd of each month)
   for (let i = 1; i <= months; i++) {
     const dueDate = new Date(reservationDate);
     dueDate.setMonth(dueDate.getMonth() + i);
     dueDate.setDate(2);
-    
+
     // Validate date constraints
-    if (dueDate > new Date(reservationDate.getDate() + 2) && 
-        dueDate < new Date(tourDate.getDate() - 3)) {
+    if (
+      dueDate > new Date(reservationDate.getDate() + 2) &&
+      dueDate < new Date(tourDate.getDate() - 3)
+    ) {
       schedule[`P${i}`] = {
         amount: balance / months,
         dueDate: dueDate,
         scheduledReminder: new Date(dueDate.setDate(dueDate.getDate() - 3)),
-        paid: false
+        paid: false,
       };
     }
   }
-  
+
   return schedule;
 }
 ```
@@ -504,55 +524,55 @@ import { getSheetsData } from "./google-sheets-helper";
 
 const migrateBookings = async () => {
   const sheetsData = await getSheetsData("Main Dashboard");
-  
+
   const bookings = sheetsData.map((row) => {
     return {
-      bookingId: row['Booking ID'],
+      bookingId: row["Booking ID"],
       traveler: {
-        firstName: row['First Name'],
-        lastName: row['Last Name'],
-        email: row['Email Address']
+        firstName: row["First Name"],
+        lastName: row["Last Name"],
+        email: row["Email Address"],
       },
       tour: {
-        packageId: getTourIdByName(row['Tour Package Name']),
-        date: new Date(row['Tour Date']),
-        returnDate: new Date(row['Return Date']),
-        duration: parseInt(row['Tour Duration'])
+        packageId: getTourIdByName(row["Tour Package Name"]),
+        date: new Date(row["Tour Date"]),
+        returnDate: new Date(row["Return Date"]),
+        duration: parseInt(row["Tour Duration"]),
       },
       reservation: {
-        date: new Date(row['Reservation Date']),
-        bookingType: row['Booking Type']
+        date: new Date(row["Reservation Date"]),
+        bookingType: row["Booking Type"],
       },
       payment: {
-        condition: row['Payment Condition'],
-        terms: row['Available Payment Terms'],
-        plan: row['Payment Plan'],
-        originalCost: row['Original Tour Cost'],
-        discountedCost: row['Discounted Tour Cost'],
-        reservationFee: row['Reservation Fee'],
-        paid: row['Paid'],
-        remainingBalance: row['Remaining Balance']
+        condition: row["Payment Condition"],
+        terms: row["Available Payment Terms"],
+        plan: row["Payment Plan"],
+        originalCost: row["Original Tour Cost"],
+        discountedCost: row["Discounted Tour Cost"],
+        reservationFee: row["Reservation Fee"],
+        paid: row["Paid"],
+        remainingBalance: row["Remaining Balance"],
       },
       group: {
-        id: row['Group ID'],
-        isMainBooker: row['Is Main Booker?'] === "TRUE"
+        id: row["Group ID"],
+        isMainBooker: row["Is Main Booker?"] === "TRUE",
       },
       metadata: {
         createdAt: new Date(),
         updatedAt: new Date(),
-        createdBy: "migration-script"
-      }
+        createdBy: "migration-script",
+      },
     };
   });
-  
+
   const db = getFirestore();
   const batch = db.batch();
-  
-  bookings.forEach(booking => {
+
+  bookings.forEach((booking) => {
     const ref = db.collection("bookings").doc();
     batch.set(ref, booking);
   });
-  
+
   await batch.commit();
 };
 
@@ -560,6 +580,7 @@ migrateBookings().then(() => console.log("Migration complete"));
 ```
 
 This schema provides:
+
 1. **Full parity** with existing Google Sheets functionality
 2. **Scalable structure** for future enhancements
 3. **Role-based security** with Firestore rules

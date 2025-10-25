@@ -63,7 +63,7 @@ import RecycleBinTab from "./RecycleBinTab";
 import EmailTemplateService from "@/services/email-template-service";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/hooks/use-toast";
-import { CommunicationTemplate as FirestoreTemplate } from "@/types/communications";
+import { MailTemplate as FirestoreTemplate } from "@/types/mail";
 import TabPermissionGuard from "@/components/auth/TabPermissionGuard";
 import { ShieldX } from "lucide-react";
 

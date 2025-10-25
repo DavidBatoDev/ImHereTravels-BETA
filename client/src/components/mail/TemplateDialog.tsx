@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import EmailTemplateService from "@/services/email-template-service";
-import { VariableDefinition, VariableType } from "@/types/communications";
+import { VariableDefinition, VariableType } from "@/types/mail";
 
 // Type declarations for Monaco Editor
 declare global {
@@ -44,13 +44,13 @@ declare global {
 }
 
 // Types
-import { CommunicationTemplate, TemplateStatus } from "@/types/communications";
+import { MailTemplate, TemplateStatus } from "@/types/mail";
 
 interface TemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  template: CommunicationTemplate | null;
-  onSave: (template: CommunicationTemplate) => void;
+  template: MailTemplate | null;
+  onSave: (template: MailTemplate) => void;
   isLoading?: boolean;
 }
 
@@ -1420,7 +1420,7 @@ export default function TemplateDialog({
     console.log("Original template ID:", template?.id);
     console.log("Original template ID length:", template?.id?.length);
 
-    const templateData: CommunicationTemplate = {
+    const templateData: MailTemplate = {
       id: template?.id || "", // Don't assign temporary ID for new templates
       name: formData.name,
       subject: formData.subject,

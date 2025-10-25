@@ -33,10 +33,10 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import EmailTemplateService from "@/services/email-template-service";
-import { CommunicationTemplate as FirestoreTemplate } from "@/types/communications";
+import { MailTemplate as FirestoreTemplate } from "@/types/mail";
 
 // Type declarations
-type CommunicationTemplate = FirestoreTemplate;
+type MailTemplate = FirestoreTemplate;
 
 interface TemplateArgument {
   key: string;
@@ -50,7 +50,7 @@ interface GeneratedTemplate {
 }
 
 export default function TestTab() {
-  const [templates, setTemplates] = useState<CommunicationTemplate[]>([]);
+  const [templates, setTemplates] = useState<MailTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [templateArgs, setTemplateArgs] = useState<Record<string, string>>({});
   const [generatedTemplate, setGeneratedTemplate] =
