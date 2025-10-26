@@ -10,9 +10,7 @@ import React, {
 } from "react";
 // Import react-data-grid components
 // @ts-expect-error - react-data-grid v7 has incorrect type definitions
-import { DataGrid, textEditor } from "react-data-grid";
-
-// Debug the textEditor
+import { DataGrid } from "react-data-grid";
 
 // Define types manually since the package types are not matching
 type Column<TRow> = {
@@ -202,6 +200,207 @@ export default function BookingsDataGrid({
     rowId: string;
     columnId: string;
   } | null>(null);
+  const [editingCell, setEditingCell] = useState<{
+    rowId: string;
+    columnId: string;
+  } | null>(null);
+
+  // Track currently selected cell
+  const [selectedCellInfo, setSelectedCellInfo] = useState<{
+    rowId: string;
+    columnId: string;
+    rowIndex: number;
+    columnIndex: number;
+    cellElement: HTMLElement | null;
+  } | null>(null);
+
+  // Debug function to manually check selected cell
+  const debugSelectedCell = useCallback(() => {
+    const selectedCellElement = document.querySelector(
+      '.rdg [role="gridcell"][aria-selected="true"]'
+    ) as HTMLElement;
+    console.log("🔍 [DEBUG] Current selected cell:", {
+      element: selectedCellElement,
+      ariaSelected: selectedCellElement?.getAttribute("aria-selected"),
+      ariaColIndex: selectedCellElement?.getAttribute("aria-colindex"),
+      className: selectedCellElement?.className,
+      value:
+        selectedCellElement?.querySelector("input")?.value ||
+        selectedCellElement?.textContent?.trim(),
+      allAriaSelectedCells: document.querySelectorAll(
+        '.rdg [role="gridcell"][aria-selected="true"]'
+      ),
+      allGridCells: document.querySelectorAll('.rdg [role="gridcell"]').length,
+    });
+  }, []);
+
+  // Local state for input values to avoid laggy typing
+  const [localInputValues, setLocalInputValues] = useState<Map<string, string>>(
+    new Map()
+  );
+
+  // Debounced Firebase update refs
+  const firebaseUpdateTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Helper function to get input value (local state or Firebase data)
+  const getInputValue = useCallback(
+    (rowId: string, columnId: string, fallbackValue: any): string => {
+      const key = `${rowId}:${columnId}`;
+      const localValue = localInputValues.get(key);
+      return localValue !== undefined
+        ? localValue
+        : fallbackValue?.toString() || "";
+    },
+    [localInputValues]
+  );
+
+  // Monitor selected cell by watching aria-selected="true"
+  const monitorSelectedCell = useCallback(() => {
+    // Look for the cell with aria-selected="true"
+    const selectedCellElement = document.querySelector(
+      '.rdg [role="gridcell"][aria-selected="true"]'
+    ) as HTMLElement;
+
+    if (!selectedCellElement) {
+      // No cell is selected
+      if (selectedCellInfo) {
+        setSelectedCellInfo(null);
+      }
+      return;
+    }
+
+    // Get the row element
+    const rowElement = selectedCellElement.closest(
+      '[role="row"]'
+    ) as HTMLElement;
+    if (!rowElement) return;
+
+    // Get aria-colindex (React Data Grid uses this for column position)
+    const ariaColIndex = selectedCellElement.getAttribute("aria-colindex");
+    const actualColumnIndex = ariaColIndex ? parseInt(ariaColIndex) - 1 : -1;
+
+    // Get only visible columns (aria-colindex is based on visible columns only)
+    const visibleColumns = columns.filter((col) => col.showColumn !== false);
+
+    if (actualColumnIndex >= 0 && actualColumnIndex < visibleColumns.length) {
+      // Try to get row ID from row attributes or data
+      const rowDataAttributes = Array.from(rowElement.attributes).filter(
+        (attr) =>
+          attr.name.startsWith("data-") &&
+          (attr.name.includes("row") || attr.name.includes("id"))
+      );
+
+      // Try to find row ID from data attributes
+      let rowId = rowDataAttributes.find(
+        (attr) => attr.name.includes("row") || attr.name.includes("id")
+      )?.value;
+
+      // If no data attributes, try to find by row index
+      if (!rowId) {
+        const allRows = document.querySelectorAll('.rdg [role="row"]');
+        const rowIndex = Array.from(allRows).indexOf(rowElement);
+        if (rowIndex >= 0 && rowIndex < data.length) {
+          rowId = data[rowIndex].id;
+        }
+      }
+
+      if (rowId) {
+        const targetColumn = visibleColumns[actualColumnIndex];
+
+        const newSelectedCellInfo = {
+          rowId: rowId,
+          columnId: targetColumn.id,
+          rowIndex: actualColumnIndex,
+          columnIndex: actualColumnIndex,
+          cellElement: selectedCellElement,
+        };
+
+        // Only update if the selected cell has changed
+        if (
+          !selectedCellInfo ||
+          selectedCellInfo.rowId !== newSelectedCellInfo.rowId ||
+          selectedCellInfo.columnId !== newSelectedCellInfo.columnId
+        ) {
+          setSelectedCellInfo(newSelectedCellInfo);
+        }
+      }
+    }
+  }, [selectedCellInfo, columns, data]);
+
+  // Set up monitoring for aria-selected changes
+  useEffect(() => {
+    // Monitor immediately
+    monitorSelectedCell();
+
+    // Set up MutationObserver to watch for aria-selected changes
+    const observer = new MutationObserver((mutations) => {
+      let shouldCheck = false;
+
+      mutations.forEach((mutation) => {
+        if (
+          mutation.type === "attributes" &&
+          mutation.attributeName === "aria-selected"
+        ) {
+          shouldCheck = true;
+        }
+
+        // Also check for added/removed nodes that might be cells
+        if (mutation.type === "childList") {
+          const addedNodes = Array.from(mutation.addedNodes);
+          const removedNodes = Array.from(mutation.removedNodes);
+
+          const hasGridCells = [...addedNodes, ...removedNodes].some(
+            (node) =>
+              node.nodeType === Node.ELEMENT_NODE &&
+              (node as Element).matches?.('[role="gridcell"]')
+          );
+
+          if (hasGridCells) {
+            shouldCheck = true;
+          }
+        }
+      });
+
+      if (shouldCheck) {
+        // Use setTimeout to ensure DOM is fully updated
+        setTimeout(monitorSelectedCell, 0);
+      }
+    });
+
+    // Start observing the entire document for aria-selected changes
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["aria-selected"],
+      childList: true,
+      subtree: true,
+    });
+
+    // Fallback interval in case MutationObserver misses something
+    const interval = setInterval(monitorSelectedCell, 500); // Check every 500ms as fallback
+
+    // Expose debug function globally for console access
+    (window as any).debugSelectedCell = debugSelectedCell;
+    (window as any).monitorSelectedCell = monitorSelectedCell;
+
+    return () => {
+      observer.disconnect();
+      clearInterval(interval);
+      // Clean up global functions
+      delete (window as any).debugSelectedCell;
+      delete (window as any).monitorSelectedCell;
+    };
+  }, [monitorSelectedCell, debugSelectedCell]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      firebaseUpdateTimeouts.current.forEach((timeout) =>
+        clearTimeout(timeout)
+      );
+      firebaseUpdateTimeouts.current.clear();
+    };
+  }, []);
+
   const [columnSettingsModal, setColumnSettingsModal] = useState<{
     isOpen: boolean;
     column: SheetColumn | null;
@@ -403,6 +602,31 @@ export default function BookingsDataGrid({
       }
     };
   }, []);
+
+  // Handle keyboard events to clear editing state
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && editingCell) {
+        setEditingCell(null);
+        setSelectedCell(null);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [editingCell]);
+
+  // Auto-clear editing state after 30 seconds to prevent stuck states
+  useEffect(() => {
+    if (editingCell) {
+      const timeout = setTimeout(() => {
+        setEditingCell(null);
+        setSelectedCell(null);
+      }, 30000); // 30 seconds
+
+      return () => clearTimeout(timeout);
+    }
+  }, [editingCell]);
 
   // Track previous data to detect changes
   const prevDataRef = useRef<SheetData[]>([]);
@@ -688,10 +912,15 @@ export default function BookingsDataGrid({
         localData.find((r) => r.id === rowId) ||
         data.find((r) => r.id === rowId) ||
         ({ id: rowId } as SheetData);
+
+      // Create row snapshot with updated value and any other local input values
       const rowSnapshot: SheetData = {
         ...baseRow,
         [changedColumnId]: updatedValue,
       };
+
+      // Note: We don't include local input values here since this function
+      // is only called after saving to Firebase, so Firebase data is up-to-date
 
       // Use column ID instead of column name for precise tracking
       const directDependents = dependencyGraph.get(changedColumnId) || [];
@@ -703,15 +932,473 @@ export default function BookingsDataGrid({
       });
 
       // Compute all direct dependents in parallel for speed
-      await Promise.all(
-        directDependents.map(
-          (funcCol) => computeFunctionForRow(rowSnapshot, funcCol, true) // Skip initial check for user-triggered changes
-        )
+      const results = await Promise.all(
+        directDependents.map(async (funcCol) => {
+          const result = await computeFunctionForRow(
+            rowSnapshot,
+            funcCol,
+            true
+          ); // Skip initial check for user-triggered changes
+          return { funcCol, result };
+        })
       );
+
+      // Note: We don't update local state here since function results
+      // will be updated via Firebase listeners after saving
+
       // Do not force flush; allow debounced batch to commit to keep UI snappy
     },
     [columns, localData, data, dependencyGraph, computeFunctionForRow]
   );
+
+  // Helper function to save changes to Firebase (called on blur)
+  const saveToFirebase = useCallback(
+    async (
+      rowId: string,
+      columnId: string,
+      value: string,
+      dataType?: string
+    ) => {
+      const key = `${rowId}:${columnId}`;
+
+      // Convert value based on data type
+      let finalValue: any = value;
+      if (dataType === "currency") {
+        finalValue = value === "" ? "" : parseFloat(value) || 0;
+      }
+
+      // Update Firebase immediately
+      batchedWriter.queueFieldUpdate(rowId, columnId, finalValue);
+
+      // Also save any other local input values for this row
+      localInputValues.forEach((localValue, localKey) => {
+        const [localRowId, localColumnId] = localKey.split(":");
+        if (localRowId === rowId && localColumnId !== columnId) {
+          // Convert based on column type
+          const col = columns.find((c) => c.id === localColumnId);
+          let convertedValue: any = localValue;
+          if (col?.dataType === "currency") {
+            convertedValue =
+              localValue === "" ? "" : parseFloat(localValue) || 0;
+          }
+
+          // Save to Firebase
+          batchedWriter.queueFieldUpdate(rowId, localColumnId, convertedValue);
+        }
+      });
+
+      // CRITICAL: Trigger function recomputation AFTER saving to Firebase
+      // This ensures dependent functions recompute with the latest saved values
+      await recomputeDirectDependentsForRow(rowId, columnId, finalValue);
+
+      // Clear ALL local state for this row after Firebase updates and recomputation
+      setLocalInputValues((prev) => {
+        const newMap = new Map(prev);
+        // Remove all entries for this row
+        Array.from(newMap.keys()).forEach((key) => {
+          if (key.startsWith(`${rowId}:`)) {
+            newMap.delete(key);
+          }
+        });
+        return newMap;
+      });
+    },
+    [localInputValues, columns, recomputeDirectDependentsForRow]
+  );
+
+  // Helper function to update input value - ONLY local state updates during typing!
+  const updateInputValue = useCallback(
+    (rowId: string, columnId: string, value: string, dataType?: string) => {
+      const key = `${rowId}:${columnId}`;
+
+      // Update local state immediately for responsive UI - NO Firebase calls!
+      setLocalInputValues((prev) => new Map(prev).set(key, value));
+
+      // Clear any existing timeout - we only save on blur now
+      const existingTimeout = firebaseUpdateTimeouts.current.get(key);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        firebaseUpdateTimeouts.current.delete(key);
+      }
+
+      // NO function recomputation during typing - only on save/blur for performance
+    },
+    []
+  );
+
+  // Handle keyboard input to replace selected cell value
+  const handleKeyboardInput = useCallback(
+    (event: KeyboardEvent) => {
+      const key = event.key;
+
+      // Handle Escape key globally (works regardless of selected cell)
+      if (key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Remove focus from any active input field
+        const activeElement = document.activeElement;
+        if (
+          activeElement &&
+          (activeElement.tagName === "INPUT" ||
+            activeElement.tagName === "TEXTAREA" ||
+            (activeElement as HTMLElement).contentEditable === "true")
+        ) {
+          // Cancel any unsaved changes by clearing localInputValues
+          const cellElement = activeElement.closest('[role="gridcell"]');
+          if (cellElement) {
+            // Get row element and extract rowId using same logic as monitorSelectedCell
+            const rowElement = cellElement.closest(
+              '[role="row"]'
+            ) as HTMLElement;
+            if (rowElement) {
+              // Try to get row ID from row attributes or data
+              const rowDataAttributes = Array.from(
+                rowElement.attributes
+              ).filter(
+                (attr) =>
+                  attr.name.startsWith("data-") &&
+                  (attr.name.includes("row") || attr.name.includes("id"))
+              );
+
+              let rowId = rowDataAttributes.find(
+                (attr) => attr.name.includes("row") || attr.name.includes("id")
+              )?.value;
+
+              // If no data attributes, try to find by row index
+              if (!rowId) {
+                const allRows = document.querySelectorAll('.rdg [role="row"]');
+                const rowIndex = Array.from(allRows).indexOf(rowElement);
+                if (rowIndex >= 0 && rowIndex < data.length) {
+                  rowId = data[rowIndex].id;
+                }
+              }
+
+              // Get column ID from aria-colindex
+              const ariaColIndex = cellElement.getAttribute("aria-colindex");
+              const actualColumnIndex = ariaColIndex
+                ? parseInt(ariaColIndex) - 1
+                : -1;
+              const visibleColumns = columns.filter(
+                (col) => col.showColumn !== false
+              );
+
+              if (
+                rowId &&
+                actualColumnIndex >= 0 &&
+                actualColumnIndex < visibleColumns.length
+              ) {
+                const columnId = visibleColumns[actualColumnIndex].id;
+                const key = `${rowId}:${columnId}`;
+
+                // Get the original value from the row data
+                const originalValue = data.find((row) => row.id === rowId)?.[
+                  columnId as keyof SheetData
+                ];
+
+                // Clear local input values
+                setLocalInputValues((prev) => {
+                  const newMap = new Map(prev);
+                  newMap.delete(key);
+                  return newMap;
+                });
+
+                // Force visual update by reverting to original value in localData
+                setLocalData((prevData) => {
+                  return prevData.map((row) =>
+                    row.id === rowId
+                      ? { ...row, [columnId]: originalValue }
+                      : row
+                  );
+                });
+              }
+            }
+          }
+
+          (activeElement as HTMLElement).blur();
+
+          // Ensure the cell remains selected for arrow key navigation
+          if (cellElement) {
+            // Set the cell as selected for React Data Grid
+            cellElement.setAttribute("aria-selected", "true");
+            (cellElement as HTMLElement).focus();
+          }
+        }
+        return;
+      }
+
+      // Handle Enter key - save and exit if editing, or start editing if not
+      if (key === "Enter") {
+        const activeElement = document.activeElement;
+
+        // Check if we're already editing (input field is focused)
+        if (
+          activeElement &&
+          (activeElement.tagName === "INPUT" ||
+            activeElement.tagName === "TEXTAREA" ||
+            (activeElement as HTMLElement).contentEditable === "true")
+        ) {
+          // We're editing - save and exit edit mode
+          event.preventDefault();
+          event.stopPropagation();
+
+          // Save the current value and exit edit mode
+          const cellElement = activeElement.closest('[role="gridcell"]');
+          if (cellElement) {
+            // Get row element and extract rowId using same logic as monitorSelectedCell
+            const rowElement = cellElement.closest(
+              '[role="row"]'
+            ) as HTMLElement;
+            if (rowElement) {
+              // Try to get row ID from row attributes or data
+              const rowDataAttributes = Array.from(
+                rowElement.attributes
+              ).filter(
+                (attr) =>
+                  attr.name.startsWith("data-") &&
+                  (attr.name.includes("row") || attr.name.includes("id"))
+              );
+
+              let rowId = rowDataAttributes.find(
+                (attr) => attr.name.includes("row") || attr.name.includes("id")
+              )?.value;
+
+              // If no data attributes, try to find by row index
+              if (!rowId) {
+                const allRows = document.querySelectorAll('.rdg [role="row"]');
+                const rowIndex = Array.from(allRows).indexOf(rowElement);
+                if (rowIndex >= 0 && rowIndex < data.length) {
+                  rowId = data[rowIndex].id;
+                }
+              }
+
+              // Get column ID from aria-colindex
+              const ariaColIndex = cellElement.getAttribute("aria-colindex");
+              const actualColumnIndex = ariaColIndex
+                ? parseInt(ariaColIndex) - 1
+                : -1;
+              const visibleColumns = columns.filter(
+                (col) => col.showColumn !== false
+              );
+
+              if (
+                rowId &&
+                actualColumnIndex >= 0 &&
+                actualColumnIndex < visibleColumns.length
+              ) {
+                const columnId = visibleColumns[actualColumnIndex].id;
+                const currentValue = getInputValue(
+                  rowId,
+                  columnId,
+                  data.find((row) => row.id === rowId)?.[
+                    columnId as keyof SheetData
+                  ]
+                );
+
+                // Get the original value from the row data
+                const originalValue = data.find((row) => row.id === rowId)?.[
+                  columnId as keyof SheetData
+                ];
+
+                // Check if it's a currency field
+                const column = columns.find((col) => col.id === columnId);
+                const isCurrency = column?.dataType === "currency";
+
+                // Convert values for comparison
+                let shouldSave = false;
+                if (isCurrency) {
+                  const currentValueConverted =
+                    currentValue === "" ? "" : parseFloat(currentValue) || 0;
+                  const originalValueConverted =
+                    originalValue === ""
+                      ? ""
+                      : parseFloat(originalValue?.toString() || "0") || 0;
+                  shouldSave = currentValueConverted !== originalValueConverted;
+                } else {
+                  shouldSave = currentValue !== originalValue?.toString();
+                }
+
+                // Only save if the value has actually changed
+                if (shouldSave) {
+                  saveToFirebase(
+                    rowId,
+                    columnId,
+                    currentValue,
+                    isCurrency ? "currency" : undefined
+                  );
+                }
+              }
+            }
+          }
+
+          (activeElement as HTMLElement).blur();
+
+          // Ensure the cell remains selected for arrow key navigation
+          if (cellElement) {
+            cellElement.setAttribute("aria-selected", "true");
+            (cellElement as HTMLElement).focus();
+          }
+        } else {
+          // We're not editing - start editing by focusing the input
+          if (selectedCellInfo) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            // Focus the input field in the selected cell to start editing
+            const selectedCellElement = selectedCellInfo.cellElement;
+            if (selectedCellElement) {
+              const inputElement = selectedCellElement.querySelector("input");
+              if (inputElement) {
+                inputElement.focus();
+                // Don't select all text - just focus for editing
+              }
+            }
+          }
+        }
+        return;
+      }
+
+      // Handle arrow keys when editing - prevent cell navigation
+      if (
+        key === "ArrowLeft" ||
+        key === "ArrowRight" ||
+        key === "ArrowUp" ||
+        key === "ArrowDown"
+      ) {
+        const activeElement = document.activeElement;
+        if (
+          activeElement &&
+          (activeElement.tagName === "INPUT" ||
+            activeElement.tagName === "TEXTAREA" ||
+            (activeElement as HTMLElement).contentEditable === "true")
+        ) {
+          // Prevent default to stop React Data Grid from handling arrow keys
+          event.preventDefault();
+          event.stopPropagation();
+
+          // Manually trigger arrow key behavior in the input field
+          const inputElement = activeElement as HTMLInputElement;
+          if (inputElement) {
+            const currentPosition = inputElement.selectionStart || 0;
+            const textLength = inputElement.value.length;
+
+            switch (key) {
+              case "ArrowLeft":
+                inputElement.setSelectionRange(
+                  Math.max(0, currentPosition - 1),
+                  Math.max(0, currentPosition - 1)
+                );
+                break;
+              case "ArrowRight":
+                inputElement.setSelectionRange(
+                  Math.min(textLength, currentPosition + 1),
+                  Math.min(textLength, currentPosition + 1)
+                );
+                break;
+              case "ArrowUp":
+                // For single-line inputs, move to beginning
+                inputElement.setSelectionRange(0, 0);
+                break;
+              case "ArrowDown":
+                // For single-line inputs, move to end
+                inputElement.setSelectionRange(textLength, textLength);
+                break;
+            }
+          }
+          return;
+        }
+      }
+
+      // Only handle other keys if we have a selected cell and it's not already being edited
+      if (!selectedCellInfo) return;
+
+      // Check if we're already in an input field (don't interfere with existing editing)
+      const activeElement = document.activeElement;
+      if (
+        activeElement &&
+        (activeElement.tagName === "INPUT" ||
+          activeElement.tagName === "TEXTAREA" ||
+          (activeElement as HTMLElement).contentEditable === "true")
+      ) {
+        return;
+      }
+
+      // Handle special keys
+      if (key === "Delete" || key === "Backspace") {
+        // Clear the cell value
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Clear the cell value
+        updateInputValue(selectedCellInfo.rowId, selectedCellInfo.columnId, "");
+
+        // Force immediate re-render by updating localData state
+        setLocalData((prevData) => {
+          return prevData.map((row) =>
+            row.id === selectedCellInfo.rowId
+              ? { ...row, [selectedCellInfo.columnId]: "" }
+              : row
+          );
+        });
+
+        // Focus the input field after state update
+        setTimeout(() => {
+          const selectedCellElement = selectedCellInfo.cellElement;
+          if (selectedCellElement) {
+            const inputElement = selectedCellElement.querySelector("input");
+            if (inputElement) {
+              inputElement.focus();
+            }
+          }
+        }, 0);
+        return;
+      }
+
+      // Only handle printable characters (not special keys like Enter, Escape, etc.)
+      if (
+        key.length === 1 &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        // Focus the input field and select all text immediately
+        const selectedCellElement = selectedCellInfo.cellElement;
+        if (selectedCellElement) {
+          const inputElement = selectedCellElement.querySelector("input");
+          if (inputElement) {
+            // Focus the input field
+            inputElement.focus();
+
+            // Select all text so the typed character will replace it
+            inputElement.select();
+
+            // The typed character will naturally replace the selected text
+            // No need to manually update state - the onChange handler will handle it
+          }
+        }
+
+        // Don't prevent default - let the character be typed naturally
+      }
+    },
+    [
+      selectedCellInfo,
+      updateInputValue,
+      localInputValues,
+      data,
+      getInputValue,
+      setLocalData,
+    ]
+  );
+
+  // Set up keyboard event listener for cell value replacement
+  useEffect(() => {
+    // Add keyboard event listener with capture phase to intercept arrow keys early
+    document.addEventListener("keydown", handleKeyboardInput, true); // true = capture phase
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyboardInput, true);
+    };
+  }, [handleKeyboardInput]);
 
   // Sync local data with props data and trigger recomputation on Firebase changes
   useEffect(() => {
@@ -756,7 +1443,17 @@ export default function BookingsDataGrid({
         });
 
         // Trigger recomputation for each changed field's direct dependents
+        // Skip recomputation if the cell is currently being edited
         for (const field of changedFields) {
+          // Skip recomputation if this specific cell is being edited
+          if (
+            editingCell &&
+            editingCell.rowId === changedRow.id &&
+            editingCell.columnId === field.id
+          ) {
+            continue;
+          }
+
           await recomputeDirectDependentsForRow(
             changedRow.id,
             field.id,
@@ -768,7 +1465,7 @@ export default function BookingsDataGrid({
 
     // Update previous data reference
     prevDataRef.current = [...currentData];
-  }, [data, columns, recomputeDirectDependentsForRow]);
+  }, [data, columns, recomputeDirectDependentsForRow, editingCell]);
 
   // Recompute for columns bound to a specific function id (and their dependents)
   const recomputeForFunction = useCallback(
@@ -1546,16 +2243,16 @@ export default function BookingsDataGrid({
       const shouldShowAddButton = isFirstEmptyRow && !hasActiveFilters;
 
       // Debug logging for first empty row
-      if (isFirstEmptyRow) {
-        console.log("🔍 [EMPTY ROW DEBUG]", {
-          currentPageDataLength: currentPageData.length,
-          rowsToShow,
-          hasActiveFilters,
-          activeFiltersCount: getActiveFiltersCount(),
-          shouldShowAddButton,
-          isFirstEmptyRow,
-        });
-      }
+      // if (isFirstEmptyRow) {
+      //   console.log("🔍 [EMPTY ROW DEBUG]", {
+      //     currentPageDataLength: currentPageData.length,
+      //     rowsToShow,
+      //     hasActiveFilters,
+      //     activeFiltersCount: getActiveFiltersCount(),
+      //     shouldShowAddButton,
+      //     isFirstEmptyRow,
+      //   });
+      // }
 
       emptyRows.push({
         id: `empty-${i}`,
@@ -1575,65 +2272,6 @@ export default function BookingsDataGrid({
     startIndex,
     getActiveFiltersCount,
   ]);
-
-  // Custom currency editor that only allows numeric characters and decimal point
-  const currencyEditor = useCallback(
-    ({ row, column, onRowChange, onClose }: RenderEditCellProps<SheetData>) => {
-      const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const inputValue = e.target.value;
-        // Only allow numeric characters and one decimal point
-        const filteredValue = inputValue.replace(/[^0-9.]/g, "");
-        // Ensure only one decimal point
-        const parts = filteredValue.split(".");
-        const finalValue =
-          parts.length > 2
-            ? parts[0] + "." + parts.slice(1).join("")
-            : filteredValue;
-
-        // Keep as string during editing, convert only when saving
-        // This allows users to type decimals like "100." without losing the dot
-        onRowChange({ ...row, [column.key]: finalValue });
-      };
-
-      const handleSave = () => {
-        const currentValue = row[column.key as keyof SheetData];
-        const stringValue = currentValue?.toString() || "";
-
-        // Convert to number for final storage
-        const numericValue =
-          stringValue === "" ? "" : parseFloat(stringValue) || 0;
-        onRowChange({ ...row, [column.key]: numericValue });
-        onClose(true);
-      };
-
-      const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter" || e.key === "Tab") {
-          e.preventDefault();
-          handleSave();
-        } else if (e.key === "Escape") {
-          e.preventDefault();
-          onClose(false);
-        }
-      };
-
-      const cellValue = row[column.key as keyof SheetData];
-      const displayValue = cellValue?.toString() || "";
-
-      return (
-        <input
-          type="text"
-          value={displayValue}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          onBlur={handleSave}
-          autoFocus
-          onFocus={(e) => e.target.select()}
-          className="h-8 w-full px-2 text-xs border-none outline-none bg-white"
-        />
-      );
-    },
-    []
-  );
 
   // Custom select editor with dropdown functionality
   const selectEditor = useCallback(
@@ -2406,7 +3044,7 @@ export default function BookingsDataGrid({
           baseColumn.renderEditCell = selectEditor;
           baseColumn.editable = true;
         } else if (col.dataType === "currency") {
-          // Default renderer for currency
+          // Always render currency input (like select/date inputs)
           baseColumn.renderCell = ({ row, column }) => {
             const isEmptyRow = (row as any)._isEmptyRow;
             const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
@@ -2421,18 +3059,67 @@ export default function BookingsDataGrid({
               );
             }
 
+            const cellValue = row[column.key as keyof SheetData];
+            const displayValue = getInputValue(row.id, column.key, cellValue);
+
+            // Check if this cell has unsaved changes
+            const hasUnsavedChanges = localInputValues.has(
+              `${row.id}:${column.key}`
+            );
+
+            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+              const inputValue = e.target.value;
+              // Only allow numeric characters and one decimal point
+              const filteredValue = inputValue.replace(/[^0-9.]/g, "");
+              // Ensure only one decimal point
+              const parts = filteredValue.split(".");
+              const finalValue =
+                parts.length > 2
+                  ? parts[0] + "." + parts.slice(1).join("")
+                  : filteredValue;
+
+              // Update with debounced Firebase update
+              updateInputValue(row.id, column.key, finalValue, "currency");
+            };
+
+            const handleBlur = () => {
+              // Save to Firebase on blur only if value has changed
+              const currentValue = getInputValue(
+                row.id,
+                column.key,
+                row[column.key as keyof SheetData]
+              );
+
+              // Get the original value from the row data
+              const originalValue = row[column.key as keyof SheetData];
+
+              // Convert values for comparison (handle currency type)
+              const currentValueConverted =
+                currentValue === "" ? "" : parseFloat(currentValue) || 0;
+              const originalValueConverted =
+                originalValue === ""
+                  ? ""
+                  : parseFloat(originalValue?.toString() || "0") || 0;
+
+              // Only save if the value has actually changed
+              if (currentValueConverted !== originalValueConverted) {
+                saveToFirebase(row.id, column.key, currentValue, "currency");
+              }
+            };
+
             return (
-              <span
-                className={`h-8 w-full flex items-center text-xs px-2 ${
+              <input
+                type="text"
+                value={displayValue}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`h-8 w-full px-2 text-xs border border-transparent outline-none bg-transparent focus:border-purple-500 focus:border-2 ${
                   hasColor ? "text-black" : ""
                 }`}
-              >
-                {row[column.key as keyof SheetData]?.toString() || ""}
-              </span>
+              />
             );
           };
-          baseColumn.renderEditCell = currencyEditor;
-          baseColumn.editable = true;
+          baseColumn.editable = false; // We handle editing through the input
         } else if (col.dataType === "function") {
           baseColumn.renderCell = ({ row, column }) => {
             const isEmptyRow = (row as any)._isEmptyRow;
@@ -2462,7 +3149,7 @@ export default function BookingsDataGrid({
           (baseColumn as any).recomputeCell = recomputeCell;
           (baseColumn as any).openDebugConsole = openDebugConsole;
         } else {
-          // Default renderer for string, email, etc.
+          // Always render text input (like select/date inputs)
           baseColumn.renderCell = ({ row, column }) => {
             const isEmptyRow = (row as any)._isEmptyRow;
             const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
@@ -2477,18 +3164,45 @@ export default function BookingsDataGrid({
               );
             }
 
+            const cellValue = row[column.key as keyof SheetData];
+            const displayValue = getInputValue(row.id, column.key, cellValue);
+
+            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+              const newValue = e.target.value;
+              // Update with debounced Firebase update
+              updateInputValue(row.id, column.key, newValue);
+            };
+
+            const handleBlur = () => {
+              // Save to Firebase on blur only if value has changed
+              const currentValue = getInputValue(
+                row.id,
+                column.key,
+                row[column.key as keyof SheetData]
+              );
+
+              // Get the original value from the row data
+              const originalValue = row[column.key as keyof SheetData];
+
+              // Only save if the value has actually changed
+              if (currentValue !== originalValue?.toString()) {
+                saveToFirebase(row.id, column.key, currentValue);
+              }
+            };
+
             return (
-              <span
-                className={`h-8 w-full flex items-center text-xs px-2 ${
+              <input
+                type="text"
+                value={displayValue}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`h-8 w-full px-2 text-xs border border-transparent outline-none bg-transparent focus:border-purple-500 focus:border-2 ${
                   hasColor ? "text-black" : ""
                 }`}
-              >
-                {row[column.key as keyof SheetData]?.toString() || ""}
-              </span>
+              />
             );
           };
-          baseColumn.renderEditCell = textEditor; // Use direct reference
-          baseColumn.editable = true;
+          baseColumn.editable = false; // We handle editing through the input
         }
 
         // Ensure every column has a renderCell function
@@ -2506,14 +3220,43 @@ export default function BookingsDataGrid({
               );
             }
 
+            const cellValue = row[column.key as keyof SheetData];
+            const displayValue = getInputValue(row.id, column.key, cellValue);
+
+            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+              const newValue = e.target.value;
+              // Update with debounced Firebase update
+              updateInputValue(row.id, column.key, newValue);
+            };
+
+            const handleBlur = () => {
+              // Save to Firebase on blur only if value has changed
+              const currentValue = getInputValue(
+                row.id,
+                column.key,
+                row[column.key as keyof SheetData]
+              );
+
+              // Get the original value from the row data
+              const originalValue = row[column.key as keyof SheetData];
+
+              // Only save if the value has actually changed
+              if (currentValue !== originalValue?.toString()) {
+                saveToFirebase(row.id, column.key, currentValue);
+              }
+            };
+
             return (
-              <span className="h-8 w-full flex items-center text-xs px-2">
-                {row[column.key as keyof SheetData]?.toString() || ""}
-              </span>
+              <input
+                type="text"
+                value={displayValue}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className="h-8 w-full px-2 text-xs border border-transparent outline-none bg-transparent focus:border-purple-500 focus:border-2"
+              />
             );
           };
-          baseColumn.renderEditCell = textEditor; // Use direct reference
-          baseColumn.editable = true;
+          baseColumn.editable = false; // We handle editing through the input
         }
 
         return baseColumn;
@@ -2539,7 +3282,7 @@ export default function BookingsDataGrid({
               </span>
             );
           },
-          renderEditCell: textEditor, // Use direct reference
+          renderEditCell: undefined, // Not needed - we handle editing in renderCell
           editable: true,
         };
       }
@@ -2567,6 +3310,9 @@ export default function BookingsDataGrid({
     selectedRowId,
     frozenColumnIds,
     toggleColumnFreeze,
+    getInputValue,
+    updateInputValue,
+    saveToFirebase,
   ]);
 
   const handleAddNewRow = async () => {
@@ -3134,6 +3880,15 @@ export default function BookingsDataGrid({
                     );
                     // Note: Recomputation will be triggered by Firebase listener
                   }
+
+                  // Clear editing state after successful update
+                  if (
+                    editingCell &&
+                    editingCell.rowId === changedRow.id &&
+                    editingCell.columnId === fieldKey
+                  ) {
+                    setEditingCell(null);
+                  }
                 } else if (originalRow) {
                   // Multiple field changes - compare all fields
                   const changedFields = Object.keys(changedRow).filter(
@@ -3158,6 +3913,11 @@ export default function BookingsDataGrid({
                     );
                     // Note: Recomputation will be triggered by Firebase listener
                   }
+
+                  // Clear editing state after successful update
+                  if (editingCell && editingCell.rowId === changedRow.id) {
+                    setEditingCell(null);
+                  }
                 }
               });
             }}
@@ -3174,6 +3934,10 @@ export default function BookingsDataGrid({
               // Only allow editing for non-function columns
               if (columnDef?.dataType !== "function") {
                 setSelectedCell({
+                  rowId: args.row.id,
+                  columnId: args.column.key as string,
+                });
+                setEditingCell({
                   rowId: args.row.id,
                   columnId: args.column.key as string,
                 });
@@ -3250,23 +4014,68 @@ export default function BookingsDataGrid({
             defaultColumnOptions={{
               sortable: true,
               resizable: true,
-              editable: true,
+              editable: false, // We handle editing through renderCell inputs
               renderCell: ({ row, column }) => {
                 // Check if this column has a color by finding the column definition
                 const columnDef = columns.find((col) => col.id === column.key);
                 const hasColor = columnDef?.color && columnDef.color !== "none";
 
+                const cellValue = row[column.key as keyof SheetData];
+                const displayValue = getInputValue(
+                  row.id,
+                  column.key,
+                  cellValue
+                );
+
+                const handleChange = (
+                  e: React.ChangeEvent<HTMLInputElement>
+                ) => {
+                  const newValue = e.target.value;
+                  // Update with debounced Firebase update
+                  updateInputValue(row.id, column.key, newValue);
+                };
+
+                const handleBlur = () => {
+                  // Force immediate Firebase update on blur
+                  const key = `${row.id}:${column.key}`;
+                  const existingTimeout =
+                    firebaseUpdateTimeouts.current.get(key);
+                  if (existingTimeout) {
+                    clearTimeout(existingTimeout);
+                    firebaseUpdateTimeouts.current.delete(key);
+                  }
+
+                  const currentValue = getInputValue(
+                    row.id,
+                    column.key,
+                    row[column.key as keyof SheetData]
+                  );
+                  batchedWriter.queueFieldUpdate(
+                    row.id,
+                    column.key,
+                    currentValue
+                  );
+
+                  // Clear local state
+                  setLocalInputValues((prev) => {
+                    const newMap = new Map(prev);
+                    newMap.delete(key);
+                    return newMap;
+                  });
+                };
+
                 return (
-                  <span
-                    className={`h-8 w-full flex items-center text-sm px-2 ${
+                  <input
+                    type="text"
+                    value={displayValue}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    className={`h-8 w-full px-2 text-xs border border-transparent outline-none bg-transparent focus:border-purple-500 focus:border-2 ${
                       hasColor ? "text-black" : ""
                     }`}
-                  >
-                    {row[column.key as keyof SheetData]?.toString() || ""}
-                  </span>
+                  />
                 );
               },
-              // Don't set a default renderEditCell - let each column define its own
             }}
             enableVirtualization
             renderers={{
