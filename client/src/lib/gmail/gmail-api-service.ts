@@ -631,6 +631,73 @@ export class GmailApiService {
   }
 
   /**
+   * Star an email (add the STARRED label)
+   * @param messageId - Gmail message ID
+   * @returns Promise with success status
+   */
+  async starEmail(messageId: string) {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: "me",
+        id: messageId,
+        requestBody: {
+          addLabelIds: ["STARRED"],
+        },
+      });
+
+      console.log("Email starred successfully:", messageId);
+      return { success: true };
+    } catch (error) {
+      console.error("Error starring email:", error);
+      throw new Error(`Failed to star email: ${error}`);
+    }
+  }
+
+  /**
+   * Unstar an email (remove the STARRED label)
+   * @param messageId - Gmail message ID
+   * @returns Promise with success status
+   */
+  async unstarEmail(messageId: string) {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: "me",
+        id: messageId,
+        requestBody: {
+          removeLabelIds: ["STARRED"],
+        },
+      });
+
+      console.log("Email unstarred successfully:", messageId);
+      return { success: true };
+    } catch (error) {
+      console.error("Error unstarring email:", error);
+      throw new Error(`Failed to unstar email: ${error}`);
+    }
+  }
+
+  /**
+   * Toggle star status of an email
+   * @param messageId - Gmail message ID
+   * @param isStarred - Current starred status
+   * @returns Promise with success status and new starred status
+   */
+  async toggleStarEmail(messageId: string, isStarred: boolean) {
+    try {
+      if (isStarred) {
+        await this.unstarEmail(messageId);
+        return { success: true, isStarred: false };
+      } else {
+        await this.starEmail(messageId);
+        return { success: true, isStarred: true };
+      }
+    } catch (error) {
+      console.error("Error toggling star status:", error);
+      throw new Error(`Failed to toggle star status: ${error}`);
+    }
+  }
+
+  /**
    * Create a raw email message for Gmail API (same as Firebase Functions version)
    * @param emailData - Email data
    * @returns Base64 encoded email message

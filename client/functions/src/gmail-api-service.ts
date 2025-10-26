@@ -1357,6 +1357,73 @@ export class GmailApiService {
     const message = lines.join("\r\n");
     return Buffer.from(message).toString("base64url");
   }
+
+  /**
+   * Star an email (add the STARRED label)
+   * @param messageId - Gmail message ID
+   * @returns Promise with success status
+   */
+  async starEmail(messageId: string) {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: "me",
+        id: messageId,
+        requestBody: {
+          addLabelIds: ["STARRED"],
+        },
+      });
+
+      logger.info("Email starred successfully:", messageId);
+      return { success: true };
+    } catch (error) {
+      logger.error("Error starring email:", error);
+      throw new Error(`Failed to star email: ${error}`);
+    }
+  }
+
+  /**
+   * Unstar an email (remove the STARRED label)
+   * @param messageId - Gmail message ID
+   * @returns Promise with success status
+   */
+  async unstarEmail(messageId: string) {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: "me",
+        id: messageId,
+        requestBody: {
+          removeLabelIds: ["STARRED"],
+        },
+      });
+
+      logger.info("Email unstarred successfully:", messageId);
+      return { success: true };
+    } catch (error) {
+      logger.error("Error unstarring email:", error);
+      throw new Error(`Failed to unstar email: ${error}`);
+    }
+  }
+
+  /**
+   * Toggle star status of an email
+   * @param messageId - Gmail message ID
+   * @param isStarred - Current starred status
+   * @returns Promise with success status and new starred status
+   */
+  async toggleStarEmail(messageId: string, isStarred: boolean) {
+    try {
+      if (isStarred) {
+        await this.unstarEmail(messageId);
+        return { success: true, isStarred: false };
+      } else {
+        await this.starEmail(messageId);
+        return { success: true, isStarred: true };
+      }
+    } catch (error) {
+      logger.error("Error toggling star status:", error);
+      throw new Error(`Failed to toggle star status: ${error}`);
+    }
+  }
 }
 
 export default GmailApiService;

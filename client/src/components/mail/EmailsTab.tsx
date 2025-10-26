@@ -266,7 +266,7 @@ export default function EmailsTab() {
     searchQuery?: string,
     pageToken?: string,
     forceRefresh = false
-  ) => {
+  ): Promise<GmailEmail[] | undefined> => {
     // Cancel any ongoing request
     if (abortController) {
       abortController.abort();
@@ -287,7 +287,7 @@ export default function EmailsTab() {
       const categoryKey = activeCategory;
       const cachedEmails = categoryEmails.get(categoryKey) || [];
       setEmails(cachedEmails);
-      return;
+      return cachedEmails;
     }
 
     setIsLoading(true);
@@ -363,7 +363,7 @@ export default function EmailsTab() {
       // Check if request was aborted before updating state
       if (newAbortController.signal.aborted) {
         console.log("Request aborted, not updating state");
-        return;
+        return undefined;
       }
 
       // Update cache
@@ -405,11 +405,13 @@ export default function EmailsTab() {
           variant: "default",
         });
       }
+
+      return fetchedEmails;
     } catch (error: any) {
       // Don't show error if request was aborted (user switched categories)
       if (error.name === "AbortError") {
         console.log("Request aborted for category switch");
-        return;
+        return undefined;
       }
 
       console.error("Error fetching emails:", error);
@@ -419,6 +421,7 @@ export default function EmailsTab() {
         description: "Failed to fetch emails from Gmail",
         variant: "destructive",
       });
+      return undefined;
     } finally {
       setIsLoading(false);
     }
@@ -750,6 +753,63 @@ export default function EmailsTab() {
     setSelectedEmails(newSelection);
   };
 
+  // Toggle star status
+  const toggleStar = async (emailId: string, isStarred: boolean) => {
+    try {
+      const response = await fetch("/api/gmail/star", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messageId: emailId,
+          isStarred,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update the email in the emails array
+        setEmails((prevEmails) =>
+          prevEmails.map((email) =>
+            email.id === emailId
+              ? { ...email, isStarred: result.isStarred }
+              : email
+          )
+        );
+
+        // Update category cache
+        setCategoryEmails((prev) => {
+          const newMap = new Map(prev);
+          const categoryEmails = newMap.get(activeCategory) || [];
+          const updatedEmails = categoryEmails.map((email) =>
+            email.id === emailId
+              ? { ...email, isStarred: result.isStarred }
+              : email
+          );
+          newMap.set(activeCategory, updatedEmails);
+          return newMap;
+        });
+
+        // Update activity time for smart polling
+        setLastActivityTime(Date.now());
+
+        // Trigger background refresh after a delay to get updated data
+        setTimeout(() => {
+          handleManualRefresh();
+        }, 500);
+      }
+    } catch (error) {
+      console.error("Error toggling star:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update star status",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Select all emails
   const selectAllEmails = () => {
     if (selectedEmails.size === filteredEmails.length) {
@@ -825,6 +885,22 @@ export default function EmailsTab() {
     setComposeData({});
   };
 
+  // Helper function to check if emails are different
+  const areEmailsDifferent = (emails1: GmailEmail[], emails2: GmailEmail[]) => {
+    if (emails1.length !== emails2.length) return true;
+
+    // Compare IDs and dates
+    for (let i = 0; i < emails1.length; i++) {
+      if (
+        emails1[i].id !== emails2[i].id ||
+        emails1[i].date.getTime() !== emails2[i].date.getTime()
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   useEffect(() => {
     // Check both state and persistent ref for cached emails
     const cachedEmailsFromState = categoryEmails.get(activeCategory) || [];
@@ -847,10 +923,12 @@ export default function EmailsTab() {
       console.log("Using cached emails for category:", activeCategory);
       setIsLoading(false); // Ensure loading state is cleared
       setEmails(cachedEmails);
+
       // Hide category changing indicator when using cached data
       if (isCategoryChanging) {
         setTimeout(() => setIsCategoryChanging(false), 150);
       }
+
       // Also restore to state if we got it from ref
       if (
         cachedEmailsFromState.length === 0 &&
@@ -858,6 +936,108 @@ export default function EmailsTab() {
       ) {
         setCategoryEmailsState(new Map(emailCacheRef.categoryEmails));
       }
+
+      // Always fetch fresh data in background when using cache
+      console.log("Fetching fresh data in background for:", activeCategory);
+
+      // Fetch in background silently (without loading indicator)
+      const fetchFreshData = async () => {
+        try {
+          // Cancel any ongoing request
+          if (abortController) {
+            abortController.abort();
+          }
+
+          const newAbortController = new AbortController();
+          setAbortController(newAbortController);
+
+          let fetchedEmails: GmailEmail[] = [];
+
+          // Handle drafts separately
+          if (activeCategory === "drafts") {
+            const response = await fetch("/api/gmail/drafts/list", {
+              signal: newAbortController.signal,
+            });
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (result?.success) {
+              fetchedEmails = result.drafts.map((draft: any) => ({
+                ...draft,
+                date: new Date(draft.date),
+              }));
+            } else {
+              throw new Error(result.error || "Failed to fetch drafts");
+            }
+          } else {
+            // Get query for active category
+            const category = gmailCategories.find(
+              (cat) => cat.id === activeCategory
+            );
+            let query = category?.query || "in:sent OR in:inbox";
+
+            const response = await fetch("/api/gmail/emails", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                maxResults: 25,
+                query,
+                searchQuery: undefined,
+              }),
+              signal: newAbortController.signal,
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result?.success) {
+              fetchedEmails = result.data.emails.map((email: any) => ({
+                ...email,
+                date: new Date(email.date),
+              }));
+            } else {
+              throw new Error(result.error || "Failed to fetch emails");
+            }
+          }
+
+          // Check if request was aborted
+          if (newAbortController.signal.aborted) {
+            return;
+          }
+
+          // Update email cache
+          const newCache = new Map(emailCache);
+          fetchedEmails.forEach((email: GmailEmail) => {
+            newCache.set(email.id, email);
+          });
+          setEmailCache(newCache);
+
+          // Compare new data with cached data
+          if (areEmailsDifferent(cachedEmails, fetchedEmails)) {
+            console.log("Fresh data differs from cache, updating cache");
+            setEmails(fetchedEmails);
+            setCategoryEmails((prev) =>
+              new Map(prev).set(activeCategory, fetchedEmails)
+            );
+          } else {
+            console.log("Fresh data matches cache, no update needed");
+          }
+        } catch (error: any) {
+          if (error.name !== "AbortError") {
+            console.error("Error fetching fresh data in background:", error);
+          }
+        }
+      };
+
+      // Run in background without blocking UI
+      fetchFreshData();
     }
 
     // Only fetch labels once
@@ -902,6 +1082,199 @@ export default function EmailsTab() {
     };
   }, [abortController]);
 
+  // Track last activity time for smart polling
+  const [lastActivityTime, setLastActivityTime] = useState(Date.now());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Update activity time on user interaction
+  useEffect(() => {
+    const updateActivity = () => {
+      setLastActivityTime(Date.now());
+    };
+
+    // Track various user interactions
+    const events = ["click", "keydown", "scroll", "mousemove"];
+    events.forEach((event) => {
+      document.addEventListener(event, updateActivity, { passive: true });
+    });
+
+    return () => {
+      events.forEach((event) => {
+        document.removeEventListener(event, updateActivity);
+      });
+    };
+  }, []);
+
+  // Manual refresh function with visual feedback
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    setLastActivityTime(Date.now());
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      await fetchEmails(searchTerm || undefined, undefined, true);
+    } finally {
+      setTimeout(() => {
+        setIsRefreshing(false);
+        setIsLoading(false);
+      }, 300);
+    }
+  };
+
+  // Background refresh with smart adaptive polling
+  useEffect(() => {
+    // Only run if there are cached emails (don't interfere with initial load)
+    const cachedEmails =
+      categoryEmails.get(activeCategory) ||
+      emailCacheRef.categoryEmails.get(activeCategory) ||
+      [];
+
+    if (cachedEmails.length === 0 || isLoading) {
+      return; // Don't run interval if no cache or actively loading
+    }
+
+    // Fetch fresh data silently
+    const fetchFreshData = async () => {
+      // Skip if tab is not visible
+      if (document.hidden) {
+        return;
+      }
+
+      try {
+        const newAbortController = new AbortController();
+        let fetchedEmails: GmailEmail[] = [];
+
+        // Handle drafts separately
+        if (activeCategory === "drafts") {
+          const response = await fetch("/api/gmail/drafts/list", {
+            signal: newAbortController.signal,
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          if (result?.success) {
+            fetchedEmails = result.drafts.map((draft: any) => ({
+              ...draft,
+              date: new Date(draft.date),
+            }));
+          } else {
+            throw new Error(result.error || "Failed to fetch drafts");
+          }
+        } else {
+          // Get query for active category
+          const category = gmailCategories.find(
+            (cat) => cat.id === activeCategory
+          );
+          let query = category?.query || "in:sent OR in:inbox";
+
+          const response = await fetch("/api/gmail/emails", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              maxResults: 25,
+              query,
+              searchQuery: undefined,
+            }),
+            signal: newAbortController.signal,
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+
+          if (result?.success) {
+            fetchedEmails = result.data.emails.map((email: any) => ({
+              ...email,
+              date: new Date(email.date),
+            }));
+          } else {
+            throw new Error(result.error || "Failed to fetch emails");
+          }
+        }
+
+        // Check if request was aborted
+        if (newAbortController.signal.aborted) {
+          return;
+        }
+
+        // Update email cache
+        const newCache = new Map(emailCache);
+        fetchedEmails.forEach((email: GmailEmail) => {
+          newCache.set(email.id, email);
+        });
+        setEmailCache(newCache);
+
+        // Get current cached emails for comparison
+        const currentCachedEmails =
+          categoryEmails.get(activeCategory) ||
+          emailCacheRef.categoryEmails.get(activeCategory) ||
+          [];
+
+        // Compare new data with cached data
+        if (areEmailsDifferent(currentCachedEmails, fetchedEmails)) {
+          console.log("Background refresh: Data updated for", activeCategory);
+          setEmails(fetchedEmails);
+          setCategoryEmails((prev) =>
+            new Map(prev).set(activeCategory, fetchedEmails)
+          );
+        }
+      } catch (error: any) {
+        if (error.name !== "AbortError") {
+          console.error("Error in background refresh:", error);
+        }
+      }
+    };
+
+    // Adaptive polling based on activity
+    const getPollInterval = () => {
+      const idleTime = Date.now() - lastActivityTime;
+
+      if (document.hidden) {
+        return 120000; // 2 minutes when tab is hidden
+      } else if (idleTime > 60000) {
+        return 60000; // 1 minute when idle
+      } else {
+        return 30000; // 30 seconds when active
+      }
+    };
+
+    const scheduleNextRefresh = () => {
+      const interval = getPollInterval();
+      console.log(`Scheduling background refresh in ${interval / 1000}s`);
+
+      return setTimeout(() => {
+        fetchFreshData();
+        scheduleNextRefresh();
+      }, interval);
+    };
+
+    let refreshTimeout = scheduleNextRefresh();
+
+    // Listen for visibility changes
+    const handleVisibilityChange = () => {
+      clearTimeout(refreshTimeout);
+      if (!document.hidden) {
+        // Refresh when tab becomes visible
+        fetchFreshData();
+        refreshTimeout = scheduleNextRefresh();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearTimeout(refreshTimeout);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [activeCategory, isLoading, categoryEmails, emailCache, lastActivityTime]);
+
   // Initialize hash on mount if not present
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -945,8 +1318,8 @@ export default function EmailsTab() {
       className="flex bg-background overflow-hidden"
       style={{ height: "calc(100vh - 25vh)", minHeight: "600px" }}
     >
-      {/* Gmail-style Loading Indicator for Category Changes */}
-      {isCategoryChanging && (
+      {/* Gmail-style Loading Indicator for Category Changes and Email Loading */}
+      {(isCategoryChanging || isLoading) && (
         <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
           <div className="bg-primary text-white px-4 py-2 rounded-b-lg shadow-lg flex items-center gap-2 animate-slide-down">
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
@@ -1121,18 +1494,14 @@ export default function EmailsTab() {
                   : `${filteredEmails.length} of ${emails.length} emails`}
               </span>
               <Button
-                onClick={() => {
-                  setIsLoading(true);
-                  setError(null);
-                  fetchEmails(searchTerm || undefined, undefined, true);
-                }}
-                disabled={isLoading}
+                onClick={handleManualRefresh}
+                disabled={isLoading || isRefreshing}
                 variant="ghost"
                 size="sm"
                 title="Refresh emails"
               >
                 <RotateCcw
-                  className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+                  className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
                 />
               </Button>
             </div>
@@ -1151,179 +1520,188 @@ export default function EmailsTab() {
             </div>
           )}
 
-          {/* Loading State */}
-          {isLoading ? (
-            <div className="flex flex-1 items-center justify-center min-h-0">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            /* Emails List Container with Fixed Height and Scroll */
-            <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-border scrollbar-track-muted border-t border-border/50 email-list-container min-h-0 min-w-0">
-              {filteredEmails.map((email, index) => {
-                const isSelected = selectedEmails.has(email.id);
+          {/* Emails List Container with Fixed Height and Scroll */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-border scrollbar-track-muted border-t border-border/50 email-list-container min-h-0 min-w-0">
+            {filteredEmails.map((email, index) => {
+              const isSelected = selectedEmails.has(email.id);
 
-                return (
-                  <div
-                    key={email.id}
-                    className={cn(
-                      "email-list-item group border-b border-border/50 cursor-pointer",
-                      !email.isRead && "bg-card font-medium",
-                      email.isRead && "bg-muted/30",
-                      isSelected && "bg-primary/5 border-primary/20"
-                    )}
-                    onClick={() => {
-                      // Handle draft emails differently - open in compose
-                      if (email.isDraft) {
-                        handleOpenDraft(email);
-                      } else {
-                        // Use cached version if available for instant loading
-                        const cachedEmail = emailCache.get(email.id);
-                        viewEmail(cachedEmail || email);
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-3 px-4 py-1 email-list-item-content">
-                      {/* Checkbox */}
-                      <div className="flex-shrink-0">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleEmailSelection(email.id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
+              return (
+                <div
+                  key={email.id}
+                  className={cn(
+                    "email-list-item group border-b border-border/50 cursor-pointer",
+                    !email.isRead && "bg-card font-medium",
+                    email.isRead && "bg-muted/30",
+                    isSelected && "bg-primary/5 border-primary/20"
+                  )}
+                  onClick={() => {
+                    // Handle draft emails differently - open in compose
+                    if (email.isDraft) {
+                      handleOpenDraft(email);
+                    } else {
+                      // Use cached version if available for instant loading
+                      const cachedEmail = emailCache.get(email.id);
+                      viewEmail(cachedEmail || email);
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-3 px-4 py-1 email-list-item-content">
+                    {/* Checkbox */}
+                    <div className="flex-shrink-0">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleEmailSelection(email.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
 
-                      {/* Star */}
-
-                      {/* Sender */}
-                      <div
-                        className="flex items-center min-w-0 flex-shrink-0"
-                        style={{ width: "180px" }}
+                    {/* Star */}
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleStar(email.id, email.isStarred);
+                        }}
+                        className="p-0.5 hover:bg-muted rounded transition-colors"
+                        title={email.isStarred ? "Unstar" : "Star"}
                       >
-                        {email.isDraft ? (
-                          <span className="text-sm text-red-600 dark:text-red-400">
-                            Draft
-                          </span>
+                        {email.isStarred ? (
+                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                         ) : (
-                          <span
-                            className={cn(
-                              "truncate text-xs min-w-0 text-foreground",
-                              !email.isRead ? "font-semibold" : "font-normal"
-                            )}
+                          <Star className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Sender */}
+                    <div
+                      className="flex items-center min-w-0 flex-shrink-0"
+                      style={{ width: "180px" }}
+                    >
+                      {email.isDraft ? (
+                        <span className="text-sm text-red-600 dark:text-red-400">
+                          Draft
+                        </span>
+                      ) : (
+                        <span
+                          className={cn(
+                            "truncate text-xs min-w-0 text-foreground",
+                            !email.isRead ? "font-semibold" : "font-normal"
+                          )}
+                        >
+                          {getCorrespondent(email)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Subject and Snippet */}
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                        <span
+                          className={cn(
+                            "text-xs flex-shrink-0 truncate whitespace-nowrap text-foreground",
+                            !email.isRead ? "font-semibold" : "font-normal"
+                          )}
+                          style={{ maxWidth: "250px" }}
+                        >
+                          {email.subject || "(no subject)"}
+                        </span>
+                        <span className="text-muted-foreground font-normal truncate min-w-0 text-xs">
+                          — {email.snippet}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Labels/Badges */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {email.hasAttachments && (
+                        <FileText className="w-4 h-4 text-muted-foreground" />
+                      )}
+                      {getConversationCount(email) > 1 && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs text-foreground border-border bg-muted"
+                        >
+                          {getConversationCount(email)}
+                        </Badge>
+                      )}
+                      {!email.isRead && (
+                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                      )}
+                    </div>
+
+                    {/* Date */}
+                    <div
+                      className="flex-shrink-0 text-muted-foreground text-right"
+                      style={{ fontSize: "14px", width: "80px" }}
+                    >
+                      {formatDate(email.date)}
+                    </div>
+
+                    {/* Actions Menu */}
+                    <div className="flex-shrink-0">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="email-actions"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            {getCorrespondent(email)}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Subject and Snippet */}
-                      <div className="flex-1 min-w-0 overflow-hidden">
-                        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                          <span
-                            className={cn(
-                              "text-xs flex-shrink-0 truncate whitespace-nowrap text-foreground",
-                              !email.isRead ? "font-semibold" : "font-normal"
-                            )}
-                            style={{ maxWidth: "250px" }}
-                          >
-                            {email.subject || "(no subject)"}
-                          </span>
-                          <span className="text-muted-foreground font-normal truncate min-w-0 text-xs">
-                            — {email.snippet}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Labels/Badges */}
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {email.hasAttachments && (
-                          <FileText className="w-4 h-4 text-muted-foreground" />
-                        )}
-                        {getConversationCount(email) > 1 && (
-                          <Badge
-                            variant="outline"
-                            className="text-xs text-foreground border-border bg-muted"
-                          >
-                            {getConversationCount(email)}
-                          </Badge>
-                        )}
-                        {!email.isRead && (
-                          <div className="w-2 h-2 bg-primary rounded-full"></div>
-                        )}
-                      </div>
-
-                      {/* Date */}
-                      <div
-                        className="flex-shrink-0 text-muted-foreground text-right"
-                        style={{ fontSize: "14px", width: "80px" }}
-                      >
-                        {formatDate(email.date)}
-                      </div>
-
-                      {/* Actions Menu */}
-                      <div className="flex-shrink-0">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="email-actions"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Reply className="w-4 h-4 mr-2" />
-                              Reply
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Forward className="w-4 h-4 mr-2" />
-                              Forward
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Archive className="w-4 h-4 mr-2" />
-                              Archive
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600 dark:text-red-400">
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Reply className="w-4 h-4 mr-2" />
+                            Reply
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Forward className="w-4 h-4 mr-2" />
+                            Forward
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Archive className="w-4 h-4 mr-2" />
+                            Archive
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600 dark:text-red-400">
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
-                );
-              })}
-
-              {/* Load More Button */}
-              {nextPageToken && (
-                <div className="p-4 text-center border-t border-border/50">
-                  {isLoadingMore ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                      <span className="text-sm text-muted-foreground">
-                        Loading more emails...
-                      </span>
-                    </div>
-                  ) : (
-                    <Button
-                      onClick={loadMoreEmails}
-                      disabled={isLoading}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Load More Emails
-                    </Button>
-                  )}
                 </div>
-              )}
+              );
+            })}
 
-              {/* No Emails State - Display nothing instead of "No emails found" */}
-              {!isLoading && filteredEmails.length === 0 && null}
-            </div>
-          )}
+            {/* Load More Button */}
+            {nextPageToken && (
+              <div className="p-4 text-center border-t border-border/50">
+                {isLoadingMore ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <span className="text-sm text-muted-foreground">
+                      Loading more emails...
+                    </span>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={loadMoreEmails}
+                    disabled={isLoading}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Load More Emails
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* No Emails State - Display nothing instead of "No emails found" */}
+            {!isLoading && filteredEmails.length === 0 && null}
+          </div>
         </div>
       </div>
 
