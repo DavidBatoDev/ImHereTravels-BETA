@@ -80,9 +80,10 @@
   padding-left: 10px;
 }
 
-/* Purple border for cells containing focused inputs - override all existing borders */
+/* Purple border for cells containing focused inputs OR selected cells */
 .custom-grid .rdg-cell:has(input:focus),
-.custom-grid .rdg-cell:has(input:focus) * {
+.custom-grid .rdg-cell:has(input:focus) *,
+.custom-grid .rdg-cell[aria-selected="true"] {
   /* Override all existing border styles */
   border: 2px solid #8b5cf6 !important;
   border-top: 2px solid #8b5cf6 !important;
@@ -109,7 +110,8 @@
 }
 
 /* Even more specific override for React Data Grid cells */
-.custom-grid .rdg-cell:has(input:focus) {
+.custom-grid .rdg-cell:has(input:focus),
+.custom-grid .rdg-cell[aria-selected="true"] {
   border-color: #8b5cf6 !important;
   border-style: solid !important;
   border-width: 1.5px !important;
