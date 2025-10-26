@@ -197,6 +197,7 @@
     --input: 210 19% 90%;
     --ring: 0 75% 53%;
     --radius: 0.5rem;
+    --card-surface: 0 0% 100%; /* White for light mode */
 
     /* Sidebar Colors - Light Mode */
     --sidebar-background: 0 0% 100%;
@@ -252,6 +253,7 @@
     --border: 220 25% 20%;
     --input: 220 25% 15%;
     --ring: 0 78% 67%;
+    --card-surface: 220 25% 10%; /* Creative Midnight for dark mode */
 
     /* Sidebar Colors - Dark Mode */
     --sidebar-background: 220 25% 10%; /* Creative Midnight */

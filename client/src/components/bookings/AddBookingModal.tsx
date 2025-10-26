@@ -1066,10 +1066,10 @@ export default function AddBookingModal({
                     <FaCog className="h-3 w-3 text-sunglow-yellow" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-sunglow-yellow">
+                    <span className="text-xs font-medium text-foreground">
                       Function Fields:
                     </span>
-                    <span className="text-xs text-sunglow-yellow/80 ml-1">
+                    <span className="text-xs text-foreground ml-1">
                       Yellow inputs are auto-calculated
                     </span>
                   </div>

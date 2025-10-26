@@ -909,24 +909,24 @@ export default function BookingDetailModal({
                               return (
                                 <div
                                   key={column.id}
-                                  className={`flex items-start gap-2 p-2 rounded-lg border transition-all hover:shadow-sm ${
+                                  className={`flex items-start gap-2 p-2 rounded-lg border transition-all ${
                                     isEmpty
                                       ? "bg-muted/10 border-sunglow-yellow/50 opacity-50"
                                       : column.dataType === "function"
-                                      ? "bg-sunglow-yellow/20 border-sunglow-yellow/30 hover:border-sunglow-yellow/40"
-                                      : "bg-muted/20 border-border hover:border-foreground/10"
+                                      ? "bg-sunglow-yellow/20 border-sunglow-yellow/30"
+                                      : "bg-muted/20 border-border hover:shadow-sm hover:border-foreground/10"
                                   }`}
                                 >
                                   <div className="flex-shrink-0 mt-0.5">
                                     <div
                                       className={`p-1 rounded-full rounded-br-none ${
                                         column.dataType === "function"
-                                          ? "bg-sunglow-yellow/20"
+                                          ? "bg-sunglow-yellow"
                                           : "bg-crimson-red/10"
                                       }`}
                                     >
                                       {column.dataType === "function" && (
-                                        <FaCode className="h-3 w-3 text-sunglow-yellow" />
+                                        <FaCode className="h-3 w-3 text-white" />
                                       )}
                                       {column.dataType === "date" && (
                                         <FaCalendarAlt className="h-3 w-3 text-crimson-red" />
@@ -984,12 +984,12 @@ export default function BookingDetailModal({
                               return (
                                 <div
                                   key={column.id}
-                                  className={`flex items-center justify-between px-4 py-2 hover:bg-muted/20 transition-colors ${
+                                  className={`flex items-center justify-between px-4 py-2 transition-colors ${
                                     isEmpty ? "opacity-50" : ""
                                   } ${
                                     column.dataType === "function"
                                       ? "bg-sunglow-yellow/20"
-                                      : ""
+                                      : "hover:bg-muted/20"
                                   }`}
                                 >
                                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -997,12 +997,12 @@ export default function BookingDetailModal({
                                       <div
                                         className={`p-1 rounded-full rounded-br-none ${
                                           column.dataType === "function"
-                                            ? "bg-sunglow-yellow/20"
+                                            ? "bg-sunglow-yellow"
                                             : "bg-crimson-red/10"
                                         }`}
                                       >
                                         {column.dataType === "function" && (
-                                          <FaCode className="h-3 w-3 text-sunglow-yellow" />
+                                          <FaCode className="h-3 w-3 text-white" />
                                         )}
                                         {column.dataType === "date" && (
                                           <FaCalendarAlt className="h-3 w-3 text-crimson-red" />

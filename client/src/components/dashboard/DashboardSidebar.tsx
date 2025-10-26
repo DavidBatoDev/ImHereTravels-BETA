@@ -145,9 +145,10 @@ export default function DashboardSidebar({
         />
         <div
           className={cn(
-            "fixed inset-y-0 left-0 flex flex-col bg-background border-r border-border shadow-2xl transition-all duration-300",
+            "fixed inset-y-0 left-0 flex flex-col border-r border-border shadow-2xl transition-all duration-300",
             sidebarCollapsed ? "w-20" : "w-72"
           )}
+          style={{ backgroundColor: "hsl(var(--card-surface))" }}
         >
           <div className="flex h-20 items-center justify-between px-6 bg-muted border-b border-border">
             <div className="flex items-center space-x-3">
@@ -369,7 +370,10 @@ export default function DashboardSidebar({
           sidebarCollapsed ? "lg:w-20" : "lg:w-72"
         )}
       >
-        <div className="flex min-h-0 flex-1 flex-col bg-background border-r border-border shadow">
+        <div
+          className="flex min-h-0 flex-1 flex-col border-r border-border shadow"
+          style={{ backgroundColor: "hsl(var(--card-surface))" }}
+        >
           <div className="flex items-center px-6 py-3 bg-muted border-b border-border">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-background rounded-xl p-2 border border-border">
@@ -387,16 +391,7 @@ export default function DashboardSidebar({
                 </h1>
               )}
             </div>
-            {sidebarCollapsed ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="ml-auto text-muted-foreground hover:bg-background hover:text-foreground p-2"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            ) : (
+            {!sidebarCollapsed && (
               <Button
                 variant="ghost"
                 size="sm"
