@@ -79,29 +79,53 @@ export default function TourDetails({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[95vh] p-0 bg-background">
-        <DialogHeader className="px-8 pt-8 pb-6 bg-gradient-to-r from-crimson-red to-light-red text-white rounded-t-lg">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <DialogTitle className="text-3xl font-bold text-white mb-2">
-                {tour.name}
-              </DialogTitle>
-              <DialogDescription className="text-white/90 text-lg">
-                {tour.description}
-              </DialogDescription>
-              <div className="flex items-center gap-4 mt-4 text-white/90">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-white" />
-                  <span className="font-medium">{tour.location}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Hash className="w-5 h-5 text-white" />
-                  <span className="font-medium">{tour.tourCode}</span>
+        <DialogHeader className="relative px-8 pt-8 pb-6 text-white rounded-t-lg overflow-hidden">
+          {/* Blurred Background Image */}
+          {tour.media?.coverImage && (
+            <div className="absolute inset-0 z-0">
+              <div
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110"
+                style={{
+                  backgroundImage: `url(${tour.media.coverImage})`,
+                  filter: "blur(20px)",
+                }}
+              />
+              <div className="absolute inset-0 bg-black/60" />
+            </div>
+          )}
+
+          {/* Fallback gradient background when no cover image */}
+          {!tour.media?.coverImage && (
+            <div className="absolute inset-0 bg-gradient-to-r from-crimson-red to-light-red" />
+          )}
+
+          {/* Content with proper z-index */}
+          <div className="relative z-10">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <DialogTitle className="text-3xl font-bold text-white mb-2 drop-shadow-lg">
+                  {tour.name}
+                </DialogTitle>
+                <DialogDescription className="text-white/90 text-lg drop-shadow-md">
+                  {tour.description}
+                </DialogDescription>
+                <div className="flex items-center gap-4 mt-4 text-white/90">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-white drop-shadow-sm" />
+                    <span className="font-medium">{tour.location}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Hash className="w-5 h-5 text-white drop-shadow-sm" />
+                    <span className="font-medium">{tour.tourCode}</span>
+                  </div>
                 </div>
               </div>
+              <Badge
+                className={`${getStatusColor(tour.status)} drop-shadow-sm`}
+              >
+                {tour.status.charAt(0).toUpperCase() + tour.status.slice(1)}
+              </Badge>
             </div>
-            <Badge className={getStatusColor(tour.status)}>
-              {tour.status.charAt(0).toUpperCase() + tour.status.slice(1)}
-            </Badge>
           </div>
         </DialogHeader>
 
@@ -112,8 +136,8 @@ export default function TourDetails({
               <Card className="bg-background border-2 border-border hover:border-crimson-red transition-colors duration-200">
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="p-3 bg-crimson-red/10 rounded-full">
-                      <Clock className="w-6 h-6 text-crimson-red" />
+                    <div className="p-3 bg-crimson-red rounded-full">
+                      <Clock className="w-6 h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground font-medium">
@@ -130,8 +154,8 @@ export default function TourDetails({
               <Card className="bg-background border-2 border-border hover:border-royal-purple transition-colors duration-200">
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="p-3 bg-royal-purple/10 rounded-full">
-                      <Banknote className="w-6 h-6 text-royal-purple" />
+                    <div className="p-3 bg-royal-purple rounded-full">
+                      <Banknote className="w-6 h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground font-medium">
@@ -159,8 +183,8 @@ export default function TourDetails({
               <Card className="bg-background border-2 border-border hover:border-spring-green transition-colors duration-200">
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="p-3 bg-spring-green/10 rounded-full">
-                      <CreditCard className="w-6 h-6 text-spring-green" />
+                    <div className="p-3 bg-spring-green rounded-full">
+                      <CreditCard className="w-6 h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground font-medium">
@@ -178,8 +202,8 @@ export default function TourDetails({
               <Card className="bg-background border-2 border-border hover:border-vivid-orange transition-colors duration-200">
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="p-3 bg-vivid-orange/10 rounded-full">
-                      <Calendar className="w-6 h-6 text-vivid-orange" />
+                    <div className="p-3 bg-vivid-orange rounded-full">
+                      <Calendar className="w-6 h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground font-medium">
@@ -226,14 +250,22 @@ export default function TourDetails({
                       Daily Itinerary
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="relative">
+                    {/* Continuous timeline line */}
+                    <div
+                      className="absolute left-[3.90rem] top-12 w-1 bg-crimson-red/40"
+                      style={{
+                        height: `calc(100% - 7rem)`,
+                      }}
+                    ></div>
+
                     <div className="space-y-4">
-                      {tour.details.itinerary.map((day) => (
+                      {tour.details.itinerary.map((day, index) => (
                         <div
                           key={day.day}
-                          className="flex gap-4 p-4 bg-muted/30 rounded-lg"
+                          className="flex gap-4 p-4 bg-muted/30 rounded-lg relative"
                         >
-                          <div className="flex-shrink-0">
+                          <div className="flex-shrink-0 relative z-10">
                             <div className="w-12 h-12 bg-crimson-red text-white rounded-full flex items-center justify-center font-bold text-lg">
                               {day.day}
                             </div>
@@ -277,7 +309,7 @@ export default function TourDetails({
               </div>
 
               {/* Right Column - Travel Dates & Actions */}
-              <div className="space-y-6">
+              <div className="space-y-6 sticky top-4 max-h-[calc(95vh-20rem)] overflow-y-auto scrollbar-hide">
                 {/* Travel Dates */}
                 <Card className="bg-background border-2 border-border">
                   <CardHeader className="pb-4">
@@ -418,26 +450,6 @@ export default function TourDetails({
                     )}
                   </CardContent>
                 </Card>
-              </div>
-            </div>
-
-            {/* Footer with additional info */}
-            <div className="pt-6 border-t-2 border-light-grey">
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <div className="flex items-center gap-4">
-                  <span>Tour ID: {tour.id}</span>
-                  <span>•</span>
-                  <span>
-                    Created:{" "}
-                    {format(tour.metadata.createdAt.toDate(), "MMM dd, yyyy")}
-                  </span>
-                  <span>•</span>
-                  <span>Bookings: {tour.metadata.bookingsCount}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Package className="w-4 h-4" />
-                  <span>Tour Package</span>
-                </div>
               </div>
             </div>
           </div>
