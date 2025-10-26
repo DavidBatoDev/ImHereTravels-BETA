@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,6 +38,8 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
 export default function PaymentTermsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [paymentTerms, setPaymentTerms] = useState<PaymentTermConfiguration[]>(
     []
   );
@@ -49,6 +52,28 @@ export default function PaymentTermsPage() {
   useEffect(() => {
     loadPaymentTerms();
   }, []);
+
+  // Handle query parameters for opening dialogs
+  useEffect(() => {
+    const termId = searchParams.get("termId");
+    const action = searchParams.get("action");
+    const mode = searchParams.get("mode");
+
+    if (termId && paymentTerms.length > 0) {
+      const term = paymentTerms.find((t) => t.id === termId);
+      if (term) {
+        setSelectedTerm(term);
+        if (mode === "edit") {
+          setIsCreating(false);
+          setDialogOpen(true);
+        }
+      }
+    } else if (action === "new") {
+      setSelectedTerm(null);
+      setIsCreating(true);
+      setDialogOpen(true);
+    }
+  }, [searchParams, paymentTerms]);
 
   const loadPaymentTerms = async () => {
     try {
@@ -70,12 +95,23 @@ export default function PaymentTermsPage() {
     setSelectedTerm(null);
     setIsCreating(true);
     setDialogOpen(true);
+
+    // Add action to URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("action", "new");
+    router.push(`/payment-terms?${params.toString()}`, { scroll: false });
   };
 
   const handleEdit = (term: PaymentTermConfiguration) => {
     setSelectedTerm(term);
     setIsCreating(false);
     setDialogOpen(true);
+
+    // Add termId and mode to URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("termId", term.id);
+    params.set("mode", "edit");
+    router.push(`/payment-terms?${params.toString()}`, { scroll: false });
   };
 
   const handleDelete = async (termId: string) => {
@@ -151,7 +187,28 @@ export default function PaymentTermsPage() {
 
   const onDialogSuccess = () => {
     setDialogOpen(false);
+    setSelectedTerm(null);
+
+    // Remove URL parameters
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("termId");
+    params.delete("action");
+    params.delete("mode");
+    router.push(`/payment-terms?${params.toString()}`, { scroll: false });
+
     loadPaymentTerms();
+  };
+
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+    setSelectedTerm(null);
+
+    // Remove URL parameters
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("termId");
+    params.delete("action");
+    params.delete("mode");
+    router.push(`/payment-terms?${params.toString()}`, { scroll: false });
   };
 
   if (loading) {
@@ -443,7 +500,7 @@ export default function PaymentTermsPage() {
           {/* Payment Term Dialog */}
           <PaymentTermDialog
             open={dialogOpen}
-            onOpenChange={setDialogOpen}
+            onOpenChange={handleDialogClose}
             paymentTerm={selectedTerm}
             isCreating={isCreating}
             onSuccess={onDialogSuccess}
