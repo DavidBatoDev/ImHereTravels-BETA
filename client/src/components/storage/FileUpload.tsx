@@ -28,6 +28,8 @@ export default function FileUpload({
   const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const [fileInputKey, setFileInputKey] = useState(0);
+  const isOpeningRef = useRef(false);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -41,11 +43,13 @@ export default function FileUpload({
 
     // Reset the file picker state
     setIsFilePickerOpen(false);
+
+    // Force remount of input to reset file selection state
+    setFileInputKey((prev) => prev + 1);
   };
 
   const removeFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-    setIsFilePickerOpen(false);
   };
 
   const handleUpload = async () => {
@@ -151,10 +155,14 @@ export default function FileUpload({
   };
 
   const openFileDialog = () => {
-    if (isFilePickerOpen || uploading) return;
+    if (isOpeningRef.current || uploading) return;
 
+    isOpeningRef.current = true;
     setIsFilePickerOpen(true);
     fileInputRef.current?.click();
+    setTimeout(() => {
+      isOpeningRef.current = false;
+    }, 500);
   };
 
   return (
@@ -182,7 +190,7 @@ export default function FileUpload({
           accept="image/*"
           onChange={handleFileSelect}
           className="hidden"
-          key={`file-input-${selectedFiles.length}`}
+          key={`file-input-${fileInputKey}`}
         />
 
         {/* Upload Area */}
@@ -199,7 +207,10 @@ export default function FileUpload({
           </p>
           <Button
             variant="outline"
-            onClick={openFileDialog}
+            onClick={(e) => {
+              e.stopPropagation();
+              openFileDialog();
+            }}
             className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
           >
             Choose Files
