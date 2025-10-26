@@ -43,3 +43,54 @@ export async function GET(
     );
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: messageId } = await params;
+    const body = await request.json();
+    const { action } = body;
+
+    if (!messageId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Message ID is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Initialize Gmail API service
+    const gmailService = new GmailApiService();
+
+    if (action === "markAsRead") {
+      await gmailService.markAsRead(messageId);
+      return NextResponse.json({
+        success: true,
+        message: "Email marked as read",
+      });
+    }
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Invalid action",
+      },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error("Error in Gmail email update API:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to update email",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}

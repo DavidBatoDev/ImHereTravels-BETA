@@ -76,7 +76,11 @@ interface EmailViewModalProps {
   isLoadingFullContent: boolean;
   onReply?: (email: GmailEmail) => void;
   onForward?: (email: GmailEmail) => void;
+  onGmailOpen?: () => void;
 }
+
+// Global flag to track if we should prevent modal close
+let shouldPreventClose = false;
 
 // Helper function to get avatar initials
 function getAvatarInitials(email: string): string {
@@ -133,6 +137,7 @@ export function EmailViewModal({
   isLoadingFullContent,
   onReply,
   onForward,
+  onGmailOpen,
 }: EmailViewModalProps) {
   const [threadEmails, setThreadEmails] = useState<GmailEmail[]>([]);
   const [isLoadingThread, setIsLoadingThread] = useState(false);
@@ -936,7 +941,42 @@ export function EmailViewModal({
     );
   };
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        // Check if we should prevent closing due to Gmail/Theme button click
+        const windowFlag = (window as any).shouldPreventCloseGmail;
+        console.log(
+          "Dialog onOpenChange called, open:",
+          open,
+          "window flag:",
+          windowFlag
+        );
+        if (!open && windowFlag) {
+          console.log("Preventing dialog close due to Gmail button click");
+          return; // Don't close
+        }
+
+        onOpenChange(open);
+      }}
+      onInteractOutside={(e) => {
+        // Check if the click was on the Gmail button or theme toggle
+        const target = e.target as HTMLElement;
+        console.log("onInteractOutside called, target:", target);
+        const button = target?.closest("button");
+        const isButtonClick =
+          button?.title === "Open Gmail in new tab" ||
+          target?.closest("[data-gmail-button]") ||
+          target?.closest("[data-theme-toggle]");
+        console.log("Is button click:", isButtonClick, button?.title);
+        if (isButtonClick) {
+          console.log("Preventing dialog close due to button click");
+          e.preventDefault();
+        } else {
+          console.log("Allowing dialog to close");
+        }
+      }}
+    >
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
         <DialogHeader className="sr-only">
           <DialogTitle>{selectedEmail?.subject || "(no subject)"}</DialogTitle>
@@ -961,6 +1001,29 @@ export function EmailViewModal({
                   <StarOff className="w-3 h-3" />
                 )}
               </Button>
+
+              {/* Gmail button inside modal header */}
+              <Button
+                variant="outline"
+                size="sm"
+                title="Open Gmail in new tab"
+                onClick={() => {
+                  if (onGmailOpen) {
+                    onGmailOpen();
+                  } else {
+                    window.open("https://mail.google.com", "_blank");
+                  }
+                }}
+                className="ml-2"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4">
+                  <path
+                    fill="currentColor"
+                    d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"
+                  />
+                </svg>
+              </Button>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm">

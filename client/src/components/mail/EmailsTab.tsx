@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -169,6 +169,14 @@ export default function EmailsTab() {
   const [emailCache, setEmailCache] = useState<Map<string, GmailEmail>>(
     new Map()
   );
+  const emailCacheRefLocal = useRef(emailCache); // Ref for background refresh
+  const skipHashCloseRef = useRef(false); // Ref to track if we should skip closing on hash change
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    emailCacheRefLocal.current = emailCache;
+  }, [emailCache]);
+
   const [categoryEmails, setCategoryEmailsState] = useState<
     Map<string, GmailEmail[]>
   >(() => emailCacheRef.categoryEmails); // Initialize from persistent cache
@@ -588,9 +596,14 @@ export default function EmailsTab() {
       setIsCategoryChanging(true);
     }
     setActiveCategory(categoryId);
-    // Update URL hash
+    // Update URL hash, preserving compose parameter if it exists
     if (typeof window !== "undefined") {
-      window.location.hash = categoryId;
+      const currentHash = window.location.hash.slice(1);
+      const [currentCategoryPath, queryString] = currentHash.split("?");
+
+      // Preserve the compose query parameter
+      const newHash = queryString ? `${categoryId}?${queryString}` : categoryId;
+      window.location.hash = newHash;
     }
     // Don't clear emails immediately - let useEffect load cached data
     // setEmails([]); // Clear current emails
@@ -611,18 +624,105 @@ export default function EmailsTab() {
   };
 
   // View email details (with on-demand content loading)
-  const viewEmail = async (email: GmailEmail) => {
-    setSelectedEmail(email);
-    setIsViewDialogOpen(true);
+  const viewEmail = useCallback(
+    async (email: GmailEmail, updateHash = true) => {
+      setSelectedEmail(email);
+      setIsViewDialogOpen(true);
 
-    // Load full content if not already cached
-    if (!email.htmlContent && !email.textContent) {
-      const fullEmail = await fetchFullEmailContent(email.id);
-      if (fullEmail) {
-        setSelectedEmail(fullEmail);
+      // Update URL hash with email ID for deep linking (unless explicitly disabled)
+      if (updateHash && typeof window !== "undefined") {
+        // Use threadId for better compatibility with Gmail's URL structure
+        const deepLinkId = email.threadId || email.id;
+        const expectedHash = `${activeCategory}/${deepLinkId}`;
+        const currentHash = window.location.hash.slice(1);
+
+        if (currentHash !== expectedHash) {
+          window.location.hash = expectedHash;
+        }
       }
+
+      // Mark email as read if it's unread
+      if (!email.isRead) {
+        try {
+          const response = await fetch(`/api/gmail/emails/${email.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ action: "markAsRead" }),
+          });
+
+          if (response.ok) {
+            // Update local state to mark as read
+            setSelectedEmail({ ...email, isRead: true });
+            setEmailCache((prev) => {
+              const newCache = new Map(prev);
+              const cachedEmail = newCache.get(email.id);
+              if (cachedEmail) {
+                newCache.set(email.id, { ...cachedEmail, isRead: true });
+              }
+              return newCache;
+            });
+
+            // Update in emails list
+            setEmails((prevEmails) =>
+              prevEmails.map((e) =>
+                e.id === email.id ? { ...e, isRead: true } : e
+              )
+            );
+
+            // Update in category emails cache
+            setCategoryEmails((prev) => {
+              const newMap = new Map(prev);
+              const categoryEmailsList = newMap.get(activeCategory);
+              if (categoryEmailsList) {
+                const updatedList = categoryEmailsList.map((e) =>
+                  e.id === email.id ? { ...e, isRead: true } : e
+                );
+                newMap.set(activeCategory, updatedList);
+
+                // Update persistent cache
+                emailCacheRef.categoryEmails.set(activeCategory, updatedList);
+              }
+              return newMap;
+            });
+          }
+        } catch (error) {
+          console.error("Error marking email as read:", error);
+        }
+      }
+
+      // Load full content if not already cached
+      if (!email.htmlContent && !email.textContent) {
+        const fullEmail = await fetchFullEmailContent(email.id);
+        if (fullEmail) {
+          setSelectedEmail(fullEmail);
+        }
+      }
+    },
+    [activeCategory, setEmailCache, setCategoryEmails]
+  );
+
+  // Handle email modal close - update URL hash
+  const handleCloseEmail = useCallback(() => {
+    setIsViewDialogOpen(false);
+    setSelectedEmail(null);
+
+    // Remove email ID from hash, keep category
+    if (typeof window !== "undefined") {
+      window.location.hash = activeCategory;
     }
-  };
+  }, [activeCategory]);
+
+  // Function to get Gmail URL with current params
+  const getGmailUrl = useCallback(() => {
+    if (typeof window !== "undefined") {
+      const pathname = window.location.pathname; // e.g., /mail/u/0
+      const hash = window.location.hash; // e.g., #inbox/19a1c05bb56b9a65
+      return `https://mail.google.com${pathname}${hash}`;
+    }
+    return "https://mail.google.com";
+  }, []);
 
   // Get email type badge
   const getEmailTypeBadge = (email: GmailEmail) => {
@@ -793,7 +893,7 @@ export default function EmailsTab() {
         });
 
         // Update activity time for smart polling
-        setLastActivityTime(Date.now());
+        lastActivityTimeRef.current = Date.now();
 
         // Trigger background refresh after a delay to get updated data
         setTimeout(() => {
@@ -836,6 +936,14 @@ export default function EmailsTab() {
     setIsComposeOpen(true);
     setComposeType("new");
     setComposeData({});
+
+    // Update URL hash to include compose query parameter
+    if (typeof window !== "undefined") {
+      const currentHash = window.location.hash.slice(1);
+      const hashWithoutQuery = currentHash.split("?")[0];
+      const newHash = `${hashWithoutQuery || activeCategory}?compose=new`;
+      window.location.hash = newHash;
+    }
   };
 
   const handleReply = (email: GmailEmail) => {
@@ -848,6 +956,14 @@ export default function EmailsTab() {
         : `Re: ${email.subject}`,
       replyToEmail: email,
     });
+
+    // Update URL hash to include compose query parameter
+    if (typeof window !== "undefined") {
+      const currentHash = window.location.hash.slice(1);
+      const hashWithoutQuery = currentHash.split("?")[0];
+      const newHash = `${hashWithoutQuery || activeCategory}?compose=new`;
+      window.location.hash = newHash;
+    }
   };
 
   const handleForward = (email: GmailEmail) => {
@@ -864,6 +980,14 @@ export default function EmailsTab() {
       }\nTo: ${email.to}\n\n${email.snippet}`,
       replyToEmail: email,
     });
+
+    // Update URL hash to include compose query parameter
+    if (typeof window !== "undefined") {
+      const currentHash = window.location.hash.slice(1);
+      const hashWithoutQuery = currentHash.split("?")[0];
+      const newHash = `${hashWithoutQuery || activeCategory}?compose=new`;
+      window.location.hash = newHash;
+    }
   };
 
   const handleOpenDraft = (email: GmailEmail) => {
@@ -877,12 +1001,29 @@ export default function EmailsTab() {
       body: email.htmlContent || email.textContent,
       replyToEmail: email,
     });
+
+    // Update URL hash to include compose query parameter with draft ID
+    if (typeof window !== "undefined") {
+      const currentHash = window.location.hash.slice(1);
+      const hashWithoutQuery = currentHash.split("?")[0];
+      // Use the messageId for Gmail URL format compatibility
+      const draftId = email.messageId || email.id;
+      const newHash = `${hashWithoutQuery || "drafts"}?compose=${draftId}`;
+      window.location.hash = newHash;
+    }
   };
 
   const handleCloseCompose = () => {
     setIsComposeOpen(false);
     setComposeType("new");
     setComposeData({});
+
+    // Remove compose query parameter from URL
+    if (typeof window !== "undefined") {
+      const currentHash = window.location.hash.slice(1);
+      const hashWithoutQuery = currentHash.split("?")[0];
+      window.location.hash = hashWithoutQuery || activeCategory;
+    }
   };
 
   // Helper function to check if emails are different
@@ -1013,7 +1154,7 @@ export default function EmailsTab() {
           }
 
           // Update email cache
-          const newCache = new Map(emailCache);
+          const newCache = new Map(emailCacheRefLocal.current);
           fetchedEmails.forEach((email: GmailEmail) => {
             newCache.set(email.id, email);
           });
@@ -1063,9 +1204,16 @@ export default function EmailsTab() {
       // Only show loading if changing to a different category
       setIsCategoryChanging(true);
       setActiveCategory(pendingCategory);
-      // Update URL hash
+      // Update URL hash, preserving compose parameter if it exists
       if (typeof window !== "undefined") {
-        window.location.hash = pendingCategory;
+        const currentHash = window.location.hash.slice(1);
+        const [currentCategoryPath, queryString] = currentHash.split("?");
+
+        // Preserve the compose query parameter
+        const newHash = queryString
+          ? `${pendingCategory}?${queryString}`
+          : pendingCategory;
+        window.location.hash = newHash;
       }
       setNextPageToken(null);
       setSelectedEmails(new Set());
@@ -1082,14 +1230,14 @@ export default function EmailsTab() {
     };
   }, [abortController]);
 
-  // Track last activity time for smart polling
-  const [lastActivityTime, setLastActivityTime] = useState(Date.now());
+  // Track last activity time for smart polling (using ref to avoid infinite loops)
+  const lastActivityTimeRef = useRef(Date.now());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Update activity time on user interaction
   useEffect(() => {
     const updateActivity = () => {
-      setLastActivityTime(Date.now());
+      lastActivityTimeRef.current = Date.now();
     };
 
     // Track various user interactions
@@ -1108,7 +1256,7 @@ export default function EmailsTab() {
   // Manual refresh function with visual feedback
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
-    setLastActivityTime(Date.now());
+    lastActivityTimeRef.current = Date.now();
 
     try {
       setIsLoading(true);
@@ -1125,10 +1273,8 @@ export default function EmailsTab() {
   // Background refresh with smart adaptive polling
   useEffect(() => {
     // Only run if there are cached emails (don't interfere with initial load)
-    const cachedEmails =
-      categoryEmails.get(activeCategory) ||
-      emailCacheRef.categoryEmails.get(activeCategory) ||
-      [];
+    // Use refs to avoid triggering re-renders
+    const cachedEmails = emailCacheRef.categoryEmails.get(activeCategory) || [];
 
     if (cachedEmails.length === 0 || isLoading) {
       return; // Don't run interval if no cache or actively loading
@@ -1213,9 +1359,7 @@ export default function EmailsTab() {
 
         // Get current cached emails for comparison
         const currentCachedEmails =
-          categoryEmails.get(activeCategory) ||
-          emailCacheRef.categoryEmails.get(activeCategory) ||
-          [];
+          emailCacheRef.categoryEmails.get(activeCategory) || [];
 
         // Compare new data with cached data
         if (areEmailsDifferent(currentCachedEmails, fetchedEmails)) {
@@ -1234,7 +1378,7 @@ export default function EmailsTab() {
 
     // Adaptive polling based on activity
     const getPollInterval = () => {
-      const idleTime = Date.now() - lastActivityTime;
+      const idleTime = Date.now() - lastActivityTimeRef.current;
 
       if (document.hidden) {
         return 120000; // 2 minutes when tab is hidden
@@ -1273,7 +1417,7 @@ export default function EmailsTab() {
       clearTimeout(refreshTimeout);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [activeCategory, isLoading, categoryEmails, emailCache, lastActivityTime]);
+  }, [activeCategory, isLoading]);
 
   // Initialize hash on mount if not present
   useEffect(() => {
@@ -1286,20 +1430,182 @@ export default function EmailsTab() {
     }
   }, []);
 
-  // Listen for hash changes (browser back/forward)
+  // Add global click listener to detect Gmail button clicks
   useEffect(() => {
-    const handleHashChange = () => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target?.closest("[data-gmail-button]") ||
+        target?.closest("[data-theme-toggle]")
+      ) {
+        console.log("Gmail/Theme button clicked, setting skip flag");
+        skipHashCloseRef.current = true;
+        // Reset after a short delay
+        setTimeout(() => {
+          console.log("Resetting skip flag");
+          skipHashCloseRef.current = false;
+        }, 300);
+      }
+    };
+
+    window.addEventListener("click", handleGlobalClick, true); // Capture phase
+    return () => window.removeEventListener("click", handleGlobalClick, true);
+  }, []);
+
+  // Listen for hash changes and handle deep linking to emails
+  useEffect(() => {
+    const handleHashChange = async () => {
       if (typeof window !== "undefined") {
         const hash = window.location.hash.slice(1);
-        if (hash && gmailCategories.some((cat) => cat.id === hash)) {
-          setActiveCategory(hash);
+        const parts = hash.split("/");
+        const category = parts[0];
+        const emailId = parts[1];
+
+        // Update category if it's a valid category
+        if (category && gmailCategories.some((cat) => cat.id === category)) {
+          setActiveCategory(category);
+        }
+
+        // Open email if email ID is present
+        if (emailId) {
+          // Prevent infinite loop - if modal is already open with this email, don't reopen
+          if (
+            isViewDialogOpen &&
+            selectedEmail &&
+            (selectedEmail.threadId === emailId || selectedEmail.id === emailId)
+          ) {
+            return;
+          }
+
+          // Find email in current list - search by threadId first, then by id
+          const email = emails.find(
+            (e) => e.threadId === emailId || e.id === emailId
+          );
+          if (email) {
+            setSelectedEmail(email);
+            setIsViewDialogOpen(true);
+
+            // Load full content if not already cached
+            if (!email.htmlContent && !email.textContent) {
+              const fullEmail = await fetchFullEmailContent(email.id);
+              if (fullEmail) {
+                setSelectedEmail(fullEmail);
+              }
+            }
+          } else {
+            // Email not in current list, check cache
+            // First try by ID, then search by threadId
+            let cachedEmail = emailCache.get(emailId);
+
+            if (!cachedEmail) {
+              // Search cache for matching threadId
+              const cacheArray = Array.from(emailCache.values());
+              cachedEmail = cacheArray.find(
+                (e) => e.threadId === emailId || e.id === emailId
+              );
+            }
+
+            if (cachedEmail) {
+              setSelectedEmail(cachedEmail);
+              setIsViewDialogOpen(true);
+
+              // Load full content if not already cached
+              if (!cachedEmail.htmlContent && !cachedEmail.textContent) {
+                const fullEmail = await fetchFullEmailContent(cachedEmail.id);
+                if (fullEmail) {
+                  setSelectedEmail(fullEmail);
+                }
+              }
+            }
+          }
+        } else if (isViewDialogOpen) {
+          // If hash changed and no email ID, close the modal
+          // But don't close if we just clicked the Gmail button or theme toggle
+          console.log(
+            "Hash changed without email ID, skipHashCloseRef:",
+            skipHashCloseRef.current
+          );
+          if (!skipHashCloseRef.current) {
+            console.log("Closing modal due to hash change");
+            handleCloseEmail();
+          } else {
+            console.log("Skipping modal close due to button click");
+          }
         }
       }
     };
 
+    // Initial check on mount (don't await - run in background)
+    handleHashChange();
+
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
+  }, [emails, emailCache, isViewDialogOpen, selectedEmail, handleCloseEmail]);
+
+  // Listen for compose query parameter in URL hash
+  useEffect(() => {
+    const handleComposeFromUrl = () => {
+      if (typeof window !== "undefined") {
+        const hash = window.location.hash.slice(1);
+        const [categoryPath, queryString] = hash.split("?");
+
+        if (queryString) {
+          const params = new URLSearchParams(queryString);
+          const composeParam = params.get("compose");
+
+          if (composeParam && !isComposeOpen) {
+            setIsComposeOpen(true);
+
+            if (composeParam === "new") {
+              // New compose
+              setComposeType("new");
+              setComposeData({});
+            } else {
+              // Open draft by ID - search by messageId first (for Gmail compatibility), then by id
+              // First try direct cache lookup by id
+              let draftEmail = emailCache.get(composeParam);
+
+              // If not found, search through cache values by messageId
+              if (!draftEmail) {
+                const cacheArray = Array.from(emailCache.values());
+                draftEmail = cacheArray.find(
+                  (e) => e.messageId === composeParam
+                );
+              }
+
+              // If still not found, search through current emails
+              if (!draftEmail) {
+                draftEmail = emails.find(
+                  (e) =>
+                    e.messageId === composeParam ||
+                    e.id === composeParam ||
+                    e.threadId === composeParam
+                );
+              }
+
+              if (draftEmail) {
+                setComposeType("new");
+                setComposeData({
+                  to: draftEmail.to,
+                  cc: draftEmail.cc,
+                  bcc: draftEmail.bcc,
+                  subject: draftEmail.subject,
+                  body: draftEmail.htmlContent || draftEmail.textContent,
+                  replyToEmail: draftEmail,
+                });
+              }
+            }
+          }
+        }
+      }
+    };
+
+    // Check on mount and on hash changes
+    handleComposeFromUrl();
+
+    window.addEventListener("hashchange", handleComposeFromUrl);
+    return () => window.removeEventListener("hashchange", handleComposeFromUrl);
+  }, [isComposeOpen, emailCache, emails]);
 
   // Filter emails based on search term
   const filteredEmails = emails.filter((email) => {
@@ -1705,14 +2011,45 @@ export default function EmailsTab() {
         </div>
       </div>
 
+      {/* Floating Gmail Button - only when modal is closed */}
+      {!isViewDialogOpen && (
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => window.open(getGmailUrl(), "_blank")}
+          className="fixed top-4 right-14 z-[200] bg-background border-border hover:bg-muted shadow-lg h-10 w-10"
+          title="Open Gmail in new tab"
+        >
+          <div className="w-5 h-5">
+            <svg viewBox="0 0 24 24" className="w-full h-full">
+              <path
+                fill="currentColor"
+                d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"
+              />
+            </svg>
+          </div>
+        </Button>
+      )}
+
       {/* Email View Modal */}
       <EmailViewModal
         isOpen={isViewDialogOpen}
-        onOpenChange={setIsViewDialogOpen}
+        onOpenChange={(open) => {
+          console.log(
+            "EmailViewModal onOpenChange called, open:",
+            open,
+            "skipHashCloseRef:",
+            skipHashCloseRef.current
+          );
+          if (!open) {
+            handleCloseEmail();
+          }
+        }}
         selectedEmail={selectedEmail}
         isLoadingFullContent={isLoadingFullContent}
         onReply={handleReply}
         onForward={handleForward}
+        onGmailOpen={() => window.open(getGmailUrl(), "_blank")}
       />
 
       {/* Compose Email Component */}

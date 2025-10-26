@@ -120,6 +120,9 @@ export class GmailApiService {
 
           const parsedEmail = this.parseEmailMessage(messageResponse.data);
 
+          // Ensure we use the full Gmail message ID (not the short version)
+          parsedEmail.id = messageResponse.data.id || parsedEmail.id;
+
           // Get thread message count if not already cached
           if (parsedEmail.threadId && !threadCounts.has(parsedEmail.threadId)) {
             try {
@@ -694,6 +697,29 @@ export class GmailApiService {
     } catch (error) {
       console.error("Error toggling star status:", error);
       throw new Error(`Failed to toggle star status: ${error}`);
+    }
+  }
+
+  /**
+   * Mark an email as read (remove the UNREAD label)
+   * @param messageId - Gmail message ID
+   * @returns Promise with success status
+   */
+  async markAsRead(messageId: string) {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: "me",
+        id: messageId,
+        requestBody: {
+          removeLabelIds: ["UNREAD"],
+        },
+      });
+
+      console.log("Email marked as read successfully:", messageId);
+      return { success: true };
+    } catch (error) {
+      console.error("Error marking email as read:", error);
+      throw new Error(`Failed to mark email as read: ${error}`);
     }
   }
 
