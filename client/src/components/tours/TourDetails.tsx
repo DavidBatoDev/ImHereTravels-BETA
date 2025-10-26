@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,8 @@ interface TourDetailsProps {
   onEdit?: (tour: TourPackage) => void;
   onArchive?: (tour: TourPackage) => void;
   onDelete?: (tour: TourPackage) => void;
+  router?: ReturnType<typeof useRouter>;
+  searchParams?: ReturnType<typeof useSearchParams>;
 }
 
 export default function TourDetails({
@@ -56,6 +59,8 @@ export default function TourDetails({
   onEdit,
   onArchive,
   onDelete,
+  router,
+  searchParams,
 }: TourDetailsProps) {
   if (!tour) return null;
 
@@ -432,7 +437,19 @@ export default function TourDetails({
                     <CardContent className="p-4 space-y-3">
                       {onEdit && (
                         <Button
-                          onClick={() => onEdit(tour)}
+                          onClick={() => {
+                            if (router && searchParams) {
+                              // Update URL to include edit mode
+                              const params = new URLSearchParams(
+                                searchParams.toString()
+                              );
+                              params.set("mode", "edit");
+                              router.push(`/tours?${params.toString()}`, {
+                                scroll: false,
+                              });
+                            }
+                            onEdit(tour);
+                          }}
                           className="w-full bg-crimson-red hover:bg-light-red text-white"
                         >
                           <Edit className="w-4 h-4 mr-2" />

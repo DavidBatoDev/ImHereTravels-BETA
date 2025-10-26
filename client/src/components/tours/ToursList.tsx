@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Booking } from "@/types/bookings";
@@ -74,6 +75,8 @@ import TourForm from "./TourForm";
 import TourDetails from "./TourDetails";
 
 export default function ToursList() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [tours, setTours] = useState<TourPackage[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -178,6 +181,29 @@ export default function ToursList() {
       }
     };
   }, [searchTerm, statusFilter]);
+
+  // Handle query parameters for opening modals
+  useEffect(() => {
+    const tourId = searchParams.get("tourId");
+    const action = searchParams.get("action");
+    const mode = searchParams.get("mode");
+
+    if (tourId && tours.length > 0) {
+      const tour = tours.find((t) => t.id === tourId);
+      if (tour) {
+        setSelectedTour(tour);
+        if (mode === "edit") {
+          setIsDetailsOpen(false);
+          setIsFormOpen(true);
+        } else {
+          setIsDetailsOpen(true);
+        }
+      }
+    } else if (action === "new") {
+      setSelectedTour(null);
+      setIsFormOpen(true);
+    }
+  }, [searchParams, tours]);
 
   // Create tour
   const handleCreateTour = async (data: TourFormDataWithStringDates) => {
@@ -298,18 +324,34 @@ export default function ToursList() {
   const openCreateForm = () => {
     setSelectedTour(null);
     setIsFormOpen(true);
+
+    // Add action to URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("action", "new");
+    router.push(`/tours?${params.toString()}`, { scroll: false });
   };
 
   // Open edit form
   const openEditForm = (tour: TourPackage) => {
     setSelectedTour(tour);
     setIsFormOpen(true);
+
+    // Add tourId and mode to URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tourId", tour.id);
+    params.set("mode", "edit");
+    router.push(`/tours?${params.toString()}`, { scroll: false });
   };
 
   // Open tour details
   const openTourDetails = (tour: TourPackage) => {
     setSelectedTour(tour);
     setIsDetailsOpen(true);
+
+    // Add tourId to URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tourId", tour.id);
+    router.push(`/tours?${params.toString()}`, { scroll: false });
   };
 
   // Confirm delete
@@ -844,6 +886,13 @@ export default function ToursList() {
         onClose={() => {
           setIsFormOpen(false);
           setSelectedTour(null);
+
+          // Remove URL parameters
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete("tourId");
+          params.delete("action");
+          params.delete("mode");
+          router.push(`/tours?${params.toString()}`, { scroll: false });
         }}
         onSubmit={handleFormSubmit}
         tour={selectedTour}
@@ -857,6 +906,13 @@ export default function ToursList() {
         onClose={() => {
           setIsDetailsOpen(false);
           setSelectedTour(null);
+
+          // Remove URL parameters
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete("tourId");
+          params.delete("action");
+          params.delete("mode");
+          router.push(`/tours?${params.toString()}`, { scroll: false });
         }}
         onEdit={(tour) => {
           setIsDetailsOpen(false);
@@ -864,6 +920,8 @@ export default function ToursList() {
         }}
         onArchive={handleArchiveTour}
         onDelete={confirmDelete}
+        router={router}
+        searchParams={searchParams}
       />
 
       {/* Delete Confirmation Dialog */}
