@@ -56,6 +56,15 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "../ui/separator";
 
+// Gmail Attachment type
+interface GmailAttachment {
+  attachmentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  contentId?: string; // For inline attachments (cid: references)
+}
+
 // Gmail Email type
 interface GmailEmail {
   id: string;
@@ -78,6 +87,7 @@ interface GmailEmail {
   cc?: string;
   isStarred?: boolean;
   hasAttachments?: boolean;
+  attachments?: GmailAttachment[];
   isImportant?: boolean;
   threadMessageCount?: number; // Number of messages in this conversation thread
   fromAvatarUrl?: string; // Avatar URL for sender
@@ -436,11 +446,35 @@ export default function EmailsTab() {
   };
 
   // Sanitize Gmail HTML content
-  const sanitizeGmailHtml = (html: string): string => {
+  const sanitizeGmailHtml = (
+    html: string,
+    email?: GmailEmail,
+    messageId?: string
+  ): string => {
     if (!html) return html;
 
     // Remove Gmail-specific interactive elements and buttons
     let sanitized = html;
+
+    // Replace cid: references with actual attachment URLs
+    if (email?.attachments && email.attachments.length > 0 && messageId) {
+      email.attachments.forEach((attachment) => {
+        if (attachment.contentId) {
+          // Remove angle brackets from contentId if present
+          const cleanContentId = attachment.contentId.replace(/[<>]/g, "");
+          // Replace cid: references in img src
+          sanitized = sanitized.replace(
+            new RegExp(`cid:${escapeRegExp(cleanContentId)}`, "gi"),
+            `/api/gmail/attachments/${messageId}/${attachment.attachmentId}`
+          );
+          // Also replace cid: references in a href
+          sanitized = sanitized.replace(
+            new RegExp(`src=["']cid:${escapeRegExp(cleanContentId)}["']`, "gi"),
+            `src="/api/gmail/attachments/${messageId}/${attachment.attachmentId}"`
+          );
+        }
+      });
+    }
 
     // Remove Gmail download buttons and overlays
     sanitized = sanitized.replace(/<div class="a6S"[^>]*>.*?<\/div>/gs, "");
@@ -487,6 +521,11 @@ export default function EmailsTab() {
     return sanitized;
   };
 
+  // Helper function to escape regex special characters
+  const escapeRegExp = (string: string): string => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  };
+
   // Fetch full email content on demand
   const fetchFullEmailContent = async (messageId: string) => {
     // Check cache first
@@ -516,9 +555,9 @@ export default function EmailsTab() {
           ...result.data,
           // Convert ISO string back to Date object
           date: new Date(result.data.date),
-          // Sanitize HTML content
+          // Sanitize HTML content with cid: replacements
           htmlContent: result.data.htmlContent
-            ? sanitizeGmailHtml(result.data.htmlContent)
+            ? sanitizeGmailHtml(result.data.htmlContent, result.data, messageId)
             : result.data.htmlContent,
         };
 
@@ -724,6 +763,26 @@ export default function EmailsTab() {
     return "https://mail.google.com";
   }, []);
 
+  // Memoized callbacks for EmailViewModal
+  const handleEmailViewModalOpenChange = useCallback(
+    (open: boolean) => {
+      console.log(
+        "EmailViewModal onOpenChange called, open:",
+        open,
+        "skipHashCloseRef:",
+        skipHashCloseRef.current
+      );
+      if (!open) {
+        handleCloseEmail();
+      }
+    },
+    [handleCloseEmail]
+  );
+
+  const handleGmailOpen = useCallback(() => {
+    window.open(getGmailUrl(), "_blank");
+  }, [getGmailUrl]);
+
   // Get email type badge
   const getEmailTypeBadge = (email: GmailEmail) => {
     if (email.isDraft) {
@@ -892,9 +951,6 @@ export default function EmailsTab() {
           return newMap;
         });
 
-        // Update activity time for smart polling
-        lastActivityTimeRef.current = Date.now();
-
         // Trigger background refresh after a delay to get updated data
         setTimeout(() => {
           handleManualRefresh();
@@ -946,49 +1002,55 @@ export default function EmailsTab() {
     }
   };
 
-  const handleReply = (email: GmailEmail) => {
-    setIsComposeOpen(true);
-    setComposeType("reply");
-    setComposeData({
-      to: email.from,
-      subject: email.subject.startsWith("Re:")
-        ? email.subject
-        : `Re: ${email.subject}`,
-      replyToEmail: email,
-    });
+  const handleReply = useCallback(
+    (email: GmailEmail) => {
+      setIsComposeOpen(true);
+      setComposeType("reply");
+      setComposeData({
+        to: email.from,
+        subject: email.subject.startsWith("Re:")
+          ? email.subject
+          : `Re: ${email.subject}`,
+        replyToEmail: email,
+      });
 
-    // Update URL hash to include compose query parameter
-    if (typeof window !== "undefined") {
-      const currentHash = window.location.hash.slice(1);
-      const hashWithoutQuery = currentHash.split("?")[0];
-      const newHash = `${hashWithoutQuery || activeCategory}?compose=new`;
-      window.location.hash = newHash;
-    }
-  };
+      // Update URL hash to include compose query parameter
+      if (typeof window !== "undefined") {
+        const currentHash = window.location.hash.slice(1);
+        const hashWithoutQuery = currentHash.split("?")[0];
+        const newHash = `${hashWithoutQuery || activeCategory}?compose=new`;
+        window.location.hash = newHash;
+      }
+    },
+    [activeCategory]
+  );
 
-  const handleForward = (email: GmailEmail) => {
-    setIsComposeOpen(true);
-    setComposeType("forward");
-    setComposeData({
-      subject: email.subject.startsWith("Fwd:")
-        ? email.subject
-        : `Fwd: ${email.subject}`,
-      body: `\n\n---------- Forwarded message ---------\nFrom: ${
-        email.from
-      }\nDate: ${new Date(email.date).toLocaleString()}\nSubject: ${
-        email.subject
-      }\nTo: ${email.to}\n\n${email.snippet}`,
-      replyToEmail: email,
-    });
+  const handleForward = useCallback(
+    (email: GmailEmail) => {
+      setIsComposeOpen(true);
+      setComposeType("forward");
+      setComposeData({
+        subject: email.subject.startsWith("Fwd:")
+          ? email.subject
+          : `Fwd: ${email.subject}`,
+        body: `\n\n---------- Forwarded message ---------\nFrom: ${
+          email.from
+        }\nDate: ${new Date(email.date).toLocaleString()}\nSubject: ${
+          email.subject
+        }\nTo: ${email.to}\n\n${email.snippet}`,
+        replyToEmail: email,
+      });
 
-    // Update URL hash to include compose query parameter
-    if (typeof window !== "undefined") {
-      const currentHash = window.location.hash.slice(1);
-      const hashWithoutQuery = currentHash.split("?")[0];
-      const newHash = `${hashWithoutQuery || activeCategory}?compose=new`;
-      window.location.hash = newHash;
-    }
-  };
+      // Update URL hash to include compose query parameter
+      if (typeof window !== "undefined") {
+        const currentHash = window.location.hash.slice(1);
+        const hashWithoutQuery = currentHash.split("?")[0];
+        const newHash = `${hashWithoutQuery || activeCategory}?compose=new`;
+        window.location.hash = newHash;
+      }
+    },
+    [activeCategory]
+  );
 
   const handleOpenDraft = (email: GmailEmail) => {
     setIsComposeOpen(true);
@@ -1078,7 +1140,7 @@ export default function EmailsTab() {
         setCategoryEmailsState(new Map(emailCacheRef.categoryEmails));
       }
 
-      // Always fetch fresh data in background when using cache
+      // Always fetch fresh data in background when switching categories
       console.log("Fetching fresh data in background for:", activeCategory);
 
       // Fetch in background silently (without loading indicator)
@@ -1154,21 +1216,28 @@ export default function EmailsTab() {
           }
 
           // Update email cache
-          const newCache = new Map(emailCacheRefLocal.current);
+          const newCache = new Map(emailCache);
           fetchedEmails.forEach((email: GmailEmail) => {
             newCache.set(email.id, email);
           });
           setEmailCache(newCache);
 
           // Compare new data with cached data
+          // If different, update the display and cache
           if (areEmailsDifferent(cachedEmails, fetchedEmails)) {
-            console.log("Fresh data differs from cache, updating cache");
+            console.log(
+              "Background refresh: Fresh data differs from cache, updating"
+            );
             setEmails(fetchedEmails);
             setCategoryEmails((prev) =>
               new Map(prev).set(activeCategory, fetchedEmails)
             );
+            // Update persistent cache
+            emailCacheRef.categoryEmails.set(activeCategory, fetchedEmails);
           } else {
-            console.log("Fresh data matches cache, no update needed");
+            console.log(
+              "Background refresh: Fresh data matches cache, no update needed"
+            );
           }
         } catch (error: any) {
           if (error.name !== "AbortError") {
@@ -1230,33 +1299,11 @@ export default function EmailsTab() {
     };
   }, [abortController]);
 
-  // Track last activity time for smart polling (using ref to avoid infinite loops)
-  const lastActivityTimeRef = useRef(Date.now());
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Update activity time on user interaction
-  useEffect(() => {
-    const updateActivity = () => {
-      lastActivityTimeRef.current = Date.now();
-    };
-
-    // Track various user interactions
-    const events = ["click", "keydown", "scroll", "mousemove"];
-    events.forEach((event) => {
-      document.addEventListener(event, updateActivity, { passive: true });
-    });
-
-    return () => {
-      events.forEach((event) => {
-        document.removeEventListener(event, updateActivity);
-      });
-    };
-  }, []);
 
   // Manual refresh function with visual feedback
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
-    lastActivityTimeRef.current = Date.now();
 
     try {
       setIsLoading(true);
@@ -1269,155 +1316,6 @@ export default function EmailsTab() {
       }, 300);
     }
   };
-
-  // Background refresh with smart adaptive polling
-  useEffect(() => {
-    // Only run if there are cached emails (don't interfere with initial load)
-    // Use refs to avoid triggering re-renders
-    const cachedEmails = emailCacheRef.categoryEmails.get(activeCategory) || [];
-
-    if (cachedEmails.length === 0 || isLoading) {
-      return; // Don't run interval if no cache or actively loading
-    }
-
-    // Fetch fresh data silently
-    const fetchFreshData = async () => {
-      // Skip if tab is not visible
-      if (document.hidden) {
-        return;
-      }
-
-      try {
-        const newAbortController = new AbortController();
-        let fetchedEmails: GmailEmail[] = [];
-
-        // Handle drafts separately
-        if (activeCategory === "drafts") {
-          const response = await fetch("/api/gmail/drafts/list", {
-            signal: newAbortController.signal,
-          });
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const result = await response.json();
-          if (result?.success) {
-            fetchedEmails = result.drafts.map((draft: any) => ({
-              ...draft,
-              date: new Date(draft.date),
-            }));
-          } else {
-            throw new Error(result.error || "Failed to fetch drafts");
-          }
-        } else {
-          // Get query for active category
-          const category = gmailCategories.find(
-            (cat) => cat.id === activeCategory
-          );
-          let query = category?.query || "in:sent OR in:inbox";
-
-          const response = await fetch("/api/gmail/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              maxResults: 25,
-              query,
-              searchQuery: undefined,
-            }),
-            signal: newAbortController.signal,
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const result = await response.json();
-
-          if (result?.success) {
-            fetchedEmails = result.data.emails.map((email: any) => ({
-              ...email,
-              date: new Date(email.date),
-            }));
-          } else {
-            throw new Error(result.error || "Failed to fetch emails");
-          }
-        }
-
-        // Check if request was aborted
-        if (newAbortController.signal.aborted) {
-          return;
-        }
-
-        // Update email cache
-        const newCache = new Map(emailCache);
-        fetchedEmails.forEach((email: GmailEmail) => {
-          newCache.set(email.id, email);
-        });
-        setEmailCache(newCache);
-
-        // Get current cached emails for comparison
-        const currentCachedEmails =
-          emailCacheRef.categoryEmails.get(activeCategory) || [];
-
-        // Compare new data with cached data
-        if (areEmailsDifferent(currentCachedEmails, fetchedEmails)) {
-          console.log("Background refresh: Data updated for", activeCategory);
-          setEmails(fetchedEmails);
-          setCategoryEmails((prev) =>
-            new Map(prev).set(activeCategory, fetchedEmails)
-          );
-        }
-      } catch (error: any) {
-        if (error.name !== "AbortError") {
-          console.error("Error in background refresh:", error);
-        }
-      }
-    };
-
-    // Adaptive polling based on activity
-    const getPollInterval = () => {
-      const idleTime = Date.now() - lastActivityTimeRef.current;
-
-      if (document.hidden) {
-        return 120000; // 2 minutes when tab is hidden
-      } else if (idleTime > 60000) {
-        return 60000; // 1 minute when idle
-      } else {
-        return 30000; // 30 seconds when active
-      }
-    };
-
-    const scheduleNextRefresh = () => {
-      const interval = getPollInterval();
-      console.log(`Scheduling background refresh in ${interval / 1000}s`);
-
-      return setTimeout(() => {
-        fetchFreshData();
-        scheduleNextRefresh();
-      }, interval);
-    };
-
-    let refreshTimeout = scheduleNextRefresh();
-
-    // Listen for visibility changes
-    const handleVisibilityChange = () => {
-      clearTimeout(refreshTimeout);
-      if (!document.hidden) {
-        // Refresh when tab becomes visible
-        fetchFreshData();
-        refreshTimeout = scheduleNextRefresh();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      clearTimeout(refreshTimeout);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [activeCategory, isLoading]);
 
   // Initialize hash on mount if not present
   useEffect(() => {
@@ -2034,22 +1932,12 @@ export default function EmailsTab() {
       {/* Email View Modal */}
       <EmailViewModal
         isOpen={isViewDialogOpen}
-        onOpenChange={(open) => {
-          console.log(
-            "EmailViewModal onOpenChange called, open:",
-            open,
-            "skipHashCloseRef:",
-            skipHashCloseRef.current
-          );
-          if (!open) {
-            handleCloseEmail();
-          }
-        }}
+        onOpenChange={handleEmailViewModalOpenChange}
         selectedEmail={selectedEmail}
         isLoadingFullContent={isLoadingFullContent}
         onReply={handleReply}
         onForward={handleForward}
-        onGmailOpen={() => window.open(getGmailUrl(), "_blank")}
+        onGmailOpen={handleGmailOpen}
       />
 
       {/* Compose Email Component */}

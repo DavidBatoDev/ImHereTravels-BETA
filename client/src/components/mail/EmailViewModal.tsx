@@ -471,9 +471,48 @@ export function EmailViewModal({
     return "File";
   };
 
+  // Helper function to replace cid: references with attachment URLs
+  const sanitizeCidReferences = (html: string, email: GmailEmail): string => {
+    if (!html || !email.attachments || email.attachments.length === 0) {
+      return html;
+    }
+
+    let sanitized = html;
+
+    // Escape regex special characters
+    const escapeRegExp = (string: string): string => {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    };
+
+    email.attachments.forEach((attachment) => {
+      if (attachment.contentId) {
+        // Remove angle brackets from contentId if present
+        const cleanContentId = attachment.contentId.replace(/[<>]/g, "");
+        // Replace cid: references in various formats
+        sanitized = sanitized.replace(
+          new RegExp(`cid:${escapeRegExp(cleanContentId)}`, "gi"),
+          `/api/gmail/attachments/${email.id}/${attachment.attachmentId}`
+        );
+        // Also replace quoted cid: references in src attributes
+        sanitized = sanitized.replace(
+          new RegExp(`src=["']cid:${escapeRegExp(cleanContentId)}["']`, "gi"),
+          `src="/api/gmail/attachments/${email.id}/${attachment.attachmentId}"`
+        );
+      }
+    });
+
+    return sanitized;
+  };
+
   // Process HTML content to handle gmail_quote expansion
   const processEmailContent = (htmlContent: string, emailId: string) => {
     const isQuoteExpanded = expandedQuotes.has(emailId);
+
+    // Find the email data for this emailId (from threadEmails or selectedEmail)
+    const email = threadEmails.find((e) => e.id === emailId) || selectedEmail;
+
+    // Sanitize cid: references first
+    let sanitizedContent = sanitizeCidReferences(htmlContent, email);
 
     // Debug: Log the content to see what we're working with
     console.log("Processing email content for ID:", emailId);
@@ -481,16 +520,16 @@ export function EmailViewModal({
 
     // Check if content has various quote patterns
     const hasGmailQuote =
-      htmlContent.includes("gmail_quote") ||
-      /class[^>]*=["'][^"']*gmail_quote[^"']*["']/i.test(htmlContent) ||
-      /<div[^>]*class[^>]*gmail_quote[^>]*>/i.test(htmlContent);
+      sanitizedContent.includes("gmail_quote") ||
+      /class[^>]*=["'][^"']*gmail_quote[^"']*["']/i.test(sanitizedContent) ||
+      /<div[^>]*class[^>]*gmail_quote[^>]*>/i.test(sanitizedContent);
 
     const hasZmailQuote =
-      htmlContent.includes("blockquote_zmail") ||
-      htmlContent.includes("zmail_extra") ||
-      htmlContent.includes('id="blockquote_zmail"');
+      sanitizedContent.includes("blockquote_zmail") ||
+      sanitizedContent.includes("zmail_extra") ||
+      sanitizedContent.includes('id="blockquote_zmail"');
 
-    const hasGenericBlockquote = htmlContent.includes("<blockquote");
+    const hasGenericBlockquote = sanitizedContent.includes("<blockquote");
 
     console.log("Gmail quote found:", hasGmailQuote);
     console.log("Zmail quote found:", hasZmailQuote);
@@ -520,40 +559,40 @@ export function EmailViewModal({
     if (hasGmailQuote) {
       // Handle Gmail quotes first (highest priority)
       // Try to find the exact Gmail quote div with flexible class matching
-      const gmailQuoteMatch = htmlContent.match(
+      const gmailQuoteMatch = sanitizedContent.match(
         /<div[^>]*class[^>]*gmail_quote[^>]*>/i
       );
 
       if (gmailQuoteMatch) {
-        parts = htmlContent.split(gmailQuoteMatch[0]);
+        parts = sanitizedContent.split(gmailQuoteMatch[0]);
         splitPattern = gmailQuoteMatch[0];
         quoteMark = "gmail";
         console.log("Found Gmail quote with pattern:", gmailQuoteMatch[0]);
-      } else if (htmlContent.includes('<div class="gmail_quote">')) {
-        parts = htmlContent.split('<div class="gmail_quote">');
+      } else if (sanitizedContent.includes('<div class="gmail_quote">')) {
+        parts = sanitizedContent.split('<div class="gmail_quote">');
         splitPattern = '<div class="gmail_quote">';
         quoteMark = "gmail";
-      } else if (htmlContent.includes("<div class='gmail_quote'>")) {
-        parts = htmlContent.split("<div class='gmail_quote'>");
+      } else if (sanitizedContent.includes("<div class='gmail_quote'>")) {
+        parts = sanitizedContent.split("<div class='gmail_quote'>");
         splitPattern = "<div class='gmail_quote'>";
         quoteMark = "gmail";
       }
     } else if (hasZmailQuote) {
       // Handle Zoho Mail quotes (zmail_extra is usually the separator)
-      if (htmlContent.includes('class="zmail_extra"')) {
-        parts = htmlContent.split('<div class="zmail_extra"');
+      if (sanitizedContent.includes('class="zmail_extra"')) {
+        parts = sanitizedContent.split('<div class="zmail_extra"');
         splitPattern = '<div class="zmail_extra"';
         quoteMark = "zmail";
-      } else if (htmlContent.includes('id="blockquote_zmail"')) {
-        parts = htmlContent.split('<blockquote id="blockquote_zmail"');
+      } else if (sanitizedContent.includes('id="blockquote_zmail"')) {
+        parts = sanitizedContent.split('<blockquote id="blockquote_zmail"');
         splitPattern = '<blockquote id="blockquote_zmail"';
         quoteMark = "zmail";
       }
     } else if (hasGenericBlockquote) {
       // Handle generic blockquotes (fallback)
-      const blockquoteMatch = htmlContent.match(/<blockquote[^>]*>/);
+      const blockquoteMatch = sanitizedContent.match(/<blockquote[^>]*>/);
       if (blockquoteMatch) {
-        parts = htmlContent.split(blockquoteMatch[0]);
+        parts = sanitizedContent.split(blockquoteMatch[0]);
         splitPattern = blockquoteMatch[0];
         quoteMark = "generic";
       }
@@ -561,7 +600,7 @@ export function EmailViewModal({
 
     if (parts.length <= 1) {
       console.log("Could not split content into parts with any pattern");
-      return htmlContent;
+      return sanitizedContent;
     }
 
     console.log(
