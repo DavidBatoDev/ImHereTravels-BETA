@@ -3397,13 +3397,6 @@ export default function BookingsDataGrid({
       // Recompute all function columns after data is refreshed
       await recomputeAllFunctionColumns();
 
-      // Show success message
-      toast({
-        title: "Import Complete",
-        description:
-          "CSV data imported successfully. Function columns have been recomputed.",
-      });
-
       console.log(
         "✅ [CSV IMPORT] CSV import complete and function columns recomputed"
       );
