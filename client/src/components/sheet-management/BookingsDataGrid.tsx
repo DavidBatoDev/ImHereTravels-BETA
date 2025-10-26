@@ -1202,6 +1202,7 @@ export default function BookingsDataGrid({
             if (selectedCellElement) {
               const inputElement = selectedCellElement.querySelector("input");
               if (inputElement) {
+                inputElement.tabIndex = 0; // Make focusable
                 inputElement.focus();
                 // Don't select all text - just focus for editing
               }
@@ -1300,6 +1301,7 @@ export default function BookingsDataGrid({
           if (selectedCellElement) {
             const inputElement = selectedCellElement.querySelector("input");
             if (inputElement) {
+              inputElement.tabIndex = 0; // Make focusable
               inputElement.focus();
             }
           }
@@ -1319,7 +1321,8 @@ export default function BookingsDataGrid({
         if (selectedCellElement) {
           const inputElement = selectedCellElement.querySelector("input");
           if (inputElement) {
-            // Focus the input field
+            // Make focusable and focus the input field
+            inputElement.tabIndex = 0;
             inputElement.focus();
 
             // Select all text so the typed character will replace it
@@ -3041,6 +3044,12 @@ export default function BookingsDataGrid({
                 return;
               }
 
+              // Reset tabIndex to prevent auto-focus on click
+              const inputElement = document.activeElement as HTMLInputElement;
+              if (inputElement && inputElement.tagName === "INPUT") {
+                inputElement.tabIndex = -1;
+              }
+
               // Save to Firebase on blur only if value has changed
               const currentValue = getInputValue(
                 row.id,
@@ -3071,7 +3080,9 @@ export default function BookingsDataGrid({
                 value={displayValue}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                className={`h-8 w-full px-2 text-xs border border-transparent outline-none bg-transparent focus:border-purple-500 focus:border-2 ${
+                onMouseDown={(e) => e.preventDefault()}
+                tabIndex={-1}
+                className={`h-8 w-full px-2 text-xs border-none outline-none bg-transparent ${
                   hasColor ? "text-black" : ""
                 }`}
               />
@@ -3137,6 +3148,12 @@ export default function BookingsDataGrid({
                 return;
               }
 
+              // Reset tabIndex to prevent auto-focus on click
+              const inputElement = document.activeElement as HTMLInputElement;
+              if (inputElement && inputElement.tagName === "INPUT") {
+                inputElement.tabIndex = -1;
+              }
+
               // Save to Firebase on blur only if value has changed
               const currentValue = getInputValue(
                 row.id,
@@ -3159,7 +3176,9 @@ export default function BookingsDataGrid({
                 value={displayValue}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                className={`h-8 w-full px-2 text-xs border border-transparent outline-none bg-transparent focus:border-purple-500 focus:border-2 ${
+                onMouseDown={(e) => e.preventDefault()}
+                tabIndex={-1}
+                className={`h-8 w-full px-2 text-xs border-none outline-none bg-transparent ${
                   hasColor ? "text-black" : ""
                 }`}
               />
@@ -3198,6 +3217,12 @@ export default function BookingsDataGrid({
                 return;
               }
 
+              // Reset tabIndex to prevent auto-focus on click
+              const inputElement = document.activeElement as HTMLInputElement;
+              if (inputElement && inputElement.tagName === "INPUT") {
+                inputElement.tabIndex = -1;
+              }
+
               // Save to Firebase on blur only if value has changed
               const currentValue = getInputValue(
                 row.id,
@@ -3220,7 +3245,9 @@ export default function BookingsDataGrid({
                 value={displayValue}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                className="h-8 w-full px-2 text-xs border border-transparent outline-none bg-transparent focus:border-purple-500 focus:border-2"
+                onMouseDown={(e) => e.preventDefault()}
+                tabIndex={-1}
+                className="h-8 w-full px-2 text-xs border-none outline-none bg-transparent"
               />
             );
           };
@@ -4010,6 +4037,13 @@ export default function BookingsDataGrid({
                     return;
                   }
 
+                  // Reset tabIndex to prevent auto-focus on click
+                  const inputElement =
+                    document.activeElement as HTMLInputElement;
+                  if (inputElement && inputElement.tagName === "INPUT") {
+                    inputElement.tabIndex = -1;
+                  }
+
                   // Force immediate Firebase update on blur
                   const key = `${row.id}:${column.key}`;
                   const existingTimeout =
@@ -4044,7 +4078,7 @@ export default function BookingsDataGrid({
                     value={displayValue}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    className={`h-8 w-full px-2 text-xs border border-transparent outline-none bg-transparent focus:border-purple-500 focus:border-2 ${
+                    className={`h-8 w-full px-2 text-xs border-none outline-none bg-transparent ${
                       hasColor ? "text-black" : ""
                     }`}
                   />

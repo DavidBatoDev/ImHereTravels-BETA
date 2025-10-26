@@ -80,6 +80,41 @@
   padding-left: 10px;
 }
 
+/* Purple border for cells containing focused inputs - override all existing borders */
+.custom-grid .rdg-cell:has(input:focus),
+.custom-grid .rdg-cell:has(input:focus) * {
+  /* Override all existing border styles */
+  border: 2px solid #8b5cf6 !important;
+  border-top: 2px solid #8b5cf6 !important;
+  border-right: 21px solid #8b5cf6 !important;
+  border-bottom: 2px solid #8b5cf6 !important;
+  border-left: 2px solid #8b5cf6 !important;
+  border-radius: 4px !important;
+
+  /* Additional visual emphasis */
+  box-shadow: 0 0 0 1px #8b5cf6 !important;
+  outline: 1px solid #8b5cf6 !important;
+  outline-offset: -1px !important;
+}
+
+/* Remove all borders from input fields inside focused cells */
+.custom-grid .rdg-cell:has(input:focus) input {
+  border: none !important;
+  border-top: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  border-left: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Even more specific override for React Data Grid cells */
+.custom-grid .rdg-cell:has(input:focus) {
+  border-color: #8b5cf6 !important;
+  border-style: solid !important;
+  border-width: 1.5px !important;
+}
+
 .custom-grid .rdg-header-cell {
   border-right: 1px solid hsl(var(--border)) !important;
   border-bottom: 1px solid hsl(var(--border)) !important;
