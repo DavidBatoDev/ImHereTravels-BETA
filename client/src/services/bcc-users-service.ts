@@ -44,8 +44,8 @@ export interface BCCUserResponse {
   updatedAt: Date | any; // Firebase FieldValue
 }
 
-// Firebase collection reference - keeping "bbc-users" for backwards compatibility
-const BCC_USERS_COLLECTION = "bbc-users";
+// Firebase collection reference - keeping "bcc-users" for backwards compatibility
+const BCC_USERS_COLLECTION = "bcc-users";
 
 // ============================================================================
 // CRUD OPERATIONS
@@ -327,3 +327,5 @@ export const validateBCCUserData = (
     errors,
   };
 };
+
+
