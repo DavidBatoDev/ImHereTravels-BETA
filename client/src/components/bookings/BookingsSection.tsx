@@ -951,7 +951,7 @@ export default function BookingsSection() {
       {/* Search and Filters Section */}
       <Card
         data-filter-section
-        className={`sticky top-4 z-50 border border-border bg-white backdrop-blur-sm transition-all duration-300 ${
+        className={`sticky top-4 z-50 border border-border bg-background backdrop-blur-sm transition-all duration-300 ${
           isFilterSticky ? "shadow-[0_-12px_60px_0px_rgba(0,0,0,0.6)]" : ""
         }`}
       >
@@ -1083,7 +1083,7 @@ export default function BookingsSection() {
                                           },
                                         }))
                                       }
-                                      className="text-xs bg-white flex-1 h-8 px-2"
+                                      className="text-xs bg-background flex-1 h-8 px-2"
                                       placeholder="From"
                                     />
                                     <Input
@@ -1106,7 +1106,7 @@ export default function BookingsSection() {
                                           },
                                         }))
                                       }
-                                      className="text-xs bg-white flex-1 h-8 px-2"
+                                      className="text-xs bg-background flex-1 h-8 px-2"
                                       placeholder="To"
                                     />
                                     {(tempDateRangeFilters[col.id]?.from ||
@@ -1152,7 +1152,7 @@ export default function BookingsSection() {
                                           },
                                         }))
                                       }
-                                      className="text-xs bg-white h-8 px-2"
+                                      className="text-xs bg-background h-8 px-2"
                                     />
                                     <Input
                                       type="number"
@@ -1173,7 +1173,7 @@ export default function BookingsSection() {
                                           },
                                         }))
                                       }
-                                      className="text-xs bg-white h-8 px-2"
+                                      className="text-xs bg-background h-8 px-2"
                                     />
                                     {(tempCurrencyRangeFilters[col.id]?.min !==
                                       undefined ||
@@ -1210,7 +1210,7 @@ export default function BookingsSection() {
                                         [col.id]: e.target.value,
                                       }))
                                     }
-                                    className="text-xs bg-white h-8 px-2"
+                                    className="text-xs bg-background h-8 px-2"
                                   />
                                   {tempColumnFilters[col.id] && (
                                     <Button
@@ -1727,7 +1727,7 @@ export default function BookingsSection() {
 
                   {/* Blur overlay for invalid bookings on hover */}
                   {isInvalid && (
-                    <div className="absolute inset-0 bg-white/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-5" />
+                    <div className="absolute inset-0 bg-background/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-5" />
                   )}
 
                   {/* Card Header */}
@@ -2211,7 +2211,7 @@ export default function BookingsSection() {
 
                           {/* Blur overlay for invalid bookings on hover */}
                           {isInvalid && (
-                            <div className="absolute inset-0 bg-white/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-5" />
+                            <div className="absolute inset-0 bg-background/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-5" />
                           )}
                         </tr>
                       );

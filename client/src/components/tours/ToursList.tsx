@@ -615,7 +615,7 @@ export default function ToursList() {
           return (
             <Card
               key={tour.id}
-              className="hover:shadow-lg transition-all duration-200 overflow-hidden border border-royal-purple/20 dark:border-border shadow hover:border-royal-purple/40 dark:hover:border-border"
+              className="hover:shadow-lg transition-all duration-200 overflow-hidden border border-royal-purple/20 dark:border-border shadow hover:border-royal-purple/40 dark:hover:border-border flex flex-col h-full"
             >
               {/* Cover Image */}
               <div className="relative w-full h-48 bg-muted">
@@ -697,8 +697,9 @@ export default function ToursList() {
                   {tour.description}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-3">
+
+              <CardContent className="pt-0 flex-1 flex flex-col">
+                <div className="space-y-3 flex-1">
                   {/* Tour Details */}
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-4">
@@ -782,28 +783,28 @@ export default function ToursList() {
                       )}
                     </div>
                   </div>
+                </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openTourDetails(tour)}
-                      className="flex-1 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditForm(tour)}
-                      className="flex-1 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                  </div>
+                {/* Action Buttons - Fixed at bottom */}
+                <div className="flex gap-2 pt-4 mt-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openTourDetails(tour)}
+                    className="flex-1 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openEditForm(tour)}
+                    className="flex-1 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
                 </div>
               </CardContent>
             </Card>

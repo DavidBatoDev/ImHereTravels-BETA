@@ -429,7 +429,7 @@ export default function BookingDetailModal({
       case "Group":
         return "bg-blue-500/20";
       default:
-        return "bg-gray-200";
+        return "bg-muted/20";
     }
   };
 
@@ -595,8 +595,8 @@ export default function BookingDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl min-h-[90vh] max-h-[90vh] bg-[#F2F0EE] p-0 rounded-full overflow-hidden">
-        <DialogHeader className="sticky top-0 z-50 bg-white shadow-md border-b border-border/50 pb-3 pt-6 px-6">
+      <DialogContent className="max-w-5xl min-h-[90vh] max-h-[90vh] bg-background p-0 rounded-full overflow-hidden">
+        <DialogHeader className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
               <div className="p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
@@ -707,7 +707,7 @@ export default function BookingDetailModal({
             <p className="text-xs text-muted-foreground">
               Row #:{" "}
               <span className="font-mono font-semibold text-crimson-red">
-                {currentBooking?.id}
+                {currentBooking?.row || "N/A"}
               </span>
             </p>
           </div>
@@ -871,7 +871,7 @@ export default function BookingDetailModal({
 
               {/* Dynamic Columns by Parent Tab */}
               {isLoadingColumns ? (
-                <Card className="bg-white shadow-sm">
+                <Card className="bg-background shadow-sm">
                   <CardContent className="p-6 text-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-crimson-red mx-auto mb-2"></div>
                     <p className="text-xs text-muted-foreground">Loading...</p>
@@ -889,7 +889,7 @@ export default function BookingDetailModal({
                     <Card
                       key={parentTab}
                       id={`tab-${parentTab}`}
-                      className="bg-white shadow-sm border border-border/50 scroll-mt-4"
+                      className="bg-background shadow-sm border border-border/50 scroll-mt-4"
                     >
                       <CardHeader className="pb-2 bg-crimson-red/10 border-b border-crimson-red/20 py-2">
                         <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
@@ -911,22 +911,22 @@ export default function BookingDetailModal({
                                   key={column.id}
                                   className={`flex items-start gap-2 p-2 rounded-lg border transition-all hover:shadow-sm ${
                                     isEmpty
-                                      ? "bg-muted/10 border-purple-200/50 opacity-50"
+                                      ? "bg-muted/10 border-sunglow-yellow/50 opacity-50"
                                       : column.dataType === "function"
-                                      ? "bg-purple-50 border-purple-200 hover:border-purple-300"
-                                      : "bg-muted/20 border-purple-300 hover:border-purple-400"
+                                      ? "bg-sunglow-yellow/20 border-sunglow-yellow/30 hover:border-sunglow-yellow/40"
+                                      : "bg-muted/20 border-border hover:border-foreground/10"
                                   }`}
                                 >
                                   <div className="flex-shrink-0 mt-0.5">
                                     <div
                                       className={`p-1 rounded-full rounded-br-none ${
                                         column.dataType === "function"
-                                          ? "bg-purple-500/10"
+                                          ? "bg-sunglow-yellow/20"
                                           : "bg-crimson-red/10"
                                       }`}
                                     >
                                       {column.dataType === "function" && (
-                                        <FaCode className="h-3 w-3 text-purple-600" />
+                                        <FaCode className="h-3 w-3 text-sunglow-yellow" />
                                       )}
                                       {column.dataType === "date" && (
                                         <FaCalendarAlt className="h-3 w-3 text-crimson-red" />
@@ -988,7 +988,7 @@ export default function BookingDetailModal({
                                     isEmpty ? "opacity-50" : ""
                                   } ${
                                     column.dataType === "function"
-                                      ? "bg-purple-50/50"
+                                      ? "bg-sunglow-yellow/20"
                                       : ""
                                   }`}
                                 >
@@ -997,12 +997,12 @@ export default function BookingDetailModal({
                                       <div
                                         className={`p-1 rounded-full rounded-br-none ${
                                           column.dataType === "function"
-                                            ? "bg-purple-500/10"
+                                            ? "bg-sunglow-yellow/20"
                                             : "bg-crimson-red/10"
                                         }`}
                                       >
                                         {column.dataType === "function" && (
-                                          <FaCode className="h-3 w-3 text-purple-600" />
+                                          <FaCode className="h-3 w-3 text-sunglow-yellow" />
                                         )}
                                         {column.dataType === "date" && (
                                           <FaCalendarAlt className="h-3 w-3 text-crimson-red" />

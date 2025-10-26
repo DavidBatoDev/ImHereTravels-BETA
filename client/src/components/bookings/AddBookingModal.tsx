@@ -816,7 +816,7 @@ export default function AddBookingModal({
               id={fieldId}
               value={String(value || "")}
               className={cn(
-                "w-full font-mono bg-white",
+                "w-full font-mono bg-background",
                 error && "border-red-500",
                 isComputing && "opacity-50"
               )}
@@ -1039,8 +1039,8 @@ export default function AddBookingModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] min-h-[90vh] bg-[#F2F0EE] p-0 rounded-full overflow-hidden">
-        <DialogHeader className="sticky top-0 z-50 bg-white shadow-md border-b border-border/50 pb-3 pt-6 px-6">
+      <DialogContent className="max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-full overflow-hidden">
+        <DialogHeader className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <DialogTitle className="text-2xl font-bold text-foreground flex items-center justify-between">
@@ -1061,15 +1061,15 @@ export default function AddBookingModal({
                 </div>
 
                 {/* Legend for function fields */}
-                <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
-                  <div className="p-1 bg-yellow-100 rounded-full">
-                    <FaCog className="h-3 w-3 text-yellow-600" />
+                <div className="flex items-center gap-2 bg-sunglow-yellow/20 border border-sunglow-yellow/30 rounded-lg px-3 py-2">
+                  <div className="p-1 bg-sunglow-yellow/30 rounded-full">
+                    <FaCog className="h-3 w-3 text-sunglow-yellow" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-yellow-800">
+                    <span className="text-xs font-medium text-sunglow-yellow">
                       Function Fields:
                     </span>
-                    <span className="text-xs text-yellow-700 ml-1">
+                    <span className="text-xs text-sunglow-yellow/80 ml-1">
                       Yellow inputs are auto-calculated
                     </span>
                   </div>
@@ -1110,7 +1110,7 @@ export default function AddBookingModal({
             className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
           >
             {isLoadingColumns ? (
-              <Card className="bg-white shadow-sm border border-border/50">
+              <Card className="bg-background shadow-sm border border-border/50">
                 <CardContent className="p-6 text-center">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-crimson-red mx-auto mb-2"></div>
                   <p className="text-xs text-muted-foreground">Loading...</p>
@@ -1129,7 +1129,7 @@ export default function AddBookingModal({
                     <Card
                       key={parentTab}
                       id={`edit-tab-${parentTab}`}
-                      className="bg-white shadow-sm border border-border/50 scroll-mt-4"
+                      className="bg-background shadow-sm border border-border/50 scroll-mt-4"
                     >
                       <CardHeader className="pb-1 bg-crimson-red/10 border-2 border-crimson-red/20 border-red-500 py-1">
                         <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
@@ -1152,7 +1152,7 @@ export default function AddBookingModal({
                                   "flex items-center justify-between border border-purple-300 transition-colors",
                                   error && "bg-red-50/50",
                                   isFunction
-                                    ? "bg-yellow-50 hover:bg-yellow-100"
+                                    ? "bg-sunglow-yellow/20 hover:bg-sunglow-yellow/30 border-sunglow-yellow/30"
                                     : "hover:bg-muted/10"
                                 )}
                               >
@@ -1229,7 +1229,7 @@ export default function AddBookingModal({
         </div>
 
         {/* Footer with action buttons */}
-        <div className="sticky bottom-0 z-50 bg-white border-t border-border/50 px-6 py-4">
+        <div className="sticky bottom-0 z-50 bg-background border-t border-border/50 px-6 py-4">
           <div className="flex justify-end gap-3">
             <Button
               variant="outline"

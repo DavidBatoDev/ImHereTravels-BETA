@@ -327,5 +327,3 @@ export const validateBCCUserData = (
     errors,
   };
 };
-
-

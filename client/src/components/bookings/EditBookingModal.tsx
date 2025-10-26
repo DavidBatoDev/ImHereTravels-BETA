@@ -837,7 +837,7 @@ export default function EditBookingModal({
               id={fieldId}
               value={String(value || "")}
               className={cn(
-                "w-full font-mono bg-white",
+                "w-full font-mono bg-background",
                 error && "border-red-500",
                 isComputing && "opacity-50"
               )}
@@ -943,8 +943,8 @@ export default function EditBookingModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] min-h-[90vh] bg-[#F2F0EE] p-0 rounded-full overflow-hidden">
-        <DialogHeader className="sticky top-0 z-50 bg-white shadow-md border-b border-border/50 pb-3 pt-6 px-6">
+      <DialogContent className="max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-full overflow-hidden">
+        <DialogHeader className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
               <div className="p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
@@ -1010,7 +1010,7 @@ export default function EditBookingModal({
             className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
           >
             {isLoadingColumns ? (
-              <Card className="bg-white shadow-sm border border-border/50">
+              <Card className="bg-background shadow-sm border border-border/50">
                 <CardContent className="p-6 text-center">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-crimson-red mx-auto mb-2"></div>
                   <p className="text-xs text-muted-foreground">Loading...</p>
@@ -1029,7 +1029,7 @@ export default function EditBookingModal({
                     <Card
                       key={parentTab}
                       id={`edit-tab-${parentTab}`}
-                      className="bg-white shadow-sm border border-border/50 scroll-mt-4"
+                      className="bg-background shadow-sm border border-border/50 scroll-mt-4"
                     >
                       <CardHeader className="pb-1 bg-crimson-red/10 border-2 border-crimson-red/20 border-red-500 py-1">
                         <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
@@ -1052,7 +1052,7 @@ export default function EditBookingModal({
                                   "flex items-center justify-between border border-purple-300 transition-colors",
                                   error && "bg-red-50/50",
                                   isFunction
-                                    ? "bg-yellow-50 hover:bg-yellow-100"
+                                    ? "bg-sunglow-yellow/20 hover:bg-sunglow-yellow/30 border-sunglow-yellow/30"
                                     : "hover:bg-muted/10"
                                 )}
                               >

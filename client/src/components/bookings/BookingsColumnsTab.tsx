@@ -57,7 +57,7 @@ const getColumnColorClasses = (
     pink: "bg-pink-200 border-pink-300",
     cyan: "bg-cyan-200 border-cyan-300",
     gray: "bg-gray-200 border-gray-300",
-    none: "bg-white border-gray-200",
+    none: "bg-background border-gray-200",
   };
   return colorMap[color || "none"] || colorMap.none;
 };
@@ -575,7 +575,7 @@ export default function BookingsColumnsTab() {
             onDragCancel={onDragCancel}
           >
             <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-              <div className="rounded-md border-2 border-royal-purple/30 dark:border-border bg-white dark:bg-background overflow-hidden">
+              <div className="rounded-md border-2 border-royal-purple/30 dark:border-border bg-background dark:bg-background overflow-hidden">
                 <div className="grid grid-cols-[48px_60px_1fr_100px_80px_120px] gap-0 bg-muted/50 border-b-2 border-royal-purple/30 dark:border-border text-royal-purple text-xs font-medium uppercase tracking-wide">
                   <div className="p-2 text-center border-r border-royal-purple/20">
                     Move
@@ -617,7 +617,7 @@ export default function BookingsColumnsTab() {
             </SortableContext>
             <DragOverlay>
               {activeColumn ? (
-                <div className="grid grid-cols-[48px_60px_1fr_100px_80px_120px] items-center border-b border-royal-purple/20 bg-white dark:bg-background shadow-lg opacity-80">
+                <div className="grid grid-cols-[48px_60px_1fr_100px_80px_120px] items-center border-b border-royal-purple/20 bg-background dark:bg-background shadow-lg opacity-80">
                   <div className="p-2 flex items-center justify-center text-muted-foreground select-none border-r border-royal-purple/20 dark:border-border">
                     <GripVertical className="h-4 w-4" />
                   </div>

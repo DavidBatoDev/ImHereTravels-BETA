@@ -78,8 +78,8 @@ export default function TourDetails({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] p-0 bg-background">
-        <DialogHeader className="relative px-8 pt-8 pb-6 text-white rounded-t-lg overflow-hidden">
+      <DialogContent className="max-w-6xl h-[95vh] p-0 bg-background flex flex-col">
+        <DialogHeader className="relative px-8 pt-8 pb-6 text-white rounded-t-lg overflow-hidden flex-shrink-0">
           {/* Blurred Background Image */}
           {tour.media?.coverImage && (
             <div className="absolute inset-0 z-0">
@@ -129,7 +129,7 @@ export default function TourDetails({
           </div>
         </DialogHeader>
 
-        <ScrollArea className="h-[calc(95vh-200px)]">
+        <ScrollArea className="flex-1 overflow-hidden">
           <div className="p-8 space-y-8">
             {/* Quick Info Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -284,32 +284,39 @@ export default function TourDetails({
                   </CardContent>
                 </Card>
 
-                {/* Requirements */}
-                <Card className="bg-background border-2 border-border">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-foreground">
-                      <AlertCircle className="w-5 h-5 text-vivid-orange" />
-                      Requirements & Important Notes
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {tour.details.requirements.map((requirement, index) => (
-                        <div
-                          key={index}
-                          className="flex items-start gap-3 p-3 bg-vivid-orange/5 rounded-lg border-l-4 border-vivid-orange"
-                        >
-                          <AlertCircle className="w-5 h-5 text-vivid-orange mt-0.5 flex-shrink-0" />
-                          <span className="text-foreground">{requirement}</span>
+                {/* Requirements - Only show if there are requirements */}
+                {tour.details.requirements &&
+                  tour.details.requirements.length > 0 && (
+                    <Card className="bg-background border-2 border-border">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-foreground">
+                          <AlertCircle className="w-5 h-5 text-vivid-orange" />
+                          Requirements & Important Notes
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {tour.details.requirements.map(
+                            (requirement, index) => (
+                              <div
+                                key={index}
+                                className="flex items-start gap-3 p-3 bg-vivid-orange/5 rounded-lg border-l-4 border-vivid-orange"
+                              >
+                                <AlertCircle className="w-5 h-5 text-vivid-orange mt-0.5 flex-shrink-0" />
+                                <span className="text-foreground">
+                                  {requirement}
+                                </span>
+                              </div>
+                            )
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
+                  )}
               </div>
 
               {/* Right Column - Travel Dates & Actions */}
-              <div className="space-y-6 sticky top-4 max-h-[calc(95vh-20rem)] overflow-y-auto scrollbar-hide">
+              <div className="space-y-6">
                 {/* Travel Dates */}
                 <Card className="bg-background border-2 border-border">
                   <CardHeader className="pb-4">
@@ -373,83 +380,88 @@ export default function TourDetails({
                   </CardContent>
                 </Card>
 
-                {/* Quick Actions */}
-                <Card className="bg-background border-2 border-border">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-foreground">
-                      Quick Actions
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {tour.url && (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-crimson-red text-crimson-red hover:bg-crimson-red hover:text-white"
-                        onClick={() => window.open(tour.url, "_blank")}
-                      >
-                        <Globe className="w-4 h-4 mr-2" />
-                        View Tour Page
-                      </Button>
-                    )}
-                    {tour.brochureLink && (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-royal-purple text-royal-purple hover:bg-royal-purple hover:text-white"
-                        onClick={() => window.open(tour.brochureLink, "_blank")}
-                      >
-                        <FileText className="w-4 h-4 mr-2" />
-                        Download Brochure
-                      </Button>
-                    )}
-                    {tour.stripePaymentLink && (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-spring-green text-spring-green hover:bg-spring-green hover:text-white"
-                        onClick={() =>
-                          window.open(tour.stripePaymentLink, "_blank")
-                        }
-                      >
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        Book Now
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
+                {/* Sticky Actions Container */}
+                <div className="sticky top-4 space-y-6">
+                  {/* Quick Actions */}
+                  <Card className="bg-background border-2 border-border">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-foreground">
+                        Quick Actions
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {tour.url && (
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-crimson-red text-crimson-red hover:bg-crimson-red hover:text-white"
+                          onClick={() => window.open(tour.url, "_blank")}
+                        >
+                          <Globe className="w-4 h-4 mr-2" />
+                          View Tour Page
+                        </Button>
+                      )}
+                      {tour.brochureLink && (
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-royal-purple text-royal-purple hover:bg-royal-purple hover:text-white"
+                          onClick={() =>
+                            window.open(tour.brochureLink, "_blank")
+                          }
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Download Brochure
+                        </Button>
+                      )}
+                      {tour.stripePaymentLink && (
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-spring-green text-spring-green hover:bg-spring-green hover:text-white"
+                          onClick={() =>
+                            window.open(tour.stripePaymentLink, "_blank")
+                          }
+                        >
+                          <CreditCard className="w-4 h-4 mr-2" />
+                          Book Now
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
 
-                {/* Action Buttons */}
-                <Card className="bg-background border-2 border-border">
-                  <CardContent className="p-4 space-y-3">
-                    {onEdit && (
-                      <Button
-                        onClick={() => onEdit(tour)}
-                        className="w-full bg-crimson-red hover:bg-light-red text-white"
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit Tour
-                      </Button>
-                    )}
-                    {onArchive && (
-                      <Button
-                        variant="outline"
-                        onClick={() => onArchive(tour)}
-                        className="w-full border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white"
-                      >
-                        <Archive className="w-4 h-4 mr-2" />
-                        {tour.status === "archived" ? "Unarchive" : "Archive"}
-                      </Button>
-                    )}
-                    {onDelete && (
-                      <Button
-                        variant="outline"
-                        onClick={() => onDelete(tour)}
-                        className="w-full border-destructive text-destructive hover:bg-destructive hover:text-white"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Tour
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
+                  {/* Action Buttons */}
+                  <Card className="bg-background border-2 border-border">
+                    <CardContent className="p-4 space-y-3">
+                      {onEdit && (
+                        <Button
+                          onClick={() => onEdit(tour)}
+                          className="w-full bg-crimson-red hover:bg-light-red text-white"
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Tour
+                        </Button>
+                      )}
+                      {onArchive && (
+                        <Button
+                          variant="outline"
+                          onClick={() => onArchive(tour)}
+                          className="w-full border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white"
+                        >
+                          <Archive className="w-4 h-4 mr-2" />
+                          {tour.status === "archived" ? "Unarchive" : "Archive"}
+                        </Button>
+                      )}
+                      {onDelete && (
+                        <Button
+                          variant="outline"
+                          onClick={() => onDelete(tour)}
+                          className="w-full border-destructive text-destructive hover:bg-destructive hover:text-white"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Tour
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
             </div>
           </div>
