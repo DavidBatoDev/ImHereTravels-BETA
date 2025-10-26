@@ -161,14 +161,41 @@ const gmailCategories = [
   },
 ];
 
+// Shared cache that persists across component unmounts
+const emailCacheRef = { categoryEmails: new Map<string, GmailEmail[]>() };
+
 export default function EmailsTab() {
   const [emails, setEmails] = useState<GmailEmail[]>([]);
   const [emailCache, setEmailCache] = useState<Map<string, GmailEmail>>(
     new Map()
   );
-  const [categoryEmails, setCategoryEmails] = useState<
+  const [categoryEmails, setCategoryEmailsState] = useState<
     Map<string, GmailEmail[]>
-  >(new Map());
+  >(() => emailCacheRef.categoryEmails); // Initialize from persistent cache
+
+  // Initialize activeCategory from URL hash
+  const getInitialCategory = () => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.slice(1); // Remove '#'
+      if (hash && gmailCategories.some((cat) => cat.id === hash)) {
+        return hash;
+      }
+    }
+    return "inbox";
+  };
+
+  // Wrapper to keep ref in sync with state
+  const setCategoryEmails = (
+    updater: (prev: Map<string, GmailEmail[]>) => Map<string, GmailEmail[]>
+  ) => {
+    setCategoryEmailsState((prev) => {
+      const newMap = updater(prev);
+      // Update persistent cache
+      emailCacheRef.categoryEmails = newMap;
+      return newMap;
+    });
+  };
+
   const [labels, setLabels] = useState<GmailLabel[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmail, setSelectedEmail] = useState<GmailEmail | null>(null);
@@ -177,7 +204,8 @@ export default function EmailsTab() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isLoadingFullContent, setIsLoadingFullContent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState("inbox");
+  const [activeCategory, setActiveCategory] = useState(getInitialCategory);
+  const [isCategoryChanging, setIsCategoryChanging] = useState(false);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [sortBy, setSortBy] = useState<"date" | "sender" | "subject">("date");
@@ -541,10 +569,28 @@ export default function EmailsTab() {
     }
   };
 
+  // Track pending category change when loading
+  const [pendingCategory, setPendingCategory] = useState<string | null>(null);
+
   // Handle category change
   const handleCategoryChange = (categoryId: string) => {
+    // If currently loading, queue the category change
+    if (isLoading) {
+      setPendingCategory(categoryId);
+      return;
+    }
+
+    // Only show loading if changing to a different category
+    if (categoryId !== activeCategory) {
+      setIsCategoryChanging(true);
+    }
     setActiveCategory(categoryId);
-    setEmails([]); // Clear current emails
+    // Update URL hash
+    if (typeof window !== "undefined") {
+      window.location.hash = categoryId;
+    }
+    // Don't clear emails immediately - let useEffect load cached data
+    // setEmails([]); // Clear current emails
     setNextPageToken(null); // Reset pagination
     setSelectedEmails(new Set()); // Clear selections
   };
@@ -780,9 +826,72 @@ export default function EmailsTab() {
   };
 
   useEffect(() => {
-    fetchEmails();
-    fetchLabels();
-  }, [activeCategory]);
+    // Check both state and persistent ref for cached emails
+    const cachedEmailsFromState = categoryEmails.get(activeCategory) || [];
+    const cachedEmailsFromRef =
+      emailCacheRef.categoryEmails.get(activeCategory) || [];
+
+    // Use whichever has the data
+    const hasCachedEmails =
+      cachedEmailsFromState.length > 0 || cachedEmailsFromRef.length > 0;
+    const cachedEmails =
+      cachedEmailsFromState.length > 0
+        ? cachedEmailsFromState
+        : cachedEmailsFromRef;
+
+    if (!hasCachedEmails) {
+      console.log("No cached data, fetching emails for:", activeCategory);
+      fetchEmails();
+    } else {
+      // Use cached emails immediately without loading state
+      console.log("Using cached emails for category:", activeCategory);
+      setIsLoading(false); // Ensure loading state is cleared
+      setEmails(cachedEmails);
+      // Hide category changing indicator when using cached data
+      if (isCategoryChanging) {
+        setTimeout(() => setIsCategoryChanging(false), 150);
+      }
+      // Also restore to state if we got it from ref
+      if (
+        cachedEmailsFromState.length === 0 &&
+        cachedEmailsFromRef.length > 0
+      ) {
+        setCategoryEmailsState(new Map(emailCacheRef.categoryEmails));
+      }
+    }
+
+    // Only fetch labels once
+    if (labels.length === 0) {
+      fetchLabels();
+    }
+  }, [activeCategory, isCategoryChanging]);
+
+  // Hide category changing indicator when loading completes
+  useEffect(() => {
+    if (!isLoading && isCategoryChanging) {
+      const timer = setTimeout(() => {
+        setIsCategoryChanging(false);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, isCategoryChanging]);
+
+  // Execute pending category change when loading completes
+  useEffect(() => {
+    if (!isLoading && pendingCategory && pendingCategory !== activeCategory) {
+      console.log("Executing pending category change:", pendingCategory);
+      // Only show loading if changing to a different category
+      setIsCategoryChanging(true);
+      setActiveCategory(pendingCategory);
+      // Update URL hash
+      if (typeof window !== "undefined") {
+        window.location.hash = pendingCategory;
+      }
+      setNextPageToken(null);
+      setSelectedEmails(new Set());
+      setPendingCategory(null);
+    }
+  }, [isLoading, pendingCategory, activeCategory]);
 
   // Cleanup effect to abort ongoing requests
   useEffect(() => {
@@ -792,6 +901,32 @@ export default function EmailsTab() {
       }
     };
   }, [abortController]);
+
+  // Initialize hash on mount if not present
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.slice(1);
+      // If no hash or invalid hash, set to current category
+      if (!hash || !gmailCategories.some((cat) => cat.id === hash)) {
+        window.location.hash = activeCategory;
+      }
+    }
+  }, []);
+
+  // Listen for hash changes (browser back/forward)
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (typeof window !== "undefined") {
+        const hash = window.location.hash.slice(1);
+        if (hash && gmailCategories.some((cat) => cat.id === hash)) {
+          setActiveCategory(hash);
+        }
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   // Filter emails based on search term
   const filteredEmails = emails.filter((email) => {
@@ -810,6 +945,16 @@ export default function EmailsTab() {
       className="flex bg-white overflow-hidden"
       style={{ height: "calc(100vh - 25vh)", minHeight: "600px" }}
     >
+      {/* Gmail-style Loading Indicator for Category Changes */}
+      {isCategoryChanging && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
+          <div className="bg-primary text-white px-4 py-2 rounded-b-lg shadow-lg flex items-center gap-2 animate-slide-down">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            <span className="text-sm font-medium">Loading...</span>
+          </div>
+        </div>
+      )}
+
       {/* Gmail Sidebar */}
       <div className="w-64 border-r border-gray-200 flex-shrink-0 overflow-y-auto h-full">
         <div className="p-4">

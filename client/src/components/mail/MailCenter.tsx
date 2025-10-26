@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, startTransition } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -483,6 +484,8 @@ const emailTemplates = {
 };
 
 export default function MailCenter() {
+  const router = useRouter();
+  const pathname = usePathname();
   const { user, userProfile } = useAuthStore();
 
   // Check if user has at least one required permission
@@ -491,6 +494,82 @@ export default function MailCenter() {
   const hasTemplatesPermission =
     userProfile?.permissions?.canManageTemplates || false;
   const hasAnyPermission = hasEmailsPermission || hasTemplatesPermission;
+
+  // Tab to index mapping (Gmail-style)
+  const tabIndexMap: { [key: string]: number } = {
+    drafts: 0, // Emails tab
+    scheduled: 1, // Scheduled tab
+    recycle: 2, // Recycle Bin tab
+    templates: 3, // Templates tab
+    test: 4, // Test Tab
+  };
+
+  // Index to tab mapping
+  const indexToTab: { [key: number]: string } = {
+    0: "drafts",
+    1: "scheduled",
+    2: "recycle",
+    3: "templates",
+    4: "test",
+  };
+
+  // Get active tab from URL
+  const getActiveTabFromUrl = useCallback(() => {
+    // Extract tabId from URL path like /mail/u/0
+    const match = pathname.match(/\/mail\/u\/(\d+)/);
+    if (match) {
+      const index = parseInt(match[1], 10);
+      return indexToTab[index] || "drafts";
+    }
+    // Default to drafts if no tab in URL
+    return hasEmailsPermission ? "drafts" : "templates";
+  }, [pathname, hasEmailsPermission]);
+
+  const [activeTab, setActiveTab] = useState(() => {
+    // Initialize from URL - this is only called once
+    const match = pathname.match(/\/mail\/u\/(\d+)/);
+    if (match) {
+      const index = parseInt(match[1], 10);
+      return indexToTab[index] || "drafts";
+    }
+    return hasEmailsPermission ? "drafts" : "templates";
+  });
+
+  // Track the requested tab (what user wants to switch to)
+  const [requestedTab, setRequestedTab] = useState<string | null>(null);
+
+  // Update active tab when URL changes (only if different)
+  useEffect(() => {
+    const tabFromUrl = getActiveTabFromUrl();
+    if (tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+
+      // Hide loading when URL has changed and matches the requested tab
+      if (requestedTab && tabFromUrl === requestedTab) {
+        setIsTabChanging(false);
+        setRequestedTab(null);
+      }
+    }
+  }, [getActiveTabFromUrl, activeTab, requestedTab]);
+
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    const index = tabIndexMap[value] || 0;
+
+    // Show loading indicator only if changing to a different tab
+    if (value !== activeTab) {
+      setIsTabChanging(true);
+      setRequestedTab(value);
+    }
+
+    // Update tab state immediately (for instant button feedback)
+    setActiveTab(value);
+
+    // Update URL in a transition (non-blocking)
+    startTransition(() => {
+      router.push(`/mail/u/${index}`, { scroll: false });
+    });
+  };
 
   const [templates, setTemplates] = useState<MailTemplate[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -503,6 +582,7 @@ export default function MailCenter() {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isTabChanging, setIsTabChanging] = useState(false);
 
   // Load templates on component mount
   useEffect(() => {
@@ -922,6 +1002,16 @@ export default function MailCenter() {
 
   return (
     <div className="space-y-6">
+      {/* Gmail-style Loading Indicator */}
+      {isTabChanging && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
+          <div className="bg-primary text-white px-4 py-2 rounded-b-lg shadow-lg flex items-center gap-2 animate-slide-down">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            <span className="text-sm font-medium">Loading...</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -936,7 +1026,8 @@ export default function MailCenter() {
 
       {/* Tabs */}
       <Tabs
-        defaultValue={hasEmailsPermission ? "drafts" : "templates"}
+        value={activeTab}
+        onValueChange={handleTabChange}
         className="w-full"
       >
         <TabsList className="grid w-full grid-cols-5 bg-muted border border-royal-purple/20 dark:border-border">

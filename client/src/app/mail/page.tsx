@@ -1,16 +1,16 @@
-import { Metadata } from "next";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import MailCenter from "@/components/mail/MailCenter";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Mail - ImHereTravels Admin",
-  description: "Manage email templates and mail communications",
-};
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function MailPage() {
-  return (
-    <DashboardLayout>
-      <MailCenter />
-    </DashboardLayout>
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirect to /mail/u/0 (default tab: Emails)
+    router.replace("/mail/u/0");
+  }, [router]);
+
+  // Return nothing or a loading state while redirecting
+  return null;
 }
