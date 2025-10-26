@@ -242,6 +242,9 @@ export default function BookingsDataGrid({
   // Debounced Firebase update refs
   const firebaseUpdateTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
+  // Track when we're canceling changes to prevent handleBlur from saving
+  const isCancelingChanges = useRef<boolean>(false);
+
   // Helper function to get input value (local state or Firebase data)
   const getInputValue = useCallback(
     (rowId: string, columnId: string, fallbackValue: any): string => {
@@ -408,6 +411,10 @@ export default function BookingsDataGrid({
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [sortColumns, setSortColumns] = useState<readonly SortColumn[]>([]);
   const [localData, setLocalData] = useState<SheetData[]>([]);
+
+  // Force re-render state for Escape key cancellation
+  const [forceRerender, setForceRerender] = useState<number>(0);
+
   // Keep refs of latest data to avoid stale closures in async handlers
   const latestDataRef = useRef<SheetData[]>([]);
   const latestLocalDataRef = useRef<SheetData[]>([]);
@@ -1044,80 +1051,26 @@ export default function BookingsDataGrid({
             activeElement.tagName === "TEXTAREA" ||
             (activeElement as HTMLElement).contentEditable === "true")
         ) {
-          // Cancel any unsaved changes by clearing localInputValues
-          const cellElement = activeElement.closest('[role="gridcell"]');
-          if (cellElement) {
-            // Get row element and extract rowId using same logic as monitorSelectedCell
-            const rowElement = cellElement.closest(
-              '[role="row"]'
-            ) as HTMLElement;
-            if (rowElement) {
-              // Try to get row ID from row attributes or data
-              const rowDataAttributes = Array.from(
-                rowElement.attributes
-              ).filter(
-                (attr) =>
-                  attr.name.startsWith("data-") &&
-                  (attr.name.includes("row") || attr.name.includes("id"))
-              );
+          // Set flag to prevent handleBlur from saving
+          isCancelingChanges.current = true;
 
-              let rowId = rowDataAttributes.find(
-                (attr) => attr.name.includes("row") || attr.name.includes("id")
-              )?.value;
+          // Force complete re-render by clearing all local state
+          // This will make the table get fresh values from Firebase
+          setLocalInputValues(new Map()); // Clear all local input values
+          setLocalData(data); // Reset localData to match Firebase data
 
-              // If no data attributes, try to find by row index
-              if (!rowId) {
-                const allRows = document.querySelectorAll('.rdg [role="row"]');
-                const rowIndex = Array.from(allRows).indexOf(rowElement);
-                if (rowIndex >= 0 && rowIndex < data.length) {
-                  rowId = data[rowIndex].id;
-                }
-              }
-
-              // Get column ID from aria-colindex
-              const ariaColIndex = cellElement.getAttribute("aria-colindex");
-              const actualColumnIndex = ariaColIndex
-                ? parseInt(ariaColIndex) - 1
-                : -1;
-              const visibleColumns = columns.filter(
-                (col) => col.showColumn !== false
-              );
-
-              if (
-                rowId &&
-                actualColumnIndex >= 0 &&
-                actualColumnIndex < visibleColumns.length
-              ) {
-                const columnId = visibleColumns[actualColumnIndex].id;
-                const key = `${rowId}:${columnId}`;
-
-                // Get the original value from the row data
-                const originalValue = data.find((row) => row.id === rowId)?.[
-                  columnId as keyof SheetData
-                ];
-
-                // Clear local input values
-                setLocalInputValues((prev) => {
-                  const newMap = new Map(prev);
-                  newMap.delete(key);
-                  return newMap;
-                });
-
-                // Force visual update by reverting to original value in localData
-                setLocalData((prevData) => {
-                  return prevData.map((row) =>
-                    row.id === rowId
-                      ? { ...row, [columnId]: originalValue }
-                      : row
-                  );
-                });
-              }
-            }
-          }
+          // Force a re-render by updating a dummy state
+          setForceRerender((prev) => prev + 1);
 
           (activeElement as HTMLElement).blur();
 
+          // Reset the cancel flag after a short delay to allow handleBlur to check it
+          setTimeout(() => {
+            isCancelingChanges.current = false;
+          }, 0);
+
           // Ensure the cell remains selected for arrow key navigation
+          const cellElement = activeElement.closest('[role="gridcell"]');
           if (cellElement) {
             // Set the cell as selected for React Data Grid
             cellElement.setAttribute("aria-selected", "true");
@@ -3083,6 +3036,11 @@ export default function BookingsDataGrid({
             };
 
             const handleBlur = () => {
+              // Don't save if we're canceling changes (Escape key)
+              if (isCancelingChanges.current) {
+                return;
+              }
+
               // Save to Firebase on blur only if value has changed
               const currentValue = getInputValue(
                 row.id,
@@ -3174,6 +3132,11 @@ export default function BookingsDataGrid({
             };
 
             const handleBlur = () => {
+              // Don't save if we're canceling changes (Escape key)
+              if (isCancelingChanges.current) {
+                return;
+              }
+
               // Save to Firebase on blur only if value has changed
               const currentValue = getInputValue(
                 row.id,
@@ -3230,6 +3193,11 @@ export default function BookingsDataGrid({
             };
 
             const handleBlur = () => {
+              // Don't save if we're canceling changes (Escape key)
+              if (isCancelingChanges.current) {
+                return;
+              }
+
               // Save to Firebase on blur only if value has changed
               const currentValue = getInputValue(
                 row.id,
@@ -3313,6 +3281,7 @@ export default function BookingsDataGrid({
     getInputValue,
     updateInputValue,
     saveToFirebase,
+    forceRerender,
   ]);
 
   const handleAddNewRow = async () => {
@@ -4036,6 +4005,11 @@ export default function BookingsDataGrid({
                 };
 
                 const handleBlur = () => {
+                  // Don't save if we're canceling changes (Escape key)
+                  if (isCancelingChanges.current) {
+                    return;
+                  }
+
                   // Force immediate Firebase update on blur
                   const key = `${row.id}:${column.key}`;
                   const existingTimeout =
