@@ -942,7 +942,7 @@ export default function EmailsTab() {
 
   return (
     <div
-      className="flex bg-white overflow-hidden"
+      className="flex bg-background overflow-hidden"
       style={{ height: "calc(100vh - 25vh)", minHeight: "600px" }}
     >
       {/* Gmail-style Loading Indicator for Category Changes */}
@@ -956,14 +956,17 @@ export default function EmailsTab() {
       )}
 
       {/* Gmail Sidebar */}
-      <div className="w-64 border-r border-gray-200 flex-shrink-0 overflow-y-auto h-full">
+      <div
+        className="w-64 border-r border-border flex-shrink-0 overflow-y-auto h-full"
+        style={{ backgroundColor: "hsl(var(--card-surface))" }}
+      >
         <div className="p-4">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Gmail</h2>
+          <h2 className="text-xl font-semibold text-foreground mb-4">Gmail</h2>
 
           {/* Compose Button */}
           <Button
             onClick={handleCompose}
-            className="w-full mb-6 bg-white border hover:bg-gray-50 text-black rounded-xl"
+            className="w-full mb-6 bg-background border-border hover:bg-muted text-foreground rounded-xl"
           >
             <Edit className="w-4 h-4 mr-2" />
             Compose
@@ -982,8 +985,8 @@ export default function EmailsTab() {
                   className={cn(
                     "w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors",
                     isActive
-                      ? "bg-red-100 text-red-700 border-r-4 border-red-500"
-                      : "text-gray-700 hover:bg-gray-100"
+                      ? "bg-primary/10 text-primary border-r-4 border-primary"
+                      : "text-muted-foreground hover:bg-muted"
                   )}
                 >
                   <div className="flex items-center">
@@ -1006,19 +1009,22 @@ export default function EmailsTab() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0">
+      <div
+        className="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0"
+        style={{ backgroundColor: "hsl(var(--card-surface))" }}
+      >
         {/* Top Toolbar */}
-        <div className="border-b border-gray-200 bg-white">
+        <div className="border-b border-border bg-card">
           {/* Search Bar */}
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-border/50">
             <div className="relative max-w-2xl">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
               <Input
                 placeholder="Search mail"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="pl-12 h-12 text-base border-gray-300 rounded-full"
+                className="pl-12 h-12 text-base border-border rounded-full"
               />
             </div>
           </div>
@@ -1109,7 +1115,7 @@ export default function EmailsTab() {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-muted-foreground">
                 {isLoading
                   ? `Loading...`
                   : `${filteredEmails.length} of ${emails.length} emails`}
@@ -1148,11 +1154,11 @@ export default function EmailsTab() {
           {/* Loading State */}
           {isLoading ? (
             <div className="flex flex-1 items-center justify-center min-h-0">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : (
             /* Emails List Container with Fixed Height and Scroll */
-            <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 border-t border-gray-100 email-list-container min-h-0 min-w-0">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-border scrollbar-track-muted border-t border-border/50 email-list-container min-h-0 min-w-0">
               {filteredEmails.map((email, index) => {
                 const isSelected = selectedEmails.has(email.id);
 
@@ -1160,10 +1166,10 @@ export default function EmailsTab() {
                   <div
                     key={email.id}
                     className={cn(
-                      "email-list-item group border-b border-gray-100 cursor-pointer",
-                      !email.isRead && "bg-white font-medium",
-                      email.isRead && "bg-gray-50/50",
-                      isSelected && "bg-blue-50 border-blue-200"
+                      "email-list-item group border-b border-border/50 cursor-pointer",
+                      !email.isRead && "bg-card font-medium",
+                      email.isRead && "bg-muted/30",
+                      isSelected && "bg-primary/5 border-primary/20"
                     )}
                     onClick={() => {
                       // Handle draft emails differently - open in compose
@@ -1176,7 +1182,7 @@ export default function EmailsTab() {
                       }
                     }}
                   >
-                    <div className="flex items-center gap-3 px-4 py-3 email-list-item-content">
+                    <div className="flex items-center gap-3 px-4 py-1 email-list-item-content">
                       {/* Checkbox */}
                       <div className="flex-shrink-0">
                         <Checkbox
@@ -1194,11 +1200,13 @@ export default function EmailsTab() {
                         style={{ width: "180px" }}
                       >
                         {email.isDraft ? (
-                          <span className="text-sm text-red-600">Draft</span>
+                          <span className="text-sm text-red-600 dark:text-red-400">
+                            Draft
+                          </span>
                         ) : (
                           <span
                             className={cn(
-                              "truncate text-xs min-w-0 text-black",
+                              "truncate text-xs min-w-0 text-foreground",
                               !email.isRead ? "font-semibold" : "font-normal"
                             )}
                           >
@@ -1212,14 +1220,14 @@ export default function EmailsTab() {
                         <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                           <span
                             className={cn(
-                              "text-xs flex-shrink-0 truncate whitespace-nowrap text-black",
+                              "text-xs flex-shrink-0 truncate whitespace-nowrap text-foreground",
                               !email.isRead ? "font-semibold" : "font-normal"
                             )}
                             style={{ maxWidth: "250px" }}
                           >
                             {email.subject || "(no subject)"}
                           </span>
-                          <span className="text-gray-500 font-normal truncate min-w-0 text-xs">
+                          <span className="text-muted-foreground font-normal truncate min-w-0 text-xs">
                             — {email.snippet}
                           </span>
                         </div>
@@ -1228,24 +1236,24 @@ export default function EmailsTab() {
                       {/* Labels/Badges */}
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {email.hasAttachments && (
-                          <FileText className="w-4 h-4 text-gray-400" />
+                          <FileText className="w-4 h-4 text-muted-foreground" />
                         )}
                         {getConversationCount(email) > 1 && (
                           <Badge
                             variant="outline"
-                            className="text-xs text-gray-600 border-gray-300 bg-gray-50"
+                            className="text-xs text-foreground border-border bg-muted"
                           >
                             {getConversationCount(email)}
                           </Badge>
                         )}
                         {!email.isRead && (
-                          <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                          <div className="w-2 h-2 bg-primary rounded-full"></div>
                         )}
                       </div>
 
                       {/* Date */}
                       <div
-                        className="flex-shrink-0 text-gray-500 text-right"
+                        className="flex-shrink-0 text-muted-foreground text-right"
                         style={{ fontSize: "14px", width: "80px" }}
                       >
                         {formatDate(email.date)}
@@ -1277,7 +1285,7 @@ export default function EmailsTab() {
                               <Archive className="w-4 h-4 mr-2" />
                               Archive
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem className="text-red-600 dark:text-red-400">
                               <Trash2 className="w-4 h-4 mr-2" />
                               Delete
                             </DropdownMenuItem>
@@ -1291,11 +1299,11 @@ export default function EmailsTab() {
 
               {/* Load More Button */}
               {nextPageToken && (
-                <div className="p-4 text-center border-t">
+                <div className="p-4 text-center border-t border-border/50">
                   {isLoadingMore ? (
                     <div className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                      <span className="text-sm text-gray-600">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      <span className="text-sm text-muted-foreground">
                         Loading more emails...
                       </span>
                     </div>
