@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Fuse from "fuse.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -126,7 +127,43 @@ export default function BookingsSection() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
+  // Ref for the bookings container to enable scrolling after adding a booking
+  const bookingsContainerRef = useRef<HTMLDivElement>(null);
+
   // Remove scroll button states - using CSS-only approach
+
+  // Create Fuse instance for fuzzy search
+  const fuse = useMemo(() => {
+    if (bookings.length === 0) return null;
+
+    // Get all string fields from bookings for comprehensive search
+    const searchableFields = columns
+      .filter(
+        (col) =>
+          col.dataType === "string" ||
+          col.dataType === "email" ||
+          col.dataType === "select"
+      )
+      .map((col) => ({
+        name: col.id,
+        getFn: (booking: any) => {
+          const value = booking[col.id];
+          if (value === null || value === undefined) return "";
+          return String(value);
+        },
+      }));
+
+    return new Fuse(bookings, {
+      keys: searchableFields.map((field) => ({
+        name: field.name,
+        getFn: field.getFn,
+        weight: 0.7,
+      })),
+      threshold: 0.4, // 0 = exact match, 1 = match anything
+      includeScore: true,
+      minMatchCharLength: 2,
+    });
+  }, [bookings, columns]);
 
   // Fetch booking sheet columns
   useEffect(() => {
@@ -600,6 +637,17 @@ export default function BookingsSection() {
       "✅ [BOOKINGS SECTION] New booking created, Firebase will handle updates:",
       newBookingData
     );
+
+    // Scroll to the bottom after the booking is added
+    // Use setTimeout to ensure the DOM is updated with the new booking before scrolling
+    setTimeout(() => {
+      if (bookingsContainerRef.current) {
+        bookingsContainerRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "end",
+        });
+      }
+    }, 500); // Wait for Firebase to update the bookings list
   };
 
   // Get column label from column ID
@@ -747,14 +795,17 @@ export default function BookingsSection() {
   };
 
   // Filter bookings based on search and filters
-  const filteredBookings = bookings.filter((booking) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      (booking.bookingId &&
-        booking.bookingId.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      booking.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.emailAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.tourPackageName.toLowerCase().includes(searchTerm.toLowerCase());
+  const searchResults = useMemo(() => {
+    if (!fuse || searchTerm === "") {
+      return bookings;
+    }
+    const results = fuse.search(searchTerm);
+    return results.map((result) => result.item);
+  }, [fuse, searchTerm, bookings]);
+
+  const filteredBookings = searchResults.filter((booking) => {
+    // matchesSearch is now handled by Fuse.js above
+    const matchesSearch = true;
 
     // Apply column-specific filters
     const matchesColumnFilters = columns.every((col) => {
@@ -962,7 +1013,7 @@ export default function BookingsSection() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by booking ID, name, or email..."
+                placeholder="Search across all fields ..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 border-border focus:border-crimson-red focus:ring-crimson-red/20"
@@ -1687,7 +1738,10 @@ export default function BookingsSection() {
           </CardContent>
         </Card>
       ) : viewMode === "cards" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div
+          ref={bookingsContainerRef}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"
+        >
           {filteredBookings
             .filter((booking) => booking.id && booking.id.trim() !== "") // Filter out bookings with empty IDs
             .map((booking) => {
@@ -1998,7 +2052,7 @@ export default function BookingsSection() {
         </div>
       ) : (
         // List View
-        <Card className="border border-border">
+        <Card ref={bookingsContainerRef} className="border border-border">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -2185,35 +2239,29 @@ export default function BookingsSection() {
                               </div>
                             </div>
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="py-2 px-3 relative">
                             {getPaymentPlanCode(booking) && (
                               <div className="text-[10px] font-bold text-crimson-red font-mono bg-crimson-red/10 px-1.5 py-0.5 rounded-full rounded-br-none inline-block">
                                 {getPaymentPlanCode(booking)}
                               </div>
                             )}
+                            {/* Delete Button Overlay - shown on hover for invalid bookings */}
+                            {isInvalid && (
+                              <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-auto">
+                                <Button
+                                  variant="destructive"
+                                  className="h-8 w-8 rounded-full rounded-br-none bg-crimson-red hover:bg-crimson-red/90 text-white transition-all duration-300 hover:scale-105 shadow-lg"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteBooking(booking.id);
+                                  }}
+                                  title="Delete invalid booking"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
                           </td>
-
-                          {/* Delete Button Overlay - Center (only for invalid bookings) */}
-                          {isInvalid && (
-                            <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                              <Button
-                                variant="destructive"
-                                className="h-8 w-8 rounded-full rounded-br-none bg-crimson-red hover:bg-crimson-red/90 text-white transition-all duration-300 hover:scale-105 shadow-lg"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteBooking(booking.id);
-                                }}
-                                title="Delete invalid booking"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          )}
-
-                          {/* Blur overlay for invalid bookings on hover */}
-                          {isInvalid && (
-                            <div className="absolute inset-0 bg-background/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-5" />
-                          )}
                         </tr>
                       );
                     })}

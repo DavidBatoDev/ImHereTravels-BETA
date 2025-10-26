@@ -127,7 +127,10 @@ export default function BookingsFullscreenPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Simplified Header */}
-      <div className="border-b border-royal-purple/20 bg-background sticky top-0 z-50">
+      <div
+        className="border-b border-royal-purple/20 sticky top-0 z-50"
+        style={{ backgroundColor: "hsl(var(--card-surface))" }}
+      >
         <div className="px-6 py-4">
           <div className="flex items-center gap-4">
             {/* Back Button */}
@@ -144,7 +147,7 @@ export default function BookingsFullscreenPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Search all columns..."
+                placeholder="Search across all fields ..."
                 value={globalFilter}
                 onChange={(e) => setGlobalFilter(e.target.value)}
                 className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0"

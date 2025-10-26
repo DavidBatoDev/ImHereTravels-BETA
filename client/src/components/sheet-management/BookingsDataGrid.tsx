@@ -8,6 +8,7 @@ import React, {
   memo,
   useRef,
 } from "react";
+import Fuse from "fuse.js";
 // Import react-data-grid components
 // @ts-expect-error - react-data-grid v7 has incorrect type definitions
 import { DataGrid } from "react-data-grid";
@@ -1949,12 +1950,52 @@ export default function BookingsDataGrid({
     };
   }, [columns]);
 
+  // Create Fuse instance for fuzzy search on global filter
+  const fuse = useMemo(() => {
+    const currentData = localData.length > 0 ? localData : data;
+    if (currentData.length === 0) return null;
+
+    // Get all string fields from columns for comprehensive search
+    const searchableFields = columns
+      .filter(
+        (col) =>
+          col.dataType === "string" ||
+          col.dataType === "email" ||
+          col.dataType === "select"
+      )
+      .map((col) => ({
+        name: col.id,
+        getFn: (row: any) => {
+          const value = row[col.id];
+          if (value === null || value === undefined) return "";
+          return String(value);
+        },
+      }));
+
+    if (searchableFields.length === 0) return null;
+
+    return new Fuse(currentData, {
+      keys: searchableFields.map((field) => ({
+        name: field.name,
+        getFn: field.getFn,
+        weight: 0.7,
+      })),
+      threshold: 0.4, // 0 = exact match, 1 = match anything
+      includeScore: true,
+      minMatchCharLength: 2,
+    });
+  }, [localData, data, columns]);
+
   // Enhanced filtering and sorting logic
   const filteredAndSortedData = useMemo(() => {
     let filtered = localData.length > 0 ? localData : data;
 
-    // Apply global filter
-    if (globalFilter) {
+    // Apply global filter with fuzzy search
+    if (globalFilter && fuse) {
+      const results = fuse.search(globalFilter);
+      filtered = results.map((result) => result.item);
+    } else if (globalFilter && !fuse) {
+      // Fallback to simple filter if Fuse isn't initialized
       filtered = filtered.filter((row) => {
         return Object.values(row).some((value) => {
           if (value === null || value === undefined) return false;
@@ -2054,6 +2095,7 @@ export default function BookingsDataGrid({
     localData,
     data,
     globalFilter,
+    fuse,
     sortColumns,
     columnFilters,
     dateRangeFilters,
@@ -3443,12 +3485,15 @@ export default function BookingsDataGrid({
           {/* Enhanced Search and Filters */}
           <div className="space-y-4">
             {/* Main Search and Filter Controls */}
-            <div className="bg-background border border-royal-purple/20 rounded-lg p-4 shadow-sm">
+            <div
+              className="border border-royal-purple/20 rounded-lg p-4 shadow-sm"
+              style={{ backgroundColor: "hsl(var(--card-surface))" }}
+            >
               <div className="flex items-center gap-4">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
-                    placeholder="Search all columns..."
+                    placeholder="Search across all fields ..."
                     value={globalFilter}
                     onChange={(e) => setGlobalFilter(e.target.value)}
                     className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0"
