@@ -888,6 +888,72 @@ export class GmailApiService {
   }
 
   /**
+   * Mark an email as unread (add the UNREAD label)
+   * @param messageId - Gmail message ID
+   * @returns Promise with success status
+   */
+  async markAsUnread(messageId: string) {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: "me",
+        id: messageId,
+        requestBody: {
+          addLabelIds: ["UNREAD"],
+        },
+      });
+
+      console.log("Email marked as unread successfully:", messageId);
+      return { success: true };
+    } catch (error) {
+      console.error("Error marking email as unread:", error);
+      throw new Error(`Failed to mark email as unread: ${error}`);
+    }
+  }
+
+  /**
+   * Archive an email (remove it from INBOX)
+   * @param messageId - Gmail message ID
+   * @returns Promise with success status
+   */
+  async archiveEmail(messageId: string) {
+    try {
+      await this.gmail.users.messages.modify({
+        userId: "me",
+        id: messageId,
+        requestBody: {
+          removeLabelIds: ["INBOX"],
+        },
+      });
+
+      console.log("Email archived successfully:", messageId);
+      return { success: true };
+    } catch (error) {
+      console.error("Error archiving email:", error);
+      throw new Error(`Failed to archive email: ${error}`);
+    }
+  }
+
+  /**
+   * Move an email to trash
+   * @param messageId - Gmail message ID
+   * @returns Promise with success status
+   */
+  async trashEmail(messageId: string) {
+    try {
+      await this.gmail.users.messages.trash({
+        userId: "me",
+        id: messageId,
+      });
+
+      console.log("Email moved to trash successfully:", messageId);
+      return { success: true };
+    } catch (error) {
+      console.error("Error moving email to trash:", error);
+      throw new Error(`Failed to move email to trash: ${error}`);
+    }
+  }
+
+  /**
    * Create a raw email message for Gmail API (same as Firebase Functions version)
    * @param emailData - Email data
    * @returns Base64 encoded email message

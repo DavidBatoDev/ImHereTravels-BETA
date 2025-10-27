@@ -949,6 +949,212 @@ export default function EmailsTab() {
     }
   };
 
+  // Archive email
+  const handleArchiveEmail = async (email: GmailEmail) => {
+    try {
+      // For drafts, we can't archive them
+      // Draft IDs start with 'r' followed by digits (e.g., r7824841817848189022)
+      const isDraftId = /^r\d/.test(email.id);
+      if (email.isDraft || isDraftId) {
+        toast({
+          title: "Info",
+          description: "Drafts cannot be archived. Please delete instead.",
+          variant: "default",
+        });
+        return;
+      }
+
+      // For regular emails, use the Gmail API message ID
+      const response = await fetch("/api/gmail/emails/" + email.id, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "archive" }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Remove email from current list
+        setEmails((prevEmails) => prevEmails.filter((e) => e.id !== email.id));
+        setCategoryEmails((prev) => {
+          const newMap = new Map(prev);
+          const categoryEmails = newMap.get(activeCategory) || [];
+          const filteredEmails = categoryEmails.filter(
+            (e) => e.id !== email.id
+          );
+          newMap.set(activeCategory, filteredEmails);
+          return newMap;
+        });
+
+        toast({
+          title: "Success",
+          description: "Email archived",
+        });
+      }
+    } catch (error) {
+      console.error("Error archiving email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to archive email",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Delete email
+  const handleDeleteEmail = async (email: GmailEmail) => {
+    try {
+      // For drafts, use draft deletion endpoint
+      const isDraftIdPattern = /^r\d/.test(email.id);
+      if (email.isDraft || isDraftIdPattern) {
+        const draftResponse = await fetch(
+          "/api/gmail/drafts?draftId=" + email.id,
+          {
+            method: "DELETE",
+          }
+        );
+
+        const draftResult = await draftResponse.json();
+
+        if (draftResult.success) {
+          setEmails((prevEmails) =>
+            prevEmails.filter((e) => e.id !== email.id)
+          );
+          setCategoryEmails((prev) => {
+            const newMap = new Map(prev);
+            const categoryEmails = newMap.get(activeCategory) || [];
+            const filteredEmails = categoryEmails.filter(
+              (e) => e.id !== email.id
+            );
+            newMap.set(activeCategory, filteredEmails);
+            return newMap;
+          });
+
+          toast({
+            title: "Success",
+            description: "Draft deleted",
+          });
+        }
+        return;
+      }
+
+      // For regular emails, use the Gmail API message ID
+      const response = await fetch("/api/gmail/emails/" + email.id, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "trash" }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Remove email from current list
+        setEmails((prevEmails) => prevEmails.filter((e) => e.id !== email.id));
+        setCategoryEmails((prev) => {
+          const newMap = new Map(prev);
+          const categoryEmails = newMap.get(activeCategory) || [];
+          const filteredEmails = categoryEmails.filter(
+            (e) => e.id !== email.id
+          );
+          newMap.set(activeCategory, filteredEmails);
+          return newMap;
+        });
+
+        toast({
+          title: "Success",
+          description: "Email moved to trash",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete email",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Toggle read status
+  const handleToggleReadStatus = async (email: GmailEmail) => {
+    try {
+      // For drafts, we can't mark them as read/unread
+      const isDraftId = /^r\d/.test(email.id);
+      if (email.isDraft || isDraftId) {
+        toast({
+          title: "Info",
+          description: "Cannot change read status for drafts.",
+          variant: "default",
+        });
+        return;
+      }
+
+      const action = email.isRead ? "markAsUnread" : "markAsRead";
+
+      // For regular emails, use the Gmail API message ID
+      const response = await fetch("/api/gmail/emails/" + email.id, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const newReadStatus = !email.isRead;
+
+        // Update email cache
+        setEmailCache((prev) => {
+          const newCache = new Map(prev);
+          const cachedEmail = newCache.get(email.id);
+          if (cachedEmail) {
+            newCache.set(email.id, { ...cachedEmail, isRead: newReadStatus });
+          }
+          return newCache;
+        });
+
+        // Update in emails list
+        setEmails((prevEmails) =>
+          prevEmails.map((e) =>
+            e.id === email.id ? { ...e, isRead: newReadStatus } : e
+          )
+        );
+
+        // Update in category emails cache
+        setCategoryEmails((prev) => {
+          const newMap = new Map(prev);
+          const categoryEmails = newMap.get(activeCategory) || [];
+          const updatedList = categoryEmails.map((e) =>
+            e.id === email.id ? { ...e, isRead: newReadStatus } : e
+          );
+          newMap.set(activeCategory, updatedList);
+          emailCacheRef.categoryEmails.set(activeCategory, updatedList);
+          return newMap;
+        });
+
+        toast({
+          title: "Success",
+          description: email.isRead
+            ? "Email marked as unread"
+            : "Email marked as read",
+        });
+      }
+    } catch (error) {
+      console.error("Error toggling read status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update read status",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Select all emails
   const selectAllEmails = () => {
     if (selectedEmails.size === filteredEmails.length) {
@@ -1839,21 +2045,42 @@ export default function EmailsTab() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Reply className="w-4 h-4 mr-2" />
-                            Reply
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Forward className="w-4 h-4 mr-2" />
-                            Forward
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleArchiveEmail(email);
+                            }}
+                          >
                             <Archive className="w-4 h-4 mr-2" />
                             Archive
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600 dark:text-red-400">
+                          <DropdownMenuItem
+                            className="text-red-600 dark:text-red-400"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteEmail(email);
+                            }}
+                          >
                             <Trash2 className="w-4 h-4 mr-2" />
                             Delete
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleReadStatus(email);
+                            }}
+                          >
+                            {email.isRead ? (
+                              <>
+                                <Eye className="w-4 h-4 mr-2" />
+                                Mark as unread
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Mark as read
+                              </>
+                            )}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

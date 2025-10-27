@@ -74,6 +74,30 @@ export async function PATCH(
       });
     }
 
+    if (action === "markAsUnread") {
+      await gmailService.markAsUnread(messageId);
+      return NextResponse.json({
+        success: true,
+        message: "Email marked as unread",
+      });
+    }
+
+    if (action === "archive") {
+      await gmailService.archiveEmail(messageId);
+      return NextResponse.json({
+        success: true,
+        message: "Email archived",
+      });
+    }
+
+    if (action === "trash") {
+      await gmailService.trashEmail(messageId);
+      return NextResponse.json({
+        success: true,
+        message: "Email moved to trash",
+      });
+    }
+
     return NextResponse.json(
       {
         success: false,
