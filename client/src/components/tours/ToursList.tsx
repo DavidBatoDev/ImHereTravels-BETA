@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import Fuse from "fuse.js";
 import type { Booking } from "@/types/bookings";
 import {
   Card,
@@ -51,6 +52,7 @@ import {
   RefreshCw,
   Calendar,
   TrendingUp,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -77,7 +79,7 @@ import TourDetails from "./TourDetails";
 export default function ToursList() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [tours, setTours] = useState<TourPackage[]>([]);
+  const [allTours, setAllTours] = useState<TourPackage[]>([]); // Full list for client-side search
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -90,6 +92,41 @@ export default function ToursList() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { toast } = useToast();
+
+  // Create Fuse instance for fuzzy search
+  const fuse = useMemo(() => {
+    if (allTours.length === 0) return null;
+
+    return new Fuse(allTours, {
+      keys: [
+        { name: "name", weight: 0.5 },
+        { name: "description", weight: 0.3 },
+        { name: "location", weight: 0.2 },
+        { name: "tourCode", weight: 0.7 },
+      ],
+      threshold: 0.4, // 0 = exact match, 1 = match anything
+      includeScore: true,
+      minMatchCharLength: 2,
+    });
+  }, [allTours]);
+
+  // Filter tours based on search and filters
+  const filteredTours = useMemo(() => {
+    let results = allTours;
+
+    // Apply Fuse.js fuzzy search
+    if (fuse && searchTerm) {
+      const fuseResults = fuse.search(searchTerm);
+      results = fuseResults.map((result) => result.item);
+    }
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      results = results.filter((tour) => tour.status === statusFilter);
+    }
+
+    return results;
+  }, [fuse, searchTerm, statusFilter, allTours]);
 
   // Load bookings data
   const loadBookings = () => {
@@ -136,15 +173,8 @@ export default function ToursList() {
       // Test Firestore connection first
       await testFirestoreConnection();
 
+      // Don't apply search filter server-side, use client-side fuzzy search instead
       const filters: TourFilters = {};
-
-      if (statusFilter !== "all") {
-        filters.status = statusFilter as "active" | "draft" | "archived";
-      }
-
-      if (searchTerm) {
-        filters.search = searchTerm;
-      }
 
       const { tours: fetchedTours } = await getTours(
         filters,
@@ -158,7 +188,7 @@ export default function ToursList() {
         "Tour codes:",
         fetchedTours.map((t) => t.tourCode)
       );
-      setTours(fetchedTours);
+      setAllTours(fetchedTours);
     } catch (error) {
       console.error("Error loading tours:", error);
       toast({
@@ -180,7 +210,7 @@ export default function ToursList() {
         unsubscribeBookings();
       }
     };
-  }, [searchTerm, statusFilter]);
+  }, []); // Only load on mount, filtering is now client-side
 
   // Handle query parameters for opening modals
   useEffect(() => {
@@ -188,8 +218,8 @@ export default function ToursList() {
     const action = searchParams.get("action");
     const mode = searchParams.get("mode");
 
-    if (tourId && tours.length > 0) {
-      const tour = tours.find((t) => t.id === tourId);
+    if (tourId && allTours.length > 0) {
+      const tour = allTours.find((t) => t.id === tourId);
       if (tour) {
         setSelectedTour(tour);
         if (mode === "edit") {
@@ -203,7 +233,7 @@ export default function ToursList() {
       setSelectedTour(null);
       setIsFormOpen(true);
     }
-  }, [searchParams, tours]);
+  }, [searchParams, allTours]);
 
   // Create tour
   const handleCreateTour = async (data: TourFormDataWithStringDates) => {
@@ -220,6 +250,12 @@ export default function ToursList() {
       await loadTours();
       setIsFormOpen(false);
       setSelectedTour(null);
+
+      // Clear URL parameters after create
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("action");
+      params.delete("mode");
+      router.push(`/tours?${params.toString()}`, { scroll: false });
 
       return tourId; // Return the tour ID for blob uploads
     } catch (error) {
@@ -251,6 +287,13 @@ export default function ToursList() {
       await loadTours();
       setIsFormOpen(false);
       setSelectedTour(null);
+
+      // Clear URL parameters after update
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("tourId");
+      params.delete("action");
+      params.delete("mode");
+      router.push(`/tours?${params.toString()}`, { scroll: false });
     } catch (error) {
       console.error("Error updating tour:", error);
       toast({
@@ -275,6 +318,13 @@ export default function ToursList() {
 
       await loadTours();
       setIsDetailsOpen(false);
+
+      // Clear URL parameters after archive
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("tourId");
+      params.delete("action");
+      params.delete("mode");
+      router.push(`/tours?${params.toString()}`, { scroll: false });
     } catch (error) {
       console.error("Error archiving tour:", error);
       toast({
@@ -301,6 +351,13 @@ export default function ToursList() {
       setIsDeleteDialogOpen(false);
       setTourToDelete(null);
       setIsDetailsOpen(false);
+
+      // Clear URL parameters after delete
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("tourId");
+      params.delete("action");
+      params.delete("mode");
+      router.push(`/tours?${params.toString()}`, { scroll: false });
     } catch (error) {
       console.error("Error deleting tour:", error);
       toast({
@@ -409,11 +466,11 @@ export default function ToursList() {
                   Total Tours
                 </p>
                 <p className="text-3xl font-bold text-foreground">
-                  {tours.length}
+                  {allTours.length}
                 </p>
                 {/* Breakdown */}
                 <div className="flex items-center gap-3 mt-2 flex-wrap">
-                  {tours.filter((tour) => tour.status === "active").length >
+                  {allTours.filter((tour) => tour.status === "active").length >
                     0 && (
                     <div className="flex items-center gap-1">
                       <div className="w-2 h-2 rounded-full bg-spring-green"></div>
@@ -421,14 +478,14 @@ export default function ToursList() {
                         Active:{" "}
                         <span className="text-spring-green font-bold">
                           {
-                            tours.filter((tour) => tour.status === "active")
+                            allTours.filter((tour) => tour.status === "active")
                               .length
                           }
                         </span>
                       </p>
                     </div>
                   )}
-                  {tours.filter((tour) => tour.status === "draft").length >
+                  {allTours.filter((tour) => tour.status === "draft").length >
                     0 && (
                     <div className="flex items-center gap-1">
                       <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
@@ -436,23 +493,24 @@ export default function ToursList() {
                         Draft:{" "}
                         <span className="text-vivid-orange font-bold">
                           {
-                            tours.filter((tour) => tour.status === "draft")
+                            allTours.filter((tour) => tour.status === "draft")
                               .length
                           }
                         </span>
                       </p>
                     </div>
                   )}
-                  {tours.filter((tour) => tour.status === "archived").length >
-                    0 && (
+                  {allTours.filter((tour) => tour.status === "archived")
+                    .length > 0 && (
                     <div className="flex items-center gap-1">
                       <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                       <p className="text-xs text-muted-foreground">
                         Archived:{" "}
                         <span className="text-blue-500 font-bold">
                           {
-                            tours.filter((tour) => tour.status === "archived")
-                              .length
+                            allTours.filter(
+                              (tour) => tour.status === "archived"
+                            ).length
                           }
                         </span>
                       </p>
@@ -519,7 +577,7 @@ export default function ToursList() {
                   });
 
                   // Sort tours by actual booking count and get top 3
-                  const sortedTours = [...tours]
+                  const sortedTours = [...allTours]
                     .map((tour) => ({
                       ...tour,
                       actualBookingsCount: tourBookingCounts[tour.name] || 0,
@@ -542,7 +600,7 @@ export default function ToursList() {
                       >
                         {mostSelectedTour.name}
                       </p>
-                      {tours.length > 0 &&
+                      {allTours.length > 0 &&
                         mostSelectedTour.actualBookingsCount > 0 && (
                           <div className="flex items-center gap-1.5 mt-2">
                             <div className="w-2 h-2 rounded-full bg-royal-purple"></div>
@@ -612,11 +670,21 @@ export default function ToursList() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-royal-purple/60 h-4 w-4" />
                 <Input
-                  placeholder="Search tours..."
+                  placeholder="Search across all fields ..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
+                  className="pl-10 pr-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20"
                 />
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0 hover:bg-muted"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -648,7 +716,7 @@ export default function ToursList() {
 
       {/* Tours List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {tours.map((tour) => {
+        {filteredTours.map((tour) => {
           const currentPrice = tour.pricing.discounted || tour.pricing.original;
           const hasDiscount =
             tour.pricing.discounted &&
@@ -855,7 +923,7 @@ export default function ToursList() {
       </div>
 
       {/* Empty State */}
-      {tours.length === 0 && !loading && (
+      {filteredTours.length === 0 && !loading && (
         <Card className="border border-royal-purple/20 dark:border-border shadow">
           <CardContent className="p-12 text-center">
             <div className="mx-auto w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mb-4 border border-royal-purple/20 dark:border-border">
