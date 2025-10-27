@@ -197,6 +197,27 @@ export function ComposeEmail({
         // Set the draft ID if we're opening an existing draft
         if (replyToEmail?.isDraft && replyToEmail?.id) {
           setDraftId(replyToEmail.id);
+
+          // Fetch full draft content with attachments if not present
+          if (replyToEmail.id && !replyToEmail.attachments) {
+            fetch(`/api/gmail/emails/${replyToEmail.id}`)
+              .then((res) => res.json())
+              .then((data) => {
+                if (data.success && data.email) {
+                  // Update replyToEmail with attachments
+                  Object.assign(replyToEmail, {
+                    attachments: data.email.attachments || [],
+                  });
+                  console.log(
+                    "Fetched attachments for draft:",
+                    data.email.attachments
+                  );
+                }
+              })
+              .catch((err) =>
+                console.error("Error fetching draft attachments:", err)
+              );
+          }
         }
         // Clear input fields when opening existing draft to avoid duplicates
         setTo("");
@@ -262,10 +283,75 @@ export function ComposeEmail({
         ALLOW_DATA_ATTR: true,
       });
 
-      editorRef.current.innerHTML = cleanHTML;
-      setBody(cleanHTML);
+      // Replace cid: references in img tags
+      // For compose/reply: if we have replyToEmail context with attachments, convert cid: to API URLs
+      let sanitizedHTML = cleanHTML;
+
+      // Wait a bit for attachments to load if they're being fetched
+      if (replyToEmail?.isDraft && !replyToEmail?.attachments) {
+        console.log("Waiting for attachments to load...");
+        // The sanitization will run again when attachments are loaded
+        editorRef.current.innerHTML = cleanHTML;
+        setBody(cleanHTML);
+        return; // Exit early, will re-run when attachments are available
+      }
+
+      // First, handle cid: references in img src attributes
+      sanitizedHTML = sanitizedHTML.replace(
+        /<img([^>]*)src="cid:([^"]+)"([^>]*)>/gi,
+        (match, beforeSrc, cidValue, afterSrc) => {
+          console.log("Found cid: reference:", cidValue);
+          console.log("replyToEmail:", replyToEmail);
+          console.log("replyToEmail attachments:", replyToEmail?.attachments);
+
+          // For reply emails, try to find the attachment
+          if (replyToEmail?.id && replyToEmail?.attachments) {
+            const cleanCid = cidValue.replace(/[<>]/g, "");
+            console.log("Searching for attachment with cid:", cleanCid);
+
+            const attachment = replyToEmail.attachments.find((att: any) => {
+              console.log("Checking attachment:", {
+                contentId: att.contentId,
+                attachmentId: att.attachmentId,
+                filename: att.filename,
+              });
+              return (
+                att.contentId === cidValue ||
+                att.contentId === `<${cidValue}>` ||
+                att.contentId?.includes(cleanCid) ||
+                att.contentId?.replace(/[<>]/g, "") === cleanCid
+              );
+            });
+
+            if (attachment) {
+              console.log("Found matching attachment:", attachment);
+              // Use the attachment API endpoint
+              const attachmentUrl = `/api/gmail/attachments/${replyToEmail.id}/${attachment.attachmentId}?preview=true`;
+              console.log("Using attachment URL:", attachmentUrl);
+              return match.replace(
+                /src="cid:[^"]+"/gi,
+                `src="${attachmentUrl}"`
+              );
+            } else {
+              console.log("No matching attachment found for cid:", cidValue);
+            }
+          }
+
+          // If no attachment found or not a reply, keep the placeholder
+          console.log("Using placeholder for cid:", cidValue);
+          const placeholderSrc =
+            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='12'%3EImage%3C/text%3E%3C/svg%3E";
+          return match.replace(/src="cid:[^"]+"/gi, `src="${placeholderSrc}"`);
+        }
+      );
+
+      // Second, remove any remaining cid: references in other attributes
+      sanitizedHTML = sanitizedHTML.replace(/cid:[^"'\s>]+/gi, "");
+
+      editorRef.current.innerHTML = sanitizedHTML;
+      setBody(sanitizedHTML);
     }
-  }, [initialBody, replyToEmail]);
+  }, [initialBody, replyToEmail, replyToEmail?.attachments]);
 
   // Manual save draft function (for explicit saves)
   const saveDraftManually = async () => {

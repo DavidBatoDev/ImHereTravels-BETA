@@ -7,10 +7,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ImagePreviewModal } from "./ImagePreviewModal";
+import { PDFPreviewModal } from "./PDFPreviewModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmailAvatar } from "@/components/ui/email-avatar";
+import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +36,9 @@ import {
   ChevronUp,
   Paperclip,
   Download,
+  X,
+  Eye,
+  Copy,
 } from "lucide-react";
 
 // Gmail Email type
@@ -139,11 +145,25 @@ export function EmailViewModal({
   onForward,
   onGmailOpen,
 }: EmailViewModalProps) {
+  const { toast } = useToast();
   const [threadEmails, setThreadEmails] = useState<GmailEmail[]>([]);
   const [isLoadingThread, setIsLoadingThread] = useState(false);
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
   const [expandedQuotes, setExpandedQuotes] = useState<Set<string>>(new Set());
   const [showAllEmails, setShowAllEmails] = useState(false); // New state for collapsing middle emails
+
+  // State for attachment preview modal
+  const [previewAttachment, setPreviewAttachment] = useState<{
+    url: string;
+    mimeType: string;
+    filename: string;
+  } | null>(null);
+
+  // State for PDF preview modal
+  const [previewPDF, setPreviewPDF] = useState<{
+    url: string;
+    filename: string;
+  } | null>(null);
 
   // Fetch thread emails when selectedEmail changes
   useEffect(() => {
@@ -236,14 +256,47 @@ export function EmailViewModal({
     }
   };
 
-  // Handle attachment download
-  const handleAttachmentDownload = async (
+  // Handle attachment click - show modal for images, open PDF in new tab
+  const handleAttachmentClick = async (
     messageId: string,
     attachment: GmailAttachment
   ) => {
     try {
-      console.log("Downloading attachment:", attachment.filename);
+      console.log(
+        "Handling attachment:",
+        attachment.filename,
+        attachment.mimeType
+      );
 
+      // If it's a PDF, show in modal
+      if (attachment.mimeType === "application/pdf") {
+        const url = `/api/gmail/attachments/${messageId}/${attachment.attachmentId}?preview=true`;
+        setPreviewPDF({
+          url,
+          filename: attachment.filename,
+        });
+        return;
+      }
+
+      // If it's an image, preload it first then show in modal
+      if (attachment.mimeType?.startsWith("image/")) {
+        const url = `/api/gmail/attachments/${messageId}/${attachment.attachmentId}?preview=true`;
+
+        // Create a new image to preload
+        const img = new Image();
+        img.onload = () => {
+          // Image is now in browser cache, safe to open modal
+          setPreviewAttachment({
+            url,
+            mimeType: attachment.mimeType,
+            filename: attachment.filename,
+          });
+        };
+        img.src = url;
+        return;
+      }
+
+      // For other files, download them
       const response = await fetch(
         `/api/gmail/attachments/${messageId}/${attachment.attachmentId}`
       );
@@ -265,23 +318,23 @@ export function EmailViewModal({
         }
 
         const blob = new Blob([bytes], { type: attachment.mimeType });
-        const url = URL.createObjectURL(blob);
+        const blobUrl = URL.createObjectURL(blob);
 
         // Create download link
         const a = document.createElement("a");
-        a.href = url;
+        a.href = blobUrl;
         a.download = attachment.filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        URL.revokeObjectURL(blobUrl);
 
         console.log("Download completed:", attachment.filename);
       } else {
         throw new Error(data.error);
       }
     } catch (error) {
-      console.error("Error downloading attachment:", error);
+      console.error("Error handling attachment:", error);
       // You could add a toast notification here
     }
   };
@@ -471,65 +524,43 @@ export function EmailViewModal({
     return "File";
   };
 
-  // Helper function to replace cid: references with attachment URLs
-  const sanitizeCidReferences = (html: string, email: GmailEmail): string => {
-    if (!html || !email.attachments || email.attachments.length === 0) {
-      return html;
-    }
-
-    let sanitized = html;
-
-    // Escape regex special characters
-    const escapeRegExp = (string: string): string => {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    };
-
-    email.attachments.forEach((attachment) => {
-      if (attachment.contentId) {
-        // Remove angle brackets from contentId if present
-        const cleanContentId = attachment.contentId.replace(/[<>]/g, "");
-        // Replace cid: references in various formats
-        sanitized = sanitized.replace(
-          new RegExp(`cid:${escapeRegExp(cleanContentId)}`, "gi"),
-          `/api/gmail/attachments/${email.id}/${attachment.attachmentId}`
-        );
-        // Also replace quoted cid: references in src attributes
-        sanitized = sanitized.replace(
-          new RegExp(`src=["']cid:${escapeRegExp(cleanContentId)}["']`, "gi"),
-          `src="/api/gmail/attachments/${email.id}/${attachment.attachmentId}"`
-        );
-      }
-    });
-
-    return sanitized;
-  };
-
   // Process HTML content to handle gmail_quote expansion
   const processEmailContent = (htmlContent: string, emailId: string) => {
     const isQuoteExpanded = expandedQuotes.has(emailId);
-
-    // Find the email data for this emailId (from threadEmails or selectedEmail)
-    const email = threadEmails.find((e) => e.id === emailId) || selectedEmail;
-
-    // Sanitize cid: references first
-    let sanitizedContent = sanitizeCidReferences(htmlContent, email);
 
     // Debug: Log the content to see what we're working with
     console.log("Processing email content for ID:", emailId);
     console.log("Is quote expanded:", isQuoteExpanded);
 
+    // Client-side fallback: Replace any remaining cid: references to prevent broken images
+    let safeHtml = htmlContent;
+    const cidMatches = safeHtml.match(/cid:[^"'\s>]+/g);
+    if (cidMatches && cidMatches.length > 0) {
+      console.log(
+        "WARNING: Found cid: references that weren't replaced:",
+        cidMatches
+      );
+      // Replace with a placeholder to prevent browser errors
+      cidMatches.forEach((cidRef) => {
+        safeHtml = safeHtml.replace(new RegExp(cidRef, "g"), "");
+      });
+    }
+
+    // Note: cid: references are normally processed on the server side
+    // to data URLs during email fetch. If they still exist, we remove them here to prevent errors.
+
     // Check if content has various quote patterns
     const hasGmailQuote =
-      sanitizedContent.includes("gmail_quote") ||
-      /class[^>]*=["'][^"']*gmail_quote[^"']*["']/i.test(sanitizedContent) ||
-      /<div[^>]*class[^>]*gmail_quote[^>]*>/i.test(sanitizedContent);
+      safeHtml.includes("gmail_quote") ||
+      /class[^>]*=["'][^"']*gmail_quote[^"']*["']/i.test(safeHtml) ||
+      /<div[^>]*class[^>]*gmail_quote[^>]*>/i.test(safeHtml);
 
     const hasZmailQuote =
-      sanitizedContent.includes("blockquote_zmail") ||
-      sanitizedContent.includes("zmail_extra") ||
-      sanitizedContent.includes('id="blockquote_zmail"');
+      safeHtml.includes("blockquote_zmail") ||
+      safeHtml.includes("zmail_extra") ||
+      safeHtml.includes('id="blockquote_zmail"');
 
-    const hasGenericBlockquote = sanitizedContent.includes("<blockquote");
+    const hasGenericBlockquote = safeHtml.includes("<blockquote");
 
     console.log("Gmail quote found:", hasGmailQuote);
     console.log("Zmail quote found:", hasZmailQuote);
@@ -537,7 +568,7 @@ export function EmailViewModal({
 
     // Additional debug for Gmail quote patterns
     if (hasGmailQuote) {
-      const gmailQuoteMatch = htmlContent.match(
+      const gmailQuoteMatch = safeHtml.match(
         /<div[^>]*class[^>]*gmail_quote[^>]*>/i
       );
       if (gmailQuoteMatch) {
@@ -547,7 +578,7 @@ export function EmailViewModal({
 
     if (!hasGmailQuote && !hasZmailQuote && !hasGenericBlockquote) {
       console.log("No quote patterns found in content");
-      return htmlContent;
+      return safeHtml;
     }
 
     // Try different splitting patterns based on what we found
@@ -559,40 +590,40 @@ export function EmailViewModal({
     if (hasGmailQuote) {
       // Handle Gmail quotes first (highest priority)
       // Try to find the exact Gmail quote div with flexible class matching
-      const gmailQuoteMatch = sanitizedContent.match(
+      const gmailQuoteMatch = safeHtml.match(
         /<div[^>]*class[^>]*gmail_quote[^>]*>/i
       );
 
       if (gmailQuoteMatch) {
-        parts = sanitizedContent.split(gmailQuoteMatch[0]);
+        parts = safeHtml.split(gmailQuoteMatch[0]);
         splitPattern = gmailQuoteMatch[0];
         quoteMark = "gmail";
         console.log("Found Gmail quote with pattern:", gmailQuoteMatch[0]);
-      } else if (sanitizedContent.includes('<div class="gmail_quote">')) {
-        parts = sanitizedContent.split('<div class="gmail_quote">');
+      } else if (safeHtml.includes('<div class="gmail_quote">')) {
+        parts = safeHtml.split('<div class="gmail_quote">');
         splitPattern = '<div class="gmail_quote">';
         quoteMark = "gmail";
-      } else if (sanitizedContent.includes("<div class='gmail_quote'>")) {
-        parts = sanitizedContent.split("<div class='gmail_quote'>");
+      } else if (safeHtml.includes("<div class='gmail_quote'>")) {
+        parts = safeHtml.split("<div class='gmail_quote'>");
         splitPattern = "<div class='gmail_quote'>";
         quoteMark = "gmail";
       }
     } else if (hasZmailQuote) {
       // Handle Zoho Mail quotes (zmail_extra is usually the separator)
-      if (sanitizedContent.includes('class="zmail_extra"')) {
-        parts = sanitizedContent.split('<div class="zmail_extra"');
+      if (safeHtml.includes('class="zmail_extra"')) {
+        parts = safeHtml.split('<div class="zmail_extra"');
         splitPattern = '<div class="zmail_extra"';
         quoteMark = "zmail";
-      } else if (sanitizedContent.includes('id="blockquote_zmail"')) {
-        parts = sanitizedContent.split('<blockquote id="blockquote_zmail"');
+      } else if (safeHtml.includes('id="blockquote_zmail"')) {
+        parts = safeHtml.split('<blockquote id="blockquote_zmail"');
         splitPattern = '<blockquote id="blockquote_zmail"';
         quoteMark = "zmail";
       }
     } else if (hasGenericBlockquote) {
       // Handle generic blockquotes (fallback)
-      const blockquoteMatch = sanitizedContent.match(/<blockquote[^>]*>/);
+      const blockquoteMatch = safeHtml.match(/<blockquote[^>]*>/);
       if (blockquoteMatch) {
-        parts = sanitizedContent.split(blockquoteMatch[0]);
+        parts = safeHtml.split(blockquoteMatch[0]);
         splitPattern = blockquoteMatch[0];
         quoteMark = "generic";
       }
@@ -600,7 +631,7 @@ export function EmailViewModal({
 
     if (parts.length <= 1) {
       console.log("Could not split content into parts with any pattern");
-      return sanitizedContent;
+      return safeHtml;
     }
 
     console.log(
@@ -902,7 +933,7 @@ export function EmailViewModal({
                       key={`${email.id}-attachment-${index}`}
                       className="gmail-attachment-card group relative w-32 h-32 bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm cursor-pointer"
                       onClick={() =>
-                        handleAttachmentDownload(email.id, attachment)
+                        handleAttachmentClick(email.id, attachment)
                       }
                     >
                       {/* Preview/Icon Area */}
@@ -980,233 +1011,270 @@ export function EmailViewModal({
     );
   };
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={(open) => {
-        // Check if we should prevent closing due to Gmail/Theme button click
-        const windowFlag = (window as any).shouldPreventCloseGmail;
-        console.log(
-          "Dialog onOpenChange called, open:",
-          open,
-          "window flag:",
-          windowFlag
-        );
-        if (!open && windowFlag) {
-          console.log("Preventing dialog close due to Gmail button click");
-          return; // Don't close
-        }
+    <>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          // Don't close if image or PDF preview modal is open
+          if (!open && (previewAttachment || previewPDF)) {
+            console.log("Preventing dialog close - preview modal is open");
+            return;
+          }
 
-        onOpenChange(open);
-      }}
-      onInteractOutside={(e) => {
-        // Check if the click was on the Gmail button or theme toggle
-        const target = e.target as HTMLElement;
-        console.log("onInteractOutside called, target:", target);
-        const button = target?.closest("button");
-        const isButtonClick =
-          button?.title === "Open Gmail in new tab" ||
-          target?.closest("[data-gmail-button]") ||
-          target?.closest("[data-theme-toggle]");
-        console.log("Is button click:", isButtonClick, button?.title);
-        if (isButtonClick) {
-          console.log("Preventing dialog close due to button click");
-          e.preventDefault();
-        } else {
-          console.log("Allowing dialog to close");
-        }
-      }}
-    >
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
-        <DialogHeader className="sr-only">
-          <DialogTitle>{selectedEmail?.subject || "(no subject)"}</DialogTitle>
-        </DialogHeader>
+          // Check if we should prevent closing due to Gmail/Theme button click
+          const windowFlag = (window as any).shouldPreventCloseGmail;
+          console.log(
+            "Dialog onOpenChange called, open:",
+            open,
+            "window flag:",
+            windowFlag
+          );
+          if (!open && windowFlag) {
+            console.log("Preventing dialog close due to Gmail button click");
+            return; // Don't close
+          }
 
-        {/* Simplified Header with Actions and Subject Only */}
-        <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4">
-          {/* Top action bar */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" title="Mark as unread">
-                <Mail className="w-3 h-3" />
-              </Button>
-              <Button variant="ghost" size="sm" title="Add to Tasks">
-                <Calendar className="w-3 h-3" />
-              </Button>
-              <Separator orientation="vertical" className="mx-2 h-6" />
-              <Button variant="ghost" size="sm" title="Star">
-                {selectedEmail?.isStarred ? (
-                  <Star className="w-3 h-3 fill-current text-yellow-500" />
-                ) : (
-                  <StarOff className="w-3 h-3" />
-                )}
-              </Button>
-
-              {/* Gmail button inside modal header */}
-              <Button
-                variant="outline"
-                size="sm"
-                title="Open Gmail in new tab"
-                onClick={() => {
-                  if (onGmailOpen) {
-                    onGmailOpen();
-                  } else {
-                    window.open("https://mail.google.com", "_blank");
-                  }
-                }}
-                className="ml-2"
-              >
-                <svg viewBox="0 0 24 24" className="w-4 h-4">
-                  <path
-                    fill="currentColor"
-                    d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"
-                  />
-                </svg>
-              </Button>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <MoreVertical className="w-3 h-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="text-xs">
-                  <DropdownMenuItem
-                    onClick={() => selectedEmail && handleReply(selectedEmail)}
-                  >
-                    <Reply className="w-3 h-3 mr-2" />
-                    Reply
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      selectedEmail && handleForward(selectedEmail)
-                    }
-                  >
-                    <Forward className="w-3 h-3 mr-2" />
-                    Forward
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Archive className="w-3 h-3 mr-2" />
-                    Archive
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-red-600">
-                    <Trash2 className="w-3 h-3 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {/* Subject */}
-            <h1 className="text-lg font-medium text-gray-900 leading-tight">
+          onOpenChange(open);
+        }}
+        onInteractOutside={(e) => {
+          // Check if the click was on the Gmail button or theme toggle
+          const target = e.target as HTMLElement;
+          console.log("onInteractOutside called, target:", target);
+          const button = target?.closest("button");
+          const isButtonClick =
+            button?.title === "Open Gmail in new tab" ||
+            target?.closest("[data-gmail-button]") ||
+            target?.closest("[data-theme-toggle]");
+          console.log("Is button click:", isButtonClick, button?.title);
+          if (isButtonClick) {
+            console.log("Preventing dialog close due to button click");
+            e.preventDefault();
+          } else {
+            console.log("Allowing dialog to close");
+          }
+        }}
+      >
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
+          <DialogHeader className="sr-only">
+            <DialogTitle>
               {selectedEmail?.subject || "(no subject)"}
-            </h1>
-          </div>
-        </div>
+            </DialogTitle>
+          </DialogHeader>
 
-        {/* Thread Conversation View */}
-        <div className="flex-1 overflow-hidden flex flex-col min-h-[90vh]">
-          {isLoadingThread ? (
-            <div className="flex items-center justify-center flex-1 min-h-0">
-              <div className="flex items-center gap-3">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="text-gray-600 text-sm">
-                  Loading conversation...
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-auto h-full w-full">
-              <div className="px-6 py-4 space-y-6 w-full">
-                {(() => {
-                  const visibleEmails = getVisibleEmails();
+          {/* Simplified Header with Actions and Subject Only */}
+          <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4">
+            {/* Top action bar */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" title="Mark as unread">
+                  <Mail className="w-3 h-3" />
+                </Button>
+                <Button variant="ghost" size="sm" title="Add to Tasks">
+                  <Calendar className="w-3 h-3" />
+                </Button>
+                <Separator orientation="vertical" className="mx-2 h-6" />
+                <Button variant="ghost" size="sm" title="Star">
+                  {selectedEmail?.isStarred ? (
+                    <Star className="w-3 h-3 fill-current text-yellow-500" />
+                  ) : (
+                    <StarOff className="w-3 h-3" />
+                  )}
+                </Button>
 
-                  // If emails should be collapsed
-                  if (
-                    typeof visibleEmails === "object" &&
-                    "startEmails" in visibleEmails
-                  ) {
-                    const { startEmails, endEmails, collapsedCount } =
-                      visibleEmails;
+                {/* Gmail button inside modal header */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="Open Gmail in new tab"
+                  onClick={() => {
+                    if (onGmailOpen) {
+                      onGmailOpen();
+                    } else {
+                      window.open("https://mail.google.com", "_blank");
+                    }
+                  }}
+                  className="ml-2"
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4">
+                    <path
+                      fill="currentColor"
+                      d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"
+                    />
+                  </svg>
+                </Button>
 
-                    return (
-                      <>
-                        {/* First batch of emails */}
-                        {startEmails.map((email, index) => {
-                          const isExpanded = expandedEmails.has(email.id);
-                          const isLatest = false; // None of the start emails are latest
-                          return renderEmailItem(
-                            email,
-                            index,
-                            isExpanded,
-                            isLatest
-                          );
-                        })}
-
-                        {/* Collapsed emails indicator */}
-                        <div className="flex items-center justify-center py-4">
-                          <Button
-                            variant="ghost"
-                            onClick={toggleShowAllEmails}
-                            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm"
-                          >
-                            <ChevronDown className="w-4 h-4" />
-                            <span>
-                              Show {collapsedCount} hidden{" "}
-                              {collapsedCount === 1 ? "message" : "messages"}
-                            </span>
-                          </Button>
-                        </div>
-
-                        {/* Last batch of emails */}
-                        {endEmails.map((email, index) => {
-                          const isExpanded = expandedEmails.has(email.id);
-                          const isLatest = index === endEmails.length - 1; // Last email in endEmails is the latest
-                          const actualIndex =
-                            threadEmails.length - endEmails.length + index;
-                          return renderEmailItem(
-                            email,
-                            actualIndex,
-                            isExpanded,
-                            isLatest
-                          );
-                        })}
-                      </>
-                    );
-                  }
-
-                  // Show all emails (either small thread or expanded view)
-                  return (visibleEmails as GmailEmail[]).map((email, index) => {
-                    const isExpanded = expandedEmails.has(email.id);
-                    const isLatest = index === threadEmails.length - 1;
-                    return renderEmailItem(email, index, isExpanded, isLatest);
-                  });
-                })()}
-
-                {/* Show collapse button when all emails are visible and thread is large */}
-                {showAllEmails && threadEmails.length > COLLAPSE_THRESHOLD && (
-                  <div className="flex items-center justify-center py-4">
-                    <Button
-                      variant="ghost"
-                      onClick={toggleShowAllEmails}
-                      className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm"
-                    >
-                      <ChevronUp className="w-4 h-4" />
-                      <span>Hide messages</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <MoreVertical className="w-3 h-3" />
                     </Button>
-                  </div>
-                )}
-
-                {threadEmails.length === 0 && !isLoadingThread && (
-                  <div className="text-center py-12 text-gray-500">
-                    <Mail className="w-8 h-8 text-gray-300 mx-auto mb-4" />
-                    <p className="text-xs">No emails in this conversation</p>
-                  </div>
-                )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="text-xs">
+                    <DropdownMenuItem
+                      onClick={() =>
+                        selectedEmail && handleReply(selectedEmail)
+                      }
+                    >
+                      <Reply className="w-3 h-3 mr-2" />
+                      Reply
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        selectedEmail && handleForward(selectedEmail)
+                      }
+                    >
+                      <Forward className="w-3 h-3 mr-2" />
+                      Forward
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Archive className="w-3 h-3 mr-2" />
+                      Archive
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-red-600">
+                      <Trash2 className="w-3 h-3 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
+
+              {/* Subject */}
+              <h1 className="text-lg font-medium text-gray-900 leading-tight">
+                {selectedEmail?.subject || "(no subject)"}
+              </h1>
             </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+          </div>
+
+          {/* Thread Conversation View */}
+          <div className="flex-1 overflow-hidden flex flex-col min-h-[90vh]">
+            {isLoadingThread ? (
+              <div className="flex items-center justify-center flex-1 min-h-0">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="text-gray-600 text-sm">
+                    Loading conversation...
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-auto h-full w-full">
+                <div className="px-6 py-4 space-y-6 w-full">
+                  {(() => {
+                    const visibleEmails = getVisibleEmails();
+
+                    // If emails should be collapsed
+                    if (
+                      typeof visibleEmails === "object" &&
+                      "startEmails" in visibleEmails
+                    ) {
+                      const { startEmails, endEmails, collapsedCount } =
+                        visibleEmails;
+
+                      return (
+                        <>
+                          {/* First batch of emails */}
+                          {startEmails.map((email, index) => {
+                            const isExpanded = expandedEmails.has(email.id);
+                            const isLatest = false; // None of the start emails are latest
+                            return renderEmailItem(
+                              email,
+                              index,
+                              isExpanded,
+                              isLatest
+                            );
+                          })}
+
+                          {/* Collapsed emails indicator */}
+                          <div className="flex items-center justify-center py-4">
+                            <Button
+                              variant="ghost"
+                              onClick={toggleShowAllEmails}
+                              className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm"
+                            >
+                              <ChevronDown className="w-4 h-4" />
+                              <span>
+                                Show {collapsedCount} hidden{" "}
+                                {collapsedCount === 1 ? "message" : "messages"}
+                              </span>
+                            </Button>
+                          </div>
+
+                          {/* Last batch of emails */}
+                          {endEmails.map((email, index) => {
+                            const isExpanded = expandedEmails.has(email.id);
+                            const isLatest = index === endEmails.length - 1; // Last email in endEmails is the latest
+                            const actualIndex =
+                              threadEmails.length - endEmails.length + index;
+                            return renderEmailItem(
+                              email,
+                              actualIndex,
+                              isExpanded,
+                              isLatest
+                            );
+                          })}
+                        </>
+                      );
+                    }
+
+                    // Show all emails (either small thread or expanded view)
+                    return (visibleEmails as GmailEmail[]).map(
+                      (email, index) => {
+                        const isExpanded = expandedEmails.has(email.id);
+                        const isLatest = index === threadEmails.length - 1;
+                        return renderEmailItem(
+                          email,
+                          index,
+                          isExpanded,
+                          isLatest
+                        );
+                      }
+                    );
+                  })()}
+
+                  {/* Show collapse button when all emails are visible and thread is large */}
+                  {showAllEmails &&
+                    threadEmails.length > COLLAPSE_THRESHOLD && (
+                      <div className="flex items-center justify-center py-4">
+                        <Button
+                          variant="ghost"
+                          onClick={toggleShowAllEmails}
+                          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm"
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                          <span>Hide messages</span>
+                        </Button>
+                      </div>
+                    )}
+
+                  {threadEmails.length === 0 && !isLoadingThread && (
+                    <div className="text-center py-12 text-gray-500">
+                      <Mail className="w-8 h-8 text-gray-300 mx-auto mb-4" />
+                      <p className="text-xs">No emails in this conversation</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Preview Modal */}
+      <ImagePreviewModal
+        isOpen={!!previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+        imageUrl={previewAttachment?.url || ""}
+        filename={previewAttachment?.filename || ""}
+        mimeType={previewAttachment?.mimeType || ""}
+      />
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        isOpen={!!previewPDF}
+        onClose={() => setPreviewPDF(null)}
+        pdfUrl={previewPDF?.url || ""}
+        filename={previewPDF?.filename || ""}
+      />
+    </>
   );
 }

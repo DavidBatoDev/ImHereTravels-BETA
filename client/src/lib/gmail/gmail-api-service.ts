@@ -238,9 +238,173 @@ export class GmailApiService {
         message.payload
       );
 
+      // Fetch and replace inline attachments with base64 data URLs
+      let processedHtmlContent = htmlContent;
+
+      if (htmlContent) {
+        // Find all inline attachments (parts with Content-ID but no filename or with attachmentId)
+        const inlineAttachments: any[] = [];
+
+        const findInlineAttachments = (parts: any[]) => {
+          parts.forEach((part: any) => {
+            const allHeaders = part.headers || [];
+            console.log(
+              "Part headers:",
+              allHeaders.map((h: any) => `${h.name}=${h.value}`)
+            );
+            console.log("Part details:", {
+              mimeType: part.mimeType,
+              attachmentId: part.body?.attachmentId,
+              hasParts: !!part.parts,
+            });
+
+            const contentId = allHeaders.find(
+              (h: any) => h.name.toLowerCase() === "content-id"
+            )?.value;
+
+            // Check if this is an image attachment (with or without Content-ID)
+            if (
+              part.body?.attachmentId &&
+              part.mimeType?.startsWith("image/")
+            ) {
+              console.log("Found image attachment:", {
+                mimeType: part.mimeType,
+                attachmentId: part.body.attachmentId,
+                contentId: contentId || "NO CONTENT-ID",
+              });
+
+              if (contentId) {
+                inlineAttachments.push({
+                  attachmentId: part.body.attachmentId,
+                  mimeType: part.mimeType,
+                  contentId: contentId,
+                });
+              } else {
+                // Still add it in case we can map it
+                inlineAttachments.push({
+                  attachmentId: part.body.attachmentId,
+                  mimeType: part.mimeType,
+                  contentId: null,
+                });
+              }
+            }
+
+            // Recursively check nested parts
+            if (part.parts && part.parts.length > 0) {
+              findInlineAttachments(part.parts);
+            }
+          });
+        };
+
+        if (message.payload?.parts) {
+          findInlineAttachments(message.payload.parts);
+        }
+
+        console.log(
+          `Found ${inlineAttachments.length} inline attachments to process`
+        );
+
+        // Process each inline attachment
+        for (const attachment of inlineAttachments) {
+          try {
+            if (!attachment.contentId) {
+              console.log(
+                `Skipping attachment without contentId: ${attachment.attachmentId}`
+              );
+              continue;
+            }
+
+            console.log(
+              `Processing inline attachment: ${attachment.contentId} -> ${attachment.attachmentId}`
+            );
+
+            // Download attachment data - this should already have the base64 data
+            const attachmentData = await this.downloadAttachment(
+              messageId,
+              attachment.attachmentId
+            );
+
+            console.log("Attachment data received:", {
+              hasData: !!attachmentData.data,
+              dataLength: attachmentData.data?.length,
+              size: attachmentData.size,
+            });
+
+            // Convert to data URL
+            const cleanContentId = attachment.contentId.replace(/[<>]/g, "");
+            const base64Data = attachmentData.data
+              .replace(/-/g, "+")
+              .replace(/_/g, "/");
+            const dataUrl = `data:${attachment.mimeType};base64,${base64Data}`;
+
+            console.log(
+              `Replacing cid:${cleanContentId} with data URL (length: ${dataUrl.length})`
+            );
+
+            // Replace cid: references in HTML with data URL
+            const regexPattern = new RegExp(
+              `cid:${cleanContentId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+              "gi"
+            );
+            const newContent = processedHtmlContent.replace(
+              regexPattern,
+              dataUrl
+            );
+
+            if (newContent !== processedHtmlContent) {
+              console.log(
+                `SUCCESS: Replaced cid:${cleanContentId} with data URL`
+              );
+              processedHtmlContent = newContent;
+            } else {
+              console.log(
+                `WARNING: No cid:${cleanContentId} found in HTML to replace`
+              );
+              console.log(`Sample HTML: ${htmlContent.substring(0, 500)}`);
+
+              // Try with angle brackets
+              const withAngleBrackets = `<${cleanContentId}>`;
+              const regexPattern2 = new RegExp(
+                `cid:${withAngleBrackets.replace(
+                  /[.*+?^${}()|[\]\\]/g,
+                  "\\$&"
+                )}`,
+                "gi"
+              );
+              const newContent2 = processedHtmlContent.replace(
+                regexPattern2,
+                dataUrl
+              );
+              if (newContent2 !== processedHtmlContent) {
+                console.log(
+                  `SUCCESS: Replaced cid:<${cleanContentId}> with data URL`
+                );
+                processedHtmlContent = newContent2;
+              }
+            }
+          } catch (error) {
+            console.error(
+              `Failed to process inline attachment ${attachment.attachmentId}:`,
+              error
+            );
+            // Continue with other attachments even if one fails
+          }
+        }
+
+        // After processing all attachments, check if there are still any cid: references left
+        const remainingCidReferences =
+          processedHtmlContent.match(/cid:[^"'\s>]+/g);
+        if (remainingCidReferences && remainingCidReferences.length > 0) {
+          console.log(
+            "WARNING: Still have cid: references after processing:",
+            remainingCidReferences
+          );
+        }
+      }
+
       return {
         ...parsedEmail,
-        htmlContent,
+        htmlContent: processedHtmlContent,
         textContent,
       };
     } catch (error) {

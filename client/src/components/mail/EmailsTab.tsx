@@ -456,25 +456,8 @@ export default function EmailsTab() {
     // Remove Gmail-specific interactive elements and buttons
     let sanitized = html;
 
-    // Replace cid: references with actual attachment URLs
-    if (email?.attachments && email.attachments.length > 0 && messageId) {
-      email.attachments.forEach((attachment) => {
-        if (attachment.contentId) {
-          // Remove angle brackets from contentId if present
-          const cleanContentId = attachment.contentId.replace(/[<>]/g, "");
-          // Replace cid: references in img src
-          sanitized = sanitized.replace(
-            new RegExp(`cid:${escapeRegExp(cleanContentId)}`, "gi"),
-            `/api/gmail/attachments/${messageId}/${attachment.attachmentId}`
-          );
-          // Also replace cid: references in a href
-          sanitized = sanitized.replace(
-            new RegExp(`src=["']cid:${escapeRegExp(cleanContentId)}["']`, "gi"),
-            `src="/api/gmail/attachments/${messageId}/${attachment.attachmentId}"`
-          );
-        }
-      });
-    }
+    // Note: cid: references are already processed on the server side
+    // to base64 data URLs during email fetch, so no need to handle them here
 
     // Remove Gmail download buttons and overlays
     sanitized = sanitized.replace(/<div class="a6S"[^>]*>.*?<\/div>/gs, "");
