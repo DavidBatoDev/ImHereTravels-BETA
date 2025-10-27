@@ -200,7 +200,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
   },
   {
     columnName: "Tour Duration",
-    dataType: "number",
+    dataType: "string",
     includeInForms: true,
 
     parentTab: "Tour Details",

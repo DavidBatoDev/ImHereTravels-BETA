@@ -79,6 +79,10 @@ export default function EditBookingModal({
   const [localFieldValues, setLocalFieldValues] = useState<Record<string, any>>(
     {}
   );
+  // Track pending changes that haven't been saved to Firebase yet
+  const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({});
+  // Track original values when editing starts to detect actual changes
+  const [originalValues, setOriginalValues] = useState<Record<string, any>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
@@ -571,23 +575,34 @@ export default function EditBookingModal({
 
   const handleFieldChange = useCallback(
     (columnId: string, value: any) => {
-      console.log(
-        `⌨️ [EDIT BOOKING MODAL] Field change: ${columnId} = ${value}`
-      );
+      // LOCAL FIRST: Update all state in one batch to minimize re-renders
+      // Only update if these haven't been set yet (first keystroke)
+      setActiveEditingFields((prev) => {
+        if (prev.has(columnId)) return prev;
+        const newSet = new Set(prev);
+        newSet.add(columnId);
+        return newSet;
+      });
 
-      // LOCAL FIRST: Mark this field as actively being edited
-      setActiveEditingFields((prev) => new Set([...prev, columnId]));
-      setLocalFieldValues((prev) => ({ ...prev, [columnId]: value }));
+      // Always update local values on keystroke - this is fine for performance
+      setLocalFieldValues((prev) => {
+        if (prev[columnId] === value) return prev;
+        return { ...prev, [columnId]: value };
+      });
 
-      // Update form data immediately for responsive UI
-      const updatedData = {
-        ...formData,
-        [columnId]: value,
-      };
+      // Store the original value the first time we start editing this field
+      setOriginalValues((prev) => {
+        if (columnId in prev) return prev;
+        return { ...prev, [columnId]: formData[columnId as keyof Booking] };
+      });
 
-      setFormData(updatedData);
+      // Store pending change (will be saved on blur)
+      setPendingChanges((prev) => {
+        if (prev[columnId] === value) return prev;
+        return { ...prev, [columnId]: value };
+      });
 
-      // Clear error for this field immediately
+      // Clear error for this field if it exists (only runs once)
       if (fieldErrors[columnId]) {
         setFieldErrors((prev) => {
           const newErrors = { ...prev };
@@ -595,65 +610,149 @@ export default function EditBookingModal({
           return newErrors;
         });
       }
-
-      // Show saving indicator
-      setIsSaving(true);
-      debouncedSaveIndicator();
-
-      // Queue update to Firebase for persistence
-      if (booking?.id) {
-        batchedWriter.queueFieldUpdate(booking.id, columnId, value);
-      }
-
-      // Trigger debounced function execution for immediate UI feedback
-      debouncedExecuteFunctions(columnId, updatedData);
     },
-    [
-      formData,
-      fieldErrors,
-      booking?.id,
-      debouncedExecuteFunctions,
-      debouncedSaveIndicator,
-    ]
+    [formData, fieldErrors]
   );
 
-  // Get form value for a column (LOCAL FIRST pattern)
-  const getFormValue = (column: SheetColumn): any => {
-    // LOCAL FIRST: If user is actively editing this field, use local value
-    if (activeEditingFields.has(column.id) && column.id in localFieldValues) {
-      return localFieldValues[column.id];
-    }
-    // Otherwise use formData (which gets updated by Firebase)
-    return formData[column.id as keyof Booking] || "";
-  };
+  // Get form value for a column (LOCAL FIRST pattern) - memoized for performance
+  const getFormValue = useCallback(
+    (column: SheetColumn): any => {
+      // For function fields: ONLY use formData (Firebase source of truth), ignore local edits
+      if (column.dataType === "function") {
+        return formData[column.id as keyof Booking] || "";
+      }
+
+      // For editable fields: LOCAL FIRST - If user is actively editing this field, use local value
+      if (activeEditingFields.has(column.id) && column.id in localFieldValues) {
+        return localFieldValues[column.id];
+      }
+
+      // Otherwise use formData (which gets updated by Firebase)
+      return formData[column.id as keyof Booking] || "";
+    },
+    [activeEditingFields, localFieldValues, formData]
+  );
 
   // Handle when user finishes editing a field (LOCAL FIRST pattern)
-  const handleFieldBlur = useCallback((columnId: string) => {
-    console.log(`📝 [EDIT BOOKING MODAL] Field editing finished: ${columnId}`);
-    // Remove from active editing set after a short delay to allow for quick refocusing
-    setTimeout(() => {
-      setActiveEditingFields((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(columnId);
-        return newSet;
+  const handleFieldBlur = useCallback(
+    (columnId: string) => {
+      console.log(
+        `📝 [EDIT BOOKING MODAL] Field editing finished: ${columnId}`
+      );
+
+      // Get pending change value
+      const pendingValue = pendingChanges[columnId];
+      const originalValue = originalValues[columnId];
+
+      // Only save to Firebase if the value has actually changed from original
+      if (pendingValue !== undefined && pendingValue !== originalValue) {
+        console.log(
+          `💾 [EDIT BOOKING MODAL] Saving to Firebase: ${columnId} = ${pendingValue}`
+        );
+
+        // Show saving indicator
+        setIsSaving(true);
+        debouncedSaveIndicator();
+
+        // Queue update to Firebase for persistence
+        if (booking?.id) {
+          batchedWriter.queueFieldUpdate(booking.id, columnId, pendingValue);
+        }
+
+        // Create updated data with the new value
+        const updatedData = {
+          ...formData,
+          [columnId]: pendingValue,
+        };
+
+        // Update formData with the new value for display
+        setFormData(updatedData);
+
+        // Execute dependent functions immediately using the updated data
+        // No debounce here - execute immediately on blur for better UX
+        executeDirectDependents(columnId, updatedData).then((finalData) => {
+          if (finalData) {
+            setFormData(finalData);
+          }
+        });
+      }
+
+      // Remove from pending changes
+      setPendingChanges((prev) => {
+        const newPending = { ...prev };
+        delete newPending[columnId];
+        return newPending;
       });
-      setLocalFieldValues((prev) => {
-        const newValues = { ...prev };
-        delete newValues[columnId];
-        return newValues;
+
+      // Remove from original values
+      setOriginalValues((prev) => {
+        const newOriginal = { ...prev };
+        delete newOriginal[columnId];
+        return newOriginal;
       });
-    }, 100); // Small delay to handle rapid focus changes
-  }, []);
+
+      // Remove from active editing set after a short delay to allow for quick refocusing
+      setTimeout(() => {
+        setActiveEditingFields((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(columnId);
+          return newSet;
+        });
+        setLocalFieldValues((prev) => {
+          const newValues = { ...prev };
+          delete newValues[columnId];
+          return newValues;
+        });
+      }, 100); // Small delay to handle rapid focus changes
+    },
+    [
+      pendingChanges,
+      originalValues,
+      formData,
+      booking?.id,
+      debouncedSaveIndicator,
+      executeDirectDependents,
+    ]
+  );
 
   // Handle key events during editing
   const handleFieldKeyDown = useCallback(
     (e: React.KeyboardEvent, columnId: string) => {
       if (e.key === "Enter" || e.key === "Tab") {
-        // User is done editing this field
+        // Prevent default to avoid unwanted behavior
+        e.preventDefault();
+
+        // User is done editing this field - save changes on blur
         handleFieldBlur(columnId);
+
+        // Remove focus from the input by blurring the active element
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
       }
       if (e.key === "Escape") {
-        // User cancelled editing - revert to Firebase value
+        // Prevent default to avoid unwanted behavior
+        e.preventDefault();
+
+        // User cancelled editing - discard pending changes and revert to Firebase value
+        console.log(
+          `🚫 [EDIT BOOKING MODAL] Discarding changes for: ${columnId}`
+        );
+
+        // Remove from pending changes without saving
+        setPendingChanges((prev) => {
+          const newPending = { ...prev };
+          delete newPending[columnId];
+          return newPending;
+        });
+
+        // Remove from original values
+        setOriginalValues((prev) => {
+          const newOriginal = { ...prev };
+          delete newOriginal[columnId];
+          return newOriginal;
+        });
+
         setActiveEditingFields((prev) => {
           const newSet = new Set(prev);
           newSet.delete(columnId);
@@ -682,218 +781,289 @@ export default function EditBookingModal({
     return true;
   };
 
-  // Render form field based on column type
-  const renderFormField = (column: SheetColumn) => {
-    const value = getFormValue(column);
-    const isComputing = computingFields.has(column.id);
-    const error = fieldErrors[column.id];
-    const isFunction = column.dataType === "function";
-    // Only disable function columns, allow editing of all other fields regardless of includeInForms
-    const isReadOnly = isFunction;
+  // Render form field based on column type - memoized to prevent unnecessary re-renders
+  const renderFormField = useCallback(
+    (column: SheetColumn) => {
+      const value = getFormValue(column);
+      const isComputing = computingFields.has(column.id);
+      const error = fieldErrors[column.id];
+      const isFunction = column.dataType === "function";
+      // Only disable function columns, allow editing of all other fields regardless of includeInForms
+      const isReadOnly = isFunction;
 
-    const baseClasses = cn(
-      "w-full text-xs",
-      error && "border-red-500",
-      isReadOnly && "bg-muted cursor-not-allowed"
-    );
+      const baseClasses = cn(
+        "w-full text-xs",
+        error && "border-red-500",
+        isReadOnly && "bg-muted cursor-not-allowed"
+      );
 
-    const fieldId = `field-${column.id}`;
+      const fieldId = `field-${column.id}`;
 
-    switch (column.dataType) {
-      case "boolean":
-        return (
-          <div className="flex items-center space-x-2">
-            <Switch
+      switch (column.dataType) {
+        case "boolean":
+          return (
+            <div className="flex items-center space-x-2">
+              <Switch
+                id={fieldId}
+                checked={Boolean(value)}
+                onCheckedChange={(checked) => {
+                  // For switches, commit immediately to Firebase (discrete choice)
+                  if (booking?.id) {
+                    batchedWriter.queueFieldUpdate(
+                      booking.id,
+                      column.id,
+                      checked
+                    );
+                  }
+                  setFormData((prev) => ({ ...prev, [column.id]: checked }));
+                  setIsSaving(true);
+                  debouncedSaveIndicator();
+
+                  // Execute dependent functions immediately
+                  executeDirectDependents(column.id, {
+                    ...formData,
+                    [column.id]: checked,
+                  }).then((finalData) => {
+                    if (finalData) {
+                      setFormData(finalData);
+                    }
+                  });
+                }}
+                disabled={isReadOnly || isComputing}
+              />
+              <Label htmlFor={fieldId} className="text-xs font-medium">
+                {value ? "Yes" : "No"}
+              </Label>
+            </div>
+          );
+
+        case "date":
+          return (
+            <Input
               id={fieldId}
-              checked={Boolean(value)}
-              onCheckedChange={(checked) => {
-                handleFieldChange(column.id, checked);
-                // For switches, immediately finish editing since it's a discrete choice
-                setTimeout(() => handleFieldBlur(column.id), 50);
+              type="date"
+              value={(() => {
+                if (value) {
+                  try {
+                    let date: Date | null = null;
+                    if (
+                      value &&
+                      typeof value === "object" &&
+                      "toDate" in value &&
+                      typeof (value as any).toDate === "function"
+                    ) {
+                      date = (value as any).toDate();
+                    } else if (
+                      value &&
+                      typeof value === "object" &&
+                      "seconds" in value &&
+                      typeof (value as any).seconds === "number"
+                    ) {
+                      date = new Date((value as any).seconds * 1000);
+                    } else if (typeof value === "number") {
+                      if (value > 1000000000000) {
+                        date = new Date(value);
+                      } else {
+                        date = new Date(value * 1000);
+                      }
+                    } else if (typeof value === "string") {
+                      const numericValue = parseFloat(value);
+                      if (!isNaN(numericValue)) {
+                        if (numericValue > 1000000000000) {
+                          date = new Date(numericValue);
+                        } else {
+                          date = new Date(numericValue * 1000);
+                        }
+                      } else {
+                        date = new Date(value);
+                      }
+                    } else if (value instanceof Date) {
+                      date = value;
+                    }
+                    if (date && !isNaN(date.getTime())) {
+                      return date.toISOString().split("T")[0];
+                    }
+                  } catch (error) {
+                    console.error("Date conversion error:", error);
+                  }
+                }
+                return "";
+              })()}
+              onChange={(e) => {
+                const dateValue = e.target.value
+                  ? new Date(e.target.value)
+                  : null;
+
+                // For date picker, commit immediately to Firebase
+                if (booking?.id) {
+                  batchedWriter.queueFieldUpdate(
+                    booking.id,
+                    column.id,
+                    dateValue
+                  );
+                }
+                setFormData((prev) => ({ ...prev, [column.id]: dateValue }));
+                setIsSaving(true);
+                debouncedSaveIndicator();
+
+                // Execute dependent functions immediately
+                executeDirectDependents(column.id, {
+                  ...formData,
+                  [column.id]: dateValue,
+                }).then((finalData) => {
+                  if (finalData) {
+                    setFormData(finalData);
+                  }
+                });
               }}
+              onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
+              className={cn(
+                baseClasses,
+                "text-xs [&::-webkit-calendar-picker-indicator]:text-xs"
+              )}
               disabled={isReadOnly || isComputing}
             />
-            <Label htmlFor={fieldId} className="text-xs font-medium">
-              {value ? "Yes" : "No"}
-            </Label>
-          </div>
-        );
+          );
 
-      case "date":
-        return (
-          <Input
-            id={fieldId}
-            type="date"
-            value={(() => {
-              if (value) {
-                try {
-                  let date: Date | null = null;
-                  if (
-                    value &&
-                    typeof value === "object" &&
-                    "toDate" in value &&
-                    typeof (value as any).toDate === "function"
-                  ) {
-                    date = (value as any).toDate();
-                  } else if (
-                    value &&
-                    typeof value === "object" &&
-                    "seconds" in value &&
-                    typeof (value as any).seconds === "number"
-                  ) {
-                    date = new Date((value as any).seconds * 1000);
-                  } else if (typeof value === "number") {
-                    if (value > 1000000000000) {
-                      date = new Date(value);
-                    } else {
-                      date = new Date(value * 1000);
-                    }
-                  } else if (typeof value === "string") {
-                    const numericValue = parseFloat(value);
-                    if (!isNaN(numericValue)) {
-                      if (numericValue > 1000000000000) {
-                        date = new Date(numericValue);
-                      } else {
-                        date = new Date(numericValue * 1000);
-                      }
-                    } else {
-                      date = new Date(value);
-                    }
-                  } else if (value instanceof Date) {
-                    date = value;
-                  }
-                  if (date && !isNaN(date.getTime())) {
-                    return date.toISOString().split("T")[0];
-                  }
-                } catch (error) {
-                  console.error("Date conversion error:", error);
+        case "select":
+          return (
+            <Select
+              value={String(value || "")}
+              onValueChange={(newValue) => {
+                // For select, commit immediately to Firebase (discrete choice)
+                if (booking?.id) {
+                  batchedWriter.queueFieldUpdate(
+                    booking.id,
+                    column.id,
+                    newValue
+                  );
                 }
+                setFormData((prev) => ({ ...prev, [column.id]: newValue }));
+                setIsSaving(true);
+                debouncedSaveIndicator();
+
+                // Execute dependent functions immediately
+                executeDirectDependents(column.id, {
+                  ...formData,
+                  [column.id]: newValue,
+                }).then((finalData) => {
+                  if (finalData) {
+                    setFormData(finalData);
+                  }
+                });
+              }}
+              disabled={isReadOnly || isComputing}
+            >
+              <SelectTrigger className={baseClasses}>
+                <SelectValue placeholder={`Select ${column.columnName}`} />
+              </SelectTrigger>
+              <SelectContent>
+                {column.options?.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          );
+
+        case "number":
+        case "currency":
+          return (
+            <Input
+              id={fieldId}
+              type="number"
+              step={column.dataType === "currency" ? "0.01" : "any"}
+              value={String(value || "")}
+              onChange={(e) =>
+                handleFieldChange(column.id, Number(e.target.value) || 0)
               }
-              return "";
-            })()}
-            onChange={(e) => {
-              const dateValue = e.target.value
-                ? new Date(e.target.value)
-                : null;
-              handleFieldChange(column.id, dateValue);
-            }}
-            onBlur={() => handleFieldBlur(column.id)}
-            onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
-            className={cn(
-              baseClasses,
-              "text-xs [&::-webkit-calendar-picker-indicator]:text-xs"
-            )}
-            disabled={isReadOnly || isComputing}
-          />
-        );
+              onBlur={() => handleFieldBlur(column.id)}
+              onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
+              className={baseClasses}
+              disabled={isReadOnly || isComputing}
+              placeholder={`Enter ${column.columnName}`}
+            />
+          );
 
-      case "select":
-        return (
-          <Select
-            value={String(value || "")}
-            onValueChange={(newValue) => {
-              handleFieldChange(column.id, newValue);
-              // For select, immediately finish editing since it's a discrete choice
-              setTimeout(() => handleFieldBlur(column.id), 50);
-            }}
-            disabled={isReadOnly || isComputing}
-          >
-            <SelectTrigger className={baseClasses}>
-              <SelectValue placeholder={`Select ${column.columnName}`} />
-            </SelectTrigger>
-            <SelectContent>
-              {column.options?.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
+        case "function":
+          return (
+            <div className="flex items-center">
+              <Input
+                id={fieldId}
+                value={String(value || "")}
+                className={cn(
+                  "w-full font-mono bg-background",
+                  error && "border-red-500",
+                  isComputing && "opacity-50"
+                )}
+                disabled={true}
+                placeholder={isComputing ? "Computing..." : ""}
+              />
+              {isComputing && (
+                <RefreshCw className="ml-2 h-4 w-4 animate-spin text-royal-purple" />
+              )}
+            </div>
+          );
 
-      case "number":
-      case "currency":
-        return (
-          <Input
-            id={fieldId}
-            type="number"
-            step={column.dataType === "currency" ? "0.01" : "any"}
-            value={String(value || "")}
-            onChange={(e) =>
-              handleFieldChange(column.id, Number(e.target.value) || 0)
-            }
-            onBlur={() => handleFieldBlur(column.id)}
-            onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
-            className={baseClasses}
-            disabled={isReadOnly || isComputing}
-            placeholder={`Enter ${column.columnName}`}
-          />
-        );
+        case "email":
+          return (
+            <Input
+              id={fieldId}
+              type="email"
+              value={String(value || "")}
+              onChange={(e) => handleFieldChange(column.id, e.target.value)}
+              onBlur={() => handleFieldBlur(column.id)}
+              onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
+              className={baseClasses}
+              disabled={isReadOnly || isComputing}
+              placeholder={`Enter ${column.columnName}`}
+            />
+          );
 
-      case "function":
-        return (
-          <div className="flex items-center">
+        default: // string and others
+          return column.columnName.toLowerCase().includes("description") ||
+            column.columnName.toLowerCase().includes("reason") ||
+            column.columnName.toLowerCase().includes("notes") ? (
+            <Textarea
+              id={fieldId}
+              value={String(value || "")}
+              onChange={(e) => handleFieldChange(column.id, e.target.value)}
+              onBlur={() => handleFieldBlur(column.id)}
+              onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
+              className={baseClasses}
+              disabled={isReadOnly || isComputing}
+              placeholder={`Enter ${column.columnName}`}
+              rows={3}
+            />
+          ) : (
             <Input
               id={fieldId}
               value={String(value || "")}
-              className={cn(
-                "w-full font-mono bg-background",
-                error && "border-red-500",
-                isComputing && "opacity-50"
-              )}
-              disabled={true}
-              placeholder={isComputing ? "Computing..." : ""}
+              onChange={(e) => handleFieldChange(column.id, e.target.value)}
+              onBlur={() => handleFieldBlur(column.id)}
+              onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
+              className={baseClasses}
+              disabled={isReadOnly || isComputing}
+              placeholder={`Enter ${column.columnName}`}
             />
-            {isComputing && (
-              <RefreshCw className="ml-2 h-4 w-4 animate-spin text-royal-purple" />
-            )}
-          </div>
-        );
-
-      case "email":
-        return (
-          <Input
-            id={fieldId}
-            type="email"
-            value={String(value || "")}
-            onChange={(e) => handleFieldChange(column.id, e.target.value)}
-            onBlur={() => handleFieldBlur(column.id)}
-            onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
-            className={baseClasses}
-            disabled={isReadOnly || isComputing}
-            placeholder={`Enter ${column.columnName}`}
-          />
-        );
-
-      default: // string and others
-        return column.columnName.toLowerCase().includes("description") ||
-          column.columnName.toLowerCase().includes("reason") ||
-          column.columnName.toLowerCase().includes("notes") ? (
-          <Textarea
-            id={fieldId}
-            value={String(value || "")}
-            onChange={(e) => handleFieldChange(column.id, e.target.value)}
-            onBlur={() => handleFieldBlur(column.id)}
-            onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
-            className={baseClasses}
-            disabled={isReadOnly || isComputing}
-            placeholder={`Enter ${column.columnName}`}
-            rows={3}
-          />
-        ) : (
-          <Input
-            id={fieldId}
-            value={String(value || "")}
-            onChange={(e) => handleFieldChange(column.id, e.target.value)}
-            onBlur={() => handleFieldBlur(column.id)}
-            onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
-            className={baseClasses}
-            disabled={isReadOnly || isComputing}
-            placeholder={`Enter ${column.columnName}`}
-          />
-        );
-    }
-  };
+          );
+      }
+    },
+    [
+      getFormValue,
+      computingFields,
+      fieldErrors,
+      handleFieldChange,
+      handleFieldBlur,
+      handleFieldKeyDown,
+      booking?.id,
+      formData,
+      setIsSaving,
+      debouncedSaveIndicator,
+      executeDirectDependents,
+    ]
+  );
 
   // Handle close with computation check
   const handleClose = React.useCallback(() => {
@@ -906,6 +1076,16 @@ export default function EditBookingModal({
       return;
     }
 
+    // Save any pending changes before closing
+    if (Object.keys(pendingChanges).length > 0 && booking?.id) {
+      console.log(
+        "💾 [EDIT BOOKING MODAL] Saving pending changes before close"
+      );
+      Object.entries(pendingChanges).forEach(([columnId, value]) => {
+        batchedWriter.queueFieldUpdate(booking.id, columnId, value);
+      });
+    }
+
     // Clear any pending debounced executions
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -913,7 +1093,7 @@ export default function EditBookingModal({
     }
 
     onClose();
-  }, [computingFields.size, onClose, toast]);
+  }, [computingFields.size, pendingChanges, booking?.id, onClose, toast]);
 
   if (!booking) return null;
 

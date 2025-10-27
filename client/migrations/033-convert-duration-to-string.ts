@@ -7,7 +7,8 @@ import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 // ============================================================================
 
 const MIGRATION_ID = "033-convert-duration-to-string";
-const COLLECTION_NAME = "tourPackages";
+const TOUR_PACKAGES_COLLECTION = "tourPackages";
+const BOOKINGS_COLLECTION = "bookings";
 
 // ============================================================================
 // MIGRATION FUNCTIONS
@@ -45,7 +46,9 @@ function convertDurationToString(duration: any): any {
 
 export async function runMigration(dryRun: boolean = false) {
   console.log(`🚀 Starting migration: ${MIGRATION_ID}`);
-  console.log(`📊 Collection: ${COLLECTION_NAME}`);
+  console.log(
+    `📊 Collections: ${TOUR_PACKAGES_COLLECTION}, ${BOOKINGS_COLLECTION}`
+  );
   console.log(`🔍 Dry run: ${dryRun ? "YES" : "NO"}`);
   console.log("");
 
@@ -57,7 +60,9 @@ export async function runMigration(dryRun: boolean = false) {
 
   try {
     // Get all tour packages
-    const tourPackagesSnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    const tourPackagesSnapshot = await getDocs(
+      collection(db, TOUR_PACKAGES_COLLECTION)
+    );
 
     if (tourPackagesSnapshot.empty) {
       console.log("✅ No tour packages found");
@@ -105,7 +110,7 @@ export async function runMigration(dryRun: boolean = false) {
           console.log(`     Duration: ${currentDuration} → "${newDuration}"`);
 
           // Update the duration field
-          await updateDoc(doc(db, COLLECTION_NAME, docSnapshot.id), {
+          await updateDoc(doc(db, TOUR_PACKAGES_COLLECTION, docSnapshot.id), {
             duration: newDuration,
             metadata: {
               ...tourData.metadata,
@@ -128,9 +133,69 @@ export async function runMigration(dryRun: boolean = false) {
 
     console.log("");
 
+    // Now also handle bookings collection
+    console.log(`📝 Processing bookings collection...`);
+    const bookingsSnapshot = await getDocs(collection(db, BOOKINGS_COLLECTION));
+
+    if (!bookingsSnapshot.empty) {
+      console.log(`📝 Found ${bookingsSnapshot.size} bookings`);
+      console.log("   Converting tourDuration from number to string...");
+      console.log("");
+
+      for (const docSnapshot of bookingsSnapshot.docs) {
+        try {
+          const bookingData = docSnapshot.data();
+          const bookingName = bookingData.fullName || "Unknown Booking";
+          const currentDuration = bookingData.tourDuration;
+
+          // Check if duration is already a string
+          if (typeof currentDuration === "string") {
+            console.log(
+              `  ⏭️ Skipping: ${bookingName} (already string: "${currentDuration}")`
+            );
+            results.skipped++;
+            continue;
+          }
+
+          // Convert the duration
+          const newDuration = convertDurationToString(currentDuration);
+
+          if (dryRun) {
+            console.log(`  🔍 Would update: ${bookingName}`);
+            console.log(`     Duration: ${currentDuration} → "${newDuration}"`);
+            results.updated++;
+          } else {
+            console.log(`  🔄 Updating: ${bookingName}`);
+            console.log(`     Duration: ${currentDuration} → "${newDuration}"`);
+
+            // Update the duration field
+            await updateDoc(doc(db, BOOKINGS_COLLECTION, docSnapshot.id), {
+              tourDuration: newDuration,
+              metadata: {
+                ...bookingData.metadata,
+                updatedAt: Timestamp.now(),
+                updatedBy: "migration-script",
+                migratedBy: MIGRATION_ID,
+              },
+            });
+
+            results.updated++;
+          }
+        } catch (error) {
+          const errorMsg = `Failed to update booking ${
+            docSnapshot.data().fullName || "Unknown"
+          }: ${error}`;
+          console.error(`  ❌ ${errorMsg}`);
+          results.errors.push(errorMsg);
+        }
+      }
+    }
+
+    console.log("");
+
     if (dryRun) {
       return {
-        message: `Migration ${MIGRATION_ID} would update ${results.updated} tours in DRY RUN mode`,
+        message: `Migration ${MIGRATION_ID} would update ${results.updated} items in DRY RUN mode`,
         details: {
           updated: results.updated,
           skipped: results.skipped,
@@ -139,7 +204,7 @@ export async function runMigration(dryRun: boolean = false) {
       };
     } else {
       return {
-        message: `Migration ${MIGRATION_ID} completed successfully - updated ${results.updated} tours, skipped ${results.skipped} (already strings)`,
+        message: `Migration ${MIGRATION_ID} completed successfully - updated ${results.updated} items, skipped ${results.skipped} (already strings)`,
         details: {
           updated: results.updated,
           skipped: results.skipped,
@@ -165,7 +230,9 @@ export async function runMigration(dryRun: boolean = false) {
 
 export async function rollbackMigration() {
   console.log(`🔄 Rolling back migration: ${MIGRATION_ID}`);
-  console.log(`📊 Collection: ${COLLECTION_NAME}`);
+  console.log(
+    `📊 Collections: ${TOUR_PACKAGES_COLLECTION}, ${BOOKINGS_COLLECTION}`
+  );
   console.log("");
 
   const results = {
@@ -175,7 +242,9 @@ export async function rollbackMigration() {
 
   try {
     // Find all tour packages that were updated by this migration
-    const tourPackagesSnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    const tourPackagesSnapshot = await getDocs(
+      collection(db, TOUR_PACKAGES_COLLECTION)
+    );
 
     if (tourPackagesSnapshot.empty) {
       console.log("   No tours found to rollback");
@@ -215,7 +284,7 @@ export async function rollbackMigration() {
         console.log(`     Reverted to: ${revertedDuration}`);
 
         // Revert the duration back to number
-        await updateDoc(doc(db, COLLECTION_NAME, docSnapshot.id), {
+        await updateDoc(doc(db, TOUR_PACKAGES_COLLECTION, docSnapshot.id), {
           duration: revertedDuration,
           metadata: {
             ...tourData.metadata,
@@ -228,6 +297,54 @@ export async function rollbackMigration() {
       } catch (error) {
         const errorMsg = `Failed to revert tour ${
           docSnapshot.data().name || "Unknown"
+        }: ${error}`;
+        console.error(`  ❌ ${errorMsg}`);
+        results.errors.push(errorMsg);
+      }
+    }
+
+    // Also handle bookings collection rollback
+    const bookingsSnapshot = await getDocs(collection(db, BOOKINGS_COLLECTION));
+    console.log(
+      `🔄 Processing ${bookingsSnapshot.size} bookings for rollback...`
+    );
+    console.log("");
+
+    for (const docSnapshot of bookingsSnapshot.docs) {
+      try {
+        const bookingData = docSnapshot.data();
+        const bookingName = bookingData.fullName || "Unknown Booking";
+
+        // Only revert bookings that were migrated by this script
+        if (bookingData.metadata?.migratedBy !== MIGRATION_ID) {
+          continue;
+        }
+
+        const currentDuration = bookingData.tourDuration;
+
+        console.log(`  🔄 Reverting: ${bookingName}`);
+        console.log(`     Current duration: "${currentDuration}"`);
+
+        // Extract the number from "X days" format
+        const numericValue = currentDuration?.toString().match(/\d+/)?.[0];
+        const revertedDuration = numericValue ? Number(numericValue) : null;
+
+        console.log(`     Reverted to: ${revertedDuration}`);
+
+        // Revert the duration back to number
+        await updateDoc(doc(db, BOOKINGS_COLLECTION, docSnapshot.id), {
+          tourDuration: revertedDuration,
+          metadata: {
+            ...bookingData.metadata,
+            updatedAt: Timestamp.now(),
+            updatedBy: "rollback-script",
+          },
+        });
+
+        results.reverted++;
+      } catch (error) {
+        const errorMsg = `Failed to revert booking ${
+          docSnapshot.data().fullName || "Unknown"
         }: ${error}`;
         console.error(`  ❌ ${errorMsg}`);
         results.errors.push(errorMsg);
