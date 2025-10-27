@@ -570,7 +570,7 @@ export default function BookingsDataGrid({
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState(initialPageSize || 25);
+  const [pageSize, setPageSize] = useState(initialPageSize || 100);
 
   // Debounced resize handler
   const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
