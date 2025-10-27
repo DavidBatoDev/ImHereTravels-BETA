@@ -1361,7 +1361,7 @@ export default function BookingsDataGrid({
     };
   }, [handleKeyboardInput]);
 
-  // Sync local data with props data and trigger recomputation on Firebase changes
+  // Sync local data with props data without triggering recomputation
   useEffect(() => {
     const prevData = prevDataRef.current;
     const currentData = data;
@@ -1381,52 +1381,13 @@ export default function BookingsDataGrid({
       return;
     }
 
-    // Detect changes (including function columns) and trigger recomputation for affected rows
-    if (prevData.length > 0 && currentData.length > 0) {
-      const changedRows = currentData.filter((currentRow) => {
-        const prevRow = prevData.find((p) => p.id === currentRow.id);
-        if (!prevRow) return false;
-
-        // Check if any fields have changed (including function columns)
-        return columns.some((col) => {
-          return !isEqual(prevRow[col.id], currentRow[col.id]);
-        });
-      });
-
-      // Trigger recomputation for changed rows
-      changedRows.forEach(async (changedRow) => {
-        const prevRow = prevData.find((p) => p.id === changedRow.id);
-        if (!prevRow) return;
-
-        // Find which fields changed (including function columns)
-        const changedFields = columns.filter((col) => {
-          return !isEqual(prevRow[col.id], changedRow[col.id]);
-        });
-
-        // Trigger recomputation for each changed field's direct dependents
-        // Skip recomputation if the cell is currently being edited
-        for (const field of changedFields) {
-          // Skip recomputation if this specific cell is being edited
-          if (
-            editingCell &&
-            editingCell.rowId === changedRow.id &&
-            editingCell.columnId === field.id
-          ) {
-            continue;
-          }
-
-          await recomputeDirectDependentsForRow(
-            changedRow.id,
-            field.id,
-            changedRow[field.id]
-          );
-        }
-      });
-    }
+    // NOTE: Automatic recomputation on Firebase changes has been disabled
+    // to prevent recomputation when resizing columns. Only manual recomputation
+    // or explicit user actions (like direct cell edits) will trigger recomputation.
 
     // Update previous data reference
     prevDataRef.current = [...currentData];
-  }, [data, columns, recomputeDirectDependentsForRow, editingCell]);
+  }, [data, columns]);
 
   // Recompute for columns bound to a specific function id (and their dependents)
   const recomputeForFunction = useCallback(
@@ -1930,8 +1891,9 @@ export default function BookingsDataGrid({
 
               // Invalidate compiled function cache so next compute uses fresh code
               functionExecutionService.invalidate(funcId);
-              // Recompute only affected columns and their dependents
-              recomputeForFunction(funcId);
+              // NOTE: Automatic recomputation disabled to prevent recomputation during column resizing
+              // Users can manually trigger recomputation via UI if needed
+              // recomputeForFunction(funcId);
             }
           );
         functionSubscriptionsRef.current.set(funcId, unsubscribe);
