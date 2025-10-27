@@ -377,6 +377,10 @@ class FunctionExecutionService {
           if (refName === "ID") {
             return row.id;
           }
+          // Special case: "Row" refers to the row number
+          if (refName === "Row") {
+            return row.row;
+          }
           const refCol = refName ? columnsByName.get(refName) : undefined;
           return refCol ? row[refCol.id] : undefined;
         });
@@ -388,6 +392,10 @@ class FunctionExecutionService {
         // Special case: "ID" refers to the document ID
         if (arg.columnReference === "ID") {
           return row.id;
+        }
+        // Special case: "Row" refers to the row number
+        if (arg.columnReference === "Row") {
+          return row.row;
         }
         const refCol = columnsByName.get(arg.columnReference);
         const value = refCol ? row[refCol.id] : undefined;

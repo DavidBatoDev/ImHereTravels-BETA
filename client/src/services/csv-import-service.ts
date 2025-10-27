@@ -4,6 +4,7 @@ import { Timestamp } from "firebase/firestore";
 import { SheetColumn } from "@/types/sheet-management";
 import { bookingSheetColumnService } from "./booking-sheet-columns-service";
 import { bookingService } from "./booking-service";
+import { setImporting } from "./import-state";
 
 export interface CSVImportResult {
   success: boolean;
@@ -206,20 +207,24 @@ class CSVImportService {
     parsedData: ParsedCSVData
   ): Promise<BookingDocument[]> {
     try {
-      // Fetch column metadata (excluding function types)
+      // Fetch ALL column metadata (including function types)
       const allColumns = await bookingSheetColumnService.getAllColumns();
-      const nonFunctionColumns = allColumns.filter(
-        (col) => col.dataType !== "function"
-      );
 
       console.log("📊 [CSV IMPORT] Column mapping:", {
         totalColumns: allColumns.length,
-        nonFunctionColumns: nonFunctionColumns.length,
         csvHeaders: parsedData.headers,
       });
 
-      // Create mapping from CSV headers to Firestore fields
-      const columnMapping = new Map<
+      // Separate non-function and function columns
+      const nonFunctionColumns = allColumns.filter(
+        (col) => col.dataType !== "function"
+      );
+      const functionColumns = allColumns.filter(
+        (col) => col.dataType === "function"
+      );
+
+      // Step 1: Map non-function columns first
+      const nonFunctionColumnMapping = new Map<
         number,
         { field: string; dataType: string }
       >();
@@ -232,7 +237,28 @@ class CSVImportService {
         );
 
         if (headerIndex !== -1) {
-          columnMapping.set(headerIndex, {
+          nonFunctionColumnMapping.set(headerIndex, {
+            field: column.id,
+            dataType: column.dataType,
+          });
+        }
+      });
+
+      // Step 2: Map function columns
+      const functionColumnMapping = new Map<
+        number,
+        { field: string; dataType: string }
+      >();
+
+      functionColumns.forEach((column) => {
+        const headerIndex = parsedData.headers.findIndex(
+          (header) =>
+            header.toLowerCase().trim() ===
+            column.columnName.toLowerCase().trim()
+        );
+
+        if (headerIndex !== -1) {
+          functionColumnMapping.set(headerIndex, {
             field: column.id,
             dataType: column.dataType,
           });
@@ -240,7 +266,15 @@ class CSVImportService {
       });
 
       console.log("📊 [CSV IMPORT] Column mapping created:", {
-        mappedColumns: Array.from(columnMapping.entries()).map(
+        nonFunctionColumns: Array.from(nonFunctionColumnMapping.entries()).map(
+          ([index, mapping]) => ({
+            csvIndex: index,
+            csvHeader: parsedData.headers[index],
+            firestoreField: mapping.field,
+            dataType: mapping.dataType,
+          })
+        ),
+        functionColumns: Array.from(functionColumnMapping.entries()).map(
           ([index, mapping]) => ({
             csvIndex: index,
             csvHeader: parsedData.headers[index],
@@ -274,10 +308,41 @@ class CSVImportService {
           updatedAt: now,
         };
 
-        // Map CSV values to Firestore fields
-        columnMapping.forEach((mapping, csvIndex) => {
+        // Step 1: Map non-function columns first
+        nonFunctionColumnMapping.forEach((mapping, csvIndex) => {
           const cellValue = row[csvIndex];
           const convertedValue = this.convertValue(cellValue, mapping.dataType);
+          document[mapping.field] = convertedValue;
+        });
+
+        // Step 2: Map function columns after non-function columns
+        functionColumnMapping.forEach((mapping, csvIndex) => {
+          const cellValue = row[csvIndex];
+          // Store function column values as-is (don't apply type conversion except for currency)
+          let convertedValue;
+          if (mapping.dataType === "function") {
+            // For function columns, check if it looks like a currency value
+            if (cellValue && cellValue.toString().trim() !== "") {
+              const stringValue = cellValue.toString().trim();
+              // Check if it looks like a currency value and try to parse it
+              const currencyMatch = /[$€£¥₹₽¢₱₦₩₪₨₡₵₫﷼,\-\(\)\s]/.test(
+                stringValue
+              );
+              if (
+                currencyMatch &&
+                !isNaN(parseFloat(stringValue.replace(/[^\d.-]/g, "")))
+              ) {
+                convertedValue = this.parseCurrencyValue(stringValue);
+              } else {
+                // Store as string for function columns
+                convertedValue = stringValue;
+              }
+            } else {
+              convertedValue = null;
+            }
+          } else {
+            convertedValue = this.convertValue(cellValue, mapping.dataType);
+          }
           document[mapping.field] = convertedValue;
         });
 
@@ -552,6 +617,8 @@ class CSVImportService {
    */
   async importCSV(file: File): Promise<CSVImportResult> {
     try {
+      // Mark importing to prevent function executions elsewhere
+      setImporting(true);
       // Step 1: Parse file
       const parseResult = await this.parseFile(file);
       if (!parseResult.success || !parseResult.data) {
@@ -584,6 +651,9 @@ class CSVImportService {
         message: "Import failed",
         error: error instanceof Error ? error.message : "Unknown error",
       };
+    } finally {
+      // Clear importing flag
+      setImporting(false);
     }
   }
 

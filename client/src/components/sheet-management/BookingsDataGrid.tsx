@@ -117,6 +117,7 @@ import { functionExecutionService } from "@/services/function-execution-service"
 import { batchedWriter } from "@/services/batched-writer";
 import { bookingService } from "@/services/booking-service";
 import { typescriptFunctionsService } from "@/services/typescript-functions-service";
+import { isImporting } from "@/services/import-state";
 import { typescriptFunctionService } from "@/services/firebase-function-service";
 import { useRouter } from "next/navigation";
 // Simple deep equality check
@@ -663,6 +664,10 @@ export default function BookingsDataGrid({
       funcCol: SheetColumn,
       skipInitialCheck = false
     ): Promise<any> => {
+      // Do not execute functions during CSV import
+      if (isImporting()) {
+        return row[funcCol.id];
+      }
       if (!funcCol.function) return;
 
       // Skip computation during initial load unless explicitly requested
@@ -912,6 +917,8 @@ export default function BookingsDataGrid({
   // Recompute only direct dependent function columns for a single row
   const recomputeDirectDependentsForRow = useCallback(
     async (rowId: string, changedColumnId: string, updatedValue: any) => {
+      // Block during CSV import to preserve imported values
+      if (isImporting()) return;
       const changedCol = columns.find((c) => c.id === changedColumnId);
       if (!changedCol) return;
 
@@ -1424,6 +1431,7 @@ export default function BookingsDataGrid({
   // Recompute for columns bound to a specific function id (and their dependents)
   const recomputeForFunction = useCallback(
     async (funcId: string) => {
+      if (isImporting()) return;
       const impactedColumns = columns.filter(
         (c) => c.dataType === "function" && c.function === funcId
       );
@@ -1456,6 +1464,7 @@ export default function BookingsDataGrid({
   // Backoff strategy: 2s, 4s, 8s, 16s, 30s, then 30s for remaining attempts
   const recomputeAllFunctionColumns = useCallback(
     async (isRetry = false, retryAttempt = 1) => {
+      if (isImporting()) return;
       try {
         // Safety check to prevent infinite recursion
         if (retryAttempt > MAX_RECOMPUTE_ATTEMPTS) {
@@ -2366,6 +2375,14 @@ export default function BookingsDataGrid({
               if (typeof value === "object") return JSON.stringify(value);
               return String(value);
             }
+            // Special case: "Row" refers to the row number
+            if (arg.columnReference === "Row") {
+              const value = row.row;
+              if (value === undefined || value === null) return "null";
+              if (typeof value === "string") return `"${value}"`;
+              if (typeof value === "object") return JSON.stringify(value);
+              return String(value);
+            }
             // Find the column and get value from row
             const refCol = globalAllColumns.find(
               (c) => c.columnName === arg.columnReference
@@ -2384,6 +2401,13 @@ export default function BookingsDataGrid({
               // Special case: "ID" refers to the document ID
               if (ref === "ID") {
                 const value = row.id;
+                if (value === undefined || value === null) return "null";
+                if (typeof value === "string") return `"${value}"`;
+                return String(value);
+              }
+              // Special case: "Row" refers to the row number
+              if (ref === "Row") {
+                const value = row.row;
                 if (value === undefined || value === null) return "null";
                 if (typeof value === "string") return `"${value}"`;
                 return String(value);
@@ -3411,7 +3435,7 @@ export default function BookingsDataGrid({
 
   const handleCSVImportComplete = useCallback(
     async (info?: { expectedRows?: number }) => {
-      // Clear function cache to trigger recomputation
+      // Clear function cache (but don't recompute automatically)
       clearFunctionCache();
 
       // Wait until Firestore subscription reflects the new dataset size.
@@ -3436,14 +3460,15 @@ export default function BookingsDataGrid({
         await new Promise((r) => setTimeout(r, 250));
       }
 
-      // Recompute all function columns after data is refreshed
-      await recomputeAllFunctionColumns();
+      // NOTE: Skip automatic recomputation to preserve imported function column values
+      // Users can manually trigger recomputation via UI if needed
+      // await recomputeAllFunctionColumns();
 
       console.log(
-        "✅ [CSV IMPORT] CSV import complete and function columns recomputed"
+        "✅ [CSV IMPORT] CSV import complete (function columns preserved from CSV, no auto-recomputation)"
       );
     },
-    [clearFunctionCache, recomputeAllFunctionColumns, toast, getCurrentRows]
+    [clearFunctionCache, toast, getCurrentRows]
   );
 
   return (

@@ -218,8 +218,8 @@ export default function EditBookingModal({
       if (col.dataType === "function" && Array.isArray(col.arguments)) {
         col.arguments.forEach((arg) => {
           if (arg.columnReference) {
-            // Skip "ID" reference since it's not a column dependency
-            if (arg.columnReference !== "ID") {
+            // Skip "ID" and "Row" references since they're not column dependencies
+            if (arg.columnReference !== "ID" && arg.columnReference !== "Row") {
               // Find the column ID for the referenced column name
               const refCol = columns.find(
                 (c) => c.columnName === arg.columnReference
@@ -234,8 +234,8 @@ export default function EditBookingModal({
           if (Array.isArray(arg.columnReferences)) {
             arg.columnReferences.forEach((ref) => {
               if (!ref) return;
-              // Skip "ID" reference since it's not a column dependency
-              if (ref !== "ID") {
+              // Skip "ID" and "Row" references since they're not column dependencies
+              if (ref !== "ID" && ref !== "Row") {
                 // Find the column ID for the referenced column name
                 const refCol = columns.find((c) => c.columnName === ref);
                 if (refCol) {

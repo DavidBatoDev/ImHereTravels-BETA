@@ -484,6 +484,15 @@ export default function ColumnSettingsModal({
                                           </span>
                                         </div>
                                       </SelectItem>
+                                      {/* Add Row as a special reference option */}
+                                      <SelectItem key="__row__" value="Row">
+                                        <div className="flex items-center justify-between">
+                                          <span>Row</span>
+                                          <span className="text-xs text-gray-500 ml-2">
+                                            number
+                                          </span>
+                                        </div>
+                                      </SelectItem>
                                       {existingColumns
                                         .filter((c) => c.id !== column?.id)
                                         .map((col) => (
@@ -588,6 +597,15 @@ export default function ColumnSettingsModal({
                                           <span>ID</span>
                                           <span className="text-xs text-gray-500 ml-2">
                                             string
+                                          </span>
+                                        </div>
+                                      </SelectItem>
+                                      {/* Add Row as a special reference option */}
+                                      <SelectItem key="__row__" value="Row">
+                                        <div className="flex items-center justify-between">
+                                          <span>Row</span>
+                                          <span className="text-xs text-gray-500 ml-2">
+                                            number
                                           </span>
                                         </div>
                                       </SelectItem>

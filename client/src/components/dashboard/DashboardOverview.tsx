@@ -88,7 +88,7 @@ export default function DashboardOverview() {
   const getBookingStatusCategory = (
     status: string | null | undefined
   ): string => {
-    if (!status) return "Pending";
+    if (typeof status !== "string" || status.trim() === "") return "Pending";
 
     const statusLower = status.toLowerCase();
     if (statusLower.includes("confirmed")) return "Confirmed";
