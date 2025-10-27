@@ -336,7 +336,7 @@ export function EmailViewModal({
 
   // Auto-save draft when body content changes (with debounce)
   useEffect(() => {
-    if (!replyMode || isOpeningDraft || hasOpenedDraft) {
+    if (!replyMode || isOpeningDraft || hasOpenedDraft || isSendingReply) {
       return;
     }
 
@@ -345,7 +345,7 @@ export function EmailViewModal({
     }, 2000); // 2 second debounce
 
     return () => clearTimeout(timer);
-  }, [replyBody, replyToEmails, replyCcEmails, replySubject]);
+  }, [replyBody, replyToEmails, replyCcEmails, replySubject, isSendingReply]);
 
   // Open draft in editor when openDraftInEditor prop is provided
   useEffect(() => {
@@ -692,9 +692,36 @@ export function EmailViewModal({
   // Handle reply - open inline reply interface
   const handleReply = (email: GmailEmail) => {
     const senderEmail = extractEmailAddress(email.from);
+    const bellaEmail = "bella@imheretravels.com";
+
+    // Determine the reply recipient based on whether it's a sent or received email
+    let replyToEmail: string;
+
+    if (email.isSent) {
+      // If we sent this email, reply to the recipient(s) instead of ourselves
+      // Extract first recipient from "to" field, or use the first email found in the thread
+      if (email.to) {
+        const recipients = email.to
+          .split(",")
+          .map((e) => extractEmailAddress(e.trim()))
+          .filter((e) => e && e !== bellaEmail);
+
+        if (recipients.length > 0) {
+          replyToEmail = recipients[0];
+        } else {
+          // Fallback: find another participant in the thread
+          replyToEmail = findOtherParticipant(email);
+        }
+      } else {
+        replyToEmail = findOtherParticipant(email);
+      }
+    } else {
+      // Received email - reply to sender
+      replyToEmail = senderEmail;
+    }
 
     setReplyMode("reply");
-    setReplyToEmails([senderEmail]);
+    setReplyToEmails([replyToEmail]);
     setReplyCcEmails([]);
     setShowReplyCc(false);
     setReplySubject(
@@ -709,6 +736,63 @@ export function EmailViewModal({
         .querySelector(".reply-container")
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
+  };
+
+  // Helper function to find other participant in thread when replying to our own sent email
+  const findOtherParticipant = (email: GmailEmail): string => {
+    const bellaEmail = "bella@imheretravels.com";
+    const senderEmail = extractEmailAddress(email.from);
+
+    // Collect all emails in the thread (excluding our own)
+    const allEmails = new Set<string>();
+
+    if (email.to) {
+      email.to.split(",").forEach((e) => {
+        const addr = extractEmailAddress(e.trim());
+        if (addr && addr !== bellaEmail) allEmails.add(addr);
+      });
+    }
+
+    if (email.cc) {
+      email.cc.split(",").forEach((e) => {
+        const addr = extractEmailAddress(e.trim());
+        if (addr && addr !== bellaEmail) allEmails.add(addr);
+      });
+    }
+
+    // Also check the thread for other participants
+    threadEmails.forEach((threadEmail) => {
+      if (!threadEmail.isSent) {
+        const fromAddr = extractEmailAddress(threadEmail.from);
+        if (fromAddr && fromAddr !== bellaEmail) {
+          allEmails.add(fromAddr);
+        }
+      } else {
+        // For sent emails in thread, check recipients
+        if (threadEmail.to) {
+          threadEmail.to.split(",").forEach((e) => {
+            const addr = extractEmailAddress(e.trim());
+            if (addr && addr !== bellaEmail) allEmails.add(addr);
+          });
+        }
+      }
+    });
+
+    // Return first email found, or fallback to the original sender
+    if (allEmails.size > 0) {
+      return Array.from(allEmails)[0];
+    }
+
+    // Last resort: extract from the current email's "to" field (without our email)
+    if (email.to) {
+      const recipients = email.to
+        .split(",")
+        .map((e) => extractEmailAddress(e.trim()))
+        .filter((e) => e && e !== bellaEmail);
+      return recipients[0] || senderEmail;
+    }
+
+    return senderEmail;
   };
 
   // Handle reply all
@@ -910,9 +994,12 @@ export function EmailViewModal({
     }
 
     try {
-      const response = await fetch(`/api/gmail/drafts/${draftId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/gmail/drafts?draftId=${encodeURIComponent(draftId)}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       const result = await response.json();
 
@@ -1083,7 +1170,39 @@ export function EmailViewModal({
     try {
       const latestEmail = threadEmails[threadEmails.length - 1];
 
-      const response = await fetch("/api/gmail/send", {
+      // Determine which API endpoint to use based on reply mode
+      let apiEndpoint = "/api/gmail/send";
+      if (replyMode === "reply" || replyMode === "replyAll") {
+        apiEndpoint = "/api/gmail/reply";
+      } else if (replyMode === "forward") {
+        apiEndpoint = "/api/gmail/forward";
+      }
+
+      // Convert File objects to base64 for API
+      const attachmentData = await Promise.all(
+        replyAttachments.map(async (file) => {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result as string;
+              // Remove the data URL prefix (e.g., "data:image/png;base64,")
+              const base64Data = result.split(",")[1];
+              resolve(base64Data);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          return {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: base64,
+          };
+        })
+      );
+
+      const response = await fetch(apiEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1093,11 +1212,12 @@ export function EmailViewModal({
           cc: replyCcEmails.length > 0 ? replyCcEmails.join(", ") : undefined,
           subject: replySubject.trim(),
           body: replyBody,
-          threadId: replyMode !== "forward" ? latestEmail?.threadId : undefined,
+          threadId: latestEmail?.threadId,
           inReplyTo:
             replyMode !== "forward" ? latestEmail?.messageId : undefined,
           references:
             replyMode !== "forward" ? latestEmail?.references : undefined,
+          attachments: attachmentData,
         }),
       });
 
@@ -1108,6 +1228,20 @@ export function EmailViewModal({
           title: "Email Sent Successfully",
           description: "Your email has been sent successfully.",
         });
+
+        // If there's a saved draft for this compose, delete it now to avoid stale drafts
+        try {
+          if (draftId) {
+            await fetch(
+              `/api/gmail/drafts?draftId=${encodeURIComponent(draftId)}`,
+              {
+                method: "DELETE",
+              }
+            );
+          }
+        } catch (e) {
+          console.warn("Failed to delete draft after send (non-blocking)", e);
+        }
 
         // Close reply interface
         handleCloseReply();

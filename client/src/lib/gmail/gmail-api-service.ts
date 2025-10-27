@@ -545,6 +545,9 @@ export class GmailApiService {
     cc?: string[];
     from?: string;
     replyTo?: string;
+    threadId?: string;
+    inReplyTo?: string;
+    references?: string;
     attachments?: Array<{
       name: string;
       type: string;
@@ -569,6 +572,8 @@ export class GmailApiService {
         from:
           emailData.from || "Bella | ImHereTravels <bella@imheretravels.com>",
         replyTo: emailData.replyTo,
+        inReplyTo: emailData.inReplyTo,
+        references: emailData.references,
         attachments: emailData.attachments || [],
       });
 
@@ -577,13 +582,16 @@ export class GmailApiService {
         messagePreview: message.substring(0, 500) + "...",
         hasHtmlContent: message.includes(emailData.htmlContent),
         htmlContentLength: emailData.htmlContent.length,
+        threadId: emailData.threadId,
+        inReplyTo: emailData.inReplyTo,
       });
 
-      // Send the email
+      // Send the email with threading support
       const response = await this.gmail.users.messages.send({
         userId: "me",
         requestBody: {
           raw: message,
+          threadId: emailData.threadId, // Add threadId to maintain conversation thread
         },
       });
 
@@ -973,6 +981,8 @@ export class GmailApiService {
     cc?: string[];
     from?: string;
     replyTo?: string;
+    inReplyTo?: string;
+    references?: string;
     attachments?: Array<{
       name: string;
       type: string;
@@ -988,6 +998,8 @@ export class GmailApiService {
       cc = [],
       from,
       replyTo,
+      inReplyTo,
+      references,
       attachments = [],
     } = emailData;
 
@@ -1026,6 +1038,15 @@ export class GmailApiService {
       lines.push(`Reply-To: ${replyTo}`);
     }
 
+    // Add threading headers for replies
+    if (inReplyTo) {
+      lines.push(`In-Reply-To: ${inReplyTo}`);
+    }
+
+    if (references) {
+      lines.push(`References: ${references}`);
+    }
+
     lines.push("");
     lines.push(htmlContent);
 
@@ -1046,6 +1067,8 @@ export class GmailApiService {
     cc: string[];
     from: string;
     replyTo?: string;
+    inReplyTo?: string;
+    references?: string;
     attachments: Array<{
       name: string;
       type: string;
@@ -1053,8 +1076,18 @@ export class GmailApiService {
       data: string; // base64 data
     }>;
   }): string {
-    const { to, subject, htmlContent, bcc, cc, from, replyTo, attachments } =
-      emailData;
+    const {
+      to,
+      subject,
+      htmlContent,
+      bcc,
+      cc,
+      from,
+      replyTo,
+      inReplyTo,
+      references,
+      attachments,
+    } = emailData;
 
     const boundary = "----=_Part_" + Math.random().toString(36).substr(2, 9);
 
@@ -1076,6 +1109,15 @@ export class GmailApiService {
 
     if (replyTo) {
       lines.push(`Reply-To: ${replyTo}`);
+    }
+
+    // Add threading headers for replies
+    if (inReplyTo) {
+      lines.push(`In-Reply-To: ${inReplyTo}`);
+    }
+
+    if (references) {
+      lines.push(`References: ${references}`);
     }
 
     lines.push("");

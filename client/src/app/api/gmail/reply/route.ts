@@ -3,28 +3,38 @@ import GmailApiService from "@/lib/gmail/gmail-api-service";
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("=== Gmail Send API Called ===");
+    console.log("=== Gmail Reply API Called ===");
 
     const body = await request.json();
     const { to, cc, bcc, subject, body: emailBody, attachments, threadId, inReplyTo, references } = body;
 
-    console.log("Gmail send API called with:", {
+    console.log("Gmail reply API called with:", {
       to,
+      cc,
+      bcc,
       subject,
-      bodyLength: emailBody?.length || 0,
-      bodyPreview: emailBody?.substring(0, 200) + "...",
-      body: emailBody,
       threadId,
       inReplyTo,
       references,
+      bodyLength: emailBody?.length || 0,
+      attachmentCount: attachments?.length || 0,
     });
 
+    // Validate required fields
+    if (!to || !subject || !emailBody || !threadId || !inReplyTo) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing required fields: to, subject, body, threadId, inReplyTo",
+        },
+        { status: 400 }
+      );
+    }
+
     // Initialize Gmail API service
-    console.log("Initializing Gmail API service...");
     const gmailService = new GmailApiService();
 
-    // Send email via Gmail API
-    console.log("Calling gmailService.sendEmail...");
+    // Send reply email via Gmail API with proper threading
     const result = await gmailService.sendEmail({
       to,
       cc: cc ? [cc] : undefined,
@@ -37,24 +47,20 @@ export async function POST(request: NextRequest) {
       references,
     });
 
-    console.log("Email sent successfully via Gmail API:", result);
+    console.log("Reply sent successfully via Gmail API:", result);
 
     return NextResponse.json({
       success: true,
       data: result,
     });
   } catch (error) {
-    console.error("=== ERROR in Gmail send API ===");
+    console.error("=== ERROR in Gmail reply API ===");
     console.error("Error details:", error);
-    console.error(
-      "Error stack:",
-      error instanceof Error ? error.stack : "No stack"
-    );
 
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to send email",
+        error: error instanceof Error ? error.message : "Failed to send reply",
       },
       { status: 500 }
     );
