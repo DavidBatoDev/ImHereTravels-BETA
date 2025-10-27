@@ -88,6 +88,12 @@ export function ComposeEmail({
   const [isOpeningDraft, setIsOpeningDraft] = useState(false);
   const [hasOpenedDraft, setHasOpenedDraft] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [loadedAttachments, setLoadedAttachments] = useState<any[] | null>(
+    null
+  );
+
+  // Ref to track if we've already set the server-processed HTML
+  const hasProcessedServerHTML = useRef(false);
   const [showFontMenu, setShowFontMenu] = useState(false);
   const [showSizeMenu, setShowSizeMenu] = useState(false);
   const [showColorMenu, setShowColorMenu] = useState(false);
@@ -199,19 +205,27 @@ export function ComposeEmail({
           setDraftId(replyToEmail.id);
 
           // Fetch full draft content with attachments if not present
-          if (replyToEmail.id && !replyToEmail.attachments) {
-            fetch(`/api/gmail/emails/${replyToEmail.id}`)
+          if (replyToEmail.id && !loadedAttachments) {
+            // Use messageId if available, otherwise use id
+            const messageIdToFetch = replyToEmail.messageId || replyToEmail.id;
+            fetch(`/api/gmail/emails/${messageIdToFetch}`)
               .then((res) => res.json())
               .then((data) => {
-                if (data.success && data.email) {
+                if (data.success && data.data) {
                   // Update replyToEmail with attachments
                   Object.assign(replyToEmail, {
-                    attachments: data.email.attachments || [],
+                    attachments: data.data.attachments || [],
                   });
-                  console.log(
-                    "Fetched attachments for draft:",
-                    data.email.attachments
-                  );
+                  // Also store in state to trigger re-render
+                  setLoadedAttachments(data.data.attachments || []);
+
+                  // Use the server-processed HTML (with cid: already converted to data URLs)
+                  if (data.data.htmlContent && editorRef.current) {
+                    const serverProcessedHTML = data.data.htmlContent;
+                    editorRef.current.innerHTML = serverProcessedHTML;
+                    setBody(serverProcessedHTML);
+                    hasProcessedServerHTML.current = true;
+                  }
                 }
               })
               .catch((err) =>
@@ -287,12 +301,34 @@ export function ComposeEmail({
       // For compose/reply: if we have replyToEmail context with attachments, convert cid: to API URLs
       let sanitizedHTML = cleanHTML;
 
-      // Wait a bit for attachments to load if they're being fetched
-      if (replyToEmail?.isDraft && !replyToEmail?.attachments) {
-        console.log("Waiting for attachments to load...");
-        // The sanitization will run again when attachments are loaded
+      // Use the loaded attachments state if available
+      const attachmentsToUse = loadedAttachments || replyToEmail?.attachments;
+
+      // If we've already processed server HTML, skip this entire sanitization
+      if (hasProcessedServerHTML.current) {
+        return;
+      }
+
+      // If HTML already has data URLs (from server processing), skip cid: replacement
+      if (cleanHTML.includes("data:image") && !cleanHTML.includes("cid:")) {
         editorRef.current.innerHTML = cleanHTML;
         setBody(cleanHTML);
+        return;
+      }
+
+      // Wait a bit for attachments to load if they're being fetched
+      if (
+        replyToEmail?.isDraft &&
+        !loadedAttachments &&
+        !replyToEmail?.attachments
+      ) {
+        // Remove cid: references temporarily to prevent browser errors
+        const tempHTML = cleanHTML.replace(
+          /<img([^>]*)src="cid:[^"]+"/gi,
+          "<div style='width:100%;min-height:200px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;'><div style='text-align:center;'><div style='width:40px;height:40px;margin:0 auto 12px;border:4px solid #e5e7eb;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite;'></div><p style='color:#6b7280;font-size:14px;margin:0;'>Loading image...</p></div></div><style>@keyframes spin{to{transform:rotate(360deg);}}</style>"
+        );
+        editorRef.current.innerHTML = tempHTML;
+        setBody(tempHTML);
         return; // Exit early, will re-run when attachments are available
       }
 
@@ -300,21 +336,11 @@ export function ComposeEmail({
       sanitizedHTML = sanitizedHTML.replace(
         /<img([^>]*)src="cid:([^"]+)"([^>]*)>/gi,
         (match, beforeSrc, cidValue, afterSrc) => {
-          console.log("Found cid: reference:", cidValue);
-          console.log("replyToEmail:", replyToEmail);
-          console.log("replyToEmail attachments:", replyToEmail?.attachments);
-
           // For reply emails, try to find the attachment
-          if (replyToEmail?.id && replyToEmail?.attachments) {
+          if (replyToEmail?.id && attachmentsToUse) {
             const cleanCid = cidValue.replace(/[<>]/g, "");
-            console.log("Searching for attachment with cid:", cleanCid);
 
-            const attachment = replyToEmail.attachments.find((att: any) => {
-              console.log("Checking attachment:", {
-                contentId: att.contentId,
-                attachmentId: att.attachmentId,
-                filename: att.filename,
-              });
+            const attachment = attachmentsToUse.find((att: any) => {
               return (
                 att.contentId === cidValue ||
                 att.contentId === `<${cidValue}>` ||
@@ -324,21 +350,18 @@ export function ComposeEmail({
             });
 
             if (attachment) {
-              console.log("Found matching attachment:", attachment);
-              // Use the attachment API endpoint
-              const attachmentUrl = `/api/gmail/attachments/${replyToEmail.id}/${attachment.attachmentId}?preview=true`;
-              console.log("Using attachment URL:", attachmentUrl);
+              // Use the attachment API endpoint - use messageId if available
+              const emailIdForAttachment =
+                replyToEmail.messageId || replyToEmail.id;
+              const attachmentUrl = `/api/gmail/attachments/${emailIdForAttachment}/${attachment.attachmentId}?preview=true`;
               return match.replace(
                 /src="cid:[^"]+"/gi,
                 `src="${attachmentUrl}"`
               );
-            } else {
-              console.log("No matching attachment found for cid:", cidValue);
             }
           }
 
-          // If no attachment found or not a reply, keep the placeholder
-          console.log("Using placeholder for cid:", cidValue);
+          // If no attachment found or not a reply, use placeholder
           const placeholderSrc =
             "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='12'%3EImage%3C/text%3E%3C/svg%3E";
           return match.replace(/src="cid:[^"]+"/gi, `src="${placeholderSrc}"`);
@@ -351,7 +374,7 @@ export function ComposeEmail({
       editorRef.current.innerHTML = sanitizedHTML;
       setBody(sanitizedHTML);
     }
-  }, [initialBody, replyToEmail, replyToEmail?.attachments]);
+  }, [initialBody, replyToEmail, loadedAttachments]);
 
   // Manual save draft function (for explicit saves)
   const saveDraftManually = async () => {
