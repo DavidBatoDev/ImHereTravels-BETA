@@ -33,6 +33,12 @@ import {
   MdExpandMore,
   MdPalette,
   MdTextFields,
+  MdFormatIndentDecrease,
+  MdFormatIndentIncrease,
+  MdMoreVert,
+  MdStrikethroughS,
+  MdFormatLineSpacing,
+  MdTitle,
 } from "react-icons/md";
 
 interface ComposeEmailProps {
@@ -98,7 +104,11 @@ export function ComposeEmail({
   const [showSizeMenu, setShowSizeMenu] = useState(false);
   const [showColorMenu, setShowColorMenu] = useState(false);
   const [showAlignMenu, setShowAlignMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showLineHeightMenu, setShowLineHeightMenu] = useState(false);
   const [currentFontSize, setCurrentFontSize] = useState("Normal");
+  const [currentFontFamily, setCurrentFontFamily] = useState("Sans Serif");
+  const [currentLineHeight, setCurrentLineHeight] = useState("Normal");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -106,6 +116,8 @@ export function ComposeEmail({
 
   // Font and style options
   const fontFamilies = [
+    { label: "Sans Serif", value: "sans-serif" },
+    { label: "Serif", value: "serif" },
     { label: "Arial", value: "Arial, sans-serif" },
     { label: "Times New Roman", value: "Times New Roman, serif" },
     { label: "Helvetica", value: "Helvetica, sans-serif" },
@@ -121,9 +133,57 @@ export function ComposeEmail({
     { label: "Huge", value: "6" },
   ];
 
+  const lineHeights = [
+    { label: "Single", value: "1" },
+    { label: "Normal", value: "1.15" },
+    { label: "Relaxed", value: "1.5" },
+    { label: "Double", value: "2" },
+  ];
+
   // Gmail-like execCommand functions
   const execCommand = (cmd: string, value?: string) => {
-    document.execCommand(cmd, false, value);
+    if (cmd === "indent" || cmd === "outdent") {
+      // Use a custom implementation for indent/outdent to avoid browser default styling
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const block =
+          range.commonAncestorContainer.nodeType === 3
+            ? range.commonAncestorContainer.parentElement
+            : range.commonAncestorContainer;
+
+        if (block && block instanceof HTMLElement) {
+          if (cmd === "indent") {
+            const currentMarginLeft =
+              parseInt(window.getComputedStyle(block).marginLeft) || 0;
+            block.style.marginLeft = `${currentMarginLeft + 40}px`;
+          } else {
+            const currentMarginLeft =
+              parseInt(window.getComputedStyle(block).marginLeft) || 0;
+            block.style.marginLeft = `${Math.max(0, currentMarginLeft - 40)}px`;
+          }
+        }
+      }
+    } else if (cmd === "lineHeight") {
+      // Apply line height to the selected text
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0 && value) {
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+
+        if (container.nodeType === 3) {
+          // Text node, apply to parent element
+          const parent = container.parentElement;
+          if (parent) {
+            parent.style.lineHeight = value;
+          }
+        } else if (container instanceof HTMLElement) {
+          container.style.lineHeight = value;
+        }
+      }
+    } else {
+      document.execCommand(cmd, false, value);
+    }
     handleInput();
   };
 
@@ -136,6 +196,190 @@ export function ComposeEmail({
         setHasOpenedDraft(false);
         console.log("User started typing, enabling auto-save");
       }
+    }
+  };
+
+  // Add resize functionality to images
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    const editor = editorRef.current;
+    let isResizing = false;
+    let currentImg: HTMLImageElement | null = null;
+    let startX = 0;
+    let startY = 0;
+    let startWidth = 0;
+    let startHeight = 0;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "IMG") {
+        const img = target as HTMLImageElement;
+        const rect = img.getBoundingClientRect();
+
+        // Check if click is on the border (for resizing)
+        const borderWidth = 4;
+        const clickX = e.clientX;
+        const clickY = e.clientY;
+        const isOnBorder =
+          (clickX <= rect.left + borderWidth ||
+            clickX >= rect.right - borderWidth ||
+            clickY <= rect.top + borderWidth ||
+            clickY >= rect.bottom - borderWidth) &&
+          clickX >= rect.left &&
+          clickX <= rect.right &&
+          clickY >= rect.top &&
+          clickY <= rect.bottom;
+
+        if (isOnBorder) {
+          e.preventDefault();
+          e.stopPropagation();
+          isResizing = true;
+          currentImg = img;
+          currentImg.style.userSelect = "none";
+          currentImg.style.cursor = "se-resize";
+          startX = e.clientX;
+          startY = e.clientY;
+          startWidth = currentImg.offsetWidth;
+          startHeight = currentImg.offsetHeight;
+          document.body.style.cursor = "se-resize";
+        } else {
+          // Just select the image
+          e.stopPropagation();
+          // Remove selected class from all images
+          editor.querySelectorAll("img").forEach((i) => {
+            i.classList.remove("selected");
+          });
+          // Add selected class to this image
+          img.classList.add("selected");
+        }
+      } else {
+        // Click outside of an image - deselect all images
+        editor.querySelectorAll("img").forEach((i) => {
+          i.classList.remove("selected");
+        });
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      // Handle resizing
+      if (isResizing && currentImg) {
+        e.preventDefault();
+        const diffX = e.clientX - startX;
+        const diffY = e.clientY - startY;
+        const newWidth = startWidth + diffX;
+        const newHeight = startHeight + diffY;
+
+        currentImg.style.width = Math.max(50, newWidth) + "px";
+        currentImg.style.height = "auto";
+        currentImg.removeAttribute("width");
+        currentImg.removeAttribute("height");
+      }
+
+      // Handle cursor change when hovering over images
+      if (!isResizing && target.tagName === "IMG") {
+        const img = target as HTMLImageElement;
+        const rect = img.getBoundingClientRect();
+        const borderWidth = 4;
+        const clickX = e.clientX;
+        const clickY = e.clientY;
+        const isOnBorder =
+          (clickX <= rect.left + borderWidth ||
+            clickX >= rect.right - borderWidth ||
+            clickY <= rect.top + borderWidth ||
+            clickY >= rect.bottom - borderWidth) &&
+          clickX >= rect.left &&
+          clickX <= rect.right &&
+          clickY >= rect.top &&
+          clickY <= rect.bottom;
+
+        // Change cursor to resize when hovering over border
+        if (isOnBorder) {
+          img.style.cursor = "se-resize";
+        } else {
+          img.style.cursor = "move";
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isResizing && currentImg) {
+        // Restore image interaction
+        currentImg.style.userSelect = "";
+        currentImg.style.pointerEvents = "auto";
+        isResizing = false;
+        currentImg = null;
+        document.body.style.cursor = "default";
+        handleInput(); // Update body state
+      }
+    };
+
+    editor.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      editor.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const paste = e.clipboardData.getData("text/html");
+    if (paste) {
+      // Sanitize but preserve all style attributes including line-height
+      const clean = DOMPurify.sanitize(paste, {
+        ALLOWED_TAGS: [
+          "div",
+          "span",
+          "p",
+          "b",
+          "i",
+          "u",
+          "br",
+          "strong",
+          "em",
+          "a",
+          "img",
+          "table",
+          "tr",
+          "td",
+          "tbody",
+          "thead",
+          "tfoot",
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6",
+          "ul",
+          "ol",
+          "li",
+        ],
+        ALLOWED_ATTR: [
+          "style",
+          "class",
+          "dir",
+          "align",
+          "href",
+          "src",
+          "alt",
+          "width",
+          "height",
+          "data-smartmail",
+        ],
+        ALLOW_DATA_ATTR: true,
+      });
+      document.execCommand("insertHTML", false, clean);
+    } else {
+      // Fallback to plain text
+      const text = e.clipboardData.getData("text/plain");
+      document.execCommand("insertText", false, text);
     }
   };
 
@@ -222,9 +466,16 @@ export function ComposeEmail({
                   // Use the server-processed HTML (with cid: already converted to data URLs)
                   if (data.data.htmlContent && editorRef.current) {
                     const serverProcessedHTML = data.data.htmlContent;
-                    editorRef.current.innerHTML = serverProcessedHTML;
-                    setBody(serverProcessedHTML);
-                    hasProcessedServerHTML.current = true;
+                    // Force contentEditable to re-process the content by setting to empty first
+                    editorRef.current.innerHTML = "";
+                    // Use setTimeout to ensure the DOM is updated before setting new content
+                    setTimeout(() => {
+                      if (editorRef.current) {
+                        editorRef.current.innerHTML = serverProcessedHTML;
+                        setBody(serverProcessedHTML);
+                        hasProcessedServerHTML.current = true;
+                      }
+                    }, 0);
                   }
                 }
               })
@@ -311,8 +562,13 @@ export function ComposeEmail({
 
       // If HTML already has data URLs (from server processing), skip cid: replacement
       if (cleanHTML.includes("data:image") && !cleanHTML.includes("cid:")) {
-        editorRef.current.innerHTML = cleanHTML;
-        setBody(cleanHTML);
+        editorRef.current.innerHTML = "";
+        setTimeout(() => {
+          if (editorRef.current) {
+            editorRef.current.innerHTML = cleanHTML;
+            setBody(cleanHTML);
+          }
+        }, 0);
         return;
       }
 
@@ -327,8 +583,13 @@ export function ComposeEmail({
           /<img([^>]*)src="cid:[^"]+"/gi,
           "<div style='width:100%;min-height:200px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;'><div style='text-align:center;'><div style='width:40px;height:40px;margin:0 auto 12px;border:4px solid #e5e7eb;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite;'></div><p style='color:#6b7280;font-size:14px;margin:0;'>Loading image...</p></div></div><style>@keyframes spin{to{transform:rotate(360deg);}}</style>"
         );
-        editorRef.current.innerHTML = tempHTML;
-        setBody(tempHTML);
+        editorRef.current.innerHTML = "";
+        setTimeout(() => {
+          if (editorRef.current) {
+            editorRef.current.innerHTML = tempHTML;
+            setBody(tempHTML);
+          }
+        }, 0);
         return; // Exit early, will re-run when attachments are available
       }
 
@@ -371,8 +632,14 @@ export function ComposeEmail({
       // Second, remove any remaining cid: references in other attributes
       sanitizedHTML = sanitizedHTML.replace(/cid:[^"'\s>]+/gi, "");
 
-      editorRef.current.innerHTML = sanitizedHTML;
-      setBody(sanitizedHTML);
+      // Force contentEditable to re-process by clearing first
+      editorRef.current.innerHTML = "";
+      setTimeout(() => {
+        if (editorRef.current) {
+          editorRef.current.innerHTML = sanitizedHTML;
+          setBody(sanitizedHTML);
+        }
+      }, 0);
     }
   }, [initialBody, replyToEmail, loadedAttachments]);
 
@@ -757,7 +1024,13 @@ export function ComposeEmail({
           display: inline-block !important;
           max-width: 100% !important;
           height: auto !important;
-          border: none !important;
+          border: 2px solid transparent !important;
+          position: relative !important;
+        }
+
+        /* Selected image with border */
+        [contenteditable="true"] img.selected {
+          border: 2px solid #4285f4 !important;
         }
         /* Ensure social icons sit on a single row */
         [contenteditable="true"] a img {
@@ -1096,6 +1369,7 @@ export function ComposeEmail({
                 contentEditable
                 suppressContentEditableWarning
                 onInput={handleInput}
+                onPaste={handlePaste}
                 className="h-full w-full p-4 text-sm leading-relaxed focus:outline-none gmail-email-content"
                 style={{
                   fontFamily:
@@ -1135,7 +1409,7 @@ export function ComposeEmail({
           )}
 
           {/* Enhanced Formatting Toolbar */}
-          <div className="mb-2 flex items-center gap-1 p-1 bg-slate-100 flex-wrap rounded-3xl mx-3">
+          <div className="mb-2 flex items-center gap-[1px] p-1 bg-slate-100 flex-wrap rounded-3xl">
             {/* Undo/Redo */}
             <Button
               variant="ghost"
@@ -1163,7 +1437,7 @@ export function ComposeEmail({
                 className="h-8 px-2 flex items-center gap-1"
                 onClick={() => setShowFontMenu(!showFontMenu)}
               >
-                <MdTextFields className="w-5 h-5 font-bold" />
+                <span className="text-xs">{currentFontFamily}</span>
                 <MdExpandMore className="w-4 h-4 font-bold" />
               </Button>
               {showFontMenu && (
@@ -1175,6 +1449,7 @@ export function ComposeEmail({
                       style={{ fontFamily: font.value }}
                       onClick={() => {
                         execCommand("fontName", font.value);
+                        setCurrentFontFamily(font.label);
                         setShowFontMenu(false);
                       }}
                     >
@@ -1190,11 +1465,11 @@ export function ComposeEmail({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 flex items-center gap-1"
+                className="h-8 w-8 p-0"
                 onClick={() => setShowSizeMenu(!showSizeMenu)}
+                title="Font Size"
               >
-                <span className="text-xs">{currentFontSize}</span>
-                <MdExpandMore className="w-4 h-4 font-bold" />
+                <MdTitle className="w-5 h-5 font-bold" />
               </Button>
               {showSizeMenu && (
                 <div className="absolute bottom-9 left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-[80px]">
@@ -1209,6 +1484,36 @@ export function ComposeEmail({
                       }}
                     >
                       {size.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Line Height Dropdown */}
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setShowLineHeightMenu(!showLineHeightMenu)}
+                title="Line Height"
+              >
+                <MdFormatLineSpacing className="w-5 h-5 font-bold" />
+              </Button>
+              {showLineHeightMenu && (
+                <div className="absolute bottom-9 left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-[100px]">
+                  {lineHeights.map((lh) => (
+                    <button
+                      key={lh.value}
+                      className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
+                      onClick={() => {
+                        execCommand("lineHeight", lh.value);
+                        setCurrentLineHeight(lh.label);
+                        setShowLineHeightMenu(false);
+                      }}
+                    >
+                      {lh.label}
                     </button>
                   ))}
                 </div>
@@ -1374,6 +1679,50 @@ export function ComposeEmail({
             >
               <MdFormatListNumbered className="w-5 h-5 font-bold" />
             </Button>
+            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+
+            {/* More Menu Dropdown */}
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setShowMoreMenu(!showMoreMenu)}
+              >
+                <MdMoreVert className="w-5 h-5 font-bold" />
+              </Button>
+              {showMoreMenu && (
+                <div className="absolute bottom-9 left-0 bg-white border border-gray-200 rounded shadow-lg z-50">
+                  <button
+                    className="w-8 h-8 flex items-center justify-center hover:bg-gray-100"
+                    onClick={() => {
+                      execCommand("indent");
+                    }}
+                    title="Indent More"
+                  >
+                    <MdFormatIndentIncrease className="w-5 h-5 font-bold" />
+                  </button>
+                  <button
+                    className="w-8 h-8 flex items-center justify-center hover:bg-gray-100"
+                    onClick={() => {
+                      execCommand("outdent");
+                    }}
+                    title="Indent Less"
+                  >
+                    <MdFormatIndentDecrease className="w-5 h-5 font-bold" />
+                  </button>
+                  <button
+                    className="w-8 h-8 flex items-center justify-center hover:bg-gray-100"
+                    onClick={() => {
+                      execCommand("strikeThrough");
+                    }}
+                    title="Strikethrough"
+                  >
+                    <MdStrikethroughS className="w-5 h-5 font-bold" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Footer */}
