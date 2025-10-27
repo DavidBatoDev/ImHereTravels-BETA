@@ -1424,6 +1424,42 @@ export class GmailApiService {
       throw new Error(`Failed to toggle star status: ${error}`);
     }
   }
+
+  /**
+   * Get the subject line of a Gmail draft by message ID
+   * @param messageId - Gmail message ID (extracted from the compose URL)
+   * @returns Subject line of the draft
+   */
+  async getDraftSubject(messageId: string): Promise<string> {
+    try {
+      logger.info(`Fetching subject for message/draft: ${messageId}`);
+
+      // Get the message
+      const response = await this.gmail.users.messages.get({
+        userId: "me",
+        id: messageId,
+        format: "metadata",
+        metadataHeaders: ["Subject"],
+      });
+
+      const headers = response.data.payload?.headers || [];
+      const subjectHeader = headers.find(
+        (h: any) => h.name.toLowerCase() === "subject"
+      );
+
+      const subject = subjectHeader?.value || "(no subject)";
+      logger.info(`Subject for message ${messageId}: ${subject}`);
+
+      return subject;
+    } catch (error) {
+      logger.error(`Error fetching subject for message ${messageId}:`, error);
+      throw new Error(
+        `Failed to fetch draft subject: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
 }
 
 export default GmailApiService;

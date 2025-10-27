@@ -20,6 +20,8 @@ export {
 export { testRecompute } from "./test-recompute";
 export { generateReservationEmail } from "./generate-reservation-email";
 export { sendReservationEmail } from "./send-reservation-email";
+export { getDraftSubject } from "./get-draft-subject";
+export { getEmailDetails } from "./get-email-details";
 export { telegramBot } from "./telegram-bot";
 
 // Export only the scheduled email processor (cron job)

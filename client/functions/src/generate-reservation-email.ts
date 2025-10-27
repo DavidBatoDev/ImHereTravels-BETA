@@ -19,8 +19,8 @@ const db = getFirestore();
 const gmailService = new GmailApiService();
 
 // Helper function to generate Gmail draft URL
-function getGmailDraftUrl(draftId: string): string {
-  return `https://mail.google.com/mail/u/0/#drafts/${draftId}`;
+function getGmailDraftUrl(draftId: string, messageId: string): string {
+  return `https://mail.google.com/mail/u/0/#drafts?compose=${messageId}`;
 }
 
 // Helper function to format GBP currency
@@ -292,8 +292,11 @@ export const generateReservationEmail = onCall(
           `Gmail draft created successfully: ${gmailDraftResult.draftId}`
         );
 
-        // Generate the Gmail draft URL
-        const draftUrl = getGmailDraftUrl(gmailDraftResult.draftId);
+        // Generate the Gmail draft URL using messageId for compose parameter
+        const draftUrl = getGmailDraftUrl(
+          gmailDraftResult.draftId,
+          gmailDraftResult.messageId
+        );
 
         return {
           success: true,

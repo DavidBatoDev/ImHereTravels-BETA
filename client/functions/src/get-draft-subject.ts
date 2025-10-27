@@ -12,11 +12,14 @@ if (getApps().length === 0) {
   initializeApp();
 }
 
+// Initialize Gmail API Service
+const gmailService = new GmailApiService();
+
 /**
  * Extract message ID from Gmail draft URL
  * Examples:
  * - https://mail.google.com/mail/u/0/#drafts?compose=abc123xyz -> abc123xyz
- * - https://mail.google.com/mail/u/0/#drafts?compose=abc123xyz -> abc123xyz
+ * - https://FRONTEND_URL/mail/u/0/#drafts?compose=abc123xyz -> abc123xyz
  */
 function extractMessageIdFromUrl(url: string): string | null {
   try {
@@ -41,30 +44,26 @@ function extractMessageIdFromUrl(url: string): string | null {
   }
 }
 
-/**
- * Generate Gmail sent email URL
- */
-function getGmailSentUrl(messageId: string): string {
-  return `https://mail.google.com/mail/u/0/#sent/${messageId}`;
-}
-
-export const sendReservationEmail = onCall(
+// Cloud function to get Gmail draft subject
+export const getDraftSubject = onCall(
   {
     region: "asia-southeast1",
     maxInstances: 10,
     timeoutSeconds: 60,
+    memory: "512MiB",
+    cors: true,
   },
   async (request) => {
     try {
-      logger.info("Send email function called with data:", request.data);
-
       const { draftUrl } = request.data;
 
       if (!draftUrl) {
-        throw new HttpsError("invalid-argument", "draftUrl is required");
+        throw new HttpsError("invalid-argument", "Draft URL is required");
       }
 
-      // Extract messageId from the draft URL
+      logger.info(`Getting subject for draft URL: ${draftUrl}`);
+
+      // Extract message ID from URL
       const messageId = extractMessageIdFromUrl(draftUrl);
 
       if (!messageId) {
@@ -76,41 +75,17 @@ export const sendReservationEmail = onCall(
 
       logger.info(`Extracted message ID: ${messageId}`);
 
-      // Initialize Gmail API service
-      const gmailService = new GmailApiService();
-
-      // Get the draft by message ID to find the draftId
-      const draftsResponse = await gmailService.fetchDrafts(100);
-      const draft = draftsResponse.drafts.find(
-        (d: any) => d.messageId === messageId
-      );
-
-      if (!draft) {
-        throw new HttpsError(
-          "not-found",
-          "Draft not found with the given message ID"
-        );
-      }
-
-      logger.info(`Found draft with ID: ${draft.id}`);
-
-      // Send the draft
-      const result = await gmailService.sendDraft(draft.id);
-
-      logger.info("Draft sent successfully:", result.messageId);
-
-      // Generate the sent email URL
-      const sentUrl = getGmailSentUrl(result.messageId);
+      // Get the subject from Gmail API
+      const subject = await gmailService.getDraftSubject(messageId);
 
       return {
         success: true,
-        messageId: result.messageId,
-        threadId: result.threadId,
-        status: "sent",
-        sentUrl: sentUrl,
+        subject,
+        messageId,
+        draftUrl,
       };
     } catch (error) {
-      logger.error("Error sending email:", error);
+      logger.error("Error getting draft subject:", error);
 
       if (error instanceof HttpsError) {
         throw error;
@@ -118,7 +93,7 @@ export const sendReservationEmail = onCall(
 
       throw new HttpsError(
         "internal",
-        `Failed to send email: ${
+        `Failed to get draft subject: ${
           error instanceof Error ? error.message : String(error)
         }`
       );
