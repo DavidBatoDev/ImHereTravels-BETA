@@ -1986,7 +1986,7 @@ export default function EmailsTab() {
       {/* Gmail-style Loading Indicator for Category Changes and Email Loading */}
       {(isCategoryChanging || isLoading) && (
         <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
-          <div className="bg-primary text-white px-4 py-2 rounded-b-lg shadow-lg flex items-center gap-2 animate-slide-down">
+          <div className="bg-primary text-white px-4 py-2 rounded-b-lg shadow-lg flex items-center gap-2">
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
             <span className="text-sm font-medium">Loading...</span>
           </div>

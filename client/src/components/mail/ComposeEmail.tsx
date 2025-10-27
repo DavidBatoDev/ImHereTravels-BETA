@@ -79,7 +79,10 @@ export function ComposeEmail({
   const [bccEmails, setBccEmails] = useState<string[]>(
     initialBcc ? initialBcc.split(",").map((email) => email.trim()) : []
   );
-  const [subject, setSubject] = useState(initialSubject);
+  // Remove "(no subject)" from the initial subject
+  const [subject, setSubject] = useState(
+    initialSubject ? initialSubject.replace(/\(no subject\)/gi, "").trim() : ""
+  );
   const [body, setBody] = useState(initialBody);
   const [showCc, setShowCc] = useState(!!initialCc);
   const [showBcc, setShowBcc] = useState(!!initialBcc);

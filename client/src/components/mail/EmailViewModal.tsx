@@ -608,7 +608,11 @@ export function EmailViewModal({
           setReplyToEmails(toEmails);
           setReplyCcEmails(ccEmails);
           setReplyCc(latestDraft.cc || "");
-          setReplySubject(latestDraft.subject || "");
+          // Remove "(no subject)" from the subject line
+          const cleanDraftSubject = (latestDraft.subject || "")
+            .replace(/\(no subject\)/gi, "")
+            .trim();
+          setReplySubject(cleanDraftSubject);
           setReplyBody(
             latestDraft.htmlContent ||
               latestDraft.textContent ||
@@ -724,8 +728,10 @@ export function EmailViewModal({
     setReplyToEmails([replyToEmail]);
     setReplyCcEmails([]);
     setShowReplyCc(false);
+    // Remove "(no subject)" from the subject line
+    const cleanSubject = email.subject.replace(/\(no subject\)/gi, "").trim();
     setReplySubject(
-      email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`
+      cleanSubject.startsWith("Re:") ? cleanSubject : `Re: ${cleanSubject}`
     );
     setReplyBody(EMAIL_SIGNATURE);
     setShowReplyQuote(true);
@@ -814,8 +820,10 @@ export function EmailViewModal({
     setReplyToEmails([senderEmail]);
     setReplyCcEmails(ccRecipients);
     setShowReplyCc(ccRecipients.length > 0);
+    // Remove "(no subject)" from the subject line
+    const cleanSubject = email.subject.replace(/\(no subject\)/gi, "").trim();
     setReplySubject(
-      email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`
+      cleanSubject.startsWith("Re:") ? cleanSubject : `Re: ${cleanSubject}`
     );
     setReplyBody(EMAIL_SIGNATURE);
     setShowReplyQuote(true);
@@ -833,8 +841,10 @@ export function EmailViewModal({
     setReplyToEmails([]);
     setReplyCcEmails([]);
     setShowReplyCc(false);
+    // Remove "(no subject)" from the subject line
+    const cleanSubject = email.subject.replace(/\(no subject\)/gi, "").trim();
     setReplySubject(
-      email.subject.startsWith("Fwd:") ? email.subject : `Fwd: ${email.subject}`
+      cleanSubject.startsWith("Fwd:") ? cleanSubject : `Fwd: ${cleanSubject}`
     );
     setReplyBody(EMAIL_SIGNATURE);
     setShowReplyQuote(true);
