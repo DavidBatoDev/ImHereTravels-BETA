@@ -915,30 +915,35 @@ export default function BookingsDataGrid({
   }, [navigateToFunctions, availableFunctions, columns]);
 
   // Recompute only direct dependent function columns for a single row
+  // RECURSIVE: Computes direct dependents, then recursively computes their dependents
   const recomputeDirectDependentsForRow = useCallback(
-    async (rowId: string, changedColumnId: string, updatedValue: any) => {
+    async (
+      rowId: string,
+      changedColumnId: string,
+      updatedValue: any,
+      rowSnapshot?: SheetData
+    ) => {
       // Block during CSV import to preserve imported values
       if (isImporting()) return;
-      const changedCol = columns.find((c) => c.id === changedColumnId);
-      if (!changedCol) return;
 
-      // Build a working snapshot of the row values
-      const baseRow =
-        localData.find((r) => r.id === rowId) ||
-        data.find((r) => r.id === rowId) ||
-        ({ id: rowId } as SheetData);
+      // Build a working snapshot of the row values if not provided
+      let workingSnapshot = rowSnapshot;
+      if (!workingSnapshot) {
+        const baseRow =
+          localData.find((r) => r.id === rowId) ||
+          data.find((r) => r.id === rowId) ||
+          ({ id: rowId } as SheetData);
 
-      // Create row snapshot with updated value and any other local input values
-      const rowSnapshot: SheetData = {
-        ...baseRow,
-        [changedColumnId]: updatedValue,
-      };
-
-      // Note: We don't include local input values here since this function
-      // is only called after saving to Firebase, so Firebase data is up-to-date
+        workingSnapshot = {
+          ...baseRow,
+          [changedColumnId]: updatedValue,
+        };
+      }
 
       // Use column ID instead of column name for precise tracking
       const directDependents = dependencyGraph.get(changedColumnId) || [];
+
+      if (directDependents.length === 0) return;
 
       // Clear cache for affected functions since data has changed
       directDependents.forEach((funcCol) => {
@@ -950,7 +955,7 @@ export default function BookingsDataGrid({
       const results = await Promise.all(
         directDependents.map(async (funcCol) => {
           const result = await computeFunctionForRow(
-            rowSnapshot,
+            workingSnapshot,
             funcCol,
             true
           ); // Skip initial check for user-triggered changes
@@ -958,10 +963,40 @@ export default function BookingsDataGrid({
         })
       );
 
-      // Note: We don't update local state here since function results
-      // will be updated via Firebase listeners after saving
+      // Update the working snapshot with computed results for recursive computation
+      const updatedSnapshot = { ...workingSnapshot };
+      let hasChanges = false;
 
-      // Do not force flush; allow debounced batch to commit to keep UI snappy
+      for (const { funcCol, result } of results) {
+        if (result !== undefined) {
+          const oldValue = workingSnapshot[funcCol.id];
+          if (oldValue !== result) {
+            updatedSnapshot[funcCol.id] = result;
+            hasChanges = true;
+
+            // Queue the computed result to Firebase
+            batchedWriter.queueFieldUpdate(rowId, funcCol.id, result);
+          }
+        }
+      }
+
+      // If any results changed, recursively compute their dependents (CRITICAL for multi-level dependencies)
+      if (hasChanges) {
+        for (const { funcCol, result } of results) {
+          if (result !== undefined) {
+            const oldValue = workingSnapshot[funcCol.id];
+            if (oldValue !== result) {
+              // Recursively compute dependents of this computed column
+              await recomputeDirectDependentsForRow(
+                rowId,
+                funcCol.id,
+                result,
+                updatedSnapshot
+              );
+            }
+          }
+        }
+      }
     },
     [columns, localData, data, dependencyGraph, computeFunctionForRow]
   );
@@ -2865,7 +2900,12 @@ export default function BookingsDataGrid({
                         column.key,
                         newValue
                       );
-                      // Note: Recomputation will be triggered by Firebase listener
+                      // Trigger recomputation for dependent function columns
+                      await recomputeDirectDependentsForRow(
+                        row.id,
+                        column.key,
+                        newValue
+                      );
                     } catch (error) {
                       console.error("Failed to update boolean field:", error);
                     }
@@ -2955,7 +2995,12 @@ export default function BookingsDataGrid({
                       column.key,
                       newValue
                     );
-                    // Note: Recomputation will be triggered by Firebase listener
+                    // Trigger recomputation for dependent function columns
+                    await recomputeDirectDependentsForRow(
+                      row.id,
+                      column.key,
+                      newValue
+                    );
                   } catch (error) {
                     console.error("Failed to update date field:", error);
                   }
@@ -3003,7 +3048,12 @@ export default function BookingsDataGrid({
                       column.key,
                       newValue
                     );
-                    // Note: Recomputation will be triggered by Firebase listener
+                    // Trigger recomputation for dependent function columns
+                    await recomputeDirectDependentsForRow(
+                      row.id,
+                      column.key,
+                      newValue
+                    );
                   } catch (error) {
                     console.error("Failed to update select field:", error);
                   }
