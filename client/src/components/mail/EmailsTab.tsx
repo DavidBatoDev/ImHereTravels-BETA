@@ -196,8 +196,14 @@ export default function EmailsTab() {
   const getInitialCategory = () => {
     if (typeof window !== "undefined") {
       const hash = window.location.hash.slice(1); // Remove '#'
-      if (hash && gmailCategories.some((cat) => cat.id === hash)) {
-        return hash;
+      // Extract query string first, then category (before any '/')
+      const [hashWithoutQuery] = hash.split("?");
+      const categoryPart = hashWithoutQuery.split("/")[0];
+      if (
+        categoryPart &&
+        gmailCategories.some((cat) => cat.id === categoryPart)
+      ) {
+        return categoryPart;
       }
     }
     return "inbox";
@@ -1395,6 +1401,10 @@ export default function EmailsTab() {
 
     if (!hasCachedEmails) {
       console.log("No cached data, fetching emails for:", activeCategory);
+      // Clear previous category emails to avoid showing stale inbox while loading drafts
+      setEmails([]);
+      // Show loading indicator for category switch initiated via URL
+      setIsCategoryChanging(true);
       fetchEmails();
     } else {
       // Use cached emails immediately without loading state
@@ -1601,9 +1611,21 @@ export default function EmailsTab() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const hash = window.location.hash.slice(1);
-      // If no hash or invalid hash, set to current category
-      if (!hash || !gmailCategories.some((cat) => cat.id === hash)) {
-        window.location.hash = activeCategory;
+      // Extract just the category part (before the /)
+      const categoryPart = hash.split("/")[0];
+      // Extract query string if it exists
+      const [categoryWithoutQuery, queryString] = categoryPart.split("?");
+
+      // If no hash or invalid hash category, set to current category
+      if (
+        !categoryWithoutQuery ||
+        !gmailCategories.some((cat) => cat.id === categoryWithoutQuery)
+      ) {
+        // Preserve query string if it exists
+        const newHash = queryString
+          ? `${activeCategory}?${queryString}`
+          : activeCategory;
+        window.location.hash = newHash;
       }
     }
   }, []);
@@ -1635,17 +1657,32 @@ export default function EmailsTab() {
     const handleHashChange = async () => {
       if (typeof window !== "undefined") {
         const hash = window.location.hash.slice(1);
-        const parts = hash.split("/");
+
+        // Extract query string from hash first (before splitting by /)
+        const [hashWithoutQuery, queryString] = hash.split("?");
+
+        // Now split the hash without query by /
+        const parts = hashWithoutQuery.split("/");
         const category = parts[0];
         const emailId = parts[1];
 
-        // Update category if it's a valid category
-        if (category && gmailCategories.some((cat) => cat.id === category)) {
+        // Update category if it's a valid category and different from current
+        if (
+          category &&
+          gmailCategories.some((cat) => cat.id === category) &&
+          category !== activeCategory
+        ) {
           setActiveCategory(category);
+
+          // Preserve query string if it exists
+          if (queryString && typeof window !== "undefined") {
+            const newHash = `${category}?${queryString}`;
+            window.location.hash = newHash;
+          }
         }
 
         // Check if hash has compose query parameter (don't process as email ID)
-        const [categoryPath, queryString] = hash.split("?");
+        // queryString was already extracted above
         const hasComposeQuery =
           queryString && queryString.startsWith("compose=");
 
@@ -1723,91 +1760,202 @@ export default function EmailsTab() {
 
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, [emails, emailCache, isViewDialogOpen, selectedEmail, handleCloseEmail]);
+  }, [
+    emails,
+    emailCache,
+    isViewDialogOpen,
+    selectedEmail,
+    handleCloseEmail,
+    activeCategory,
+  ]);
 
-  // Listen for compose query parameter in URL hash
+  // Handle deep linking when emails finish loading (for initial page load with email ID)
+  useEffect(() => {
+    const tryOpenEmailFromHash = async () => {
+      if (typeof window === "undefined" || isViewDialogOpen) return;
+
+      const hash = window.location.hash.slice(1);
+
+      // Extract query string from hash first (before splitting by /)
+      const [hashWithoutQuery, queryString] = hash.split("?");
+
+      // Now split the hash without query by /
+      const parts = hashWithoutQuery.split("/");
+      const emailId = parts[1];
+
+      // Check if hash has compose query parameter (don't process as email ID)
+      const hasComposeQuery = queryString && queryString.startsWith("compose=");
+
+      // Only try to open if we have an email ID and emails are loaded
+      if (emailId && !hasComposeQuery && emails.length > 0) {
+        // Find email in current list - search by threadId first, then by id
+        const email = emails.find(
+          (e) => e.threadId === emailId || e.id === emailId
+        );
+
+        if (email) {
+          setSelectedEmail(email);
+          setIsViewDialogOpen(true);
+
+          // Load full content if not already cached
+          if (!email.htmlContent && !email.textContent) {
+            const fullEmail = await fetchFullEmailContent(email.id);
+            if (fullEmail) {
+              setSelectedEmail(fullEmail);
+            }
+          }
+        }
+      }
+    };
+
+    // Try to open email from hash after emails load
+    if (!isLoading && emails.length > 0) {
+      tryOpenEmailFromHash();
+    }
+  }, [isLoading, emails, isViewDialogOpen]);
+
+  // Handle compose from URL after emails finish loading (for initial page load with compose param)
+  useEffect(() => {
+    const tryOpenComposeFromHash = async () => {
+      if (typeof window === "undefined" || isComposeOpen || isViewDialogOpen)
+        return;
+
+      const hash = window.location.hash.slice(1);
+      // Extract query string from hash first (before splitting by /)
+      const [hashWithoutQuery, queryString] = hash.split("?");
+
+      // Now split the hash without query by / to get category
+      const categoryPath = hashWithoutQuery.split("/")[0];
+
+      if (queryString) {
+        const params = new URLSearchParams(queryString);
+        const composeParam = params.get("compose");
+
+        // Only try to open compose if we have emails loaded and a compose parameter
+        // Also ensure the drafts category is active for draft composes
+        if (
+          composeParam &&
+          !isLoading &&
+          emails.length > 0 &&
+          (composeParam === "new" || activeCategory === "drafts")
+        ) {
+          console.log("Trying to open compose:", {
+            composeParam,
+            activeCategory,
+            categoryPath,
+            emailsCount: emails.length,
+          });
+
+          // If we're trying to open a draft (not "new"), make sure we're on the drafts category
+          // This ensures we have the draft data loaded
+          // At this point: either compose=new, or drafts have been loaded under drafts category
+          // Check if this is a reply/forward draft (should open in EmailViewModal)
+          if (composeParam !== "new") {
+            let draftEmail = emailCache.get(composeParam);
+
+            // If not found, search through cache values by messageId
+            if (!draftEmail) {
+              const cacheArray = Array.from(emailCache.values());
+              draftEmail = cacheArray.find((e) => e.messageId === composeParam);
+            }
+
+            // If still not found, search through current emails
+            if (!draftEmail) {
+              draftEmail = emails.find(
+                (e) =>
+                  e.messageId === composeParam ||
+                  e.id === composeParam ||
+                  e.threadId === composeParam
+              );
+            }
+
+            // If this is a reply/forward draft (has mailType and threadId), don't open ComposeEmail
+            if (draftEmail?.mailType && draftEmail?.threadId) {
+              return; // Skip opening ComposeEmail, let EmailViewModal handle it
+            }
+          }
+
+          setIsComposeOpen(true);
+
+          if (composeParam === "new") {
+            // New compose
+            setComposeType("new");
+            setComposeData({});
+          } else {
+            // Open draft by ID - search by messageId first (for Gmail compatibility), then by id
+            let draftEmail = emailCache.get(composeParam);
+
+            // If not found, search through cache values by messageId
+            if (!draftEmail) {
+              const cacheArray = Array.from(emailCache.values());
+              draftEmail = cacheArray.find((e) => e.messageId === composeParam);
+            }
+
+            // If still not found, search through current emails
+            if (!draftEmail) {
+              draftEmail = emails.find(
+                (e) =>
+                  e.messageId === composeParam ||
+                  e.id === composeParam ||
+                  e.threadId === composeParam
+              );
+            }
+
+            if (draftEmail) {
+              setComposeType("new");
+              setComposeData({
+                to: draftEmail.to,
+                cc: draftEmail.cc,
+                bcc: draftEmail.bcc,
+                subject: draftEmail.subject,
+                body: draftEmail.htmlContent || draftEmail.textContent,
+                replyToEmail: draftEmail,
+              });
+            }
+          }
+        }
+      }
+    };
+
+    // Try to open compose from hash after emails load. For drafts, ensure category is drafts
+    if (
+      !isLoading &&
+      emails.length > 0 &&
+      (activeCategory === "drafts" ||
+        !window.location.hash.includes("#drafts?compose="))
+    ) {
+      tryOpenComposeFromHash();
+    }
+  }, [
+    isLoading,
+    emails,
+    emailCache,
+    isComposeOpen,
+    isViewDialogOpen,
+    activeCategory,
+  ]);
+
+  // Listen for compose=new in URL hash (only opens immediately for brand new compose)
+  // For drafts, we defer opening to the loader that waits for data
   useEffect(() => {
     const handleComposeFromUrl = () => {
       if (typeof window !== "undefined") {
         const hash = window.location.hash.slice(1);
-        const [categoryPath, queryString] = hash.split("?");
+        const [_, queryString] = hash.split("?");
 
-        if (queryString) {
-          const params = new URLSearchParams(queryString);
-          const composeParam = params.get("compose");
+        if (!queryString) return;
+        const params = new URLSearchParams(queryString);
+        const composeParam = params.get("compose");
 
-          if (composeParam && !isComposeOpen && !isViewDialogOpen) {
-            // Check if this is a reply/forward draft (should open in EmailViewModal)
-            if (composeParam !== "new") {
-              let draftEmail = emailCache.get(composeParam);
+        if (!composeParam || isComposeOpen || isViewDialogOpen) return;
 
-              // If not found, search through cache values by messageId
-              if (!draftEmail) {
-                const cacheArray = Array.from(emailCache.values());
-                draftEmail = cacheArray.find(
-                  (e) => e.messageId === composeParam
-                );
-              }
-
-              // If still not found, search through current emails
-              if (!draftEmail) {
-                draftEmail = emails.find(
-                  (e) =>
-                    e.messageId === composeParam ||
-                    e.id === composeParam ||
-                    e.threadId === composeParam
-                );
-              }
-
-              // If this is a reply/forward draft (has mailType and threadId), don't open ComposeEmail
-              if (draftEmail?.mailType && draftEmail?.threadId) {
-                return; // Skip opening ComposeEmail, let EmailViewModal handle it
-              }
-            }
-
-            setIsComposeOpen(true);
-
-            if (composeParam === "new") {
-              // New compose
-              setComposeType("new");
-              setComposeData({});
-            } else {
-              // Open draft by ID - search by messageId first (for Gmail compatibility), then by id
-              // First try direct cache lookup by id
-              let draftEmail = emailCache.get(composeParam);
-
-              // If not found, search through cache values by messageId
-              if (!draftEmail) {
-                const cacheArray = Array.from(emailCache.values());
-                draftEmail = cacheArray.find(
-                  (e) => e.messageId === composeParam
-                );
-              }
-
-              // If still not found, search through current emails
-              if (!draftEmail) {
-                draftEmail = emails.find(
-                  (e) =>
-                    e.messageId === composeParam ||
-                    e.id === composeParam ||
-                    e.threadId === composeParam
-                );
-              }
-
-              if (draftEmail) {
-                setComposeType("new");
-                setComposeData({
-                  to: draftEmail.to,
-                  cc: draftEmail.cc,
-                  bcc: draftEmail.bcc,
-                  subject: draftEmail.subject,
-                  body: draftEmail.htmlContent || draftEmail.textContent,
-                  replyToEmail: draftEmail,
-                });
-              }
-            }
-          }
+        // Only auto-open immediately for new compose
+        if (composeParam === "new") {
+          setIsComposeOpen(true);
+          setComposeType("new");
+          setComposeData({});
         }
+        // For drafts, do nothing here – the other effect will open it once data is ready
       }
     };
 
@@ -1816,7 +1964,7 @@ export default function EmailsTab() {
 
     window.addEventListener("hashchange", handleComposeFromUrl);
     return () => window.removeEventListener("hashchange", handleComposeFromUrl);
-  }, [isComposeOpen, isViewDialogOpen, emailCache, emails]);
+  }, [isComposeOpen, isViewDialogOpen]);
 
   // Filter emails based on search term
   const filteredEmails = emails.filter((email) => {
