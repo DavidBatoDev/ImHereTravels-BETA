@@ -734,10 +734,14 @@ export default function EditBookingModal({
         // Prevent default to avoid unwanted behavior
         e.preventDefault();
 
-        // User cancelled editing - discard pending changes and revert to Firebase value
+        // User cancelled editing - discard pending changes and revert to original value
         console.log(
           `🚫 [EDIT BOOKING MODAL] Discarding changes for: ${columnId}`
         );
+
+        // Get the original value before editing started
+        const originalValue =
+          originalValues[columnId] ?? formData[columnId as keyof Booking];
 
         // Remove from pending changes without saving
         setPendingChanges((prev) => {
@@ -753,22 +757,30 @@ export default function EditBookingModal({
           return newOriginal;
         });
 
+        // Remove from active editing fields
         setActiveEditingFields((prev) => {
           const newSet = new Set(prev);
           newSet.delete(columnId);
           return newSet;
         });
+
+        // Remove from local field values
         setLocalFieldValues((prev) => {
           const newValues = { ...prev };
           delete newValues[columnId];
           return newValues;
         });
-        // Revert to Firebase value
-        const firebaseValue = formData[columnId as keyof Booking];
-        setFormData((prev) => ({ ...prev, [columnId]: firebaseValue }));
+
+        // Revert to original value
+        setFormData((prev) => ({ ...prev, [columnId]: originalValue }));
+
+        // Remove focus from the input
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
       }
     },
-    [handleFieldBlur, formData]
+    [handleFieldBlur, formData, originalValues]
   );
 
   // Check if column should be displayed
@@ -1076,14 +1088,37 @@ export default function EditBookingModal({
       return;
     }
 
-    // Save any pending changes before closing
-    if (Object.keys(pendingChanges).length > 0 && booking?.id) {
-      console.log(
-        "💾 [EDIT BOOKING MODAL] Saving pending changes before close"
+    // Check if there are unsaved changes (active edits or pending changes)
+    const hasActiveEdits = activeEditingFields.size > 0;
+    const hasPendingChanges = Object.keys(pendingChanges).length > 0;
+
+    if (hasActiveEdits || hasPendingChanges) {
+      // Show confirmation alert
+      const confirmed = window.confirm(
+        "You have unsaved changes. Do you want to save them before closing?"
       );
-      Object.entries(pendingChanges).forEach(([columnId, value]) => {
-        batchedWriter.queueFieldUpdate(booking.id, columnId, value);
-      });
+
+      if (confirmed) {
+        // Save pending changes before closing
+        if (hasPendingChanges && booking?.id) {
+          console.log(
+            "💾 [EDIT BOOKING MODAL] Saving pending changes before close"
+          );
+          Object.entries(pendingChanges).forEach(([columnId, value]) => {
+            batchedWriter.queueFieldUpdate(booking.id, columnId, value);
+          });
+        }
+        // Close modal (will save changes)
+      } else {
+        // Discard changes and close
+        console.log("🚫 [EDIT BOOKING MODAL] Discarding changes and closing");
+
+        // Clear all local editing state
+        setPendingChanges({});
+        setOriginalValues({});
+        setActiveEditingFields(new Set());
+        setLocalFieldValues({});
+      }
     }
 
     // Clear any pending debounced executions
@@ -1093,7 +1128,14 @@ export default function EditBookingModal({
     }
 
     onClose();
-  }, [computingFields.size, pendingChanges, booking?.id, onClose, toast]);
+  }, [
+    computingFields.size,
+    activeEditingFields.size,
+    pendingChanges,
+    booking?.id,
+    onClose,
+    toast,
+  ]);
 
   if (!booking) return null;
 
