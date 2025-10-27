@@ -206,6 +206,12 @@ export class GmailApiService {
       messageId: getHeader("Message-ID"),
       inReplyTo: getHeader("In-Reply-To"),
       references: getHeader("References"),
+      mailType: getHeader("X-MailType") as
+        | "reply"
+        | "replyAll"
+        | "forward"
+        | "new"
+        | undefined,
       bcc: getHeader("Bcc"),
       cc: getHeader("Cc"),
       isStarred: message.labelIds?.includes("STARRED"),
@@ -213,6 +219,7 @@ export class GmailApiService {
         message.payload?.parts?.some((part: any) => part.filename) || false,
       attachments: this.extractAttachments(message.payload),
       isImportant: message.labelIds?.includes("IMPORTANT"),
+      isDraft: message.labelIds?.includes("DRAFT"),
       threadMessageCount: 1, // Will be updated in batchFetchEmails
     };
   }

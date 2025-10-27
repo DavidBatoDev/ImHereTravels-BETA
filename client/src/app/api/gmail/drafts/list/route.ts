@@ -51,6 +51,11 @@ export async function GET(request: NextRequest) {
           const subject = getHeader("Subject");
           const date = getHeader("Date");
 
+          // Extract reply/forward headers
+          const inReplyTo = getHeader("In-Reply-To");
+          const references = getHeader("References");
+          const mailType = getHeader("X-MailType"); // 'reply', 'forward', 'new'
+
           // Extract body content
           let htmlContent = "";
           let textContent = "";
@@ -164,6 +169,10 @@ export async function GET(request: NextRequest) {
             hasAttachments: hasAttachments,
             isImportant: false,
             threadMessageCount: 1,
+            // Include reply/forward headers if present
+            inReplyTo: inReplyTo || undefined,
+            references: references || undefined,
+            mailType: mailType || undefined,
           };
         } catch (error) {
           console.error(`Error fetching draft ${draft.id}:`, error);

@@ -4,7 +4,18 @@ import { google } from "googleapis";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { to, cc, bcc, subject, content, draftId } = body;
+    const {
+      to,
+      cc,
+      bcc,
+      subject,
+      content,
+      draftId,
+      threadId,
+      inReplyTo,
+      references,
+      mailType, // 'reply', 'forward', 'new'
+    } = body;
 
     // Initialize OAuth2 client
     const oauth2Client = new google.auth.OAuth2(
@@ -25,10 +36,24 @@ export async function POST(request: NextRequest) {
     if (cc && cc.length > 0) recipients.push(`Cc: ${cc.join(", ")}`);
     if (bcc && bcc.length > 0) recipients.push(`Bcc: ${bcc.join(", ")}`);
 
+    // Add reply/forward headers if present (In-Reply-To and References)
+    const additionalHeaders = [];
+    if (inReplyTo) {
+      additionalHeaders.push(`In-Reply-To: ${inReplyTo}`);
+    }
+    if (references) {
+      additionalHeaders.push(`References: ${references}`);
+    }
+    // Add X-MailType header to identify draft type
+    if (mailType) {
+      additionalHeaders.push(`X-MailType: ${mailType}`);
+    }
+
     // Create email message
     const message = [
       ...recipients,
       `Subject: ${subject || "(no subject)"}`,
+      ...additionalHeaders,
       "Content-Type: text/html; charset=utf-8",
       "",
       content || "",
@@ -40,14 +65,21 @@ export async function POST(request: NextRequest) {
     if (draftId) {
       // Update existing draft
       try {
+        const requestBody: any = {
+          message: {
+            raw: encodedMessage,
+          },
+        };
+
+        // Add threadId to requestBody if provided (for Gmail threading)
+        if (threadId) {
+          requestBody.message.threadId = threadId;
+        }
+
         const response = await gmail.users.drafts.update({
           userId: "me",
           id: draftId,
-          requestBody: {
-            message: {
-              raw: encodedMessage,
-            },
-          },
+          requestBody,
         });
 
         return NextResponse.json({
@@ -62,13 +94,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new draft
+    const requestBody: any = {
+      message: {
+        raw: encodedMessage,
+      },
+    };
+
+    // Add threadId to requestBody if provided (for Gmail threading)
+    if (threadId) {
+      requestBody.message.threadId = threadId;
+    }
+
     const response = await gmail.users.drafts.create({
       userId: "me",
-      requestBody: {
-        message: {
-          raw: encodedMessage,
-        },
-      },
+      requestBody,
     });
 
     return NextResponse.json({

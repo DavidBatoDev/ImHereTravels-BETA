@@ -83,6 +83,7 @@ interface GmailEmail {
   messageId: string;
   inReplyTo?: string;
   references?: string;
+  mailType?: string; // 'reply', 'replyAll', 'forward', 'new'
   bcc?: string;
   cc?: string;
   isStarred?: boolean;
@@ -247,6 +248,20 @@ export default function EmailsTab() {
     body?: string;
     replyToEmail?: GmailEmail;
   }>({});
+
+  // Draft to open in EmailViewModal
+  const [draftToOpenInViewer, setDraftToOpenInViewer] = useState<{
+    draftId: string;
+    to: string;
+    cc?: string;
+    bcc?: string;
+    subject: string;
+    body: string;
+    threadId?: string;
+    inReplyTo?: string;
+    references?: string;
+    mailType?: string;
+  } | null>(null);
 
   // Check if we should use cached data
   const shouldUseCachedData = (cacheKey: string) => {
@@ -757,6 +772,8 @@ export default function EmailsTab() {
       );
       if (!open) {
         handleCloseEmail();
+        // Reset draft when closing modal
+        setDraftToOpenInViewer(null);
       }
     },
     [handleCloseEmail]
@@ -1176,6 +1193,42 @@ export default function EmailsTab() {
     return email.threadMessageCount || 1;
   };
 
+  // Get draft type label
+  const getDraftTypeLabel = (
+    email: GmailEmail
+  ): { name: string; type: string } | null => {
+    if (!email.isDraft) return null;
+
+    // Determine draft type
+    const typeMap: Record<string, string> = {
+      reply: "Reply Draft",
+      replyAll: "Reply All Draft",
+      forward: "Forward Draft",
+      new: "Draft",
+    };
+    const draftType = email.mailType
+      ? typeMap[email.mailType] || "Draft"
+      : "Draft";
+
+    // Determine name based on mail type
+    let name = "Unknown";
+
+    // For forward drafts, show "To" recipient name (we are the sender)
+    if (email.mailType === "forward") {
+      name = email.to ? extractNameFromEmail(email.to) : "Unknown";
+    }
+    // For reply/replyAll, show sender name (from)
+    else if (email.mailType === "reply" || email.mailType === "replyAll") {
+      name = email.from ? extractNameFromEmail(email.from) : "Unknown";
+    }
+    // For new drafts, try to get name from "to" field
+    else if (email.mailType === "new") {
+      name = email.to ? extractNameFromEmail(email.to) : "Unknown";
+    }
+
+    return { name, type: draftType };
+  };
+
   // Compose functions
   const handleCompose = () => {
     setIsComposeOpen(true);
@@ -1242,16 +1295,39 @@ export default function EmailsTab() {
   );
 
   const handleOpenDraft = (email: GmailEmail) => {
-    setIsComposeOpen(true);
-    setComposeType("new");
-    setComposeData({
-      to: email.to,
-      cc: email.cc,
-      bcc: email.bcc,
-      subject: email.subject,
-      body: email.htmlContent || email.textContent,
-      replyToEmail: email,
-    });
+    // Open in EmailViewModal if it's a reply/replyAll/forward draft (has mailType and threadId)
+    // New drafts without mailType or threadId open in ComposeEmail
+    if (email.mailType && email.threadId && email.threadId.trim() !== "") {
+      // Open in EmailViewModal with the reply/forward editor
+      const draftId = email.messageId || email.id;
+      setDraftToOpenInViewer({
+        draftId: draftId,
+        to: email.to,
+        cc: email.cc,
+        bcc: email.bcc,
+        subject: email.subject,
+        body: email.htmlContent || email.textContent,
+        threadId: email.threadId,
+        inReplyTo: email.inReplyTo,
+        references: email.references,
+        mailType: email.mailType,
+      });
+      // Set selectedEmail to open the modal (we need at least one email to display)
+      setSelectedEmail(email);
+      setIsViewDialogOpen(true);
+    } else {
+      // Open in ComposeEmail for new drafts without mailType or threadId
+      setIsComposeOpen(true);
+      setComposeType("new");
+      setComposeData({
+        to: email.to,
+        cc: email.cc,
+        bcc: email.bcc,
+        subject: email.subject,
+        body: email.htmlContent || email.textContent,
+        replyToEmail: email,
+      });
+    }
 
     // Update URL hash to include compose query parameter with draft ID
     if (typeof window !== "undefined") {
@@ -1553,8 +1629,13 @@ export default function EmailsTab() {
           setActiveCategory(category);
         }
 
-        // Open email if email ID is present
-        if (emailId) {
+        // Check if hash has compose query parameter (don't process as email ID)
+        const [categoryPath, queryString] = hash.split("?");
+        const hasComposeQuery =
+          queryString && queryString.startsWith("compose=");
+
+        // Open email if email ID is present (but not if it's a compose query)
+        if (emailId && !hasComposeQuery) {
           // Prevent infinite loop - if modal is already open with this email, don't reopen
           if (
             isViewDialogOpen &&
@@ -1605,8 +1686,8 @@ export default function EmailsTab() {
               }
             }
           }
-        } else if (isViewDialogOpen) {
-          // If hash changed and no email ID, close the modal
+        } else if (isViewDialogOpen && !hasComposeQuery) {
+          // If hash changed and no email ID (and no compose query), close the modal
           // But don't close if we just clicked the Gmail button or theme toggle
           console.log(
             "Hash changed without email ID, skipHashCloseRef:",
@@ -1640,7 +1721,35 @@ export default function EmailsTab() {
           const params = new URLSearchParams(queryString);
           const composeParam = params.get("compose");
 
-          if (composeParam && !isComposeOpen) {
+          if (composeParam && !isComposeOpen && !isViewDialogOpen) {
+            // Check if this is a reply/forward draft (should open in EmailViewModal)
+            if (composeParam !== "new") {
+              let draftEmail = emailCache.get(composeParam);
+
+              // If not found, search through cache values by messageId
+              if (!draftEmail) {
+                const cacheArray = Array.from(emailCache.values());
+                draftEmail = cacheArray.find(
+                  (e) => e.messageId === composeParam
+                );
+              }
+
+              // If still not found, search through current emails
+              if (!draftEmail) {
+                draftEmail = emails.find(
+                  (e) =>
+                    e.messageId === composeParam ||
+                    e.id === composeParam ||
+                    e.threadId === composeParam
+                );
+              }
+
+              // If this is a reply/forward draft (has mailType and threadId), don't open ComposeEmail
+              if (draftEmail?.mailType && draftEmail?.threadId) {
+                return; // Skip opening ComposeEmail, let EmailViewModal handle it
+              }
+            }
+
             setIsComposeOpen(true);
 
             if (composeParam === "new") {
@@ -1692,7 +1801,7 @@ export default function EmailsTab() {
 
     window.addEventListener("hashchange", handleComposeFromUrl);
     return () => window.removeEventListener("hashchange", handleComposeFromUrl);
-  }, [isComposeOpen, emailCache, emails]);
+  }, [isComposeOpen, isViewDialogOpen, emailCache, emails]);
 
   // Filter emails based on search term
   const filteredEmails = emails.filter((email) => {
@@ -1972,9 +2081,30 @@ export default function EmailsTab() {
                       style={{ width: "180px" }}
                     >
                       {email.isDraft ? (
-                        <span className="text-sm text-red-600 dark:text-red-400">
-                          Draft
-                        </span>
+                        (() => {
+                          const draftLabel = getDraftTypeLabel(email);
+                          return draftLabel ? (
+                            <span className="text-sm truncate">
+                              {draftLabel.type === "Draft" ? (
+                                // Normal draft - just show "Draft" in red
+                                <span className="text-red-600 dark:text-red-400">
+                                  {draftLabel.type}
+                                </span>
+                              ) : (
+                                // Reply/Forward drafts - show name in black and type in red
+                                <>
+                                  <span className="text-foreground">
+                                    {draftLabel.name}
+                                  </span>
+                                  <span className="text-red-600 dark:text-red-400">
+                                    {" "}
+                                    {draftLabel.type}
+                                  </span>
+                                </>
+                              )}
+                            </span>
+                          ) : null;
+                        })()
                       ) : (
                         <span
                           className={cn(
@@ -2148,6 +2278,8 @@ export default function EmailsTab() {
         onReply={handleReply}
         onForward={handleForward}
         onGmailOpen={handleGmailOpen}
+        openDraftInEditor={draftToOpenInViewer}
+        onDraftSaved={refreshDrafts}
       />
 
       {/* Compose Email Component */}

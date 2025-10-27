@@ -96,12 +96,14 @@ interface GmailEmail {
   messageId: string;
   inReplyTo?: string;
   references?: string;
+  mailType?: string; // 'reply', 'replyAll', 'forward', 'new'
   bcc?: string;
   cc?: string;
   isStarred?: boolean;
   hasAttachments?: boolean;
   attachments?: GmailAttachment[];
   isImportant?: boolean;
+  isDraft?: boolean; // Whether this is a draft email
 }
 
 interface EmailViewModalProps {
@@ -112,6 +114,19 @@ interface EmailViewModalProps {
   onReply?: (email: GmailEmail) => void;
   onForward?: (email: GmailEmail) => void;
   onGmailOpen?: () => void;
+  openDraftInEditor?: {
+    draftId: string;
+    to: string;
+    cc?: string;
+    bcc?: string;
+    subject: string;
+    body: string;
+    threadId?: string;
+    inReplyTo?: string;
+    references?: string;
+    mailType?: string;
+  } | null;
+  onDraftSaved?: () => void;
 }
 
 // Global flag to track if we should prevent modal close
@@ -173,6 +188,8 @@ export function EmailViewModal({
   onReply,
   onForward,
   onGmailOpen,
+  openDraftInEditor,
+  onDraftSaved,
 }: EmailViewModalProps) {
   const { toast } = useToast();
   const [threadEmails, setThreadEmails] = useState<GmailEmail[]>([]);
@@ -211,6 +228,15 @@ export function EmailViewModal({
 
   // Attachments state
   const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
+
+  // Draft management
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [isDraftSaving, setIsDraftSaving] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<
+    "saved" | "saving" | "error" | null
+  >(null);
+  const [isOpeningDraft, setIsOpeningDraft] = useState(false);
+  const [hasOpenedDraft, setHasOpenedDraft] = useState(false);
 
   // Rich text editor state
   const [showFontMenu, setShowFontMenu] = useState(false);
@@ -282,12 +308,120 @@ export function EmailViewModal({
     }
   }, [selectedEmail?.threadId, isOpen]);
 
-  // Initialize editor content when replyBody changes
+  // Initialize editor content when replyBody changes (but not when user is typing)
   useEffect(() => {
-    if (replyEditorRef.current && replyBody && replyMode) {
-      replyEditorRef.current.innerHTML = replyBody;
+    // Only update editor when mode changes or when opening a draft
+    // Don't update when user is typing (which would cause cursor to jump)
+    if (replyEditorRef.current && replyBody && replyMode && !hasOpenedDraft) {
+      // Only set if the content is significantly different
+      const currentContent = replyEditorRef.current.innerHTML.trim();
+      const newContent = replyBody.trim();
+
+      if (currentContent !== newContent && !currentContent) {
+        // Only update if editor is empty (initial setup)
+        replyEditorRef.current.innerHTML = replyBody;
+      }
+    } else if (
+      replyEditorRef.current &&
+      replyBody &&
+      replyMode &&
+      hasOpenedDraft
+    ) {
+      // When opening a draft, update the content once
+      if (replyEditorRef.current.innerHTML !== replyBody) {
+        replyEditorRef.current.innerHTML = replyBody;
+      }
     }
-  }, [replyMode]); // Only when reply mode changes
+  }, [replyMode]); // Only when reply mode changes, not on every replyBody change
+
+  // Auto-save draft when body content changes (with debounce)
+  useEffect(() => {
+    if (!replyMode || isOpeningDraft || hasOpenedDraft) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      saveDraft();
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(timer);
+  }, [replyBody, replyToEmails, replyCcEmails, replySubject]);
+
+  // Open draft in editor when openDraftInEditor prop is provided
+  useEffect(() => {
+    if (openDraftInEditor && !hasOpenedDraft && isOpen) {
+      setIsOpeningDraft(true);
+      setHasOpenedDraft(true);
+
+      // Set draft ID
+      setDraftId(openDraftInEditor.draftId);
+
+      // Parse recipient emails
+      const toEmails = openDraftInEditor.to
+        ? openDraftInEditor.to.split(",").map((e) => e.trim())
+        : [];
+      const ccEmails = openDraftInEditor.cc
+        ? openDraftInEditor.cc.split(",").map((e) => e.trim())
+        : [];
+
+      // Set reply mode based on mailType header or whether it's a reply or forward
+      // mailType can be 'reply', 'replyAll', or 'forward'
+      if (openDraftInEditor.mailType) {
+        // Use mailType if available
+        if (openDraftInEditor.mailType === "replyAll") {
+          setReplyMode("replyAll");
+        } else if (openDraftInEditor.mailType === "forward") {
+          setReplyMode("forward");
+        } else {
+          setReplyMode("reply");
+        }
+      } else {
+        // Fallback to checking inReplyTo
+        const isReply = openDraftInEditor.inReplyTo !== undefined;
+        if (isReply) {
+          setReplyMode("reply");
+        } else {
+          setReplyMode("forward");
+        }
+      }
+
+      // Set form fields
+      setReplyToEmails(toEmails);
+      setReplyCcEmails(ccEmails);
+      setReplyCc(openDraftInEditor.cc || "");
+      setReplySubject(openDraftInEditor.subject || "");
+      setReplyBody(openDraftInEditor.body || EMAIL_SIGNATURE);
+
+      // Show CC field if there are CC recipients
+      if (ccEmails.length > 0) {
+        setShowReplyCc(true);
+      }
+
+      setIsOpeningDraft(false);
+
+      // Auto-scroll to the reply container
+      setTimeout(() => {
+        document.querySelector(".reply-container")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 300);
+    }
+  }, [openDraftInEditor, hasOpenedDraft, isOpen]);
+
+  // Reset hasOpenedDraft when reply mode is cleared or when openDraftInEditor changes
+  useEffect(() => {
+    if (!replyMode) {
+      setHasOpenedDraft(false);
+    }
+  }, [replyMode]);
+
+  // Reset hasOpenedDraft when openDraftInEditor becomes null (draft closed)
+  useEffect(() => {
+    if (!openDraftInEditor) {
+      setHasOpenedDraft(false);
+    }
+  }, [openDraftInEditor]);
 
   // Image resize and drag functionality for reply editor
   useEffect(() => {
@@ -440,11 +574,72 @@ export function EmailViewModal({
           date: new Date(email.date),
         }));
 
-        setThreadEmails(emails);
+        // Check if the latest email is a draft
+        const nonDraftEmails = emails.filter((email: any) => !email.isDraft);
+        const draftEmails = emails.filter((email: any) => email.isDraft);
 
-        // Auto-expand the latest email
-        if (emails.length > 0) {
-          const latestEmail = emails[emails.length - 1];
+        // If there's a draft, it means we should open it in the inline editor
+        if (draftEmails.length > 0 && !hasOpenedDraft) {
+          const latestDraft = draftEmails[draftEmails.length - 1];
+
+          // Extract the mailType from the draft's X-MailType header or labels
+          const mailType =
+            latestDraft.mailType ||
+            (latestDraft.labels?.includes("DRAFT") ? "reply" : undefined);
+
+          // Parse recipient emails
+          const toEmails = latestDraft.to
+            ? latestDraft.to.split(",").map((e: string) => e.trim())
+            : [];
+          const ccEmails = latestDraft.cc
+            ? latestDraft.cc.split(",").map((e: string) => e.trim())
+            : [];
+
+          // Set reply mode based on mailType
+          if (mailType === "replyAll") {
+            setReplyMode("replyAll");
+          } else if (mailType === "forward") {
+            setReplyMode("forward");
+          } else if (mailType === "reply") {
+            setReplyMode("reply");
+          }
+
+          // Set form fields with draft content
+          setReplyToEmails(toEmails);
+          setReplyCcEmails(ccEmails);
+          setReplyCc(latestDraft.cc || "");
+          setReplySubject(latestDraft.subject || "");
+          setReplyBody(
+            latestDraft.htmlContent ||
+              latestDraft.textContent ||
+              EMAIL_SIGNATURE
+          );
+
+          // Set draft ID for saving
+          setDraftId(latestDraft.messageId || latestDraft.id);
+
+          // Show CC field if there are CC recipients
+          if (ccEmails.length > 0) {
+            setShowReplyCc(true);
+          }
+
+          // Mark that we've opened the draft
+          setHasOpenedDraft(true);
+
+          // Scroll to the reply container after a brief delay
+          setTimeout(() => {
+            document.querySelector(".reply-container")?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }, 300);
+        }
+
+        setThreadEmails(nonDraftEmails.length > 0 ? nonDraftEmails : emails);
+
+        // Auto-expand the latest non-draft email
+        if (nonDraftEmails.length > 0) {
+          const latestEmail = nonDraftEmails[nonDraftEmails.length - 1];
           setExpandedEmails(new Set([latestEmail.id]));
         }
       } else {
@@ -578,6 +773,9 @@ export function EmailViewModal({
     setReplyBody("");
     setShowReplyCc(false);
     setReplyAttachments([]);
+    setDraftId(null);
+    setDraftStatus(null);
+    setHasOpenedDraft(false);
   };
 
   // Handle file attachment
@@ -700,6 +898,134 @@ export function EmailViewModal({
     } else {
       const text = e.clipboardData.getData("text/plain");
       document.execCommand("insertText", false, text);
+    }
+  };
+
+  // Delete draft function
+  const handleDeleteDraft = async () => {
+    if (!draftId) {
+      // No draft to delete, just close
+      handleCloseReply();
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/gmail/drafts/${draftId}`, {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Draft Deleted",
+          description: "Draft has been deleted.",
+        });
+
+        // Close the reply interface
+        handleCloseReply();
+
+        // Notify parent to refresh drafts
+        if (onDraftSaved) {
+          onDraftSaved();
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to delete draft.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting draft:", error);
+      toast({
+        title: "Error",
+        description: "An error occurred while deleting the draft.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Auto-save draft function
+  const saveDraft = async () => {
+    // Don't auto-save if we're opening an existing draft
+    if (isOpeningDraft) {
+      console.log("Auto-save blocked: Opening draft");
+      return;
+    }
+
+    // Don't auto-save if we just opened a draft (additional safety check)
+    if (hasOpenedDraft && !isOpeningDraft) {
+      console.log(
+        "Auto-save blocked: Just opened draft, waiting for user interaction"
+      );
+      return;
+    }
+
+    // For forward mode, only require body content (no recipients needed yet)
+    // For reply/replyAll, require both recipients and body content
+    const hasMinimumContent = replyBody.trim() && replyBody !== EMAIL_SIGNATURE;
+    const hasRequiredRecipients =
+      replyMode === "forward" || replyToEmails.length > 0;
+
+    if (!hasMinimumContent || !hasRequiredRecipients) {
+      console.log("Auto-save skipped: Missing required content or recipients", {
+        hasMinimumContent,
+        hasRequiredRecipients,
+        replyMode,
+      });
+      return;
+    }
+
+    console.log("Auto-save triggered for draft:", draftId);
+
+    setIsDraftSaving(true);
+    setDraftStatus("saving");
+
+    try {
+      const latestEmail = threadEmails[threadEmails.length - 1];
+
+      const response = await fetch("/api/gmail/drafts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: replyToEmails,
+          cc: replyCcEmails,
+          subject: replySubject || "",
+          content: replyBody,
+          draftId: draftId,
+          // For forwards, use the original email's threadId to maintain threading in Gmail
+          threadId: latestEmail?.threadId || undefined,
+          inReplyTo:
+            replyMode !== "forward" ? latestEmail?.messageId : undefined,
+          references:
+            replyMode !== "forward" ? latestEmail?.references : undefined,
+          mailType: replyMode || "new", // 'reply', 'replyAll', 'forward', or 'new'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setDraftId(result.draftId);
+        setDraftStatus("saved");
+        console.log("Draft saved successfully:", result.draftId);
+
+        // Notify parent component to refresh drafts list
+        if (onDraftSaved) {
+          onDraftSaved();
+        }
+      } else {
+        setDraftStatus("error");
+        console.error("Failed to save draft:", result.error);
+      }
+    } catch (error) {
+      setDraftStatus("error");
+      console.error("Error saving draft:", error);
+    } finally {
+      setIsDraftSaving(false);
     }
   };
 
@@ -1271,6 +1597,12 @@ export function EmailViewModal({
       setReplySubject("");
       setReplyBody("");
       setShowReplyCc(false);
+      // Reset draft state
+      setDraftId(null);
+      setDraftStatus(null);
+      setHasOpenedDraft(false);
+      setIsOpeningDraft(false);
+      setReplyAttachments([]);
     }
   }, [isOpen]);
 
@@ -1297,16 +1629,19 @@ export function EmailViewModal({
   const SHOW_FROM_START = 2; // Always show first 2 emails
   const SHOW_FROM_END = 2; // Always show last 2 emails
 
-  // Calculate which emails to display
+  // Calculate which emails to display (excluding drafts)
   const getVisibleEmails = () => {
-    if (threadEmails.length <= COLLAPSE_THRESHOLD || showAllEmails) {
-      return threadEmails;
+    // Filter out draft emails
+    const nonDraftEmails = threadEmails.filter((email) => !email.isDraft);
+
+    if (nonDraftEmails.length <= COLLAPSE_THRESHOLD || showAllEmails) {
+      return nonDraftEmails;
     }
 
-    const startEmails = threadEmails.slice(0, SHOW_FROM_START);
-    const endEmails = threadEmails.slice(-SHOW_FROM_END);
+    const startEmails = nonDraftEmails.slice(0, SHOW_FROM_START);
+    const endEmails = nonDraftEmails.slice(-SHOW_FROM_END);
     const collapsedCount =
-      threadEmails.length - SHOW_FROM_START - SHOW_FROM_END;
+      nonDraftEmails.length - SHOW_FROM_START - SHOW_FROM_END;
 
     return { startEmails, endEmails, collapsedCount };
   };
@@ -1560,8 +1895,8 @@ export function EmailViewModal({
               </div>
             )}
 
-            {/* Reply/Forward Buttons for Latest Email */}
-            {isLatest && (
+            {/* Reply/Forward Buttons for Latest Email - Hide when inline editor is open */}
+            {isLatest && !replyMode && (
               <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-100">
                 <Button
                   variant="outline"
@@ -1988,14 +2323,40 @@ export function EmailViewModal({
                                 : "Forward"}
                             </span>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleCloseReply}
-                            className="h-8 w-8 p-0"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            {/* Draft status indicator */}
+                            {draftStatus && (
+                              <span className="text-xs text-gray-500 flex items-center gap-1">
+                                {draftStatus === "saving" && (
+                                  <>
+                                    <div className="w-2 h-2 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                    Saving...
+                                  </>
+                                )}
+                                {draftStatus === "saved" && (
+                                  <>
+                                    <div className="w-2 h-2 bg-green-500 rounded-full" />
+                                    Saved
+                                  </>
+                                )}
+                                {draftStatus === "error" && (
+                                  <>
+                                    <div className="w-2 h-2 bg-red-500 rounded-full" />
+                                    Error
+                                  </>
+                                )}
+                              </span>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleDeleteDraft}
+                              className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                              title="Delete draft"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
 
                         {/* Recipients and Subject */}
