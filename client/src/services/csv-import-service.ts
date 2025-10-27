@@ -325,43 +325,15 @@ class CSVImportService {
             if (cellValue && cellValue.toString().trim() !== "") {
               const stringValue = cellValue.toString().trim();
 
-              // Skip currency parsing if the value contains time units (days, hours, etc.)
-              const hasTimeUnits =
-                /\b(days?|hours?|minutes?|seconds?|weeks?|months?|years?)\b/i.test(
-                  stringValue
-                );
+              // Check if it looks like a currency value and try to parse it
+              // Only parse as currency if it contains currency symbols like $, €, £, etc.
+              const hasCurrencySymbol = /[$€£¥₹₽¢₱₦₩₪₨₡₵₫﷼]/.test(stringValue);
 
-              // Skip currency parsing if the value looks like a date
-              const datePatterns = [
-                /^\d{4}-\d{1,2}-\d{1,2}$/, // YYYY-MM-DD
-                /^\d{4}\/\d{1,2}\/\d{1,2}$/, // YYYY/MM/DD
-                /^\d{1,2}-\d{1,2}-\d{4}$/, // MM-DD-YYYY or DD-MM-YYYY
-                /^\d{1,2}\/\d{1,2}\/\d{4}$/, // MM/DD/YYYY or DD/MM/YYYY
-              ];
-              const isDateLike = datePatterns.some((pattern) =>
-                pattern.test(stringValue)
-              );
-
-              if (hasTimeUnits || isDateLike) {
-                // Store duration/time and date-like values as-is
-                console.log(
-                  `📅 [CSV IMPORT] Preserving date-like function value: "${stringValue}"`
-                );
-                convertedValue = stringValue;
+              if (hasCurrencySymbol) {
+                convertedValue = this.parseCurrencyValue(stringValue);
               } else {
-                // Check if it looks like a currency value and try to parse it
-                const currencyMatch = /[$€£¥₹₽¢₱₦₩₪₨₡₵₫﷼,\-\(\)\s]/.test(
-                  stringValue
-                );
-                if (
-                  currencyMatch &&
-                  !isNaN(parseFloat(stringValue.replace(/[^\d.-]/g, "")))
-                ) {
-                  convertedValue = this.parseCurrencyValue(stringValue);
-                } else {
-                  // Store as string for function columns
-                  convertedValue = stringValue;
-                }
+                // Store as string for function columns
+                convertedValue = stringValue;
               }
             } else {
               convertedValue = null;
@@ -524,31 +496,12 @@ class CSVImportService {
         return stringValue;
 
       case "number":
-        // Special handling for duration-like values that should be preserved as strings
-        // If the value contains "days", "day", or other time units, keep it as a string
+        // If the value contains any non-digit characters (except decimal points for pure numbers),
+        // keep it as a string to preserve formatting
         if (
-          /\b(days?|hours?|minutes?|seconds?|weeks?|months?|years?)\b/i.test(
-            stringValue
-          )
+          stringValue !== parseFloat(stringValue).toString() ||
+          stringValue.includes(",")
         ) {
-          return stringValue;
-        }
-        // Special handling for date-like values that should be preserved as strings
-        // Check if the value looks like a date (YYYY-MM-DD, YYYY/MM/DD, MM/DD/YYYY, DD-MM-YYYY, etc.)
-        const datePatterns = [
-          /^\d{4}-\d{1,2}-\d{1,2}$/, // YYYY-MM-DD
-          /^\d{4}\/\d{1,2}\/\d{1,2}$/, // YYYY/MM/DD
-          /^\d{1,2}-\d{1,2}-\d{4}$/, // MM-DD-YYYY or DD-MM-YYYY
-          /^\d{1,2}\/\d{1,2}\/\d{4}$/, // MM/DD/YYYY or DD/MM/YYYY
-        ];
-
-        const isDateLike = datePatterns.some((pattern) =>
-          pattern.test(stringValue)
-        );
-        if (isDateLike) {
-          console.log(
-            `📅 [CSV IMPORT] Preserving date-like value: "${stringValue}"`
-          );
           return stringValue;
         }
         const numValue = parseFloat(stringValue);
