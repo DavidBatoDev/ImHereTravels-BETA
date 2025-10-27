@@ -149,7 +149,7 @@ export default function TourDetails({
                         Duration
                       </p>
                       <p className="text-xl font-bold text-foreground">
-                        {tour.duration} {tour.duration === 1 ? "Day" : "Days"}
+                        {tour.duration}
                       </p>
                     </div>
                   </div>

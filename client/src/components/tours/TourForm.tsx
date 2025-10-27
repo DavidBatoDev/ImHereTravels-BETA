@@ -98,7 +98,7 @@ const tourFormSchema = z.object({
   tourCode: z.string().min(2, "Tour code must be at least 2 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   location: z.string().min(2, "Location is required"),
-  duration: z.number().min(1, "Duration must be at least 1 day"),
+  duration: z.string().min(1, "Duration is required"),
   travelDates: z
     .array(
       z.object({
@@ -368,7 +368,7 @@ export default function TourForm({
       tourCode: "",
       description: "",
       location: "",
-      duration: 1,
+      duration: "1 days",
       travelDates: [
         {
           startDate: "",
@@ -479,7 +479,7 @@ export default function TourForm({
         tourCode: handleNullValue(tour.tourCode),
         description: tour.description || "",
         location: tour.location || "",
-        duration: tour.duration || 1,
+        duration: tour.duration || "1 days",
         travelDates: travelDates,
         pricing: tour.pricing
           ? {
@@ -542,7 +542,7 @@ export default function TourForm({
         tourCode: "",
         description: "",
         location: "",
-        duration: 1,
+        duration: "1 days",
         travelDates: [
           {
             startDate: "",
@@ -1549,19 +1549,21 @@ export default function TourForm({
                           <FormItem>
                             <FormLabel className="flex items-center gap-2 text-foreground font-medium">
                               <Clock className="h-4 w-4 text-spring-green" />
-                              Duration (Days)
+                              Duration
                             </FormLabel>
                             <FormControl>
                               <Input
-                                type="number"
-                                min="1"
+                                type="text"
+                                placeholder="e.g., 11 days"
                                 {...field}
-                                onChange={(e) =>
-                                  field.onChange(parseInt(e.target.value) || 1)
-                                }
+                                onChange={(e) => field.onChange(e.target.value)}
                                 className="border-2 border-border focus:border-spring-green"
                               />
                             </FormControl>
+                            <FormDescription>
+                              Enter duration in format "X days" (e.g., "11
+                              days")
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}

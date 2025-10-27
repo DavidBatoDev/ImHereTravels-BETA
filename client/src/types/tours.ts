@@ -12,7 +12,7 @@ export interface TourPackage {
   tourCode: string; // Tour code (e.g., SIA, PHS, PSS)
   description: string;
   location: string;
-  duration: number; // Days
+  duration: string; // Duration in format "X days"
   travelDates: TravelDate[]; // Available travel dates
   pricing: TourPricing;
   details: TourDetails;
@@ -103,7 +103,7 @@ export interface TourPackageFormData {
   tourCode: string;
   description: string;
   location: string;
-  duration: number;
+  duration: string; // Duration in format "X days"
   travelDates: TravelDate[];
   pricing: {
     original: number;
@@ -135,7 +135,7 @@ export interface TourFormDataWithStringDates {
   tourCode: string;
   description: string;
   location: string;
-  duration: number;
+  duration: string; // Duration in format "X days"
   travelDates: {
     startDate: string;
     endDate: string;
@@ -262,7 +262,7 @@ export interface CreateTourPackageData {
   tourCode: string;
   description: string;
   destinations: string[];
-  duration: number;
+  duration: string; // Duration in format "X days"
   travelDates: TravelDate[];
   highlights: string[];
   itinerary: TourItinerary[];
