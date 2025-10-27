@@ -408,7 +408,12 @@ export default function EmailsTab() {
 
       if (pageToken) {
         // Append to existing emails for pagination
-        const newEmails = [...emails, ...fetchedEmails];
+        // Remove duplicates by threadId to avoid showing same thread multiple times
+        const seenThreadIds = new Set(emails.map((e) => e.threadId));
+        const uniqueNewEmails = fetchedEmails.filter(
+          (e) => !seenThreadIds.has(e.threadId)
+        );
+        const newEmails = [...emails, ...uniqueNewEmails];
         setEmails(newEmails);
         // Update category cache
         setCategoryEmails((prev) =>
@@ -416,10 +421,15 @@ export default function EmailsTab() {
         );
       } else {
         // Replace emails for new search/filter
-        setEmails(fetchedEmails);
+        // Remove duplicates by threadId
+        const uniqueEmails = fetchedEmails.filter(
+          (email, index, self) =>
+            index === self.findIndex((e) => e.threadId === email.threadId)
+        );
+        setEmails(uniqueEmails);
         // Update category cache
         setCategoryEmails((prev) =>
-          new Map(prev).set(activeCategory, fetchedEmails)
+          new Map(prev).set(activeCategory, uniqueEmails)
         );
       }
 
@@ -1493,12 +1503,17 @@ export default function EmailsTab() {
             console.log(
               "Background refresh: Fresh data differs from cache, updating"
             );
-            setEmails(fetchedEmails);
+            // Remove duplicates by threadId
+            const uniqueEmails = fetchedEmails.filter(
+              (email, index, self) =>
+                index === self.findIndex((e) => e.threadId === email.threadId)
+            );
+            setEmails(uniqueEmails);
             setCategoryEmails((prev) =>
-              new Map(prev).set(activeCategory, fetchedEmails)
+              new Map(prev).set(activeCategory, uniqueEmails)
             );
             // Update persistent cache
-            emailCacheRef.categoryEmails.set(activeCategory, fetchedEmails);
+            emailCacheRef.categoryEmails.set(activeCategory, uniqueEmails);
           } else {
             console.log(
               "Background refresh: Fresh data matches cache, no update needed"
