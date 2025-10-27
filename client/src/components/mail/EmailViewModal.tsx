@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,8 @@ import { ImagePreviewModal } from "./ImagePreviewModal";
 import { PDFPreviewModal } from "./PDFPreviewModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { EmailAutocomplete } from "@/components/ui/email-autocomplete";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmailAvatar } from "@/components/ui/email-avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import DOMPurify from "dompurify";
 import {
   Mail,
   Calendar,
@@ -39,7 +42,33 @@ import {
   X,
   Eye,
   Copy,
+  Send,
 } from "lucide-react";
+import {
+  MdFormatBold,
+  MdFormatItalic,
+  MdFormatUnderlined,
+  MdFormatListBulleted,
+  MdFormatListNumbered,
+  MdUndo,
+  MdRedo,
+  MdFormatAlignLeft,
+  MdFormatAlignCenter,
+  MdFormatAlignRight,
+  MdFormatAlignJustify,
+  MdExpandMore,
+  MdPalette,
+  MdTextFields,
+  MdFormatIndentDecrease,
+  MdFormatIndentIncrease,
+  MdMoreVert,
+  MdStrikethroughS,
+  MdFormatLineSpacing,
+  MdTitle,
+} from "react-icons/md";
+
+// Gmail Email signature HTML
+const EMAIL_SIGNATURE = `<div><div dir="ltr" class="gmail_signature" data-smartmail="gmail_signature"><div dir="ltr"><div style="color:rgb(34,34,34)">Kind regards,&nbsp;</div><div style="color:rgb(34,34,34)"><br><div dir="ltr"><div dir="ltr"><span style="color:rgb(0,0,0)"><div dir="ltr" align="left" style="margin-left:0pt"><div align="left" style="margin-left:0pt"><div dir="ltr" align="left" style="margin-left:0pt"><table style="border:medium;border-collapse:collapse"><tbody><tr style="height:0pt"><td style="vertical-align:top;overflow:hidden"><span style="border:medium;display:inline-block;overflow:hidden;width:174px;height:174px"><img src="https://lh7-us.googleusercontent.com/W6PhRjN5UgrDp-2PibTWmAYHg_SMqQaitD63npeRzqu7Iy1QmjB1VgUSpwaWvQhYnFlJqgYh9t22O5zPUO3Rgf5oDc2urjsnba2jg8npqDf9GZGwL5hctWavIuDW95fdPYncuhBpvnRI8TZmjKhc5LM" width="167" height="167" style="margin-left: 0px; margin-top: 0px; margin-right: 0px;"></span><br></td><td style="vertical-align:top;overflow:hidden"><span style="font-family:&quot;DM Sans&quot;,sans-serif;font-size:12pt;font-weight:700">Bella Millan</span><p dir="ltr" style="line-height:1.2;margin-top:0pt;margin-bottom:0pt"><span style="font-size:11pt;font-family:Arial,sans-serif;vertical-align:baseline">Outreach Manager</span></p><p dir="ltr" style="line-height:1.2;margin-top:0pt;margin-bottom:0pt"><span style="font-size:11pt;font-family:Arial,sans-serif;vertical-align:baseline"><br></span></p><p dir="ltr" style="line-height:1;margin-top:0pt;margin-bottom:0pt"><span style="font-size:11pt;font-family:Arial,sans-serif;vertical-align:baseline">&nbsp;&nbsp;<img src="https://ci3.googleusercontent.com/mail-sig/AIorK4xZqel1TeaN_XwhPphMi6LJk9bDE5tvQjKoqr8WZjpwZLfrkzJuGw9keRgg_Q6x7brg_L9A2pU" width="17" height="17" style="margin-right:0px">&nbsp;&nbsp;</span><a href="tel:639163041767" style="color:rgb(17,85,204)" target="_blank"><span style="font-size:11pt;font-family:Arial,sans-serif;vertical-align:baseline;color:rgb(0,0,0)">+63 (916) 304 1767</span></a></p><p dir="ltr" style="line-height:1;margin-top:0pt;margin-bottom:0pt"><span style="font-size:11pt;font-family:Arial,sans-serif;vertical-align:baseline">&nbsp;&nbsp;<img src="https://ci3.googleusercontent.com/mail-sig/AIorK4y5FclvwPG32SXqPSvbPd3beA1UB8Wx1dgwaJEcdWLwxjh1yRwhc2_GSpCg0zBpgiWvz9eb4eo">&nbsp; bella</span><a href="mailto:amer@imheretravels.com" style="color:rgb(17,85,204)" target="_blank"><span style="font-size:11pt;font-family:Arial,sans-serif;vertical-align:baseline;color:rgb(0,0,0)">@imheretravels.com</span></a></p><p dir="ltr" style="line-height:1;margin-top:0pt;margin-bottom:0pt"><span style="font-size:11pt;font-family:Arial,sans-serif;vertical-align:baseline">&nbsp;<a href="https://imheretravels.com/" style="color:rgb(17,85,204)" target="_blank">&nbsp;</a></span><img src="https://ci3.googleusercontent.com/mail-sig/AIorK4w81hW7M7z1ED8dHl5gyqSEylE_boBaxtpdxOxm_eOviPDAVjKkznVaFTCzCV8t_YYy7A_2sns"><a href="https://imheretravels.com/" style="color:rgb(17,85,204)" target="_blank"><span style="font-size:11pt;font-family:Arial,sans-serif;vertical-align:baseline;color:rgb(0,0,0)">&nbsp; www.imheretravels.com</span></a></p><p dir="ltr" style="line-height:0.9;margin-top:0pt;margin-bottom:0pt"><br></p>&nbsp;&nbsp;<a href="https://www.instagram.com/imheretravels/" style="color:rgb(17,85,204)" target="_blank"><img src="https://ci3.googleusercontent.com/mail-sig/AIorK4xLX1jMZKunN4wNGSCmIVUjCQgc1_FpjHTBZnn_GD9YIv0Q-aBxP4Iy7Rh_a7iBZeNGFqJnSUI" width="26" height="26" style="margin-right:0px"></a>&nbsp;&nbsp;<a href="https://www.tiktok.com/@imheretravels" style="color:rgb(17,85,204)" target="_blank"><img alt="https://www.tiktok.com/@imheretravels" src="https://ci3.googleusercontent.com/mail-sig/AIorK4yNZvr_t6SSKB69FIelx0LaypIom57zAMKJhGe2q8iNg3WK5gP2cxCXL_mtZOoe5gXiq2hG97g" width="25" height="25" style="margin-right:0px"></a>&nbsp;&nbsp;<a href="https://www.facebook.com/profile.php?id=100089932897402" style="color:rgb(17,85,204)" target="_blank"><img alt="https://www.facebook.com/profile.php?id=100089932897402" src="https://ci3.googleusercontent.com/mail-sig/AIorK4wOueqr6zk98SKG_4lWhrPrRcAuBBs2oDMmoGQbRH0ZhSmkhOaIOHB0oXXMYRky6QC2bA6dNQA" width="27" height="27" style="margin-right:0px"></a>&nbsp;&nbsp;<a href="http://www.imheretravels.com/" style="color:rgb(17,85,204)" target="_blank"><img alt="www.imheretravels.com" src="https://ci3.googleusercontent.com/mail-sig/AIorK4yYRJk1jr5S9TPJLoy2n2NotCbk7ihIfpokipZTmDFVi1R9s1wE3ykm_O4djLbzMvl9b99idZY" width="27" height="27" style="margin-right:0px"></a></td></tr></tbody></table></div></div></div></span></div></div></div></div></div></div>`;
 
 // Gmail Email type
 interface GmailAttachment {
@@ -165,12 +194,228 @@ export function EmailViewModal({
     filename: string;
   } | null>(null);
 
+  // State for inline reply/forward
+  const [replyMode, setReplyMode] = useState<
+    "reply" | "replyAll" | "forward" | null
+  >(null);
+  const [replyTo, setReplyTo] = useState("");
+  const [replyToEmails, setReplyToEmails] = useState<string[]>([]);
+  const [replyCc, setReplyCc] = useState("");
+  const [replyCcEmails, setReplyCcEmails] = useState<string[]>([]);
+  const [replySubject, setReplySubject] = useState("");
+  const [replyBody, setReplyBody] = useState("");
+  const [showReplyCc, setShowReplyCc] = useState(false);
+  const [isSendingReply, setIsSendingReply] = useState(false);
+  const [showReplyQuote, setShowReplyQuote] = useState(true); // Toggle for quoted content
+  const replyEditorRef = useRef<HTMLDivElement>(null);
+
+  // Attachments state
+  const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
+
+  // Rich text editor state
+  const [showFontMenu, setShowFontMenu] = useState(false);
+  const [showSizeMenu, setShowSizeMenu] = useState(false);
+  const [showColorMenu, setShowColorMenu] = useState(false);
+  const [showAlignMenu, setShowAlignMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showLineHeightMenu, setShowLineHeightMenu] = useState(false);
+  const [currentFontSize, setCurrentFontSize] = useState("Normal");
+  const [currentFontFamily, setCurrentFontFamily] = useState("Sans Serif");
+  const [currentLineHeight, setCurrentLineHeight] = useState("Normal");
+
+  // Font and style options
+  const fontFamilies = [
+    { label: "Sans Serif", value: "sans-serif" },
+    { label: "Serif", value: "serif" },
+    { label: "Arial", value: "Arial, sans-serif" },
+    { label: "Times New Roman", value: "Times New Roman, serif" },
+    { label: "Helvetica", value: "Helvetica, sans-serif" },
+    { label: "Georgia", value: "Georgia, serif" },
+    { label: "Courier New", value: "Courier New, monospace" },
+    { label: "Verdana", value: "Verdana, sans-serif" },
+  ];
+
+  const fontSizes = [
+    { label: "Small", value: "1" },
+    { label: "Normal", value: "3" },
+    { label: "Large", value: "4" },
+    { label: "Huge", value: "6" },
+  ];
+
+  const lineHeights = [
+    { label: "Single", value: "1" },
+    { label: "Normal", value: "1.15" },
+    { label: "Relaxed", value: "1.5" },
+    { label: "Double", value: "2" },
+  ];
+
+  const textColors = [
+    "#000000",
+    "#333333",
+    "#666666",
+    "#999999",
+    "#FF0000",
+    "#00FF00",
+    "#0000FF",
+    "#FFFF00",
+    "#FF00FF",
+    "#00FFFF",
+    "#FFA500",
+    "#800080",
+  ];
+
+  const highlightColors = [
+    "#FFFF00",
+    "#00FF00",
+    "#00FFFF",
+    "#FF00FF",
+    "#FFA500",
+    "#FF0000",
+    "#0000FF",
+    "#800080",
+  ];
+
   // Fetch thread emails when selectedEmail changes
   useEffect(() => {
     if (selectedEmail?.threadId && isOpen) {
       fetchThreadEmails(selectedEmail.threadId);
     }
   }, [selectedEmail?.threadId, isOpen]);
+
+  // Initialize editor content when replyBody changes
+  useEffect(() => {
+    if (replyEditorRef.current && replyBody && replyMode) {
+      replyEditorRef.current.innerHTML = replyBody;
+    }
+  }, [replyMode]); // Only when reply mode changes
+
+  // Image resize and drag functionality for reply editor
+  useEffect(() => {
+    const editor = replyEditorRef.current;
+    if (!editor) return;
+
+    let isResizing = false;
+    let currentImg: HTMLImageElement | null = null;
+    let startX = 0;
+    let startY = 0;
+    let startWidth = 0;
+    let startHeight = 0;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "IMG") {
+        const img = target as HTMLImageElement;
+        const rect = img.getBoundingClientRect();
+
+        // Check if click is on the border (for resizing)
+        const borderWidth = 4;
+        const clickX = e.clientX;
+        const clickY = e.clientY;
+        const isOnBorder =
+          (clickX <= rect.left + borderWidth ||
+            clickX >= rect.right - borderWidth ||
+            clickY <= rect.top + borderWidth ||
+            clickY >= rect.bottom - borderWidth) &&
+          clickX >= rect.left &&
+          clickX <= rect.right &&
+          clickY >= rect.top &&
+          clickY <= rect.bottom;
+
+        if (isOnBorder) {
+          e.preventDefault();
+          e.stopPropagation();
+          isResizing = true;
+          currentImg = img;
+          currentImg.style.userSelect = "none";
+          currentImg.style.cursor = "se-resize";
+          startX = e.clientX;
+          startY = e.clientY;
+          startWidth = currentImg.offsetWidth;
+          startHeight = currentImg.offsetHeight;
+          document.body.style.cursor = "se-resize";
+        } else {
+          // Just select the image
+          e.stopPropagation();
+          // Remove selected class from all images
+          editor.querySelectorAll("img").forEach((i) => {
+            i.classList.remove("selected");
+          });
+          // Add selected class to this image
+          img.classList.add("selected");
+        }
+      } else {
+        // Click outside of an image - deselect all images
+        editor.querySelectorAll("img").forEach((i) => {
+          i.classList.remove("selected");
+        });
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      // Handle resizing
+      if (isResizing && currentImg) {
+        e.preventDefault();
+        const diffX = e.clientX - startX;
+        const diffY = e.clientY - startY;
+        const newWidth = startWidth + diffX;
+        const newHeight = startHeight + diffY;
+
+        currentImg.style.width = Math.max(50, newWidth) + "px";
+        currentImg.style.height = "auto";
+        currentImg.removeAttribute("width");
+        currentImg.removeAttribute("height");
+      }
+
+      // Handle cursor change when hovering over images
+      if (!isResizing && target.tagName === "IMG") {
+        const img = target as HTMLImageElement;
+        const rect = img.getBoundingClientRect();
+        const borderWidth = 4;
+        const clickX = e.clientX;
+        const clickY = e.clientY;
+        const isOnBorder =
+          (clickX <= rect.left + borderWidth ||
+            clickX >= rect.right - borderWidth ||
+            clickY <= rect.top + borderWidth ||
+            clickY >= rect.bottom - borderWidth) &&
+          clickX >= rect.left &&
+          clickX <= rect.right &&
+          clickY >= rect.top &&
+          clickY <= rect.bottom;
+
+        // Change cursor to resize when hovering over border
+        if (isOnBorder) {
+          img.style.cursor = "se-resize";
+        } else {
+          img.style.cursor = "move";
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isResizing && currentImg) {
+        // Restore image interaction
+        currentImg.style.userSelect = "";
+        currentImg.style.pointerEvents = "auto";
+        isResizing = false;
+        currentImg = null;
+        document.body.style.cursor = "default";
+        handleReplyInput(); // Update reply body state
+      }
+    };
+
+    editor.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      editor.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [replyMode]);
 
   // Fetch all emails in the thread
   const fetchThreadEmails = async (threadId: string) => {
@@ -243,16 +488,320 @@ export function EmailViewModal({
     setExpandedQuotes(newExpandedQuotes);
   };
 
-  // Handle reply and forward - delegate to parent
+  // Helper to extract email address from "Name <email@domain.com>" format
+  const extractEmailAddress = (emailString: string): string => {
+    const match = emailString.match(/<(.+?)>/);
+    return match ? match[1] : emailString;
+  };
+
+  // Handle reply - open inline reply interface
   const handleReply = (email: GmailEmail) => {
-    if (onReply) {
-      onReply(email);
+    const senderEmail = extractEmailAddress(email.from);
+
+    setReplyMode("reply");
+    setReplyToEmails([senderEmail]);
+    setReplyCcEmails([]);
+    setShowReplyCc(false);
+    setReplySubject(
+      email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`
+    );
+    setReplyBody(EMAIL_SIGNATURE);
+    setShowReplyQuote(true);
+
+    // Scroll to reply container after a brief delay
+    setTimeout(() => {
+      document
+        .querySelector(".reply-container")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
+  // Handle reply all
+  const handleReplyAll = (email: GmailEmail) => {
+    const senderEmail = extractEmailAddress(email.from);
+
+    // Get all recipients from to, cc, excluding ourselves
+    const allRecipients = [
+      ...(email.to ? email.to.split(",").map((e) => e.trim()) : []),
+      ...(email.cc ? email.cc.split(",").map((e) => e.trim()) : []),
+    ];
+
+    // Filter out the sender and add them to To
+    const ccRecipients = allRecipients.filter(
+      (recipient) => recipient !== senderEmail
+    );
+
+    setReplyMode("replyAll");
+    setReplyToEmails([senderEmail]);
+    setReplyCcEmails(ccRecipients);
+    setShowReplyCc(ccRecipients.length > 0);
+    setReplySubject(
+      email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`
+    );
+    setReplyBody(EMAIL_SIGNATURE);
+    setShowReplyQuote(true);
+
+    setTimeout(() => {
+      document
+        .querySelector(".reply-container")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
+  // Handle forward - open inline forward interface
+  const handleForward = (email: GmailEmail) => {
+    setReplyMode("forward");
+    setReplyToEmails([]);
+    setReplyCcEmails([]);
+    setShowReplyCc(false);
+    setReplySubject(
+      email.subject.startsWith("Fwd:") ? email.subject : `Fwd: ${email.subject}`
+    );
+    setReplyBody(EMAIL_SIGNATURE);
+    setShowReplyQuote(true);
+
+    setTimeout(() => {
+      document
+        .querySelector(".reply-container")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
+  // Close inline reply/forward
+  const handleCloseReply = () => {
+    setReplyMode(null);
+    setReplyTo("");
+    setReplyToEmails([]);
+    setReplyCc("");
+    setReplyCcEmails([]);
+    setReplySubject("");
+    setReplyBody("");
+    setShowReplyCc(false);
+    setReplyAttachments([]);
+  };
+
+  // Handle file attachment
+  const handleReplyAttachment = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = event.target.files;
+    if (files) {
+      setReplyAttachments((prev) => [...prev, ...Array.from(files)]);
     }
   };
 
-  const handleForward = (email: GmailEmail) => {
-    if (onForward) {
-      onForward(email);
+  // Remove attachment
+  const handleRemoveAttachment = (index: number) => {
+    setReplyAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Rich text editor functions
+  const execCommand = (cmd: string, value?: string) => {
+    if (cmd === "indent" || cmd === "outdent") {
+      // Use a custom implementation for indent/outdent to avoid browser default styling
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const block =
+          range.commonAncestorContainer.nodeType === 3
+            ? range.commonAncestorContainer.parentElement
+            : range.commonAncestorContainer;
+
+        if (block && block instanceof HTMLElement) {
+          if (cmd === "indent") {
+            const currentMarginLeft =
+              parseInt(window.getComputedStyle(block).marginLeft) || 0;
+            block.style.marginLeft = `${currentMarginLeft + 40}px`;
+          } else {
+            const currentMarginLeft =
+              parseInt(window.getComputedStyle(block).marginLeft) || 0;
+            block.style.marginLeft = `${Math.max(0, currentMarginLeft - 40)}px`;
+          }
+        }
+      }
+    } else if (cmd === "lineHeight") {
+      // Apply line height to the selected text
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0 && value) {
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+
+        if (container.nodeType === 3) {
+          // Text node, apply to parent element
+          const parent = container.parentElement;
+          if (parent) {
+            parent.style.lineHeight = value;
+          }
+        } else if (container instanceof HTMLElement) {
+          container.style.lineHeight = value;
+        }
+      }
+    } else {
+      document.execCommand(cmd, false, value);
+    }
+    handleReplyInput();
+  };
+
+  const handleReplyInput = () => {
+    if (replyEditorRef.current) {
+      const html = replyEditorRef.current.innerHTML;
+      setReplyBody(html);
+    }
+  };
+
+  const handleReplyPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const paste = e.clipboardData.getData("text/html");
+    if (paste) {
+      const clean = DOMPurify.sanitize(paste, {
+        ALLOWED_TAGS: [
+          "div",
+          "span",
+          "p",
+          "b",
+          "i",
+          "u",
+          "br",
+          "strong",
+          "em",
+          "a",
+          "img",
+          "table",
+          "tr",
+          "td",
+          "tbody",
+          "thead",
+          "tfoot",
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6",
+          "ul",
+          "ol",
+          "li",
+        ],
+        ALLOWED_ATTR: [
+          "style",
+          "class",
+          "dir",
+          "align",
+          "href",
+          "src",
+          "alt",
+          "width",
+          "height",
+          "data-smartmail",
+        ],
+        ALLOW_DATA_ATTR: true,
+      });
+      document.execCommand("insertHTML", false, clean);
+    } else {
+      const text = e.clipboardData.getData("text/plain");
+      document.execCommand("insertText", false, text);
+    }
+  };
+
+  // Convert HTML to plain text
+  const htmlToPlainText = (html: string): string => {
+    // Create a temporary div to parse HTML
+    const temp = document.createElement("div");
+    temp.innerHTML = html;
+
+    // Replace <br>, <div>, <p> with newlines
+    temp.querySelectorAll("br, div, p").forEach((el) => {
+      el.insertAdjacentText("afterend", "\n");
+    });
+
+    // Get text content and clean up
+    let text = temp.textContent || temp.innerText || "";
+
+    // Remove extra whitespace while preserving line breaks
+    text = text.replace(/[ \t]+/g, " "); // Multiple spaces to single
+    text = text.replace(/\n\s*\n\s*\n/g, "\n\n"); // Multiple newlines to double
+    text = text.trim();
+
+    return text;
+  };
+
+  // Format quoted content helper - returns plain text
+  const formatQuotedContent = (email: GmailEmail): string => {
+    const quoteHeader = `On ${email.date.toLocaleString()}, ${
+      email.from
+    } wrote:`;
+
+    // Convert HTML to plain text
+    const plainTextContent = email.htmlContent
+      ? htmlToPlainText(email.htmlContent)
+      : email.textContent || "";
+
+    const quotedText = `${quoteHeader}\n\n${plainTextContent}`;
+
+    // Wrap in a styled div for display (as plain text)
+    return quotedText;
+  };
+
+  // Send reply/forward email
+  const handleSendReply = async () => {
+    if (replyToEmails.length === 0 || !replySubject.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in the recipient and subject fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingReply(true);
+    try {
+      const latestEmail = threadEmails[threadEmails.length - 1];
+
+      const response = await fetch("/api/gmail/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: replyToEmails.join(", "),
+          cc: replyCcEmails.length > 0 ? replyCcEmails.join(", ") : undefined,
+          subject: replySubject.trim(),
+          body: replyBody,
+          threadId: replyMode !== "forward" ? latestEmail?.threadId : undefined,
+          inReplyTo:
+            replyMode !== "forward" ? latestEmail?.messageId : undefined,
+          references:
+            replyMode !== "forward" ? latestEmail?.references : undefined,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Email Sent Successfully",
+          description: "Your email has been sent successfully.",
+        });
+
+        // Close reply interface
+        handleCloseReply();
+
+        // Refresh the thread to show the new email
+        if (selectedEmail?.threadId) {
+          await fetchThreadEmails(selectedEmail.threadId);
+        }
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Error sending email:", error);
+      toast({
+        title: "Failed to Send Email",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingReply(false);
     }
   };
 
@@ -713,8 +1262,35 @@ export function EmailViewModal({
       setExpandedEmails(new Set());
       setExpandedQuotes(new Set());
       setShowAllEmails(false);
+      // Reset reply state
+      setReplyMode(null);
+      setReplyTo("");
+      setReplyToEmails([]);
+      setReplyCc("");
+      setReplyCcEmails([]);
+      setReplySubject("");
+      setReplyBody("");
+      setShowReplyCc(false);
     }
   }, [isOpen]);
+
+  // Handle clicks outside dropdowns to close them
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest(".relative")) {
+        setShowFontMenu(false);
+        setShowSizeMenu(false);
+        setShowColorMenu(false);
+        setShowAlignMenu(false);
+        setShowMoreMenu(false);
+        setShowLineHeightMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Constants for email collapsing logic
   const COLLAPSE_THRESHOLD = 5; // Start collapsing when more than 5 emails
@@ -997,6 +1573,14 @@ export function EmailViewModal({
                 </Button>
                 <Button
                   variant="outline"
+                  onClick={() => handleReplyAll(email)}
+                  className="rounded-full border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-1 text-xs"
+                >
+                  <Reply className="w-3 h-3 mr-1" />
+                  Reply All
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={() => handleForward(email)}
                   className="rounded-full border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-1 text-xs"
                 >
@@ -1012,6 +1596,157 @@ export function EmailViewModal({
   };
   return (
     <>
+      {/* Add styles for rich text editor - matching ComposeEmail */}
+      <style>{`
+        /* Disable default browser reset for contenteditable */
+        [contenteditable="true"] * {
+          box-sizing: border-box !important;
+        }
+
+        /* Tables in signature */
+        [contenteditable="true"] table {
+          border-collapse: collapse !important;
+          border-spacing: 0 !important;
+        }
+
+        [contenteditable="true"] table td {
+          padding: 0 !important;
+          vertical-align: top !important;
+        }
+
+        [contenteditable="true"] span[style*="display:inline-block"] {
+          display: inline-block !important;
+          border: medium !important;
+          overflow: hidden !important;
+        }
+
+        /* Images inline for icon rows like Gmail */
+        [contenteditable="true"] img {
+          display: inline-block !important;
+          max-width: 100% !important;
+          height: auto !important;
+          border: 2px solid transparent !important;
+          position: relative !important;
+        }
+
+        /* Selected image with border */
+        [contenteditable="true"] img.selected {
+          border: 2px solid #4285f4 !important;
+        }
+        /* Ensure social icons sit on a single row */
+        [contenteditable="true"] a img {
+          vertical-align: middle !important;
+          margin-right: 8px !important;
+        }
+
+        /* Remove default underline from links to match Gmail compose */
+        [contenteditable="true"] a {
+          text-decoration: none !important;
+        }
+        [contenteditable="true"] a:hover {
+          text-decoration: underline !important;
+        }
+
+        [contenteditable="true"] a {
+          color: rgb(17, 85, 204) !important;
+          text-decoration: none !important;
+        }
+
+        [contenteditable="true"] a:hover {
+          text-decoration: underline !important;
+        }
+
+        [contenteditable="true"] p {
+          line-height: 1.2 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
+        /* Specific height for contact info paragraphs */
+        [contenteditable="true"] p[style*="line-height:1"] {
+          height: 25px !important;
+          line-height: 1 !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+
+        /* Empty paragraphs should be 17px */
+        [contenteditable="true"] p:empty {
+          height: 17px !important;
+        }
+
+        /* Handle font size attributes properly - Gmail style (1=smallest, 7=largest) */
+        [contenteditable="true"] font[size="1"] {
+          font-size: 8pt !important;
+        }
+        [contenteditable="true"] font[size="2"] {
+          font-size: 10pt !important;
+        }
+        [contenteditable="true"] font[size="3"] {
+          font-size: 12pt !important;
+        }
+        [contenteditable="true"] font[size="4"] {
+          font-size: 14pt !important;
+        }
+        [contenteditable="true"] font[size="5"] {
+          font-size: 18pt !important;
+        }
+        [contenteditable="true"] font[size="6"] {
+          font-size: 24pt !important;
+        }
+        [contenteditable="true"] font[size="7"] {
+          font-size: 36pt !important;
+        }
+
+        [contenteditable="true"] span {
+          display: inline !important;
+        }
+
+        [contenteditable="true"] div {
+          display: block !important;
+        }
+
+        /* Preserve original font families from inline styles */
+        [contenteditable="true"] span[style*="font-family"] {
+          font-family: inherit !important;
+        }
+
+        [contenteditable="true"] p[style*="font-family"] {
+          font-family: inherit !important;
+        }
+
+        /* Fix border styles that get normalized by browser */
+        [contenteditable="true"] table[style*="border-width: medium"] {
+          border: medium !important;
+        }
+
+        [contenteditable="true"] span[style*="border-width: medium"] {
+          border: medium !important;
+        }
+
+        /* Ensure proper spacing and alignment */
+        [contenteditable="true"] [dir="ltr"] {
+          direction: ltr !important;
+          text-align: left !important;
+        }
+
+        [contenteditable="true"] [align="left"] {
+          text-align: left !important;
+        }
+
+        /* Override browser normalization of border styles */
+        [contenteditable="true"] *[style*="border-width: medium"] {
+          border: medium !important;
+        }
+
+        [contenteditable="true"] *[style*="border-style: initial"] {
+          border-style: solid !important;
+        }
+
+        [contenteditable="true"] *[style*="border-color: initial"] {
+          border-color: initial !important;
+        }
+      `}</style>
       <Dialog
         open={isOpen}
         onOpenChange={(open) => {
@@ -1023,35 +1758,12 @@ export function EmailViewModal({
 
           // Check if we should prevent closing due to Gmail/Theme button click
           const windowFlag = (window as any).shouldPreventCloseGmail;
-          console.log(
-            "Dialog onOpenChange called, open:",
-            open,
-            "window flag:",
-            windowFlag
-          );
           if (!open && windowFlag) {
             console.log("Preventing dialog close due to Gmail button click");
             return; // Don't close
           }
 
           onOpenChange(open);
-        }}
-        onInteractOutside={(e) => {
-          // Check if the click was on the Gmail button or theme toggle
-          const target = e.target as HTMLElement;
-          console.log("onInteractOutside called, target:", target);
-          const button = target?.closest("button");
-          const isButtonClick =
-            button?.title === "Open Gmail in new tab" ||
-            target?.closest("[data-gmail-button]") ||
-            target?.closest("[data-theme-toggle]");
-          console.log("Is button click:", isButtonClick, button?.title);
-          if (isButtonClick) {
-            console.log("Preventing dialog close due to button click");
-            e.preventDefault();
-          } else {
-            console.log("Allowing dialog to close");
-          }
         }}
       >
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
@@ -1120,6 +1832,14 @@ export function EmailViewModal({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() =>
+                        selectedEmail && handleReplyAll(selectedEmail)
+                      }
+                    >
+                      <Reply className="w-3 h-3 mr-2" />
+                      Reply All
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
                         selectedEmail && handleForward(selectedEmail)
                       }
                     >
@@ -1146,7 +1866,7 @@ export function EmailViewModal({
           </div>
 
           {/* Thread Conversation View */}
-          <div className="flex-1 overflow-hidden flex flex-col min-h-[90vh]">
+          <div className="flex-1 overflow-hidden flex flex-col">
             {isLoadingThread ? (
               <div className="flex items-center justify-center flex-1 min-h-0">
                 <div className="flex items-center gap-3">
@@ -1157,7 +1877,7 @@ export function EmailViewModal({
                 </div>
               </div>
             ) : (
-              <div className="flex-1 overflow-auto h-full w-full">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden h-full w-full">
                 <div className="px-6 py-4 space-y-6 w-full">
                   {(() => {
                     const visibleEmails = getVisibleEmails();
@@ -1250,6 +1970,553 @@ export function EmailViewModal({
                     <div className="text-center py-12 text-gray-500">
                       <Mail className="w-8 h-8 text-gray-300 mx-auto mb-4" />
                       <p className="text-xs">No emails in this conversation</p>
+                    </div>
+                  )}
+
+                  {/* Inline Reply/Forward Container */}
+                  {replyMode && selectedEmail && (
+                    <div className="reply-container mt-6 border-t border-gray-200 pt-4">
+                      <div className="bg-white border border-gray-300 rounded-lg shadow-sm">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-700">
+                              {replyMode === "reply"
+                                ? "Reply"
+                                : replyMode === "replyAll"
+                                ? "Reply All"
+                                : "Forward"}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleCloseReply}
+                            className="h-8 w-8 p-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        {/* Recipients and Subject */}
+                        <div className="px-4 py-3 space-y-2">
+                          {/* To field */}
+                          <div className="flex items-center gap-2 border-b border-gray-200 pb-1">
+                            <label className="text-sm text-gray-600 w-12 flex-shrink-0">
+                              To
+                            </label>
+                            <EmailAutocomplete
+                              value={replyTo}
+                              onChange={setReplyTo}
+                              selectedEmails={replyToEmails}
+                              onSelectedEmailsChange={setReplyToEmails}
+                              placeholder="Recipients"
+                              className="flex-1"
+                            />
+                            {!showReplyCc && (
+                              <button
+                                onClick={() => setShowReplyCc(true)}
+                                className="text-xs text-blue-600 hover:text-blue-800"
+                              >
+                                Cc
+                              </button>
+                            )}
+                          </div>
+
+                          {/* CC field */}
+                          {showReplyCc && (
+                            <div className="flex items-center gap-2 border-b border-gray-200 pb-1">
+                              <label className="text-sm text-gray-600 w-12 flex-shrink-0">
+                                Cc
+                              </label>
+                              <EmailAutocomplete
+                                value={replyCc}
+                                onChange={setReplyCc}
+                                selectedEmails={replyCcEmails}
+                                onSelectedEmailsChange={setReplyCcEmails}
+                                placeholder="Carbon copy"
+                                className="flex-1"
+                              />
+                            </div>
+                          )}
+
+                          {/* Subject */}
+                          <div className="flex items-center gap-2 border-b pb-2">
+                            <Input
+                              value={replySubject}
+                              onChange={(e) => setReplySubject(e.target.value)}
+                              placeholder="Subject"
+                              className="flex-1 border-none shadow-none focus:ring-0 px-0 font-medium bg-transparent h-6 text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Rich Text Editor */}
+                        <div className="px-4 pb-4">
+                          {/* Enhanced Formatting Toolbar */}
+                          <div className="mb-2 flex items-center gap-[1px] p-1 bg-gray-50 flex-wrap rounded-lg">
+                            {/* Undo/Redo */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => execCommand("undo")}
+                            >
+                              <MdUndo className="w-5 h-5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => execCommand("redo")}
+                            >
+                              <MdRedo className="w-5 h-5" />
+                            </Button>
+                            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+
+                            {/* Font Family Dropdown */}
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 flex items-center gap-1"
+                                onClick={() => setShowFontMenu(!showFontMenu)}
+                              >
+                                <span className="text-xs">
+                                  {currentFontFamily}
+                                </span>
+                                <MdExpandMore className="w-4 h-4" />
+                              </Button>
+                              {showFontMenu && (
+                                <div className="absolute bottom-9 left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-[160px]">
+                                  {fontFamilies.map((font) => (
+                                    <button
+                                      key={font.value}
+                                      className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
+                                      style={{ fontFamily: font.value }}
+                                      onClick={() => {
+                                        execCommand("fontName", font.value);
+                                        setCurrentFontFamily(font.label);
+                                        setShowFontMenu(false);
+                                      }}
+                                    >
+                                      {font.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Font Size Dropdown */}
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => setShowSizeMenu(!showSizeMenu)}
+                                title="Font Size"
+                              >
+                                <MdTitle className="w-5 h-5" />
+                              </Button>
+                              {showSizeMenu && (
+                                <div className="absolute bottom-9 left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-[80px]">
+                                  {fontSizes.map((size) => (
+                                    <button
+                                      key={size.value}
+                                      className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
+                                      onClick={() => {
+                                        execCommand("fontSize", size.value);
+                                        setCurrentFontSize(size.label);
+                                        setShowSizeMenu(false);
+                                      }}
+                                    >
+                                      {size.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Line Height Dropdown */}
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() =>
+                                  setShowLineHeightMenu(!showLineHeightMenu)
+                                }
+                                title="Line Height"
+                              >
+                                <MdFormatLineSpacing className="w-5 h-5" />
+                              </Button>
+                              {showLineHeightMenu && (
+                                <div className="absolute bottom-9 left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-[100px]">
+                                  {lineHeights.map((lh) => (
+                                    <button
+                                      key={lh.value}
+                                      className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
+                                      onClick={() => {
+                                        execCommand("lineHeight", lh.value);
+                                        setCurrentLineHeight(lh.label);
+                                        setShowLineHeightMenu(false);
+                                      }}
+                                    >
+                                      {lh.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+
+                            {/* Bold, Italic, Underline */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => execCommand("bold")}
+                            >
+                              <MdFormatBold className="w-5 h-5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => execCommand("italic")}
+                            >
+                              <MdFormatItalic className="w-5 h-5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => execCommand("underline")}
+                            >
+                              <MdFormatUnderlined className="w-5 h-5" />
+                            </Button>
+
+                            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+
+                            {/* Color Picker */}
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 flex items-center gap-1"
+                                onClick={() => setShowColorMenu(!showColorMenu)}
+                              >
+                                <MdPalette className="w-5 h-5" />
+                                <MdExpandMore className="w-4 h-4" />
+                              </Button>
+                              {showColorMenu && (
+                                <div className="absolute bottom-9 left-0 bg-white border border-gray-200 rounded shadow-lg z-50 p-3 min-w-[220px]">
+                                  <div className="mb-3">
+                                    <div className="text-xs font-medium text-gray-600 mb-2">
+                                      Text Color
+                                    </div>
+                                    <div className="grid grid-cols-8 gap-1">
+                                      {textColors.map((color) => (
+                                        <button
+                                          key={color}
+                                          className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+                                          style={{ backgroundColor: color }}
+                                          onClick={() => {
+                                            execCommand("foreColor", color);
+                                            setShowColorMenu(false);
+                                          }}
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-xs font-medium text-gray-600 mb-2">
+                                      Background Color
+                                    </div>
+                                    <div className="grid grid-cols-8 gap-1">
+                                      {highlightColors.map((color) => (
+                                        <button
+                                          key={color}
+                                          className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+                                          style={{ backgroundColor: color }}
+                                          onClick={() => {
+                                            execCommand("backColor", color);
+                                            setShowColorMenu(false);
+                                          }}
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Alignment Dropdown */}
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 flex items-center gap-1"
+                                onClick={() => setShowAlignMenu(!showAlignMenu)}
+                              >
+                                <MdFormatAlignLeft className="w-5 h-5" />
+                                <MdExpandMore className="w-4 h-4" />
+                              </Button>
+                              {showAlignMenu && (
+                                <div className="absolute bottom-9 left-0 bg-white border border-gray-200 rounded shadow-lg z-50 min-w-[130px]">
+                                  <button
+                                    className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm flex items-center gap-2"
+                                    onClick={() => {
+                                      execCommand("justifyLeft");
+                                      setShowAlignMenu(false);
+                                    }}
+                                  >
+                                    <MdFormatAlignLeft className="w-5 h-5" />
+                                    Left
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm flex items-center gap-2"
+                                    onClick={() => {
+                                      execCommand("justifyCenter");
+                                      setShowAlignMenu(false);
+                                    }}
+                                  >
+                                    <MdFormatAlignCenter className="w-5 h-5" />
+                                    Center
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm flex items-center gap-2"
+                                    onClick={() => {
+                                      execCommand("justifyRight");
+                                      setShowAlignMenu(false);
+                                    }}
+                                  >
+                                    <MdFormatAlignRight className="w-5 h-5" />
+                                    Right
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm flex items-center gap-2"
+                                    onClick={() => {
+                                      execCommand("justifyFull");
+                                      setShowAlignMenu(false);
+                                    }}
+                                  >
+                                    <MdFormatAlignJustify className="w-5 h-5" />
+                                    Justify
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+
+                            {/* Lists */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => execCommand("insertUnorderedList")}
+                            >
+                              <MdFormatListBulleted className="w-5 h-5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => execCommand("insertOrderedList")}
+                            >
+                              <MdFormatListNumbered className="w-5 h-5" />
+                            </Button>
+                            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+
+                            {/* More Menu Dropdown */}
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => setShowMoreMenu(!showMoreMenu)}
+                              >
+                                <MdMoreVert className="w-5 h-5" />
+                              </Button>
+                              {showMoreMenu && (
+                                <div className="absolute bottom-9 left-0 bg-white border border-gray-200 rounded shadow-lg z-50">
+                                  <button
+                                    className="w-8 h-8 flex items-center justify-center hover:bg-gray-100"
+                                    onClick={() => {
+                                      execCommand("indent");
+                                    }}
+                                    title="Indent More"
+                                  >
+                                    <MdFormatIndentIncrease className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    className="w-8 h-8 flex items-center justify-center hover:bg-gray-100"
+                                    onClick={() => {
+                                      execCommand("outdent");
+                                    }}
+                                    title="Indent Less"
+                                  >
+                                    <MdFormatIndentDecrease className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    className="w-8 h-8 flex items-center justify-center hover:bg-gray-100"
+                                    onClick={() => {
+                                      execCommand("strikeThrough");
+                                    }}
+                                    title="Strikethrough"
+                                  >
+                                    <MdStrikethroughS className="w-5 h-5" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Editor */}
+                          <div
+                            ref={replyEditorRef}
+                            contentEditable
+                            suppressContentEditableWarning
+                            onInput={handleReplyInput}
+                            onPaste={handleReplyPaste}
+                            className="min-h-[200px] p-3 text-sm"
+                            style={{
+                              fontFamily:
+                                "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                              fontSize: "14px",
+                              whiteSpace: "pre-wrap",
+                              outline: "none",
+                              border: "none",
+                            }}
+                          />
+
+                          {/* Quoted Content Toggle */}
+                          {replyMode !== "forward" &&
+                            threadEmails.length > 0 && (
+                              <div className="mt-3">
+                                <button
+                                  onClick={() =>
+                                    setShowReplyQuote(!showReplyQuote)
+                                  }
+                                  className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-xs"
+                                >
+                                  {showReplyQuote ? (
+                                    <ChevronDown className="w-4 h-4" />
+                                  ) : (
+                                    <ChevronUp className="w-4 h-4" />
+                                  )}
+                                  {showReplyQuote
+                                    ? "Hide quoted text"
+                                    : "Show quoted text"}
+                                </button>
+                                {showReplyQuote && (
+                                  <div
+                                    className="mt-2 border-l-4 border-gray-300 pl-4 text-sm max-w-full"
+                                    style={{
+                                      lineHeight: "1.5",
+                                      fontFamily: "Arial, sans-serif",
+                                      fontSize: "13px",
+                                      color: "#666",
+                                      whiteSpace: "pre-wrap",
+                                    }}
+                                  >
+                                    {formatQuotedContent(
+                                      threadEmails[threadEmails.length - 1]
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                        </div>
+
+                        {/* Attachments Display */}
+                        {replyAttachments.length > 0 && (
+                          <div className="px-4 py-2 border-t border-gray-200">
+                            <div className="flex flex-wrap gap-2">
+                              {replyAttachments.map((file, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-md border border-gray-300"
+                                >
+                                  <Paperclip className="w-4 h-4 text-gray-600" />
+                                  <span className="text-sm text-gray-700 truncate max-w-[200px]">
+                                    {file.name}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    (
+                                    {file.size > 1024 * 1024
+                                      ? `${(file.size / (1024 * 1024)).toFixed(
+                                          2
+                                        )} MB`
+                                      : `${(file.size / 1024).toFixed(2)} KB`}
+                                    )
+                                  </span>
+                                  <button
+                                    onClick={() =>
+                                      handleRemoveAttachment(index)
+                                    }
+                                    className="ml-1 hover:text-red-600"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Send Button */}
+                        <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+                          {/* Attachment Button */}
+                          <div className="relative">
+                            <input
+                              type="file"
+                              multiple
+                              onChange={handleReplyAttachment}
+                              className="hidden"
+                              id="reply-attachment-input"
+                            />
+                            <label
+                              htmlFor="reply-attachment-input"
+                              className="cursor-pointer"
+                            >
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-gray-600 hover:text-gray-900"
+                              >
+                                <Paperclip className="w-4 h-4 mr-2" />
+                                Attach
+                              </Button>
+                            </label>
+                          </div>
+
+                          <Button
+                            onClick={handleSendReply}
+                            disabled={
+                              isSendingReply ||
+                              replyToEmails.length === 0 ||
+                              !replySubject.trim()
+                            }
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+                          >
+                            {isSendingReply ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Sending...
+                              </div>
+                            ) : (
+                              <>
+                                <Send className="w-4 h-4 mr-2" />
+                                Send
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
