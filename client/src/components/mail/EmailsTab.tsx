@@ -1544,7 +1544,7 @@ export default function EmailsTab() {
     if (labels.length === 0) {
       fetchLabels();
     }
-  }, [activeCategory, isCategoryChanging]);
+  }, [activeCategory]);
 
   // Hide category changing indicator when loading completes
   useEffect(() => {
