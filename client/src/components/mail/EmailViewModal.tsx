@@ -130,7 +130,7 @@ interface EmailViewModalProps {
 }
 
 // Global flag to track if we should prevent modal close
-let shouldPreventClose = false;
+const shouldPreventClose = false;
 
 // Helper function to get avatar initials
 function getAvatarInitials(email: string): string {

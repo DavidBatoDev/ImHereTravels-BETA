@@ -1464,7 +1464,7 @@ export default function EmailsTab() {
             const category = gmailCategories.find(
               (cat) => cat.id === activeCategory
             );
-            let query = category?.query || "in:sent OR in:inbox";
+            const query = category?.query || "in:sent OR in:inbox";
 
             const response = await fetch("/api/gmail/emails", {
               method: "POST",

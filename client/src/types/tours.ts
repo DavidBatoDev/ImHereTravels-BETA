@@ -135,7 +135,7 @@ export interface TourFormDataWithStringDates {
   tourCode: string;
   description: string;
   location: string;
-  duration: string; // Duration in format "X days"
+  duration: string; // Duration as a string like "11 days"
   travelDates: {
     startDate: string;
     endDate: string;
