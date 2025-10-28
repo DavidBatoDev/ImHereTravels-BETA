@@ -33,7 +33,7 @@ interface BookingData {
  * Creates drafts directly in Bella's Gmail account and returns the direct URL
  *
  * @param bookingId - The booking ID to generate draft for
- * @param includeBcc - Not used in current implementation
+ * @param includeBcc - If true, fetch BCC users from bcc-users collection
  * @param emailAddress - Customer's email address
  * @param generateCancellationDraft - True to create draft, false to clear existing
  * @returns Gmail draft URL that Bella can click to open the draft
@@ -104,6 +104,25 @@ export default async function generateCancellationGmailDraft(
         `Generating new cancellation Gmail draft for booking: ${bookingId}`
       );
 
+      // Fetch BCC users if includeBcc is true
+      let bccList: string[] = [];
+      if (includeBcc) {
+        try {
+          const bccUsers = await firebaseUtils.getCollectionData("bcc-users");
+
+          // Filter active users and extract email addresses
+          bccList = bccUsers
+            .filter((user: any) => user.isActive === true)
+            .map((user: any) => user.email)
+            .filter((email: string) => email && email.trim() !== "");
+
+          console.log(`Found ${bccList.length} active BCC users`);
+        } catch (bccError) {
+          console.error("Error fetching BCC users:", bccError);
+          // Continue without BCC if there's an error
+        }
+      }
+
       // Use the Firebase Functions that creates cancellation Gmail drafts
       const generateEmail = httpsCallable(
         functions,
@@ -114,6 +133,7 @@ export default async function generateCancellationGmailDraft(
         const emailResult = await generateEmail({
           bookingId: bookingDoc.id, // Use the document ID, not the bookingId field
           generateDraftCell: true,
+          bcc: bccList.length > 0 ? bccList : undefined, // Only include BCC if there are users
         });
 
         console.log(
