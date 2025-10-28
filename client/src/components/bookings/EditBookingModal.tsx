@@ -1000,7 +1000,7 @@ export default function EditBookingModal({
 
         case "function":
           return (
-            <div className="flex items-center">
+            <div className="flex items-center gap-2">
               <Input
                 id={fieldId}
                 value={String(value || "")}
@@ -1013,8 +1013,68 @@ export default function EditBookingModal({
                 placeholder={isComputing ? "Computing..." : ""}
               />
               {isComputing && (
-                <RefreshCw className="ml-2 h-4 w-4 animate-spin text-royal-purple" />
+                <RefreshCw className="h-4 w-4 animate-spin text-royal-purple" />
               )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  if (!booking?.id) return;
+                  setComputingFields((prev) => new Set([...prev, column.id]));
+                  try {
+                    // First, recompute this specific function column
+                    const result = await executeFunction(column, formData);
+
+                    if (result !== undefined) {
+                      // Update form data with the computed result
+                      const updatedData = { ...formData, [column.id]: result };
+
+                      // Queue Firebase update
+                      batchedWriter.queueFieldUpdate(
+                        booking.id,
+                        column.id,
+                        result
+                      );
+
+                      // Then compute dependent functions
+                      const finalData = await executeDirectDependents(
+                        column.id,
+                        updatedData
+                      );
+
+                      if (finalData) {
+                        setFormData(finalData);
+                      }
+                    }
+                  } catch (error) {
+                    console.error(
+                      `Error recomputing ${column.columnName}:`,
+                      error
+                    );
+                    toast({
+                      title: "Recomputation Failed",
+                      description: `Failed to recompute ${column.columnName}`,
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setComputingFields((prev) => {
+                      const newSet = new Set(prev);
+                      newSet.delete(column.id);
+                      return newSet;
+                    });
+                  }
+                }}
+                disabled={isComputing}
+                className="h-7 w-7 p-0"
+              >
+                <RefreshCw
+                  className={cn(
+                    "h-3 w-3 text-royal-purple",
+                    isComputing && "animate-spin"
+                  )}
+                />
+              </Button>
             </div>
           );
 
@@ -1074,6 +1134,9 @@ export default function EditBookingModal({
       setIsSaving,
       debouncedSaveIndicator,
       executeDirectDependents,
+      executeFunction,
+      toast,
+      batchedWriter,
     ]
   );
 
