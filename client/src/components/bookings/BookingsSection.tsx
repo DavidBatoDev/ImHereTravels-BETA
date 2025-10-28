@@ -982,11 +982,54 @@ export default function BookingsSection() {
         {/* Add Booking Button */}
         <div className="flex items-center justify-center">
           <Button
-            onClick={() => {
-              setIsAddModalOpen(true);
-              const params = new URLSearchParams(searchParams.toString());
-              params.set("action", "new");
-              router.push(`/bookings?${params.toString()}`, { scroll: false });
+            onClick={async () => {
+              try {
+                // Compute next row number (fill gaps)
+                const rowNumbers = (bookings || [])
+                  .map((b) => (typeof b.row === "number" ? b.row : 0))
+                  .filter((n) => n > 0)
+                  .sort((a, b) => a - b);
+                let nextRowNumber = 1;
+                for (let i = 0; i < rowNumbers.length; i++) {
+                  if (rowNumbers[i] !== i + 1) {
+                    nextRowNumber = i + 1;
+                    break;
+                  }
+                  nextRowNumber = i + 2;
+                }
+
+                // Create minimal doc then update with id/row/timestamps
+                const newBookingId = await bookingService.createBooking({});
+                const bookingData = {
+                  id: newBookingId,
+                  row: nextRowNumber,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                } as any;
+                await bookingService.updateBooking(newBookingId, bookingData);
+
+                // Navigate with bookingId to open detail modal
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("bookingId", newBookingId);
+                params.delete("action");
+                router.push(`/bookings?${params.toString()}`, {
+                  scroll: false,
+                });
+
+                toast({
+                  title: "✅ Booking Created",
+                  description: `Successfully created a booking in row ${nextRowNumber}`,
+                  variant: "default",
+                });
+              } catch (error) {
+                toast({
+                  title: "❌ Failed to Create Booking",
+                  description: `Error: ${
+                    error instanceof Error ? error.message : "Unknown error"
+                  }`,
+                  variant: "destructive",
+                });
+              }
             }}
             className="group h-20 w-20 rounded-full rounded-br-none bg-crimson-red hover:bg-royal-purple text-white transition-all duration-300 hover:scale-105 shadow-lg relative"
             title="Add New Booking"
