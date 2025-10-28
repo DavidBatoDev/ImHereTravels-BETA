@@ -1,0 +1,16 @@
+[debug] [2025-10-28T07:58:04.495Z] ----------------------------------------------------------------------
+[debug] [2025-10-28T07:58:04.497Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\huawei\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions:onPaymentReminderEnabled
+[debug] [2025-10-28T07:58:04.497Z] CLI Version:   14.17.0
+[debug] [2025-10-28T07:58:04.497Z] Platform:      win32
+[debug] [2025-10-28T07:58:04.497Z] Node Version:  v20.16.0
+[debug] [2025-10-28T07:58:04.497Z] Time:          Tue Oct 28 2025 15:58:04 GMT+0800 (Philippine Standard Time)
+[debug] [2025-10-28T07:58:04.498Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-10-28T07:58:04.677Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-28T07:58:04.677Z] > authorizing via signed-in user (bella@imheretravels.com)
+[debug] [2025-10-28T07:58:04.678Z] [iam] checking project imheretravels-a3f81 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2025-10-28T07:58:04.678Z] Checked if tokens are valid: false, expires at: 1761639102896
+[debug] [2025-10-28T07:58:04.679Z] Checked if tokens are valid: false, expires at: 1761639102896
+[debug] [2025-10-28T07:58:04.679Z] > refreshing access token with scopes: []
+[debug] [2025-10-28T07:58:04.680Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-28T07:58:04.680Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]

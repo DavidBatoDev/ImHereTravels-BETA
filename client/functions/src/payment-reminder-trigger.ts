@@ -428,20 +428,48 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
 
           // Convert scheduled reminder date to Timestamp
           let scheduledFor: Timestamp;
+          
+          logger.info(
+            `Processing ${term} scheduled reminder date:`,
+            scheduledReminderDate,
+            `Type: ${typeof scheduledReminderDate}`
+          );
+
           if (
             scheduledReminderDate &&
             typeof scheduledReminderDate === "object" &&
             scheduledReminderDate._seconds
           ) {
+            // Firestore Timestamp object
             scheduledFor = Timestamp.fromMillis(
               scheduledReminderDate._seconds * 1000
             );
+            logger.info(`Converted Firestore Timestamp for ${term}`);
           } else if (scheduledReminderDate instanceof Date) {
+            // JavaScript Date object
             scheduledFor = Timestamp.fromDate(scheduledReminderDate);
+            logger.info(`Converted Date object for ${term}`);
           } else if (typeof scheduledReminderDate === "string") {
-            scheduledFor = Timestamp.fromDate(new Date(scheduledReminderDate));
+            // String date like "2025-10-20"
+            // Parse the date and set time to 9 AM (matching scheduler run time)
+            const dateObj = new Date(scheduledReminderDate + "T09:00:00+08:00"); // Singapore time
+            
+            if (isNaN(dateObj.getTime())) {
+              logger.warn(
+                `Invalid date string format for ${term}: ${scheduledReminderDate}`
+              );
+              continue;
+            }
+            
+            scheduledFor = Timestamp.fromDate(dateObj);
+            logger.info(
+              `Converted string date for ${term}: ${scheduledReminderDate} -> ${dateObj.toISOString()}`
+            );
           } else {
-            logger.warn(`Invalid scheduled reminder date for ${term}`);
+            logger.warn(
+              `Invalid scheduled reminder date for ${term}:`,
+              scheduledReminderDate
+            );
             continue;
           }
 
