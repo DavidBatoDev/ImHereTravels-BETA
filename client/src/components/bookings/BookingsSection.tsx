@@ -126,6 +126,7 @@ export default function BookingsSection() {
   const [isFilterSticky, setIsFilterSticky] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isCreatingBooking, setIsCreatingBooking] = useState(false);
 
   // Ref for the bookings container to enable scrolling after adding a booking
   const bookingsContainerRef = useRef<HTMLDivElement>(null);
@@ -881,6 +882,15 @@ export default function BookingsSection() {
 
   return (
     <div className="space-y-6">
+      {/* Gmail-style Loading Indicator for Creating Booking */}
+      {isCreatingBooking && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
+          <div className="bg-crimson-red text-white px-4 py-2 rounded-b-lg shadow-lg flex items-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            <span className="text-sm font-medium">Creating booking...</span>
+          </div>
+        </div>
+      )}
       {/* Statistics Cards with Add Button */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4">
         {/* Total Bookings */}
@@ -983,6 +993,7 @@ export default function BookingsSection() {
         <div className="flex items-center justify-center">
           <Button
             onClick={async () => {
+              setIsCreatingBooking(true);
               try {
                 // Compute next row number (fill gaps)
                 const rowNumbers = (bookings || [])
@@ -1021,7 +1032,10 @@ export default function BookingsSection() {
                   description: `Successfully created a booking in row ${nextRowNumber}`,
                   variant: "default",
                 });
+
+                setIsCreatingBooking(false);
               } catch (error) {
+                setIsCreatingBooking(false);
                 toast({
                   title: "❌ Failed to Create Booking",
                   description: `Error: ${

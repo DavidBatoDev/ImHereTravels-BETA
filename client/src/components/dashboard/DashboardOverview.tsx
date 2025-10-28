@@ -45,11 +45,15 @@ import {
 import { collection, onSnapshot, query, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Booking } from "@/types/bookings";
+import { bookingService } from "@/services/booking-service";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardOverview() {
   const router = useRouter();
+  const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingBooking, setIsCreatingBooking] = useState(false);
 
   // Fetch real booking data from Firebase
   useEffect(() => {
@@ -295,7 +299,54 @@ export default function DashboardOverview() {
       title: "Create New Booking",
       description: "Add a new booking to the system",
       icon: FiPlus,
-      onClick: () => router.push("/bookings?tab=bookings&action=new"),
+      onClick: async () => {
+        setIsCreatingBooking(true);
+        try {
+          // Compute next row number (fill gaps)
+          const rowNumbers = (bookings || [])
+            .map((b) => (typeof b.row === "number" ? b.row : 0))
+            .filter((n) => n > 0)
+            .sort((a, b) => a - b);
+          let nextRowNumber = 1;
+          for (let i = 0; i < rowNumbers.length; i++) {
+            if (rowNumbers[i] !== i + 1) {
+              nextRowNumber = i + 1;
+              break;
+            }
+            nextRowNumber = i + 2;
+          }
+
+          // Create minimal doc then update with id/row/timestamps
+          const newBookingId = await bookingService.createBooking({});
+          const bookingData = {
+            id: newBookingId,
+            row: nextRowNumber,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } as any;
+          await bookingService.updateBooking(newBookingId, bookingData);
+
+          // Navigate with bookingId to open detail modal
+          router.push(`/bookings?tab=bookings&bookingId=${newBookingId}`);
+
+          toast({
+            title: "✅ Booking Created",
+            description: `Successfully created a booking in row ${nextRowNumber}`,
+            variant: "default",
+          });
+
+          setIsCreatingBooking(false);
+        } catch (error) {
+          setIsCreatingBooking(false);
+          toast({
+            title: "❌ Failed to Create Booking",
+            description: `Error: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+            variant: "destructive",
+          });
+        }
+      },
       color: "bg-primary",
       iconColor: "text-white",
     },
@@ -343,6 +394,16 @@ export default function DashboardOverview() {
 
   return (
     <div className="space-y-6">
+      {/* Gmail-style Loading Indicator for Creating Booking */}
+      {isCreatingBooking && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
+          <div className="bg-crimson-red text-white px-4 py-2 rounded-b-lg shadow-lg flex items-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            <span className="text-sm font-medium">Creating booking...</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -363,7 +424,55 @@ export default function DashboardOverview() {
             View All Bookings
           </Button>
           <Button
-            onClick={() => router.push("/bookings?tab=bookings&action=new")}
+            onClick={async () => {
+              setIsCreatingBooking(true);
+              try {
+                // Compute next row number (fill gaps)
+                const rowNumbers = (bookings || [])
+                  .map((b) => (typeof b.row === "number" ? b.row : 0))
+                  .filter((n) => n > 0)
+                  .sort((a, b) => a - b);
+                let nextRowNumber = 1;
+                for (let i = 0; i < rowNumbers.length; i++) {
+                  if (rowNumbers[i] !== i + 1) {
+                    nextRowNumber = i + 1;
+                    break;
+                  }
+                  nextRowNumber = i + 2;
+                }
+
+                // Create minimal doc then update with id/row/timestamps
+                const newBookingId = await bookingService.createBooking({});
+                const bookingData = {
+                  id: newBookingId,
+                  row: nextRowNumber,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                } as any;
+                await bookingService.updateBooking(newBookingId, bookingData);
+
+                // Navigate with bookingId to open detail modal
+                router.push(`/bookings?tab=bookings&bookingId=${newBookingId}`);
+
+                toast({
+                  title: "✅ Booking Created",
+                  description: `Successfully created a booking in row ${nextRowNumber}`,
+                  variant: "default",
+                });
+
+                setIsCreatingBooking(false);
+              } catch (error) {
+                setIsCreatingBooking(false);
+                toast({
+                  title: "❌ Failed to Create Booking",
+                  description: `Error: ${
+                    error instanceof Error ? error.message : "Unknown error"
+                  }`,
+                  variant: "destructive",
+                });
+              }
+            }}
+            disabled={isCreatingBooking}
             className="bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25 transition-all duration-200"
           >
             <FiPlus className="mr-2 h-4 w-4" />
