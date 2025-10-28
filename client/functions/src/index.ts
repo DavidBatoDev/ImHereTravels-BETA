@@ -30,6 +30,9 @@ export { telegramBot } from "./telegram-bot";
 // Other email functions have been migrated to Next.js API routes
 export { processScheduledEmails } from "./scheduled-emails";
 
+// Export payment reminder trigger
+export { onPaymentReminderEnabled } from "./payment-reminder-trigger";
+
 // Export email utilities
 export { EmailTemplateLoader } from "./email-template-loader";
 

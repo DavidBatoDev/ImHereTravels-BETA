@@ -40,6 +40,17 @@ interface ScheduledEmail {
   templateVariables?: Record<string, any>;
 }
 
+type SheetColumn = {
+  id: string;
+  columnName: string;
+  dataType: string;
+};
+
+// Helper function to get Gmail sent URL
+function getGmailSentUrl(messageId: string): string {
+  return `https://mail.google.com/mail/u/0/#sent/${messageId}`;
+}
+
 /**
  * Cloud Scheduler function that runs once daily at 9 AM to check for emails to send
  */
@@ -70,6 +81,14 @@ export const processScheduledEmails = onSchedule(
       }
 
       logger.info(`Found ${snapshot.docs.length} emails to process`);
+
+      // Load booking columns once for all emails
+      const columnsSnap = await db.collection("bookingSheetColumns").get();
+      const columns: SheetColumn[] = columnsSnap.docs.map((doc) => ({
+        id: doc.id,
+        columnName: doc.data().columnName,
+        dataType: doc.data().dataType,
+      }));
 
       // Process each scheduled email
       const promises = snapshot.docs.map(async (doc) => {
@@ -102,6 +121,41 @@ export const processScheduledEmails = onSchedule(
           logger.info(
             `Successfully sent scheduled email ${emailId} to ${emailData.to}`
           );
+
+          // If this is a payment reminder, update the booking with the sent email link
+          if (
+            emailData.emailType === "payment-reminder" &&
+            emailData.bookingId &&
+            emailData.templateVariables?.paymentTerm &&
+            result.messageId
+          ) {
+            try {
+              const term = emailData.templateVariables.paymentTerm as string;
+              const emailLink = getGmailSentUrl(result.messageId);
+              const scheduledEmailLinkCol = columns.find(
+                (col) => col.columnName === `${term} Scheduled Email Link`
+              );
+
+              if (scheduledEmailLinkCol) {
+                await db
+                  .collection("bookings")
+                  .doc(emailData.bookingId)
+                  .update({
+                    [scheduledEmailLinkCol.id]: emailLink,
+                  });
+
+                logger.info(
+                  `Updated ${term} Scheduled Email Link for booking ${emailData.bookingId}`
+                );
+              }
+            } catch (bookingUpdateError) {
+              logger.error(
+                `Error updating booking with email link:`,
+                bookingUpdateError
+              );
+              // Don't fail the whole process if booking update fails
+            }
+          }
         } catch (error) {
           logger.error(`Error sending scheduled email ${emailId}:`, error);
 
