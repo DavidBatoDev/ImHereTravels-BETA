@@ -75,6 +75,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -105,6 +106,7 @@ import {
   Upload,
   FileSpreadsheet,
   AlertTriangle,
+  HelpCircle,
 } from "lucide-react";
 import {
   SheetColumn,
@@ -432,6 +434,7 @@ export default function BookingsDataGrid({
   const [frozenColumnIds, setFrozenColumnIds] = useState<Set<string>>(
     new Set()
   );
+  const [allowFunctionOverride, setAllowFunctionOverride] = useState(false);
   const [isRecomputingAll, setIsRecomputingAll] = useState(false);
   const isRecomputingAllRef = useRef(false);
   useEffect(() => {
@@ -668,6 +671,13 @@ export default function BookingsDataGrid({
       if (isImporting()) {
         return row[funcCol.id];
       }
+
+      // Skip automatic computation for this function if override is enabled
+      // BUT this function will still be computed if it's a dependent of another changed column
+      if (allowFunctionOverride && !skipInitialCheck) {
+        return row[funcCol.id]; // Return existing value without recomputation
+      }
+
       if (!funcCol.function) return;
 
       // Skip computation during initial load unless explicitly requested
@@ -762,7 +772,7 @@ export default function BookingsDataGrid({
         return undefined;
       }
     },
-    [columns]
+    [columns, allowFunctionOverride]
   );
 
   // Build dependency graph: source columnId -> list of function columns depending on it
@@ -3157,28 +3167,85 @@ export default function BookingsDataGrid({
           };
           baseColumn.editable = false; // We handle editing through the input
         } else if (col.dataType === "function") {
-          baseColumn.renderCell = ({ row, column }) => {
-            const isEmptyRow = (row as any)._isEmptyRow;
-            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+          if (allowFunctionOverride) {
+            // Render as editable text input when override is enabled
+            // Use the same pattern as string columns for editing
+            baseColumn.renderCell = ({ row, column }) => {
+              const isEmptyRow = (row as any)._isEmptyRow;
+              const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+              const shouldShowAddButton = (row as any)._shouldShowAddButton;
 
-            if (isEmptyRow) {
-              return renderEmptyRowCell(
-                column,
-                isFirstEmptyRow,
-                shouldShowAddButton
+              if (isEmptyRow) {
+                return renderEmptyRowCell(
+                  column,
+                  isFirstEmptyRow,
+                  shouldShowAddButton
+                );
+              }
+
+              const cellValue = row[column.key as keyof SheetData];
+              const displayValue = getInputValue(row.id, column.key, cellValue);
+              const hasColor = col.color && col.color !== "none";
+
+              const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                const newValue = e.target.value;
+                updateInputValue(row.id, column.key, newValue, "string");
+              };
+
+              const handleBlur = () => {
+                const currentValue = getInputValue(
+                  row.id,
+                  column.key,
+                  row[column.key as keyof SheetData]
+                );
+                const originalValue = row[column.key];
+
+                if (currentValue !== originalValue) {
+                  saveToFirebase(row.id, column.key, currentValue, "string");
+                }
+              };
+
+              return (
+                <input
+                  type="text"
+                  value={displayValue}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`h-8 w-full px-2 text-xs border-none outline-none bg-sunglow-yellow/10 ${
+                    hasColor ? "text-black" : ""
+                  }`}
+                  title="Function override enabled - Click to edit"
+                />
               );
-            }
+            };
+            baseColumn.editable = false; // We handle editing through the input
+          } else {
+            // Normal function behavior with FunctionEditor
+            baseColumn.renderCell = ({ row, column }) => {
+              const isEmptyRow = (row as any)._isEmptyRow;
+              const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+              const shouldShowAddButton = (row as any)._shouldShowAddButton;
 
-            return (
-              <span className="h-8 w-full flex items-center text-xs px-2">
-                <FunctionFormatter row={row} column={column} />
-              </span>
-            );
-          };
-          baseColumn.renderEditCell = FunctionEditor; // Show button when editing
-          baseColumn.sortable = false;
-          baseColumn.editable = true; // Make editable so user can click to "edit"
+              if (isEmptyRow) {
+                return renderEmptyRowCell(
+                  column,
+                  isFirstEmptyRow,
+                  shouldShowAddButton
+                );
+              }
+
+              return (
+                <span className="h-8 w-full flex items-center text-xs px-2">
+                  <FunctionFormatter row={row} column={column} />
+                </span>
+              );
+            };
+            baseColumn.renderEditCell = FunctionEditor; // Show button when editing
+            baseColumn.sortable = false;
+            baseColumn.editable = true; // Make editable so user can click to "edit"
+          }
+
+          // Common properties
           (baseColumn as any).columnDef = col;
           (baseColumn as any).deleteRow = deleteRow;
           (baseColumn as any).availableFunctions = availableFunctions;
@@ -3360,6 +3427,7 @@ export default function BookingsDataGrid({
     updateInputValue,
     saveToFirebase,
     forceRerender,
+    allowFunctionOverride,
   ]);
 
   const handleAddNewRow = async () => {
@@ -3818,6 +3886,44 @@ export default function BookingsDataGrid({
                     </div>
                   </PopoverContent>
                 </Popover>
+                <TooltipProvider>
+                  <div className="flex items-center gap-2 border border-royal-purple/20 rounded-md px-3 py-1.5">
+                    <Switch
+                      id="allow-function-override"
+                      checked={allowFunctionOverride}
+                      onCheckedChange={setAllowFunctionOverride}
+                    />
+                    <Label
+                      htmlFor="allow-function-override"
+                      className="text-sm cursor-pointer"
+                    >
+                      Override Functions
+                    </Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-sm">
+                          When enabled, function columns become editable text
+                          inputs, allowing manual value overrides.
+                          <br />
+                          <br />
+                          Dependent functions will still recompute based on your
+                          manual changes.
+                          <br />
+                          <br />
+                          <strong>Use cases:</strong>
+                          <ul className="list-disc pl-4 mt-1">
+                            <li>Manually entering historical data</li>
+                            <li>Pasting past email URLs or content</li>
+                            <li>Overriding calculated values temporarily</li>
+                          </ul>
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TooltipProvider>
                 {!isFullscreen && (
                   <Button
                     variant="outline"
