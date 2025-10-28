@@ -1019,6 +1019,7 @@ export default function EditBookingModal({
                 type="button"
                 variant="ghost"
                 size="sm"
+                tabIndex={-1}
                 onClick={async () => {
                   if (!booking?.id) return;
                   setComputingFields((prev) => new Set([...prev, column.id]));
