@@ -48,9 +48,6 @@ import {
   Trash2,
   ChevronUp,
   ChevronDown,
-  Type as CaseIcon,
-  Hash as WholeWordIcon,
-  Code2 as RegexIcon,
 } from "lucide-react";
 import {
   FaUser,
@@ -76,6 +73,71 @@ import { bookingService } from "@/services/booking-service";
 import { useToast } from "@/hooks/use-toast";
 import BookingDetailModal from "./BookingDetailModal";
 import AddBookingModal from "./AddBookingModal";
+
+// VSCode-style icons for match options
+const MatchCaseIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 16 16"
+    fill="currentColor"
+    className={className}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <text x="2" y="11" fontSize="9" fontWeight="bold" fill="currentColor">
+      Aa
+    </text>
+  </svg>
+);
+
+const WholeWordIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    className={className}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <line
+      x1="1"
+      y1="3"
+      x2="1"
+      y2="13"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+    />
+    <text x="3.5" y="11" fontSize="8" fill="currentColor">
+      ab
+    </text>
+    <line
+      x1="12.5"
+      y1="3"
+      x2="12.5"
+      y2="13"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+const RegexIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 16 16"
+    fill="currentColor"
+    className={className}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <text
+      x="2"
+      y="11"
+      fontSize="8"
+      fontWeight="normal"
+      fill="currentColor"
+      fontFamily="monospace"
+    >
+      .*
+    </text>
+  </svg>
+);
 
 export default function BookingsSection() {
   const { toast } = useToast();
@@ -1323,9 +1385,44 @@ export default function BookingsSection() {
                       <div className="h-96 overflow-y-auto border border-border rounded-lg p-4 bg-muted/20 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-crimson-red/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-crimson-red/40">
                         <div className="space-y-3">
                           {tempFilters.length === 0 && (
-                            <div className="text-xs text-muted-foreground">
-                              No filters yet. Click "Create Filter" to add one.
-                            </div>
+                            <Card
+                              onClick={() =>
+                                setTempFilters((prev) => [
+                                  ...prev,
+                                  {
+                                    id: crypto.randomUUID(),
+                                    operator: "eq",
+                                    matchOptions: {
+                                      matchCase: false,
+                                      matchWholeWord: false,
+                                      useRegex: false,
+                                    },
+                                  },
+                                ])
+                              }
+                              className="border-2 border-dashed border-crimson-red/40 hover:border-crimson-red/60 hover:bg-gradient-to-br hover:from-crimson-red/5 hover:to-royal-purple/5 transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-md"
+                            >
+                              <CardContent className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                                <div className="relative mb-6">
+                                  <div className="absolute inset-0 bg-crimson-red/20 rounded-full blur-xl group-hover:bg-crimson-red/30 transition-colors"></div>
+                                  <div className="relative p-4 bg-gradient-to-br from-crimson-red/20 to-royal-purple/20 rounded-full rounded-br-none group-hover:from-crimson-red/30 group-hover:to-royal-purple/30 transition-all duration-300">
+                                    <Filter className="h-8 w-8 text-crimson-red group-hover:scale-110 transition-transform duration-300" />
+                                  </div>
+                                </div>
+                                <h3 className="text-base font-bold text-foreground mb-2 group-hover:text-crimson-red transition-colors">
+                                  Create Your First Filter
+                                </h3>
+                                <p className="text-sm text-muted-foreground max-w-xs mb-4 leading-relaxed">
+                                  Filter bookings by column values, dates,
+                                  amounts, and more to find exactly what you
+                                  need
+                                </p>
+                                <div className="flex items-center gap-2 text-xs text-crimson-red font-medium mt-2">
+                                  <FaPlus className="h-3 w-3" />
+                                  <span>Click to get started</span>
+                                </div>
+                              </CardContent>
+                            </Card>
                           )}
                           {tempFilters.map((f, idx) => {
                             const selectedColumn = columns.find(
@@ -1336,299 +1433,542 @@ export default function BookingsSection() {
                                 ? f.dataTypeOverride || "string"
                                 : selectedColumn?.dataType;
                             return (
-                              <div
+                              <Card
                                 key={f.id}
-                                className="flex flex-wrap items-center gap-2 p-2 rounded border border-border bg-background w-full"
+                                className="group border border-border bg-background hover:border-crimson-red/50 hover:shadow-md transition-all duration-200 w-full"
                               >
-                                {/* Column selector */}
-                                <Select
-                                  value={f.columnId || ""}
-                                  onValueChange={(val) =>
-                                    setTempFilters((prev) => {
-                                      const copy = [...prev];
-                                      copy[idx] = {
-                                        ...copy[idx],
-                                        columnId: val,
-                                      };
-                                      return copy;
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger className="h-8 min-w-[180px] flex-shrink-0">
-                                    <SelectValue placeholder="Select column" />
-                                  </SelectTrigger>
-                                  <SelectContent className="max-h-64">
-                                    {columns.map((c) => (
-                                      <SelectItem key={c.id} value={c.id}>
-                                        {c.columnName}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-
-                                {/* Function column data type override */}
-                                {selectedColumn?.dataType === "function" && (
-                                  <Select
-                                    value={f.dataTypeOverride || "string"}
-                                    onValueChange={(val) =>
-                                      setTempFilters((prev) => {
-                                        const copy = [...prev];
-                                        copy[idx] = {
-                                          ...copy[idx],
-                                          dataTypeOverride: val as any,
-                                        };
-                                        return copy;
-                                      })
-                                    }
-                                  >
-                                    <SelectTrigger className="h-8 w-[130px] flex-shrink-0">
-                                      <SelectValue placeholder="Type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {(
-                                        [
-                                          "string",
-                                          "number",
-                                          "date",
-                                          "boolean",
-                                          "select",
-                                          "email",
-                                          "currency",
-                                        ] as const
-                                      ).map((t) => (
-                                        <SelectItem key={t} value={t}>
-                                          {t}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-
-                                {/* Dynamic input based on type */}
-                                {effectiveType === "string" ||
-                                effectiveType === "email" ? (
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <Input
-                                      className="h-8 w-[220px] flex-shrink-0"
-                                      placeholder="Enter text"
-                                      defaultValue={f.value || ""}
-                                      onBlur={(e) =>
-                                        setTempFilters((prev) => {
-                                          const copy = [...prev];
-                                          copy[idx] = {
-                                            ...copy[idx],
-                                            value: e.target.value,
-                                          };
-                                          return copy;
-                                        })
-                                      }
-                                    />
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            type="button"
-                                            variant={
-                                              f.matchOptions?.matchCase
-                                                ? "default"
-                                                : "outline"
-                                            }
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            onClick={() =>
-                                              setTempFilters((prev) => {
-                                                const copy = [...prev];
-                                                const mo = copy[idx]
-                                                  .matchOptions || {
-                                                  matchCase: false,
-                                                  matchWholeWord: false,
-                                                  useRegex: false,
-                                                };
-                                                copy[idx] = {
-                                                  ...copy[idx],
-                                                  matchOptions: {
-                                                    ...mo,
-                                                    matchCase: !mo.matchCase,
-                                                  },
-                                                };
-                                                return copy;
-                                              })
-                                            }
-                                          >
-                                            <CaseIcon className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>Match Case</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            type="button"
-                                            variant={
-                                              f.matchOptions?.matchWholeWord
-                                                ? "default"
-                                                : "outline"
-                                            }
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            onClick={() =>
-                                              setTempFilters((prev) => {
-                                                const copy = [...prev];
-                                                const mo = copy[idx]
-                                                  .matchOptions || {
-                                                  matchCase: false,
-                                                  matchWholeWord: false,
-                                                  useRegex: false,
-                                                };
-                                                copy[idx] = {
-                                                  ...copy[idx],
-                                                  matchOptions: {
-                                                    ...mo,
-                                                    matchWholeWord:
-                                                      !mo.matchWholeWord,
-                                                  },
-                                                };
-                                                return copy;
-                                              })
-                                            }
-                                          >
-                                            <WholeWordIcon className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>Match Whole Word</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            type="button"
-                                            variant={
-                                              f.matchOptions?.useRegex
-                                                ? "default"
-                                                : "outline"
-                                            }
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            onClick={() =>
-                                              setTempFilters((prev) => {
-                                                const copy = [...prev];
-                                                const mo = copy[idx]
-                                                  .matchOptions || {
-                                                  matchCase: false,
-                                                  matchWholeWord: false,
-                                                  useRegex: false,
-                                                };
-                                                copy[idx] = {
-                                                  ...copy[idx],
-                                                  matchOptions: {
-                                                    ...mo,
-                                                    useRegex: !mo.useRegex,
-                                                  },
-                                                };
-                                                return copy;
-                                              })
-                                            }
-                                          >
-                                            <RegexIcon className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>Use Regular Expression</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  </div>
-                                ) : effectiveType === "number" ||
-                                  effectiveType === "currency" ? (
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <Select
-                                      value={f.operator || "eq"}
-                                      onValueChange={(val) =>
-                                        setTempFilters((prev) => {
-                                          const copy = [...prev];
-                                          copy[idx] = {
-                                            ...copy[idx],
-                                            operator: val as any,
-                                          };
-                                          return copy;
-                                        })
+                                <CardContent className="p-3 space-y-2">
+                                  {/* Filter Header with Column Info */}
+                                  <div className="flex items-start justify-between gap-3 pb-1.5 border-b border-border/50">
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                      <div className="p-1.5 bg-crimson-red/10 rounded-lg group-hover:bg-crimson-red/20 transition-colors">
+                                        <Filter className="h-4 w-4 text-crimson-red" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        {selectedColumn ? (
+                                          <>
+                                            <p className="text-sm font-semibold text-foreground truncate">
+                                              {selectedColumn.columnName}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                              {effectiveType === "string" ||
+                                              effectiveType === "email"
+                                                ? "Text filter"
+                                                : effectiveType === "number" ||
+                                                  effectiveType === "currency"
+                                                ? "Numeric filter"
+                                                : effectiveType === "date"
+                                                ? "Date filter"
+                                                : effectiveType === "boolean"
+                                                ? "Boolean filter"
+                                                : effectiveType === "select"
+                                                ? "Selection filter"
+                                                : "Filter"}
+                                            </p>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <p className="text-sm font-semibold text-muted-foreground">
+                                              Select a column
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                              Choose a column to filter by
+                                            </p>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 flex-shrink-0 hover:bg-crimson-red/10 hover:text-crimson-red transition-colors"
+                                      onClick={() =>
+                                        setTempFilters((prev) =>
+                                          prev.filter((x) => x.id !== f.id)
+                                        )
                                       }
                                     >
-                                      <SelectTrigger className="h-8 w-[150px] flex-shrink-0">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="eq">
-                                          Equal to (=)
-                                        </SelectItem>
-                                        <SelectItem value="between">
-                                          Between (&gt;= && &lt;=)
-                                        </SelectItem>
-                                        <SelectItem value="gte">
-                                          Greater than or equal (&gt;=)
-                                        </SelectItem>
-                                        <SelectItem value="gt">
-                                          Greater than (&gt;)
-                                        </SelectItem>
-                                        <SelectItem value="lte">
-                                          Less than or equal (&lt;=)
-                                        </SelectItem>
-                                        <SelectItem value="lt">
-                                          Less than (&lt;)
-                                        </SelectItem>
-                                        <SelectItem value="null">
-                                          Is Null
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                    {f.operator === "between" ? (
-                                      <>
-                                        <Input
-                                          type="number"
-                                          className="h-8 w-[120px] flex-shrink-0"
-                                          placeholder="Min"
-                                          defaultValue={f.value ?? ""}
-                                          onBlur={(e) =>
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+
+                                  {/* Filter Controls */}
+                                  <div className="space-y-2 pt-1.5">
+                                    {/* Column selector and Data Type in one row */}
+                                    <div className="flex items-end gap-2 flex-wrap">
+                                      <div className="flex-1 min-w-[200px] space-y-1.5">
+                                        <Label className="text-xs font-medium text-muted-foreground">
+                                          Column
+                                        </Label>
+                                        <Select
+                                          value={f.columnId || ""}
+                                          onValueChange={(val) =>
                                             setTempFilters((prev) => {
                                               const copy = [...prev];
                                               copy[idx] = {
                                                 ...copy[idx],
-                                                value: e.target.value,
+                                                columnId: val,
+                                              };
+                                              return copy;
+                                            })
+                                          }
+                                        >
+                                          <SelectTrigger className="h-8 border-border hover:border-crimson-red/50 focus:border-crimson-red">
+                                            <SelectValue placeholder="Select a column to filter" />
+                                          </SelectTrigger>
+                                          <SelectContent className="max-h-64">
+                                            {columns.map((c) => (
+                                              <SelectItem
+                                                key={c.id}
+                                                value={c.id}
+                                              >
+                                                {c.columnName}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+
+                                      {/* Function column data type override */}
+                                      {selectedColumn?.dataType ===
+                                        "function" && (
+                                        <div className="w-[160px] space-y-1.5">
+                                          <Label className="text-xs font-medium text-muted-foreground">
+                                            Data Type
+                                          </Label>
+                                          <Select
+                                            value={
+                                              f.dataTypeOverride || "string"
+                                            }
+                                            onValueChange={(val) =>
+                                              setTempFilters((prev) => {
+                                                const copy = [...prev];
+                                                copy[idx] = {
+                                                  ...copy[idx],
+                                                  dataTypeOverride: val as any,
+                                                };
+                                                return copy;
+                                              })
+                                            }
+                                          >
+                                            <SelectTrigger className="h-8 border-border hover:border-crimson-red/50 focus:border-crimson-red">
+                                              <SelectValue placeholder="Select type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {(
+                                                [
+                                                  "string",
+                                                  "number",
+                                                  "date",
+                                                  "boolean",
+                                                  "select",
+                                                  "email",
+                                                  "currency",
+                                                ] as const
+                                              ).map((t) => (
+                                                <SelectItem key={t} value={t}>
+                                                  {t}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Dynamic input based on type */}
+                                    {effectiveType === "string" ||
+                                    effectiveType === "email" ? (
+                                      <div className="space-y-1">
+                                        <div className="flex items-end gap-2 flex-wrap">
+                                          <div className="flex-1 min-w-[200px] space-y-1">
+                                            <Label className="text-xs font-medium text-muted-foreground">
+                                              Filter Value
+                                            </Label>
+                                            <Input
+                                              className="h-8 border-border hover:border-crimson-red/50 focus:border-crimson-red"
+                                              placeholder="Enter text to search for"
+                                              defaultValue={f.value || ""}
+                                              onBlur={(e) =>
+                                                setTempFilters((prev) => {
+                                                  const copy = [...prev];
+                                                  copy[idx] = {
+                                                    ...copy[idx],
+                                                    value: e.target.value,
+                                                  };
+                                                  return copy;
+                                                })
+                                              }
+                                            />
+                                          </div>
+                                          <div className="space-y-1">
+                                            <Label className="text-xs font-medium text-muted-foreground">
+                                              Match Options
+                                            </Label>
+                                            <div className="flex items-center gap-2">
+                                              <TooltipProvider>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <Button
+                                                      type="button"
+                                                      variant={
+                                                        f.matchOptions
+                                                          ?.matchCase
+                                                          ? "default"
+                                                          : "outline"
+                                                      }
+                                                      size="icon"
+                                                      className="h-8 w-8 border-border hover:border-crimson-red/50"
+                                                      onClick={() =>
+                                                        setTempFilters(
+                                                          (prev) => {
+                                                            const copy = [
+                                                              ...prev,
+                                                            ];
+                                                            const mo = copy[idx]
+                                                              .matchOptions || {
+                                                              matchCase: false,
+                                                              matchWholeWord:
+                                                                false,
+                                                              useRegex: false,
+                                                            };
+                                                            copy[idx] = {
+                                                              ...copy[idx],
+                                                              matchOptions: {
+                                                                ...mo,
+                                                                matchCase:
+                                                                  !mo.matchCase,
+                                                              },
+                                                            };
+                                                            return copy;
+                                                          }
+                                                        )
+                                                      }
+                                                    >
+                                                      <MatchCaseIcon className="h-4 w-4" />
+                                                    </Button>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent>
+                                                    <p>Match Case</p>
+                                                  </TooltipContent>
+                                                </Tooltip>
+                                              </TooltipProvider>
+                                              <TooltipProvider>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <Button
+                                                      type="button"
+                                                      variant={
+                                                        f.matchOptions
+                                                          ?.matchWholeWord
+                                                          ? "default"
+                                                          : "outline"
+                                                      }
+                                                      size="icon"
+                                                      className="h-8 w-8 border-border hover:border-crimson-red/50"
+                                                      onClick={() =>
+                                                        setTempFilters(
+                                                          (prev) => {
+                                                            const copy = [
+                                                              ...prev,
+                                                            ];
+                                                            const mo = copy[idx]
+                                                              .matchOptions || {
+                                                              matchCase: false,
+                                                              matchWholeWord:
+                                                                false,
+                                                              useRegex: false,
+                                                            };
+                                                            copy[idx] = {
+                                                              ...copy[idx],
+                                                              matchOptions: {
+                                                                ...mo,
+                                                                matchWholeWord:
+                                                                  !mo.matchWholeWord,
+                                                              },
+                                                            };
+                                                            return copy;
+                                                          }
+                                                        )
+                                                      }
+                                                    >
+                                                      <WholeWordIcon className="h-4 w-4" />
+                                                    </Button>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent>
+                                                    <p>Match Whole Word</p>
+                                                  </TooltipContent>
+                                                </Tooltip>
+                                              </TooltipProvider>
+                                              <TooltipProvider>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <Button
+                                                      type="button"
+                                                      variant={
+                                                        f.matchOptions?.useRegex
+                                                          ? "default"
+                                                          : "outline"
+                                                      }
+                                                      size="icon"
+                                                      className="h-8 w-8 border-border hover:border-crimson-red/50"
+                                                      onClick={() =>
+                                                        setTempFilters(
+                                                          (prev) => {
+                                                            const copy = [
+                                                              ...prev,
+                                                            ];
+                                                            const mo = copy[idx]
+                                                              .matchOptions || {
+                                                              matchCase: false,
+                                                              matchWholeWord:
+                                                                false,
+                                                              useRegex: false,
+                                                            };
+                                                            copy[idx] = {
+                                                              ...copy[idx],
+                                                              matchOptions: {
+                                                                ...mo,
+                                                                useRegex:
+                                                                  !mo.useRegex,
+                                                              },
+                                                            };
+                                                            return copy;
+                                                          }
+                                                        )
+                                                      }
+                                                    >
+                                                      <RegexIcon className="h-4 w-4" />
+                                                    </Button>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent>
+                                                    <p>
+                                                      Use Regular Expression
+                                                    </p>
+                                                  </TooltipContent>
+                                                </Tooltip>
+                                              </TooltipProvider>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : effectiveType === "number" ||
+                                      effectiveType === "currency" ? (
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <Select
+                                          value={f.operator || "eq"}
+                                          onValueChange={(val) =>
+                                            setTempFilters((prev) => {
+                                              const copy = [...prev];
+                                              copy[idx] = {
+                                                ...copy[idx],
+                                                operator: val as any,
+                                              };
+                                              return copy;
+                                            })
+                                          }
+                                        >
+                                          <SelectTrigger className="h-8 w-[150px] flex-shrink-0">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="eq">
+                                              Equal to (=)
+                                            </SelectItem>
+                                            <SelectItem value="between">
+                                              Between (&gt;= && &lt;=)
+                                            </SelectItem>
+                                            <SelectItem value="gte">
+                                              Greater than or equal (&gt;=)
+                                            </SelectItem>
+                                            <SelectItem value="gt">
+                                              Greater than (&gt;)
+                                            </SelectItem>
+                                            <SelectItem value="lte">
+                                              Less than or equal (&lt;=)
+                                            </SelectItem>
+                                            <SelectItem value="lt">
+                                              Less than (&lt;)
+                                            </SelectItem>
+                                            <SelectItem value="null">
+                                              Is Null
+                                            </SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        {f.operator === "between" ? (
+                                          <>
+                                            <Input
+                                              type="number"
+                                              className="h-8 w-[120px] flex-shrink-0"
+                                              placeholder="Min"
+                                              defaultValue={f.value ?? ""}
+                                              onBlur={(e) =>
+                                                setTempFilters((prev) => {
+                                                  const copy = [...prev];
+                                                  copy[idx] = {
+                                                    ...copy[idx],
+                                                    value: e.target.value,
+                                                  };
+                                                  return copy;
+                                                })
+                                              }
+                                            />
+                                            <Input
+                                              type="number"
+                                              className="h-8 w-[120px] flex-shrink-0"
+                                              placeholder="Max"
+                                              defaultValue={f.value2 ?? ""}
+                                              onBlur={(e) =>
+                                                setTempFilters((prev) => {
+                                                  const copy = [...prev];
+                                                  copy[idx] = {
+                                                    ...copy[idx],
+                                                    value2: e.target.value,
+                                                  };
+                                                  return copy;
+                                                })
+                                              }
+                                            />
+                                          </>
+                                        ) : f.operator === "null" ? null : (
+                                          <Input
+                                            type="number"
+                                            className="h-8 w-[160px] flex-shrink-0"
+                                            placeholder="Value"
+                                            defaultValue={f.value ?? ""}
+                                            onBlur={(e) =>
+                                              setTempFilters((prev) => {
+                                                const copy = [...prev];
+                                                copy[idx] = {
+                                                  ...copy[idx],
+                                                  value: e.target.value,
+                                                };
+                                                return copy;
+                                              })
+                                            }
+                                          />
+                                        )}
+                                      </div>
+                                    ) : effectiveType === "date" ? (
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <Input
+                                          type="date"
+                                          className="h-8 flex-shrink-0"
+                                          value={
+                                            f.value
+                                              ? new Date(f.value)
+                                                  .toISOString()
+                                                  .split("T")[0]
+                                              : ""
+                                          }
+                                          onChange={(e) =>
+                                            setTempFilters((prev) => {
+                                              const copy = [...prev];
+                                              copy[idx] = {
+                                                ...copy[idx],
+                                                value: e.target.value
+                                                  ? new Date(e.target.value)
+                                                  : undefined,
                                               };
                                               return copy;
                                             })
                                           }
                                         />
                                         <Input
-                                          type="number"
-                                          className="h-8 w-[120px] flex-shrink-0"
-                                          placeholder="Max"
-                                          defaultValue={f.value2 ?? ""}
-                                          onBlur={(e) =>
+                                          type="date"
+                                          className="h-8 flex-shrink-0"
+                                          value={
+                                            f.value2
+                                              ? new Date(f.value2)
+                                                  .toISOString()
+                                                  .split("T")[0]
+                                              : ""
+                                          }
+                                          onChange={(e) =>
                                             setTempFilters((prev) => {
                                               const copy = [...prev];
                                               copy[idx] = {
                                                 ...copy[idx],
-                                                value2: e.target.value,
+                                                value2: e.target.value
+                                                  ? new Date(e.target.value)
+                                                  : undefined,
                                               };
                                               return copy;
                                             })
                                           }
                                         />
-                                      </>
-                                    ) : f.operator === "null" ? null : (
+                                      </div>
+                                    ) : effectiveType === "select" ? (
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 flex-shrink-0"
+                                          >
+                                            {Array.isArray(f.value) &&
+                                            f.value.length > 0
+                                              ? `${f.value.length} selected`
+                                              : "Select options"}
+                                          </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-56 p-2">
+                                          <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+                                            {(
+                                              selectedColumn?.options || []
+                                            ).map((opt) => {
+                                              const selected =
+                                                Array.isArray(f.value) &&
+                                                f.value.includes(opt);
+                                              return (
+                                                <div
+                                                  key={opt}
+                                                  className="flex items-center gap-2 p-1 rounded hover:bg-muted cursor-pointer"
+                                                  onClick={() =>
+                                                    setTempFilters((prev) => {
+                                                      const copy = [...prev];
+                                                      const arr = Array.isArray(
+                                                        copy[idx].value
+                                                      )
+                                                        ? [
+                                                            ...(copy[idx]
+                                                              .value as string[]),
+                                                          ]
+                                                        : [];
+                                                      const i =
+                                                        arr.indexOf(opt);
+                                                      if (i >= 0)
+                                                        arr.splice(i, 1);
+                                                      else arr.push(opt);
+                                                      copy[idx] = {
+                                                        ...copy[idx],
+                                                        value: arr,
+                                                      };
+                                                      return copy;
+                                                    })
+                                                  }
+                                                >
+                                                  <div
+                                                    className={`h-4 w-4 border border-border rounded-sm ${
+                                                      selected
+                                                        ? "bg-crimson-red"
+                                                        : "bg-background"
+                                                    }`}
+                                                  />
+                                                  <span className="text-xs">
+                                                    {opt}
+                                                  </span>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        </PopoverContent>
+                                      </Popover>
+                                    ) : (
                                       <Input
-                                        type="number"
-                                        className="h-8 w-[160px] flex-shrink-0"
-                                        placeholder="Value"
-                                        defaultValue={f.value ?? ""}
+                                        className="h-8 w-[220px] flex-shrink-0"
+                                        placeholder="Enter value"
+                                        defaultValue={f.value || ""}
                                         onBlur={(e) =>
                                           setTempFilters((prev) => {
                                             const copy = [...prev];
@@ -1642,152 +1982,8 @@ export default function BookingsSection() {
                                       />
                                     )}
                                   </div>
-                                ) : effectiveType === "date" ? (
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <Input
-                                      type="date"
-                                      className="h-8 flex-shrink-0"
-                                      value={
-                                        f.value
-                                          ? new Date(f.value)
-                                              .toISOString()
-                                              .split("T")[0]
-                                          : ""
-                                      }
-                                      onChange={(e) =>
-                                        setTempFilters((prev) => {
-                                          const copy = [...prev];
-                                          copy[idx] = {
-                                            ...copy[idx],
-                                            value: e.target.value
-                                              ? new Date(e.target.value)
-                                              : undefined,
-                                          };
-                                          return copy;
-                                        })
-                                      }
-                                    />
-                                    <Input
-                                      type="date"
-                                      className="h-8 flex-shrink-0"
-                                      value={
-                                        f.value2
-                                          ? new Date(f.value2)
-                                              .toISOString()
-                                              .split("T")[0]
-                                          : ""
-                                      }
-                                      onChange={(e) =>
-                                        setTempFilters((prev) => {
-                                          const copy = [...prev];
-                                          copy[idx] = {
-                                            ...copy[idx],
-                                            value2: e.target.value
-                                              ? new Date(e.target.value)
-                                              : undefined,
-                                          };
-                                          return copy;
-                                        })
-                                      }
-                                    />
-                                  </div>
-                                ) : effectiveType === "select" ? (
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-8 flex-shrink-0"
-                                      >
-                                        {Array.isArray(f.value) &&
-                                        f.value.length > 0
-                                          ? `${f.value.length} selected`
-                                          : "Select options"}
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-56 p-2">
-                                      <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
-                                        {(selectedColumn?.options || []).map(
-                                          (opt) => {
-                                            const selected =
-                                              Array.isArray(f.value) &&
-                                              f.value.includes(opt);
-                                            return (
-                                              <div
-                                                key={opt}
-                                                className="flex items-center gap-2 p-1 rounded hover:bg-muted cursor-pointer"
-                                                onClick={() =>
-                                                  setTempFilters((prev) => {
-                                                    const copy = [...prev];
-                                                    const arr = Array.isArray(
-                                                      copy[idx].value
-                                                    )
-                                                      ? [
-                                                          ...(copy[idx]
-                                                            .value as string[]),
-                                                        ]
-                                                      : [];
-                                                    const i = arr.indexOf(opt);
-                                                    if (i >= 0)
-                                                      arr.splice(i, 1);
-                                                    else arr.push(opt);
-                                                    copy[idx] = {
-                                                      ...copy[idx],
-                                                      value: arr,
-                                                    };
-                                                    return copy;
-                                                  })
-                                                }
-                                              >
-                                                <div
-                                                  className={`h-4 w-4 border border-border rounded-sm ${
-                                                    selected
-                                                      ? "bg-crimson-red"
-                                                      : "bg-background"
-                                                  }`}
-                                                />
-                                                <span className="text-xs">
-                                                  {opt}
-                                                </span>
-                                              </div>
-                                            );
-                                          }
-                                        )}
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
-                                ) : (
-                                  <Input
-                                    className="h-8 w-[220px] flex-shrink-0"
-                                    placeholder="Enter value"
-                                    defaultValue={f.value || ""}
-                                    onBlur={(e) =>
-                                      setTempFilters((prev) => {
-                                        const copy = [...prev];
-                                        copy[idx] = {
-                                          ...copy[idx],
-                                          value: e.target.value,
-                                        };
-                                        return copy;
-                                      })
-                                    }
-                                  />
-                                )}
-
-                                {/* Remove filter */}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 flex-shrink-0 ml-auto"
-                                  onClick={() =>
-                                    setTempFilters((prev) =>
-                                      prev.filter((x) => x.id !== f.id)
-                                    )
-                                  }
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
+                                </CardContent>
+                              </Card>
                             );
                           })}
                         </div>
