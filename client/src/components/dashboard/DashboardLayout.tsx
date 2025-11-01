@@ -30,7 +30,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Main content */}
         <div
           className={`transition-all duration-300 ${
-            sidebarCollapsed ? "lg:pl-20" : "lg:pl-64"
+            sidebarCollapsed ? "lg:pl-28" : "lg:pl-72 "
           }`}
         >
           {/* Mobile header - only for sidebar toggle */}

@@ -27,6 +27,12 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -42,6 +48,9 @@ import {
   Trash2,
   ChevronUp,
   ChevronDown,
+  Type as CaseIcon,
+  Hash as WholeWordIcon,
+  Code2 as RegexIcon,
 } from "lucide-react";
 import {
   FaUser,
@@ -89,6 +98,26 @@ export default function BookingsSection() {
   const [currencyRangeFilters, setCurrencyRangeFilters] = useState<
     Record<string, { min?: number; max?: number }>
   >({});
+
+  // New dynamic filter builder state
+  type FilterOperator = "eq" | "gte" | "gt" | "lte" | "lt" | "between" | "null";
+
+  interface FilterConfig {
+    id: string;
+    columnId?: string;
+    operator?: FilterOperator; // for number/currency
+    matchOptions?: {
+      matchCase: boolean;
+      matchWholeWord: boolean;
+      useRegex: boolean;
+    }; // for string/email
+    value?: any; // single value or array (for selects)
+    value2?: any; // for between/date to
+    dataTypeOverride?: SheetColumn["dataType"]; // for function columns
+  }
+
+  const [tempFilters, setTempFilters] = useState<FilterConfig[]>([]);
+  const [activeFilters, setActiveFilters] = useState<FilterConfig[]>([]);
 
   // Temporary filter states (for modal preview before applying)
   const [tempColumnFilters, setTempColumnFilters] = useState<
@@ -730,6 +759,7 @@ export default function BookingsSection() {
     setColumnFilters(tempColumnFilters);
     setDateRangeFilters(tempDateRangeFilters);
     setCurrencyRangeFilters(tempCurrencyRangeFilters);
+    setActiveFilters(tempFilters);
 
     // Apply card field changes
     setCardFieldMappings(tempCardFieldMappings);
@@ -745,6 +775,7 @@ export default function BookingsSection() {
       setTempColumnFilters(columnFilters);
       setTempDateRangeFilters(dateRangeFilters);
       setTempCurrencyRangeFilters(currencyRangeFilters);
+      setTempFilters(activeFilters);
     }
   }, [
     showFilters,
@@ -752,6 +783,7 @@ export default function BookingsSection() {
     columnFilters,
     dateRangeFilters,
     currencyRangeFilters,
+    activeFilters,
   ]);
 
   // Get field value from booking based on column ID
@@ -808,16 +840,128 @@ export default function BookingsSection() {
     // matchesSearch is now handled by Fuse.js above
     const matchesSearch = true;
 
-    // Apply column-specific filters
+    // If new activeFilters exist, use them. Otherwise fall back to legacy per-column temp states
+    if (activeFilters.length > 0) {
+      const satisfiesAll = activeFilters.every((f) => {
+        if (!f.columnId) return true;
+        const col = columns.find((c) => c.id === f.columnId);
+        if (!col) return true;
+        const rawValue = (booking as any)[f.columnId];
+        const effectiveType =
+          col.dataType === "function"
+            ? f.dataTypeOverride || "string"
+            : col.dataType;
+
+        // String-like
+        if (effectiveType === "string" || effectiveType === "email") {
+          const text = rawValue == null ? "" : String(rawValue);
+          let haystack = text;
+          let needle = f.value == null ? "" : String(f.value);
+          const opts = f.matchOptions || {
+            matchCase: false,
+            matchWholeWord: false,
+            useRegex: false,
+          };
+          if (!opts.matchCase) {
+            haystack = haystack.toLowerCase();
+            needle = needle.toLowerCase();
+          }
+          if (opts.useRegex) {
+            try {
+              const pattern = opts.matchWholeWord
+                ? `(^|\b)(${needle})(\b|$)`
+                : needle;
+              const flags = opts.matchCase ? "" : "i";
+              const re = new RegExp(pattern, flags);
+              return re.test(text);
+            } catch {
+              return false;
+            }
+          }
+          if (opts.matchWholeWord) {
+            const re = new RegExp(
+              `(^|\b)${needle}(\b|$)`,
+              opts.matchCase ? "" : "i"
+            );
+            return re.test(text);
+          }
+          return haystack.includes(needle);
+        }
+
+        // Number/currency
+        if (effectiveType === "number" || effectiveType === "currency") {
+          if (f.operator === "null") return rawValue == null || rawValue === "";
+          const num =
+            typeof rawValue === "number"
+              ? rawValue
+              : parseFloat(String(rawValue || ""));
+          if (Number.isNaN(num)) return false;
+          switch (f.operator) {
+            case "eq":
+              return num === Number(f.value);
+            case "gte":
+              return num >= Number(f.value);
+            case "gt":
+              return num > Number(f.value);
+            case "lte":
+              return num <= Number(f.value);
+            case "lt":
+              return num < Number(f.value);
+            case "between":
+              return num >= Number(f.value) && num <= Number(f.value2);
+            default:
+              return true;
+          }
+        }
+
+        // Date
+        if (effectiveType === "date") {
+          const v = rawValue;
+          let d: Date | null = null;
+          if (v && typeof v === "object" && (v as any).toDate)
+            d = (v as any).toDate();
+          else if (v instanceof Date) d = v;
+          else if (typeof v === "number")
+            d = new Date(v > 1000000000000 ? v : v * 1000);
+          else if (typeof v === "string") d = new Date(v);
+          if (!d || Number.isNaN(d.getTime())) return false;
+          const from = f.value ? new Date(f.value) : undefined;
+          const to = f.value2 ? new Date(f.value2) : undefined;
+          if (from && d < from) return false;
+          if (to && d > to) return false;
+          return true;
+        }
+
+        // Boolean
+        if (effectiveType === "boolean") {
+          const boolVal = !!rawValue;
+          return String(boolVal) === String(f.value);
+        }
+
+        // Select (multi OR)
+        if (effectiveType === "select") {
+          const values: string[] = Array.isArray(f.value)
+            ? f.value
+            : f.value
+            ? [String(f.value)]
+            : [];
+          if (values.length === 0) return true;
+          const cell = rawValue == null ? "" : String(rawValue);
+          return values.includes(cell);
+        }
+
+        return true;
+      });
+      return matchesSearch && satisfiesAll;
+    }
+
+    // Legacy path (if no activeFilters yet): keep existing logic
     const matchesColumnFilters = columns.every((col) => {
       const columnKey = col.id;
       const cellValue = (booking as any)[columnKey];
-
-      // Date range filters
       if (col.dataType === "date" && dateRangeFilters[columnKey]) {
         const { from, to } = dateRangeFilters[columnKey];
-        if (!cellValue) return !from && !to; // Show empty values if no filter
-
+        if (!cellValue) return !from && !to;
         let date: Date | null = null;
         if (
           cellValue &&
@@ -834,35 +978,26 @@ export default function BookingsSection() {
         } else if (cellValue instanceof Date) {
           date = cellValue;
         }
-
         if (!date) return !from && !to;
-
         if (from && date < from) return false;
         if (to && date > to) return false;
       }
-
-      // Currency range filters
       if (col.dataType === "currency" && currencyRangeFilters[columnKey]) {
         const { min, max } = currencyRangeFilters[columnKey];
         const numericValue =
           typeof cellValue === "number"
             ? cellValue
             : parseFloat(cellValue?.toString() || "0") || 0;
-
         if (min !== undefined && numericValue < min) return false;
         if (max !== undefined && numericValue > max) return false;
       }
-
-      // Text filters for other column types
       if (columnFilters[columnKey]) {
         const filterValue = columnFilters[columnKey].toLowerCase();
         const cellString = cellValue?.toString().toLowerCase() || "";
         return cellString.includes(filterValue);
       }
-
       return true;
     });
-
     return matchesSearch && matchesColumnFilters;
   });
 
@@ -1157,182 +1292,501 @@ export default function BookingsSection() {
                 <div className="flex flex-col lg:flex-row gap-6 pt-4">
                   {/* Left Side - Filters (70%) */}
                   <div className="flex-1 lg:w-[60%] space-y-6">
-                    {/* Advanced Column Filters */}
+                    {/* Advanced Column Filters - Filter Builder */}
                     <div className="space-y-4">
-                      <Label className="text-sm font-medium text-foreground">
-                        Advanced Column Filters
-                      </Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium text-foreground">
+                          Advanced Column Filters
+                        </Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setTempFilters((prev) => [
+                              ...prev,
+                              {
+                                id: crypto.randomUUID(),
+                                operator: "eq",
+                                matchOptions: {
+                                  matchCase: false,
+                                  matchWholeWord: false,
+                                  useRegex: false,
+                                },
+                              },
+                            ])
+                          }
+                          className="text-xs"
+                        >
+                          <FaPlus className="h-3 w-3 mr-1" /> Create Filter
+                        </Button>
+                      </div>
                       <div className="h-96 overflow-y-auto border border-border rounded-lg p-4 bg-muted/20 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-crimson-red/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-crimson-red/40">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {columns.map((col) => {
-                            if (col.dataType === "date") {
-                              return (
-                                <div key={col.id} className="space-y-2">
-                                  <Label className="text-xs font-medium text-foreground">
-                                    {col.columnName} (Date Range)
-                                  </Label>
-                                  <div className="flex gap-2">
-                                    <Input
-                                      type="date"
-                                      value={
-                                        tempDateRangeFilters[col.id]?.from
-                                          ? tempDateRangeFilters[col.id].from
-                                              .toISOString()
-                                              .split("T")[0]
-                                          : ""
-                                      }
-                                      onChange={(e) =>
-                                        setTempDateRangeFilters((prev) => ({
-                                          ...prev,
-                                          [col.id]: {
-                                            ...prev[col.id],
-                                            from: e.target.value
-                                              ? new Date(e.target.value)
-                                              : undefined,
-                                          },
-                                        }))
-                                      }
-                                      className="text-xs bg-background flex-1 h-8 px-2"
-                                      placeholder="From"
-                                    />
-                                    <Input
-                                      type="date"
-                                      value={
-                                        tempDateRangeFilters[col.id]?.to
-                                          ? tempDateRangeFilters[col.id].to
-                                              .toISOString()
-                                              .split("T")[0]
-                                          : ""
-                                      }
-                                      onChange={(e) =>
-                                        setTempDateRangeFilters((prev) => ({
-                                          ...prev,
-                                          [col.id]: {
-                                            ...prev[col.id],
-                                            to: e.target.value
-                                              ? new Date(e.target.value)
-                                              : undefined,
-                                          },
-                                        }))
-                                      }
-                                      className="text-xs bg-background flex-1 h-8 px-2"
-                                      placeholder="To"
-                                    />
-                                    {(tempDateRangeFilters[col.id]?.from ||
-                                      tempDateRangeFilters[col.id]?.to) && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                          clearTempColumnFilter(col.id)
-                                        }
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            }
-
-                            if (col.dataType === "currency") {
-                              return (
-                                <div key={col.id} className="space-y-2">
-                                  <Label className="text-xs font-medium text-foreground">
-                                    {col.columnName} (Range)
-                                  </Label>
-                                  <div className="flex gap-2">
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      placeholder="Min"
-                                      value={
-                                        tempCurrencyRangeFilters[col.id]?.min ||
-                                        ""
-                                      }
-                                      onChange={(e) =>
-                                        setTempCurrencyRangeFilters((prev) => ({
-                                          ...prev,
-                                          [col.id]: {
-                                            ...prev[col.id],
-                                            min: e.target.value
-                                              ? parseFloat(e.target.value)
-                                              : undefined,
-                                          },
-                                        }))
-                                      }
-                                      className="text-xs bg-background h-8 px-2"
-                                    />
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      placeholder="Max"
-                                      value={
-                                        tempCurrencyRangeFilters[col.id]?.max ||
-                                        ""
-                                      }
-                                      onChange={(e) =>
-                                        setTempCurrencyRangeFilters((prev) => ({
-                                          ...prev,
-                                          [col.id]: {
-                                            ...prev[col.id],
-                                            max: e.target.value
-                                              ? parseFloat(e.target.value)
-                                              : undefined,
-                                          },
-                                        }))
-                                      }
-                                      className="text-xs bg-background h-8 px-2"
-                                    />
-                                    {(tempCurrencyRangeFilters[col.id]?.min !==
-                                      undefined ||
-                                      tempCurrencyRangeFilters[col.id]?.max !==
-                                        undefined) && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                          clearTempColumnFilter(col.id)
-                                        }
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            }
-
-                            // Text filter for other column types
+                        <div className="space-y-3">
+                          {tempFilters.length === 0 && (
+                            <div className="text-xs text-muted-foreground">
+                              No filters yet. Click "Create Filter" to add one.
+                            </div>
+                          )}
+                          {tempFilters.map((f, idx) => {
+                            const selectedColumn = columns.find(
+                              (c) => c.id === f.columnId
+                            );
+                            const effectiveType =
+                              selectedColumn?.dataType === "function"
+                                ? f.dataTypeOverride || "string"
+                                : selectedColumn?.dataType;
                             return (
-                              <div key={col.id} className="space-y-2">
-                                <Label className="text-xs font-medium text-foreground">
-                                  {col.columnName}
-                                </Label>
-                                <div className="flex gap-2">
-                                  <Input
-                                    placeholder={`Filter ${col.columnName}...`}
-                                    value={tempColumnFilters[col.id] || ""}
-                                    onChange={(e) =>
-                                      setTempColumnFilters((prev) => ({
-                                        ...prev,
-                                        [col.id]: e.target.value,
-                                      }))
+                              <div
+                                key={f.id}
+                                className="flex flex-wrap items-center gap-2 p-2 rounded border border-border bg-background w-full"
+                              >
+                                {/* Column selector */}
+                                <Select
+                                  value={f.columnId || ""}
+                                  onValueChange={(val) =>
+                                    setTempFilters((prev) => {
+                                      const copy = [...prev];
+                                      copy[idx] = {
+                                        ...copy[idx],
+                                        columnId: val,
+                                      };
+                                      return copy;
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="h-8 min-w-[180px] flex-shrink-0">
+                                    <SelectValue placeholder="Select column" />
+                                  </SelectTrigger>
+                                  <SelectContent className="max-h-64">
+                                    {columns.map((c) => (
+                                      <SelectItem key={c.id} value={c.id}>
+                                        {c.columnName}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+
+                                {/* Function column data type override */}
+                                {selectedColumn?.dataType === "function" && (
+                                  <Select
+                                    value={f.dataTypeOverride || "string"}
+                                    onValueChange={(val) =>
+                                      setTempFilters((prev) => {
+                                        const copy = [...prev];
+                                        copy[idx] = {
+                                          ...copy[idx],
+                                          dataTypeOverride: val as any,
+                                        };
+                                        return copy;
+                                      })
                                     }
-                                    className="text-xs bg-background h-8 px-2"
-                                  />
-                                  {tempColumnFilters[col.id] && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() =>
-                                        clearTempColumnFilter(col.id)
+                                  >
+                                    <SelectTrigger className="h-8 w-[130px] flex-shrink-0">
+                                      <SelectValue placeholder="Type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {(
+                                        [
+                                          "string",
+                                          "number",
+                                          "date",
+                                          "boolean",
+                                          "select",
+                                          "email",
+                                          "currency",
+                                        ] as const
+                                      ).map((t) => (
+                                        <SelectItem key={t} value={t}>
+                                          {t}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+
+                                {/* Dynamic input based on type */}
+                                {effectiveType === "string" ||
+                                effectiveType === "email" ? (
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Input
+                                      className="h-8 w-[220px] flex-shrink-0"
+                                      placeholder="Enter text"
+                                      defaultValue={f.value || ""}
+                                      onBlur={(e) =>
+                                        setTempFilters((prev) => {
+                                          const copy = [...prev];
+                                          copy[idx] = {
+                                            ...copy[idx],
+                                            value: e.target.value,
+                                          };
+                                          return copy;
+                                        })
+                                      }
+                                    />
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            type="button"
+                                            variant={
+                                              f.matchOptions?.matchCase
+                                                ? "default"
+                                                : "outline"
+                                            }
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() =>
+                                              setTempFilters((prev) => {
+                                                const copy = [...prev];
+                                                const mo = copy[idx]
+                                                  .matchOptions || {
+                                                  matchCase: false,
+                                                  matchWholeWord: false,
+                                                  useRegex: false,
+                                                };
+                                                copy[idx] = {
+                                                  ...copy[idx],
+                                                  matchOptions: {
+                                                    ...mo,
+                                                    matchCase: !mo.matchCase,
+                                                  },
+                                                };
+                                                return copy;
+                                              })
+                                            }
+                                          >
+                                            <CaseIcon className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Match Case</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            type="button"
+                                            variant={
+                                              f.matchOptions?.matchWholeWord
+                                                ? "default"
+                                                : "outline"
+                                            }
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() =>
+                                              setTempFilters((prev) => {
+                                                const copy = [...prev];
+                                                const mo = copy[idx]
+                                                  .matchOptions || {
+                                                  matchCase: false,
+                                                  matchWholeWord: false,
+                                                  useRegex: false,
+                                                };
+                                                copy[idx] = {
+                                                  ...copy[idx],
+                                                  matchOptions: {
+                                                    ...mo,
+                                                    matchWholeWord:
+                                                      !mo.matchWholeWord,
+                                                  },
+                                                };
+                                                return copy;
+                                              })
+                                            }
+                                          >
+                                            <WholeWordIcon className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Match Whole Word</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            type="button"
+                                            variant={
+                                              f.matchOptions?.useRegex
+                                                ? "default"
+                                                : "outline"
+                                            }
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() =>
+                                              setTempFilters((prev) => {
+                                                const copy = [...prev];
+                                                const mo = copy[idx]
+                                                  .matchOptions || {
+                                                  matchCase: false,
+                                                  matchWholeWord: false,
+                                                  useRegex: false,
+                                                };
+                                                copy[idx] = {
+                                                  ...copy[idx],
+                                                  matchOptions: {
+                                                    ...mo,
+                                                    useRegex: !mo.useRegex,
+                                                  },
+                                                };
+                                                return copy;
+                                              })
+                                            }
+                                          >
+                                            <RegexIcon className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Use Regular Expression</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </div>
+                                ) : effectiveType === "number" ||
+                                  effectiveType === "currency" ? (
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Select
+                                      value={f.operator || "eq"}
+                                      onValueChange={(val) =>
+                                        setTempFilters((prev) => {
+                                          const copy = [...prev];
+                                          copy[idx] = {
+                                            ...copy[idx],
+                                            operator: val as any,
+                                          };
+                                          return copy;
+                                        })
                                       }
                                     >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                </div>
+                                      <SelectTrigger className="h-8 w-[150px] flex-shrink-0">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="eq">
+                                          Equal to (=)
+                                        </SelectItem>
+                                        <SelectItem value="between">
+                                          Between (&gt;= && &lt;=)
+                                        </SelectItem>
+                                        <SelectItem value="gte">
+                                          Greater than or equal (&gt;=)
+                                        </SelectItem>
+                                        <SelectItem value="gt">
+                                          Greater than (&gt;)
+                                        </SelectItem>
+                                        <SelectItem value="lte">
+                                          Less than or equal (&lt;=)
+                                        </SelectItem>
+                                        <SelectItem value="lt">
+                                          Less than (&lt;)
+                                        </SelectItem>
+                                        <SelectItem value="null">
+                                          Is Null
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    {f.operator === "between" ? (
+                                      <>
+                                        <Input
+                                          type="number"
+                                          className="h-8 w-[120px] flex-shrink-0"
+                                          placeholder="Min"
+                                          defaultValue={f.value ?? ""}
+                                          onBlur={(e) =>
+                                            setTempFilters((prev) => {
+                                              const copy = [...prev];
+                                              copy[idx] = {
+                                                ...copy[idx],
+                                                value: e.target.value,
+                                              };
+                                              return copy;
+                                            })
+                                          }
+                                        />
+                                        <Input
+                                          type="number"
+                                          className="h-8 w-[120px] flex-shrink-0"
+                                          placeholder="Max"
+                                          defaultValue={f.value2 ?? ""}
+                                          onBlur={(e) =>
+                                            setTempFilters((prev) => {
+                                              const copy = [...prev];
+                                              copy[idx] = {
+                                                ...copy[idx],
+                                                value2: e.target.value,
+                                              };
+                                              return copy;
+                                            })
+                                          }
+                                        />
+                                      </>
+                                    ) : f.operator === "null" ? null : (
+                                      <Input
+                                        type="number"
+                                        className="h-8 w-[160px] flex-shrink-0"
+                                        placeholder="Value"
+                                        defaultValue={f.value ?? ""}
+                                        onBlur={(e) =>
+                                          setTempFilters((prev) => {
+                                            const copy = [...prev];
+                                            copy[idx] = {
+                                              ...copy[idx],
+                                              value: e.target.value,
+                                            };
+                                            return copy;
+                                          })
+                                        }
+                                      />
+                                    )}
+                                  </div>
+                                ) : effectiveType === "date" ? (
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Input
+                                      type="date"
+                                      className="h-8 flex-shrink-0"
+                                      value={
+                                        f.value
+                                          ? new Date(f.value)
+                                              .toISOString()
+                                              .split("T")[0]
+                                          : ""
+                                      }
+                                      onChange={(e) =>
+                                        setTempFilters((prev) => {
+                                          const copy = [...prev];
+                                          copy[idx] = {
+                                            ...copy[idx],
+                                            value: e.target.value
+                                              ? new Date(e.target.value)
+                                              : undefined,
+                                          };
+                                          return copy;
+                                        })
+                                      }
+                                    />
+                                    <Input
+                                      type="date"
+                                      className="h-8 flex-shrink-0"
+                                      value={
+                                        f.value2
+                                          ? new Date(f.value2)
+                                              .toISOString()
+                                              .split("T")[0]
+                                          : ""
+                                      }
+                                      onChange={(e) =>
+                                        setTempFilters((prev) => {
+                                          const copy = [...prev];
+                                          copy[idx] = {
+                                            ...copy[idx],
+                                            value2: e.target.value
+                                              ? new Date(e.target.value)
+                                              : undefined,
+                                          };
+                                          return copy;
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                ) : effectiveType === "select" ? (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 flex-shrink-0"
+                                      >
+                                        {Array.isArray(f.value) &&
+                                        f.value.length > 0
+                                          ? `${f.value.length} selected`
+                                          : "Select options"}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-56 p-2">
+                                      <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+                                        {(selectedColumn?.options || []).map(
+                                          (opt) => {
+                                            const selected =
+                                              Array.isArray(f.value) &&
+                                              f.value.includes(opt);
+                                            return (
+                                              <div
+                                                key={opt}
+                                                className="flex items-center gap-2 p-1 rounded hover:bg-muted cursor-pointer"
+                                                onClick={() =>
+                                                  setTempFilters((prev) => {
+                                                    const copy = [...prev];
+                                                    const arr = Array.isArray(
+                                                      copy[idx].value
+                                                    )
+                                                      ? [
+                                                          ...(copy[idx]
+                                                            .value as string[]),
+                                                        ]
+                                                      : [];
+                                                    const i = arr.indexOf(opt);
+                                                    if (i >= 0)
+                                                      arr.splice(i, 1);
+                                                    else arr.push(opt);
+                                                    copy[idx] = {
+                                                      ...copy[idx],
+                                                      value: arr,
+                                                    };
+                                                    return copy;
+                                                  })
+                                                }
+                                              >
+                                                <div
+                                                  className={`h-4 w-4 border border-border rounded-sm ${
+                                                    selected
+                                                      ? "bg-crimson-red"
+                                                      : "bg-background"
+                                                  }`}
+                                                />
+                                                <span className="text-xs">
+                                                  {opt}
+                                                </span>
+                                              </div>
+                                            );
+                                          }
+                                        )}
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                ) : (
+                                  <Input
+                                    className="h-8 w-[220px] flex-shrink-0"
+                                    placeholder="Enter value"
+                                    defaultValue={f.value || ""}
+                                    onBlur={(e) =>
+                                      setTempFilters((prev) => {
+                                        const copy = [...prev];
+                                        copy[idx] = {
+                                          ...copy[idx],
+                                          value: e.target.value,
+                                        };
+                                        return copy;
+                                      })
+                                    }
+                                  />
+                                )}
+
+                                {/* Remove filter */}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 flex-shrink-0 ml-auto"
+                                  onClick={() =>
+                                    setTempFilters((prev) =>
+                                      prev.filter((x) => x.id !== f.id)
+                                    )
+                                  }
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
                               </div>
                             );
                           })}
@@ -2115,34 +2569,34 @@ export default function BookingsSection() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-muted/30 border-b border-border">
-                    <th className="text-left py-2 px-3 font-semibold text-foreground text-[10px]">
+                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
                       Row #
                     </th>
-                    <th className="text-left py-2 px-3 font-semibold text-foreground text-[10px]">
+                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
                       Booking ID
                     </th>
-                    <th className="text-left py-2 px-3 font-semibold text-foreground text-[10px]">
+                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
                       Email
                     </th>
-                    <th className="text-left py-2 px-3 font-semibold text-foreground text-[10px]">
+                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
                       {getColumnLabel(cardFieldMappings.field1)}
                     </th>
-                    <th className="text-left py-2 px-3 font-semibold text-foreground text-[10px]">
+                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
                       {getColumnLabel(cardFieldMappings.field2)}
                     </th>
-                    <th className="text-left py-2 px-3 font-semibold text-foreground text-[10px]">
+                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
                       {getColumnLabel(cardFieldMappings.field3_left)}
                     </th>
-                    <th className="text-left py-2 px-3 font-semibold text-foreground text-[10px]">
+                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
                       {getColumnLabel(cardFieldMappings.field3_right)}
                     </th>
-                    <th className="text-left py-2 px-3 font-semibold text-foreground text-[10px]">
+                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
                       Status
                     </th>
-                    <th className="text-left py-2 px-3 font-semibold text-foreground text-[10px]">
+                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
                       Payment
                     </th>
-                    <th className="text-left py-2 px-3 font-semibold text-foreground text-[10px]">
+                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
                       Plan
                     </th>
                   </tr>
@@ -2162,25 +2616,25 @@ export default function BookingsSection() {
                               : "border-border hover:bg-crimson-red/5"
                           }`}
                         >
-                          <td className="py-2 px-3">
-                            <span className="font-mono text-[10px] font-semibold text-crimson-red bg-crimson-red/10 px-1.5 py-0.5 rounded-full rounded-br-none">
+                          <td className="py-1.5 px-2 md:py-2 md:px-3">
+                            <span className="font-mono text-[8px] md:text-[10px] font-semibold text-crimson-red bg-crimson-red/10 px-1 py-0.5 md:px-1.5 md:py-0.5 rounded-full rounded-br-none">
                               {booking.row || "-"}
                             </span>
                           </td>
-                          <td className="py-2 px-3">
-                            <span className="font-mono text-[10px] font-semibold text-crimson-red">
+                          <td className="py-1.5 px-2 md:py-2 md:px-3">
+                            <span className="font-mono text-[8px] md:text-[10px] font-semibold text-crimson-red">
                               {booking.bookingId || "Invalid Booking"}
                             </span>
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="py-1.5 px-2 md:py-2 md:px-3">
                             <div className="flex items-center gap-1">
-                              <MdEmail className="h-2.5 w-2.5 text-foreground" />
-                              <span className="text-[10px] text-foreground truncate">
+                              <MdEmail className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground" />
+                              <span className="text-[8px] md:text-[10px] text-foreground truncate">
                                 {booking.emailAddress}
                               </span>
                             </div>
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="py-1.5 px-2 md:py-2 md:px-3">
                             {(() => {
                               const IconComponent = getFieldIcon(
                                 cardFieldMappings.field1
@@ -2191,15 +2645,15 @@ export default function BookingsSection() {
                               );
                               return (
                                 <div className="flex items-center gap-1">
-                                  <IconComponent className="h-2.5 w-2.5 text-foreground" />
-                                  <span className="text-[10px] text-foreground truncate">
+                                  <IconComponent className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground" />
+                                  <span className="text-[8px] md:text-[10px] text-foreground truncate">
                                     {value}
                                   </span>
                                 </div>
                               );
                             })()}
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="py-1.5 px-2 md:py-2 md:px-3">
                             {(() => {
                               const IconComponent = getFieldIcon(
                                 cardFieldMappings.field2
@@ -2210,15 +2664,15 @@ export default function BookingsSection() {
                               );
                               return (
                                 <div className="flex items-center gap-1">
-                                  <IconComponent className="h-2.5 w-2.5 text-foreground" />
-                                  <span className="text-[10px] text-foreground truncate">
+                                  <IconComponent className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground" />
+                                  <span className="text-[8px] md:text-[10px] text-foreground truncate">
                                     {value}
                                   </span>
                                 </div>
                               );
                             })()}
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="py-1.5 px-2 md:py-2 md:px-3">
                             {(() => {
                               const IconComponent = getFieldIcon(
                                 cardFieldMappings.field3_left
@@ -2229,15 +2683,15 @@ export default function BookingsSection() {
                               );
                               return (
                                 <div className="flex items-center gap-1">
-                                  <IconComponent className="h-2.5 w-2.5 text-foreground" />
-                                  <span className="text-[10px] text-foreground">
+                                  <IconComponent className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground" />
+                                  <span className="text-[8px] md:text-[10px] text-foreground">
                                     {value}
                                   </span>
                                 </div>
                               );
                             })()}
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="py-1.5 px-2 md:py-2 md:px-3">
                             {(() => {
                               const IconComponent = getFieldIcon(
                                 cardFieldMappings.field3_right
@@ -2248,18 +2702,18 @@ export default function BookingsSection() {
                               );
                               return (
                                 <div className="flex items-center gap-1">
-                                  <IconComponent className="h-2.5 w-2.5 text-foreground" />
-                                  <span className="text-[10px] text-foreground">
+                                  <IconComponent className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground" />
+                                  <span className="text-[8px] md:text-[10px] text-foreground">
                                     {value}
                                   </span>
                                 </div>
                               );
                             })()}
                           </td>
-                          <td className="py-2 pl-3 pr-3">
+                          <td className="py-1.5 px-2 md:py-2 md:pl-3 md:pr-3">
                             <Badge
                               variant="outline"
-                              className={`text-[10px] font-medium border-0 text-foreground px-1 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
+                              className={`text-[8px] md:text-[10px] font-medium border-0 text-foreground px-0.5 py-0 md:px-1 md:py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
                                 booking
                               )}`}
                               title={booking.bookingStatus || "Pending"}
@@ -2267,11 +2721,11 @@ export default function BookingsSection() {
                               {getBookingStatusCategory(booking.bookingStatus)}
                             </Badge>
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="py-1.5 px-2 md:py-2 md:px-3">
                             <div className="space-y-0.5">
                               <div className="flex items-center justify-between gap-1">
                                 <span
-                                  className={`text-[10px] font-bold ${
+                                  className={`text-[8px] md:text-[10px] font-bold ${
                                     calculatePaymentProgress(booking) === 100
                                       ? "text-spring-green"
                                       : "text-crimson-red"
@@ -2280,7 +2734,7 @@ export default function BookingsSection() {
                                   {calculatePaymentProgress(booking)}%
                                 </span>
                               </div>
-                              <div className="w-20 bg-muted rounded-full h-1">
+                              <div className="w-16 md:w-20 bg-muted rounded-full h-0.5 md:h-1">
                                 <div
                                   className={`h-full rounded-full ${
                                     calculatePaymentProgress(booking) === 100
@@ -2296,9 +2750,9 @@ export default function BookingsSection() {
                               </div>
                             </div>
                           </td>
-                          <td className="py-2 px-3 relative">
+                          <td className="py-1.5 px-2 md:py-2 md:px-3 relative">
                             {getPaymentPlanCode(booking) && (
-                              <div className="text-[10px] font-bold text-crimson-red font-mono bg-crimson-red/10 px-1.5 py-0.5 rounded-full rounded-br-none inline-block">
+                              <div className="text-[8px] md:text-[10px] font-bold text-crimson-red font-mono bg-crimson-red/10 px-1 py-0.5 md:px-1.5 md:py-0.5 rounded-full rounded-br-none inline-block">
                                 {getPaymentPlanCode(booking)}
                               </div>
                             )}
@@ -2307,14 +2761,14 @@ export default function BookingsSection() {
                               <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-auto">
                                 <Button
                                   variant="destructive"
-                                  className="h-8 w-8 rounded-full rounded-br-none bg-crimson-red hover:bg-crimson-red/90 text-white transition-all duration-300 hover:scale-105 shadow-lg"
+                                  className="h-6 w-6 md:h-8 md:w-8 rounded-full rounded-br-none bg-crimson-red hover:bg-crimson-red/90 text-white transition-all duration-300 hover:scale-105 shadow-lg"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleDeleteBooking(booking.id);
                                   }}
                                   title="Delete invalid booking"
                                 >
-                                  <Trash2 className="h-3 w-3" />
+                                  <Trash2 className="h-2.5 w-2.5 md:h-3 md:w-3" />
                                 </Button>
                               </div>
                             )}
@@ -2337,50 +2791,60 @@ export default function BookingsSection() {
                     }}
                     className="group border-b border-dashed border-crimson-red/30 hover:border-crimson-red/50 hover:bg-crimson-red/5 transition-all duration-300 cursor-pointer"
                   >
-                    <td className="py-4 px-3 text-center">
+                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
                       <div className="flex items-center justify-center">
-                        <div className="p-2 bg-crimson-red/10 rounded-full rounded-br-none">
-                          <FaPlus className="h-4 w-4 text-crimson-red" />
+                        <div className="p-1.5 md:p-2 bg-crimson-red/10 rounded-full rounded-br-none">
+                          <FaPlus className="h-3 w-3 md:h-4 md:w-4 text-crimson-red" />
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-3 text-center">
-                      <span className="text-[10px] font-medium text-crimson-red">
+                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
+                      <span className="text-[8px] md:text-[10px] font-medium text-crimson-red">
                         Add New Booking
                       </span>
                     </td>
-                    <td className="py-4 px-3 text-center">
-                      <span className="text-xs text-muted-foreground">
+                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
+                      <span className="text-[8px] md:text-xs text-muted-foreground">
                         Click to create
                       </span>
                     </td>
-                    <td className="py-4 px-3 text-center">
-                      <span className="text-xs text-muted-foreground">
+                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
+                      <span className="text-[8px] md:text-xs text-muted-foreground">
                         New booking
                       </span>
                     </td>
-                    <td className="py-4 px-3 text-center">
+                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
                       <Badge
                         variant="outline"
-                        className="text-xs font-medium border-crimson-red/30 text-crimson-red px-2 py-1 rounded-full"
+                        className="text-[8px] md:text-xs font-medium border-crimson-red/30 text-crimson-red px-1.5 py-0.5 md:px-2 md:py-1 rounded-full"
                       >
                         New
                       </Badge>
                     </td>
-                    <td className="py-4 px-3 text-center">
-                      <span className="text-xs text-muted-foreground">-</span>
+                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
+                      <span className="text-[8px] md:text-xs text-muted-foreground">
+                        -
+                      </span>
                     </td>
-                    <td className="py-4 px-3 text-center">
-                      <span className="text-xs text-muted-foreground">-</span>
+                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
+                      <span className="text-[8px] md:text-xs text-muted-foreground">
+                        -
+                      </span>
                     </td>
-                    <td className="py-4 px-3 text-center">
-                      <span className="text-xs text-muted-foreground">-</span>
+                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
+                      <span className="text-[8px] md:text-xs text-muted-foreground">
+                        -
+                      </span>
                     </td>
-                    <td className="py-4 px-3 text-center">
-                      <span className="text-xs text-muted-foreground">-</span>
+                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
+                      <span className="text-[8px] md:text-xs text-muted-foreground">
+                        -
+                      </span>
                     </td>
-                    <td className="py-4 px-3 text-center">
-                      <span className="text-xs text-muted-foreground">-</span>
+                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
+                      <span className="text-[8px] md:text-xs text-muted-foreground">
+                        -
+                      </span>
                     </td>
                   </tr>
                 </tbody>
