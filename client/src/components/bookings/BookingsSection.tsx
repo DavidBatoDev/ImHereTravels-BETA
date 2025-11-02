@@ -2765,34 +2765,34 @@ export default function BookingsSection() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-muted/30 border-b border-border">
-                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-10 md:w-auto">
                       Row #
                     </th>
-                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-14 md:w-auto">
                       Booking ID
                     </th>
-                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-18 md:w-auto">
                       Email
                     </th>
-                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-20 md:w-auto">
                       {getColumnLabel(cardFieldMappings.field1)}
                     </th>
-                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-20 md:w-auto">
                       {getColumnLabel(cardFieldMappings.field2)}
                     </th>
-                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-18 md:w-auto">
                       {getColumnLabel(cardFieldMappings.field3_left)}
                     </th>
-                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-18 md:w-auto">
                       {getColumnLabel(cardFieldMappings.field3_right)}
                     </th>
-                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-14 md:w-auto">
                       Status
                     </th>
-                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-18 md:w-auto">
                       Payment
                     </th>
-                    <th className="text-left py-1.5 px-2 md:py-2 md:px-3 font-semibold text-foreground text-[8px] md:text-[10px]">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-10 md:w-auto">
                       Plan
                     </th>
                   </tr>
@@ -2812,25 +2812,25 @@ export default function BookingsSection() {
                               : "border-border hover:bg-crimson-red/5"
                           }`}
                         >
-                          <td className="py-1.5 px-2 md:py-2 md:px-3">
-                            <span className="font-mono text-[8px] md:text-[10px] font-semibold text-crimson-red bg-crimson-red/10 px-1 py-0.5 md:px-1.5 md:py-0.5 rounded-full rounded-br-none">
+                          <td className="py-0.5 px-0.5 md:py-2 md:px-3">
+                            <span className="font-mono text-[7px] md:text-[10px] font-semibold text-crimson-red bg-crimson-red/10 px-0.5 py-0 md:px-1.5 md:py-0.5 rounded-full rounded-br-none">
                               {booking.row || "-"}
                             </span>
                           </td>
-                          <td className="py-1.5 px-2 md:py-2 md:px-3">
-                            <span className="font-mono text-[8px] md:text-[10px] font-semibold text-crimson-red">
+                          <td className="py-0.5 px-0.5 md:py-2 md:px-3">
+                            <span className="font-mono text-[7px] md:text-[10px] font-semibold text-crimson-red truncate">
                               {booking.bookingId || "Invalid Booking"}
                             </span>
                           </td>
-                          <td className="py-1.5 px-2 md:py-2 md:px-3">
-                            <div className="flex items-center gap-1">
-                              <MdEmail className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground" />
-                              <span className="text-[8px] md:text-[10px] text-foreground truncate">
+                          <td className="py-0.5 px-0.5 md:py-2 md:px-3">
+                            <div className="flex items-center gap-0.5 md:gap-1">
+                              <MdEmail className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground flex-shrink-0" />
+                              <span className="text-[7px] md:text-[10px] text-foreground truncate">
                                 {booking.emailAddress}
                               </span>
                             </div>
                           </td>
-                          <td className="py-1.5 px-2 md:py-2 md:px-3">
+                          <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             {(() => {
                               const IconComponent = getFieldIcon(
                                 cardFieldMappings.field1
@@ -2840,16 +2840,16 @@ export default function BookingsSection() {
                                 cardFieldMappings.field1
                               );
                               return (
-                                <div className="flex items-center gap-1">
-                                  <IconComponent className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground" />
-                                  <span className="text-[8px] md:text-[10px] text-foreground truncate">
+                                <div className="flex items-center gap-0.5 md:gap-1">
+                                  <IconComponent className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground flex-shrink-0" />
+                                  <span className="text-[7px] md:text-[10px] text-foreground truncate">
                                     {value}
                                   </span>
                                 </div>
                               );
                             })()}
                           </td>
-                          <td className="py-1.5 px-2 md:py-2 md:px-3">
+                          <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             {(() => {
                               const IconComponent = getFieldIcon(
                                 cardFieldMappings.field2
@@ -2859,16 +2859,16 @@ export default function BookingsSection() {
                                 cardFieldMappings.field2
                               );
                               return (
-                                <div className="flex items-center gap-1">
-                                  <IconComponent className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground" />
-                                  <span className="text-[8px] md:text-[10px] text-foreground truncate">
+                                <div className="flex items-center gap-0.5 md:gap-1">
+                                  <IconComponent className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground flex-shrink-0" />
+                                  <span className="text-[7px] md:text-[10px] text-foreground truncate">
                                     {value}
                                   </span>
                                 </div>
                               );
                             })()}
                           </td>
-                          <td className="py-1.5 px-2 md:py-2 md:px-3">
+                          <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             {(() => {
                               const IconComponent = getFieldIcon(
                                 cardFieldMappings.field3_left
@@ -2878,16 +2878,16 @@ export default function BookingsSection() {
                                 cardFieldMappings.field3_left
                               );
                               return (
-                                <div className="flex items-center gap-1">
-                                  <IconComponent className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground" />
-                                  <span className="text-[8px] md:text-[10px] text-foreground">
+                                <div className="flex items-center gap-0.5 md:gap-1">
+                                  <IconComponent className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground flex-shrink-0" />
+                                  <span className="text-[7px] md:text-[10px] text-foreground">
                                     {value}
                                   </span>
                                 </div>
                               );
                             })()}
                           </td>
-                          <td className="py-1.5 px-2 md:py-2 md:px-3">
+                          <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             {(() => {
                               const IconComponent = getFieldIcon(
                                 cardFieldMappings.field3_right
@@ -2897,19 +2897,19 @@ export default function BookingsSection() {
                                 cardFieldMappings.field3_right
                               );
                               return (
-                                <div className="flex items-center gap-1">
-                                  <IconComponent className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground" />
-                                  <span className="text-[8px] md:text-[10px] text-foreground">
+                                <div className="flex items-center gap-0.5 md:gap-1">
+                                  <IconComponent className="h-2 w-2 md:h-2.5 md:w-2.5 text-foreground flex-shrink-0" />
+                                  <span className="text-[7px] md:text-[10px] text-foreground">
                                     {value}
                                   </span>
                                 </div>
                               );
                             })()}
                           </td>
-                          <td className="py-1.5 px-2 md:py-2 md:pl-3 md:pr-3">
+                          <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             <Badge
                               variant="outline"
-                              className={`text-[8px] md:text-[10px] font-medium border-0 text-foreground px-0.5 py-0 md:px-1 md:py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
+                              className={`text-[7px] md:text-[10px] font-medium border-0 text-foreground px-0.5 py-0 md:px-1 md:py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
                                 booking
                               )}`}
                               title={booking.bookingStatus || "Pending"}
@@ -2917,11 +2917,11 @@ export default function BookingsSection() {
                               {getBookingStatusCategory(booking.bookingStatus)}
                             </Badge>
                           </td>
-                          <td className="py-1.5 px-2 md:py-2 md:px-3">
+                          <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             <div className="space-y-0.5">
                               <div className="flex items-center justify-between gap-1">
                                 <span
-                                  className={`text-[8px] md:text-[10px] font-bold ${
+                                  className={`text-[7px] md:text-[10px] font-bold ${
                                     calculatePaymentProgress(booking) === 100
                                       ? "text-spring-green"
                                       : "text-crimson-red"
@@ -2930,7 +2930,7 @@ export default function BookingsSection() {
                                   {calculatePaymentProgress(booking)}%
                                 </span>
                               </div>
-                              <div className="w-16 md:w-20 bg-muted rounded-full h-0.5 md:h-1">
+                              <div className="w-10 md:w-20 bg-muted rounded-full h-0.5 md:h-1">
                                 <div
                                   className={`h-full rounded-full ${
                                     calculatePaymentProgress(booking) === 100
@@ -2946,9 +2946,9 @@ export default function BookingsSection() {
                               </div>
                             </div>
                           </td>
-                          <td className="py-1.5 px-2 md:py-2 md:px-3 relative">
+                          <td className="py-0.5 px-0.5 md:py-2 md:px-3 relative">
                             {getPaymentPlanCode(booking) && (
-                              <div className="text-[8px] md:text-[10px] font-bold text-crimson-red font-mono bg-crimson-red/10 px-1 py-0.5 md:px-1.5 md:py-0.5 rounded-full rounded-br-none inline-block">
+                              <div className="text-[7px] md:text-[10px] font-bold text-crimson-red font-mono bg-crimson-red/10 px-0.5 py-0 md:px-1.5 md:py-0.5 rounded-full rounded-br-none inline-block">
                                 {getPaymentPlanCode(booking)}
                               </div>
                             )}
@@ -2987,58 +2987,58 @@ export default function BookingsSection() {
                     }}
                     className="group border-b border-dashed border-crimson-red/30 hover:border-crimson-red/50 hover:bg-crimson-red/5 transition-all duration-300 cursor-pointer"
                   >
-                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
+                    <td className="py-0.5 px-0.5 md:py-4 md:px-3 text-center">
                       <div className="flex items-center justify-center">
-                        <div className="p-1.5 md:p-2 bg-crimson-red/10 rounded-full rounded-br-none">
-                          <FaPlus className="h-3 w-3 md:h-4 md:w-4 text-crimson-red" />
+                        <div className="p-0.5 md:p-2 bg-crimson-red/10 rounded-full rounded-br-none">
+                          <FaPlus className="h-2.5 w-2.5 md:h-4 md:w-4 text-crimson-red" />
                         </div>
                       </div>
                     </td>
-                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
-                      <span className="text-[8px] md:text-[10px] font-medium text-crimson-red">
+                    <td className="py-0.5 px-0.5 md:py-4 md:px-3 text-center">
+                      <span className="text-[7px] md:text-[10px] font-medium text-crimson-red">
                         Add New Booking
                       </span>
                     </td>
-                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
-                      <span className="text-[8px] md:text-xs text-muted-foreground">
+                    <td className="py-0.5 px-0.5 md:py-4 md:px-3 text-center">
+                      <span className="text-[7px] md:text-xs text-muted-foreground">
                         Click to create
                       </span>
                     </td>
-                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
-                      <span className="text-[8px] md:text-xs text-muted-foreground">
+                    <td className="py-0.5 px-0.5 md:py-4 md:px-3 text-center">
+                      <span className="text-[7px] md:text-xs text-muted-foreground">
                         New booking
                       </span>
                     </td>
-                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
+                    <td className="py-0.5 px-0.5 md:py-4 md:px-3 text-center">
                       <Badge
                         variant="outline"
-                        className="text-[8px] md:text-xs font-medium border-crimson-red/30 text-crimson-red px-1.5 py-0.5 md:px-2 md:py-1 rounded-full"
+                        className="text-[7px] md:text-xs font-medium border-crimson-red/30 text-crimson-red px-1 py-0 md:px-2 md:py-1 rounded-full"
                       >
                         New
                       </Badge>
                     </td>
-                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
-                      <span className="text-[8px] md:text-xs text-muted-foreground">
+                    <td className="py-0.5 px-0.5 md:py-4 md:px-3 text-center">
+                      <span className="text-[7px] md:text-xs text-muted-foreground">
                         -
                       </span>
                     </td>
-                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
-                      <span className="text-[8px] md:text-xs text-muted-foreground">
+                    <td className="py-0.5 px-0.5 md:py-4 md:px-3 text-center">
+                      <span className="text-[7px] md:text-xs text-muted-foreground">
                         -
                       </span>
                     </td>
-                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
-                      <span className="text-[8px] md:text-xs text-muted-foreground">
+                    <td className="py-0.5 px-0.5 md:py-4 md:px-3 text-center">
+                      <span className="text-[7px] md:text-xs text-muted-foreground">
                         -
                       </span>
                     </td>
-                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
-                      <span className="text-[8px] md:text-xs text-muted-foreground">
+                    <td className="py-0.5 px-0.5 md:py-4 md:px-3 text-center">
+                      <span className="text-[7px] md:text-xs text-muted-foreground">
                         -
                       </span>
                     </td>
-                    <td className="py-2 px-2 md:py-4 md:px-3 text-center">
-                      <span className="text-[8px] md:text-xs text-muted-foreground">
+                    <td className="py-0.5 px-0.5 md:py-4 md:px-3 text-center">
+                      <span className="text-[7px] md:text-xs text-muted-foreground">
                         -
                       </span>
                     </td>
