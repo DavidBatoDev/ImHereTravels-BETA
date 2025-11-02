@@ -11,7 +11,7 @@ export class ColumnLogger {
     console.log("📊 BOOKING SHEET COLUMNS LOG");
     console.log("=".repeat(50));
     console.log(`Total Columns: ${columns.length}`);
-    console.log("");
+    console.log("");    
 
     // Sort columns by order
     const sortedColumns = [...columns].sort((a, b) => a.order - b.order);

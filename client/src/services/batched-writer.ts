@@ -1,7 +1,15 @@
 import { db } from "@/lib/firebase";
 import { doc, getDoc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { bookingVersionHistoryService } from "./booking-version-history-service";
+import { useAuthStore } from "@/store/auth-store";
+import { SheetData } from "@/types/sheet-management";
 
 type PendingDocUpdates = Record<string, any>; // fieldPath -> value
+
+// Configuration for version tracking in batched writes
+const BATCHED_VERSION_TRACKING_CONFIG = {
+  enabled: true, // Set to false to disable version tracking for batched writes
+};
 
 class BatchedWriter {
   private queue: Map<string, PendingDocUpdates> = new Map();
@@ -104,9 +112,89 @@ class BatchedWriter {
       console.log(
         `✅ [BATCHED WRITER] All ${chunks.length} chunks committed successfully`
       );
+
+      // Create version snapshots asynchronously for all updated documents
+      if (BATCHED_VERSION_TRACKING_CONFIG.enabled) {
+        this.createVersionSnapshotsAsync(entries);
+      }
     } catch (err) {
       console.error("❌ [BATCHED WRITER] One or more chunks failed:", err);
     }
+  }
+
+  /**
+   * Create version snapshots asynchronously for batch-updated documents
+   * This runs in the background and doesn't affect batched write performance
+   */
+  private createVersionSnapshotsAsync(
+    entries: [string, PendingDocUpdates][]
+  ): void {
+    // Fire-and-forget async operation
+    (async () => {
+      try {
+        console.log(
+          `📝 [BATCHED WRITER] Creating version snapshots for ${entries.length} documents`
+        );
+
+        // Get current user info from auth store
+        const { user, userProfile } = useAuthStore.getState();
+        const currentUserId = user?.uid || "system";
+        const currentUserName =
+          userProfile?.profile?.firstName && userProfile?.profile?.lastName
+            ? `${userProfile.profile.firstName} ${userProfile.profile.lastName}`
+            : userProfile?.email || user?.email || "System";
+
+        // Process version snapshots in parallel for better performance
+        const versionPromises = entries.map(async ([docId, updates]) => {
+          try {
+            // Get the updated document data
+            const docRef = doc(db, "bookings", docId);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+              const bookingData = {
+                id: docSnap.id,
+                ...docSnap.data(),
+              } as SheetData;
+
+              // Create version snapshot
+              await bookingVersionHistoryService.createVersionSnapshot(
+                docId,
+                bookingData,
+                {
+                  changeType: "update",
+                  changeDescription: `Updated ${Object.keys(updates).join(
+                    ", "
+                  )}`,
+                  userId: currentUserId,
+                  userName: currentUserName,
+                }
+              );
+              console.log(
+                `✅ [BATCHED WRITER] Version snapshot created for ${docId}`
+              );
+            }
+          } catch (versionError) {
+            // Log error but don't throw - this is fire-and-forget
+            console.error(
+              `❌ [BATCHED WRITER] Failed to create version snapshot for ${docId}:`,
+              versionError
+            );
+          }
+        });
+
+        // Wait for all version snapshots to complete (or fail)
+        await Promise.allSettled(versionPromises);
+        console.log(
+          `✅ [BATCHED WRITER] Version snapshot processing completed`
+        );
+      } catch (error) {
+        console.error(
+          "❌ [BATCHED WRITER] Version snapshot processing failed:",
+          error
+        );
+      }
+    })();
   }
 }
 

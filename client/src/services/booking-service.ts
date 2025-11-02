@@ -16,12 +16,21 @@ import {
   Unsubscribe,
   writeBatch,
 } from "firebase/firestore";
+import { bookingVersionHistoryService } from "./booking-version-history-service";
+import { SheetData } from "@/types/sheet-management";
+import { useAuthStore } from "@/store/auth-store";
 
 // ============================================================================
 // COLLECTION CONSTANTS
 // ============================================================================
 
 const COLLECTION_NAME = "bookings";
+
+// Configuration for version tracking
+const VERSION_TRACKING_CONFIG = {
+  enabled: true, // Set to false to completely disable version tracking
+  async: true, // Set to false to make version tracking synchronous (not recommended)
+};
 
 // ============================================================================
 // BOOKING SERVICE INTERFACE
@@ -83,12 +92,28 @@ class BookingServiceImpl implements BookingService {
     updates: Record<string, any>
   ): Promise<void> {
     try {
+      // Get current booking data for version tracking (start async)
+      const currentBookingPromise = this.getBooking(bookingId);
+
       const docRef = doc(db, COLLECTION_NAME, bookingId);
-      await updateDoc(docRef, {
+      const updatedData = {
         ...updates,
         updatedAt: new Date(),
-      });
+      };
+
+      // Perform the main update operation first (this is what the user is waiting for)
+      await updateDoc(docRef, updatedData);
       console.log(`✅ Updated booking ${bookingId}`);
+
+      // Create version snapshot asynchronously (fire-and-forget, don't await)
+      if (VERSION_TRACKING_CONFIG.enabled) {
+        this.createVersionSnapshotAsync(
+          bookingId,
+          currentBookingPromise,
+          updates,
+          "update"
+        );
+      }
     } catch (error) {
       console.error(
         `❌ Failed to update booking ${bookingId}: ${
@@ -148,6 +173,17 @@ class BookingServiceImpl implements BookingService {
         updatedAt: new Date(),
       });
       console.log(`✅ Created booking with ID: ${docRef.id}`);
+
+      // Create initial version snapshot asynchronously (fire-and-forget)
+      if (VERSION_TRACKING_CONFIG.enabled) {
+        this.createVersionSnapshotAsync(
+          docRef.id,
+          Promise.resolve(null),
+          bookingData,
+          "create"
+        );
+      }
+
       return docRef.id;
     } catch (error) {
       console.error(
@@ -522,6 +558,72 @@ class BookingServiceImpl implements BookingService {
       );
       throw error;
     }
+  }
+  // ========================================================================
+  // ASYNC VERSION TRACKING (NON-BLOCKING)
+  // ========================================================================
+
+  /**
+   * Create version snapshot asynchronously without blocking the main operation
+   * This runs in the background and doesn't affect user-facing performance
+   */
+  private createVersionSnapshotAsync(
+    bookingId: string,
+    currentBookingPromise: Promise<DocumentData | null>,
+    updates: Record<string, any>,
+    changeType: "create" | "update"
+  ): void {
+    // Fire-and-forget async operation
+    (async () => {
+      try {
+        console.log(
+          `📝 [ASYNC] Creating version snapshot for booking: ${bookingId}`
+        );
+
+        // Get current user info from auth store
+        const { user, userProfile } = useAuthStore.getState();
+        const currentUserId = user?.uid || "system";
+        const currentUserName =
+          userProfile?.profile?.firstName && userProfile?.profile?.lastName
+            ? `${userProfile.profile.firstName} ${userProfile.profile.lastName}`
+            : userProfile?.email || user?.email || "System";
+
+        // Wait for current booking data (if needed)
+        const currentBooking = await currentBookingPromise;
+
+        // For create operations, get the newly created booking
+        // For update operations, get the updated booking
+        const bookingData =
+          changeType === "create"
+            ? await this.getBooking(bookingId)
+            : await this.getBooking(bookingId);
+
+        if (bookingData) {
+          await bookingVersionHistoryService.createVersionSnapshot(
+            bookingId,
+            bookingData as SheetData,
+            {
+              changeType,
+              changeDescription:
+                changeType === "create"
+                  ? "Initial booking creation"
+                  : `Updated ${Object.keys(updates).join(", ")}`,
+              userId: currentUserId,
+              userName: currentUserName,
+            }
+          );
+          console.log(
+            `✅ [ASYNC] Version snapshot created successfully for ${bookingId}`
+          );
+        }
+      } catch (versionError) {
+        // Log error but don't throw - this is fire-and-forget
+        console.error(
+          `❌ [ASYNC] Failed to create version snapshot for ${bookingId}:`,
+          versionError
+        );
+      }
+    })();
   }
 }
 
