@@ -114,6 +114,15 @@ export default function BookingVersionHistoryGrid({
     ) => {
       if (!versionInfo) return null;
 
+      // Debug logging for specific fields
+      if (fieldPath === "customerName" || fieldPath === "email") {
+        console.log(`🔍 [CHANGE TYPE DEBUG] Field: ${fieldPath}`, {
+          changedFields: versionInfo.changedFields,
+          isIncluded: versionInfo.changedFields.includes(fieldPath),
+          versionId: versionInfo.versionId,
+        });
+      }
+
       // Check if field changed in this version
       if (versionInfo.changedFields.includes(fieldPath)) {
         return "changed";
@@ -289,12 +298,20 @@ export default function BookingVersionHistoryGrid({
     frozen: true,
     renderCell: ({ row }) => {
       const rowNumber = row.row;
+      const versionInfo = row._versionInfo;
+      const isNewBooking = versionInfo?.metadata?.changeType === "create";
+
       return (
         <div
-          className="h-full w-full flex items-center justify-center text-xs font-mono px-2 bg-muted/50 border-r border-border"
+          className={`h-full w-full flex items-center justify-center text-xs font-mono px-2 bg-muted/50 border-r border-border relative ${
+            !isNewBooking ? "opacity-40" : ""
+          }`}
           title={`Row ${rowNumber} (Booking ID: ${row.id})`}
         >
-          <span className="font-semibold text-royal-purple">
+          {!isNewBooking && (
+            <div className="absolute inset-0 bg-gray-200/30 pointer-events-none" />
+          )}
+          <span className="font-semibold text-royal-purple relative z-10">
             {typeof rowNumber === "number" ? rowNumber : "-"}
           </span>
         </div>
@@ -375,14 +392,39 @@ export default function BookingVersionHistoryGrid({
         // Apply cell styling with change highlighting
         (baseColumn as any).cellClass = (row: VersionHighlightedData) => {
           const changeType = getFieldChangeType(col.id, row._versionInfo);
+          const versionInfo = row._versionInfo;
+          const isNewBooking = versionInfo?.metadata?.changeType === "create";
+
+          // Debug logging to understand what's happening
+          if (col.id === "customerName" || col.id === "email") {
+            console.log(`🔍 [CELL STYLING DEBUG] Column: ${col.id}`, {
+              changeType,
+              isNewBooking,
+              changedFields: versionInfo?.changedFields,
+              versionId: versionInfo?.versionId,
+            });
+          }
 
           let classes = [cellClass];
 
-          // Add change highlighting
+          // Add change highlighting - changed cells should be bright and highlighted
           if (changeType === "changed") {
             classes.push("bg-green-200 border-2 border-green-500 relative");
+            // Ensure changed cells are NOT dimmed by removing any opacity classes
           } else if (changeType === "comparison") {
             classes.push("bg-yellow-200 border-2 border-yellow-500 relative");
+            // Ensure comparison cells are NOT dimmed by removing any opacity classes
+          } else if (
+            !isNewBooking &&
+            changeType !== "changed" &&
+            changeType !== "comparison"
+          ) {
+            // Only dim cells that are truly unchanged (not new booking, not changed, not comparison)
+            classes.push("opacity-40 bg-gray-50/80 relative");
+            // Add subtle overlay to further emphasize the dimming
+            classes.push(
+              "after:absolute after:inset-0 after:bg-gray-200/30 after:pointer-events-none"
+            );
           }
 
           return classes.join(" ");

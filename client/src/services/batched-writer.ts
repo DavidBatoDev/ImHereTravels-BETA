@@ -157,17 +157,28 @@ class BatchedWriter {
                 ...docSnap.data(),
               } as SheetData;
 
-              // Create version snapshot
+              // Create field changes from the updates object
+              // Note: We don't have the old values here, so we'll let the service detect changes
+              const changedFieldPaths = Object.keys(updates).filter(
+                (key) => key !== "updatedAt" // Exclude automatic timestamp updates
+              );
+
+              console.log(
+                `🔍 [BATCHED WRITER] Detected changed fields for ${docId}:`,
+                changedFieldPaths
+              );
+
+              // Create version snapshot with changed fields information
               await bookingVersionHistoryService.createVersionSnapshot(
                 docId,
                 bookingData,
                 {
                   changeType: "update",
-                  changeDescription: `Updated ${Object.keys(updates).join(
-                    ", "
-                  )}`,
+                  changeDescription: `Updated ${changedFieldPaths.join(", ")}`,
                   userId: currentUserId,
                   userName: currentUserName,
+                  // Provide the changed field paths so the service can detect changes
+                  changedFieldPaths,
                 }
               );
               console.log(

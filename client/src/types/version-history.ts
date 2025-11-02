@@ -14,16 +14,16 @@ export interface BookingVersionSnapshot {
   versionNumber: number; // Sequential version number (1, 2, 3, etc.)
   branchId: string; // Unique identifier for this version branch
   parentVersionId?: string; // ID of the parent version (for branching)
-  
+
   // Complete document snapshot
   documentSnapshot: SheetData;
-  
+
   // Metadata
   metadata: VersionMetadata;
-  
+
   // Change tracking
   changes: FieldChange[];
-  
+
   // Branching information
   branchInfo: BranchInfo;
 }
@@ -66,13 +66,13 @@ export interface BranchInfo {
 /**
  * Types of changes that can create a new version
  */
-export type VersionChangeType = 
+export type VersionChangeType =
   | "create" // Initial document creation
   | "update" // Regular field update
   | "restore" // Restored from an older version
   | "bulk_update" // Multiple fields updated at once
   | "import" // Created via CSV import
-  | "system" // System-generated change (e.g., function computation);
+  | "system"; // System-generated change (e.g., function computation);
 
 /**
  * Comparison result between two versions
@@ -94,6 +94,7 @@ export interface CreateVersionOptions {
   userId: string;
   userName?: string;
   changedFields?: FieldChange[];
+  changedFieldPaths?: string[]; // Field paths that changed (for efficient change detection)
   isRestorePoint?: boolean;
   restoredFromVersionId?: string;
 }

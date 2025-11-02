@@ -121,9 +121,31 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
 
       // For performance, skip change detection unless explicitly provided
       let changes = options.changedFields || [];
+
+      // If we have changed field paths but no detailed changes, create basic field changes
+      if (
+        changes.length === 0 &&
+        options.changedFieldPaths &&
+        options.changedFieldPaths.length > 0
+      ) {
+        console.log(
+          "🔍 [VERSION SERVICE] Creating field changes from provided paths:",
+          options.changedFieldPaths
+        );
+
+        changes = options.changedFieldPaths.map((fieldPath) => ({
+          fieldPath: fieldPath,
+          fieldName: fieldPath, // Use fieldPath as fieldName for now
+          oldValue: null, // We don't have old values from batched writer
+          newValue: documentSnapshot[fieldPath as keyof SheetData],
+          dataType: "unknown",
+        }));
+      }
+
       console.log(
-        "🔍 [VERSION SERVICE] Using provided changes:",
-        changes.length
+        "🔍 [VERSION SERVICE] Using changes:",
+        changes.length,
+        changes.map((c) => c.fieldName)
       );
 
       // Generate branch ID (always use main branch for performance)
