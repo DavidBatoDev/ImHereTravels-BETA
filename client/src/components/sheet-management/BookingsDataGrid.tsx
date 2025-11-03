@@ -338,6 +338,11 @@ export default function BookingsDataGrid({
     }
   }, [selectedCellInfo, columns, data]);
 
+  // Set columns in batched writer for version history data type detection
+  useEffect(() => {
+    batchedWriter.setColumns(columns);
+  }, [columns]);
+
   // Set up monitoring for aria-selected changes
   useEffect(() => {
     // Monitor immediately
@@ -2931,22 +2936,13 @@ export default function BookingsDataGrid({
                   onChange={async (e) => {
                     const newValue = e.target.checked;
 
-                    // Save to Firestore - Firebase listener will update the UI
-                    try {
-                      await bookingService.updateBookingField(
-                        row.id,
-                        column.key,
-                        newValue
-                      );
-                      // Trigger recomputation for dependent function columns
-                      await recomputeDirectDependentsForRow(
-                        row.id,
-                        column.key,
-                        newValue
-                      );
-                    } catch (error) {
-                      console.error("Failed to update boolean field:", error);
-                    }
+                    // Use batched writer to track changes in version history
+                    batchedWriter.queueFieldUpdate(
+                      row.id,
+                      column.key,
+                      newValue
+                    );
+                    // Note: Recomputation will be triggered by Firebase listener
                   }}
                   className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
                 />
@@ -3026,22 +3022,9 @@ export default function BookingsDataGrid({
                     ? new Date(e.target.value)
                     : null;
 
-                  // Save to Firestore - Firebase listener will update the UI
-                  try {
-                    await bookingService.updateBookingField(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                    // Trigger recomputation for dependent function columns
-                    await recomputeDirectDependentsForRow(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                  } catch (error) {
-                    console.error("Failed to update date field:", error);
-                  }
+                  // Use batched writer to track changes in version history
+                  batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
+                  // Note: Recomputation will be triggered by Firebase listener
                 }}
                 className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
                   hasColor ? "text-black" : ""
@@ -3079,22 +3062,9 @@ export default function BookingsDataGrid({
                 onChange={async (e) => {
                   const newValue = e.target.value;
 
-                  // Save to Firestore - Firebase listener will update the UI
-                  try {
-                    await bookingService.updateBookingField(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                    // Trigger recomputation for dependent function columns
-                    await recomputeDirectDependentsForRow(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                  } catch (error) {
-                    console.error("Failed to update select field:", error);
-                  }
+                  // Use batched writer to track changes in version history
+                  batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
+                  // Note: Recomputation will be triggered by Firebase listener
                 }}
                 className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
                   hasColor ? "text-black" : ""
@@ -4503,6 +4473,7 @@ export default function BookingsDataGrid({
             ? `${userProfile.profile.firstName} ${userProfile.profile.lastName}`
             : userProfile?.email || user?.email || "Unknown User"
         }
+        allBookingsData={localData.length > 0 ? localData : data}
       />
     </div>
   );

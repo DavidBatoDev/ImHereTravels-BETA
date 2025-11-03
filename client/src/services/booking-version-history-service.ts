@@ -45,7 +45,8 @@ export interface BookingVersionHistoryService {
   createVersionSnapshot(
     bookingId: string,
     documentSnapshot: SheetData,
-    options: CreateVersionOptions
+    options: CreateVersionOptions,
+    columns?: any[] // Optional column definitions for determining data types
   ): Promise<string>;
 
   // Version retrieval
@@ -103,7 +104,8 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
   async createVersionSnapshot(
     bookingId: string,
     documentSnapshot: SheetData,
-    options: CreateVersionOptions
+    options: CreateVersionOptions,
+    columns?: any[] // Optional column definitions for determining data types
   ): Promise<string> {
     try {
       console.log("🔍 [VERSION SERVICE] Creating version snapshot:", {
@@ -133,19 +135,61 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
           options.changedFieldPaths
         );
 
-        changes = options.changedFieldPaths.map((fieldPath) => ({
-          fieldPath: fieldPath,
-          fieldName: fieldPath, // Use fieldPath as fieldName for now
-          oldValue: null, // We don't have old values from batched writer
-          newValue: documentSnapshot[fieldPath as keyof SheetData],
-          dataType: "unknown",
-        }));
+        changes = options.changedFieldPaths
+          .map((fieldPath) => {
+            const newValue = documentSnapshot[fieldPath as keyof SheetData];
+
+            // Determine data type from column definition if available
+            let dataType = "unknown";
+            if (columns && columns.length > 0) {
+              const column = columns.find((col) => col.id === fieldPath);
+              if (column) {
+                dataType = column.dataType || "string";
+              }
+            }
+
+            // If still unknown, try to infer from value
+            if (dataType === "unknown") {
+              if (typeof newValue === "number") dataType = "number";
+              else if (typeof newValue === "boolean") dataType = "boolean";
+              else if (
+                newValue instanceof Date ||
+                (newValue && typeof newValue.toDate === "function")
+              )
+                dataType = "date";
+              else if (typeof newValue === "string") dataType = "string";
+            }
+
+            return {
+              fieldPath: fieldPath,
+              fieldName: fieldPath, // Use fieldPath as fieldName for now
+              oldValue: null, // We don't have old values from batched writer
+              newValue,
+              dataType,
+            };
+          })
+          .filter((change) => {
+            // Skip changes where old value is null and new value is empty string
+            // BUT only for string fields, not for date, boolean, or select fields
+            if (
+              (change.oldValue === null || change.oldValue === undefined) &&
+              change.newValue === "" &&
+              change.dataType === "string"
+            ) {
+              console.log(
+                `🔍 [VERSION SERVICE] Skipping null → "" change for string field: ${change.fieldPath}`
+              );
+              return false;
+            }
+            return true;
+          });
       }
 
       console.log(
         "🔍 [VERSION SERVICE] Using changes:",
         changes.length,
-        changes.map((c) => c.fieldName)
+        "fields:",
+        changes.map((c) => `${c.fieldName} (${c.dataType})`)
       );
 
       // Generate branch ID (always use main branch for performance)
@@ -786,6 +830,16 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         (newValue && typeof newValue.toDate === "function")
       )
         dataType = "date";
+
+      // Skip if old value is null and new value is empty string (not a real change)
+      // BUT only for string fields, not for date, boolean, or select fields
+      if (
+        (oldValue === null || oldValue === undefined) &&
+        newValue === "" &&
+        dataType === "string"
+      ) {
+        continue;
+      }
 
       changes.push({
         fieldPath,

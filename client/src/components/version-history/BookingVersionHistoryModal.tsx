@@ -52,6 +52,7 @@ interface BookingVersionHistoryModalProps extends VersionHistoryProps {
   columns: SheetColumn[];
   currentUserId?: string;
   currentUserName?: string;
+  allBookingsData?: any[]; // All current bookings data to display in the grid
 }
 
 export default function BookingVersionHistoryModal({
@@ -62,6 +63,7 @@ export default function BookingVersionHistoryModal({
   columns,
   currentUserId = "anonymous",
   currentUserName = "Unknown User",
+  allBookingsData = [],
 }: BookingVersionHistoryModalProps) {
   const { toast } = useToast();
 
@@ -131,6 +133,9 @@ export default function BookingVersionHistoryModal({
       filtered = filtered.filter((version) => version.metadata.isRestorePoint);
     }
 
+    // Sort by version number descending (latest first)
+    filtered.sort((a, b) => b.versionNumber - a.versionNumber);
+
     setFilteredVersions(filtered);
   }, [versions, searchTerm, changeTypeFilter, branchFilter]);
 
@@ -142,7 +147,7 @@ export default function BookingVersionHistoryModal({
       try {
         console.log("🔍 [VERSION MODAL] Loading all versions...");
         const allVersions = await bookingVersionHistoryService.getAllVersions({
-          orderBy: "metadata.createdAt",
+          orderBy: "createdAt",
           orderDirection: "desc",
           limit: 100,
         });
@@ -476,16 +481,16 @@ export default function BookingVersionHistoryModal({
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 flex gap-4">
           {isLoading ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-full w-full">
               <div className="flex items-center gap-2">
                 <RefreshCw className="h-5 w-5 animate-spin" />
                 <span>Loading version history...</span>
               </div>
             </div>
           ) : error ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-full w-full">
               <div className="text-center">
                 <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
                 <p className="text-red-600 font-medium">
@@ -502,7 +507,7 @@ export default function BookingVersionHistoryModal({
               </div>
             </div>
           ) : filteredVersions.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-full w-full">
               <div className="text-center">
                 <History className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                 <p className="text-muted-foreground font-medium">
@@ -525,17 +530,145 @@ export default function BookingVersionHistoryModal({
               </div>
             </div>
           ) : (
-            <BookingVersionHistoryGrid
-              columns={columns}
-              versions={filteredVersions}
-              selectedVersionId={selectedVersionId}
-              comparisonVersionId={comparisonVersionId}
-              onVersionSelect={handleVersionSelect}
-              onVersionRestore={handleVersionRestore}
-              onVersionCompare={handleVersionCompare}
-              isRestoring={isRestoring}
-              className="h-full"
-            />
+            <>
+              {/* Left Sidebar - Version List */}
+              <div className="w-64 flex-shrink-0 border-r overflow-y-auto">
+                <div className="space-y-2 p-2">
+                  {filteredVersions.map((version) => {
+                    const isSelected = selectedVersionId === version.id;
+                    const isComparison = comparisonVersionId === version.id;
+
+                    return (
+                      <button
+                        key={version.id}
+                        onClick={() => handleVersionSelect(version.id)}
+                        className={`w-full p-3 rounded-lg text-left transition-all ${
+                          isSelected
+                            ? "bg-royal-purple text-white shadow-md"
+                            : isComparison
+                            ? "bg-blue-100 border-2 border-blue-500"
+                            : "bg-muted hover:bg-muted/70"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge
+                            variant={
+                              version.metadata.isRestorePoint
+                                ? "destructive"
+                                : "default"
+                            }
+                            className={`text-xs ${
+                              isSelected ? "bg-white text-royal-purple" : ""
+                            }`}
+                          >
+                            v{version.versionNumber}
+                          </Badge>
+                          {version.metadata.isRestorePoint && (
+                            <GitBranch
+                              className={`h-3 w-3 ${
+                                isSelected ? "text-white" : "text-orange-600"
+                              }`}
+                            />
+                          )}
+                        </div>
+
+                        <div
+                          className={`text-xs flex items-center gap-1 mb-1 ${
+                            isSelected
+                              ? "text-white/90"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          <Clock className="h-3 w-3" />
+                          {(() => {
+                            const timestamp = version.metadata.createdAt;
+                            if (!timestamp) return "Unknown";
+
+                            try {
+                              if (
+                                timestamp.toDate &&
+                                typeof timestamp.toDate === "function"
+                              ) {
+                                return timestamp.toDate().toLocaleString();
+                              }
+                              if (timestamp instanceof Date) {
+                                return timestamp.toLocaleString();
+                              }
+                              if (timestamp.seconds) {
+                                return new Date(
+                                  timestamp.seconds * 1000
+                                ).toLocaleString();
+                              }
+                              if (typeof timestamp === "number") {
+                                return new Date(timestamp).toLocaleString();
+                              }
+                              return "Unknown";
+                            } catch (error) {
+                              return "Invalid Date";
+                            }
+                          })()}
+                        </div>
+
+                        <div
+                          className={`text-xs flex items-center gap-1 mb-2 ${
+                            isSelected
+                              ? "text-white/90"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          <User className="h-3 w-3" />
+                          {version.metadata.createdByName ||
+                            version.metadata.createdBy}
+                        </div>
+
+                        <div
+                          className={`text-xs ${
+                            isSelected
+                              ? "text-white/80"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {version.changes.length} field
+                          {version.changes.length !== 1 ? "s" : ""} changed
+                        </div>
+
+                        <div className="flex gap-1 mt-2">
+                          <Button
+                            size="sm"
+                            variant={isSelected ? "secondary" : "outline"}
+                            className="h-7 px-2 text-xs flex-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleVersionRestore(version.id);
+                            }}
+                            disabled={isRestoring}
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            Restore
+                          </Button>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right Side - Data Grid */}
+              <div className="flex-1 min-w-0">
+                <BookingVersionHistoryGrid
+                  columns={columns}
+                  versions={filteredVersions}
+                  selectedVersionId={selectedVersionId}
+                  comparisonVersionId={comparisonVersionId}
+                  onVersionSelect={handleVersionSelect}
+                  onVersionRestore={handleVersionRestore}
+                  onVersionCompare={handleVersionCompare}
+                  isRestoring={isRestoring}
+                  className="h-full"
+                  allBookingsData={allBookingsData}
+                />
+              </div>
+            </>
           )}
         </div>
       </DialogContent>

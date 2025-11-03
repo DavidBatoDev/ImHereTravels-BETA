@@ -17,6 +17,11 @@ class BatchedWriter {
   private readonly debounceMs = 100; // Reduced from 200ms
   private readonly maxDocsPerFlush = 400; // Increased from 50 to handle more docs per batch
   private readonly maxBatchSize = 500; // Firestore batch limit
+  private columns: any[] = []; // Store column definitions for data type detection
+
+  setColumns(columns: any[]) {
+    this.columns = columns;
+  }
 
   queueFieldUpdate(docId: string, fieldPath: string, value: any) {
     const existing = this.queue.get(docId) || {};
@@ -179,7 +184,8 @@ class BatchedWriter {
                   userName: currentUserName,
                   // Provide the changed field paths so the service can detect changes
                   changedFieldPaths,
-                }
+                },
+                this.columns // Pass column definitions for data type detection
               );
               console.log(
                 `✅ [BATCHED WRITER] Version snapshot created for ${docId}`

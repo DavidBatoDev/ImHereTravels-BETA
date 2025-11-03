@@ -22,6 +22,7 @@ import {
   GitBranch,
   Eye,
   ArrowRight,
+  History,
 } from "lucide-react";
 
 import {
@@ -55,6 +56,7 @@ interface BookingVersionHistoryGridProps {
   onVersionCompare?: (versionId: string) => void;
   isRestoring?: boolean;
   className?: string;
+  allBookingsData?: any[]; // All current bookings data to display
 }
 
 export default function BookingVersionHistoryGrid({
@@ -67,23 +69,126 @@ export default function BookingVersionHistoryGrid({
   onVersionCompare,
   isRestoring = false,
   className = "",
+  allBookingsData = [],
 }: BookingVersionHistoryGridProps) {
   const [comparison, setComparison] = useState<VersionComparison | null>(null);
   const [isLoadingComparison, setIsLoadingComparison] = useState(false);
+  const gridContainerRef = React.useRef<HTMLDivElement>(null);
 
-  // Create version-highlighted data from versions
+  // Create version-highlighted data showing all bookings, but marking changes from selected version
   const versionData = useMemo<VersionHighlightedData[]>(() => {
-    return versions.map((version) => ({
-      ...version.documentSnapshot,
-      _versionInfo: {
-        versionId: version.id,
-        versionNumber: version.versionNumber,
-        isRestorePoint: version.metadata.isRestorePoint,
-        changedFields: version.changes.map((change) => change.fieldPath),
-        metadata: version.metadata,
-      },
-    }));
-  }, [versions]);
+    // Find the selected version
+    const selectedVersion = versions.find((v) => v.id === selectedVersionId);
+
+    if (!selectedVersion) {
+      return [];
+    }
+
+    // Get the booking ID and timestamp from the selected version
+    const versionBookingId = selectedVersion.documentSnapshot.id;
+    const versionTimestamp = selectedVersion.metadata.createdAt;
+
+    // Convert version timestamp to comparable format
+    let versionTime: number;
+    try {
+      if (versionTimestamp && typeof versionTimestamp === "object") {
+        if (
+          "toDate" in versionTimestamp &&
+          typeof versionTimestamp.toDate === "function"
+        ) {
+          versionTime = versionTimestamp.toDate().getTime();
+        } else if (
+          "seconds" in versionTimestamp &&
+          typeof versionTimestamp.seconds === "number"
+        ) {
+          versionTime = versionTimestamp.seconds * 1000;
+        } else if (versionTimestamp instanceof Date) {
+          versionTime = versionTimestamp.getTime();
+        } else {
+          versionTime = Date.now(); // Fallback to now if can't parse
+        }
+      } else if (typeof versionTimestamp === "number") {
+        versionTime = versionTimestamp;
+      } else {
+        versionTime = Date.now(); // Fallback to now if can't parse
+      }
+    } catch (error) {
+      console.error("Error parsing version timestamp:", error);
+      versionTime = Date.now();
+    }
+
+    // Filter bookings to only show those that existed at or before the version timestamp
+    const filteredBookings = allBookingsData.filter((booking) => {
+      // Always include the booking that this version is about
+      if (booking.id === versionBookingId) {
+        return true;
+      }
+
+      // Check if booking was created before or at the version time
+      const bookingCreatedAt = booking.createdAt;
+      if (!bookingCreatedAt) {
+        return true; // Include bookings without creation timestamp (legacy data)
+      }
+
+      try {
+        let bookingTime: number;
+        if (typeof bookingCreatedAt === "object") {
+          if (
+            "toDate" in bookingCreatedAt &&
+            typeof bookingCreatedAt.toDate === "function"
+          ) {
+            bookingTime = bookingCreatedAt.toDate().getTime();
+          } else if (
+            "seconds" in bookingCreatedAt &&
+            typeof bookingCreatedAt.seconds === "number"
+          ) {
+            bookingTime = bookingCreatedAt.seconds * 1000;
+          } else if (bookingCreatedAt instanceof Date) {
+            bookingTime = bookingCreatedAt.getTime();
+          } else {
+            return true; // Can't parse, include it
+          }
+        } else if (typeof bookingCreatedAt === "number") {
+          bookingTime = bookingCreatedAt;
+        } else {
+          return true; // Can't parse, include it
+        }
+
+        // Only include bookings created at or before this version
+        return bookingTime <= versionTime;
+      } catch (error) {
+        console.error("Error parsing booking timestamp:", error);
+        return true; // Include on error
+      }
+    });
+
+    // Map bookings data and add version info to highlight changes
+    const mappedData = filteredBookings.map((booking) => {
+      const isVersionedBooking = booking.id === versionBookingId;
+
+      return {
+        ...booking,
+        _versionInfo: isVersionedBooking
+          ? {
+              versionId: selectedVersion.id,
+              versionNumber: selectedVersion.versionNumber,
+              isRestorePoint: selectedVersion.metadata.isRestorePoint,
+              changedFields: selectedVersion.changes.map(
+                (change) => change.fieldPath
+              ),
+              metadata: selectedVersion.metadata,
+            }
+          : undefined,
+      };
+    });
+
+    // Sort by row number (same as BookingsDataGrid)
+    return mappedData.sort((a, b) => {
+      const aRow = typeof a.row === "number" ? a.row : 0;
+      const bRow = typeof b.row === "number" ? b.row : 0;
+      return aRow - bRow;
+    });
+  }, [versions, selectedVersionId, allBookingsData]);
 
   // Load comparison when comparison version changes
   useEffect(() => {
@@ -105,6 +210,48 @@ export default function BookingVersionHistoryGrid({
       setComparison(null);
     }
   }, [selectedVersionId, comparisonVersionId]);
+
+  // Scroll to the changed row when version changes
+  useEffect(() => {
+    if (
+      !selectedVersionId ||
+      !gridContainerRef.current ||
+      versionData.length === 0
+    ) {
+      return;
+    }
+
+    // Find the selected version to get the booking ID
+    const selectedVersion = versions.find((v) => v.id === selectedVersionId);
+    if (!selectedVersion) return;
+
+    const versionBookingId = selectedVersion.documentSnapshot.id;
+
+    // Find the index of the changed booking in the data
+    const changedRowIndex = versionData.findIndex(
+      (row) => row.id === versionBookingId
+    );
+
+    if (changedRowIndex === -1) return;
+
+    // Scroll to the row (add small delay to ensure grid is rendered)
+    setTimeout(() => {
+      const grid = gridContainerRef.current?.querySelector(".rdg");
+      if (!grid) return;
+
+      // Calculate the scroll position
+      // Each row is 40px (rowHeight) + header is 80px
+      const headerHeight = 80;
+      const rowHeight = 40;
+      const scrollTop = changedRowIndex * rowHeight;
+
+      // Scroll the grid to show the changed row
+      grid.scrollTo({
+        top: scrollTop,
+        behavior: "smooth",
+      });
+    }, 100);
+  }, [selectedVersionId, versionData, versions]);
 
   // Helper function to get change type for a field
   const getFieldChangeType = useCallback(
@@ -165,126 +312,7 @@ export default function BookingVersionHistoryGrid({
     [versions]
   );
 
-  // Version info column (frozen left column)
-  const versionInfoColumn: Column<VersionHighlightedData> = {
-    key: "versionInfo",
-    name: "Version",
-    width: 200,
-    minWidth: 180,
-    maxWidth: 250,
-    resizable: true,
-    sortable: false,
-    frozen: true,
-    renderHeaderCell: () => (
-      <div className="flex items-center justify-center h-full px-2">
-        <span className="font-semibold text-foreground">Version Info</span>
-      </div>
-    ),
-    renderCell: ({ row }) => {
-      const versionInfo = row._versionInfo;
-      if (!versionInfo) return <div className="p-2">-</div>;
-
-      const isSelected = selectedVersionId === versionInfo.versionId;
-      const isComparison = comparisonVersionId === versionInfo.versionId;
-
-      return (
-        <div
-          className={`p-2 h-full flex flex-col justify-center cursor-pointer transition-colors ${
-            isSelected
-              ? "bg-royal-purple/20 border-l-4 border-royal-purple"
-              : isComparison
-              ? "bg-blue-100 border-l-4 border-blue-500"
-              : "hover:bg-gray-50"
-          }`}
-          onClick={() => onVersionSelect(versionInfo.versionId)}
-        >
-          <div className="flex items-center gap-2 mb-1">
-            <Badge
-              variant={versionInfo.isRestorePoint ? "destructive" : "default"}
-              className="text-xs"
-            >
-              v{versionInfo.versionNumber}
-            </Badge>
-            {versionInfo.isRestorePoint && (
-              <GitBranch className="h-3 w-3 text-orange-600" />
-            )}
-          </div>
-
-          <div className="text-xs text-muted-foreground flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {(() => {
-              const timestamp = versionInfo.metadata.createdAt;
-              if (!timestamp) return "Unknown";
-
-              // Timestamp is now properly handled by the service layer
-
-              try {
-                // Handle Firestore Timestamp
-                if (
-                  timestamp.toDate &&
-                  typeof timestamp.toDate === "function"
-                ) {
-                  return timestamp.toDate().toLocaleString();
-                }
-                // Handle if it's already a Date object
-                if (timestamp instanceof Date) {
-                  return timestamp.toLocaleString();
-                }
-                // Handle if it's a timestamp object with seconds/nanoseconds
-                if (timestamp.seconds) {
-                  return new Date(timestamp.seconds * 1000).toLocaleString();
-                }
-                // Handle if it's a number (milliseconds)
-                if (typeof timestamp === "number") {
-                  return new Date(timestamp).toLocaleString();
-                }
-                return "Unknown";
-              } catch (error) {
-                console.error("Error formatting timestamp:", error, timestamp);
-                return "Invalid Date";
-              }
-            })()}
-          </div>
-
-          <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-            <User className="h-3 w-3" />
-            {versionInfo.metadata.createdByName ||
-              versionInfo.metadata.createdBy}
-          </div>
-
-          <div className="flex gap-1 mt-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-6 px-2 text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                onVersionRestore(versionInfo.versionId);
-              }}
-              disabled={isRestoring}
-            >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              Restore
-            </Button>
-
-            {onVersionCompare && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 px-2 text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onVersionCompare(versionInfo.versionId);
-                }}
-              >
-                <Eye className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-        </div>
-      );
-    },
-  };
+  // Version info column is now removed since we have a sidebar for version selection
 
   // Row number column (similar to BookingsDataGrid)
   const rowNumberColumn: Column<VersionHighlightedData> = {
@@ -299,18 +327,26 @@ export default function BookingVersionHistoryGrid({
     renderCell: ({ row }) => {
       const rowNumber = row.row;
       const versionInfo = row._versionInfo;
+      const hasVersionInfo = !!versionInfo;
       const isNewBooking = versionInfo?.metadata?.changeType === "create";
 
       return (
         <div
           className={`h-full w-full flex items-center justify-center text-xs font-mono px-2 bg-muted/50 border-r border-border relative ${
-            !isNewBooking ? "opacity-40" : ""
+            hasVersionInfo
+              ? isNewBooking
+                ? "bg-green-200"
+                : "bg-green-50"
+              : "opacity-40"
           }`}
-          title={`Row ${rowNumber} (Booking ID: ${row.id})`}
+          title={`Row ${rowNumber} (Booking ID: ${row.id})${
+            hasVersionInfo
+              ? isNewBooking
+                ? " - New Booking"
+                : " - Has Changes"
+              : ""
+          }`}
         >
-          {!isNewBooking && (
-            <div className="absolute inset-0 bg-gray-200/30 pointer-events-none" />
-          )}
           <span className="font-semibold text-royal-purple relative z-10">
             {typeof rowNumber === "number" ? rowNumber : "-"}
           </span>
@@ -328,7 +364,7 @@ export default function BookingVersionHistoryGrid({
   const gridColumns = useMemo<Column<VersionHighlightedData>[]>(() => {
     // Safety check for columns
     if (!columns || !Array.isArray(columns)) {
-      return [versionInfoColumn, rowNumberColumn];
+      return [rowNumberColumn];
     }
 
     const dataColumns = columns
@@ -391,40 +427,24 @@ export default function BookingVersionHistoryGrid({
 
         // Apply cell styling with change highlighting
         (baseColumn as any).cellClass = (row: VersionHighlightedData) => {
-          const changeType = getFieldChangeType(col.id, row._versionInfo);
           const versionInfo = row._versionInfo;
+          const changeType = getFieldChangeType(col.id, versionInfo);
           const isNewBooking = versionInfo?.metadata?.changeType === "create";
-
-          // Debug logging to understand what's happening
-          if (col.id === "customerName" || col.id === "email") {
-            console.log(`🔍 [CELL STYLING DEBUG] Column: ${col.id}`, {
-              changeType,
-              isNewBooking,
-              changedFields: versionInfo?.changedFields,
-              versionId: versionInfo?.versionId,
-            });
-          }
 
           let classes = [cellClass];
 
-          // Add change highlighting - changed cells should be bright and highlighted
-          if (changeType === "changed") {
+          // If this is a newly created booking, highlight all cells
+          if (isNewBooking) {
             classes.push("bg-green-200 border-2 border-green-500 relative");
-            // Ensure changed cells are NOT dimmed by removing any opacity classes
+          }
+          // If this cell was changed in the selected version, highlight it brightly
+          else if (changeType === "changed") {
+            classes.push("bg-green-200 border-2 border-green-500 relative");
           } else if (changeType === "comparison") {
             classes.push("bg-yellow-200 border-2 border-yellow-500 relative");
-            // Ensure comparison cells are NOT dimmed by removing any opacity classes
-          } else if (
-            !isNewBooking &&
-            changeType !== "changed" &&
-            changeType !== "comparison"
-          ) {
-            // Only dim cells that are truly unchanged (not new booking, not changed, not comparison)
-            classes.push("opacity-40 bg-gray-50/80 relative");
-            // Add subtle overlay to further emphasize the dimming
-            classes.push(
-              "after:absolute after:inset-0 after:bg-gray-200/30 after:pointer-events-none"
-            );
+          } else {
+            // Dim all cells that were not changed (including all rows)
+            classes.push("opacity-40 relative");
           }
 
           return classes.join(" ");
@@ -621,10 +641,9 @@ export default function BookingVersionHistoryGrid({
         return baseColumn;
       });
 
-    return [versionInfoColumn, rowNumberColumn, ...dataColumns];
+    return [rowNumberColumn, ...dataColumns];
   }, [
     columns,
-    versionInfoColumn,
     rowNumberColumn,
     selectedVersionId,
     comparisonVersionId,
@@ -636,8 +655,65 @@ export default function BookingVersionHistoryGrid({
     getChangeDetails,
   ]);
 
+  // Get the version info to show which booking has changes
+  // Must be before early returns to maintain hook order
+  const selectedVersion = useMemo(() => {
+    return versions.find((v) => v.id === selectedVersionId);
+  }, [versions, selectedVersionId]);
+
+  // Show message if no version is selected
+  if (!selectedVersionId) {
+    return (
+      <div className={`version-history-grid ${className}`}>
+        <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+          <History className="h-16 w-16 mb-4 opacity-50" />
+          <p className="text-lg font-medium">No Version Selected</p>
+          <p className="text-sm mt-2">
+            Select a version from the sidebar to view its data
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show message if we have no bookings data
+  if (versionData.length === 0) {
+    return (
+      <div className={`version-history-grid ${className}`}>
+        <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+          <History className="h-16 w-16 mb-4 opacity-50" />
+          <p className="text-lg font-medium">No Bookings Data Available</p>
+          <p className="text-sm mt-2">
+            There are no bookings to display for this version
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`version-history-grid ${className}`}>
+      {/* Version Info Banner */}
+      {selectedVersion && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+          <div className="text-sm text-green-800">
+            <strong>Viewing changes for:</strong> Booking ID{" "}
+            <span className="font-mono">
+              {selectedVersion.documentSnapshot.id}
+            </span>
+            {" • "}
+            <span className="font-semibold">
+              {selectedVersion.changes.length} field
+              {selectedVersion.changes.length !== 1 ? "s" : ""} changed
+            </span>
+            <div className="text-xs mt-1 text-green-700">
+              Changed cells are highlighted in green. All other bookings are
+              displayed normally.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Comparison Status */}
       {isLoadingComparison && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
@@ -664,7 +740,10 @@ export default function BookingVersionHistoryGrid({
       )}
 
       {/* Data Grid */}
-      <div className="border border-royal-purple/20 rounded-md shadow-lg overflow-hidden">
+      <div
+        ref={gridContainerRef}
+        className="border border-royal-purple/20 rounded-md shadow-lg overflow-hidden"
+      >
         <TooltipProvider>
           <DataGrid
             columns={gridColumns}
