@@ -64,6 +64,9 @@ export interface BookingService {
 
   // Clear booking fields (keep document, clear data)
   clearBookingFields(bookingId: string): Promise<void>;
+
+  // Delete booking and shift subsequent rows
+  deleteBookingWithRowShift(bookingId: string): Promise<void>;
 }
 
 // ============================================================================
@@ -419,6 +422,101 @@ class BookingServiceImpl implements BookingService {
     } catch (error) {
       console.error(
         `❌ Failed to clear booking fields ${bookingId}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      throw error;
+    }
+  }
+
+  // ========================================================================
+  // DELETE WITH ROW SHIFTING
+  // ========================================================================
+
+  async deleteBookingWithRowShift(bookingId: string): Promise<void> {
+    try {
+      console.log(
+        `🗑️ Starting delete with row shift for booking ${bookingId}...`
+      );
+
+      // Get the booking to find its row number
+      const bookingDoc = await getDoc(doc(db, COLLECTION_NAME, bookingId));
+      if (!bookingDoc.exists()) {
+        throw new Error(`Booking document ${bookingId} does not exist`);
+      }
+
+      const bookingData = bookingDoc.data();
+      const deletedRowNumber = bookingData.row;
+
+      if (typeof deletedRowNumber !== "number") {
+        console.warn(
+          `⚠️ Booking ${bookingId} has no valid row number, deleting without shifting`
+        );
+        await deleteDoc(doc(db, COLLECTION_NAME, bookingId));
+        return;
+      }
+
+      console.log(`📍 Deleting booking at row ${deletedRowNumber}`);
+
+      // Get all bookings with row numbers greater than the deleted row
+      const bookingsRef = collection(db, COLLECTION_NAME);
+      const q = query(
+        bookingsRef,
+        where("row", ">", deletedRowNumber),
+        orderBy("row", "asc")
+      );
+
+      const snapshot = await getDocs(q);
+      const bookingsToUpdate = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        data: doc.data(),
+        row: doc.data().row,
+      }));
+
+      console.log(`📊 Found ${bookingsToUpdate.length} bookings to shift down`);
+
+      // Delete the original booking
+      await deleteDoc(doc(db, COLLECTION_NAME, bookingId));
+
+      // If no bookings to shift, we're done
+      if (bookingsToUpdate.length === 0) {
+        console.log(
+          `✅ Deleted booking at row ${deletedRowNumber}, no rows to shift`
+        );
+        return;
+      }
+
+      // Use batch writes to shift all subsequent rows down by 1
+      const BATCH_SIZE = 400; // Stay under Firestore's 500 limit
+      for (let i = 0; i < bookingsToUpdate.length; i += BATCH_SIZE) {
+        const batch = writeBatch(db);
+        const slice = bookingsToUpdate.slice(i, i + BATCH_SIZE);
+
+        slice.forEach(({ id, data }) => {
+          const newRowNumber = data.row - 1;
+          const docRef = doc(db, COLLECTION_NAME, id);
+          batch.update(docRef, {
+            row: newRowNumber,
+            updatedAt: new Date(),
+          });
+        });
+
+        await batch.commit();
+        console.log(
+          `✅ Shifted batch ${Math.floor(i / BATCH_SIZE) + 1}: rows ${
+            slice[0].row
+          }-${slice[slice.length - 1].row} → ${slice[0].row - 1}-${
+            slice[slice.length - 1].row - 1
+          }`
+        );
+      }
+
+      console.log(
+        `✅ Successfully deleted booking at row ${deletedRowNumber} and shifted ${bookingsToUpdate.length} subsequent rows down`
+      );
+    } catch (error) {
+      console.error(
+        `❌ Failed to delete booking with row shift ${bookingId}: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );

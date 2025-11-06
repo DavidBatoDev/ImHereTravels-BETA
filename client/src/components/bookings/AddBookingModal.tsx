@@ -44,8 +44,8 @@ import { typescriptFunctionsService } from "@/services/typescript-functions-serv
 import { batchedWriter } from "@/services/batched-writer";
 import { bookingService } from "@/services/booking-service";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
-import { isEqual } from "lodash";
+import { onSnapshot } from "firebase/firestore";
+import { isEqual, debounce } from "lodash";
 
 interface AddBookingModalProps {
   isOpen: boolean;
@@ -216,8 +216,8 @@ export default function AddBookingModal({
       if (col.dataType === "function" && Array.isArray(col.arguments)) {
         col.arguments.forEach((arg) => {
           if (arg.columnReference) {
-            // Skip "ID" reference since it's not a column dependency
-            if (arg.columnReference !== "ID") {
+            // Skip "ID" and "Row" references since they're not column dependencies
+            if (arg.columnReference !== "ID" && arg.columnReference !== "Row") {
               // Find the column ID for the referenced column name
               const refCol = columns.find(
                 (c) => c.columnName === arg.columnReference
@@ -232,8 +232,8 @@ export default function AddBookingModal({
           if (Array.isArray(arg.columnReferences)) {
             arg.columnReferences.forEach((ref) => {
               if (!ref) return;
-              // Skip "ID" reference since it's not a column dependency
-              if (ref !== "ID") {
+              // Skip "ID" and "Row" references since they're not column dependencies
+              if (ref !== "ID" && ref !== "Row") {
                 // Find the column ID for the referenced column name
                 const refCol = columns.find((c) => c.columnName === ref);
                 if (refCol) {
@@ -297,6 +297,14 @@ export default function AddBookingModal({
     }
     return new Date();
   };
+
+  // Debounced scroll handler for better performance
+  const debouncedScrollHandler = useCallback(
+    debounce(() => {
+      // Handle any scroll-related updates here if needed
+    }, 16), // ~60fps
+    []
+  );
 
   // Scroll to a specific parent tab
   const scrollToTab = (parentTab: string) => {
@@ -651,6 +659,8 @@ export default function AddBookingModal({
     return true;
   };
 
+  // Removed MemoizedFormField as it was causing focus loss issues
+
   // Render form field based on column type
   const renderFormField = (column: SheetColumn) => {
     const value = getFormValue(column);
@@ -806,7 +816,7 @@ export default function AddBookingModal({
               id={fieldId}
               value={String(value || "")}
               className={cn(
-                "w-full font-mono bg-white",
+                "w-full font-mono bg-background",
                 error && "border-red-500",
                 isComputing && "opacity-50"
               )}
@@ -935,31 +945,53 @@ export default function AddBookingModal({
       // Clear any validation errors
       setFieldErrors({});
 
-      // Get the next incremental ID using the booking service
-      const nextId = await bookingService.getNextRowNumber();
+      // Get all existing bookings to find the next row number (gap-filling logic)
+      const allBookings = await bookingService.getAllBookings();
+      const rowNumbers = allBookings
+        .map((booking) => {
+          const row = booking.row;
+          return typeof row === "number" ? row : 0;
+        })
+        .filter((row) => row > 0)
+        .sort((a, b) => a - b);
 
-      // Create the new booking document with incremental ID
+      // Find the first missing row number
+      let nextRowNumber = 1;
+      for (let i = 0; i < rowNumbers.length; i++) {
+        if (rowNumbers[i] !== i + 1) {
+          nextRowNumber = i + 1;
+          break;
+        }
+        nextRowNumber = i + 2; // If no gap found, use next number
+      }
+
+      // Let Firebase generate the document ID automatically first
+      const newBookingId = await bookingService.createBooking({});
+
+      // Create the booking data with row field and id field populated
       const bookingData = {
         ...formData,
-        id: nextId.toString(),
+        id: newBookingId, // Save the document UID as a field in the document
+        row: nextRowNumber,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      // Use setDoc with custom numeric ID instead of addDoc
-      const docRef = doc(db, "bookings", nextId.toString());
-      await setDoc(docRef, bookingData);
+      // Update the document with the complete data including the id field
+      await bookingService.updateBooking(newBookingId, bookingData);
 
       toast({
         title: "Success",
-        description: `Booking #${nextId} created successfully!`,
+        description: `Booking created successfully in row ${nextRowNumber}!`,
         variant: "default",
       });
 
       // Call onSave callback if provided
       if (onSave) {
-        onSave({ id: nextId.toString(), ...bookingData });
-      } // Clear any pending debounced executions
+        onSave({ id: newBookingId, ...bookingData });
+      }
+
+      // Clear any pending debounced executions
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
@@ -1007,24 +1039,43 @@ export default function AddBookingModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] bg-[#F2F0EE] p-0 rounded-full overflow-hidden">
-        <DialogHeader className="sticky top-0 z-50 bg-white shadow-md border-b border-border/50 pb-3 pt-6 px-6">
+      <DialogContent className="max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-full overflow-hidden">
+        <DialogHeader className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-full rounded-br-none shadow-sm">
-                <FaPlus className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <span className="block text-xl">
-                  Add New Booking
-                  {hasUnsavedChanges && (
-                    <span className="ml-2 text-sm text-orange-600">
-                      ● Unsaved
+            <div className="flex-1">
+              <DialogTitle className="text-2xl font-bold text-foreground flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-full rounded-br-none shadow-sm">
+                    <FaPlus className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <span className="block text-xl">
+                      Add New Booking
+                      {hasUnsavedChanges && (
+                        <span className="ml-2 text-sm text-orange-600">
+                          ● Unsaved
+                        </span>
+                      )}
                     </span>
-                  )}
-                </span>
-              </div>
-            </DialogTitle>
+                  </div>
+                </div>
+
+                {/* Legend for function fields */}
+                <div className="flex items-center gap-2 bg-sunglow-yellow/20 border border-sunglow-yellow/30 rounded-lg px-3 py-2">
+                  <div className="p-1 bg-sunglow-yellow/30 rounded-full">
+                    <FaCog className="h-3 w-3 text-sunglow-yellow" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-foreground">
+                      Function Fields:
+                    </span>
+                    <span className="text-xs text-foreground ml-1">
+                      Yellow inputs are auto-calculated
+                    </span>
+                  </div>
+                </div>
+              </DialogTitle>
+            </div>
             <div className="flex items-center gap-2">
               {/* Close Button */}
               <Button
@@ -1056,10 +1107,10 @@ export default function AddBookingModal({
           {/* Main Content */}
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide"
+            className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
           >
             {isLoadingColumns ? (
-              <Card className="bg-white shadow-sm border border-border/50">
+              <Card className="bg-background shadow-sm border border-border/50">
                 <CardContent className="p-6 text-center">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-crimson-red mx-auto mb-2"></div>
                   <p className="text-xs text-muted-foreground">Loading...</p>
@@ -1078,7 +1129,7 @@ export default function AddBookingModal({
                     <Card
                       key={parentTab}
                       id={`edit-tab-${parentTab}`}
-                      className="bg-white shadow-sm border border-border/50 scroll-mt-4"
+                      className="bg-background shadow-sm border border-border/50 scroll-mt-4"
                     >
                       <CardHeader className="pb-1 bg-crimson-red/10 border-2 border-crimson-red/20 border-red-500 py-1">
                         <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
@@ -1101,7 +1152,7 @@ export default function AddBookingModal({
                                   "flex items-center justify-between border border-purple-300 transition-colors",
                                   error && "bg-red-50/50",
                                   isFunction
-                                    ? "bg-yellow-50 hover:bg-yellow-100"
+                                    ? "bg-sunglow-yellow/20 hover:bg-sunglow-yellow/30 border-sunglow-yellow/30"
                                     : "hover:bg-muted/10"
                                 )}
                               >
@@ -1178,7 +1229,7 @@ export default function AddBookingModal({
         </div>
 
         {/* Footer with action buttons */}
-        <div className="sticky bottom-0 z-50 bg-white border-t border-border/50 px-6 py-4">
+        <div className="sticky bottom-0 z-50 bg-background border-t border-border/50 px-6 py-4">
           <div className="flex justify-end gap-3">
             <Button
               variant="outline"

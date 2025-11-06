@@ -119,4 +119,5 @@
  * - If D2=FALSE: ""
  */
 
-export default {}; // Empty export to make this a valid module
+const gmailDraftColumnGuide = {}; // Empty export to make this a valid module
+export default gmailDraftColumnGuide;

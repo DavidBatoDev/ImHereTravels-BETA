@@ -4,6 +4,7 @@ import { Timestamp } from "firebase/firestore";
 import { SheetColumn } from "@/types/sheet-management";
 import { bookingSheetColumnService } from "./booking-sheet-columns-service";
 import { bookingService } from "./booking-service";
+import { setImporting } from "./import-state";
 
 export interface CSVImportResult {
   success: boolean;
@@ -25,7 +26,7 @@ export interface ParsedCSVData {
 }
 
 export interface BookingDocument {
-  id: string;
+  id?: string; // Optional since it will be added after Firebase document creation
   createdAt: Timestamp;
   updatedAt: Timestamp;
   [key: string]: any;
@@ -206,20 +207,24 @@ class CSVImportService {
     parsedData: ParsedCSVData
   ): Promise<BookingDocument[]> {
     try {
-      // Fetch column metadata (excluding function types)
+      // Fetch ALL column metadata (including function types)
       const allColumns = await bookingSheetColumnService.getAllColumns();
-      const nonFunctionColumns = allColumns.filter(
-        (col) => col.dataType !== "function"
-      );
 
       console.log("📊 [CSV IMPORT] Column mapping:", {
         totalColumns: allColumns.length,
-        nonFunctionColumns: nonFunctionColumns.length,
         csvHeaders: parsedData.headers,
       });
 
-      // Create mapping from CSV headers to Firestore fields
-      const columnMapping = new Map<
+      // Separate non-function and function columns
+      const nonFunctionColumns = allColumns.filter(
+        (col) => col.dataType !== "function"
+      );
+      const functionColumns = allColumns.filter(
+        (col) => col.dataType === "function"
+      );
+
+      // Step 1: Map non-function columns first
+      const nonFunctionColumnMapping = new Map<
         number,
         { field: string; dataType: string }
       >();
@@ -232,7 +237,28 @@ class CSVImportService {
         );
 
         if (headerIndex !== -1) {
-          columnMapping.set(headerIndex, {
+          nonFunctionColumnMapping.set(headerIndex, {
+            field: column.id,
+            dataType: column.dataType,
+          });
+        }
+      });
+
+      // Step 2: Map function columns
+      const functionColumnMapping = new Map<
+        number,
+        { field: string; dataType: string }
+      >();
+
+      functionColumns.forEach((column) => {
+        const headerIndex = parsedData.headers.findIndex(
+          (header) =>
+            header.toLowerCase().trim() ===
+            column.columnName.toLowerCase().trim()
+        );
+
+        if (headerIndex !== -1) {
+          functionColumnMapping.set(headerIndex, {
             field: column.id,
             dataType: column.dataType,
           });
@@ -240,7 +266,15 @@ class CSVImportService {
       });
 
       console.log("📊 [CSV IMPORT] Column mapping created:", {
-        mappedColumns: Array.from(columnMapping.entries()).map(
+        nonFunctionColumns: Array.from(nonFunctionColumnMapping.entries()).map(
+          ([index, mapping]) => ({
+            csvIndex: index,
+            csvHeader: parsedData.headers[index],
+            firestoreField: mapping.field,
+            dataType: mapping.dataType,
+          })
+        ),
+        functionColumns: Array.from(functionColumnMapping.entries()).map(
           ([index, mapping]) => ({
             csvIndex: index,
             csvHeader: parsedData.headers[index],
@@ -254,20 +288,59 @@ class CSVImportService {
       const documents: BookingDocument[] = [];
       const now = Timestamp.now();
 
+      // For CSV import, use sequential row numbers starting from 1
+      // Gap-filling will be handled by the individual add booking functionality
+      console.log("🔍 [CSV IMPORT DEBUG]", {
+        totalRowsToImport: parsedData.rows.length,
+        rowNumbers: Array.from(
+          { length: parsedData.rows.length },
+          (_, i) => i + 1
+        ),
+      });
+
       for (let i = 0; i < parsedData.rows.length; i++) {
         const row = parsedData.rows[i];
-        const documentId = (i + 1).toString(); // Sequential IDs: "1", "2", "3"...
+        const rowNumber = i + 1; // Use sequential row numbers starting from 1
 
         const document: BookingDocument = {
-          id: documentId,
+          row: rowNumber, // Add row field for ordering
           createdAt: now,
           updatedAt: now,
         };
 
-        // Map CSV values to Firestore fields
-        columnMapping.forEach((mapping, csvIndex) => {
+        // Step 1: Map non-function columns first
+        nonFunctionColumnMapping.forEach((mapping, csvIndex) => {
           const cellValue = row[csvIndex];
           const convertedValue = this.convertValue(cellValue, mapping.dataType);
+          document[mapping.field] = convertedValue;
+        });
+
+        // Step 2: Map function columns after non-function columns
+        functionColumnMapping.forEach((mapping, csvIndex) => {
+          const cellValue = row[csvIndex];
+          // Store function column values as-is (don't apply type conversion except for currency)
+          let convertedValue;
+          if (mapping.dataType === "function") {
+            // For function columns, check if it looks like a currency value
+            if (cellValue && cellValue.toString().trim() !== "") {
+              const stringValue = cellValue.toString().trim();
+
+              // Check if it looks like a currency value and try to parse it
+              // Only parse as currency if it contains currency symbols like $, €, £, etc.
+              const hasCurrencySymbol = /[$€£¥₹₽¢₱₦₩₪₨₡₵₫﷼]/.test(stringValue);
+
+              if (hasCurrencySymbol) {
+                convertedValue = this.parseCurrencyValue(stringValue);
+              } else {
+                // Store as string for function columns
+                convertedValue = stringValue;
+              }
+            } else {
+              convertedValue = null;
+            }
+          } else {
+            convertedValue = this.convertValue(cellValue, mapping.dataType);
+          }
           document[mapping.field] = convertedValue;
         });
 
@@ -423,6 +496,14 @@ class CSVImportService {
         return stringValue;
 
       case "number":
+        // If the value contains any non-digit characters (except decimal points for pure numbers),
+        // keep it as a string to preserve formatting
+        if (
+          stringValue !== parseFloat(stringValue).toString() ||
+          stringValue.includes(",")
+        ) {
+          return stringValue;
+        }
         const numValue = parseFloat(stringValue);
         return isNaN(numValue) ? null : numValue;
 
@@ -492,9 +573,25 @@ class CSVImportService {
       for (let i = 0; i < documents.length; i += BATCH_SIZE) {
         const slice = documents.slice(i, i + BATCH_SIZE);
         await Promise.all(
-          slice.map(async (document) => {
-            const { id, ...documentData } = document;
-            await bookingService.createOrUpdateBooking(id, documentData);
+          slice.map(async (document, index) => {
+            // Create booking with Firebase auto-generated ID (empty object to get UID)
+            const newId = await bookingService.createBooking({});
+
+            // Ensure we have a valid ID
+            if (!newId) {
+              throw new Error(
+                `Failed to generate ID for document at index ${i + index}`
+              );
+            }
+
+            // Create the complete document with the generated ID
+            const documentWithId = {
+              ...document,
+              id: newId, // Use the Firebase-generated UID
+            };
+
+            // Update the document with all the data including the id field
+            await bookingService.updateBooking(newId, documentWithId);
           })
         );
       }
@@ -526,6 +623,8 @@ class CSVImportService {
    */
   async importCSV(file: File): Promise<CSVImportResult> {
     try {
+      // Mark importing to prevent function executions elsewhere
+      setImporting(true);
       // Step 1: Parse file
       const parseResult = await this.parseFile(file);
       if (!parseResult.success || !parseResult.data) {
@@ -558,6 +657,9 @@ class CSVImportService {
         message: "Import failed",
         error: error instanceof Error ? error.message : "Unknown error",
       };
+    } finally {
+      // Clear importing flag
+      setImporting(false);
     }
   }
 

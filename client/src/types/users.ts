@@ -34,8 +34,11 @@ export interface UserPermissions {
   canManageTours: boolean;
   canManageTemplates: boolean;
   canManageUsers: boolean; // Admins only
-  canAccessReports: boolean;
-  canEditFinancials: boolean; // Admins only
+  canManagePaymentTypes: boolean;
+  canManageStorage: boolean;
+  canManageFunctions: boolean;
+  canManageEmails: boolean;
+  canManageBcc: boolean;
 }
 
 export interface UserPreferences {

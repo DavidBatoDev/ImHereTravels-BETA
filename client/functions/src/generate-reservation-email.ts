@@ -19,8 +19,8 @@ const db = getFirestore();
 const gmailService = new GmailApiService();
 
 // Helper function to generate Gmail draft URL
-function getGmailDraftUrl(draftId: string): string {
-  return `https://mail.google.com/mail/u/0/#drafts/${draftId}`;
+function getGmailDraftUrl(draftId: string, messageId: string): string {
+  return `https://mail.google.com/mail/u/0/#drafts?compose=${messageId}`;
 }
 
 // Helper function to format GBP currency
@@ -111,10 +111,10 @@ async function getMainBookerByGroupId(groupId: string): Promise<string | null> {
   }
 }
 
-// Helper function to get BCC list (you can customize this)
-function getBCCList(): string[] {
-  // Return your BCC email addresses - removed Bella from BCC
-  return [];
+// Helper function to get BCC list from request or return empty array
+function getBCCList(bccFromRequest?: string[]): string[] {
+  // Use BCC list from request if provided, otherwise return empty array
+  return bccFromRequest || [];
 }
 
 // Main function to generate email draft
@@ -128,14 +128,16 @@ export const generateReservationEmail = onCall(
   },
   async (request) => {
     try {
-      const { bookingId, generateDraftCell } = request.data;
+      const { bookingId, generateDraftCell, bcc } = request.data;
 
       if (!bookingId) {
         throw new HttpsError("invalid-argument", "Booking ID is required");
       }
 
       logger.info(
-        `Processing email draft for booking: ${bookingId}, generateDraftCell: ${generateDraftCell}`
+        `Processing email draft for booking: ${bookingId}, generateDraftCell: ${generateDraftCell}, includeBCC: ${
+          bcc ? "yes" : "no"
+        }`
       );
 
       // If generateDraftCell is false, just return without doing anything
@@ -279,12 +281,21 @@ export const generateReservationEmail = onCall(
       logger.info(`Creating Gmail draft for booking: ${bookingId}`);
 
       try {
+        // Get BCC list from request
+        const bccList = getBCCList(bcc);
+
+        if (bccList.length > 0) {
+          logger.info(
+            `Including ${bccList.length} BCC recipients in email draft`
+          );
+        }
+
         // Create Gmail draft in Bella's account
         const gmailDraftResult = await gmailService.createDraft({
           to: email,
           subject: subject,
           htmlContent: processedHtml,
-          bcc: getBCCList(),
+          bcc: bccList,
           from: "Bella | ImHereTravels <bella@imheretravels.com>",
         });
 
@@ -292,8 +303,11 @@ export const generateReservationEmail = onCall(
           `Gmail draft created successfully: ${gmailDraftResult.draftId}`
         );
 
-        // Generate the Gmail draft URL
-        const draftUrl = getGmailDraftUrl(gmailDraftResult.draftId);
+        // Generate the Gmail draft URL using messageId for compose parameter
+        const draftUrl = getGmailDraftUrl(
+          gmailDraftResult.draftId,
+          gmailDraftResult.messageId
+        );
 
         return {
           success: true,

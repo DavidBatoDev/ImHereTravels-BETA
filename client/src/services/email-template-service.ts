@@ -20,17 +20,13 @@ import {
   Unsubscribe,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import {
-  CommunicationTemplate,
-  TemplateStatus,
-  VariableDefinition,
-} from "@/types/communications";
+import { MailTemplate, TemplateStatus, VariableDefinition } from "@/types/mail";
 import nunjucks from "nunjucks";
 
 // Collection reference
 const COLLECTION_NAME = "emailTemplates";
 
-// Variable definition types are now imported from @/types/communications
+// Variable definition types are now imported from @/types/mail
 
 export interface CreateTemplateData {
   name: string;
@@ -142,7 +138,7 @@ export class EmailTemplateService {
   /**
    * Get a single template by ID
    */
-  static async getTemplate(id: string): Promise<CommunicationTemplate | null> {
+  static async getTemplate(id: string): Promise<MailTemplate | null> {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
       const docSnap = await getDoc(docRef);
@@ -150,8 +146,8 @@ export class EmailTemplateService {
       if (docSnap.exists()) {
         const data = docSnap.data();
 
-        // Transform the data to match CommunicationTemplate interface
-        const template: CommunicationTemplate = {
+        // Transform the data to match MailTemplate interface
+        const template: MailTemplate = {
           id: docSnap.id,
           name: data.name || "",
           subject: data.subject || "",
@@ -181,7 +177,7 @@ export class EmailTemplateService {
    * Get all templates with optional filtering and pagination
    */
   static async getTemplates(options: TemplateQueryOptions = {}): Promise<{
-    templates: CommunicationTemplate[];
+    templates: MailTemplate[];
     lastDoc?: any;
     hasMore: boolean;
     total: number;
@@ -216,13 +212,13 @@ export class EmailTemplateService {
       }
 
       const querySnapshot = await getDocs(q);
-      const templates: CommunicationTemplate[] = [];
+      const templates: MailTemplate[] = [];
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
 
-        // Transform the data to match CommunicationTemplate interface
-        const template: CommunicationTemplate = {
+        // Transform the data to match MailTemplate interface
+        const template: MailTemplate = {
           id: doc.id,
           name: data.name || "",
           subject: data.subject || "",
@@ -422,9 +418,7 @@ export class EmailTemplateService {
   /**
    * Get templates by type
    */
-  static async getTemplatesByType(
-    type: string
-  ): Promise<CommunicationTemplate[]> {
+  static async getTemplatesByType(type: string): Promise<MailTemplate[]> {
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
@@ -433,13 +427,13 @@ export class EmailTemplateService {
       );
 
       const querySnapshot = await getDocs(q);
-      const templates: CommunicationTemplate[] = [];
+      const templates: MailTemplate[] = [];
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
 
-        // Transform the data to match CommunicationTemplate interface
-        const template: CommunicationTemplate = {
+        // Transform the data to match MailTemplate interface
+        const template: MailTemplate = {
           id: doc.id,
           name: data.name || "",
           subject: data.subject || "",
@@ -610,7 +604,7 @@ export class EmailTemplateService {
    */
   static validatePartialUpdate(
     updateData: Partial<CreateTemplateData>,
-    existingTemplate: CommunicationTemplate
+    existingTemplate: MailTemplate
   ): TemplateValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -692,7 +686,7 @@ export class EmailTemplateService {
     searchTerm: string,
     options: Omit<TemplateQueryOptions, "filters"> = {}
   ): Promise<{
-    templates: CommunicationTemplate[];
+    templates: MailTemplate[];
     lastDoc?: any;
     hasMore: boolean;
     total: number;
@@ -718,7 +712,7 @@ export class EmailTemplateService {
     userId: string,
     options: Omit<TemplateQueryOptions, "filters"> = {}
   ): Promise<{
-    templates: CommunicationTemplate[];
+    templates: MailTemplate[];
     lastDoc?: any;
     hasMore: boolean;
     total: number;
@@ -738,7 +732,7 @@ export class EmailTemplateService {
    * Subscribe to real-time template updates
    */
   static subscribeToTemplates(
-    callback: (templates: CommunicationTemplate[]) => void,
+    callback: (templates: MailTemplate[]) => void,
     options: TemplateQueryOptions = {}
   ): Unsubscribe {
     try {
@@ -768,10 +762,10 @@ export class EmailTemplateService {
       }
 
       return onSnapshot(q, (querySnapshot) => {
-        const templates: CommunicationTemplate[] = [];
+        const templates: MailTemplate[] = [];
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          const template: CommunicationTemplate = {
+          const template: MailTemplate = {
             id: doc.id,
             name: data.name,
             subject: data.subject,

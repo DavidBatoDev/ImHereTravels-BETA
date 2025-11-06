@@ -229,7 +229,7 @@ const scheduledEmail = await scheduleEmail({
 
 ### Automatic Processing
 
-- Emails are automatically processed every minute via Cloud Scheduler
+- Emails are automatically processed daily at 9 AM via Cloud Scheduler
 - Failed emails are retried up to the specified maximum attempts
 - Comprehensive status tracking (pending, sent, failed, cancelled)
 
@@ -241,6 +241,83 @@ const scheduledEmail = await scheduleEmail({
 - `getScheduledEmails` - Retrieve scheduled emails with filtering
 - `processScheduledEmails` - Cloud Scheduler function (runs automatically)
 - `triggerScheduledEmailProcessing` - Manual processing trigger for testing
+
+## Payment Reminder System
+
+### Automatic Payment Reminders
+
+The system includes an automated payment reminder feature that triggers when the "Enable Payment Reminder" checkbox is checked on a booking:
+
+**Firestore Trigger: `onPaymentReminderEnabled`**
+
+When enabled, the system automatically:
+
+1. **Sends an Initial Summary Email**
+
+   - Lists all payment terms (P1-P4) with amounts and due dates
+   - Displays the payment plan and payment method
+   - Shows the remaining balance
+   - Confirms that reminders are set up
+
+2. **Creates Scheduled Reminder Emails**
+   - Automatically schedules reminder emails for each payment term (P1-P4)
+   - Emails are scheduled based on the "Px Scheduled Reminder Date" columns
+   - Uses the "Scheduled Reminder Email" template
+   - Sends reminders 3 days before each payment due date
+
+### How It Works
+
+1. **Booking Setup**
+
+   - Admin fills in Payment Plan (P1, P2, P3, or P4)
+   - Admin fills in Payment Method
+   - Admin sets due dates and amounts for each term
+   - Admin sets scheduled reminder dates (typically 3 days before due dates)
+
+2. **Enable Reminders**
+
+   - Admin checks the "Enable Payment Reminder" checkbox
+   - Trigger fires automatically
+
+3. **Email Processing**
+
+   - Initial email sent immediately via Gmail API
+   - Link stored in "Sent Initial Reminder Link" column
+   - Scheduled emails created in `scheduledEmails` collection
+   - Scheduled email IDs stored in "Px Scheduled Email Link" columns
+
+4. **Automatic Sending**
+   - Daily at 9 AM, `processScheduledEmails` runs
+   - Checks for emails where `scheduledFor <= now`
+   - Sends pending payment reminders
+   - Updates booking with actual Gmail sent link
+
+### Subject Line Generation
+
+Subject lines automatically adapt based on payment plan and term:
+
+- **P1 (Single Payment)**: "Reminder – Your Final Installment for [Tour] is Due on [Date]"
+- **P2 (Two Payments)**:
+  - P1: "Your 1st Installment for [Tour] is Due on [Date]"
+  - P2: "Reminder – Your Final Installment for [Tour] is Due on [Date]"
+- **P3 (Three Payments)**:
+  - P1: "Your 1st Installment for [Tour] is Due on [Date]"
+  - P2: "Reminder – Your 2nd Installment for [Tour] is Due on [Date]"
+  - P3: "Reminder – Your Final Installment for [Tour] is Due on [Date]"
+- **P4 (Four Payments)**:
+  - P1: "Your 1st Installment for [Tour] is Due on [Date]"
+  - P2: "Reminder – Your 2nd Installment for [Tour] is Due on [Date]"
+  - P3: "Reminder – Your 3rd Installment for [Tour] is Due on [Date]"
+  - P4: "Reminder – Your Final Installment for [Tour] is Due on [Date]"
+
+### Error Handling
+
+The system includes comprehensive error handling:
+
+- If Payment Plan or Method is missing, the trigger logs a warning and exits
+- If initial email fails, scheduled emails are still created
+- If scheduled email creation fails for one term, others continue processing
+- Duplicate prevention: Checks for existing emails before sending/scheduling
 
 ### Frontend Integration
 
@@ -305,14 +382,18 @@ After setup, your functions directory should look like this:
 ```
 functions/
 ├── src/
-│   ├── gmail-api-service.ts      # Gmail API wrapper
-│   ├── gmail-functions.ts        # Firebase functions
-│   └── send-reservation-email.ts # Updated email sender
-├── .env                          # Your environment variables
-├── .env.example                  # Template file
-├── generate-gmail-token.mjs      # Token generation script
-├── GMAIL_API_SETUP.md           # Detailed setup guide
-└── README.md                    # This file
+│   ├── gmail-api-service.ts           # Gmail API wrapper
+│   ├── email-template-service.ts      # Email template processor
+│   ├── send-reservation-email.ts      # Reservation email sender
+│   ├── send-cancellation-email.ts     # Cancellation email sender
+│   ├── scheduled-emails.ts            # Scheduled email processor (runs daily at 9 AM)
+│   ├── payment-reminder-trigger.ts    # Payment reminder automation (NEW)
+│   └── index.ts                       # Function exports
+├── .env                               # Your environment variables
+├── .env.example                       # Template file
+├── generate-gmail-token.mjs           # Token generation script
+├── GMAIL_API_SETUP.md                # Detailed setup guide
+└── README.md                         # This file
 ```
 
 ## Next Steps

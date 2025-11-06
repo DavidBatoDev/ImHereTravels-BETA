@@ -139,7 +139,7 @@ function VerifyEmailContent() {
                   />
                 </div>
                 <span className="text-gray-900 font-hk-grotesk text-xl font-semibold">
-                  I&apos;m Here Travels
+                  I&apos;mHereTravels
                 </span>
               </div>
             </div>

@@ -29,7 +29,6 @@ type AsyncCompiledFn = (...args: any[]) => Promise<any>;
 const LOG_FUNCTION_ERRORS = false;
 const logFunctionError = (...args: any[]) => {
   if (LOG_FUNCTION_ERRORS) {
-    // eslint-disable-next-line no-console
     console.error(...args);
   }
 };
@@ -40,12 +39,16 @@ class FunctionExecutionService {
     string,
     { result: any; timestamp: number; executionTime: number }
   > = new Map();
-  private readonly RESULT_CACHE_TTL = 30000; // 30 seconds cache TTL
+  private readonly RESULT_CACHE_TTL = 300000; // 5 minutes cache TTL for recompute operations
+  private readonly ARGS_CACHE_TTL = 60000; // 1 minute cache TTL for argument-based caching
+  private argsCache: Map<string, { args: any[]; timestamp: number }> =
+    new Map();
 
   // Invalidate a single compiled function by its ts_file id
   invalidate(fileId: string): void {
     this.cache.delete(fileId);
     this.clearResultCache(fileId);
+    this.clearArgsCache(fileId);
   }
 
   // Invalidate multiple compiled functions at once
@@ -53,6 +56,7 @@ class FunctionExecutionService {
     for (const id of fileIds) {
       this.cache.delete(id);
       this.clearResultCache(id);
+      this.clearArgsCache(id);
     }
   }
 
@@ -60,6 +64,7 @@ class FunctionExecutionService {
   clearAll(): void {
     this.cache.clear();
     this.resultCache.clear();
+    this.argsCache.clear();
   }
 
   // Clear result cache for a specific function
@@ -75,6 +80,19 @@ class FunctionExecutionService {
     this.resultCache.clear();
   }
 
+  // Clear argument cache for a specific function
+  clearArgsCache(fileId: string): void {
+    const keysToDelete = Array.from(this.argsCache.keys()).filter((key) =>
+      key.startsWith(`${fileId}:`)
+    );
+    keysToDelete.forEach((key) => this.argsCache.delete(key));
+  }
+
+  // Clear all argument cache
+  clearAllArgsCache(): void {
+    this.argsCache.clear();
+  }
+
   // Generate cache key for function execution
   private generateCacheKey(fileId: string, args: any[]): string {
     const argsString = JSON.stringify(args);
@@ -84,6 +102,38 @@ class FunctionExecutionService {
   // Check if cached result is still valid
   private isCacheValid(timestamp: number): boolean {
     return Date.now() - timestamp < this.RESULT_CACHE_TTL;
+  }
+
+  // Check if arguments have changed for a function call
+  private haveArgsChanged(fileId: string, args: any[]): boolean {
+    const argsKey = `${fileId}:args`;
+    const cached = this.argsCache.get(argsKey);
+
+    if (!cached) {
+      this.argsCache.set(argsKey, { args: [...args], timestamp: Date.now() });
+      return true;
+    }
+
+    // Check if cache is still valid
+    if (Date.now() - cached.timestamp > this.ARGS_CACHE_TTL) {
+      this.argsCache.set(argsKey, { args: [...args], timestamp: Date.now() });
+      return true;
+    }
+
+    // Check if arguments are different
+    if (cached.args.length !== args.length) {
+      this.argsCache.set(argsKey, { args: [...args], timestamp: Date.now() });
+      return true;
+    }
+
+    for (let i = 0; i < args.length; i++) {
+      if (cached.args[i] !== args[i]) {
+        this.argsCache.set(argsKey, { args: [...args], timestamp: Date.now() });
+        return true;
+      }
+    }
+
+    return false;
   }
 
   // Execute a function with proper async handling and timeout
@@ -98,6 +148,25 @@ class FunctionExecutionService {
     executionTime?: number;
   }> {
     const startTime = performance.now();
+
+    // Check if arguments have changed - if not, skip execution entirely
+    if (!this.haveArgsChanged(fileId, args)) {
+      const cacheKey = this.generateCacheKey(fileId, args);
+      const cachedResult = this.resultCache.get(cacheKey);
+
+      if (cachedResult && this.isCacheValid(cachedResult.timestamp)) {
+        console.log(
+          `🚀 [SKIP EXECUTION] Function ${fileId} with unchanged args [${args.join(
+            ", "
+          )}] - returning cached result`
+        );
+        return {
+          success: true,
+          result: cachedResult.result,
+          executionTime: 0, // No execution time for cached results
+        };
+      }
+    }
 
     // Check result cache first
     const cacheKey = this.generateCacheKey(fileId, args);
@@ -119,7 +188,6 @@ class FunctionExecutionService {
     // Optionally suppress console.error during user function execution
     const originalConsoleError = console.error;
     if (!LOG_FUNCTION_ERRORS) {
-      // eslint-disable-next-line no-console
       (console as any).error = () => {};
     }
 
@@ -181,7 +249,6 @@ class FunctionExecutionService {
       };
     } finally {
       // Restore console.error regardless of outcome
-      // eslint-disable-next-line no-console
       (console as any).error = originalConsoleError;
     }
   }
@@ -206,7 +273,7 @@ class FunctionExecutionService {
   }
 
   // Detect if a function is async (basic detection)
-  private isFunctionAsync(fn: Function): boolean {
+  private isFunctionAsync(fn: (...args: any[]) => any): boolean {
     // Check function string representation for async keyword
     const fnString = fn.toString();
     return fnString.includes("async") || fnString.includes("await");
@@ -310,6 +377,10 @@ class FunctionExecutionService {
           if (refName === "ID") {
             return row.id;
           }
+          // Special case: "Row" refers to the row number
+          if (refName === "Row") {
+            return row.row;
+          }
           const refCol = refName ? columnsByName.get(refName) : undefined;
           return refCol ? row[refCol.id] : undefined;
         });
@@ -321,6 +392,10 @@ class FunctionExecutionService {
         // Special case: "ID" refers to the document ID
         if (arg.columnReference === "ID") {
           return row.id;
+        }
+        // Special case: "Row" refers to the row number
+        if (arg.columnReference === "Row") {
+          return row.row;
         }
         const refCol = columnsByName.get(arg.columnReference);
         const value = refCol ? row[refCol.id] : undefined;

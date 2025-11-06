@@ -574,8 +574,8 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
         column.arguments.forEach((arg) => {
           // Check for single column reference by column name
           if (arg.columnReference) {
-            // Skip "ID" reference since it's not a column dependency
-            if (arg.columnReference !== "ID") {
+            // Skip "ID" and "Row" references since they're not column dependencies
+            if (arg.columnReference !== "ID" && arg.columnReference !== "Row") {
               const refColumn = columns.find(
                 (c) => c.columnName === arg.columnReference
               );
@@ -588,8 +588,8 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
           // Check for multiple column references by column name
           if (arg.columnReferences && Array.isArray(arg.columnReferences)) {
             arg.columnReferences.forEach((refName) => {
-              // Skip "ID" reference since it's not a column dependency
-              if (refName !== "ID") {
+              // Skip "ID" and "Row" references since they're not column dependencies
+              if (refName !== "ID" && refName !== "Row") {
                 const refColumn = columns.find((c) => c.columnName === refName);
                 if (refColumn) {
                   dependencies.push(refColumn.id);

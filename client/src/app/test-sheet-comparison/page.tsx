@@ -50,7 +50,7 @@ export default function TestSheetComparison() {
               deleteColumn={() => {}}
               updateData={() => {}}
               updateRow={() => {}}
-              deleteRow={() => {}}
+              deleteRow={async () => {}}
               availableFunctions={[]}
             />
           )}

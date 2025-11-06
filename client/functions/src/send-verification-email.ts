@@ -1,9 +1,10 @@
 import { onCall } from "firebase-functions/v2/https";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import * as nodemailer from "nodemailer";
 import * as crypto from "crypto";
+import * as nodemailer from "nodemailer";
 import { EmailTemplateLoader } from "./email-template-loader";
+import { GmailApiService } from "./gmail-api-service";
 
 // Initialize Firebase Admin if not already initialized
 if (getApps().length === 0) {
@@ -86,32 +87,55 @@ export const sendVerificationEmail = onCall(
         `,
       };
 
-      // Send email using Gmail SMTP
-      const transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.GMAIL_USER,
-          pass: process.env.GMAIL_APP_PASSWORD,
-        },
-      });
+      // Try Gmail API first, fallback to SMTP if it fails
+      let emailResult;
+      let messageId;
 
-      const mailOptions = {
-        from: process.env.GMAIL_USER,
-        to: email,
-        subject: emailContent.subject,
-        html: emailContent.html,
-        text: emailContent.text,
-      };
+      try {
+        // Try Gmail API first
+        const gmailService = new GmailApiService();
 
-      const info = await transporter.sendMail(mailOptions);
+        emailResult = await gmailService.sendEmail({
+          to: email,
+          subject: emailContent.subject,
+          htmlContent: emailContent.html,
+          from: "Bella | ImHereTravels <bella@imheretravels.com>",
+        });
+
+        messageId = emailResult.messageId;
+        console.log("Email sent successfully via Gmail API:", messageId);
+      } catch (gmailError) {
+        console.warn("Gmail API failed, falling back to SMTP:", gmailError);
+
+        // Fallback to Gmail SMTP
+        const transporter = nodemailer.createTransport({
+          host: "smtp.gmail.com",
+          port: 587,
+          secure: false,
+          auth: {
+            user: process.env.GMAIL_USER,
+            pass: process.env.GMAIL_APP_PASSWORD,
+          },
+        });
+
+        const mailOptions = {
+          from: process.env.GMAIL_USER,
+          to: email,
+          subject: emailContent.subject,
+          html: emailContent.html,
+          text: emailContent.text,
+        };
+
+        const smtpResult = await transporter.sendMail(mailOptions);
+        messageId = smtpResult.messageId;
+        console.log("Email sent successfully via SMTP:", messageId);
+      }
 
       // Log email sent
       await verificationRef.update({
         emailSent: true,
         emailSentAt: new Date(),
-        messageId: info.messageId,
+        messageId: messageId,
       });
 
       return {

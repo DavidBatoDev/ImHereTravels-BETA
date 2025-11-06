@@ -223,8 +223,8 @@ const tour = await firebaseUtils.getCollectionData('tourPackages', [
       ],
     },
     {
-      name: "bbc-users",
-      description: "BBC (Backend Business Center) user accounts",
+      name: "bcc-users",
+      description: "BCC (Blind Carbon Copy) user accounts",
       useCases: [
         "User authentication",
         "Role-based access",
@@ -244,15 +244,15 @@ const tour = await firebaseUtils.getCollectionData('tourPackages', [
         permissions: "string[]",
       },
       exampleCode: `// Get all users
-const users = await firebaseUtils.getCollectionData('bbc-users');
+const users = await firebaseUtils.getCollectionData('bcc-users');
 
 // Get admin users
-const admins = await firebaseUtils.getCollectionData('bbc-users', [
+const admins = await firebaseUtils.getCollectionData('bcc-users', [
   where('role', '==', 'admin')
 ]);
 
 // Get active users
-const activeUsers = await firebaseUtils.getCollectionData('bbc-users', [
+const activeUsers = await firebaseUtils.getCollectionData('bcc-users', [
   where('isActive', '==', true)
 ]);`,
       exampleOutput: `[
@@ -652,11 +652,11 @@ const activeTemplates = await firebaseUtils.getCollectionData('emailTemplates', 
                                 range.
                               </p>
                             )}
-                            {collection.name === "bbc-users" && (
+                            {collection.name === "bcc-users" && (
                               <p>
                                 The{" "}
                                 <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded text-gray-800 dark:text-gray-200">
-                                  bbc-users
+                                  bcc-users
                                 </code>{" "}
                                 collection manages your internal staff and admin
                                 accounts. This includes user roles, permissions,
@@ -763,7 +763,7 @@ const activeTemplates = await firebaseUtils.getCollectionData('emailTemplates', 
                                 </li>
                               </ul>
                             )}
-                            {collection.name === "bbc-users" && (
+                            {collection.name === "bcc-users" && (
                               <ul className="space-y-1">
                                 <li>
                                   • <strong>Access control:</strong> When you

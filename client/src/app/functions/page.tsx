@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import FunctionsCenter from "@/components/functions/FunctionsCenter";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
 export const metadata: Metadata = {
   title: "Functions - ImHereTravels Admin",
@@ -10,7 +11,9 @@ export const metadata: Metadata = {
 export default function FunctionsPage() {
   return (
     <DashboardLayout>
-      <FunctionsCenter />
+      <PermissionGuard permission="canManageFunctions">
+        <FunctionsCenter />
+      </PermissionGuard>
     </DashboardLayout>
   );
 }

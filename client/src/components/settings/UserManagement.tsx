@@ -43,6 +43,10 @@ import {
   Search,
   RefreshCw,
   MapPin,
+  Database,
+  Settings,
+  Mail,
+  Copy,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -158,6 +162,11 @@ export default function UserManagement() {
   };
 
   const filteredUsers = users.filter((user) => {
+    // Exclude super admin
+    if (user.email === "admin@imheretravels.com") {
+      return false;
+    }
+
     const matchesSearch =
       user.profile?.firstName
         ?.toLowerCase()
@@ -318,7 +327,7 @@ export default function UserManagement() {
                       key={user.id}
                       className="border-b border-royal-purple/20 dark:border-border transition-colors duration-200 hover:bg-royal-purple/5"
                     >
-                      <TableCell>
+                      <TableCell className="py-4">
                         <div className="flex items-center space-x-3">
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={user.profile?.avatar} />
@@ -337,7 +346,7 @@ export default function UserManagement() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-4">
                         <Badge
                           variant={
                             user.role === "admin" ? "destructive" : "secondary"
@@ -351,7 +360,7 @@ export default function UserManagement() {
                           {user.role}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-4">
                         <div className="flex items-center space-x-2">
                           <Switch
                             checked={user.isApproved}
@@ -365,7 +374,7 @@ export default function UserManagement() {
                           </Label>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-4">
                         <div className="space-y-3">
                           {!user.isApproved && (
                             <div className="mb-2 p-2 bg-sunglow-yellow/20 border border-sunglow-yellow/30 rounded-md">
@@ -408,7 +417,7 @@ export default function UserManagement() {
                               <div className="flex items-center space-x-2">
                                 <MapPin className="h-4 w-4 text-spring-green" />
                                 <Label className="text-xs font-medium text-foreground">
-                                  Tours
+                                  Tour Packages
                                 </Label>
                               </div>
                               <Switch
@@ -435,7 +444,7 @@ export default function UserManagement() {
                               <div className="flex items-center space-x-2">
                                 <MessageSquare className="h-4 w-4 text-royal-purple" />
                                 <Label className="text-xs font-medium text-foreground">
-                                  Communications
+                                  Email Templates
                                 </Label>
                               </div>
                               <Switch
@@ -457,24 +466,24 @@ export default function UserManagement() {
                               />
                             </div>
 
-                            {/* Reports Permission */}
+                            {/* Payment Types Permission */}
                             <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-royal-purple/20 dark:border-border">
                               <div className="flex items-center space-x-2">
-                                <BarChart3 className="h-4 w-4 text-royal-purple" />
+                                <CreditCard className="h-4 w-4 text-spring-green" />
                                 <Label className="text-xs font-medium text-foreground">
-                                  Reports
+                                  Payment Types
                                 </Label>
                               </div>
                               <Switch
                                 checked={
                                   user.isApproved
-                                    ? user.permissions.canAccessReports
+                                    ? user.permissions.canManagePaymentTypes
                                     : false
                                 }
                                 onCheckedChange={(checked) =>
                                   togglePermission(
                                     user.id,
-                                    "canAccessReports",
+                                    "canManagePaymentTypes",
                                     checked
                                   )
                                 }
@@ -484,24 +493,78 @@ export default function UserManagement() {
                               />
                             </div>
 
-                            {/* Financials Permission */}
+                            {/* Storage Permission */}
                             <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-royal-purple/20 dark:border-border">
                               <div className="flex items-center space-x-2">
-                                <CreditCard className="h-4 w-4 text-spring-green" />
+                                <Database className="h-4 w-4 text-spring-green" />
                                 <Label className="text-xs font-medium text-foreground">
-                                  Financials
+                                  Storage
                                 </Label>
                               </div>
                               <Switch
                                 checked={
                                   user.isApproved
-                                    ? user.permissions.canEditFinancials
+                                    ? user.permissions.canManageStorage
                                     : false
                                 }
                                 onCheckedChange={(checked) =>
                                   togglePermission(
                                     user.id,
-                                    "canEditFinancials",
+                                    "canManageStorage",
+                                    checked
+                                  )
+                                }
+                                disabled={
+                                  !user.isApproved || updatingUser === user.id
+                                }
+                              />
+                            </div>
+
+                            {/* Functions Permission */}
+                            <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-royal-purple/20 dark:border-border">
+                              <div className="flex items-center space-x-2">
+                                <Settings className="h-4 w-4 text-spring-green" />
+                                <Label className="text-xs font-medium text-foreground">
+                                  Functions
+                                </Label>
+                              </div>
+                              <Switch
+                                checked={
+                                  user.isApproved
+                                    ? user.permissions.canManageFunctions
+                                    : false
+                                }
+                                onCheckedChange={(checked) =>
+                                  togglePermission(
+                                    user.id,
+                                    "canManageFunctions",
+                                    checked
+                                  )
+                                }
+                                disabled={
+                                  !user.isApproved || updatingUser === user.id
+                                }
+                              />
+                            </div>
+
+                            {/* Email Management Permission */}
+                            <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-royal-purple/20 dark:border-border">
+                              <div className="flex items-center space-x-2">
+                                <Mail className="h-4 w-4 text-spring-green" />
+                                <Label className="text-xs font-medium text-foreground">
+                                  Email Management
+                                </Label>
+                              </div>
+                              <Switch
+                                checked={
+                                  user.isApproved
+                                    ? user.permissions.canManageEmails
+                                    : false
+                                }
+                                onCheckedChange={(checked) =>
+                                  togglePermission(
+                                    user.id,
+                                    "canManageEmails",
                                     checked
                                   )
                                 }
@@ -529,6 +592,33 @@ export default function UserManagement() {
                                   togglePermission(
                                     user.id,
                                     "canManageUsers",
+                                    checked
+                                  )
+                                }
+                                disabled={
+                                  !user.isApproved || updatingUser === user.id
+                                }
+                              />
+                            </div>
+
+                            {/* BCC Management Permission */}
+                            <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-royal-purple/20 dark:border-border">
+                              <div className="flex items-center space-x-2">
+                                <Copy className="h-4 w-4 text-spring-green" />
+                                <Label className="text-xs font-medium text-foreground">
+                                  BCC Management
+                                </Label>
+                              </div>
+                              <Switch
+                                checked={
+                                  user.isApproved
+                                    ? user.permissions.canManageBcc
+                                    : false
+                                }
+                                onCheckedChange={(checked) =>
+                                  togglePermission(
+                                    user.id,
+                                    "canManageBcc",
                                     checked
                                   )
                                 }

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+import { RefreshCw } from "lucide-react";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -45,6 +46,12 @@ export default function AuthGuard({ children, fallback }: AuthGuardProps) {
     }
   }, [isAuthenticated, isLoading, isInitialized, router]);
 
+  // Handle refresh button click
+  const handleRefresh = () => {
+    // Refresh the browser to check for updated user status
+    window.location.reload();
+  };
+
   // Show loading screen only on initial load, not during navigation
   if (isLoading && !isInitialized) {
     return (
@@ -78,6 +85,16 @@ export default function AuthGuard({ children, fallback }: AuthGuardProps) {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-lg">
           <div className="text-center">
+            {/* Logo */}
+            <div className="flex justify-center mb-6">
+              <div className="w-12 h-12">
+                <img
+                  src="/logos/Logo_Red.svg"
+                  alt="I'm Here Travels Logo"
+                  className="w-full h-full"
+                />
+              </div>
+            </div>
             <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg
                 className="w-8 h-8 text-yellow-600"
@@ -106,20 +123,27 @@ export default function AuthGuard({ children, fallback }: AuthGuardProps) {
                 <strong>What happens next?</strong>
                 <br />
                 • An administrator will review your application
-                <br />
-                • You&apos;ll receive an email notification once approved
                 <br />• You can then sign in and access the dashboard
               </p>
             </div>
-            <button
-              onClick={() => {
-                // Sign out the user since they can't access the dashboard
-                window.location.href = "/auth/admin/login";
-              }}
-              className="w-full bg-crimson-red hover:bg-light-red text-white font-medium py-2 px-4 rounded-lg transition-colors"
-            >
-              Return to Login
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={handleRefresh}
+                className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh Page
+              </button>
+              <button
+                onClick={() => {
+                  // Sign out the user since they can't access the dashboard
+                  window.location.href = "/auth/admin/login";
+                }}
+                className="w-full bg-secondary hover:bg-secondary/90 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+              >
+                Return to Login
+              </button>
+            </div>
           </div>
         </div>
       </div>

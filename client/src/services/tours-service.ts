@@ -43,7 +43,7 @@ interface TourFormDataWithStringDates {
   tourCode: string;
   description: string;
   location: string;
-  duration: number;
+  duration: string;
   travelDates: {
     startDate: string;
     endDate: string;
@@ -390,6 +390,8 @@ export async function updateTour(
       "metadata.updatedAt": now,
     };
 
+    // Duration is already a string, no conversion needed
+
     // Convert travelDates if they're being updated
     if (updates.travelDates) {
       updateData.travelDates = convertTravelDatesToTimestamps(
@@ -561,6 +563,8 @@ export async function batchUpdateTours(
         "metadata.updatedAt": Timestamp.now(),
       };
 
+      // Duration is already a string, no conversion needed
+
       // Convert travelDates if they're being updated
       if (data.travelDates) {
         updateData.travelDates = convertTravelDatesToTimestamps(
@@ -626,8 +630,19 @@ export function validateTourData(data: TourFormDataWithStringDates): string[] {
     errors.push("Location is required");
   }
 
-  if (!data.duration || data.duration < 1) {
+  if (!data.duration || data.duration.trim().length === 0) {
     errors.push("Duration must be at least 1 day");
+  } else {
+    // Extract number from "X days" format
+    const durationMatch = data.duration.match(/(\d+)/);
+    if (durationMatch) {
+      const durationNumber = parseInt(durationMatch[1]);
+      if (durationNumber < 1) {
+        errors.push("Duration must be at least 1 day");
+      }
+    } else {
+      errors.push("Duration must be in format 'X days'");
+    }
   }
 
   if (!data.travelDates || data.travelDates.length === 0) {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import AuthGuard from "@/components/auth/AuthGuard";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -30,11 +30,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Main content */}
         <div
           className={`transition-all duration-300 ${
-            sidebarCollapsed ? "lg:pl-20" : "lg:pl-64"
+            sidebarCollapsed ? "lg:pl-28" : "lg:pl-72 "
           }`}
         >
           {/* Mobile header - only for sidebar toggle */}
-          <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-white px-4 shadow-sm lg:hidden">
+          <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm lg:hidden">
             <Button
               variant="ghost"
               size="sm"
@@ -56,6 +56,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </main>
         </div>
+
+        {/* Fixed floating hamburger menu - only show when sidebar is collapsed on desktop */}
+        {sidebarCollapsed && (
+          <div className="fixed top-4 left-[88px] z-50 hidden lg:block">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSidebarCollapsed(false)}
+              className="bg-background border-border hover:bg-muted shadow-lg"
+              title="Open sidebar"
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
         {/* Fixed floating theme toggle */}
         <div className="fixed top-4 right-4 z-50">

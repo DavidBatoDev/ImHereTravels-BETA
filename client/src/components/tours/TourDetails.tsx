@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,8 @@ interface TourDetailsProps {
   onEdit?: (tour: TourPackage) => void;
   onArchive?: (tour: TourPackage) => void;
   onDelete?: (tour: TourPackage) => void;
+  router?: ReturnType<typeof useRouter>;
+  searchParams?: ReturnType<typeof useSearchParams>;
 }
 
 export default function TourDetails({
@@ -56,6 +59,8 @@ export default function TourDetails({
   onEdit,
   onArchive,
   onDelete,
+  router,
+  searchParams,
 }: TourDetailsProps) {
   if (!tour) return null;
 
@@ -78,49 +83,73 @@ export default function TourDetails({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] p-0 bg-background">
-        <DialogHeader className="px-8 pt-8 pb-6 bg-gradient-to-r from-crimson-red to-light-red text-white rounded-t-lg">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <DialogTitle className="text-3xl font-bold text-white mb-2">
-                {tour.name}
-              </DialogTitle>
-              <DialogDescription className="text-white/90 text-lg">
-                {tour.description}
-              </DialogDescription>
-              <div className="flex items-center gap-4 mt-4 text-white/90">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-white" />
-                  <span className="font-medium">{tour.location}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Hash className="w-5 h-5 text-white" />
-                  <span className="font-medium">{tour.tourCode}</span>
+      <DialogContent className="max-w-6xl h-[95vh] p-0 bg-background flex flex-col">
+        <DialogHeader className="relative px-8 pt-8 pb-6 text-white rounded-t-lg overflow-hidden flex-shrink-0">
+          {/* Blurred Background Image */}
+          {tour.media?.coverImage && (
+            <div className="absolute inset-0 z-0">
+              <div
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110"
+                style={{
+                  backgroundImage: `url(${tour.media.coverImage})`,
+                  filter: "blur(20px)",
+                }}
+              />
+              <div className="absolute inset-0 bg-black/60" />
+            </div>
+          )}
+
+          {/* Fallback gradient background when no cover image */}
+          {!tour.media?.coverImage && (
+            <div className="absolute inset-0 bg-gradient-to-r from-crimson-red to-light-red" />
+          )}
+
+          {/* Content with proper z-index */}
+          <div className="relative z-10">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <DialogTitle className="text-3xl font-bold text-white mb-2 drop-shadow-lg">
+                  {tour.name}
+                </DialogTitle>
+                <DialogDescription className="text-white/90 text-lg drop-shadow-md">
+                  {tour.description}
+                </DialogDescription>
+                <div className="flex items-center gap-4 mt-4 text-white/90">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-white drop-shadow-sm" />
+                    <span className="font-medium">{tour.location}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Hash className="w-5 h-5 text-white drop-shadow-sm" />
+                    <span className="font-medium">{tour.tourCode}</span>
+                  </div>
                 </div>
               </div>
+              <Badge
+                className={`${getStatusColor(tour.status)} drop-shadow-sm`}
+              >
+                {tour.status.charAt(0).toUpperCase() + tour.status.slice(1)}
+              </Badge>
             </div>
-            <Badge className={getStatusColor(tour.status)}>
-              {tour.status.charAt(0).toUpperCase() + tour.status.slice(1)}
-            </Badge>
           </div>
         </DialogHeader>
 
-        <ScrollArea className="h-[calc(95vh-200px)]">
+        <ScrollArea className="flex-1 overflow-hidden">
           <div className="p-8 space-y-8">
             {/* Quick Info Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="bg-background border-2 border-border hover:border-crimson-red transition-colors duration-200">
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="p-3 bg-crimson-red/10 rounded-full">
-                      <Clock className="w-6 h-6 text-crimson-red" />
+                    <div className="p-3 bg-crimson-red rounded-full">
+                      <Clock className="w-6 h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground font-medium">
                         Duration
                       </p>
                       <p className="text-xl font-bold text-foreground">
-                        {tour.duration} {tour.duration === 1 ? "Day" : "Days"}
+                        {tour.duration}
                       </p>
                     </div>
                   </div>
@@ -130,8 +159,8 @@ export default function TourDetails({
               <Card className="bg-background border-2 border-border hover:border-royal-purple transition-colors duration-200">
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="p-3 bg-royal-purple/10 rounded-full">
-                      <Banknote className="w-6 h-6 text-royal-purple" />
+                    <div className="p-3 bg-royal-purple rounded-full">
+                      <Banknote className="w-6 h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground font-medium">
@@ -159,8 +188,8 @@ export default function TourDetails({
               <Card className="bg-background border-2 border-border hover:border-spring-green transition-colors duration-200">
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="p-3 bg-spring-green/10 rounded-full">
-                      <CreditCard className="w-6 h-6 text-spring-green" />
+                    <div className="p-3 bg-spring-green rounded-full">
+                      <CreditCard className="w-6 h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground font-medium">
@@ -178,8 +207,8 @@ export default function TourDetails({
               <Card className="bg-background border-2 border-border hover:border-vivid-orange transition-colors duration-200">
                 <CardContent className="p-4 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="p-3 bg-vivid-orange/10 rounded-full">
-                      <Calendar className="w-6 h-6 text-vivid-orange" />
+                    <div className="p-3 bg-vivid-orange rounded-full">
+                      <Calendar className="w-6 h-6 text-white" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground font-medium">
@@ -226,14 +255,22 @@ export default function TourDetails({
                       Daily Itinerary
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="relative">
+                    {/* Continuous timeline line */}
+                    <div
+                      className="absolute left-[3.90rem] top-12 w-1 bg-crimson-red/40"
+                      style={{
+                        height: `calc(100% - 7rem)`,
+                      }}
+                    ></div>
+
                     <div className="space-y-4">
-                      {tour.details.itinerary.map((day) => (
+                      {tour.details.itinerary.map((day, index) => (
                         <div
                           key={day.day}
-                          className="flex gap-4 p-4 bg-muted/30 rounded-lg"
+                          className="flex gap-4 p-4 bg-muted/30 rounded-lg relative"
                         >
-                          <div className="flex-shrink-0">
+                          <div className="flex-shrink-0 relative z-10">
                             <div className="w-12 h-12 bg-crimson-red text-white rounded-full flex items-center justify-center font-bold text-lg">
                               {day.day}
                             </div>
@@ -252,28 +289,35 @@ export default function TourDetails({
                   </CardContent>
                 </Card>
 
-                {/* Requirements */}
-                <Card className="bg-background border-2 border-border">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-foreground">
-                      <AlertCircle className="w-5 h-5 text-vivid-orange" />
-                      Requirements & Important Notes
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {tour.details.requirements.map((requirement, index) => (
-                        <div
-                          key={index}
-                          className="flex items-start gap-3 p-3 bg-vivid-orange/5 rounded-lg border-l-4 border-vivid-orange"
-                        >
-                          <AlertCircle className="w-5 h-5 text-vivid-orange mt-0.5 flex-shrink-0" />
-                          <span className="text-foreground">{requirement}</span>
+                {/* Requirements - Only show if there are requirements */}
+                {tour.details.requirements &&
+                  tour.details.requirements.length > 0 && (
+                    <Card className="bg-background border-2 border-border">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-foreground">
+                          <AlertCircle className="w-5 h-5 text-vivid-orange" />
+                          Requirements & Important Notes
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {tour.details.requirements.map(
+                            (requirement, index) => (
+                              <div
+                                key={index}
+                                className="flex items-start gap-3 p-3 bg-vivid-orange/5 rounded-lg border-l-4 border-vivid-orange"
+                              >
+                                <AlertCircle className="w-5 h-5 text-vivid-orange mt-0.5 flex-shrink-0" />
+                                <span className="text-foreground">
+                                  {requirement}
+                                </span>
+                              </div>
+                            )
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
+                  )}
               </div>
 
               {/* Right Column - Travel Dates & Actions */}
@@ -341,102 +385,99 @@ export default function TourDetails({
                   </CardContent>
                 </Card>
 
-                {/* Quick Actions */}
-                <Card className="bg-background border-2 border-border">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-foreground">
-                      Quick Actions
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {tour.url && (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-crimson-red text-crimson-red hover:bg-crimson-red hover:text-white"
-                        onClick={() => window.open(tour.url, "_blank")}
-                      >
-                        <Globe className="w-4 h-4 mr-2" />
-                        View Tour Page
-                      </Button>
-                    )}
-                    {tour.brochureLink && (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-royal-purple text-royal-purple hover:bg-royal-purple hover:text-white"
-                        onClick={() => window.open(tour.brochureLink, "_blank")}
-                      >
-                        <FileText className="w-4 h-4 mr-2" />
-                        Download Brochure
-                      </Button>
-                    )}
-                    {tour.stripePaymentLink && (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-spring-green text-spring-green hover:bg-spring-green hover:text-white"
-                        onClick={() =>
-                          window.open(tour.stripePaymentLink, "_blank")
-                        }
-                      >
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        Book Now
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
+                {/* Sticky Actions Container */}
+                <div className="sticky top-4 space-y-6">
+                  {/* Quick Actions */}
+                  <Card className="bg-background border-2 border-border">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-foreground">
+                        Quick Actions
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {tour.url && (
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-crimson-red text-crimson-red hover:bg-crimson-red hover:text-white"
+                          onClick={() => window.open(tour.url, "_blank")}
+                        >
+                          <Globe className="w-4 h-4 mr-2" />
+                          View Tour Page
+                        </Button>
+                      )}
+                      {tour.brochureLink && (
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-royal-purple text-royal-purple hover:bg-royal-purple hover:text-white"
+                          onClick={() =>
+                            window.open(tour.brochureLink, "_blank")
+                          }
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Download Brochure
+                        </Button>
+                      )}
+                      {tour.stripePaymentLink && (
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start border-spring-green text-spring-green hover:bg-spring-green hover:text-white"
+                          onClick={() =>
+                            window.open(tour.stripePaymentLink, "_blank")
+                          }
+                        >
+                          <CreditCard className="w-4 h-4 mr-2" />
+                          Book Now
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
 
-                {/* Action Buttons */}
-                <Card className="bg-background border-2 border-border">
-                  <CardContent className="p-4 space-y-3">
-                    {onEdit && (
-                      <Button
-                        onClick={() => onEdit(tour)}
-                        className="w-full bg-crimson-red hover:bg-light-red text-white"
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit Tour
-                      </Button>
-                    )}
-                    {onArchive && (
-                      <Button
-                        variant="outline"
-                        onClick={() => onArchive(tour)}
-                        className="w-full border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white"
-                      >
-                        <Archive className="w-4 h-4 mr-2" />
-                        {tour.status === "archived" ? "Unarchive" : "Archive"}
-                      </Button>
-                    )}
-                    {onDelete && (
-                      <Button
-                        variant="outline"
-                        onClick={() => onDelete(tour)}
-                        className="w-full border-destructive text-destructive hover:bg-destructive hover:text-white"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Tour
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            {/* Footer with additional info */}
-            <div className="pt-6 border-t-2 border-light-grey">
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <div className="flex items-center gap-4">
-                  <span>Tour ID: {tour.id}</span>
-                  <span>•</span>
-                  <span>
-                    Created:{" "}
-                    {format(tour.metadata.createdAt.toDate(), "MMM dd, yyyy")}
-                  </span>
-                  <span>•</span>
-                  <span>Bookings: {tour.metadata.bookingsCount}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Package className="w-4 h-4" />
-                  <span>Tour Package</span>
+                  {/* Action Buttons */}
+                  <Card className="bg-background border-2 border-border">
+                    <CardContent className="p-4 space-y-3">
+                      {onEdit && (
+                        <Button
+                          onClick={() => {
+                            if (router && searchParams) {
+                              // Update URL to include edit mode
+                              const params = new URLSearchParams(
+                                searchParams.toString()
+                              );
+                              params.set("mode", "edit");
+                              router.push(`/tours?${params.toString()}`, {
+                                scroll: false,
+                              });
+                            }
+                            onEdit(tour);
+                          }}
+                          className="w-full bg-crimson-red hover:bg-light-red text-white"
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Tour
+                        </Button>
+                      )}
+                      {onArchive && (
+                        <Button
+                          variant="outline"
+                          onClick={() => onArchive(tour)}
+                          className="w-full border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white"
+                        >
+                          <Archive className="w-4 h-4 mr-2" />
+                          {tour.status === "archived" ? "Unarchive" : "Archive"}
+                        </Button>
+                      )}
+                      {onDelete && (
+                        <Button
+                          variant="outline"
+                          onClick={() => onDelete(tour)}
+                          className="w-full border-destructive text-destructive hover:bg-destructive hover:text-white"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Tour
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             </div>

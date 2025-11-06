@@ -13,6 +13,52 @@
   }
 }
 
+/* Scroll performance optimizations */
+@layer utilities {
+  .scroll-optimized {
+    will-change: scroll-position;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    contain: layout style paint;
+    transform: translateZ(0);
+  }
+
+  .scroll-optimized * {
+    will-change: auto;
+  }
+}
+
+/* CSS-only scroll button visibility */
+@layer components {
+  .scroll-to-top-btn {
+    /* Hide by default */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .scroll-to-bottom-btn {
+    /* Hide by default */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  /* Show up button when not at top */
+  body[data-scroll="middle"] .scroll-to-top-btn,
+  body[data-scroll="bottom"] .scroll-to-top-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Show down button when not at bottom */
+  body[data-scroll="middle"] .scroll-to-bottom-btn,
+  body[data-scroll="top"] .scroll-to-bottom-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 /* React Data Grid Custom Styling */
 .custom-grid {
   border-collapse: separate;
@@ -32,6 +78,43 @@
 
 .custom-grid .rdg-cell input {
   padding-left: 10px;
+}
+
+/* Purple border for cells containing focused inputs OR selected cells */
+.custom-grid .rdg-cell:has(input:focus),
+.custom-grid .rdg-cell:has(input:focus) *,
+.custom-grid .rdg-cell[aria-selected="true"] {
+  /* Override all existing border styles */
+  border: 2px solid #8b5cf6 !important;
+  border-top: 2px solid #8b5cf6 !important;
+  border-right: 21px solid #8b5cf6 !important;
+  border-bottom: 2px solid #8b5cf6 !important;
+  border-left: 2px solid #8b5cf6 !important;
+  border-radius: 4px !important;
+
+  /* Additional visual emphasis */
+  box-shadow: 0 0 0 1px #8b5cf6 !important;
+  outline: 1px solid #8b5cf6 !important;
+  outline-offset: -1px !important;
+}
+
+/* Remove all borders from input fields inside focused cells */
+.custom-grid .rdg-cell:has(input:focus) input {
+  border: none !important;
+  border-top: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  border-left: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Even more specific override for React Data Grid cells */
+.custom-grid .rdg-cell:has(input:focus),
+.custom-grid .rdg-cell[aria-selected="true"] {
+  border-color: #8b5cf6 !important;
+  border-style: solid !important;
+  border-width: 1.5px !important;
 }
 
 .custom-grid .rdg-header-cell {
@@ -114,6 +197,7 @@
     --input: 210 19% 90%;
     --ring: 0 75% 53%;
     --radius: 0.5rem;
+    --card-surface: 0 0% 100%; /* White for light mode */
 
     /* Sidebar Colors - Light Mode */
     --sidebar-background: 0 0% 100%;
@@ -169,6 +253,7 @@
     --border: 220 25% 20%;
     --input: 220 25% 15%;
     --ring: 0 78% 67%;
+    --card-surface: 220 25% 10%; /* Creative Midnight for dark mode */
 
     /* Sidebar Colors - Dark Mode */
     --sidebar-background: 220 25% 10%; /* Creative Midnight */
@@ -198,7 +283,8 @@
 
 .gmail-email-content table {
   border-collapse: collapse;
-  width: 100%;
+  /* width: 100%; */
+  width: max-content;
 }
 
 .gmail-email-content img {
@@ -543,6 +629,8 @@
   margin: 16px 0;
   border-radius: 0 8px 8px 0;
   font-style: italic;
+  font-size: 12px; /* Smaller font size for blockquotes */
+  color: #663399; /* Violet color for blockquotes */
 }
 
 .gmail-email-content pre {
@@ -614,9 +702,6 @@
 /* Email signature styling */
 .gmail-email-content [data-smartmail="gmail_signature"],
 .gmail-email-content .gmail_signature {
-  border-top: 1px solid #e5e7eb;
-  padding-top: 16px;
-  margin-top: 24px;
   color: #6b7280;
   font-size: 0.9em;
 }
@@ -628,8 +713,85 @@
   background-color: #f9fafb;
   padding: 12px 16px;
   margin: 16px 0;
-  color: #6b7280;
-  font-size: 0.95em;
+  color: #663399; /* Violet color like visited links */
+  font-size: 12px; /* Smaller font size */
+}
+
+/* Enhanced Gmail Quote Styling */
+.gmail-email-content .gmail_quote {
+  border-left: 1px solid #cccccc !important;
+  padding-left: 1ex !important;
+  margin: 0px 0px 0px 0.8ex !important;
+  border-left-width: 1px !important;
+  border-left-style: solid !important;
+  border-left-color: rgb(204, 204, 204) !important;
+  background: transparent !important;
+  font-size: 12px !important; /* Smaller font size for quotes */
+  color: #663399 !important; /* Violet color like visited links in Gmail */
+}
+
+/* Prevent font size inheritance in nested quotes - all levels maintain same size */
+.gmail-email-content .gmail_quote .gmail_quote {
+  font-size: 12px !important; /* Nested quotes keep same font size */
+  color: #663399 !important; /* Maintain violet color for nested quotes */
+}
+
+.gmail-email-content .gmail_quote .gmail_quote .gmail_quote {
+  font-size: 12px !important; /* Triple nested quotes keep same font size */
+  color: #663399 !important; /* Maintain violet color for triple nested quotes */
+}
+
+.gmail-email-content .gmail_quote .gmail_quote .gmail_quote .gmail_quote {
+  font-size: 12px !important; /* Quadruple nested quotes keep same font size */
+  color: #663399 !important; /* Maintain violet color for quadruple nested quotes */
+}
+
+.gmail-email-content .gmail_quote .gmail_attr {
+  font-size: 12px !important; /* Quote attribution maintains size */
+  color: #663399 !important; /* Violet color for attribution */
+  margin-bottom: 8px;
+}
+
+.gmail-email-content .gmail_quote blockquote {
+  margin: 0px 0px 0px 0.8ex;
+  border-left: 1px solid #cccccc;
+  padding-left: 1ex;
+  font-size: 12px !important; /* Blockquotes within quotes maintain size */
+  color: #663399 !important; /* Violet color for blockquotes */
+}
+
+/* Gmail signature styling */
+.gmail-email-content .gmail_signature {
+  color: #666;
+  font-size: 12px !important; /* Consistent signature font size */
+}
+
+/* Ensure all text content within gmail_quote maintains consistent font size and color */
+.gmail-email-content .gmail_quote,
+.gmail-email-content .gmail_quote *,
+.gmail-email-content .gmail_quote div,
+.gmail-email-content .gmail_quote p,
+.gmail-email-content .gmail_quote span {
+  font-size: 12px !important; /* Force consistent smaller font size for all nested elements */
+  color: #663399 !important; /* Force violet color for all text in quotes */
+}
+
+/* Exception for images - don't apply font-size to images */
+.gmail-email-content .gmail_quote img {
+  font-size: inherit !important;
+}
+
+/* Gmail image styling to match Gmail's appearance */
+.gmail-email-content img {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+}
+
+.gmail-email-content .gmail_quote img,
+.gmail-email-content .gmail_signature img {
+  display: inline-block;
+  max-width: none;
 }
 
 /* Email thread divider */
@@ -637,4 +799,106 @@
   border-top: 1px solid #e5e7eb;
   padding-top: 16px;
   margin-top: 24px;
+}
+
+/* Gmail Quote Toggle Styling */
+.gmail-quote-toggle-container {
+  margin: 16px 0;
+}
+
+.gmail-quote-toggle-btn {
+  background: none !important;
+  border: none !important;
+  color: #1a73e8 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-size: 12px !important;
+  padding: 4px 0 !important;
+  font-family: inherit !important;
+  text-decoration: none !important;
+}
+
+.gmail-quote-toggle-btn:hover {
+  text-decoration: underline !important;
+  color: #1557b0 !important;
+}
+
+.gmail-quote-toggle-btn:focus {
+  outline: 2px solid #1a73e8 !important;
+  outline-offset: 2px !important;
+}
+
+/* Hide the three dots when quote is expanded */
+.gmail-email-content .gmail-quote-expanded .gmail-quote-toggle-container {
+  display: none;
+}
+
+/* Show hidden content when expanded */
+.gmail-email-content .gmail-quote-expanded .gmail-quote-hidden {
+  display: block !important;
+}
+
+/* Gmail-style Attachment Cards */
+.gmail-attachment-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow;
+}
+
+.gmail-attachment-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.gmail-attachment-card .attachment-overlay {
+  backdrop-filter: blur(2px);
+  transition: all 0.2s ease-in-out;
+}
+
+.gmail-attachment-card:hover .attachment-overlay {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.gmail-attachment-tooltip {
+  animation: fadeIn 0.2s ease-out;
+  max-width: 250px;
+  z-index: 50;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* File type icon styling */
+.file-type-icon {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.gmail-attachment-card:hover .file-type-icon {
+  transform: scale(1.05);
+}
+
+/* Loading indicator animation */
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out;
 }

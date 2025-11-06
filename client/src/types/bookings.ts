@@ -26,7 +26,7 @@ export interface Booking {
   formattedDate: string;
   tourDate: Date;
   returnDate?: Date;
-  tourDuration: number;
+  tourDuration: string;
 
   // Pricing
   useDiscountedTourCost: boolean;

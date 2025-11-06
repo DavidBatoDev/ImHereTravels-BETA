@@ -413,13 +413,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         hasAgreedToTerms: false,
         isEmailVerified: false,
         permissions: {
-          canManageBookings:
-            userData.role === "admin" || userData.role === "agent",
-          canManageTours: userData.role === "admin",
-          canManageTemplates: userData.role === "admin",
-          canManageUsers: userData.role === "admin",
-          canAccessReports: userData.role === "admin",
-          canEditFinancials: userData.role === "admin",
+          canManageBookings: false,
+          canManageTours: false,
+          canManageTemplates: false,
+          canManageUsers: false,
+          canManagePaymentTypes: false,
+          canManageStorage: false,
+          canManageFunctions: false,
+          canManageEmails: false,
+          canManageBcc: false,
         },
         preferences: {
           notifications: {

@@ -138,7 +138,7 @@ async function filterData(
   filters?: { [key: string]: any }
 ) {
   try {
-    let constraints: any[] = [];
+    const constraints: any[] = [];
 
     if (filters) {
       Object.entries(filters).forEach(([field, value]) => {
@@ -167,7 +167,7 @@ async function aggregateData(
   filters?: { [key: string]: any }
 ) {
   try {
-    let constraints = [];
+    const constraints = [];
 
     if (filters) {
       Object.entries(filters).forEach(([field, value]) => {

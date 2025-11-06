@@ -120,6 +120,10 @@ import {
   runMigration as runMigration032,
   rollbackMigration as rollbackMigration032,
 } from "./032-import-email-templates";
+import {
+  runMigration as runMigration033,
+  rollbackMigration as rollbackMigration033,
+} from "./033-convert-duration-to-string";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -465,6 +469,23 @@ async function main() {
       console.log(`\n🎯 ${result032.message}`);
       break;
 
+    case "033":
+      console.log("📊 Running migration: 033-convert-duration-to-string");
+      const result033 = await runMigration033(dryRun);
+      console.log(`\n🎯 ${result033.message}`);
+      if (result033.details) {
+        console.log(
+          `📊 Details: ${result033.details.updated} updated, ${result033.details.skipped} skipped, ${result033.details.errors.length} errors`
+        );
+        if (result033.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result033.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "023":
       console.log("📊 Running migration: 023-add-parent-tab-field");
       const result023 = await runMigration023(dryRun);
@@ -786,6 +807,23 @@ async function main() {
       await rollbackMigration020();
       break;
 
+    case "rollback033":
+      console.log("🔄 Rolling back migration: 033-convert-duration-to-string");
+      const rollbackResult033 = await rollbackMigration033();
+      console.log(`\n🎯 ${rollbackResult033.message}`);
+      if (rollbackResult033.details) {
+        console.log(
+          `📊 Details: ${rollbackResult033.details.reverted} reverted, ${rollbackResult033.details.errors.length} errors`
+        );
+        if (rollbackResult033.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult033.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "rollback023":
       console.log("🔄 Rolling back migration: 023-add-parent-tab-field");
       const rollbackResult023 = await rollbackMigration023();
@@ -1020,6 +1058,19 @@ async function main() {
         "🔍 Running migration in DRY RUN mode: 019-update-column-ids"
       );
       await dryRun019();
+      break;
+
+    case "dry-run033":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 033-convert-duration-to-string"
+      );
+      const dryRunResult033 = await runMigration033(true);
+      console.log(`\n🎯 ${dryRunResult033.message}`);
+      if (dryRunResult033.details) {
+        console.log(
+          `📊 Details: ${dryRunResult033.details.updated} would be updated, ${dryRunResult033.details.skipped} would be skipped`
+        );
+      }
       break;
 
     case "dry-run020":

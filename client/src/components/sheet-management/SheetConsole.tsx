@@ -202,14 +202,7 @@ export default function SheetConsole({
 
       setTestResults((prev) => [testResult, ...prev]);
 
-      if (executionResult.success) {
-        toast({
-          title: "Function executed successfully",
-          description: `${
-            selectedFunctionColumn.columnName
-          } executed in ${executionTime.toFixed(2)}ms`,
-        });
-      } else {
+      if (!executionResult.success) {
         toast({
           title: "Function execution failed",
           description: executionResult.error,

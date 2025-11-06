@@ -1,0 +1,98 @@
+/* Tiptap Editor Styles */
+.ProseMirror {
+  outline: none !important;
+  border: none !important;
+  height: 100%;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #9ca3af;
+  pointer-events: none;
+  height: 0;
+}
+
+.ProseMirror p {
+  margin: 0 0 8px 0;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.ProseMirror ul {
+  list-style-type: disc !important;
+  list-style-position: outside !important;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal !important;
+  list-style-position: outside !important;
+}
+
+.ProseMirror li {
+  margin: 2px 0;
+  display: list-item !important;
+}
+
+.ProseMirror ul li {
+  list-style-type: disc !important;
+}
+
+.ProseMirror ol li {
+  list-style-type: decimal !important;
+}
+
+/* Ensure nested lists work correctly */
+.ProseMirror ul ul {
+  list-style-type: circle !important;
+  margin: 4px 0;
+}
+
+.ProseMirror ul ul ul {
+  list-style-type: square !important;
+}
+
+.ProseMirror ol ol {
+  list-style-type: lower-alpha !important;
+  margin: 4px 0;
+}
+
+.ProseMirror strong {
+  font-weight: 600;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3 {
+  margin: 16px 0 8px 0;
+  font-weight: 600;
+}
+
+.ProseMirror h1 {
+  font-size: 1.5em;
+}
+
+.ProseMirror h2 {
+  font-size: 1.3em;
+}
+
+.ProseMirror h3 {
+  font-size: 1.1em;
+}
+
+/* Active button states */
+.tiptap-button-active {
+  background-color: #e5e7eb;
+}

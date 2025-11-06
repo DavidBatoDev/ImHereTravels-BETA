@@ -65,8 +65,8 @@ const navigation = [
     description: "Billing options",
   },
   {
-    name: "Communications",
-    href: "/communications",
+    name: "Mail",
+    href: "/mail",
     icon: MessageSquare,
     description: "Customer messages",
   },
@@ -84,13 +84,13 @@ const navigation = [
     description: "File management",
   },
   {
-    name: "Apps Script",
+    name: "Functions",
     href: "/functions",
     icon: Code,
     description: "Automation tools",
   },
   {
-    name: "Reports",
+    name: "Reports (Coming Soon)",
     href: "/reports",
     icon: BarChart3,
     description: "Analytics & insights",
@@ -145,9 +145,10 @@ export default function DashboardSidebar({
         />
         <div
           className={cn(
-            "fixed inset-y-0 left-0 flex flex-col bg-white border-r border-border shadow-2xl transition-all duration-300",
+            "fixed inset-y-0 left-0 flex flex-col border-r border-border shadow-2xl transition-all duration-300",
             sidebarCollapsed ? "w-20" : "w-72"
           )}
+          style={{ backgroundColor: "hsl(var(--card-surface))" }}
         >
           <div className="flex h-20 items-center justify-between px-6 bg-muted border-b border-border">
             <div className="flex items-center space-x-3">
@@ -207,7 +208,7 @@ export default function DashboardSidebar({
                         <div className="w-full border-t border-border" />
                       </div>
                       <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white px-2 text-muted-foreground font-medium">
+                        <span className="bg-background px-2 text-muted-foreground font-medium">
                           Section
                         </span>
                       </div>
@@ -369,7 +370,10 @@ export default function DashboardSidebar({
           sidebarCollapsed ? "lg:w-20" : "lg:w-72"
         )}
       >
-        <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-border shadow">
+        <div
+          className="flex min-h-0 flex-1 flex-col border-r border-border shadow"
+          style={{ backgroundColor: "hsl(var(--card-surface))" }}
+        >
           <div className="flex items-center px-6 py-3 bg-muted border-b border-border">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-background rounded-xl p-2 border border-border">
@@ -387,16 +391,7 @@ export default function DashboardSidebar({
                 </h1>
               )}
             </div>
-            {sidebarCollapsed ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="ml-auto text-muted-foreground hover:bg-background hover:text-foreground p-2"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            ) : (
+            {!sidebarCollapsed && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -421,7 +416,7 @@ export default function DashboardSidebar({
                         <div className="w-full border-t border-border" />
                       </div>
                       <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white px-2 text-muted-foreground font-medium">
+                        <span className="bg-background px-2 text-muted-foreground font-medium">
                           Section
                         </span>
                       </div>
@@ -578,7 +573,7 @@ export default function DashboardSidebar({
       {/* Logout Confirmation Modal */}
       {showLogoutModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border">
+          <div className="bg-background rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border">
             <div className="flex items-center space-x-4 mb-6">
               <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center">
                 <AlertTriangle className="w-6 h-6 text-primary" />

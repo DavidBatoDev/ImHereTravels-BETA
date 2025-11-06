@@ -1,11 +1,13 @@
 # Firestore Database Schema v2 - Complete System for ImHereTravels Admin Portal
 
-*This document combines the foundational schema (v1) with new enhancements and features (v2)*
+_This document combines the foundational schema (v1) with new enhancements and features (v2)_
 
 ## Core Collections (From v1)
 
 ### 1. **Bookings** (`bookings`)
-*Primary booking data storage*
+
+_Primary booking data storage_
+
 ```ts
 {
   id: string; // Auto-generated Firestore ID
@@ -101,7 +103,9 @@ interface ReminderStatus {
 ```
 
 ### 2. **Tour Packages** (`tourPackages`)
-*Tour product catalog*
+
+_Tour product catalog_
+
 ```ts
 {
   id: string; // Auto-generated Firestore ID
@@ -146,7 +150,9 @@ interface ReminderStatus {
 ```
 
 ### 3. **Users** (`users`)
-*Admin and agent accounts*
+
+_Admin and agent accounts_
+
 ```ts
 {
   id: string; // Matches Firebase Auth UID
@@ -187,7 +193,9 @@ interface ReminderStatus {
 ```
 
 ### 4. **Communications** (`communications`)
-*Email templates and history*
+
+_Email templates and history_
+
 ```ts
 {
   id: string; // Auto-generated Firestore ID
@@ -225,7 +233,9 @@ interface ReminderStatus {
 ```
 
 ### 5. **Settings** (`settings`)
-*System configuration*
+
+_System configuration_
+
 ```ts
 {
   id: "paymentTerms";
@@ -265,7 +275,9 @@ interface ReminderStatus {
 ## New Collections (V2 Additions)
 
 ### 6. **Reference Data** (`referenceData`)
-*Centralized reference data management*
+
+_Centralized reference data management_
+
 ```ts
 {
   id: string;
@@ -285,7 +297,9 @@ interface ReminderStatus {
 ```
 
 ### 7. **Contacts** (`contacts`)
-*CRM and contact database*
+
+_CRM and contact database_
+
 ```ts
 {
   id: string;
@@ -310,7 +324,9 @@ interface ReminderStatus {
 ```
 
 ### 8. **Flight Info** (`flightInfo`)
-*Internal flight tracking for tours*
+
+_Internal flight tracking for tours_
+
 ```ts
 {
   id: string;
@@ -334,7 +350,9 @@ interface ReminderStatus {
 ## New Subcollections (V2 Additions)
 
 ### 1. **BCC Groups** (`settings/bccGroups`)
-*Email distribution lists*
+
+_Email distribution lists_
+
 ```ts
 {
   id: string;
@@ -351,7 +369,9 @@ interface ReminderStatus {
 ```
 
 ### 2. **Booking Activity** (`bookings/{bookingId}/activity`)
-*Audit log for booking changes (From V1)*
+
+_Audit log for booking changes (From V1)_
+
 ```ts
 {
   id: string; // Auto-generated
@@ -366,7 +386,9 @@ interface ReminderStatus {
 ```
 
 ### 3. **Tour Statistics** (`tourPackages/{tourId}/stats`)
-*Monthly performance data (From V1)*
+
+_Monthly performance data (From V1)_
+
 ```ts
 {
   id: string; // "2025-06"
@@ -384,37 +406,37 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // User permissions
     function isAdmin() {
       return request.auth.token.role == "admin";
     }
-    
+
     function isAgent() {
       return request.auth.token.role == "agent";
     }
-    
+
     function userOwnsData() {
       return request.auth.uid == resource.data.userId;
     }
-    
+
     // Bookings rules
     match /bookings/{bookingId} {
       allow read: if isAdmin() || isAgent();
       allow create: if isAdmin() || isAgent();
-      allow update: if isAdmin() || 
-                    (isAgent() && 
+      allow update: if isAdmin() ||
+                    (isAgent() &&
                      !request.resource.data.payment.hasOwnProperty('originalCost') &&
                      !request.resource.data.payment.hasOwnProperty('discountedCost'));
       allow delete: if false; // Soft delete only
     }
-    
+
     // Tour packages rules
     match /tourPackages/{tourId} {
       allow read: if isAdmin() || isAgent();
       allow create, update, delete: if isAdmin();
     }
-    
+
     // User management rules
     match /users/{userId} {
       allow read: if isAdmin() || request.auth.uid == userId;
@@ -422,45 +444,45 @@ service cloud.firestore {
       allow update: if isAdmin() || request.auth.uid == userId;
       allow delete: if false; // Deactivate instead
     }
-    
+
     // Reference data rules
     match /referenceData/{refId} {
       allow read: if isAdmin() || isAgent();
       allow write: if isAdmin();
     }
-    
+
     // Contacts rules
     match /contacts/{contactId} {
       allow read: if isAdmin() || isAgent();
       allow create, update: if isAdmin() || isAgent();
       allow delete: if isAdmin();
     }
-    
+
     // Flight info rules
     match /flightInfo/{flightId} {
       allow read: if isAdmin() || isAgent();
       allow create, update: if isAdmin() || isAgent();
       allow delete: if isAdmin();
     }
-    
+
     // Settings rules
     match /settings/{settingId} {
       allow read: if isAdmin();
       allow write: if isAdmin();
-      
+
       // BCC Groups subcollection
       match /bccGroups/{groupId} {
         allow read: if isAdmin() || isAgent();
         allow write: if isAdmin();
       }
     }
-    
+
     // Communications templates
     match /communications/{templateId} {
       allow read: if isAdmin() || isAgent();
       allow write: if isAdmin();
     }
-    
+
     // Sent emails
     match /communications/{templateId}/sentEmails/{emailId} {
       allow read: if isAdmin() || isAgent();
@@ -473,6 +495,7 @@ service cloud.firestore {
 ## Enhanced Indexes
 
 ### Bookings Collection
+
 1. `tour.date` ASC + `payment.terms` ASC
 2. `payment.remainingBalance` DESC
 3. `traveler.email` ASC
@@ -481,32 +504,38 @@ service cloud.firestore {
 6. `customerType` ASC + `customerStatus` ASC (NEW)
 
 ### Tour Packages Collection
+
 1. `status` ASC + `metadata.bookingsCount` DESC
 2. `location` ASC + `name` ASC
 3. `pricing.original` ASC + `status` ASC (NEW)
 
 ### Contacts Collection (NEW)
+
 1. `type` ASC + `status` ASC
 2. `email` ASC
 3. `metadata.createdAt` DESC
 4. `tags` ARRAY + `status` ASC
 
 ### Reference Data Collection (NEW)
+
 1. `type` ASC + `values.sortOrder` ASC
 
 ## Data Migration Strategy
 
 ### Phase 1: Core Schema (V1) Migration
+
 - Migrate existing Google Sheets data to core collections
 - Validate data integrity and relationships
 - Test core business logic
 
 ### Phase 2: Enhanced Features (V2) Migration
+
 - Add new fields to existing collections
 - Create new collections (referenceData, contacts, flightInfo)
 - Set up BCC groups and reference data
 
 ### Phase 3: Data Enrichment
+
 - Populate reference data from existing values
 - Create contact records from booking traveler data
 - Set up default BCC groups
@@ -514,33 +543,38 @@ service cloud.firestore {
 ## Key Business Logic Updates
 
 ### Enhanced Payment Calculation (Cloud Function)
+
 ```ts
 export const calculateBookingPaymentV2 = functions.firestore
-  .document('bookings/{bookingId}')
+  .document("bookings/{bookingId}")
   .onWrite(async (change, context) => {
     const newData = change.after.data();
     const oldData = change.before.data();
-    
+
     if (!newData) return; // Document deleted
-    
+
     // Get reference data for validation
-    const paymentTermsRef = await getRefData('paymentTerms');
-    const bookingStatusRef = await getRefData('bookingStatus');
-    
+    const paymentTermsRef = await getRefData("paymentTerms");
+    const bookingStatusRef = await getRefData("bookingStatus");
+
     // Existing calculation logic...
     // Plus new status validation and reference data checks
-    
+
     // Update pricing history for tour packages
     if (newData.tour.packageId !== oldData?.tour.packageId) {
-      await updateTourPricingHistory(newData.tour.packageId, newData.payment.originalCost);
+      await updateTourPricingHistory(
+        newData.tour.packageId,
+        newData.payment.originalCost
+      );
     }
-    
+
     // Create contact record if new customer
     await createOrUpdateContact(newData.traveler);
   });
 ```
 
 ### Due Date Calculation (From V1)
+
 ```ts
 function calculatePaymentSchedule(
   plan: PaymentPlan,
@@ -549,39 +583,41 @@ function calculatePaymentSchedule(
   balance: number
 ) {
   const schedule: any = {};
-  const months = {P1:1, P2:2, P3:3, P4:4}[plan] || 0;
-  
+  const months = { P1: 1, P2: 2, P3: 3, P4: 4 }[plan] || 0;
+
   // Full payment special case
-  if (plan === 'Full') {
+  if (plan === "Full") {
     const dueDate = new Date(reservationDate);
     dueDate.setDate(dueDate.getDate() + 2);
     schedule.full = {
       amount: balance,
       dueDate: dueDate,
       scheduledReminder: new Date(dueDate.setDate(dueDate.getDate() - 3)),
-      paid: false
+      paid: false,
     };
     return schedule;
   }
-  
+
   // Generate payment dates (2nd of each month)
   for (let i = 1; i <= months; i++) {
     const dueDate = new Date(reservationDate);
     dueDate.setMonth(dueDate.getMonth() + i);
     dueDate.setDate(2);
-    
+
     // Validate date constraints
-    if (dueDate > new Date(reservationDate.getDate() + 2) && 
-        dueDate < new Date(tourDate.getDate() - 3)) {
+    if (
+      dueDate > new Date(reservationDate.getDate() + 2) &&
+      dueDate < new Date(tourDate.getDate() - 3)
+    ) {
       schedule[`P${i}`] = {
         amount: balance / months,
         dueDate: dueDate,
         scheduledReminder: new Date(dueDate.setDate(dueDate.getDate() - 3)),
-        paid: false
+        paid: false,
       };
     }
   }
-  
+
   return schedule;
 }
 ```
@@ -659,97 +695,100 @@ import { getSheetsData } from "./google-sheets-helper";
 
 const migrateBookingsV2 = async () => {
   const sheetsData = await getSheetsData("Main Dashboard");
-  
+
   // First, set up reference data
   await setupReferenceData();
-  
+
   const bookings = sheetsData.map((row) => {
     return {
-      bookingId: row['Booking ID'],
+      bookingId: row["Booking ID"],
       traveler: {
-        firstName: row['First Name'],
-        lastName: row['Last Name'],
-        email: row['Email Address']
+        firstName: row["First Name"],
+        lastName: row["Last Name"],
+        email: row["Email Address"],
       },
       tour: {
-        packageId: getTourIdByName(row['Tour Package Name']),
-        date: new Date(row['Tour Date']),
-        returnDate: new Date(row['Return Date']),
-        duration: parseInt(row['Tour Duration'])
+        packageId: getTourIdByName(row["Tour Package Name"]),
+        date: new Date(row["Tour Date"]),
+        returnDate: new Date(row["Return Date"]),
+        duration: parseInt(row["Tour Duration"]),
       },
       reservation: {
-        date: new Date(row['Reservation Date']),
-        bookingType: row['Booking Type']
+        date: new Date(row["Reservation Date"]),
+        bookingType: row["Booking Type"],
       },
       payment: {
-        condition: row['Payment Condition'],
-        terms: row['Available Payment Terms'],
-        plan: row['Payment Plan'],
-        originalCost: row['Original Tour Cost'],
-        discountedCost: row['Discounted Tour Cost'],
-        reservationFee: row['Reservation Fee'],
-        paid: row['Paid'],
-        remainingBalance: row['Remaining Balance']
+        condition: row["Payment Condition"],
+        terms: row["Available Payment Terms"],
+        plan: row["Payment Plan"],
+        originalCost: row["Original Tour Cost"],
+        discountedCost: row["Discounted Tour Cost"],
+        reservationFee: row["Reservation Fee"],
+        paid: row["Paid"],
+        remainingBalance: row["Remaining Balance"],
       },
       group: {
-        id: row['Group ID'],
-        isMainBooker: row['Is Main Booker?'] === "TRUE"
+        id: row["Group ID"],
+        isMainBooker: row["Is Main Booker?"] === "TRUE",
       },
       // V2 additions
-      status: mapBookingStatus(row['Status']),
-      customerType: mapCustomerType(row['Customer Type']),
-      customerStatus: mapCustomerStatus(row['Customer Status']),
+      status: mapBookingStatus(row["Status"]),
+      customerType: mapCustomerType(row["Customer Type"]),
+      customerStatus: mapCustomerStatus(row["Customer Status"]),
       metadata: {
         createdAt: new Date(),
         updatedAt: new Date(),
-        createdBy: "migration-script"
-      }
+        createdBy: "migration-script",
+      },
     };
   });
-  
+
   const db = getFirestore();
   const batch = db.batch();
-  
+
   // Create bookings
-  bookings.forEach(booking => {
+  bookings.forEach((booking) => {
     const ref = db.collection("bookings").doc();
     batch.set(ref, booking);
   });
-  
+
   // Create contacts from traveler data
   const uniqueContacts = extractUniqueContacts(bookings);
-  uniqueContacts.forEach(contact => {
+  uniqueContacts.forEach((contact) => {
     const ref = db.collection("contacts").doc();
     batch.set(ref, contact);
   });
-  
+
   await batch.commit();
   console.log("V2 Migration complete");
 };
 
 async function setupReferenceData() {
   const db = getFirestore();
-  
+
   const refData = [
     {
-      type: 'bookingStatus',
+      type: "bookingStatus",
       values: [
-        {id: 'confirmed', name: 'Confirmed', isActive: true, sortOrder: 1},
-        {id: 'pending', name: 'Pending', isActive: true, sortOrder: 2},
-        {id: 'cancelled', name: 'Cancelled', isActive: true, sortOrder: 3}
-      ]
+        { id: "confirmed", name: "Confirmed", isActive: true, sortOrder: 1 },
+        { id: "pending", name: "Pending", isActive: true, sortOrder: 2 },
+        { id: "cancelled", name: "Cancelled", isActive: true, sortOrder: 3 },
+      ],
     },
     // Add more reference data types...
   ];
-  
+
   for (const ref of refData) {
-    await db.collection('referenceData').doc(ref.type).set({
-      ...ref,
-      metadata: {
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    });
+    await db
+      .collection("referenceData")
+      .doc(ref.type)
+      .set({
+        ...ref,
+        metadata: {
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
   }
 }
 

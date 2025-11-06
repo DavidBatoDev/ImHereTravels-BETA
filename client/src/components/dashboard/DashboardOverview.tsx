@@ -11,20 +11,20 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Calendar,
-  Banknote,
-  TrendingUp,
-  Clock,
-  AlertTriangle,
-  Plus,
-  FileText,
-  Eye,
-  MapPin,
-  Users,
-  CreditCard,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
+  FiPlus,
+  FiEye,
+  FiAlertTriangle,
+  FiFileText,
+  FiUsers,
+  FiDollarSign,
+  FiCalendar,
+  FiClock,
+  FiMapPin,
+  FiCreditCard,
+  FiCheckCircle,
+  FiXCircle,
+  FiTrendingUp,
+} from "react-icons/fi";
 import {
   LineChart,
   Line,
@@ -45,11 +45,15 @@ import {
 import { collection, onSnapshot, query, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Booking } from "@/types/bookings";
+import { bookingService } from "@/services/booking-service";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardOverview() {
   const router = useRouter();
+  const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingBooking, setIsCreatingBooking] = useState(false);
 
   // Fetch real booking data from Firebase
   useEffect(() => {
@@ -88,7 +92,7 @@ export default function DashboardOverview() {
   const getBookingStatusCategory = (
     status: string | null | undefined
   ): string => {
-    if (!status) return "Pending";
+    if (typeof status !== "string" || status.trim() === "") return "Pending";
 
     const statusLower = status.toLowerCase();
     if (statusLower.includes("confirmed")) return "Confirmed";
@@ -294,15 +298,62 @@ export default function DashboardOverview() {
     {
       title: "Create New Booking",
       description: "Add a new booking to the system",
-      icon: Plus,
-      onClick: () => router.push("/bookings"),
+      icon: FiPlus,
+      onClick: async () => {
+        setIsCreatingBooking(true);
+        try {
+          // Compute next row number (fill gaps)
+          const rowNumbers = (bookings || [])
+            .map((b) => (typeof b.row === "number" ? b.row : 0))
+            .filter((n) => n > 0)
+            .sort((a, b) => a - b);
+          let nextRowNumber = 1;
+          for (let i = 0; i < rowNumbers.length; i++) {
+            if (rowNumbers[i] !== i + 1) {
+              nextRowNumber = i + 1;
+              break;
+            }
+            nextRowNumber = i + 2;
+          }
+
+          // Create minimal doc then update with id/row/timestamps
+          const newBookingId = await bookingService.createBooking({});
+          const bookingData = {
+            id: newBookingId,
+            row: nextRowNumber,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } as any;
+          await bookingService.updateBooking(newBookingId, bookingData);
+
+          // Navigate with bookingId to open detail modal
+          router.push(`/bookings?tab=bookings&bookingId=${newBookingId}`);
+
+          toast({
+            title: "✅ Booking Created",
+            description: `Successfully created a booking in row ${nextRowNumber}`,
+            variant: "default",
+          });
+
+          setIsCreatingBooking(false);
+        } catch (error) {
+          setIsCreatingBooking(false);
+          toast({
+            title: "❌ Failed to Create Booking",
+            description: `Error: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+            variant: "destructive",
+          });
+        }
+      },
       color: "bg-primary",
       iconColor: "text-white",
     },
     {
       title: "View All Bookings",
       description: "Manage and view all bookings",
-      icon: Eye,
+      icon: FiEye,
       onClick: () => router.push("/bookings"),
       color: "bg-spring-green",
       iconColor: "text-white",
@@ -310,7 +361,7 @@ export default function DashboardOverview() {
     {
       title: "Payment Reminders",
       description: "Check pending payment reminders",
-      icon: AlertTriangle,
+      icon: FiAlertTriangle,
       onClick: () => router.push("/bookings?filter=urgent"),
       color: "bg-vivid-orange",
       iconColor: "text-white",
@@ -318,10 +369,11 @@ export default function DashboardOverview() {
     {
       title: "Generate Report",
       description: "Create financial or booking reports",
-      icon: FileText,
-      onClick: () => router.push("/reports"),
-      color: "bg-royal-purple",
+      icon: FiFileText,
+      onClick: () => {},
+      color: "bg-gray-400",
       iconColor: "text-white",
+      disabled: true,
     },
   ];
 
@@ -342,6 +394,16 @@ export default function DashboardOverview() {
 
   return (
     <div className="space-y-6">
+      {/* Gmail-style Loading Indicator for Creating Booking */}
+      {isCreatingBooking && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
+          <div className="bg-crimson-red text-white px-4 py-2 rounded-b-lg shadow-lg flex items-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            <span className="text-sm font-medium">Creating booking...</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -358,14 +420,62 @@ export default function DashboardOverview() {
             onClick={() => router.push("/bookings")}
             className="border-border text-primary hover:bg-primary/10 hover:border-primary transition-all duration-200"
           >
-            <Eye className="mr-2 h-4 w-4" />
+            <FiEye className="mr-2 h-4 w-4" />
             View All Bookings
           </Button>
           <Button
-            onClick={() => router.push("/bookings")}
+            onClick={async () => {
+              setIsCreatingBooking(true);
+              try {
+                // Compute next row number (fill gaps)
+                const rowNumbers = (bookings || [])
+                  .map((b) => (typeof b.row === "number" ? b.row : 0))
+                  .filter((n) => n > 0)
+                  .sort((a, b) => a - b);
+                let nextRowNumber = 1;
+                for (let i = 0; i < rowNumbers.length; i++) {
+                  if (rowNumbers[i] !== i + 1) {
+                    nextRowNumber = i + 1;
+                    break;
+                  }
+                  nextRowNumber = i + 2;
+                }
+
+                // Create minimal doc then update with id/row/timestamps
+                const newBookingId = await bookingService.createBooking({});
+                const bookingData = {
+                  id: newBookingId,
+                  row: nextRowNumber,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                } as any;
+                await bookingService.updateBooking(newBookingId, bookingData);
+
+                // Navigate with bookingId to open detail modal
+                router.push(`/bookings?tab=bookings&bookingId=${newBookingId}`);
+
+                toast({
+                  title: "✅ Booking Created",
+                  description: `Successfully created a booking in row ${nextRowNumber}`,
+                  variant: "default",
+                });
+
+                setIsCreatingBooking(false);
+              } catch (error) {
+                setIsCreatingBooking(false);
+                toast({
+                  title: "❌ Failed to Create Booking",
+                  description: `Error: ${
+                    error instanceof Error ? error.message : "Unknown error"
+                  }`,
+                  variant: "destructive",
+                });
+              }
+            }}
+            disabled={isCreatingBooking}
             className="bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25 transition-all duration-200"
           >
-            <Plus className="mr-2 h-4 w-4" />
+            <FiPlus className="mr-2 h-4 w-4" />
             New Booking
           </Button>
         </div>
@@ -405,8 +515,8 @@ export default function DashboardOverview() {
                   </div>
                 </div>
               </div>
-              <div className="p-3 bg-crimson-red/20 rounded-xl">
-                <Users className="h-6 w-6 text-crimson-red" />
+              <div className="p-4 bg-gradient-to-br from-crimson-red/20 to-crimson-red/10 rounded-full rounded-br-none">
+                <FiUsers className="h-6 w-6 text-foreground" />
               </div>
             </div>
           </CardContent>
@@ -425,15 +535,15 @@ export default function DashboardOverview() {
                 </p>
                 <div className="flex items-center gap-3 mt-2">
                   <div className="flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3 text-spring-green" />
+                    <FiTrendingUp className="h-3 w-3 text-spring-green" />
                     <p className="text-xs text-spring-green font-bold">
                       This month: €{metrics.revenueThisMonth.toLocaleString()}
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="p-3 bg-spring-green/20 rounded-xl">
-                <Banknote className="h-6 w-6 text-spring-green" />
+              <div className="p-4 bg-gradient-to-br from-spring-green/20 to-spring-green/10 rounded-full rounded-br-none">
+                <FiDollarSign className="h-6 w-6 text-foreground" />
               </div>
             </div>
           </CardContent>
@@ -452,15 +562,15 @@ export default function DashboardOverview() {
                 </p>
                 <div className="flex items-center gap-3 mt-2">
                   <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3 text-royal-purple" />
+                    <FiCalendar className="h-3 w-3 text-royal-purple" />
                     <p className="text-xs text-muted-foreground">
                       Confirmed bookings
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="p-3 bg-royal-purple/20 rounded-xl">
-                <Clock className="h-6 w-6 text-royal-purple" />
+              <div className="p-4 bg-gradient-to-br from-royal-purple/20 to-royal-purple/10 rounded-full rounded-br-none">
+                <FiClock className="h-6 w-6 text-foreground" />
               </div>
             </div>
           </CardContent>
@@ -479,15 +589,15 @@ export default function DashboardOverview() {
                 </p>
                 <div className="flex items-center gap-3 mt-2">
                   <div className="flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3 text-vivid-orange" />
+                    <FiAlertTriangle className="h-3 w-3 text-vivid-orange" />
                     <p className="text-xs text-muted-foreground">
                       Require attention
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="p-3 bg-vivid-orange/20 rounded-xl">
-                <CreditCard className="h-6 w-6 text-vivid-orange" />
+              <div className="p-4 bg-gradient-to-br from-vivid-orange/20 to-vivid-orange/10 rounded-full rounded-br-none">
+                <FiCreditCard className="h-6 w-6 text-foreground" />
               </div>
             </div>
           </CardContent>
@@ -499,13 +609,21 @@ export default function DashboardOverview() {
         {quickActions.map((action) => (
           <Card
             key={action.title}
-            onClick={action.onClick}
-            className="cursor-pointer hover:shadow-lg transition-all duration-300 border border-border shadow hover:border-crimson-red/40 group"
+            onClick={action.disabled ? undefined : action.onClick}
+            className={`${
+              action.disabled
+                ? "opacity-50 cursor-not-allowed"
+                : "cursor-pointer hover:shadow-lg"
+            } transition-all duration-300 border border-border shadow ${
+              action.disabled ? "" : "hover:border-crimson-red/40"
+            } group`}
           >
             <CardContent className="p-5">
               <div className="flex items-center space-x-3">
                 <div
-                  className={`p-3 rounded-xl ${action.color} shadow-lg group-hover:scale-110 transition-transform duration-200`}
+                  className={`p-3 rounded-full ${action.color} shadow-lg ${
+                    action.disabled ? "" : "group-hover:scale-110"
+                  } transition-transform duration-200`}
                 >
                   <action.icon className="h-5 w-5 text-white" />
                 </div>
@@ -541,7 +659,7 @@ export default function DashboardOverview() {
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="p-3 bg-muted/20 rounded-xl inline-block mb-3">
-                      <Users className="h-8 w-8 text-muted-foreground mx-auto" />
+                      <FiUsers className="h-8 w-8 text-muted-foreground mx-auto" />
                     </div>
                     <p className="text-muted-foreground font-medium">
                       No bookings data
@@ -599,7 +717,7 @@ export default function DashboardOverview() {
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="p-3 bg-muted/20 rounded-xl inline-block mb-3">
-                      <TrendingUp className="h-8 w-8 text-muted-foreground mx-auto" />
+                      <FiTrendingUp className="h-8 w-8 text-muted-foreground mx-auto" />
                     </div>
                     <p className="text-muted-foreground font-medium">
                       No trends data
@@ -632,12 +750,12 @@ export default function DashboardOverview() {
                         borderRadius: "8px",
                         fontSize: "12px",
                       }}
-                      formatter={(value: any, name: string) => [
-                        name === "revenue"
-                          ? `€${value.toLocaleString()}`
-                          : value,
-                        name === "revenue" ? "Revenue" : "Bookings",
-                      ]}
+                      formatter={(value: any, name: string) => {
+                        if (name?.includes("Revenue")) {
+                          return [`€${value.toLocaleString()}`, "Revenue (€)"];
+                        }
+                        return [value, "Bookings"];
+                      }}
                     />
                     <Legend />
                     <Line
@@ -680,7 +798,7 @@ export default function DashboardOverview() {
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <div className="p-3 bg-muted/20 rounded-xl inline-block mb-3">
-                    <MapPin className="h-8 w-8 text-muted-foreground mx-auto" />
+                    <FiMapPin className="h-8 w-8 text-muted-foreground mx-auto" />
                   </div>
                   <p className="text-muted-foreground font-medium">
                     No tour data
@@ -752,7 +870,7 @@ export default function DashboardOverview() {
           {bookings.length === 0 ? (
             <div className="text-center py-8">
               <div className="p-3 bg-muted/20 rounded-xl inline-block mb-3">
-                <Users className="h-8 w-8 text-muted-foreground mx-auto" />
+                <FiUsers className="h-8 w-8 text-muted-foreground mx-auto" />
               </div>
               <p className="text-muted-foreground">No recent activity</p>
             </div>

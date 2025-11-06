@@ -1,6 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { initializeApp, getApps } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import GmailApiService from "./gmail-api-service";
 import * as dotenv from "dotenv";
@@ -12,100 +11,106 @@ dotenv.config();
 if (getApps().length === 0) {
   initializeApp();
 }
-const db = getFirestore();
+
+/**
+ * Extract message ID from Gmail draft URL
+ * Examples:
+ * - https://mail.google.com/mail/u/0/#drafts?compose=abc123xyz -> abc123xyz
+ * - https://mail.google.com/mail/u/0/#drafts?compose=abc123xyz -> abc123xyz
+ */
+function extractMessageIdFromUrl(url: string): string | null {
+  try {
+    // Try to extract from query parameter
+    const urlObj = new URL(url);
+    const composeParam = urlObj.searchParams.get("compose");
+    if (composeParam) {
+      return composeParam;
+    }
+
+    // Try to extract from hash (for Gmail URLs)
+    const hash = urlObj.hash;
+    const composeMatch = hash.match(/compose=([^&]+)/);
+    if (composeMatch) {
+      return composeMatch[1];
+    }
+
+    return null;
+  } catch (error) {
+    logger.error("Error parsing URL:", error);
+    return null;
+  }
+}
+
+/**
+ * Generate Gmail sent email URL
+ */
+function getGmailSentUrl(messageId: string): string {
+  return `https://mail.google.com/mail/u/0/#sent/${messageId}`;
+}
 
 export const sendReservationEmail = onCall(
   {
     region: "asia-southeast1",
+    maxInstances: 10,
+    timeoutSeconds: 60,
   },
   async (request) => {
     try {
       logger.info("Send email function called with data:", request.data);
 
-      const { draftId } = request.data;
+      const { draftUrl } = request.data;
 
-      if (!draftId) {
-        throw new HttpsError("invalid-argument", "draftId is required");
+      if (!draftUrl) {
+        throw new HttpsError("invalid-argument", "draftUrl is required");
       }
 
-      // Fetch the email draft from Firestore
-      const draftDoc = await db.collection("emailDrafts").doc(draftId).get();
+      // Extract messageId from the draft URL
+      const messageId = extractMessageIdFromUrl(draftUrl);
 
-      if (!draftDoc.exists) {
-        throw new HttpsError("not-found", "Email draft not found");
+      if (!messageId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Could not extract message ID from draft URL"
+        );
       }
 
-      const draftData = draftDoc.data();
-      if (!draftData) {
-        throw new HttpsError("internal", "Failed to fetch draft data");
-      }
-
-      logger.info("Draft data:", draftData);
-
-      // Check if email is already sent
-      if (draftData.status === "sent") {
-        throw new HttpsError("already-exists", "Email has already been sent");
-      }
+      logger.info(`Extracted message ID: ${messageId}`);
 
       // Initialize Gmail API service
       const gmailService = new GmailApiService();
 
-      // Prepare email data
-      const emailData = {
-        from:
-          draftData.from || "Bella | ImHereTravels <bella@imheretravels.com>",
-        to: draftData.to,
-        subject: draftData.subject,
-        htmlContent: draftData.htmlContent,
-        bcc: draftData.bcc || [],
-      };
+      // Get the draft by message ID to find the draftId
+      const draftsResponse = await gmailService.fetchDrafts(100);
+      const draft = draftsResponse.drafts.find(
+        (d: any) => d.messageId === messageId
+      );
 
-      logger.info("Sending email with Gmail API:", {
-        from: emailData.from,
-        to: emailData.to,
-        subject: emailData.subject,
-        bcc: emailData.bcc,
-        htmlLength: emailData.htmlContent.length,
-      });
+      if (!draft) {
+        throw new HttpsError(
+          "not-found",
+          "Draft not found with the given message ID"
+        );
+      }
 
-      // Send the email using Gmail API
-      const result = await gmailService.sendEmail(emailData);
+      logger.info(`Found draft with ID: ${draft.id}`);
 
-      logger.info("Email sent successfully:", result.messageId);
+      // Send the draft
+      const result = await gmailService.sendDraft(draft.id);
 
-      // Update the draft status to "sent"
-      await db.collection("emailDrafts").doc(draftId).update({
-        status: "sent",
-        updatedAt: new Date(),
-        sentAt: new Date(),
-        messageId: result.messageId,
-      });
+      logger.info("Draft sent successfully:", result.messageId);
+
+      // Generate the sent email URL
+      const sentUrl = getGmailSentUrl(result.messageId);
 
       return {
         success: true,
         messageId: result.messageId,
+        threadId: result.threadId,
         status: "sent",
-        draftId: draftId,
+        sentUrl: sentUrl,
       };
     } catch (error) {
       logger.error("Error sending email:", error);
-
-      // If we have a draftId, update it to failed status
-      if (request.data.draftId) {
-        try {
-          await db
-            .collection("emailDrafts")
-            .doc(request.data.draftId)
-            .update({
-              status: "failed",
-              updatedAt: new Date(),
-              errorMessage:
-                error instanceof Error ? error.message : String(error),
-            });
-        } catch (updateError) {
-          logger.error("Error updating draft status to failed:", updateError);
-        }
-      }
 
       if (error instanceof HttpsError) {
         throw error;

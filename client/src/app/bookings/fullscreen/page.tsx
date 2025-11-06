@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Search, Filter, Eye, EyeOff, X } from "lucide-react";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { typescriptFunctionsService } from "@/services/typescript-functions-service";
+import { TypeScriptFunction } from "@/types/sheet-management";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +30,6 @@ export default function BookingsFullscreenPage() {
   const {
     columns,
     data,
-    availableFunctions,
     updateColumn,
     deleteColumn,
     updateData,
@@ -46,6 +47,27 @@ export default function BookingsFullscreenPage() {
   const [currencyRangeFilters, setCurrencyRangeFilters] = useState<
     Record<string, { min?: number; max?: number }>
   >({});
+  const [availableFunctions, setAvailableFunctions] = useState<
+    TypeScriptFunction[]
+  >([]);
+  const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
+
+  // Fetch TypeScript functions
+  useEffect(() => {
+    const fetchFunctions = async () => {
+      setIsLoadingFunctions(true);
+      try {
+        const functions = await typescriptFunctionsService.getAllFunctions();
+        setAvailableFunctions(functions);
+      } catch (error) {
+        console.error("Failed to fetch TypeScript functions:", error);
+      } finally {
+        setIsLoadingFunctions(false);
+      }
+    };
+
+    fetchFunctions();
+  }, []);
 
   // Filter management functions
   const clearAllFilters = useCallback(() => {
@@ -105,7 +127,10 @@ export default function BookingsFullscreenPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Simplified Header */}
-      <div className="border-b border-royal-purple/20 bg-background sticky top-0 z-50">
+      <div
+        className="border-b border-royal-purple/20 sticky top-0 z-50"
+        style={{ backgroundColor: "hsl(var(--card-surface))" }}
+      >
         <div className="px-6 py-4">
           <div className="flex items-center gap-4">
             {/* Back Button */}
@@ -122,7 +147,7 @@ export default function BookingsFullscreenPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Search all columns..."
+                placeholder="Search across all fields ..."
                 value={globalFilter}
                 onChange={(e) => setGlobalFilter(e.target.value)}
                 className="pl-10 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20 focus:outline-none focus-visible:ring-0"
