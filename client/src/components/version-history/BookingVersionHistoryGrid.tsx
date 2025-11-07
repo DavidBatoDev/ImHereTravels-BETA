@@ -23,6 +23,7 @@ import {
   Eye,
   ArrowRight,
   History,
+  RefreshCw,
 } from "lucide-react";
 
 import {
@@ -30,7 +31,7 @@ import {
   VersionHighlightedData,
   VersionComparison,
 } from "@/types/version-history";
-import { SheetColumn } from "@/types/sheet-management";
+import { SheetColumn, SheetData } from "@/types/sheet-management";
 import { bookingVersionHistoryService } from "@/services/booking-version-history-service";
 
 // Define types manually since the package types are not matching
@@ -75,112 +76,143 @@ export default function BookingVersionHistoryGrid({
   const [isLoadingComparison, setIsLoadingComparison] = useState(false);
   const gridContainerRef = React.useRef<HTMLDivElement>(null);
 
-  // Create version-highlighted data showing all bookings, but marking changes from selected version
+  // State for reconstructed grid data
+  const [isReconstructing, setIsReconstructing] = useState(false);
+  const [reconstructedBookings, setReconstructedBookings] = useState<
+    SheetData[]
+  >([]);
+
+  // Reconstruct grid state when version changes
+  useEffect(() => {
+    const reconstructGrid = async () => {
+      const selectedVersion = versions.find((v) => v.id === selectedVersionId);
+      if (!selectedVersion || allBookingsData.length === 0) {
+        setReconstructedBookings([]);
+        return;
+      }
+
+      setIsReconstructing(true);
+      try {
+        // Get the timestamp from the selected version
+        const versionTimestamp = selectedVersion.metadata.createdAt;
+        let versionTime: number;
+
+        if (versionTimestamp && typeof versionTimestamp === "object") {
+          if (
+            "toDate" in versionTimestamp &&
+            typeof versionTimestamp.toDate === "function"
+          ) {
+            versionTime = versionTimestamp.toDate().getTime();
+          } else if (
+            "seconds" in versionTimestamp &&
+            typeof versionTimestamp.seconds === "number"
+          ) {
+            versionTime = versionTimestamp.seconds * 1000;
+          } else if (versionTimestamp instanceof Date) {
+            versionTime = versionTimestamp.getTime();
+          } else {
+            versionTime = Date.now();
+          }
+        } else if (typeof versionTimestamp === "number") {
+          versionTime = versionTimestamp;
+        } else {
+          versionTime = Date.now();
+        }
+
+        console.log(
+          "🔍 [VERSION GRID] Reconstructing grid at timestamp:",
+          new Date(versionTime)
+        );
+
+        // Use the service to reconstruct complete grid state
+        const historicalGrid =
+          await bookingVersionHistoryService.getGridStateAtTimestamp(
+            versionTime,
+            allBookingsData
+          );
+
+        setReconstructedBookings(historicalGrid);
+        console.log(
+          "✅ [VERSION GRID] Reconstructed",
+          historicalGrid.length,
+          "bookings"
+        );
+      } catch (error) {
+        console.error("❌ [VERSION GRID] Failed to reconstruct grid:", error);
+        setReconstructedBookings([]);
+      } finally {
+        setIsReconstructing(false);
+      }
+    };
+
+    reconstructGrid();
+  }, [selectedVersionId, versions, allBookingsData]);
+
+  // Create version-highlighted data showing all bookings with historical state
   const versionData = useMemo<VersionHighlightedData[]>(() => {
     // Find the selected version
     const selectedVersion = versions.find((v) => v.id === selectedVersionId);
 
-    if (!selectedVersion) {
+    if (!selectedVersion || reconstructedBookings.length === 0) {
       return [];
     }
 
-    // Get the booking ID and timestamp from the selected version
+    // Get the booking ID from the selected version
     const versionBookingId = selectedVersion.documentSnapshot.id;
-    const versionTimestamp = selectedVersion.metadata.createdAt;
 
-    // Convert version timestamp to comparable format
-    let versionTime: number;
-    try {
-      if (versionTimestamp && typeof versionTimestamp === "object") {
-        if (
-          "toDate" in versionTimestamp &&
-          typeof versionTimestamp.toDate === "function"
-        ) {
-          versionTime = versionTimestamp.toDate().getTime();
-        } else if (
-          "seconds" in versionTimestamp &&
-          typeof versionTimestamp.seconds === "number"
-        ) {
-          versionTime = versionTimestamp.seconds * 1000;
-        } else if (versionTimestamp instanceof Date) {
-          versionTime = versionTimestamp.getTime();
-        } else {
-          versionTime = Date.now(); // Fallback to now if can't parse
-        }
-      } else if (typeof versionTimestamp === "number") {
-        versionTime = versionTimestamp;
-      } else {
-        versionTime = Date.now(); // Fallback to now if can't parse
-      }
-    } catch (error) {
-      console.error("Error parsing version timestamp:", error);
-      versionTime = Date.now();
-    }
+    // Check if this is a bulk operation
+    const isBulkOperation =
+      selectedVersion.metadata.changeType?.startsWith("bulk_");
+    const bulkAffectedIds =
+      selectedVersion.metadata.bulkOperation?.affectedBookingIds || [];
 
-    // Filter bookings to only show those that existed at or before the version timestamp
-    const filteredBookings = allBookingsData.filter((booking) => {
-      // Always include the booking that this version is about
-      if (booking.id === versionBookingId) {
-        return true;
-      }
+    // Map reconstructed bookings and add version info to highlight changes
+    const mappedData = reconstructedBookings.map(
+      (booking): VersionHighlightedData => {
+        const isVersionedBooking = booking.id === versionBookingId;
+        const isBulkAffectedBooking =
+          isBulkOperation && bulkAffectedIds.includes(booking.id);
 
-      // Check if booking was created before or at the version time
-      const bookingCreatedAt = booking.createdAt;
-      if (!bookingCreatedAt) {
-        return true; // Include bookings without creation timestamp (legacy data)
-      }
-
-      try {
-        let bookingTime: number;
-        if (typeof bookingCreatedAt === "object") {
-          if (
-            "toDate" in bookingCreatedAt &&
-            typeof bookingCreatedAt.toDate === "function"
-          ) {
-            bookingTime = bookingCreatedAt.toDate().getTime();
-          } else if (
-            "seconds" in bookingCreatedAt &&
-            typeof bookingCreatedAt.seconds === "number"
-          ) {
-            bookingTime = bookingCreatedAt.seconds * 1000;
-          } else if (bookingCreatedAt instanceof Date) {
-            bookingTime = bookingCreatedAt.getTime();
-          } else {
-            return true; // Can't parse, include it
-          }
-        } else if (typeof bookingCreatedAt === "number") {
-          bookingTime = bookingCreatedAt;
-        } else {
-          return true; // Can't parse, include it
+        // Debug: Log the versioned booking data
+        if (isVersionedBooking) {
+          console.log(`🔍 [VERSION DATA] Versioned booking ${booking.id}:`, {
+            bookingId: booking.id,
+            changedFields: selectedVersion.changes.map((c) => c.fieldPath),
+            changeValues: selectedVersion.changes.map((c) => ({
+              field: c.fieldPath,
+              oldValue: c.oldValue,
+              newValue: c.newValue,
+            })),
+            bookingKeys: Object.keys(booking).slice(0, 30),
+            sampleBookingValues: {
+              firstName: booking.firstName,
+              bookingType: booking.bookingType,
+              bookingCode: booking.bookingCode,
+              customerName: booking.customerName,
+              email: booking.email,
+              emailAddress: booking.emailAddress,
+            },
+            rawBookingObject: booking,
+          });
         }
 
-        // Only include bookings created at or before this version
-        return bookingTime <= versionTime;
-      } catch (error) {
-        console.error("Error parsing booking timestamp:", error);
-        return true; // Include on error
+        return {
+          ...booking,
+          _versionInfo:
+            isVersionedBooking || isBulkAffectedBooking
+              ? {
+                  versionId: selectedVersion.id,
+                  versionNumber: selectedVersion.versionNumber,
+                  isRestorePoint: selectedVersion.metadata.isRestorePoint,
+                  changedFields: isBulkOperation
+                    ? ["_bulk_operation"] // For bulk operations, highlight entire booking
+                    : selectedVersion.changes.map((change) => change.fieldPath),
+                  metadata: selectedVersion.metadata,
+                }
+              : undefined,
+        } as VersionHighlightedData;
       }
-    });
-
-    // Map bookings data and add version info to highlight changes
-    const mappedData = filteredBookings.map((booking) => {
-      const isVersionedBooking = booking.id === versionBookingId;
-
-      return {
-        ...booking,
-        _versionInfo: isVersionedBooking
-          ? {
-              versionId: selectedVersion.id,
-              versionNumber: selectedVersion.versionNumber,
-              isRestorePoint: selectedVersion.metadata.isRestorePoint,
-              changedFields: selectedVersion.changes.map(
-                (change) => change.fieldPath
-              ),
-              metadata: selectedVersion.metadata,
-            }
-          : undefined,
-      };
-    });
+    );
 
     // Sort by row number (same as BookingsDataGrid)
     return mappedData.sort((a, b) => {
@@ -188,7 +220,7 @@ export default function BookingVersionHistoryGrid({
       const bRow = typeof b.row === "number" ? b.row : 0;
       return aRow - bRow;
     });
-  }, [versions, selectedVersionId, allBookingsData]);
+  }, [versions, selectedVersionId, reconstructedBookings]);
 
   // Load comparison when comparison version changes
   useEffect(() => {
@@ -234,24 +266,78 @@ export default function BookingVersionHistoryGrid({
 
     if (changedRowIndex === -1) return;
 
-    // Scroll to the row (add small delay to ensure grid is rendered)
+    // Scroll to the row and column (add small delay to ensure grid is rendered)
     setTimeout(() => {
       const grid = gridContainerRef.current?.querySelector(".rdg");
       if (!grid) return;
 
-      // Calculate the scroll position
+      // Calculate the vertical scroll position
       // Each row is 40px (rowHeight) + header is 80px
       const headerHeight = 80;
       const rowHeight = 40;
       const scrollTop = changedRowIndex * rowHeight;
 
-      // Scroll the grid to show the changed row
-      grid.scrollTo({
-        top: scrollTop,
-        behavior: "smooth",
-      });
+      // Calculate horizontal scroll position to first changed column
+      if (selectedVersion.changes && selectedVersion.changes.length > 0) {
+        const firstChangedFieldPath = selectedVersion.changes[0].fieldPath;
+
+        // Find the column index for the changed field
+        const sortedColumns = columns
+          .filter((col) => col && col.id && col.columnName)
+          .sort((a, b) => a.order - b.order);
+
+        const changedColumnIndex = sortedColumns.findIndex(
+          (col) => col.id === firstChangedFieldPath
+        );
+
+        if (changedColumnIndex !== -1) {
+          // Calculate horizontal scroll position
+          // Account for columns before the changed one
+          let scrollLeft = 0;
+          for (let i = 0; i < changedColumnIndex; i++) {
+            scrollLeft += sortedColumns[i].width || 150;
+          }
+
+          // Add buffer space to the left (show previous column for context)
+          // Subtract one column width or 200px (whichever is smaller) to show space to the left
+          const leftBuffer = Math.min(
+            changedColumnIndex > 0
+              ? sortedColumns[changedColumnIndex - 1].width || 150
+              : 0,
+            200
+          );
+          scrollLeft = Math.max(0, scrollLeft - leftBuffer);
+
+          // Scroll both vertically and horizontally
+          grid.scrollTo({
+            top: scrollTop,
+            left: scrollLeft,
+            behavior: "smooth",
+          });
+
+          console.log("🔍 [VERSION GRID] Auto-scrolled to changed column:", {
+            column: firstChangedFieldPath,
+            columnIndex: changedColumnIndex,
+            scrollLeft,
+            scrollTop,
+            leftBuffer,
+          });
+        } else {
+          // If column not found, just scroll vertically
+          grid.scrollTo({
+            top: scrollTop,
+            behavior: "smooth",
+          });
+        }
+      } else {
+        // No changes, just scroll vertically
+        grid.scrollTo({
+          top: scrollTop,
+          behavior: "smooth",
+        });
+      }
     }, 100);
-  }, [selectedVersionId, versionData, versions]);
+  }, [selectedVersionId, versionData, versions, columns]);
 
   // Helper function to get change type for a field
   const getFieldChangeType = useCallback(
@@ -329,20 +415,31 @@ export default function BookingVersionHistoryGrid({
       const versionInfo = row._versionInfo;
       const hasVersionInfo = !!versionInfo;
       const isNewBooking = versionInfo?.metadata?.changeType === "create";
+      const isDeletedBooking = versionInfo?.metadata?.changeType === "delete";
+      const isBulkOperation =
+        versionInfo?.metadata?.changeType?.startsWith("bulk_");
 
       return (
         <div
           className={`h-full w-full flex items-center justify-center text-xs font-mono px-2 bg-muted/50 border-r border-border relative ${
             hasVersionInfo
-              ? isNewBooking
+              ? isDeletedBooking
+                ? "bg-red-200 border-2 border-red-500"
+                : isNewBooking
                 ? "bg-green-200"
+                : isBulkOperation
+                ? "bg-blue-200 border-2 border-blue-500"
                 : "bg-green-50"
               : "opacity-40"
           }`}
           title={`Row ${rowNumber} (Booking ID: ${row.id})${
             hasVersionInfo
-              ? isNewBooking
+              ? isDeletedBooking
+                ? " - Deleted Booking"
+                : isNewBooking
                 ? " - New Booking"
+                : isBulkOperation
+                ? " - Bulk Operation"
                 : " - Has Changes"
               : ""
           }`}
@@ -369,7 +466,9 @@ export default function BookingVersionHistoryGrid({
 
     const dataColumns = columns
       .filter(
-        (col) => col && col.id && col.columnName && col.showColumn !== false
+        (col) => col && col.id && col.columnName
+        // Note: We intentionally show ALL columns in version history, including hidden ones
+        // This allows users to see changes in hidden columns
       )
       .sort((a, b) => a.order - b.order)
       .map((col) => {
@@ -430,11 +529,23 @@ export default function BookingVersionHistoryGrid({
           const versionInfo = row._versionInfo;
           const changeType = getFieldChangeType(col.id, versionInfo);
           const isNewBooking = versionInfo?.metadata?.changeType === "create";
+          const isDeletedBooking =
+            versionInfo?.metadata?.changeType === "delete";
+          const isBulkOperation =
+            versionInfo?.metadata?.changeType?.startsWith("bulk_");
 
           let classes = [cellClass];
 
+          // If this is a deleted booking, highlight all cells in red
+          if (isDeletedBooking) {
+            classes.push("bg-red-200 border-2 border-red-500 relative");
+          }
+          // If this is a bulk operation, highlight all cells in blue
+          else if (isBulkOperation) {
+            classes.push("bg-blue-200 border-2 border-blue-500 relative");
+          }
           // If this is a newly created booking, highlight all cells
-          if (isNewBooking) {
+          else if (isNewBooking) {
             classes.push("bg-green-200 border-2 border-green-500 relative");
           }
           // If this cell was changed in the selected version, highlight it brightly
@@ -517,8 +628,22 @@ export default function BookingVersionHistoryGrid({
               )}
 
               {/* Column Name Row */}
-              <div className="flex items-center justify-center flex-1 px-2 mt-10 bg-black text-white">
+              <div className="flex items-center justify-center flex-1 px-2 mt-10 bg-black text-white gap-1">
                 <span className="font-medium text-xs">{column.name}</span>
+                {col.showColumn === false && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Eye className="h-3 w-3 text-gray-400 opacity-60" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">
+                          This column is hidden in the main grid
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
             </div>
           );
@@ -533,6 +658,28 @@ export default function BookingVersionHistoryGrid({
           const versionInfo = row._versionInfo;
           const changeType = getFieldChangeType(col.id, versionInfo);
           const changeDetails = getChangeDetails(col.id, versionInfo);
+
+          // Debug logging for specific fields like firstName
+          if (
+            col.id === "firstName" ||
+            col.id === "bookingType" ||
+            col.id === "bookingCode"
+          ) {
+            console.log(`🔍 [CELL RENDER] ${col.id} - BookingId: ${row.id}`, {
+              columnKey: column.key,
+              colId: col.id,
+              cellValue,
+              cellValueType: typeof cellValue,
+              changeType,
+              hasVersionInfo: !!versionInfo,
+              changedFields: versionInfo?.changedFields,
+              isInChangedFields: versionInfo?.changedFields?.includes(col.id),
+              rowKeys: Object.keys(row).slice(0, 20),
+              directAccess: row[col.id as keyof VersionHighlightedData],
+              hasChangeDetails: !!changeDetails,
+              changeDetailsNewValue: changeDetails?.newValue,
+            });
+          }
 
           let displayValue = "";
           if (cellValue !== null && cellValue !== undefined) {
@@ -676,6 +823,21 @@ export default function BookingVersionHistoryGrid({
     );
   }
 
+  // Show loading indicator while reconstructing grid state
+  if (isReconstructing) {
+    return (
+      <div className={`version-history-grid ${className}`}>
+        <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+          <RefreshCw className="h-16 w-16 mb-4 opacity-50 animate-spin" />
+          <p className="text-lg font-medium">Loading Historical State...</p>
+          <p className="text-sm mt-2">
+            Reconstructing grid data at selected timestamp
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Show message if we have no bookings data
   if (versionData.length === 0) {
     return (
@@ -695,20 +857,91 @@ export default function BookingVersionHistoryGrid({
     <div className={`version-history-grid ${className}`}>
       {/* Version Info Banner */}
       {selectedVersion && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
-          <div className="text-sm text-green-800">
-            <strong>Viewing changes for:</strong> Booking ID{" "}
-            <span className="font-mono">
-              {selectedVersion.documentSnapshot.id}
-            </span>
-            {" • "}
-            <span className="font-semibold">
-              {selectedVersion.changes.length} field
-              {selectedVersion.changes.length !== 1 ? "s" : ""} changed
-            </span>
-            <div className="text-xs mt-1 text-green-700">
-              Changed cells are highlighted in green. All other bookings are
-              displayed normally.
+        <div
+          className={`mb-4 p-3 rounded-md border ${
+            selectedVersion.metadata.changeType === "delete"
+              ? "bg-red-50 border-red-200"
+              : selectedVersion.metadata.changeType?.startsWith("bulk_")
+              ? "bg-blue-50 border-blue-200"
+              : "bg-green-50 border-green-200"
+          }`}
+        >
+          <div
+            className={`text-sm ${
+              selectedVersion.metadata.changeType === "delete"
+                ? "text-red-800"
+                : selectedVersion.metadata.changeType?.startsWith("bulk_")
+                ? "text-blue-800"
+                : "text-green-800"
+            }`}
+          >
+            <strong>Viewing complete grid state at:</strong>{" "}
+            {new Date(
+              selectedVersion.metadata.createdAt?.seconds
+                ? selectedVersion.metadata.createdAt.seconds * 1000
+                : Date.now()
+            ).toLocaleString()}
+            <div className="mt-1">
+              {selectedVersion.metadata.changeType?.startsWith("bulk_") ? (
+                <>
+                  <strong>Bulk Operation:</strong>{" "}
+                  <span className="font-semibold">
+                    {selectedVersion.metadata.changeDescription}
+                  </span>
+                  {selectedVersion.metadata.bulkOperation && (
+                    <>
+                      {" • "}
+                      <span className="font-semibold">
+                        {selectedVersion.metadata.bulkOperation.totalCount}{" "}
+                        booking
+                        {selectedVersion.metadata.bulkOperation.totalCount !== 1
+                          ? "s"
+                          : ""}{" "}
+                        affected
+                      </span>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <strong>
+                    {selectedVersion.metadata.changeType === "delete"
+                      ? "Deleted"
+                      : "Changed"}{" "}
+                    booking:
+                  </strong>{" "}
+                  ID{" "}
+                  <span className="font-mono">
+                    {selectedVersion.documentSnapshot.id}
+                  </span>
+                  {" • "}
+                  <span className="font-semibold">
+                    {selectedVersion.changes.length} field
+                    {selectedVersion.changes.length !== 1 ? "s" : ""}{" "}
+                    {selectedVersion.metadata.changeType === "delete"
+                      ? "before deletion"
+                      : "modified"}
+                  </span>
+                </>
+              )}
+            </div>
+            <div
+              className={`text-xs mt-2 ${
+                selectedVersion.metadata.changeType === "delete"
+                  ? "text-red-700"
+                  : selectedVersion.metadata.changeType?.startsWith("bulk_")
+                  ? "text-blue-700"
+                  : "text-green-700"
+              }`}
+            >
+              ✨ Showing {versionData.length} booking
+              {versionData.length !== 1 ? "s" : ""} as they existed at this
+              moment in time.{" "}
+              {selectedVersion.metadata.changeType === "delete"
+                ? "Deleted booking is highlighted in red."
+                : selectedVersion.metadata.changeType?.startsWith("bulk_")
+                ? "Bulk operation affected bookings are highlighted in blue."
+                : "Changed cells are highlighted in green."}
             </div>
           </div>
         </div>

@@ -69,10 +69,13 @@ export interface BranchInfo {
 export type VersionChangeType =
   | "create" // Initial document creation
   | "update" // Regular field update
+  | "delete" // Document deletion
   | "restore" // Restored from an older version
   | "bulk_update" // Multiple fields updated at once
+  | "bulk_delete" // Bulk deletion operation
+  | "bulk_import" // Bulk CSV import operation
   | "import" // Created via CSV import
-  | "system"; // System-generated change (e.g., function computation);
+  | "system"; // System-generated change (e.g., function computation)
 
 /**
  * Comparison result between two versions
@@ -177,4 +180,31 @@ export interface VersionHistoryState {
   isLoading: boolean;
   error?: string;
   filters: VersionHistoryFilters;
+}
+
+/**
+ * Options for bulk operations version tracking
+ */
+export interface BulkOperationOptions {
+  operationType: "delete" | "import" | "update";
+  operationDescription: string;
+  affectedBookingIds: string[];
+  userId: string;
+  userName?: string;
+  totalCount: number;
+  successCount?: number;
+  failureCount?: number;
+}
+
+/**
+ * Extended metadata for bulk operations
+ */
+export interface BulkOperationMetadata extends VersionMetadata {
+  bulkOperation?: {
+    operationType: "delete" | "import" | "update";
+    totalCount: number;
+    successCount: number;
+    failureCount: number;
+    affectedBookingIds: string[];
+  };
 }

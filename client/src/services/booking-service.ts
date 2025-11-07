@@ -30,6 +30,19 @@ const COLLECTION_NAME = "bookings";
 const VERSION_TRACKING_CONFIG = {
   enabled: true, // Set to false to completely disable version tracking
   async: true, // Set to false to make version tracking synchronous (not recommended)
+  trackingLevels: {
+    create: true, // Track booking creation
+    update: true, // Track booking updates
+    delete: true, // Track booking deletions
+    bulkOperations: true, // Track bulk operations (import, bulk delete)
+    fieldUpdates: true, // Track individual field updates
+    clearFields: true, // Track field clearing operations
+  },
+  performance: {
+    skipVersioningForBulkImports: true, // Skip individual version tracking during bulk imports (recommended)
+    batchVersionSnapshots: true, // Batch version snapshots for better performance
+    maxVersionsPerBooking: 100, // Maximum versions to keep per booking (0 = unlimited)
+  },
 };
 
 // ============================================================================
@@ -76,6 +89,13 @@ export interface BookingService {
 
   // Delete booking and shift subsequent rows
   deleteBookingWithRowShift(bookingId: string): Promise<void>;
+
+  // Version tracking configuration
+  getVersionTrackingConfig(): typeof VERSION_TRACKING_CONFIG;
+  setVersionTracking(
+    trackingType: keyof typeof VERSION_TRACKING_CONFIG.trackingLevels,
+    enabled: boolean
+  ): void;
 }
 
 // ============================================================================
@@ -106,7 +126,10 @@ class BookingServiceImpl implements BookingService {
       console.log(`✅ Updated booking ${bookingId}`);
 
       // Create version snapshot asynchronously (fire-and-forget, don't await)
-      if (VERSION_TRACKING_CONFIG.enabled) {
+      if (
+        VERSION_TRACKING_CONFIG.enabled &&
+        VERSION_TRACKING_CONFIG.trackingLevels.update
+      ) {
         this.createVersionSnapshotAsync(
           bookingId,
           currentBookingPromise,
@@ -125,8 +148,63 @@ class BookingServiceImpl implements BookingService {
   }
 
   async deleteBooking(bookingId: string): Promise<void> {
+    let currentBooking: DocumentData | null = null;
+    let versionSnapshotId: string | null = null;
+
     try {
+      // Get current booking data for version tracking BEFORE deletion
+      if (
+        VERSION_TRACKING_CONFIG.enabled &&
+        VERSION_TRACKING_CONFIG.trackingLevels.delete
+      ) {
+        currentBooking = await this.getBooking(bookingId);
+        if (!currentBooking) {
+          console.warn(
+            `⚠️ Booking ${bookingId} not found for deletion version tracking`
+          );
+        }
+      }
+
       const docRef = doc(db, COLLECTION_NAME, bookingId);
+
+      // Create version snapshot BEFORE deletion (synchronously for rollback capability)
+      if (
+        VERSION_TRACKING_CONFIG.enabled &&
+        VERSION_TRACKING_CONFIG.trackingLevels.delete &&
+        currentBooking
+      ) {
+        try {
+          const { user, userProfile } = useAuthStore.getState();
+          const currentUserId = user?.uid || "system";
+          const currentUserName =
+            userProfile?.profile?.firstName && userProfile?.profile?.lastName
+              ? `${userProfile.profile.firstName} ${userProfile.profile.lastName}`
+              : userProfile?.email || user?.email || "System";
+
+          versionSnapshotId =
+            await bookingVersionHistoryService.createVersionSnapshot(
+              bookingId,
+              currentBooking as SheetData,
+              {
+                changeType: "delete",
+                changeDescription: "Booking deleted",
+                userId: currentUserId,
+                userName: currentUserName,
+              }
+            );
+          console.log(
+            `📝 Created delete version snapshot: ${versionSnapshotId}`
+          );
+        } catch (versionError) {
+          console.error(
+            `⚠️ Failed to create version snapshot, proceeding with deletion:`,
+            versionError
+          );
+          // Continue with deletion even if version tracking fails
+        }
+      }
+
+      // Perform the actual deletion
       await deleteDoc(docRef);
       console.log(`✅ Deleted booking ${bookingId}`);
     } catch (error) {
@@ -135,6 +213,20 @@ class BookingServiceImpl implements BookingService {
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
+
+      // If deletion failed but we created a version snapshot, we should clean it up
+      if (versionSnapshotId) {
+        try {
+          console.log(
+            `🧹 Cleaning up version snapshot ${versionSnapshotId} due to failed deletion`
+          );
+          // Note: In a real implementation, you might want to mark the version as "failed" instead of deleting it
+          // For now, we'll just log the cleanup attempt
+        } catch (cleanupError) {
+          console.error(`❌ Failed to cleanup version snapshot:`, cleanupError);
+        }
+      }
+
       throw error;
     }
   }
@@ -146,7 +238,35 @@ class BookingServiceImpl implements BookingService {
 
       const BATCH_SIZE = 400; // keep well under the 500 limit
       const docs = snapshot.docs;
+      const totalCount = docs.length;
 
+      // Create bulk delete version snapshot before deletion
+      if (
+        VERSION_TRACKING_CONFIG.enabled &&
+        VERSION_TRACKING_CONFIG.trackingLevels.bulkOperations &&
+        totalCount > 0
+      ) {
+        const { user, userProfile } = useAuthStore.getState();
+        const currentUserId = user?.uid || "system";
+        const currentUserName =
+          userProfile?.profile?.firstName && userProfile?.profile?.lastName
+            ? `${userProfile.profile.firstName} ${userProfile.profile.lastName}`
+            : userProfile?.email || user?.email || "System";
+
+        const affectedBookingIds = docs.map((doc) => doc.id);
+
+        // Create bulk delete snapshot asynchronously (fire-and-forget)
+        this.createBulkDeleteSnapshotAsync({
+          operationType: "delete",
+          operationDescription: `Bulk delete of all ${totalCount} bookings`,
+          affectedBookingIds,
+          userId: currentUserId,
+          userName: currentUserName,
+          totalCount,
+        });
+      }
+
+      // Perform the actual deletion
       for (let i = 0; i < docs.length; i += BATCH_SIZE) {
         const batch = writeBatch(db);
         const slice = docs.slice(i, i + BATCH_SIZE);
@@ -175,7 +295,10 @@ class BookingServiceImpl implements BookingService {
       console.log(`✅ Created booking with ID: ${docRef.id}`);
 
       // Create initial version snapshot asynchronously (fire-and-forget)
-      if (VERSION_TRACKING_CONFIG.enabled) {
+      if (
+        VERSION_TRACKING_CONFIG.enabled &&
+        VERSION_TRACKING_CONFIG.trackingLevels.create
+      ) {
         this.createVersionSnapshotAsync(
           docRef.id,
           Promise.resolve(null),
@@ -295,24 +418,59 @@ class BookingServiceImpl implements BookingService {
 
       if (!docSnap.exists()) {
         // Create the document if it doesn't exist
-        await setDoc(docRef, {
+        const newBookingData = {
           id: bookingId,
           [fieldPath]: value,
           createdAt: new Date(),
           updatedAt: new Date(),
-        });
+        };
+
+        await setDoc(docRef, newBookingData);
         console.log(
           `✅ Created and updated field ${fieldPath} in new booking ${bookingId}`
         );
+
+        // Create version snapshot for new booking creation
+        if (
+          VERSION_TRACKING_CONFIG.enabled &&
+          VERSION_TRACKING_CONFIG.trackingLevels.create
+        ) {
+          this.createVersionSnapshotAsync(
+            bookingId,
+            Promise.resolve(null),
+            newBookingData,
+            "create",
+            `Created booking with field ${fieldPath}`
+          );
+        }
       } else {
+        // Get current booking data for version tracking
+        const currentBookingData = { id: bookingId, ...docSnap.data() };
+
         // Update existing document
-        await updateDoc(docRef, {
+        const updateData = {
           [fieldPath]: value,
           updatedAt: new Date(),
-        });
+        };
+
+        await updateDoc(docRef, updateData);
         console.log(
           `✅ Updated field ${fieldPath} in existing booking ${bookingId}`
         );
+
+        // Create version snapshot for field update
+        if (
+          VERSION_TRACKING_CONFIG.enabled &&
+          VERSION_TRACKING_CONFIG.trackingLevels.fieldUpdates
+        ) {
+          this.createVersionSnapshotAsync(
+            bookingId,
+            Promise.resolve(currentBookingData),
+            updateData,
+            "update",
+            `Updated field ${fieldPath}`
+          );
+        }
       }
     } catch (error) {
       console.error(
@@ -336,20 +494,55 @@ class BookingServiceImpl implements BookingService {
 
       if (!docSnap.exists()) {
         // Create new document
-        await setDoc(docRef, {
+        const newBookingData = {
           ...bookingData,
           id: bookingId,
           createdAt: new Date(),
           updatedAt: new Date(),
-        });
+        };
+
+        await setDoc(docRef, newBookingData);
         console.log(`✅ Created new booking ${bookingId}`);
+
+        // Create version snapshot for new booking creation
+        if (
+          VERSION_TRACKING_CONFIG.enabled &&
+          VERSION_TRACKING_CONFIG.trackingLevels.create
+        ) {
+          this.createVersionSnapshotAsync(
+            bookingId,
+            Promise.resolve(null),
+            newBookingData,
+            "create",
+            "Created complete booking"
+          );
+        }
       } else {
+        // Get current booking data for version tracking
+        const currentBookingData = { id: bookingId, ...docSnap.data() };
+
         // Update existing document
-        await updateDoc(docRef, {
+        const updateData = {
           ...bookingData,
           updatedAt: new Date(),
-        });
+        };
+
+        await updateDoc(docRef, updateData);
         console.log(`✅ Updated existing booking ${bookingId}`);
+
+        // Create version snapshot for booking update
+        if (
+          VERSION_TRACKING_CONFIG.enabled &&
+          VERSION_TRACKING_CONFIG.trackingLevels.update
+        ) {
+          this.createVersionSnapshotAsync(
+            bookingId,
+            Promise.resolve(currentBookingData),
+            updateData,
+            "update",
+            "Updated complete booking"
+          );
+        }
       }
     } catch (error) {
       console.error(
@@ -447,6 +640,21 @@ class BookingServiceImpl implements BookingService {
         )
       );
 
+      // Create version snapshot before clearing fields (this is essentially a bulk field deletion)
+      if (
+        VERSION_TRACKING_CONFIG.enabled &&
+        VERSION_TRACKING_CONFIG.trackingLevels.clearFields
+      ) {
+        const currentBookingWithId = { id: bookingId, ...currentData };
+        this.createVersionSnapshotAsync(
+          bookingId,
+          Promise.resolve(currentBookingWithId),
+          preservedFields, // The new state after clearing
+          "update", // This is an update operation that clears fields
+          `Cleared all fields except id, createdAt, updatedAt`
+        );
+      }
+
       // Delete the document and recreate it with only essential fields
       // This ensures all dynamic fields are completely removed
       await deleteDoc(docRef);
@@ -488,6 +696,21 @@ class BookingServiceImpl implements BookingService {
         console.warn(
           `⚠️ Booking ${bookingId} has no valid row number, deleting without shifting`
         );
+
+        // Create version snapshot before deletion even without row shifting
+        if (
+          VERSION_TRACKING_CONFIG.enabled &&
+          VERSION_TRACKING_CONFIG.trackingLevels.delete
+        ) {
+          const currentBookingWithId = { id: bookingId, ...bookingData };
+          this.createVersionSnapshotAsync(
+            bookingId,
+            Promise.resolve(currentBookingWithId),
+            currentBookingWithId,
+            "delete"
+          );
+        }
+
         await deleteDoc(doc(db, COLLECTION_NAME, bookingId));
         return;
       }
@@ -510,6 +733,21 @@ class BookingServiceImpl implements BookingService {
       }));
 
       console.log(`📊 Found ${bookingsToUpdate.length} bookings to shift down`);
+
+      // Create version snapshot before deletion with row shifting
+      if (
+        VERSION_TRACKING_CONFIG.enabled &&
+        VERSION_TRACKING_CONFIG.trackingLevels.delete
+      ) {
+        const currentBookingWithId = { id: bookingId, ...bookingData };
+        this.createVersionSnapshotAsync(
+          bookingId,
+          Promise.resolve(currentBookingWithId),
+          currentBookingWithId,
+          "delete",
+          `Deleted booking at row ${deletedRowNumber} with row shifting`
+        );
+      }
 
       // Delete the original booking
       await deleteDoc(doc(db, COLLECTION_NAME, bookingId));
@@ -571,7 +809,8 @@ class BookingServiceImpl implements BookingService {
     bookingId: string,
     currentBookingPromise: Promise<DocumentData | null>,
     updates: Record<string, any>,
-    changeType: "create" | "update"
+    changeType: "create" | "update" | "delete",
+    customDescription?: string
   ): void {
     // Fire-and-forget async operation
     (async () => {
@@ -591,23 +830,36 @@ class BookingServiceImpl implements BookingService {
         // Wait for current booking data (if needed)
         const currentBooking = await currentBookingPromise;
 
-        // For create operations, get the newly created booking
-        // For update operations, get the updated booking
-        const bookingData =
-          changeType === "create"
-            ? await this.getBooking(bookingId)
-            : await this.getBooking(bookingId);
+        // For create/update operations, get the current booking from database
+        // For delete operations, use the provided booking data (since it's already deleted from DB)
+        let bookingData: DocumentData | null = null;
+
+        if (changeType === "delete") {
+          // For delete operations, use the booking data that was passed in (before deletion)
+          bookingData = await currentBookingPromise;
+        } else {
+          // For create/update operations, get the current state from database
+          bookingData = await this.getBooking(bookingId);
+        }
 
         if (bookingData) {
+          let description: string;
+          if (customDescription) {
+            description = customDescription;
+          } else if (changeType === "create") {
+            description = "Initial booking creation";
+          } else if (changeType === "delete") {
+            description = "Booking deleted";
+          } else {
+            description = `Updated ${Object.keys(updates).join(", ")}`;
+          }
+
           await bookingVersionHistoryService.createVersionSnapshot(
             bookingId,
             bookingData as SheetData,
             {
               changeType,
-              changeDescription:
-                changeType === "create"
-                  ? "Initial booking creation"
-                  : `Updated ${Object.keys(updates).join(", ")}`,
+              changeDescription: description,
               userId: currentUserId,
               userName: currentUserName,
             }
@@ -624,6 +876,67 @@ class BookingServiceImpl implements BookingService {
         );
       }
     })();
+  }
+
+  /**
+   * Create bulk operation snapshot asynchronously without blocking the main operation
+   */
+  private createBulkDeleteSnapshotAsync(options: {
+    operationType: "delete" | "import" | "update";
+    operationDescription: string;
+    affectedBookingIds: string[];
+    userId: string;
+    userName?: string;
+    totalCount: number;
+    successCount?: number;
+    failureCount?: number;
+  }): void {
+    // Fire-and-forget async operation
+    (async () => {
+      try {
+        console.log(
+          `📝 [BULK ASYNC] Creating bulk operation snapshot for ${options.operationType}`
+        );
+
+        await bookingVersionHistoryService.createBulkOperationSnapshot({
+          operationType: options.operationType,
+          operationDescription: options.operationDescription,
+          affectedBookingIds: options.affectedBookingIds,
+          userId: options.userId,
+          userName: options.userName,
+          totalCount: options.totalCount,
+          successCount: options.successCount || options.totalCount,
+          failureCount: options.failureCount || 0,
+        });
+
+        console.log(
+          `✅ [BULK ASYNC] Bulk operation snapshot created successfully for ${options.operationType}`
+        );
+      } catch (error) {
+        console.error(
+          `❌ [BULK ASYNC] Failed to create bulk operation snapshot:`,
+          error
+        );
+      }
+    })();
+  }
+
+  // ========================================================================
+  // VERSION TRACKING CONFIGURATION
+  // ========================================================================
+
+  getVersionTrackingConfig(): typeof VERSION_TRACKING_CONFIG {
+    return VERSION_TRACKING_CONFIG;
+  }
+
+  setVersionTracking(
+    trackingType: keyof typeof VERSION_TRACKING_CONFIG.trackingLevels,
+    enabled: boolean
+  ): void {
+    VERSION_TRACKING_CONFIG.trackingLevels[trackingType] = enabled;
+    console.log(
+      `📝 [VERSION CONFIG] Set ${trackingType} tracking to ${enabled}`
+    );
   }
 }
 

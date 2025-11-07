@@ -172,6 +172,16 @@ class BatchedWriter {
                 `🔍 [BATCHED WRITER] Detected changed fields for ${docId}:`,
                 changedFieldPaths
               );
+              console.log(
+                `🔍 [BATCHED WRITER] Booking data snapshot for ${docId}:`,
+                {
+                  bookingDataKeys: Object.keys(bookingData),
+                  changedFieldValues: changedFieldPaths.reduce((acc, field) => {
+                    acc[field] = bookingData[field as keyof SheetData];
+                    return acc;
+                  }, {} as Record<string, any>),
+                }
+              );
 
               // Create version snapshot with changed fields information
               await bookingVersionHistoryService.createVersionSnapshot(
@@ -193,10 +203,16 @@ class BatchedWriter {
             }
           } catch (versionError) {
             // Log error but don't throw - this is fire-and-forget
+            // Version tracking failures should not affect the main batched write operation
             console.error(
               `❌ [BATCHED WRITER] Failed to create version snapshot for ${docId}:`,
-              versionError
+              versionError instanceof Error
+                ? versionError.message
+                : "Unknown error"
             );
+
+            // Optionally, we could implement a retry mechanism here
+            // or queue failed version snapshots for later processing
           }
         });
 

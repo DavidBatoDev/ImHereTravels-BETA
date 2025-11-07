@@ -88,57 +88,6 @@ export default function BookingVersionHistoryModal({
   const [branchFilter, setBranchFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
 
-  // Load versions when modal opens or bookingId changes
-  useEffect(() => {
-    if (isOpen) {
-      loadVersions();
-    }
-  }, [isOpen, bookingId]);
-
-  // Filter versions based on search and filters
-  useEffect(() => {
-    let filtered = [...versions];
-
-    // Apply search filter
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter((version) => {
-        return (
-          version.metadata.changeDescription
-            ?.toLowerCase()
-            .includes(searchLower) ||
-          version.metadata.createdByName?.toLowerCase().includes(searchLower) ||
-          version.metadata.createdBy.toLowerCase().includes(searchLower) ||
-          version.versionNumber.toString().includes(searchLower) ||
-          version.changes.some(
-            (change) =>
-              change.fieldName.toLowerCase().includes(searchLower) ||
-              change.newValue?.toString().toLowerCase().includes(searchLower)
-          )
-        );
-      });
-    }
-
-    // Apply change type filter
-    if (changeTypeFilter !== "all") {
-      filtered = filtered.filter(
-        (version) => version.metadata.changeType === changeTypeFilter
-      );
-    }
-
-    // Apply branch filter
-    if (branchFilter === "main") {
-      filtered = filtered.filter((version) => version.branchInfo.isMainBranch);
-    } else if (branchFilter === "restore") {
-      filtered = filtered.filter((version) => version.metadata.isRestorePoint);
-    }
-
-    // Sort by version number descending (latest first)
-    filtered.sort((a, b) => b.versionNumber - a.versionNumber);
-
-    setFilteredVersions(filtered);
-  }, [versions, searchTerm, changeTypeFilter, branchFilter]);
-
   const loadVersions = useCallback(async () => {
     if (!bookingId) {
       // Load all versions if no specific booking
@@ -203,6 +152,72 @@ export default function BookingVersionHistoryModal({
       }
     }
   }, [bookingId, toast]);
+
+  // Load versions when modal opens or bookingId changes
+  useEffect(() => {
+    if (isOpen) {
+      loadVersions();
+    } else {
+      // Reset selection when modal closes
+      setSelectedVersionId(undefined);
+      setComparisonVersionId(undefined);
+    }
+  }, [isOpen, bookingId, loadVersions]);
+
+  // Filter versions based on search and filters
+  useEffect(() => {
+    let filtered = [...versions];
+
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter((version) => {
+        return (
+          version.metadata.changeDescription
+            ?.toLowerCase()
+            .includes(searchLower) ||
+          version.metadata.createdByName?.toLowerCase().includes(searchLower) ||
+          version.metadata.createdBy.toLowerCase().includes(searchLower) ||
+          version.versionNumber.toString().includes(searchLower) ||
+          version.changes.some(
+            (change) =>
+              change.fieldName.toLowerCase().includes(searchLower) ||
+              change.newValue?.toString().toLowerCase().includes(searchLower)
+          )
+        );
+      });
+    }
+
+    // Apply change type filter
+    if (changeTypeFilter !== "all") {
+      filtered = filtered.filter(
+        (version) => version.metadata.changeType === changeTypeFilter
+      );
+    }
+
+    // Apply branch filter
+    if (branchFilter === "main") {
+      filtered = filtered.filter((version) => version.branchInfo.isMainBranch);
+    } else if (branchFilter === "restore") {
+      filtered = filtered.filter((version) => version.metadata.isRestorePoint);
+    }
+
+    // Sort by version number descending (latest first)
+    filtered.sort((a, b) => b.versionNumber - a.versionNumber);
+
+    setFilteredVersions(filtered);
+  }, [versions, searchTerm, changeTypeFilter, branchFilter]);
+
+  // Auto-select the latest version when filtered versions change (when modal first opens)
+  useEffect(() => {
+    if (filteredVersions.length > 0 && !selectedVersionId) {
+      setSelectedVersionId(filteredVersions[0].id);
+      console.log(
+        "🔍 [VERSION MODAL] Auto-selected latest version:",
+        filteredVersions[0].versionNumber
+      );
+    }
+  }, [filteredVersions, selectedVersionId]);
 
   const handleVersionSelect = useCallback((versionId: string) => {
     setSelectedVersionId(versionId);

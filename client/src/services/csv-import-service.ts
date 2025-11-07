@@ -4,6 +4,8 @@ import { Timestamp } from "firebase/firestore";
 import { SheetColumn } from "@/types/sheet-management";
 import { bookingSheetColumnService } from "./booking-sheet-columns-service";
 import { bookingService } from "./booking-service";
+import { bookingVersionHistoryService } from "./booking-version-history-service";
+import { useAuthStore } from "@/store/auth-store";
 import { setImporting } from "./import-state";
 
 export interface CSVImportResult {
@@ -564,39 +566,114 @@ class CSVImportService {
         documentsToCreate: documents.length,
       });
 
+      // Get current user info for version tracking
+      const { user, userProfile } = useAuthStore.getState();
+      const currentUserId = user?.uid || "system";
+      const currentUserName =
+        userProfile?.profile?.firstName && userProfile?.profile?.lastName
+          ? `${userProfile.profile.firstName} ${userProfile.profile.lastName}`
+          : userProfile?.email || user?.email || "System";
+
+      // Get all existing booking IDs before deletion for version tracking
+      const existingBookings = await bookingService.getAllBookings();
+      const existingBookingIds = existingBookings.map((booking) => booking.id);
+
       // Delete all existing bookings
       await bookingService.deleteAllBookings();
       console.log("✅ [CSV IMPORT] Deleted all existing bookings");
 
-      // Create new bookings in batches to reduce listener churn
-      const BATCH_SIZE = 400; // stay under 500 limit
-      for (let i = 0; i < documents.length; i += BATCH_SIZE) {
-        const slice = documents.slice(i, i + BATCH_SIZE);
-        await Promise.all(
-          slice.map(async (document, index) => {
-            // Create booking with Firebase auto-generated ID (empty object to get UID)
-            const newId = await bookingService.createBooking({});
+      // Temporarily disable individual version tracking during bulk import if configured
+      // We'll create a single bulk operation snapshot instead
+      const config = bookingService.getVersionTrackingConfig();
+      const shouldSkipIndividualTracking =
+        config.performance.skipVersioningForBulkImports;
 
-            // Ensure we have a valid ID
-            if (!newId) {
-              throw new Error(
-                `Failed to generate ID for document at index ${i + index}`
-              );
-            }
+      let originalCreateTracking: boolean | undefined;
+      let originalUpdateTracking: boolean | undefined;
 
-            // Create the complete document with the generated ID
-            const documentWithId = {
-              ...document,
-              id: newId, // Use the Firebase-generated UID
-            };
+      if (shouldSkipIndividualTracking) {
+        originalCreateTracking = config.trackingLevels.create;
+        originalUpdateTracking = config.trackingLevels.update;
 
-            // Update the document with all the data including the id field
-            await bookingService.updateBooking(newId, documentWithId);
-          })
+        // Disable individual tracking during bulk import
+        bookingService.setVersionTracking("create", false);
+        bookingService.setVersionTracking("update", false);
+        console.log(
+          "📝 [CSV IMPORT] Temporarily disabled individual version tracking for bulk import"
         );
       }
 
+      try {
+        // Create new bookings in batches to reduce listener churn
+        const BATCH_SIZE = 400; // stay under 500 limit
+        for (let i = 0; i < documents.length; i += BATCH_SIZE) {
+          const slice = documents.slice(i, i + BATCH_SIZE);
+          await Promise.all(
+            slice.map(async (document, index) => {
+              // Create booking with Firebase auto-generated ID (empty object to get UID)
+              const newId = await bookingService.createBooking({});
+
+              // Ensure we have a valid ID
+              if (!newId) {
+                throw new Error(
+                  `Failed to generate ID for document at index ${i + index}`
+                );
+              }
+
+              // Create the complete document with the generated ID
+              const documentWithId = {
+                ...document,
+                id: newId, // Use the Firebase-generated UID
+              };
+
+              // Update the document with all the data including the id field
+              await bookingService.updateBooking(newId, documentWithId);
+            })
+          );
+        }
+      } finally {
+        // Restore original tracking settings if they were changed
+        if (
+          shouldSkipIndividualTracking &&
+          originalCreateTracking !== undefined &&
+          originalUpdateTracking !== undefined
+        ) {
+          bookingService.setVersionTracking("create", originalCreateTracking);
+          bookingService.setVersionTracking("update", originalUpdateTracking);
+          console.log(
+            "📝 [CSV IMPORT] Restored original version tracking settings"
+          );
+        }
+      }
+
       console.log("✅ [CSV IMPORT] Created all new bookings");
+
+      // Create bulk import version snapshot after successful import
+      try {
+        // Get the IDs of all newly created bookings
+        const newBookings = await bookingService.getAllBookings();
+        const newBookingIds = newBookings.map((booking) => booking.id);
+
+        await bookingVersionHistoryService.createBulkOperationSnapshot({
+          operationType: "import",
+          operationDescription: `CSV Import: Replaced ${existingBookingIds.length} existing bookings with ${documents.length} new bookings`,
+          affectedBookingIds: [...existingBookingIds, ...newBookingIds], // Include both deleted and created booking IDs
+          userId: currentUserId,
+          userName: currentUserName,
+          totalCount: existingBookingIds.length + documents.length,
+          successCount: documents.length,
+          failureCount: 0,
+        });
+
+        console.log("✅ [CSV IMPORT] Created bulk import version snapshot");
+      } catch (versionError) {
+        console.error(
+          "❌ [CSV IMPORT] Failed to create version snapshot:",
+          versionError
+        );
+        // Don't fail the entire import if version tracking fails
+        // Version tracking is supplementary and shouldn't break the main operation
+      }
 
       return {
         success: true,

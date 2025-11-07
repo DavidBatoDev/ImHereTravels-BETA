@@ -2942,7 +2942,13 @@ export default function BookingsDataGrid({
                       column.key,
                       newValue
                     );
-                    // Note: Recomputation will be triggered by Firebase listener
+
+                    // Trigger recomputation for dependent function columns
+                    await recomputeDirectDependentsForRow(
+                      row.id,
+                      column.key,
+                      newValue
+                    );
                   }}
                   className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
                 />
@@ -3024,7 +3030,13 @@ export default function BookingsDataGrid({
 
                   // Use batched writer to track changes in version history
                   batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
-                  // Note: Recomputation will be triggered by Firebase listener
+
+                  // Trigger recomputation for dependent function columns
+                  await recomputeDirectDependentsForRow(
+                    row.id,
+                    column.key,
+                    newValue
+                  );
                 }}
                 className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
                   hasColor ? "text-black" : ""
@@ -3064,7 +3076,13 @@ export default function BookingsDataGrid({
 
                   // Use batched writer to track changes in version history
                   batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
-                  // Note: Recomputation will be triggered by Firebase listener
+
+                  // Trigger recomputation for dependent function columns
+                  await recomputeDirectDependentsForRow(
+                    row.id,
+                    column.key,
+                    newValue
+                  );
                 }}
                 className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
                   hasColor ? "text-black" : ""
@@ -3458,24 +3476,24 @@ export default function BookingsDataGrid({
         totalRows: existingRows.length,
       });
 
-      // Let Firebase generate the document ID automatically first
-      const newRowId = await bookingService.createBooking({});
-
-      // Create new row data with row field and id field populated
-      const newRowData = {
-        id: newRowId, // Save the document UID as a field in the document
+      // Create the initial booking data with row number
+      const initialBookingData = {
         row: nextRowNumber,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        // createdAt and updatedAt will be added by createBooking
       };
 
-      // Update the document with the complete data including the id field
-      await bookingService.updateBooking(newRowId, newRowData);
+      // Create booking with complete initial data
+      const newRowId = await bookingService.createBooking(initialBookingData);
+
+      // Add the document ID as a field using updateBookingField (doesn't create version snapshot)
+      await bookingService.updateBookingField(newRowId, "id", newRowId);
 
       // Create the complete SheetData object for local state
       const newRow: SheetData = {
         id: newRowId,
-        ...newRowData,
+        row: nextRowNumber,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       updateData([...data, newRow]);
