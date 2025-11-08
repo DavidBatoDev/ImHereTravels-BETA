@@ -554,10 +554,10 @@ export default function BookingVersionHistoryModal({
                     const isComparison = comparisonVersionId === version.id;
 
                     return (
-                      <button
+                      <div
                         key={version.id}
                         onClick={() => handleVersionSelect(version.id)}
-                        className={`w-full p-3 rounded-lg text-left transition-all ${
+                        className={`w-full p-3 rounded-lg text-left transition-all cursor-pointer ${
                           isSelected
                             ? "bg-royal-purple text-white shadow-md"
                             : isComparison
@@ -662,7 +662,7 @@ export default function BookingVersionHistoryModal({
                             Restore
                           </Button>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>

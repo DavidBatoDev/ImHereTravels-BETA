@@ -103,6 +103,9 @@ export interface BookingService {
 // ============================================================================
 
 class BookingServiceImpl implements BookingService {
+  // Track bookings that are in the "create then update" pattern
+  private pendingCreations = new Set<string>();
+
   // ========================================================================
   // CRUD OPERATIONS
   // ========================================================================
@@ -111,6 +114,10 @@ class BookingServiceImpl implements BookingService {
     bookingId: string,
     updates: Record<string, any>
   ): Promise<void> {
+    console.log(
+      `🔍 [UPDATE BOOKING DEBUG] Called for ${bookingId}, updates:`,
+      Object.keys(updates)
+    );
     try {
       // Get current booking data for version tracking (start async)
       const currentBookingPromise = this.getBooking(bookingId);
@@ -130,12 +137,30 @@ class BookingServiceImpl implements BookingService {
         VERSION_TRACKING_CONFIG.enabled &&
         VERSION_TRACKING_CONFIG.trackingLevels.update
       ) {
-        this.createVersionSnapshotAsync(
-          bookingId,
-          currentBookingPromise,
-          updates,
-          "update"
-        );
+        // Check if this is the first update after an empty creation
+        if (this.pendingCreations.has(bookingId)) {
+          console.log(
+            `📝 [PENDING CREATION] First update for ${bookingId}, treating as creation`
+          );
+          this.pendingCreations.delete(bookingId);
+
+          // Treat this as a "create" operation
+          this.createVersionSnapshotAsync(
+            bookingId,
+            Promise.resolve(null), // No previous data for creation
+            updates,
+            "create",
+            "Initial booking creation"
+          );
+        } else {
+          // Normal update operation
+          this.createVersionSnapshotAsync(
+            bookingId,
+            currentBookingPromise,
+            updates,
+            "update"
+          );
+        }
       }
     } catch (error) {
       console.error(
@@ -286,18 +311,48 @@ class BookingServiceImpl implements BookingService {
   }
 
   async createBooking(bookingData: Record<string, any>): Promise<string> {
+    let docId: string | undefined;
+
     try {
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
         ...bookingData,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+      docId = docRef.id;
       console.log(`✅ Created booking with ID: ${docRef.id}`);
 
-      // Create initial version snapshot asynchronously (fire-and-forget)
+      // Only create version snapshot if this is not an empty placeholder booking
+      // Empty bookings are typically created just to get an ID, then immediately updated
+      const isEmptyPlaceholder = Object.keys(bookingData).length === 0;
+      const needsIdField = !bookingData.hasOwnProperty("id");
+
+      console.log(`🔍 [CREATE DEBUG] Booking ${docRef.id}:`, {
+        bookingDataKeys: Object.keys(bookingData),
+        isEmptyPlaceholder,
+        needsIdField,
+        willCreateVersion:
+          VERSION_TRACKING_CONFIG.enabled &&
+          VERSION_TRACKING_CONFIG.trackingLevels.create &&
+          !isEmptyPlaceholder &&
+          !needsIdField,
+      });
+
+      // Track bookings that will be updated shortly (either empty or missing id field)
+      if (isEmptyPlaceholder || needsIdField) {
+        this.pendingCreations.add(docRef.id);
+        console.log(
+          `📝 [PENDING CREATION] Added ${docRef.id} to pending creations (${
+            isEmptyPlaceholder ? "empty" : "needs id field"
+          })`
+        );
+      }
+
       if (
         VERSION_TRACKING_CONFIG.enabled &&
-        VERSION_TRACKING_CONFIG.trackingLevels.create
+        VERSION_TRACKING_CONFIG.trackingLevels.create &&
+        !isEmptyPlaceholder &&
+        !needsIdField
       ) {
         this.createVersionSnapshotAsync(
           docRef.id,
@@ -309,6 +364,11 @@ class BookingServiceImpl implements BookingService {
 
       return docRef.id;
     } catch (error) {
+      // Clean up pending creation if creation failed
+      if (docId) {
+        this.pendingCreations.delete(docId);
+      }
+
       console.error(
         `❌ Failed to create booking: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -410,6 +470,10 @@ class BookingServiceImpl implements BookingService {
     fieldPath: string,
     value: any
   ): Promise<void> {
+    console.log(
+      `🔍 [UPDATE FIELD DEBUG] Called for ${bookingId}, field: ${fieldPath}, value:`,
+      value
+    );
     try {
       const docRef = doc(db, COLLECTION_NAME, bookingId);
 
@@ -463,13 +527,42 @@ class BookingServiceImpl implements BookingService {
           VERSION_TRACKING_CONFIG.enabled &&
           VERSION_TRACKING_CONFIG.trackingLevels.fieldUpdates
         ) {
-          this.createVersionSnapshotAsync(
-            bookingId,
-            Promise.resolve(currentBookingData),
-            updateData,
-            "update",
-            `Updated field ${fieldPath}`
-          );
+          // Check if this is part of the initial creation process
+          if (this.pendingCreations.has(bookingId)) {
+            // If we're setting the 'id' field, this completes the initial creation
+            if (fieldPath === "id") {
+              console.log(
+                `📝 [PENDING CREATION] Completing initial creation for ${bookingId} with id field`
+              );
+              this.pendingCreations.delete(bookingId);
+
+              // Create the "create" version snapshot with the complete booking data
+              const completeBookingData = {
+                ...currentBookingData,
+                [fieldPath]: value,
+              };
+              this.createVersionSnapshotAsync(
+                bookingId,
+                Promise.resolve(null), // No previous data for creation
+                completeBookingData,
+                "create",
+                "Initial booking creation"
+              );
+            } else {
+              console.log(
+                `📝 [PENDING CREATION] Skipping field update version for ${bookingId}, part of initial creation`
+              );
+              // Don't create version snapshot for other field updates during initial creation
+            }
+          } else {
+            this.createVersionSnapshotAsync(
+              bookingId,
+              Promise.resolve(currentBookingData),
+              updateData,
+              "update",
+              `Updated field ${fieldPath}`
+            );
+          }
         }
       }
     } catch (error) {
@@ -854,16 +947,26 @@ class BookingServiceImpl implements BookingService {
             description = `Updated ${Object.keys(updates).join(", ")}`;
           }
 
-          await bookingVersionHistoryService.createVersionSnapshot(
-            bookingId,
-            bookingData as SheetData,
-            {
-              changeType,
-              changeDescription: description,
-              userId: currentUserId,
-              userName: currentUserName,
-            }
-          );
+          const versionId =
+            await bookingVersionHistoryService.createVersionSnapshot(
+              bookingId,
+              bookingData as SheetData,
+              {
+                changeType,
+                changeDescription: description,
+                userId: currentUserId,
+                userName: currentUserName,
+              }
+            );
+
+          // Check if version snapshot was skipped (no changes after sanitization)
+          if (versionId === "__SKIPPED__") {
+            console.log(
+              `⏭️  [ASYNC] Version snapshot skipped for ${bookingId}: update operation with no actual changes`
+            );
+            return;
+          }
+
           console.log(
             `✅ [ASYNC] Version snapshot created successfully for ${bookingId}`
           );

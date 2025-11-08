@@ -429,7 +429,7 @@ export default function BookingVersionHistoryGrid({
                 ? "bg-green-200"
                 : isBulkOperation
                 ? "bg-blue-200 border-2 border-blue-500"
-                : "bg-green-50"
+                : "bg-yellow-200"
               : "opacity-40"
           }`}
           title={`Row ${rowNumber} (Booking ID: ${row.id})${
@@ -550,9 +550,9 @@ export default function BookingVersionHistoryGrid({
           }
           // If this cell was changed in the selected version, highlight it brightly
           else if (changeType === "changed") {
-            classes.push("bg-green-200 border-2 border-green-500 relative");
-          } else if (changeType === "comparison") {
             classes.push("bg-yellow-200 border-2 border-yellow-500 relative");
+          } else if (changeType === "comparison") {
+            classes.push("bg-orange-200 border-2 border-orange-500 relative");
           } else {
             // Dim all cells that were not changed (including all rows)
             classes.push("opacity-40 relative");
@@ -861,18 +861,22 @@ export default function BookingVersionHistoryGrid({
           className={`mb-4 p-3 rounded-md border ${
             selectedVersion.metadata.changeType === "delete"
               ? "bg-red-50 border-red-200"
+              : selectedVersion.metadata.changeType === "create"
+              ? "bg-green-50 border-green-200"
               : selectedVersion.metadata.changeType?.startsWith("bulk_")
               ? "bg-blue-50 border-blue-200"
-              : "bg-green-50 border-green-200"
+              : "bg-yellow-50 border-yellow-200"
           }`}
         >
           <div
             className={`text-sm ${
               selectedVersion.metadata.changeType === "delete"
                 ? "text-red-800"
+                : selectedVersion.metadata.changeType === "create"
+                ? "text-green-800"
                 : selectedVersion.metadata.changeType?.startsWith("bulk_")
                 ? "text-blue-800"
-                : "text-green-800"
+                : "text-yellow-800"
             }`}
           >
             <strong>Viewing complete grid state at:</strong>{" "}
@@ -907,6 +911,8 @@ export default function BookingVersionHistoryGrid({
                   <strong>
                     {selectedVersion.metadata.changeType === "delete"
                       ? "Deleted"
+                      : selectedVersion.metadata.changeType === "create"
+                      ? "Created"
                       : "Changed"}{" "}
                     booking:
                   </strong>{" "}
@@ -916,11 +922,17 @@ export default function BookingVersionHistoryGrid({
                   </span>
                   {" • "}
                   <span className="font-semibold">
-                    {selectedVersion.changes.length} field
-                    {selectedVersion.changes.length !== 1 ? "s" : ""}{" "}
-                    {selectedVersion.metadata.changeType === "delete"
-                      ? "before deletion"
-                      : "modified"}
+                    {selectedVersion.metadata.changeType === "create" ? (
+                      "New booking created"
+                    ) : (
+                      <>
+                        {selectedVersion.changes.length} field
+                        {selectedVersion.changes.length !== 1 ? "s" : ""}{" "}
+                        {selectedVersion.metadata.changeType === "delete"
+                          ? "before deletion"
+                          : "modified"}
+                      </>
+                    )}
                   </span>
                 </>
               )}
@@ -929,9 +941,11 @@ export default function BookingVersionHistoryGrid({
               className={`text-xs mt-2 ${
                 selectedVersion.metadata.changeType === "delete"
                   ? "text-red-700"
+                  : selectedVersion.metadata.changeType === "create"
+                  ? "text-green-700"
                   : selectedVersion.metadata.changeType?.startsWith("bulk_")
                   ? "text-blue-700"
-                  : "text-green-700"
+                  : "text-yellow-700"
               }`}
             >
               ✨ Showing {versionData.length} booking
@@ -939,9 +953,11 @@ export default function BookingVersionHistoryGrid({
               moment in time.{" "}
               {selectedVersion.metadata.changeType === "delete"
                 ? "Deleted booking is highlighted in red."
+                : selectedVersion.metadata.changeType === "create"
+                ? "New booking is highlighted in green."
                 : selectedVersion.metadata.changeType?.startsWith("bulk_")
                 ? "Bulk operation affected bookings are highlighted in blue."
-                : "Changed cells are highlighted in green."}
+                : "Changed cells are highlighted in yellow."}
             </div>
           </div>
         </div>

@@ -180,54 +180,53 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
           options.changedFieldPaths
         );
 
-        changes = options.changedFieldPaths
-          .map((fieldPath) => {
-            const newValue = documentSnapshot[fieldPath as keyof SheetData];
+        changes = options.changedFieldPaths.map((fieldPath) => {
+          const newValue = documentSnapshot[fieldPath as keyof SheetData];
 
-            // Determine data type from column definition if available
-            let dataType = "unknown";
-            if (columns && columns.length > 0) {
-              const column = columns.find((col) => col.id === fieldPath);
-              if (column) {
-                dataType = column.dataType || "string";
-              }
+          // Determine data type from column definition if available
+          let dataType = "unknown";
+          if (columns && columns.length > 0) {
+            const column = columns.find((col) => col.id === fieldPath);
+            if (column) {
+              dataType = column.dataType || "string";
             }
+          }
 
-            // If still unknown, try to infer from value
-            if (dataType === "unknown") {
-              if (typeof newValue === "number") dataType = "number";
-              else if (typeof newValue === "boolean") dataType = "boolean";
-              else if (
-                newValue instanceof Date ||
-                (newValue && typeof newValue.toDate === "function")
-              )
-                dataType = "date";
-              else if (typeof newValue === "string") dataType = "string";
-            }
+          // If still unknown, try to infer from value
+          if (dataType === "unknown") {
+            if (typeof newValue === "number") dataType = "number";
+            else if (typeof newValue === "boolean") dataType = "boolean";
+            else if (
+              newValue instanceof Date ||
+              (newValue && typeof newValue.toDate === "function")
+            )
+              dataType = "date";
+            else if (typeof newValue === "string") dataType = "string";
+          }
 
-            return {
-              fieldPath: fieldPath,
-              fieldName: fieldPath, // Use fieldPath as fieldName for now
-              oldValue: null, // We don't have old values from batched writer
-              newValue,
-              dataType,
-            };
-          })
-          .filter((change) => {
-            // Skip changes where old value is null and new value is empty string
-            // BUT only for string fields, not for date, boolean, or select fields
-            if (
-              (change.oldValue === null || change.oldValue === undefined) &&
-              change.newValue === "" &&
-              change.dataType === "string"
-            ) {
-              console.log(
-                `🔍 [VERSION SERVICE] Skipping null → "" change for string field: ${change.fieldPath}`
-              );
-              return false;
-            }
-            return true;
-          });
+          return {
+            fieldPath: fieldPath,
+            fieldName: fieldPath, // Use fieldPath as fieldName for now
+            oldValue: null, // We don't have old values from batched writer
+            newValue,
+            dataType,
+          };
+        });
+      }
+
+      // Sanitize changes to filter out meaningless changes (null → "", etc.)
+      // This applies to all changes regardless of how they were created
+      changes = this.sanitizeFieldChanges(changes);
+
+      // Skip creating version snapshot for update operations with no actual changes
+      // This prevents creating empty version entries when updates don't modify any fields
+      if (options.changeType === "update" && changes.length === 0) {
+        console.log(
+          `⏭️  [VERSION SERVICE] Skipping version snapshot for booking ${bookingId}: update operation with 0 fields modified (all changes filtered out by sanitizer)`
+        );
+        // Return a special marker value to indicate the snapshot was skipped
+        // This allows callers to distinguish between skipped and actual version IDs
+        return "__SKIPPED__";
       }
 
       console.log(
@@ -931,16 +930,6 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       )
         dataType = "date";
 
-      // Skip if old value is null and new value is empty string (not a real change)
-      // BUT only for string fields, not for date, boolean, or select fields
-      if (
-        (oldValue === null || oldValue === undefined) &&
-        newValue === "" &&
-        dataType === "string"
-      ) {
-        continue;
-      }
-
       changes.push({
         fieldPath,
         fieldName: fieldPath, // TODO: Map to human-readable name from column definitions
@@ -950,12 +939,48 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       });
     }
 
-    return changes;
+    // Sanitize changes to filter out meaningless changes (null → "", etc.)
+    return this.sanitizeFieldChanges(changes);
   }
 
   // ========================================================================
   // PRIVATE HELPER METHODS
   // ========================================================================
+
+  /**
+   * Sanitize field changes by filtering out meaningless changes
+   * Filters out changes where oldValue is null/undefined and newValue is empty string
+   * This prevents counting null → "" transitions as actual changes
+   *
+   * Note: Synthetic change markers (starting with "_") are never filtered out
+   */
+  private sanitizeFieldChanges(changes: FieldChange[]): FieldChange[] {
+    return changes.filter((change) => {
+      const { fieldPath, oldValue, newValue, dataType } = change;
+
+      // Never filter out synthetic change markers (e.g., _row_created, _row_deleted, _bulk_operation)
+      if (fieldPath.startsWith("_")) {
+        return true;
+      }
+
+      // Skip changes where oldValue is null/undefined and newValue is empty string
+      // This is not a meaningful change (field didn't exist → field is empty)
+      // Check the actual value type, not just dataType (computed/function fields may have dataType "function" but string values)
+      if (
+        (oldValue === null || oldValue === undefined) &&
+        typeof newValue === "string" &&
+        newValue === ""
+      ) {
+        console.log(
+          `🧹 [SANITIZER] Filtering out meaningless change: ${fieldPath} (${oldValue} → "${newValue}") [dataType: ${dataType}]`
+        );
+        return false;
+      }
+
+      // Keep all other changes
+      return true;
+    });
+  }
 
   /**
    * Remove undefined values from an object recursively
@@ -1084,7 +1109,22 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         "total versions across all time"
       );
 
-      // Group all versions by bookingId (already in ascending chronological order)
+      // Helper function to extract timestamp from version metadata
+      const getVersionTime = (version: BookingVersionSnapshot): number => {
+        const vTime = version.metadata.createdAt;
+        if (vTime && typeof vTime === "object" && "seconds" in vTime) {
+          return (vTime as any).seconds * 1000;
+        } else if (vTime && typeof vTime === "object" && "toDate" in vTime) {
+          return (vTime as any).toDate().getTime();
+        } else if (vTime instanceof Date) {
+          return vTime.getTime();
+        } else if (typeof vTime === "number") {
+          return vTime;
+        }
+        return 0;
+      };
+
+      // Group all versions by bookingId
       const allVersionsByBooking = new Map<string, BookingVersionSnapshot[]>();
 
       querySnapshot.forEach((doc) => {
@@ -1097,6 +1137,15 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         allVersionsByBooking.get(bookingId)!.push({
           ...versionData,
           id: doc.id,
+        });
+      });
+
+      // Sort versions chronologically for each booking (ascending order - oldest first)
+      allVersionsByBooking.forEach((versions) => {
+        versions.sort((a, b) => {
+          const aTime = getVersionTime(a);
+          const bTime = getVersionTime(b);
+          return aTime - bTime; // Ascending order (oldest first)
         });
       });
 
@@ -1190,111 +1239,124 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
             return null;
           }
 
-          // Start with current booking state if it exists, otherwise use the latest version snapshot
+          // Check if this booking was deleted and when
+          const deleteVersion = versions.find(
+            (v) => v.metadata.changeType === "delete"
+          );
+
+          let deletionTime: number | null = null;
+          if (deleteVersion) {
+            const deleteTime = deleteVersion.metadata.createdAt;
+            if (
+              deleteTime &&
+              typeof deleteTime === "object" &&
+              "seconds" in deleteTime
+            ) {
+              deletionTime = (deleteTime as any).seconds * 1000;
+            } else if (
+              deleteTime &&
+              typeof deleteTime === "object" &&
+              "toDate" in deleteTime
+            ) {
+              deletionTime = (deleteTime as any).toDate().getTime();
+            } else if (deleteTime instanceof Date) {
+              deletionTime = deleteTime.getTime();
+            } else if (typeof deleteTime === "number") {
+              deletionTime = deleteTime;
+            }
+          }
+
+          // If booking was deleted before or at target time, it should not exist
+          if (deletionTime !== null && deletionTime <= targetTime) {
+            console.log(
+              `🗑️  [REPLAY RECONSTRUCTION] Booking ${bookingId} was deleted at ${new Date(
+                deletionTime
+              ).toISOString()} before/at target time ${new Date(
+                targetTime
+              ).toISOString()} - excluding from reconstruction`
+            );
+            return null;
+          }
+
+          // Start with current booking state if it exists, otherwise reconstruct from versions
           let reconstructedState: Record<string, any>;
 
           if (currentBooking) {
             // Booking currently exists - start with current state
             reconstructedState = { ...currentBooking };
-          } else {
-            // Booking was deleted - check if deletion happened before or at target time
-            const deleteVersion = versions.find(
-              (v) => v.metadata.changeType === "delete"
+            console.log(
+              `🔄 [REPLAY RECONSTRUCTION] Starting with current state for booking ${bookingId}`
+            );
+          } else if (deletionTime !== null && deletionTime > targetTime) {
+            // Booking was deleted after target time - start from delete version snapshot
+            // The delete version contains the full state at deletion time, which we'll then revert
+            console.log(
+              `🔄 [REPLAY RECONSTRUCTION] Booking ${bookingId} was deleted at ${new Date(
+                deletionTime
+              ).toISOString()} after target time ${new Date(
+                targetTime
+              ).toISOString()} - starting from delete snapshot`
             );
 
+            // Use the delete version snapshot as the starting point
+            // This contains the complete booking state at the time of deletion
             if (deleteVersion) {
-              const deleteTime = deleteVersion.metadata.createdAt;
-              let deletionTime: number;
+              reconstructedState = { ...deleteVersion.documentSnapshot };
+              console.log(
+                `🔄 [REPLAY RECONSTRUCTION] Using delete version snapshot for booking ${bookingId} from ${new Date(
+                  deletionTime
+                ).toISOString()}`
+              );
+            } else {
+              // Fallback: find the most recent version snapshot before or at target time
+              console.log(
+                `⚠️  [REPLAY RECONSTRUCTION] Delete version not found, falling back to version reconstruction`
+              );
 
-              if (
-                deleteTime &&
-                typeof deleteTime === "object" &&
-                "seconds" in deleteTime
-              ) {
-                deletionTime = (deleteTime as any).seconds * 1000;
-              } else if (
-                deleteTime &&
-                typeof deleteTime === "object" &&
-                "toDate" in deleteTime
-              ) {
-                deletionTime = (deleteTime as any).toDate().getTime();
-              } else if (deleteTime instanceof Date) {
-                deletionTime = deleteTime.getTime();
-              } else if (typeof deleteTime === "number") {
-                deletionTime = deleteTime;
-              } else {
-                deletionTime = 0;
-              }
+              const versionsBeforeOrAtTarget = versions.filter((v) => {
+                if (v.metadata.changeType === "delete") {
+                  return false;
+                }
 
-              // If deletion happened before or at target time, booking should not exist
-              if (deletionTime <= targetTime) {
+                const vTime = v.metadata.createdAt;
+                let versionTime: number;
+
+                if (vTime && typeof vTime === "object" && "seconds" in vTime) {
+                  versionTime = (vTime as any).seconds * 1000;
+                } else if (
+                  vTime &&
+                  typeof vTime === "object" &&
+                  "toDate" in vTime
+                ) {
+                  versionTime = (vTime as any).toDate().getTime();
+                } else if (vTime instanceof Date) {
+                  versionTime = vTime.getTime();
+                } else if (typeof vTime === "number") {
+                  versionTime = vTime;
+                } else {
+                  return false;
+                }
+
+                return versionTime <= targetTime;
+              });
+
+              if (versionsBeforeOrAtTarget.length === 0) {
                 console.log(
-                  `🗑️  [REPLAY RECONSTRUCTION] Booking ${bookingId} was deleted at ${new Date(
-                    deletionTime
-                  ).toISOString()} before/at target time ${new Date(
-                    targetTime
-                  ).toISOString()} - excluding from reconstruction`
+                  `⚠️  [REPLAY RECONSTRUCTION] No versions found for deleted booking ${bookingId} before target time`
                 );
                 return null;
               }
 
-              console.log(
-                `🔄 [REPLAY RECONSTRUCTION] Booking ${bookingId} was deleted at ${new Date(
-                  deletionTime
-                ).toISOString()} after target time ${new Date(
-                  targetTime
-                ).toISOString()} - will reconstruct`
-              );
+              const latestVersion =
+                versionsBeforeOrAtTarget[versionsBeforeOrAtTarget.length - 1];
+              reconstructedState = { ...latestVersion.documentSnapshot };
             }
-
-            // Find the most recent version snapshot before or at target time (excluding delete versions)
-            const versionsBeforeOrAtTarget = versions.filter((v) => {
-              // Skip delete versions for reconstruction - we use them only for timing checks above
-              if (v.metadata.changeType === "delete") {
-                return false;
-              }
-
-              const vTime = v.metadata.createdAt;
-              let versionTime: number;
-
-              if (vTime && typeof vTime === "object" && "seconds" in vTime) {
-                versionTime = (vTime as any).seconds * 1000;
-              } else if (
-                vTime &&
-                typeof vTime === "object" &&
-                "toDate" in vTime
-              ) {
-                versionTime = (vTime as any).toDate().getTime();
-              } else if (vTime instanceof Date) {
-                versionTime = vTime.getTime();
-              } else if (typeof vTime === "number") {
-                versionTime = vTime;
-              } else {
-                return false;
-              }
-
-              return versionTime <= targetTime;
-            });
-
-            if (versionsBeforeOrAtTarget.length === 0) {
-              console.log(
-                `⚠️  [REPLAY RECONSTRUCTION] No non-delete versions found for deleted booking ${bookingId} before target time`
-              );
-              return null;
-            }
-
-            // Use the most recent non-delete version snapshot before or at target time
-            const latestVersion =
-              versionsBeforeOrAtTarget[versionsBeforeOrAtTarget.length - 1];
-            reconstructedState = { ...latestVersion.documentSnapshot };
-
+          } else {
+            // This shouldn't happen based on our logic above, but handle it gracefully
             console.log(
-              `🔄 [REPLAY RECONSTRUCTION] Using version snapshot for deleted booking ${bookingId} from ${new Date(
-                latestVersion.metadata.createdAt?.seconds
-                  ? latestVersion.metadata.createdAt.seconds * 1000
-                  : 0
-              ).toISOString()}`
+              `⚠️  [REPLAY RECONSTRUCTION] Unexpected state for booking ${bookingId}`
             );
+            return null;
           }
 
           // Filter versions that happened AFTER target timestamp
@@ -1328,33 +1390,107 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
 
           // Replay changes backwards (reverse chronological order)
           // For each version after target time, undo its changes by using oldValue
-          versionsAfterTarget.reverse().forEach((version) => {
+          // We reverse so we process from most recent to oldest, undoing changes in reverse order
+          const sortedVersionsAfterTarget = [...versionsAfterTarget].sort(
+            (a, b) => {
+              const aTime = a.metadata.createdAt;
+              const bTime = b.metadata.createdAt;
+              let aMs = 0;
+              let bMs = 0;
+
+              if (aTime && typeof aTime === "object" && "seconds" in aTime) {
+                aMs = (aTime as any).seconds * 1000;
+              } else if (
+                aTime &&
+                typeof aTime === "object" &&
+                "toDate" in aTime
+              ) {
+                aMs = (aTime as any).toDate().getTime();
+              } else if (aTime instanceof Date) {
+                aMs = aTime.getTime();
+              } else if (typeof aTime === "number") {
+                aMs = aTime;
+              }
+
+              if (bTime && typeof bTime === "object" && "seconds" in bTime) {
+                bMs = (bTime as any).seconds * 1000;
+              } else if (
+                bTime &&
+                typeof bTime === "object" &&
+                "toDate" in bTime
+              ) {
+                bMs = (bTime as any).toDate().getTime();
+              } else if (bTime instanceof Date) {
+                bMs = bTime.getTime();
+              } else if (typeof bTime === "number") {
+                bMs = bTime;
+              }
+
+              return bMs - aMs; // Descending order (newest first, so we undo most recent changes first)
+            }
+          );
+
+          sortedVersionsAfterTarget.forEach((version) => {
+            const vTime = version.metadata.createdAt;
+            let versionTime = 0;
+
+            if (vTime && typeof vTime === "object" && "seconds" in vTime) {
+              versionTime = (vTime as any).seconds * 1000;
+            } else if (
+              vTime &&
+              typeof vTime === "object" &&
+              "toDate" in vTime
+            ) {
+              versionTime = (vTime as any).toDate().getTime();
+            } else if (vTime instanceof Date) {
+              versionTime = vTime.getTime();
+            } else if (typeof vTime === "number") {
+              versionTime = vTime;
+            }
+
             // Special handling for delete operations
             if (version.metadata.changeType === "delete") {
               console.log(
-                `🔄 [REPLAY RECONSTRUCTION] Undoing deletion for booking ${bookingId} - booking should exist at target time`
+                `🔄 [REPLAY RECONSTRUCTION] Undoing deletion for booking ${bookingId} at ${new Date(
+                  versionTime
+                ).toISOString()} - booking should exist at target time`
               );
               // For delete operations, the booking should exist at target time
-              // The reconstructedState already contains the booking data from the version snapshot
+              // The reconstructedState already contains the booking data from the delete version snapshot
+              // We don't need to undo anything for the delete operation itself
               return;
             }
 
-            // Handle regular field changes
+            // Handle regular field changes (create, update)
             version.changes.forEach((change) => {
               const fieldPath = change.fieldPath;
               const oldValue = change.oldValue;
 
-              // Skip synthetic change markers
+              // Skip synthetic change markers (like _row_created, _row_deleted, _bulk_operation)
               if (fieldPath.startsWith("_")) {
+                console.log(
+                  `⏭️  [REPLAY RECONSTRUCTION] Skipping synthetic change marker: ${fieldPath}`
+                );
                 return;
               }
 
               console.log(
-                `↩️  [REPLAY RECONSTRUCTION] Undoing change for ${bookingId}.${fieldPath}: ${change.newValue} → ${oldValue}`
+                `↩️  [REPLAY RECONSTRUCTION] Undoing change for ${bookingId}.${fieldPath} at ${new Date(
+                  versionTime
+                ).toISOString()}: ${JSON.stringify(
+                  change.newValue
+                )} → ${JSON.stringify(oldValue)}`
               );
 
-              // Restore the old value
-              reconstructedState[fieldPath] = oldValue;
+              // Restore the old value (or remove the field if oldValue is null/undefined)
+              if (oldValue === null || oldValue === undefined) {
+                // If oldValue is null/undefined, it means the field didn't exist before
+                // We should remove it from the reconstructed state
+                delete reconstructedState[fieldPath];
+              } else {
+                // Restore the old value
+                reconstructedState[fieldPath] = oldValue;
+              }
             });
           });
 
