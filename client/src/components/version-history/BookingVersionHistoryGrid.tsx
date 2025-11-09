@@ -35,6 +35,7 @@ import {
 } from "@/types/version-history";
 import { SheetColumn, SheetData } from "@/types/sheet-management";
 import { bookingVersionHistoryService } from "@/services/booking-version-history-service";
+import { bookingService } from "@/services/booking-service";
 
 // Define types manually since the package types are not matching
 type Column<TRow> = {
@@ -92,10 +93,47 @@ export default function BookingVersionHistoryGrid({
 
   // Reconstruct grid state when version changes
   useEffect(() => {
+    let isCancelled = false;
+
     const reconstructGrid = async () => {
       const selectedVersion = versions.find((v) => v.id === selectedVersionId);
-      if (!selectedVersion || allBookingsData.length === 0) {
+      if (!selectedVersion) {
         setReconstructedBookings([]);
+        setIsReconstructing(false);
+        return;
+      }
+
+      if (
+        selectedVersion.metadata.changeType === "restore" &&
+        Array.isArray(selectedVersion.gridSnapshot) &&
+        selectedVersion.gridSnapshot.length > 0
+      ) {
+        if (!isCancelled) {
+          const snapshotRows = selectedVersion.gridSnapshot.map(
+            (row, index) => {
+              const sanitizedRow = { ...(row as SheetData) };
+
+              if ((sanitizedRow as any)._versionInfo) {
+                delete (sanitizedRow as any)._versionInfo;
+              }
+              if ((sanitizedRow as any)._originalRow) {
+                delete (sanitizedRow as any)._originalRow;
+              }
+
+              if (
+                typeof sanitizedRow.row !== "number" ||
+                !Number.isFinite(sanitizedRow.row)
+              ) {
+                sanitizedRow.row = index + 1;
+              }
+
+              return sanitizedRow;
+            }
+          );
+
+          setReconstructedBookings(snapshotRows as SheetData[]);
+          setIsReconstructing(false);
+        }
         return;
       }
 
@@ -132,14 +170,39 @@ export default function BookingVersionHistoryGrid({
           new Date(versionTime)
         );
 
-        // Use the service to reconstruct complete grid state
+        // Fetch the latest bookings to avoid stale snapshots after restores or new inserts
+        const latestBookings =
+          (await bookingService.getAllBookings()) as SheetData[];
+
+        const mergedBookingsMap = new Map<string, SheetData>();
+        const mergeSource = [...allBookingsData, ...latestBookings];
+
+        mergeSource.forEach((booking: any) => {
+          if (!booking || typeof booking !== "object") {
+            return;
+          }
+
+          const bookingId =
+            typeof booking.id === "string" ? booking.id : undefined;
+          if (!bookingId) {
+            return;
+          }
+
+          mergedBookingsMap.set(bookingId, booking as SheetData);
+        });
+
+        const mergedBookings = Array.from(mergedBookingsMap.values());
+
+        // Use the service to reconstruct complete grid state at the version timestamp
         const historicalGrid =
           await bookingVersionHistoryService.getGridStateAtTimestamp(
             versionTime,
-            allBookingsData
+            mergedBookings
           );
 
-        setReconstructedBookings(historicalGrid);
+        if (!isCancelled) {
+          setReconstructedBookings(historicalGrid);
+        }
         console.log(
           "✅ [VERSION GRID] Reconstructed",
           historicalGrid.length,
@@ -147,13 +210,20 @@ export default function BookingVersionHistoryGrid({
         );
       } catch (error) {
         console.error("❌ [VERSION GRID] Failed to reconstruct grid:", error);
-        setReconstructedBookings([]);
+        if (!isCancelled) {
+          setReconstructedBookings([]);
+        }
       } finally {
-        setIsReconstructing(false);
+        if (!isCancelled) {
+          setIsReconstructing(false);
+        }
       }
     };
 
     reconstructGrid();
+    return () => {
+      isCancelled = true;
+    };
   }, [selectedVersionId, versions, allBookingsData]);
 
   // Create version-highlighted data showing all bookings with historical state
@@ -173,6 +243,8 @@ export default function BookingVersionHistoryGrid({
       ? selectedVersion.metadata
       : undefined;
     const isBulkOperation = !!bulkMetadata;
+    const isRestoreOperation =
+      selectedVersion.metadata.changeType === "restore";
     const bulkAffectedIds =
       bulkMetadata?.bulkOperation?.affectedBookingIds ?? [];
 
@@ -182,6 +254,7 @@ export default function BookingVersionHistoryGrid({
         const isVersionedBooking = booking.id === versionBookingId;
         const isBulkAffectedBooking =
           isBulkOperation && bulkAffectedIds.includes(booking.id);
+        const isRestoreAffectedBooking = isRestoreOperation;
 
         const originalRowValue = (() => {
           if (typeof booking._originalRow === "number") {
@@ -229,13 +302,17 @@ export default function BookingVersionHistoryGrid({
             ? Number(originalRowValue)
             : undefined,
           _versionInfo:
-            isVersionedBooking || isBulkAffectedBooking
+            isVersionedBooking ||
+            isBulkAffectedBooking ||
+            isRestoreAffectedBooking
               ? {
                   versionId: selectedVersion.id,
                   versionNumber: selectedVersion.versionNumber,
                   isRestorePoint: selectedVersion.metadata.isRestorePoint,
                   changedFields: isBulkOperation
-                    ? ["_bulk_operation"] // For bulk operations, highlight entire booking
+                    ? ["_bulk_operation"]
+                    : isRestoreOperation
+                    ? ["_restore_operation"]
                     : selectedVersion.changes.map((change) => change.fieldPath),
                   metadata: selectedVersion.metadata,
                 }
@@ -461,6 +538,10 @@ export default function BookingVersionHistoryGrid({
     ) => {
       if (!versionInfo) return null;
 
+      if (versionInfo.metadata?.changeType === "restore") {
+        return "changed";
+      }
+
       // Debug logging for specific fields
       if (fieldPath === "customerName" || fieldPath === "email") {
         console.log(`🔍 [CHANGE TYPE DEBUG] Field: ${fieldPath}`, {
@@ -500,7 +581,17 @@ export default function BookingVersionHistoryGrid({
       if (!version) return null;
 
       const change = version.changes.find((c) => c.fieldPath === fieldPath);
-      if (!change) return null;
+      if (!change) {
+        if (version.metadata.changeType === "restore") {
+          return {
+            fieldName: fieldPath,
+            oldValue: undefined,
+            newValue: "Restored from historical snapshot",
+            dataType: "string",
+          };
+        }
+        return null;
+      }
 
       return {
         fieldName: change.fieldName,
@@ -532,6 +623,8 @@ export default function BookingVersionHistoryGrid({
       const isDeletedBooking = versionInfo?.metadata?.changeType === "delete";
       const isBulkOperation =
         versionInfo?.metadata?.changeType?.startsWith("bulk_");
+      const isRestoreOperation =
+        versionInfo?.metadata?.changeType === "restore";
 
       return (
         <div
@@ -543,6 +636,8 @@ export default function BookingVersionHistoryGrid({
                 ? "bg-green-200"
                 : isBulkOperation
                 ? "bg-blue-200 border-2 border-blue-500"
+                : isRestoreOperation
+                ? "bg-blue-200 border-2 border-blue-400"
                 : "bg-yellow-200"
               : "opacity-40"
           }`}
@@ -554,6 +649,8 @@ export default function BookingVersionHistoryGrid({
                 ? " - New Booking"
                 : isBulkOperation
                 ? " - Bulk Operation"
+                : isRestoreOperation
+                ? " - Restored State"
                 : " - Has Changes"
               : ""
           }`}
@@ -647,6 +744,8 @@ export default function BookingVersionHistoryGrid({
             versionInfo?.metadata?.changeType === "delete";
           const isBulkOperation =
             versionInfo?.metadata?.changeType?.startsWith("bulk_");
+          const isRestoreOperation =
+            versionInfo?.metadata?.changeType === "restore";
 
           let classes = [cellClass];
 
@@ -657,6 +756,10 @@ export default function BookingVersionHistoryGrid({
           // If this is a bulk operation, highlight all cells in blue
           else if (isBulkOperation) {
             classes.push("bg-blue-200 border-2 border-blue-500 relative");
+          }
+          // If this is a restore operation, highlight all cells in blue
+          else if (isRestoreOperation) {
+            classes.push("bg-blue-200 border-2 border-blue-400 relative");
           }
           // If this is a newly created booking, highlight all cells
           else if (isNewBooking) {

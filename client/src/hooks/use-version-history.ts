@@ -19,54 +19,66 @@ interface UseVersionHistoryReturn {
   error: string | null;
   selectedVersionId: string | undefined;
   comparisonVersionId: string | undefined;
-  
+
   // Actions
   loadVersions: () => Promise<void>;
   selectVersion: (versionId: string) => void;
   setComparisonVersion: (versionId: string | undefined) => void;
-  restoreVersion: (versionId: string, userId: string, userName?: string) => Promise<RestoreResult>;
-  
+  restoreVersion: (
+    versionId: string,
+    userId: string,
+    userName?: string
+  ) => Promise<RestoreResult>;
+
   // Utilities
   getVersion: (versionId: string) => BookingVersionSnapshot | undefined;
   getLatestVersion: () => BookingVersionSnapshot | undefined;
   getVersionCount: () => number;
 }
 
-export function useVersionHistory(options: UseVersionHistoryOptions = {}): UseVersionHistoryReturn {
+export function useVersionHistory(
+  options: UseVersionHistoryOptions = {}
+): UseVersionHistoryReturn {
   const { bookingId, autoLoad = true, queryOptions } = options;
-  
+
   const [versions, setVersions] = useState<BookingVersionSnapshot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>();
-  const [comparisonVersionId, setComparisonVersionId] = useState<string | undefined>();
+  const [selectedVersionId, setSelectedVersionId] = useState<
+    string | undefined
+  >();
+  const [comparisonVersionId, setComparisonVersionId] = useState<
+    string | undefined
+  >();
 
   const loadVersions = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       let loadedVersions: BookingVersionSnapshot[];
-      
+
       if (bookingId) {
-        loadedVersions = await bookingVersionHistoryService.getVersionsForBooking(
-          bookingId,
-          queryOptions
-        );
+        loadedVersions =
+          await bookingVersionHistoryService.getVersionsForBooking(
+            bookingId,
+            queryOptions
+          );
       } else {
         loadedVersions = await bookingVersionHistoryService.getAllVersions(
           queryOptions
         );
       }
-      
+
       setVersions(loadedVersions);
-      
+
       // Auto-select the latest version if none selected
       if (!selectedVersionId && loadedVersions.length > 0) {
         setSelectedVersionId(loadedVersions[0].id);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to load version history";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load version history";
       setError(errorMessage);
       console.error("Failed to load version history:", err);
     } finally {
@@ -82,52 +94,73 @@ export function useVersionHistory(options: UseVersionHistoryOptions = {}): UseVe
     setComparisonVersionId(versionId);
   }, []);
 
-  const restoreVersion = useCallback(async (
-    versionId: string,
-    userId: string,
-    userName?: string
-  ): Promise<RestoreResult> => {
-    if (!bookingId) {
-      return {
-        success: false,
-        error: "No booking ID specified for restoration",
-      };
-    }
+  const restoreVersion = useCallback(
+    async (
+      versionId: string,
+      userId: string,
+      userName?: string
+    ): Promise<RestoreResult> => {
+      const versionToRestore = versions.find((v) => v.id === versionId);
 
-    try {
-      const result = await bookingVersionHistoryService.restoreVersion(bookingId, {
-        targetVersionId: versionId,
-        userId,
-        userName,
-      });
+      const targetBookingId =
+        versionToRestore?.bookingId ||
+        (typeof versionToRestore?.documentSnapshot?.id === "string"
+          ? (versionToRestore.documentSnapshot.id as string)
+          : undefined) ||
+        bookingId;
 
-      if (result.success) {
-        // Reload versions to show the new restore point
-        await loadVersions();
-        
-        // Select the new version if created
-        if (result.newVersionId) {
-          setSelectedVersionId(result.newVersionId);
-        }
+      if (!targetBookingId) {
+        return {
+          success: false,
+          error: "No booking ID available for restoration",
+        };
       }
 
-      return result;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to restore version";
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    }
-  }, [bookingId, loadVersions]);
+      try {
+        const result = await bookingVersionHistoryService.restoreVersion(
+          targetBookingId,
+          {
+            targetVersionId: versionId,
+            userId,
+            userName,
+          }
+        );
 
-  const getVersion = useCallback((versionId: string): BookingVersionSnapshot | undefined => {
-    return versions.find(v => v.id === versionId);
-  }, [versions]);
+        if (result.success) {
+          // Reload versions to show the new restore point
+          await loadVersions();
 
-  const getLatestVersion = useCallback((): BookingVersionSnapshot | undefined => {
+          // Select the new version if created
+          if (result.newVersionId) {
+            setSelectedVersionId(result.newVersionId);
+          }
+        }
+
+        return result;
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to restore version";
+        return {
+          success: false,
+          error: errorMessage,
+        };
+      }
+    },
+    [bookingId, versions, loadVersions]
+  );
+
+  const getVersion = useCallback(
+    (versionId: string): BookingVersionSnapshot | undefined => {
+      return versions.find((v) => v.id === versionId);
+    },
+    [versions]
+  );
+
+  const getLatestVersion = useCallback(():
+    | BookingVersionSnapshot
+    | undefined => {
     if (versions.length === 0) return undefined;
-    return versions.reduce((latest, current) => 
+    return versions.reduce((latest, current) =>
       current.versionNumber > latest.versionNumber ? current : latest
     );
   }, [versions]);
@@ -149,12 +182,12 @@ export function useVersionHistory(options: UseVersionHistoryOptions = {}): UseVe
     error,
     selectedVersionId,
     comparisonVersionId,
-    
+
     loadVersions,
     selectVersion,
     setComparisonVersion,
     restoreVersion,
-    
+
     getVersion,
     getLatestVersion,
     getVersionCount,

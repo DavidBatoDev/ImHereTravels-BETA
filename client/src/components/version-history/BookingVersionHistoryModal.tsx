@@ -236,20 +236,27 @@ export default function BookingVersionHistoryModal({
 
   const handleVersionRestore = useCallback(
     async (versionId: string) => {
-      if (!bookingId) {
-        toast({
-          title: "❌ Cannot Restore",
-          description: "No booking ID specified for restoration",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const version = versions.find((v) => v.id === versionId);
       if (!version) {
         toast({
           title: "❌ Version Not Found",
           description: "The selected version could not be found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const targetBookingId =
+        version.bookingId ||
+        (typeof version.documentSnapshot?.id === "string"
+          ? version.documentSnapshot.id
+          : undefined) ||
+        bookingId;
+
+      if (!targetBookingId) {
+        toast({
+          title: "❌ Cannot Restore",
+          description: "No booking ID available for restoration",
           variant: "destructive",
         });
         return;
@@ -267,7 +274,7 @@ export default function BookingVersionHistoryModal({
       setIsRestoring(true);
       try {
         const result: RestoreResult =
-          await bookingVersionHistoryService.restoreVersion(bookingId, {
+          await bookingVersionHistoryService.restoreVersion(targetBookingId, {
             targetVersionId: versionId,
             userId: currentUserId,
             userName: currentUserName,

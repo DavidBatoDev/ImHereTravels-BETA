@@ -17,6 +17,8 @@ export interface BookingVersionSnapshot {
 
   // Complete document snapshot
   documentSnapshot: SheetData;
+  gridSnapshot?: SheetData[];
+  previousGridSnapshot?: SheetData[];
 
   // Metadata
   metadata: VersionMetadata;
@@ -100,6 +102,8 @@ export interface CreateVersionOptions {
   changedFieldPaths?: string[]; // Field paths that changed (for efficient change detection)
   isRestorePoint?: boolean;
   restoredFromVersionId?: string;
+  gridSnapshot?: SheetData[];
+  previousGridSnapshot?: SheetData[];
 }
 
 /**

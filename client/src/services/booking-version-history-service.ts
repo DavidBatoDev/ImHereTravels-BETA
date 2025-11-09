@@ -1,6 +1,8 @@
 import { db } from "@/lib/firebase";
 import {
   doc,
+  setDoc,
+  deleteDoc,
   collection,
   addDoc,
   getDoc,
@@ -69,7 +71,7 @@ export interface BookingVersionHistoryService {
 
   // Version restoration
   restoreVersion(
-    bookingId: string,
+    bookingId: string | undefined,
     options: RestoreVersionOptions
   ): Promise<RestoreResult>;
 
@@ -108,6 +110,166 @@ export interface BookingVersionHistoryService {
 // ============================================================================
 
 class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
+  private normalizeTimestamp(value: any): number {
+    if (!value) return 0;
+
+    if (typeof value === "number") {
+      return value;
+    }
+
+    if (value instanceof Date) {
+      return value.getTime();
+    }
+
+    if (typeof value === "object") {
+      if (typeof value.toMillis === "function") {
+        return value.toMillis();
+      }
+
+      if (typeof value.toDate === "function") {
+        try {
+          return value.toDate().getTime();
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      if (typeof value.seconds === "number") {
+        const nanos =
+          typeof value.nanoseconds === "number" ? value.nanoseconds : 0;
+        return value.seconds * 1000 + Math.floor(nanos / 1_000_000);
+      }
+    }
+
+    return 0;
+  }
+
+  private getVersionTimestamp(version: BookingVersionSnapshot): number {
+    return this.normalizeTimestamp(version.metadata?.createdAt);
+  }
+
+  private async reconstructBookingStateAtTimestamp(
+    bookingId: string,
+    targetTime: number,
+    versionAtTarget?: BookingVersionSnapshot
+  ): Promise<SheetData | null> {
+    const versions = await this.getVersionsForBooking(bookingId);
+
+    if (versions.length === 0) {
+      return versionAtTarget?.documentSnapshot
+        ? ({ ...versionAtTarget.documentSnapshot } as SheetData)
+        : null;
+    }
+
+    versions.sort(
+      (a, b) => this.getVersionTimestamp(a) - this.getVersionTimestamp(b)
+    );
+
+    const currentBookingDoc = await bookingService.getBooking(bookingId);
+    const currentBooking = currentBookingDoc
+      ? ({ ...currentBookingDoc } as SheetData)
+      : null;
+
+    const createVersion = versions.find(
+      (v) => v.metadata.changeType === "create"
+    );
+    let createdTime = 0;
+
+    if (createVersion) {
+      createdTime = this.getVersionTimestamp(createVersion);
+    } else if (currentBooking?.createdAt) {
+      createdTime = this.normalizeTimestamp(currentBooking.createdAt);
+    }
+
+    if (createdTime > targetTime) {
+      return null;
+    }
+
+    const deleteVersion = versions.find(
+      (v) => v.metadata.changeType === "delete"
+    );
+    const deletionTime =
+      deleteVersion !== undefined
+        ? this.getVersionTimestamp(deleteVersion)
+        : null;
+
+    const baseSnapshot = () => {
+      if (versionAtTarget?.metadata.changeType === "delete") {
+        return { ...versionAtTarget.documentSnapshot } as Record<string, any>;
+      }
+
+      const versionsBeforeOrAtTarget = versions.filter((version) => {
+        const versionTime = this.getVersionTimestamp(version);
+
+        if (version.metadata.changeType === "delete") {
+          return versionTime < targetTime;
+        }
+
+        return versionTime <= targetTime;
+      });
+
+      if (versionsBeforeOrAtTarget.length > 0) {
+        const lastVersion =
+          versionsBeforeOrAtTarget[versionsBeforeOrAtTarget.length - 1];
+        return { ...lastVersion.documentSnapshot } as Record<string, any>;
+      }
+
+      if (currentBooking) {
+        return { ...currentBooking } as Record<string, any>;
+      }
+
+      if (deleteVersion && deletionTime !== null && deletionTime > targetTime) {
+        return { ...deleteVersion.documentSnapshot } as Record<string, any>;
+      }
+
+      return null;
+    };
+
+    const reconstructedState = baseSnapshot();
+
+    if (!reconstructedState) {
+      return null;
+    }
+
+    if (!reconstructedState.id) {
+      reconstructedState.id = bookingId;
+    }
+
+    const versionsAfterTarget = versions.filter((version) => {
+      const versionTime = this.getVersionTimestamp(version);
+      return versionTime > targetTime;
+    });
+
+    const sortedVersionsAfterTarget = [...versionsAfterTarget].sort(
+      (a, b) => this.getVersionTimestamp(b) - this.getVersionTimestamp(a)
+    );
+
+    for (const version of sortedVersionsAfterTarget) {
+      if (version.metadata.changeType === "delete") {
+        // Undo deletion: baseline already represents the state that existed before deletion
+        continue;
+      }
+
+      for (const change of version.changes) {
+        const fieldPath = change.fieldPath;
+
+        if (fieldPath.startsWith("_")) {
+          continue;
+        }
+
+        const oldValue = change.oldValue;
+
+        if (oldValue === null || oldValue === undefined) {
+          delete reconstructedState[fieldPath];
+        } else {
+          reconstructedState[fieldPath] = oldValue;
+        }
+      }
+    }
+
+    return reconstructedState as SheetData;
+  }
+
   // ========================================================================
   // VERSION CREATION
   // ========================================================================
@@ -165,6 +327,24 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
             fieldName: "Row Deleted",
             oldValue: "Row existed",
             newValue: null,
+            dataType: "string",
+          },
+        ];
+      }
+      // Special handling for "restore" change type (full replay restore)
+      else if (options.changeType === "restore" && changes.length === 0) {
+        console.log(
+          "🔍 [VERSION SERVICE] Creating 'Restored snapshot' change for restore operation"
+        );
+
+        changes = [
+          {
+            fieldPath: "_restore_operation",
+            fieldName: "Restore Operation",
+            oldValue: null,
+            newValue:
+              options.changeDescription ||
+              "Restored booking state from history",
             dataType: "string",
           },
         ];
@@ -266,50 +446,14 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       // Create version snapshot
       console.log("🔍 [VERSION SERVICE] Creating version snapshot object");
 
-      // Clean the documentSnapshot to ensure all fields are properly serialized
-      // Remove undefined values and convert complex types to simple types
-      const cleanedSnapshot: Record<string, any> = {};
-      Object.keys(documentSnapshot).forEach((key) => {
-        const value = documentSnapshot[key as keyof SheetData];
-
-        // Skip undefined values
-        if (value === undefined) {
-          return;
-        }
-
-        // Handle null explicitly
-        if (value === null) {
-          cleanedSnapshot[key] = null;
-          return;
-        }
-
-        // Handle Firestore Timestamps
-        if (value && typeof value === "object" && "toDate" in value) {
-          cleanedSnapshot[key] = value; // Keep Firestore Timestamp as-is
-          return;
-        }
-
-        // Handle Dates
-        if (value instanceof Date) {
-          cleanedSnapshot[key] = Timestamp.fromDate(value);
-          return;
-        }
-
-        // Handle arrays
-        if (Array.isArray(value)) {
-          cleanedSnapshot[key] = value;
-          return;
-        }
-
-        // Handle objects (but not Firestore types)
-        if (typeof value === "object") {
-          cleanedSnapshot[key] = value;
-          return;
-        }
-
-        // Handle primitives (string, number, boolean)
-        cleanedSnapshot[key] = value;
-      });
+      const cleanedSnapshot = this.sanitizeSheetDataForStorage(
+        documentSnapshot as SheetData
+      );
+      const gridSnapshotForStorage = this.sanitizeGridSnapshotForStorage(
+        options.gridSnapshot
+      );
+      const previousGridSnapshotForStorage =
+        this.sanitizeGridSnapshotForStorage(options.previousGridSnapshot);
 
       console.log("🔍 [VERSION SERVICE] Cleaned snapshot:", {
         originalKeys: Object.keys(documentSnapshot).length,
@@ -319,6 +463,8 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
           bookingType: cleanedSnapshot.bookingType,
           bookingCode: cleanedSnapshot.bookingCode,
         },
+        gridSnapshotCount: gridSnapshotForStorage?.length || 0,
+        previousGridSnapshotCount: previousGridSnapshotForStorage?.length || 0,
       });
 
       // Create the base version snapshot object without undefined fields
@@ -342,6 +488,17 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
           childBranchIds: branchInfo.childBranchIds,
         },
       };
+
+      if (gridSnapshotForStorage && gridSnapshotForStorage.length > 0) {
+        versionSnapshot.gridSnapshot = gridSnapshotForStorage;
+      }
+
+      if (
+        previousGridSnapshotForStorage &&
+        previousGridSnapshotForStorage.length > 0
+      ) {
+        versionSnapshot.previousGridSnapshot = previousGridSnapshotForStorage;
+      }
 
       // Only include optional fields if they have values (not undefined)
       if (parentVersionId !== undefined) {
@@ -499,9 +656,12 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         if (orderByField === "versionNumber") {
           aValue = a.versionNumber;
           bValue = b.versionNumber;
-        } else if (orderByField === "metadata.createdAt") {
-          aValue = a.metadata.createdAt?.toMillis?.() || 0;
-          bValue = b.metadata.createdAt?.toMillis?.() || 0;
+        } else if (
+          orderByField === "createdAt" ||
+          orderByField === "metadata.createdAt"
+        ) {
+          aValue = this.getVersionTimestamp(a);
+          bValue = this.getVersionTimestamp(b);
         } else {
           aValue = 0;
           bValue = 0;
@@ -595,7 +755,7 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       }
 
       // Apply client-side sorting
-      const orderByField: string = options?.orderBy || "metadata.createdAt";
+      const orderByField: string = options?.orderBy || "createdAt";
       const orderDirection = options?.orderDirection || "desc";
 
       versions.sort((a, b) => {
@@ -604,9 +764,12 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         if (orderByField === "versionNumber") {
           aValue = a.versionNumber;
           bValue = b.versionNumber;
-        } else if (orderByField === "metadata.createdAt") {
-          aValue = a.metadata.createdAt?.toMillis?.() || 0;
-          bValue = b.metadata.createdAt?.toMillis?.() || 0;
+        } else if (
+          orderByField === "createdAt" ||
+          orderByField === "metadata.createdAt"
+        ) {
+          aValue = this.getVersionTimestamp(a);
+          bValue = this.getVersionTimestamp(b);
         } else {
           aValue = 0;
           bValue = 0;
@@ -684,7 +847,7 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
   // ========================================================================
 
   async restoreVersion(
-    bookingId: string,
+    bookingId: string | undefined,
     options: RestoreVersionOptions
   ): Promise<RestoreResult> {
     try {
@@ -697,36 +860,407 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         };
       }
 
-      // Get current booking data
-      const currentBooking = await bookingService.getBooking(bookingId);
-      if (!currentBooking) {
+      // Determine which booking ID to restore
+      const targetBookingId =
+        versionToRestore.bookingId ||
+        (typeof versionToRestore.documentSnapshot?.id === "string"
+          ? versionToRestore.documentSnapshot.id
+          : undefined) ||
+        bookingId;
+
+      if (!targetBookingId) {
         return {
           success: false,
-          error: "Current booking not found",
+          error: "No booking ID available for restoration",
         };
       }
 
-      // Update the booking document with restored data
-      await bookingService.updateBooking(
-        bookingId,
-        versionToRestore.documentSnapshot
+      const targetTimestamp = this.getVersionTimestamp(versionToRestore);
+
+      const currentBookings =
+        (await bookingService.getAllBookings()) as SheetData[];
+      const currentBookingsMap = new Map(
+        currentBookings.map((booking) => [booking.id, booking])
       );
 
-      // Create a new version snapshot for the restore operation
+      const previousGridSnapshot = currentBookings.map((booking, index) => {
+        const snapshot = this.removeUndefinedValues({
+          ...booking,
+        }) as SheetData;
+
+        if ((snapshot as any)._versionInfo) {
+          delete (snapshot as any)._versionInfo;
+        }
+        if ((snapshot as any)._originalRow) {
+          delete (snapshot as any)._originalRow;
+        }
+
+        if (
+          typeof snapshot.row !== "number" ||
+          !Number.isFinite(snapshot.row)
+        ) {
+          snapshot.row = index + 1;
+        }
+
+        return snapshot;
+      });
+
+      let reconstructedGrid: SheetData[];
+
+      if (
+        versionToRestore.metadata.changeType === "restore" &&
+        Array.isArray(versionToRestore.gridSnapshot) &&
+        versionToRestore.gridSnapshot.length > 0
+      ) {
+        reconstructedGrid = versionToRestore.gridSnapshot.map((row) => {
+          const snapshot = this.removeUndefinedValues({
+            ...(row as SheetData),
+          }) as SheetData;
+
+          if ((snapshot as any)._versionInfo) {
+            delete (snapshot as any)._versionInfo;
+          }
+          if ((snapshot as any)._originalRow) {
+            delete (snapshot as any)._originalRow;
+          }
+
+          return snapshot;
+        });
+      } else {
+        reconstructedGrid = await this.getGridStateAtTimestamp(
+          targetTimestamp,
+          currentBookings
+        );
+      }
+
+      if (reconstructedGrid.length === 0) {
+        return {
+          success: false,
+          error: "No reconstructed grid state available for restoration",
+        };
+      }
+
+      const sortedReconstructedGrid = [...reconstructedGrid].sort((a, b) => {
+        const aRow =
+          typeof a.row === "number" ? a.row : Number.MAX_SAFE_INTEGER;
+        const bRow =
+          typeof b.row === "number" ? b.row : Number.MAX_SAFE_INTEGER;
+        return aRow - bRow;
+      });
+
+      // Build restore grid snapshot with sequential row numbers (no gaps)
+      const restoreGridSnapshot = sortedReconstructedGrid.map(
+        (booking, index) => {
+          const snapshot = this.removeUndefinedValues({
+            ...booking,
+          }) as SheetData;
+
+          if ((snapshot as any)._versionInfo) {
+            delete (snapshot as any)._versionInfo;
+          }
+          if ((snapshot as any)._originalRow) {
+            delete (snapshot as any)._originalRow;
+          }
+
+          // ALWAYS assign sequential row numbers to eliminate gaps
+          snapshot.row = index + 1;
+
+          return snapshot;
+        }
+      );
+
+      const restoredBookings: Array<{
+        id: string;
+        data: SheetData;
+        wasDeleted?: boolean;
+      }> = [];
+
+      const reconstructedIds = new Set(
+        sortedReconstructedGrid
+          .map((booking) => booking.id)
+          .filter((id): id is string => typeof id === "string")
+      );
+
+      for (let index = 0; index < sortedReconstructedGrid.length; index++) {
+        const reconstructedBooking = sortedReconstructedGrid[index];
+        const bookingIdToRestore = reconstructedBooking.id;
+        if (!bookingIdToRestore || typeof bookingIdToRestore !== "string") {
+          continue;
+        }
+
+        // Always use sequential row numbers (index + 1) to eliminate gaps
+        const desiredRowNumber = index + 1;
+
+        const sanitizedState = this.removeUndefinedValues({
+          ...reconstructedBooking,
+        }) as SheetData;
+
+        if ((sanitizedState as any)._versionInfo) {
+          delete (sanitizedState as any)._versionInfo;
+        }
+        if ((sanitizedState as any)._originalRow) {
+          delete (sanitizedState as any)._originalRow;
+        }
+
+        // Force sequential row number
+        sanitizedState.row = desiredRowNumber;
+
+        const existingBooking = currentBookingsMap.get(bookingIdToRestore);
+        let shouldUpdate = bookingIdToRestore === targetBookingId;
+
+        let sanitizedExisting: SheetData | undefined;
+
+        if (!shouldUpdate) {
+          if (!existingBooking) {
+            shouldUpdate = true;
+          } else {
+            sanitizedExisting = this.removeUndefinedValues({
+              ...existingBooking,
+            }) as SheetData;
+            if ((sanitizedExisting as any)._versionInfo) {
+              delete (sanitizedExisting as any)._versionInfo;
+            }
+            if ((sanitizedExisting as any)._originalRow) {
+              delete (sanitizedExisting as any)._originalRow;
+            }
+            if (
+              typeof sanitizedExisting.row !== "number" ||
+              !Number.isFinite(sanitizedExisting.row)
+            ) {
+              sanitizedExisting.row = desiredRowNumber;
+            }
+            shouldUpdate = !this.isEqual(sanitizedExisting, sanitizedState);
+          }
+        }
+
+        if (!shouldUpdate) {
+          if (!sanitizedState.createdAt) {
+            sanitizedState.createdAt =
+              sanitizedExisting?.createdAt ||
+              versionToRestore.documentSnapshot?.createdAt ||
+              new Date(targetTimestamp);
+          }
+
+          if (!sanitizedState.updatedAt && sanitizedExisting?.updatedAt) {
+            sanitizedState.updatedAt = sanitizedExisting.updatedAt;
+          }
+
+          restoreGridSnapshot[index] = sanitizedState;
+          continue;
+        }
+
+        const hasCreatedAt =
+          sanitizedState.createdAt !== undefined &&
+          sanitizedState.createdAt !== null;
+
+        const stateToPersist = this.removeUndefinedValues({
+          ...sanitizedState,
+          id: bookingIdToRestore,
+          createdAt: hasCreatedAt
+            ? sanitizedState.createdAt
+            : versionToRestore.documentSnapshot?.createdAt ||
+              new Date(targetTimestamp),
+          updatedAt: new Date(),
+        }) as SheetData;
+
+        if ((stateToPersist as any)._versionInfo) {
+          delete (stateToPersist as any)._versionInfo;
+        }
+        if ((stateToPersist as any)._originalRow) {
+          delete (stateToPersist as any)._originalRow;
+        }
+
+        await setDoc(
+          doc(db, BOOKINGS_COLLECTION, bookingIdToRestore),
+          stateToPersist,
+          { merge: false }
+        );
+
+        restoreGridSnapshot[index] = stateToPersist;
+        restoredBookings.push({ id: bookingIdToRestore, data: stateToPersist });
+      }
+
+      const bookingsToDelete = currentBookings.filter(
+        (booking) => booking?.id && !reconstructedIds.has(booking.id)
+      );
+
+      for (const bookingToDelete of bookingsToDelete) {
+        const bookingIdToDelete = bookingToDelete.id;
+        if (!bookingIdToDelete) {
+          continue;
+        }
+
+        const stateBeforeDelete = this.removeUndefinedValues({
+          ...bookingToDelete,
+          id: bookingIdToDelete,
+        }) as SheetData;
+
+        if ((stateBeforeDelete as any)._versionInfo) {
+          delete (stateBeforeDelete as any)._versionInfo;
+        }
+        if ((stateBeforeDelete as any)._originalRow) {
+          delete (stateBeforeDelete as any)._originalRow;
+        }
+
+        await deleteDoc(doc(db, BOOKINGS_COLLECTION, bookingIdToDelete));
+
+        restoredBookings.push({
+          id: bookingIdToDelete,
+          data: stateBeforeDelete,
+          wasDeleted: true,
+        });
+      }
+
+      // Validate and fix row numbers: check for duplicates and gaps
+      console.log(
+        "🔍 [RESTORE VALIDATION] Checking for duplicate or invalid row numbers"
+      );
+
+      const rowNumbersUsed = new Set<number>();
+      const duplicateRows: number[] = [];
+      const invalidRows: string[] = [];
+
+      restoreGridSnapshot.forEach((booking, index) => {
+        const rowNum = booking.row;
+
+        if (typeof rowNum !== "number" || !Number.isFinite(rowNum)) {
+          invalidRows.push(booking.id || `unknown-${index}`);
+        } else if (rowNumbersUsed.has(rowNum)) {
+          duplicateRows.push(rowNum);
+        } else {
+          rowNumbersUsed.add(rowNum);
+        }
+      });
+
+      if (duplicateRows.length > 0 || invalidRows.length > 0) {
+        console.warn(
+          `⚠️  [RESTORE VALIDATION] Found issues - Duplicates: ${duplicateRows.length}, Invalid: ${invalidRows.length}`
+        );
+        console.log("🔧 [RESTORE VALIDATION] Reordering rows sequentially");
+
+        // Reorder all rows sequentially
+        restoreGridSnapshot.sort((a, b) => {
+          const aRow =
+            typeof a.row === "number" && Number.isFinite(a.row)
+              ? a.row
+              : Number.MAX_SAFE_INTEGER;
+          const bRow =
+            typeof b.row === "number" && Number.isFinite(b.row)
+              ? b.row
+              : Number.MAX_SAFE_INTEGER;
+          return aRow - bRow;
+        });
+
+        // Reassign row numbers sequentially
+        const reorderedBookings: Array<{
+          id: string;
+          oldRow: number;
+          newRow: number;
+        }> = [];
+
+        for (let i = 0; i < restoreGridSnapshot.length; i++) {
+          const booking = restoreGridSnapshot[i];
+          const oldRow = booking.row;
+          const newRow = i + 1;
+
+          if (oldRow !== newRow) {
+            reorderedBookings.push({
+              id: booking.id || `row-${i}`,
+              oldRow:
+                typeof oldRow === "number" && Number.isFinite(oldRow)
+                  ? oldRow
+                  : -1,
+              newRow,
+            });
+          }
+
+          booking.row = newRow;
+
+          // Update the booking in Firestore with the corrected row number
+          if (booking.id && typeof booking.id === "string") {
+            await setDoc(
+              doc(db, BOOKINGS_COLLECTION, booking.id),
+              { row: newRow },
+              { merge: true }
+            );
+          }
+        }
+
+        if (reorderedBookings.length > 0) {
+          console.log(
+            `✅ [RESTORE VALIDATION] Reordered ${reorderedBookings.length} bookings:`,
+            reorderedBookings.slice(0, 10)
+          );
+        }
+      } else {
+        console.log(
+          "✅ [RESTORE VALIDATION] All row numbers are valid and sequential"
+        );
+      }
+
+      if (restoredBookings.length === 0) {
+        return {
+          success: true,
+        };
+      }
+
+      const targetRestoredBooking = restoredBookings.find(
+        (booking) => booking.id === targetBookingId && !booking.wasDeleted
+      );
+
+      const targetSnapshotData = targetRestoredBooking
+        ? targetRestoredBooking.data
+        : (this.removeUndefinedValues({
+            ...versionToRestore.documentSnapshot,
+            id: targetBookingId,
+          }) as SheetData);
+
+      const updatedCount = restoredBookings.filter(
+        (booking) => !booking.wasDeleted
+      ).length;
+      const deletedCount = restoredBookings.filter(
+        (booking) => booking.wasDeleted
+      ).length;
+
+      const additionalUpdatedCount = Math.max(updatedCount - 1, 0);
+
+      const descriptionParts = [
+        `Restored grid state from version ${versionToRestore.versionNumber}`,
+      ];
+
+      if (additionalUpdatedCount > 0) {
+        descriptionParts.push(
+          `Also updated ${additionalUpdatedCount} other booking${
+            additionalUpdatedCount === 1 ? "" : "s"
+          } to the historical state`
+        );
+      }
+
+      if (deletedCount > 0) {
+        descriptionParts.push(
+          `Removed ${deletedCount} booking${
+            deletedCount === 1 ? "" : "s"
+          } that did not exist at that time`
+        );
+      }
+
+      const changeDescription = descriptionParts.join("; ");
+
       const newVersionId = await this.createVersionSnapshot(
-        bookingId,
-        versionToRestore.documentSnapshot,
+        targetBookingId,
+        targetSnapshotData,
         {
           changeType: "restore",
-          changeDescription: `Restored from version ${versionToRestore.versionNumber}`,
+          changeDescription,
           userId: options.userId,
           userName: options.userName,
           isRestorePoint: true,
           restoredFromVersionId: options.targetVersionId,
+          gridSnapshot: restoreGridSnapshot,
+          previousGridSnapshot,
         }
       );
 
-      // Get the new version to return its details
       const newVersion = await this.getVersion(newVersionId);
 
       return {
@@ -762,9 +1296,11 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
     );
 
     // Apply ordering
-    const orderByField = options?.orderBy || "versionNumber";
+    const orderByOption = options?.orderBy || "versionNumber";
     const orderDirection = options?.orderDirection || "desc";
-    q = query(q, orderBy(orderByField, orderDirection));
+    const firestoreOrderField =
+      orderByOption === "createdAt" ? "metadata.createdAt" : orderByOption;
+    q = query(q, orderBy(firestoreOrderField, orderDirection));
 
     // Apply limit
     if (options?.limit) {
@@ -806,9 +1342,11 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
     let q = query(collection(db, VERSIONS_COLLECTION));
 
     // Apply ordering
-    const orderByField = options?.orderBy || "metadata.createdAt";
+    const orderByOption = options?.orderBy || "createdAt";
     const orderDirection = options?.orderDirection || "desc";
-    q = query(q, orderBy(orderByField, orderDirection));
+    const firestoreOrderField =
+      orderByOption === "createdAt" ? "metadata.createdAt" : orderByOption;
+    q = query(q, orderBy(firestoreOrderField, orderDirection));
 
     // Apply limit
     if (options?.limit) {
@@ -1007,6 +1545,94 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
     return obj;
   }
 
+  private serializeValueForStorage(value: any): any {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    if (value instanceof Date) {
+      return Timestamp.fromDate(value);
+    }
+
+    if (
+      value &&
+      typeof value === "object" &&
+      (typeof value.toDate === "function" ||
+        typeof value.toMillis === "function")
+    ) {
+      return value;
+    }
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => this.serializeValueForStorage(item))
+        .filter((item) => item !== undefined);
+    }
+
+    if (typeof value === "object") {
+      const serialized: Record<string, any> = {};
+      Object.keys(value).forEach((key) => {
+        const serializedValue = this.serializeValueForStorage(
+          (value as any)[key]
+        );
+        if (serializedValue !== undefined) {
+          serialized[key] = serializedValue;
+        }
+      });
+      return serialized;
+    }
+
+    return value;
+  }
+
+  private sanitizeSheetDataForStorage(data: SheetData): Record<string, any> {
+    const clone: Record<string, any> = { ...data };
+
+    if (clone._versionInfo) {
+      delete clone._versionInfo;
+    }
+
+    if (clone._originalRow) {
+      delete clone._originalRow;
+    }
+
+    const cleaned: Record<string, any> = {};
+
+    Object.keys(clone).forEach((key) => {
+      const serializedValue = this.serializeValueForStorage(clone[key]);
+
+      if (serializedValue !== undefined) {
+        cleaned[key] = serializedValue;
+      }
+    });
+
+    return cleaned;
+  }
+
+  private sanitizeGridSnapshotForStorage(
+    rows?: SheetData[]
+  ): SheetData[] | undefined {
+    if (!rows) {
+      return undefined;
+    }
+
+    return rows
+      .map((row, index) => {
+        const sanitized = this.sanitizeSheetDataForStorage(row);
+
+        if (!sanitized.id) {
+          sanitized.id = row.id || `grid-row-${index}`;
+        }
+
+        return sanitized as SheetData;
+      })
+      .filter((row) => !!row.id);
+  }
+
   private async updateParentBranchInfo(
     parentVersionId: string,
     childVersionId: string
@@ -1109,20 +1735,74 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         "total versions across all time"
       );
 
-      // Helper function to extract timestamp from version metadata
-      const getVersionTime = (version: BookingVersionSnapshot): number => {
-        const vTime = version.metadata.createdAt;
-        if (vTime && typeof vTime === "object" && "seconds" in vTime) {
-          return (vTime as any).seconds * 1000;
-        } else if (vTime && typeof vTime === "object" && "toDate" in vTime) {
-          return (vTime as any).toDate().getTime();
-        } else if (vTime instanceof Date) {
-          return vTime.getTime();
-        } else if (typeof vTime === "number") {
-          return vTime;
+      // Prepare baseline restore snapshot if available at/before the target time
+      let latestRestoreBaseline:
+        | {
+            version: BookingVersionSnapshot;
+            rows: Map<string, SheetData>;
+          }
+        | undefined;
+
+      const restoreCandidates: Array<BookingVersionSnapshot> = [];
+
+      querySnapshot.forEach((doc) => {
+        const versionData = doc.data() as BookingVersionSnapshot;
+        const hydratedVersion: BookingVersionSnapshot = {
+          ...versionData,
+          id: doc.id,
+        };
+
+        if (
+          hydratedVersion.metadata?.changeType === "restore" &&
+          Array.isArray(hydratedVersion.gridSnapshot) &&
+          hydratedVersion.gridSnapshot.length > 0
+        ) {
+          restoreCandidates.push(hydratedVersion);
         }
-        return 0;
-      };
+      });
+
+      restoreCandidates
+        .sort(
+          (a, b) => this.getVersionTimestamp(a) - this.getVersionTimestamp(b)
+        )
+        .forEach((candidate) => {
+          const candidateTime = this.getVersionTimestamp(candidate);
+          if (!Number.isFinite(candidateTime) || candidateTime > targetTime) {
+            return;
+          }
+
+          const rows = new Map<string, SheetData>();
+          candidate.gridSnapshot!.forEach((rawRow, index) => {
+            const sanitizedRow = this.removeUndefinedValues({
+              ...(rawRow as SheetData),
+            }) as SheetData;
+
+            if ((sanitizedRow as any)._versionInfo) {
+              delete (sanitizedRow as any)._versionInfo;
+            }
+            if ((sanitizedRow as any)._originalRow) {
+              delete (sanitizedRow as any)._originalRow;
+            }
+
+            if (
+              typeof sanitizedRow.row !== "number" ||
+              !Number.isFinite(sanitizedRow.row)
+            ) {
+              sanitizedRow.row = index + 1;
+            }
+
+            if (!sanitizedRow.id || typeof sanitizedRow.id !== "string") {
+              sanitizedRow.id = `${candidate.id}-row-${index + 1}`;
+            }
+
+            rows.set(sanitizedRow.id, sanitizedRow);
+          });
+
+          latestRestoreBaseline = {
+            version: candidate,
+            rows,
+          };
+        });
 
       // Group all versions by bookingId
       const allVersionsByBooking = new Map<string, BookingVersionSnapshot[]>();
@@ -1142,366 +1822,322 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
 
       // Sort versions chronologically for each booking (ascending order - oldest first)
       allVersionsByBooking.forEach((versions) => {
-        versions.sort((a, b) => {
-          const aTime = getVersionTime(a);
-          const bTime = getVersionTime(b);
-          return aTime - bTime; // Ascending order (oldest first)
-        });
+        versions.sort(
+          (a, b) => this.getVersionTimestamp(a) - this.getVersionTimestamp(b)
+        );
       });
 
       console.log(
         `🔄 [REPLAY RECONSTRUCTION] Found versions for ${allVersionsByBooking.size} bookings`
       );
 
-      // Get all unique booking IDs that have ever existed (from current bookings + version history)
-      const allBookingIds = new Set<string>();
+      // If we have a restore baseline, use a completely different reconstruction approach
+      if (latestRestoreBaseline) {
+        const restoreTime = this.getVersionTimestamp(
+          latestRestoreBaseline.version
+        );
+        console.log(
+          `🧩 [RESTORE-BASED RECONSTRUCTION] Using restore baseline from version ${
+            latestRestoreBaseline.version.id
+          } at ${new Date(restoreTime).toISOString()}`
+        );
 
-      // Add current booking IDs
-      currentBookings.forEach((booking) => allBookingIds.add(booking.id));
+        // Start with the complete grid from the restore snapshot
+        const gridState = new Map<string, SheetData>();
+        latestRestoreBaseline.rows.forEach((row, bookingId) => {
+          gridState.set(bookingId, { ...row });
+        });
 
-      // Add booking IDs from version history (including deleted ones)
-      allVersionsByBooking.forEach((versions, bookingId) => {
-        allBookingIds.add(bookingId);
+        console.log(
+          `🧩 [RESTORE-BASED RECONSTRUCTION] Starting with ${gridState.size} bookings from restore snapshot`
+        );
+
+        // Get all versions that happened AFTER the restore and BEFORE/AT the target
+        const versionsAfterRestore: BookingVersionSnapshot[] = [];
+        querySnapshot.forEach((doc) => {
+          const versionData = doc.data() as BookingVersionSnapshot;
+          const versionTime = this.getVersionTimestamp({
+            ...versionData,
+            id: doc.id,
+          } as BookingVersionSnapshot);
+
+          if (
+            Number.isFinite(versionTime) &&
+            versionTime > restoreTime &&
+            versionTime <= targetTime
+          ) {
+            versionsAfterRestore.push({
+              ...versionData,
+              id: doc.id,
+            });
+          }
+        });
+
+        // Sort versions chronologically (ascending - oldest first)
+        versionsAfterRestore.sort(
+          (a, b) => this.getVersionTimestamp(a) - this.getVersionTimestamp(b)
+        );
+
+        console.log(
+          `🧩 [RESTORE-BASED RECONSTRUCTION] Applying ${versionsAfterRestore.length} versions after restore`
+        );
+
+        // Apply each version in chronological order
+        versionsAfterRestore.forEach((version) => {
+          const bookingId = version.bookingId;
+          const versionTime = this.getVersionTimestamp(version);
+
+          console.log(
+            `🧩 [RESTORE-BASED RECONSTRUCTION] Applying version ${
+              version.id
+            } (${
+              version.metadata.changeType
+            }) for booking ${bookingId} at ${new Date(
+              versionTime
+            ).toISOString()}`
+          );
+
+          if (version.metadata.changeType === "create") {
+            // Add new booking to grid
+            gridState.set(bookingId, {
+              ...version.documentSnapshot,
+              id: bookingId,
+            });
+            console.log(`  ✅ Created booking ${bookingId} in restored grid`);
+          } else if (version.metadata.changeType === "delete") {
+            // Remove booking from grid
+            gridState.delete(bookingId);
+            console.log(`  ❌ Deleted booking ${bookingId} from restored grid`);
+          } else if (version.metadata.changeType === "restore") {
+            // Another restore happened - use its grid snapshot if available
+            if (
+              Array.isArray(version.gridSnapshot) &&
+              version.gridSnapshot.length > 0
+            ) {
+              console.log(
+                `  🔄 Nested restore detected - replacing entire grid with ${version.gridSnapshot.length} bookings`
+              );
+              gridState.clear();
+              version.gridSnapshot.forEach((row, index) => {
+                const sanitizedRow = this.removeUndefinedValues({
+                  ...(row as SheetData),
+                }) as SheetData;
+
+                if ((sanitizedRow as any)._versionInfo) {
+                  delete (sanitizedRow as any)._versionInfo;
+                }
+                if ((sanitizedRow as any)._originalRow) {
+                  delete (sanitizedRow as any)._originalRow;
+                }
+
+                if (
+                  typeof sanitizedRow.row !== "number" ||
+                  !Number.isFinite(sanitizedRow.row)
+                ) {
+                  sanitizedRow.row = index + 1;
+                }
+
+                if (sanitizedRow.id && typeof sanitizedRow.id === "string") {
+                  gridState.set(sanitizedRow.id, sanitizedRow);
+                }
+              });
+            }
+          } else {
+            // Update existing booking
+            const existingBooking = gridState.get(bookingId);
+            if (existingBooking) {
+              // Apply field changes
+              const updatedBooking = { ...existingBooking };
+              version.changes.forEach((change) => {
+                if (!change.fieldPath.startsWith("_")) {
+                  (updatedBooking as any)[change.fieldPath] = change.newValue;
+                }
+              });
+              gridState.set(bookingId, updatedBooking);
+              console.log(
+                `  📝 Updated booking ${bookingId} (${version.changes.length} fields changed)`
+              );
+            } else {
+              // Booking doesn't exist in restored grid, add it with the version's snapshot
+              gridState.set(bookingId, {
+                ...version.documentSnapshot,
+                id: bookingId,
+              });
+              console.log(
+                `  ➕ Added missing booking ${bookingId} to restored grid`
+              );
+            }
+          }
+        });
+
+        const reconstructedGrid = Array.from(gridState.values());
+        console.log(
+          `✅ [RESTORE-BASED RECONSTRUCTION] Reconstructed grid with ${reconstructedGrid.length} bookings`
+        );
+        return reconstructedGrid;
+      }
+
+      // Use FORWARD REPLAY approach (not backward) to maintain grid consistency
+      console.log(`🔄 [FORWARD REPLAY] Starting forward replay reconstruction`);
+
+      // Get all versions across all bookings and sort chronologically
+      const allVersions: BookingVersionSnapshot[] = [];
+      querySnapshot.forEach((doc) => {
+        const versionData = doc.data() as BookingVersionSnapshot;
+        allVersions.push({
+          ...versionData,
+          id: doc.id,
+        });
+      });
+
+      // If there are NO versions at all, just return current bookings
+      if (allVersions.length === 0) {
+        console.log(
+          `📄 [FORWARD REPLAY] No version history found, using current bookings as baseline (${currentBookings.length} bookings)`
+        );
+        return currentBookings;
+      }
+
+      // Sort all versions chronologically (ascending - oldest first)
+      allVersions.sort(
+        (a, b) => this.getVersionTimestamp(a) - this.getVersionTimestamp(b)
+      );
+
+      // Get the earliest version timestamp
+      const earliestVersionTime = this.getVersionTimestamp(allVersions[0]);
+
+      console.log(
+        `🔄 [FORWARD REPLAY] Earliest version at ${new Date(
+          earliestVersionTime
+        ).toISOString()}`
+      );
+
+      // Filter versions up to and including the target timestamp
+      const versionsUpToTarget = allVersions.filter((version) => {
+        const versionTime = this.getVersionTimestamp(version);
+        return Number.isFinite(versionTime) && versionTime <= targetTime;
       });
 
       console.log(
-        `🔄 [REPLAY RECONSTRUCTION] Found ${
-          allBookingIds.size
-        } unique bookings (${currentBookings.length} current + ${
-          allBookingIds.size - currentBookings.length
-        } from history)`
+        `🔄 [FORWARD REPLAY] Replaying ${versionsUpToTarget.length} versions chronologically up to target time`
       );
 
-      // Reconstruct each booking's state at the target timestamp
-      const reconstructedGrid: SheetData[] = Array.from(allBookingIds)
-        .map((bookingId) => {
-          const currentBooking = currentBookings.find(
-            (b) => b.id === bookingId
-          );
-          const versions = allVersionsByBooking.get(bookingId) || [];
+      // Initialize grid state map
+      const gridState = new Map<string, SheetData>();
 
+      // Build a map of all booking IDs that have versions
+      const bookingsWithVersions = new Set<string>();
+      allVersions.forEach((version) => {
+        if (version.bookingId) {
+          bookingsWithVersions.add(version.bookingId);
+        }
+      });
+
+      // Strategy: Use current bookings as baseline, but only for bookings WITHOUT version history
+      // OR for bookings that were created BEFORE version tracking started
+      currentBookings.forEach((booking) => {
+        if (!booking.id) return;
+
+        const hasVersionHistory = bookingsWithVersions.has(booking.id);
+
+        if (!hasVersionHistory) {
+          // Booking has no version history - use current state as baseline
+          gridState.set(booking.id, { ...booking });
           console.log(
-            `🔄 [REPLAY RECONSTRUCTION] Processing booking ${bookingId}: ${
-              currentBooking ? "exists" : "deleted"
-            }, ${versions.length} versions`
+            `📄 [FORWARD REPLAY] Added booking ${booking.id} without version history`
           );
-
-          // Find the creation version to determine when booking was created
-          const createVersion = versions.find(
-            (v) => v.metadata.changeType === "create"
-          );
-          let createdTime = 0;
-
-          if (createVersion) {
-            const vTime = createVersion.metadata.createdAt;
-            if (vTime && typeof vTime === "object" && "seconds" in vTime) {
-              createdTime = (vTime as any).seconds * 1000;
+        } else {
+          // Booking has version history - check if it was created before earliest version
+          let bookingCreatedTime = 0;
+          if (booking.createdAt) {
+            const createdAt = booking.createdAt;
+            if (typeof createdAt === "object" && "toDate" in createdAt) {
+              bookingCreatedTime = (createdAt as any).toDate().getTime();
             } else if (
-              vTime &&
-              typeof vTime === "object" &&
-              "toDate" in vTime
+              typeof createdAt === "object" &&
+              "seconds" in createdAt
             ) {
-              createdTime = (vTime as any).toDate().getTime();
-            } else if (vTime instanceof Date) {
-              createdTime = vTime.getTime();
-            } else if (typeof vTime === "number") {
-              createdTime = vTime;
-            }
-          } else if (currentBooking?.createdAt) {
-            // Fallback to current booking's createdAt if no create version found
-            const bookingCreatedAt = currentBooking.createdAt;
-            if (
-              typeof bookingCreatedAt === "object" &&
-              "toDate" in bookingCreatedAt
-            ) {
-              createdTime = (bookingCreatedAt as any).toDate().getTime();
-            } else if (
-              typeof bookingCreatedAt === "object" &&
-              "seconds" in bookingCreatedAt
-            ) {
-              createdTime = (bookingCreatedAt as any).seconds * 1000;
-            } else if (bookingCreatedAt instanceof Date) {
-              createdTime = bookingCreatedAt.getTime();
-            } else if (typeof bookingCreatedAt === "number") {
-              createdTime = bookingCreatedAt;
+              bookingCreatedTime = (createdAt as any).seconds * 1000;
+            } else if (createdAt instanceof Date) {
+              bookingCreatedTime = createdAt.getTime();
+            } else if (typeof createdAt === "number") {
+              bookingCreatedTime = createdAt;
             }
           }
 
-          // If booking was created after target time, exclude it
-          if (createdTime > targetTime) {
+          // If booking was created before version tracking started, use it as baseline
+          if (
+            bookingCreatedTime > 0 &&
+            bookingCreatedTime < earliestVersionTime
+          ) {
+            gridState.set(booking.id, { ...booking });
             console.log(
-              `⏭️  [REPLAY RECONSTRUCTION] Excluding booking ${bookingId} (created at ${new Date(
-                createdTime
-              ).toISOString()} after target ${new Date(
-                targetTime
+              `📄 [FORWARD REPLAY] Added booking ${
+                booking.id
+              } created before version tracking (${new Date(
+                bookingCreatedTime
               ).toISOString()})`
             );
-            return null;
           }
+        }
+      });
 
-          // Check if this booking was deleted and when
-          const deleteVersion = versions.find(
-            (v) => v.metadata.changeType === "delete"
-          );
+      // Apply versions up to target chronologically
+      versionsUpToTarget.forEach((version) => {
+        const bookingId = version.bookingId;
+        const versionTime = this.getVersionTimestamp(version);
 
-          let deletionTime: number | null = null;
-          if (deleteVersion) {
-            const deleteTime = deleteVersion.metadata.createdAt;
-            if (
-              deleteTime &&
-              typeof deleteTime === "object" &&
-              "seconds" in deleteTime
-            ) {
-              deletionTime = (deleteTime as any).seconds * 1000;
-            } else if (
-              deleteTime &&
-              typeof deleteTime === "object" &&
-              "toDate" in deleteTime
-            ) {
-              deletionTime = (deleteTime as any).toDate().getTime();
-            } else if (deleteTime instanceof Date) {
-              deletionTime = deleteTime.getTime();
-            } else if (typeof deleteTime === "number") {
-              deletionTime = deleteTime;
-            }
-          }
+        console.log(
+          `🔄 [FORWARD REPLAY] Applying version ${version.id} (${
+            version.metadata.changeType
+          }) for booking ${bookingId} at ${new Date(versionTime).toISOString()}`
+        );
 
-          // If booking was deleted before or at target time, it should not exist
-          if (deletionTime !== null && deletionTime <= targetTime) {
-            console.log(
-              `🗑️  [REPLAY RECONSTRUCTION] Booking ${bookingId} was deleted at ${new Date(
-                deletionTime
-              ).toISOString()} before/at target time ${new Date(
-                targetTime
-              ).toISOString()} - excluding from reconstruction`
-            );
-            return null;
-          }
-
-          // Determine baseline snapshot at or before the target timestamp
-          const versionsBeforeOrAtTarget = versions.filter((version) => {
-            const versionTime = getVersionTime(version);
-            if (!Number.isFinite(versionTime)) {
-              return false;
-            }
-
-            if (version.metadata.changeType === "delete") {
-              // Delete snapshots represent the state right before deletion.
-              // Only treat them as part of the past when they occur strictly before the target.
-              return versionTime < targetTime;
-            }
-
-            return versionTime <= targetTime;
-          });
-
-          const latestVersionBeforeOrAtTarget =
-            versionsBeforeOrAtTarget.length > 0
-              ? versionsBeforeOrAtTarget[versionsBeforeOrAtTarget.length - 1]
-              : null;
-
-          let reconstructedState: Record<string, any> | null = null;
-
-          if (latestVersionBeforeOrAtTarget) {
-            reconstructedState = {
-              ...latestVersionBeforeOrAtTarget.documentSnapshot,
-            };
-            const baselineTime = getVersionTime(latestVersionBeforeOrAtTarget);
-            console.log(
-              `🔄 [REPLAY RECONSTRUCTION] Using version ${
-                latestVersionBeforeOrAtTarget.id
-              } from ${
-                baselineTime
-                  ? new Date(baselineTime).toISOString()
-                  : "unknown time"
-              } as baseline for booking ${bookingId}`
-            );
-          } else if (currentBooking) {
-            reconstructedState = { ...currentBooking };
-            console.log(
-              `🔄 [REPLAY RECONSTRUCTION] Using current state as baseline for booking ${bookingId}`
-            );
-          } else if (deletionTime !== null && deletionTime > targetTime) {
-            if (deleteVersion) {
-              reconstructedState = { ...deleteVersion.documentSnapshot };
-              console.log(
-                `🔄 [REPLAY RECONSTRUCTION] Using delete snapshot from version ${deleteVersion.id} for booking ${bookingId}`
-              );
-            } else {
-              console.log(
-                `⚠️  [REPLAY RECONSTRUCTION] Delete version not found for booking ${bookingId}, unable to reconstruct`
-              );
-              return null;
-            }
-          }
-
-          if (!reconstructedState) {
-            console.log(
-              `⚠️  [REPLAY RECONSTRUCTION] Unable to determine baseline state for booking ${bookingId}`
-            );
-            return null;
-          }
-
-          if (!reconstructedState.id) {
-            reconstructedState.id = bookingId;
-          }
-
-          // Filter versions that happened AFTER target timestamp
-          // These are the changes we need to "undo" by replaying backwards
-          const versionsAfterTarget = versions.filter((v) => {
-            const vTime = v.metadata.createdAt;
-            let versionTime: number;
-
-            if (vTime && typeof vTime === "object" && "seconds" in vTime) {
-              versionTime = (vTime as any).seconds * 1000;
-            } else if (
-              vTime &&
-              typeof vTime === "object" &&
-              "toDate" in vTime
-            ) {
-              versionTime = (vTime as any).toDate().getTime();
-            } else if (vTime instanceof Date) {
-              versionTime = vTime.getTime();
-            } else if (typeof vTime === "number") {
-              versionTime = vTime;
-            } else {
-              return false;
-            }
-
-            return versionTime > targetTime;
-          });
-
-          console.log(
-            `🔄 [REPLAY RECONSTRUCTION] Booking ${bookingId}: Found ${versionsAfterTarget.length} versions after target time (will replay backwards)`
-          );
-
-          // Replay changes backwards (reverse chronological order)
-          // For each version after target time, undo its changes by using oldValue
-          // We reverse so we process from most recent to oldest, undoing changes in reverse order
-          const sortedVersionsAfterTarget = [...versionsAfterTarget].sort(
-            (a, b) => {
-              const aTime = a.metadata.createdAt;
-              const bTime = b.metadata.createdAt;
-              let aMs = 0;
-              let bMs = 0;
-
-              if (aTime && typeof aTime === "object" && "seconds" in aTime) {
-                aMs = (aTime as any).seconds * 1000;
-              } else if (
-                aTime &&
-                typeof aTime === "object" &&
-                "toDate" in aTime
-              ) {
-                aMs = (aTime as any).toDate().getTime();
-              } else if (aTime instanceof Date) {
-                aMs = aTime.getTime();
-              } else if (typeof aTime === "number") {
-                aMs = aTime;
-              }
-
-              if (bTime && typeof bTime === "object" && "seconds" in bTime) {
-                bMs = (bTime as any).seconds * 1000;
-              } else if (
-                bTime &&
-                typeof bTime === "object" &&
-                "toDate" in bTime
-              ) {
-                bMs = (bTime as any).toDate().getTime();
-              } else if (bTime instanceof Date) {
-                bMs = bTime.getTime();
-              } else if (typeof bTime === "number") {
-                bMs = bTime;
-              }
-
-              return bMs - aMs; // Descending order (newest first, so we undo most recent changes first)
-            }
-          );
-
-          sortedVersionsAfterTarget.forEach((version) => {
-            const vTime = version.metadata.createdAt;
-            let versionTime = 0;
-
-            if (vTime && typeof vTime === "object" && "seconds" in vTime) {
-              versionTime = (vTime as any).seconds * 1000;
-            } else if (
-              vTime &&
-              typeof vTime === "object" &&
-              "toDate" in vTime
-            ) {
-              versionTime = (vTime as any).toDate().getTime();
-            } else if (vTime instanceof Date) {
-              versionTime = vTime.getTime();
-            } else if (typeof vTime === "number") {
-              versionTime = vTime;
-            }
-
-            // Special handling for delete operations
-            if (version.metadata.changeType === "delete") {
-              console.log(
-                `🔄 [REPLAY RECONSTRUCTION] Undoing deletion for booking ${bookingId} at ${new Date(
-                  versionTime
-                ).toISOString()} - booking should exist at target time`
-              );
-              // For delete operations, the booking should exist at target time
-              // The reconstructedState already contains the booking data from the delete version snapshot
-              // We don't need to undo anything for the delete operation itself
-              return;
-            }
-
-            // Handle regular field changes (create, update)
+        if (version.metadata.changeType === "create") {
+          // Add new booking to grid
+          const newBooking = {
+            ...version.documentSnapshot,
+            id: bookingId,
+          } as SheetData;
+          gridState.set(bookingId, newBooking);
+          console.log(`  ✅ Created booking ${bookingId}`);
+        } else if (version.metadata.changeType === "delete") {
+          // Remove booking from grid
+          gridState.delete(bookingId);
+          console.log(`  ❌ Deleted booking ${bookingId}`);
+        } else {
+          // Update existing booking (create, update, or other change types)
+          const existingBooking = gridState.get(bookingId);
+          if (existingBooking) {
+            // Apply field changes
+            const updatedBooking = { ...existingBooking };
             version.changes.forEach((change) => {
-              const fieldPath = change.fieldPath;
-              const oldValue = change.oldValue;
-
-              // Skip synthetic change markers (like _row_created, _row_deleted, _bulk_operation)
-              if (fieldPath.startsWith("_")) {
-                console.log(
-                  `⏭️  [REPLAY RECONSTRUCTION] Skipping synthetic change marker: ${fieldPath}`
-                );
-                return;
-              }
-
-              console.log(
-                `↩️  [REPLAY RECONSTRUCTION] Undoing change for ${bookingId}.${fieldPath} at ${new Date(
-                  versionTime
-                ).toISOString()}: ${JSON.stringify(
-                  change.newValue
-                )} → ${JSON.stringify(oldValue)}`
-              );
-
-              // Restore the old value (or remove the field if oldValue is null/undefined)
-              if (oldValue === null || oldValue === undefined) {
-                // If oldValue is null/undefined, it means the field didn't exist before
-                // We should remove it from the reconstructed state
-                delete reconstructedState[fieldPath];
-              } else {
-                // Restore the old value
-                reconstructedState[fieldPath] = oldValue;
+              if (!change.fieldPath.startsWith("_")) {
+                if (change.newValue === null || change.newValue === undefined) {
+                  delete (updatedBooking as any)[change.fieldPath];
+                } else {
+                  (updatedBooking as any)[change.fieldPath] = change.newValue;
+                }
               }
             });
-          });
+            gridState.set(bookingId, updatedBooking);
+            console.log(
+              `  📝 Updated booking ${bookingId} (${version.changes.length} fields)`
+            );
+          } else {
+            // Booking doesn't exist in grid yet, add it with the version's snapshot
+            gridState.set(bookingId, {
+              ...version.documentSnapshot,
+              id: bookingId,
+            } as SheetData);
+            console.log(`  ➕ Added booking ${bookingId} from snapshot`);
+          }
+        }
+      });
 
-          console.log(
-            `✅ [REPLAY RECONSTRUCTION] Reconstructed booking ${bookingId}:`,
-            {
-              currentlyExists: !!currentBooking,
-              totalVersions: versions.length,
-              versionsUndone: versionsAfterTarget.length,
-              sampleReconstructedValues: {
-                firstName: reconstructedState.firstName,
-                bookingType: reconstructedState.bookingType,
-                bookingCode: reconstructedState.bookingCode,
-              },
-            }
-          );
-
-          return reconstructedState as SheetData;
-        })
-        .filter((booking): booking is SheetData => booking !== null);
-
+      const reconstructedGrid = Array.from(gridState.values());
       console.log(
-        "✅ [REPLAY RECONSTRUCTION] Reconstructed grid with",
-        reconstructedGrid.length,
-        "bookings"
+        `✅ [FORWARD REPLAY] Reconstructed grid with ${reconstructedGrid.length} bookings`
       );
       return reconstructedGrid;
     } catch (error) {
