@@ -158,6 +158,7 @@ export interface VersionHighlightedData extends SheetData {
     changedFields: string[]; // Field IDs that changed in this version
     metadata: VersionMetadata;
   };
+  _originalRow?: number | null;
 }
 
 /**

@@ -30,6 +30,8 @@ import {
   BookingVersionSnapshot,
   VersionHighlightedData,
   VersionComparison,
+  VersionMetadata,
+  BulkOperationMetadata,
 } from "@/types/version-history";
 import { SheetColumn, SheetData } from "@/types/sheet-management";
 import { bookingVersionHistoryService } from "@/services/booking-version-history-service";
@@ -59,6 +61,12 @@ interface BookingVersionHistoryGridProps {
   className?: string;
   allBookingsData?: any[]; // All current bookings data to display
 }
+
+const isBulkOperationMetadata = (
+  metadata: VersionMetadata
+): metadata is BulkOperationMetadata =>
+  metadata.changeType?.startsWith("bulk_") === true &&
+  (metadata as BulkOperationMetadata).bulkOperation !== undefined;
 
 export default function BookingVersionHistoryGrid({
   columns,
@@ -160,18 +168,37 @@ export default function BookingVersionHistoryGrid({
     // Get the booking ID from the selected version
     const versionBookingId = selectedVersion.documentSnapshot.id;
 
-    // Check if this is a bulk operation
-    const isBulkOperation =
-      selectedVersion.metadata.changeType?.startsWith("bulk_");
+    // Check if this is a bulk operation and extract metadata when available
+    const bulkMetadata = isBulkOperationMetadata(selectedVersion.metadata)
+      ? selectedVersion.metadata
+      : undefined;
+    const isBulkOperation = !!bulkMetadata;
     const bulkAffectedIds =
-      selectedVersion.metadata.bulkOperation?.affectedBookingIds || [];
+      bulkMetadata?.bulkOperation?.affectedBookingIds ?? [];
 
     // Map reconstructed bookings and add version info to highlight changes
-    const mappedData = reconstructedBookings.map(
+    let mappedData = reconstructedBookings.map(
       (booking): VersionHighlightedData => {
         const isVersionedBooking = booking.id === versionBookingId;
         const isBulkAffectedBooking =
           isBulkOperation && bulkAffectedIds.includes(booking.id);
+
+        const originalRowValue = (() => {
+          if (typeof booking._originalRow === "number") {
+            return booking._originalRow;
+          }
+
+          if (typeof booking.row === "number" && Number.isFinite(booking.row)) {
+            return booking.row;
+          }
+
+          if (typeof booking.row === "string") {
+            const parsed = Number(booking.row);
+            return Number.isFinite(parsed) ? parsed : undefined;
+          }
+
+          return undefined;
+        })();
 
         // Debug: Log the versioned booking data
         if (isVersionedBooking) {
@@ -198,6 +225,9 @@ export default function BookingVersionHistoryGrid({
 
         return {
           ...booking,
+          _originalRow: Number.isFinite(originalRowValue)
+            ? Number(originalRowValue)
+            : undefined,
           _versionInfo:
             isVersionedBooking || isBulkAffectedBooking
               ? {
@@ -214,12 +244,96 @@ export default function BookingVersionHistoryGrid({
       }
     );
 
-    // Sort by row number (same as BookingsDataGrid)
-    return mappedData.sort((a, b) => {
-      const aRow = typeof a.row === "number" ? a.row : 0;
-      const bRow = typeof b.row === "number" ? b.row : 0;
-      return aRow - bRow;
+    if (selectedVersion.metadata.changeType === "delete") {
+      const deletedBookingId = selectedVersion.documentSnapshot.id;
+      const existingIndex = mappedData.findIndex(
+        (row) => row.id === deletedBookingId
+      );
+
+      if (existingIndex === -1) {
+        const deletedSnapshot =
+          selectedVersion.documentSnapshot as VersionHighlightedData;
+
+        const deletedRow: VersionHighlightedData = {
+          ...deletedSnapshot,
+          _versionInfo: {
+            versionId: selectedVersion.id,
+            versionNumber: selectedVersion.versionNumber,
+            isRestorePoint: selectedVersion.metadata.isRestorePoint,
+            changedFields: ["_row_deleted"],
+            metadata: selectedVersion.metadata,
+          },
+          _originalRow: (deletedSnapshot as Record<string, any>).row ?? null,
+        };
+
+        if (typeof deletedRow.row !== "number") {
+          const snapshotRow = (deletedSnapshot as Record<string, any>).row;
+          if (typeof snapshotRow === "number") {
+            deletedRow.row = snapshotRow;
+          } else if (typeof snapshotRow === "string") {
+            const parsedRow = Number(snapshotRow);
+            deletedRow.row = Number.isFinite(parsedRow) ? parsedRow : 0;
+          } else {
+            deletedRow.row = 0;
+          }
+        }
+
+        mappedData = [...mappedData, deletedRow];
+      }
+    }
+
+    const parseNumericRow = (value: unknown): number | undefined => {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+      }
+
+      if (typeof value === "string") {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) {
+          return parsed;
+        }
+      }
+
+      return undefined;
+    };
+
+    const getSortKey = (row: VersionHighlightedData): number => {
+      const original = parseNumericRow(row._originalRow);
+      if (original !== undefined) {
+        return original;
+      }
+
+      const current = parseNumericRow(row.row);
+      if (current !== undefined) {
+        return current;
+      }
+
+      return Number.MAX_SAFE_INTEGER;
+    };
+
+    const sortedData = [...mappedData].sort(
+      (a, b) => getSortKey(a) - getSortKey(b)
+    );
+
+    let nextRowNumber = 1;
+    const reindexedData = sortedData.map((booking) => {
+      const originalRow =
+        parseNumericRow(booking._originalRow) ?? parseNumericRow(booking.row);
+
+      const updatedBooking: VersionHighlightedData = {
+        ...booking,
+        row: nextRowNumber,
+      };
+
+      if (originalRow !== undefined) {
+        updatedBooking._originalRow = originalRow;
+      }
+
+      nextRowNumber += 1;
+      return updatedBooking;
     });
+
+    return reindexedData;
   }, [versions, selectedVersionId, reconstructedBookings]);
 
   // Load comparison when comparison version changes
@@ -808,6 +922,12 @@ export default function BookingVersionHistoryGrid({
     return versions.find((v) => v.id === selectedVersionId);
   }, [versions, selectedVersionId]);
 
+  const selectedBulkMetadata =
+    selectedVersion && isBulkOperationMetadata(selectedVersion.metadata)
+      ? selectedVersion.metadata
+      : undefined;
+  const selectedBulkOperation = selectedBulkMetadata?.bulkOperation;
+
   // Show message if no version is selected
   if (!selectedVersionId) {
     return (
@@ -892,15 +1012,12 @@ export default function BookingVersionHistoryGrid({
                   <span className="font-semibold">
                     {selectedVersion.metadata.changeDescription}
                   </span>
-                  {selectedVersion.metadata.bulkOperation && (
+                  {selectedBulkOperation && (
                     <>
                       {" • "}
                       <span className="font-semibold">
-                        {selectedVersion.metadata.bulkOperation.totalCount}{" "}
-                        booking
-                        {selectedVersion.metadata.bulkOperation.totalCount !== 1
-                          ? "s"
-                          : ""}{" "}
+                        {selectedBulkOperation.totalCount} booking
+                        {selectedBulkOperation.totalCount !== 1 ? "s" : ""}{" "}
                         affected
                       </span>
                     </>

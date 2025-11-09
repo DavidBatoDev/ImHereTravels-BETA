@@ -1278,85 +1278,71 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
             return null;
           }
 
-          // Start with current booking state if it exists, otherwise reconstruct from versions
-          let reconstructedState: Record<string, any>;
+          // Determine baseline snapshot at or before the target timestamp
+          const versionsBeforeOrAtTarget = versions.filter((version) => {
+            const versionTime = getVersionTime(version);
+            if (!Number.isFinite(versionTime)) {
+              return false;
+            }
 
-          if (currentBooking) {
-            // Booking currently exists - start with current state
+            if (version.metadata.changeType === "delete") {
+              // Delete snapshots represent the state right before deletion.
+              // Only treat them as part of the past when they occur strictly before the target.
+              return versionTime < targetTime;
+            }
+
+            return versionTime <= targetTime;
+          });
+
+          const latestVersionBeforeOrAtTarget =
+            versionsBeforeOrAtTarget.length > 0
+              ? versionsBeforeOrAtTarget[versionsBeforeOrAtTarget.length - 1]
+              : null;
+
+          let reconstructedState: Record<string, any> | null = null;
+
+          if (latestVersionBeforeOrAtTarget) {
+            reconstructedState = {
+              ...latestVersionBeforeOrAtTarget.documentSnapshot,
+            };
+            const baselineTime = getVersionTime(latestVersionBeforeOrAtTarget);
+            console.log(
+              `🔄 [REPLAY RECONSTRUCTION] Using version ${
+                latestVersionBeforeOrAtTarget.id
+              } from ${
+                baselineTime
+                  ? new Date(baselineTime).toISOString()
+                  : "unknown time"
+              } as baseline for booking ${bookingId}`
+            );
+          } else if (currentBooking) {
             reconstructedState = { ...currentBooking };
             console.log(
-              `🔄 [REPLAY RECONSTRUCTION] Starting with current state for booking ${bookingId}`
+              `🔄 [REPLAY RECONSTRUCTION] Using current state as baseline for booking ${bookingId}`
             );
           } else if (deletionTime !== null && deletionTime > targetTime) {
-            // Booking was deleted after target time - start from delete version snapshot
-            // The delete version contains the full state at deletion time, which we'll then revert
-            console.log(
-              `🔄 [REPLAY RECONSTRUCTION] Booking ${bookingId} was deleted at ${new Date(
-                deletionTime
-              ).toISOString()} after target time ${new Date(
-                targetTime
-              ).toISOString()} - starting from delete snapshot`
-            );
-
-            // Use the delete version snapshot as the starting point
-            // This contains the complete booking state at the time of deletion
             if (deleteVersion) {
               reconstructedState = { ...deleteVersion.documentSnapshot };
               console.log(
-                `🔄 [REPLAY RECONSTRUCTION] Using delete version snapshot for booking ${bookingId} from ${new Date(
-                  deletionTime
-                ).toISOString()}`
+                `🔄 [REPLAY RECONSTRUCTION] Using delete snapshot from version ${deleteVersion.id} for booking ${bookingId}`
               );
             } else {
-              // Fallback: find the most recent version snapshot before or at target time
               console.log(
-                `⚠️  [REPLAY RECONSTRUCTION] Delete version not found, falling back to version reconstruction`
+                `⚠️  [REPLAY RECONSTRUCTION] Delete version not found for booking ${bookingId}, unable to reconstruct`
               );
-
-              const versionsBeforeOrAtTarget = versions.filter((v) => {
-                if (v.metadata.changeType === "delete") {
-                  return false;
-                }
-
-                const vTime = v.metadata.createdAt;
-                let versionTime: number;
-
-                if (vTime && typeof vTime === "object" && "seconds" in vTime) {
-                  versionTime = (vTime as any).seconds * 1000;
-                } else if (
-                  vTime &&
-                  typeof vTime === "object" &&
-                  "toDate" in vTime
-                ) {
-                  versionTime = (vTime as any).toDate().getTime();
-                } else if (vTime instanceof Date) {
-                  versionTime = vTime.getTime();
-                } else if (typeof vTime === "number") {
-                  versionTime = vTime;
-                } else {
-                  return false;
-                }
-
-                return versionTime <= targetTime;
-              });
-
-              if (versionsBeforeOrAtTarget.length === 0) {
-                console.log(
-                  `⚠️  [REPLAY RECONSTRUCTION] No versions found for deleted booking ${bookingId} before target time`
-                );
-                return null;
-              }
-
-              const latestVersion =
-                versionsBeforeOrAtTarget[versionsBeforeOrAtTarget.length - 1];
-              reconstructedState = { ...latestVersion.documentSnapshot };
+              return null;
             }
-          } else {
-            // This shouldn't happen based on our logic above, but handle it gracefully
+          }
+
+          if (!reconstructedState) {
             console.log(
-              `⚠️  [REPLAY RECONSTRUCTION] Unexpected state for booking ${bookingId}`
+              `⚠️  [REPLAY RECONSTRUCTION] Unable to determine baseline state for booking ${bookingId}`
             );
             return null;
+          }
+
+          if (!reconstructedState.id) {
+            reconstructedState.id = bookingId;
           }
 
           // Filter versions that happened AFTER target timestamp
