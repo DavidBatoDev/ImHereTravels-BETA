@@ -35,6 +35,8 @@ import {
   Clock,
   User,
   RefreshCw,
+  Edit,
+  Trash2,
 } from "lucide-react";
 
 import {
@@ -554,121 +556,111 @@ export default function BookingVersionHistoryModal({
             </div>
           ) : (
             <>
-              {/* Left Sidebar - Version List */}
-              <div className="w-64 flex-shrink-0 border-r overflow-y-auto">
-                <div className="space-y-2 p-2">
-                  {filteredVersions.map((version) => {
+              {/* Left Sidebar - Timeline */}
+              <div className="w-72 flex-shrink-0 border-r overflow-y-auto px-4 py-6 scrollbar-hide">
+                <div className="relative flex flex-col gap-4">
+                  {/* Timeline vertical line */}
+                  <div
+                    className="absolute left-5 top-0 bottom-0 w-2 bg-purple-300 rounded-full"
+                    style={{ zIndex: 0 }}
+                  />
+                  {filteredVersions.map((version, idx) => {
                     const isSelected = selectedVersionId === version.id;
                     const isComparison = comparisonVersionId === version.id;
+                    // Color coding by changeType
+                    let nodeColor = "bg-gray-400 border-gray-400";
+                    let icon = <Clock className="h-4 w-4 text-white" />;
+                    if (version.metadata.changeType === "create") {
+                      nodeColor = "bg-green-500 border-green-500";
+                      icon = <CheckCircle className="h-4 w-4 text-white" />;
+                    } else if (version.metadata.changeType === "update") {
+                      nodeColor = "bg-yellow-400 border-yellow-400";
+                      icon = <Edit className="h-4 w-4 text-white" />;
+                    } else if (version.metadata.changeType === "delete") {
+                      nodeColor = "bg-red-500 border-red-500";
+                      icon = <Trash2 className="h-4 w-4 text-white" />;
+                    } else if (version.metadata.changeType === "restore") {
+                      nodeColor = "bg-blue-500 border-blue-500";
+                      icon = <RotateCcw className="h-4 w-4 text-white" />;
+                    } else if (
+                      version.metadata.changeType?.startsWith("bulk_")
+                    ) {
+                      nodeColor = "bg-blue-400 border-blue-400";
+                      icon = <GitBranch className="h-4 w-4 text-white" />;
+                    }
 
                     return (
                       <div
                         key={version.id}
+                        className="relative flex items-start gap-4 group cursor-pointer"
                         onClick={() => handleVersionSelect(version.id)}
-                        className={`w-full p-3 rounded-lg text-left transition-all cursor-pointer ${
-                          isSelected
-                            ? "bg-royal-purple text-white shadow-md"
-                            : isComparison
-                            ? "bg-blue-100 border-2 border-blue-500"
-                            : "bg-muted hover:bg-muted/70"
-                        }`}
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge
-                            variant={
-                              version.metadata.isRestorePoint
-                                ? "destructive"
-                                : "default"
-                            }
-                            className={`text-xs ${
-                              isSelected ? "bg-white text-royal-purple" : ""
-                            }`}
-                          >
-                            v{version.versionNumber}
-                          </Badge>
-                          {version.metadata.isRestorePoint && (
-                            <GitBranch
-                              className={`h-3 w-3 ${
-                                isSelected ? "text-white" : "text-orange-600"
-                              }`}
-                            />
+                        {/* Timeline node */}
+                        <div
+                          className={`z-10 w-12 h-12 rounded-full border-4 flex items-center justify-center transition-all duration-150 ${nodeColor} ${
+                            isSelected ? "scale-125 shadow-lg" : "opacity-100"
+                          }`}
+                        >
+                          {icon}
+                        </div>
+                        {/* Details panel styled like Daily Itinerary */}
+                        <div
+                          className={`flex-1 py-1 px-2 rounded-lg transition-all duration-150 min-h-[60px] ${
+                            isSelected ? "bg-muted/30" : "bg-background"
+                          } shadow-sm ml-2`}
+                        >
+                          <div className="text-[10px] text-muted-foreground mb-0.5">
+                            {(() => {
+                              const timestamp = version.metadata.createdAt;
+                              if (!timestamp) return "Unknown";
+                              try {
+                                if (
+                                  timestamp.toDate &&
+                                  typeof timestamp.toDate === "function"
+                                ) {
+                                  return timestamp.toDate().toLocaleString();
+                                }
+                                if (timestamp instanceof Date) {
+                                  return timestamp.toLocaleString();
+                                }
+                                if (timestamp.seconds) {
+                                  return new Date(
+                                    timestamp.seconds * 1000
+                                  ).toLocaleString();
+                                }
+                                if (typeof timestamp === "number") {
+                                  return new Date(timestamp).toLocaleString();
+                                }
+                                return "Unknown";
+                              } catch (error) {
+                                return "Invalid Date";
+                              }
+                            })()}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <User className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">
+                              {version.metadata.createdByName ||
+                                version.metadata.createdBy}
+                            </span>
+                          </div>
+                          {isSelected && (
+                            <div className="flex gap-1 mt-1">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-6 px-1 text-[10px] flex-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleVersionRestore(version.id);
+                                }}
+                                disabled={isRestoring}
+                              >
+                                <RotateCcw className="h-3 w-3 mr-1" />
+                                Restore
+                              </Button>
+                            </div>
                           )}
-                        </div>
-
-                        <div
-                          className={`text-xs flex items-center gap-1 mb-1 ${
-                            isSelected
-                              ? "text-white/90"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          <Clock className="h-3 w-3" />
-                          {(() => {
-                            const timestamp = version.metadata.createdAt;
-                            if (!timestamp) return "Unknown";
-
-                            try {
-                              if (
-                                timestamp.toDate &&
-                                typeof timestamp.toDate === "function"
-                              ) {
-                                return timestamp.toDate().toLocaleString();
-                              }
-                              if (timestamp instanceof Date) {
-                                return timestamp.toLocaleString();
-                              }
-                              if (timestamp.seconds) {
-                                return new Date(
-                                  timestamp.seconds * 1000
-                                ).toLocaleString();
-                              }
-                              if (typeof timestamp === "number") {
-                                return new Date(timestamp).toLocaleString();
-                              }
-                              return "Unknown";
-                            } catch (error) {
-                              return "Invalid Date";
-                            }
-                          })()}
-                        </div>
-
-                        <div
-                          className={`text-xs flex items-center gap-1 mb-2 ${
-                            isSelected
-                              ? "text-white/90"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          <User className="h-3 w-3" />
-                          {version.metadata.createdByName ||
-                            version.metadata.createdBy}
-                        </div>
-
-                        <div
-                          className={`text-xs ${
-                            isSelected
-                              ? "text-white/80"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {version.changes.length} field
-                          {version.changes.length !== 1 ? "s" : ""} changed
-                        </div>
-
-                        <div className="flex gap-1 mt-2">
-                          <Button
-                            size="sm"
-                            variant={isSelected ? "secondary" : "outline"}
-                            className="h-7 px-2 text-xs flex-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleVersionRestore(version.id);
-                            }}
-                            disabled={isRestoring}
-                          >
-                            <RotateCcw className="h-3 w-3 mr-1" />
-                            Restore
-                          </Button>
                         </div>
                       </div>
                     );

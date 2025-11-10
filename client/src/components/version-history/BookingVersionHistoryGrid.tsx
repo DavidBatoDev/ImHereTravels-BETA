@@ -808,7 +808,7 @@ export default function BookingVersionHistoryGrid({
           }
           // If this is a restore operation, highlight all cells in blue
           else if (isRestoreOperation) {
-            classes.push("bg-blue-200 border-2 border-blue-400 relative");
+            classes.push("bg-blue-100 border-2 border-blue-500 relative");
           }
           // If this is a newly created booking, highlight all cells
           else if (isNewBooking) {
@@ -1135,6 +1135,8 @@ export default function BookingVersionHistoryGrid({
               ? "bg-red-50 border-red-200"
               : selectedVersion.metadata.changeType === "create"
               ? "bg-green-50 border-green-200"
+              : selectedVersion.metadata.changeType === "restore"
+              ? "bg-blue-50 border-blue-200"
               : selectedVersion.metadata.changeType?.startsWith("bulk_")
               ? "bg-blue-50 border-blue-200"
               : "bg-yellow-50 border-yellow-200"
@@ -1146,6 +1148,8 @@ export default function BookingVersionHistoryGrid({
                 ? "text-red-800"
                 : selectedVersion.metadata.changeType === "create"
                 ? "text-green-800"
+                : selectedVersion.metadata.changeType === "restore"
+                ? "text-blue-800"
                 : selectedVersion.metadata.changeType?.startsWith("bulk_")
                 ? "text-blue-800"
                 : "text-yellow-800"
@@ -1182,27 +1186,46 @@ export default function BookingVersionHistoryGrid({
                       ? "Deleted"
                       : selectedVersion.metadata.changeType === "create"
                       ? "Created"
+                      : selectedVersion.metadata.changeType === "restore"
+                      ? "Restored"
                       : "Changed"}{" "}
                     booking:
                   </strong>{" "}
-                  ID{" "}
-                  <span className="font-mono">
-                    {selectedVersion.documentSnapshot.id}
-                  </span>
-                  {" • "}
-                  <span className="font-semibold">
-                    {selectedVersion.metadata.changeType === "create" ? (
-                      "New booking created"
-                    ) : (
-                      <>
-                        {selectedVersion.changes.length} field
-                        {selectedVersion.changes.length !== 1 ? "s" : ""}{" "}
-                        {selectedVersion.metadata.changeType === "delete"
-                          ? "before deletion"
-                          : "modified"}
-                      </>
-                    )}
-                  </span>
+                  {selectedVersion.metadata.changeType === "restore" ? (
+                    <>
+                      <span className="font-semibold">
+                        Grid restored to historical state
+                      </span>
+                      {" • "}
+                      <span className="text-xs">
+                        {versionData.length} booking
+                        {versionData.length !== 1 ? "s" : ""} restored
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      ID{" "}
+                      <span className="font-mono">
+                        {selectedVersion.documentSnapshot.id}
+                      </span>
+                      {" • "}
+                      <span className="font-semibold">
+                        {selectedVersion.metadata.changeType === "create" ? (
+                          "New booking created"
+                        ) : (
+                          <>
+                            {selectedVersion.changes.length} field
+                            {selectedVersion.changes.length !== 1
+                              ? "s"
+                              : ""}{" "}
+                            {selectedVersion.metadata.changeType === "delete"
+                              ? "before deletion"
+                              : "modified"}
+                          </>
+                        )}
+                      </span>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -1212,6 +1235,8 @@ export default function BookingVersionHistoryGrid({
                   ? "text-red-700"
                   : selectedVersion.metadata.changeType === "create"
                   ? "text-green-700"
+                  : selectedVersion.metadata.changeType === "restore"
+                  ? "text-blue-700"
                   : selectedVersion.metadata.changeType?.startsWith("bulk_")
                   ? "text-blue-700"
                   : "text-yellow-700"
@@ -1224,6 +1249,8 @@ export default function BookingVersionHistoryGrid({
                 ? "Deleted booking is highlighted in red."
                 : selectedVersion.metadata.changeType === "create"
                 ? "New booking is highlighted in green."
+                : selectedVersion.metadata.changeType === "restore"
+                ? "All restored bookings are highlighted in blue."
                 : selectedVersion.metadata.changeType?.startsWith("bulk_")
                 ? "Bulk operation affected bookings are highlighted in blue."
                 : "Changed cells are highlighted in yellow."}
