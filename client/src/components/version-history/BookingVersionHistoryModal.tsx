@@ -43,7 +43,7 @@ import {
   VersionHistoryProps,
   RestoreResult,
 } from "@/types/version-history";
-import { SheetColumn } from "@/types/sheet-management";
+import { SheetColumn, SheetData } from "@/types/sheet-management";
 import { bookingVersionHistoryService } from "@/services/booking-version-history-service";
 import { useToast } from "@/hooks/use-toast";
 import BookingVersionHistoryGrid from "./BookingVersionHistoryGrid";
@@ -235,7 +235,7 @@ export default function BookingVersionHistoryModal({
   );
 
   const handleVersionRestore = useCallback(
-    async (versionId: string) => {
+    async (versionId: string, reconstructedData?: SheetData[]) => {
       const version = versions.find((v) => v.id === versionId);
       if (!version) {
         toast({
@@ -278,6 +278,7 @@ export default function BookingVersionHistoryModal({
             targetVersionId: versionId,
             userId: currentUserId,
             userName: currentUserName,
+            reconstructedGridData: reconstructedData, // Pass the pre-reconstructed grid data
           });
 
         if (result.success) {

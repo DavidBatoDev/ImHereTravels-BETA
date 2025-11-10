@@ -56,7 +56,10 @@ interface BookingVersionHistoryGridProps {
   selectedVersionId?: string;
   comparisonVersionId?: string;
   onVersionSelect: (versionId: string) => void;
-  onVersionRestore: (versionId: string) => void;
+  onVersionRestore: (
+    versionId: string,
+    reconstructedData?: SheetData[]
+  ) => void;
   onVersionCompare?: (versionId: string) => void;
   isRestoring?: boolean;
   className?: string;

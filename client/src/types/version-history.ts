@@ -115,6 +115,7 @@ export interface RestoreVersionOptions {
   userName?: string;
   createBranch?: boolean; // If true, creates a new branch instead of continuing main timeline
   branchName?: string;
+  reconstructedGridData?: SheetData[]; // Optional pre-reconstructed grid data from the UI
 }
 
 /**

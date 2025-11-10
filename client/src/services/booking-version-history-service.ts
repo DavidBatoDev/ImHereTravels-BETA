@@ -907,7 +907,29 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
 
       let reconstructedGrid: SheetData[];
 
+      // Use pre-reconstructed grid data if provided (from UI)
       if (
+        options.reconstructedGridData &&
+        options.reconstructedGridData.length > 0
+      ) {
+        console.log(
+          `✅ [RESTORE] Using pre-reconstructed grid data from UI (${options.reconstructedGridData.length} bookings)`
+        );
+        reconstructedGrid = options.reconstructedGridData.map((row) => {
+          const snapshot = this.removeUndefinedValues({
+            ...(row as SheetData),
+          }) as SheetData;
+
+          if ((snapshot as any)._versionInfo) {
+            delete (snapshot as any)._versionInfo;
+          }
+          if ((snapshot as any)._originalRow) {
+            delete (snapshot as any)._originalRow;
+          }
+
+          return snapshot;
+        });
+      } else if (
         versionToRestore.metadata.changeType === "restore" &&
         Array.isArray(versionToRestore.gridSnapshot) &&
         versionToRestore.gridSnapshot.length > 0
