@@ -934,6 +934,7 @@ export default function EditBookingModal({
                 "text-xs [&::-webkit-calendar-picker-indicator]:text-xs"
               )}
               disabled={isReadOnly || isComputing}
+              autoComplete="off"
             />
           );
 
@@ -995,6 +996,7 @@ export default function EditBookingModal({
               className={baseClasses}
               disabled={isReadOnly || isComputing}
               placeholder={`Enter ${column.columnName}`}
+              autoComplete="off"
             />
           );
 
@@ -1011,6 +1013,7 @@ export default function EditBookingModal({
                 )}
                 disabled={true}
                 placeholder={isComputing ? "Computing..." : ""}
+                autoComplete="off"
               />
               {isComputing && (
                 <RefreshCw className="h-4 w-4 animate-spin text-royal-purple" />
@@ -1091,6 +1094,7 @@ export default function EditBookingModal({
               className={baseClasses}
               disabled={isReadOnly || isComputing}
               placeholder={`Enter ${column.columnName}`}
+              autoComplete="off"
             />
           );
 
@@ -1108,6 +1112,7 @@ export default function EditBookingModal({
               disabled={isReadOnly || isComputing}
               placeholder={`Enter ${column.columnName}`}
               rows={3}
+              autoComplete="off"
             />
           ) : (
             <Input
@@ -1119,6 +1124,7 @@ export default function EditBookingModal({
               className={baseClasses}
               disabled={isReadOnly || isComputing}
               placeholder={`Enter ${column.columnName}`}
+              autoComplete="off"
             />
           );
       }
@@ -1230,189 +1236,195 @@ export default function EditBookingModal({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-full overflow-hidden">
-        <DialogHeader className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
-                <FaCog className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <span className="block text-base">Edit Booking</span>
-                <span className="text-2xl font-mono font-semibold text-crimson-red block">
-                  {booking.bookingId}
-                </span>
-                {/* Live Saving Indicator */}
-                <div className="flex items-center gap-2 mt-1">
-                  {isSaving ? (
-                    <div className="flex items-center gap-1 text-xs text-blue-600">
-                      <RefreshCw className="h-3 w-3 animate-spin" />
-                      <span>Saving...</span>
-                    </div>
-                  ) : lastSaved ? (
-                    <div className="flex items-center gap-1 text-xs text-green-600">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>Saved {lastSaved.toLocaleTimeString()}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                      <span>Auto-save enabled</span>
-                    </div>
-                  )}
+        <form
+          autoComplete="off"
+          onSubmit={(e) => e.preventDefault()}
+          className="h-full flex flex-col"
+        >
+          <DialogHeader className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
+                  <FaCog className="h-5 w-5 text-white" />
                 </div>
+                <div>
+                  <span className="block text-base">Edit Booking</span>
+                  <span className="text-2xl font-mono font-semibold text-crimson-red block">
+                    {booking.bookingId}
+                  </span>
+                  {/* Live Saving Indicator */}
+                  <div className="flex items-center gap-2 mt-1">
+                    {isSaving ? (
+                      <div className="flex items-center gap-1 text-xs text-blue-600">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        <span>Saving...</span>
+                      </div>
+                    ) : lastSaved ? (
+                      <div className="flex items-center gap-1 text-xs text-green-600">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>Saved {lastSaved.toLocaleTimeString()}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                        <span>Auto-save enabled</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </DialogTitle>
+              <div className="flex items-center gap-2">
+                {/* Close Button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClose}
+                  className={cn(
+                    "h-8 w-8 p-0 hover:bg-gray-100",
+                    computingFields.size > 0 && "opacity-50 cursor-not-allowed"
+                  )}
+                  disabled={computingFields.size > 0}
+                  title={
+                    computingFields.size > 0
+                      ? `Please wait for ${computingFields.size} computation(s) to complete`
+                      : "Close"
+                  }
+                >
+                  {computingFields.size > 0 ? (
+                    <RefreshCw className="h-4 w-4 animate-spin text-royal-purple" />
+                  ) : (
+                    <FaTimes className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
-            </DialogTitle>
-            <div className="flex items-center gap-2">
-              {/* Close Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClose}
-                className={cn(
-                  "h-8 w-8 p-0 hover:bg-gray-100",
-                  computingFields.size > 0 && "opacity-50 cursor-not-allowed"
-                )}
-                disabled={computingFields.size > 0}
-                title={
-                  computingFields.size > 0
-                    ? `Please wait for ${computingFields.size} computation(s) to complete`
-                    : "Close"
-                }
-              >
-                {computingFields.size > 0 ? (
-                  <RefreshCw className="h-4 w-4 animate-spin text-royal-purple" />
-                ) : (
-                  <FaTimes className="h-4 w-4" />
-                )}
-              </Button>
             </div>
-          </div>
-        </DialogHeader>
+          </DialogHeader>
 
-        <div className="flex overflow-hidden max-h-[calc(90vh-120px)]">
-          {/* Main Content */}
-          <div
-            ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
-          >
-            {isLoadingColumns ? (
-              <Card className="bg-background shadow-sm border border-border/50">
-                <CardContent className="p-6 text-center">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-crimson-red mx-auto mb-2"></div>
-                  <p className="text-xs text-muted-foreground">Loading...</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                {sortedParentTabs.map((parentTab) => {
-                  const IconComponent = getParentTabIcon(parentTab);
-                  const filteredColumns =
-                    groupedColumns[parentTab].filter(shouldDisplayColumn);
+          <div className="flex overflow-hidden max-h-[calc(90vh-120px)]">
+            {/* Main Content */}
+            <div
+              ref={scrollContainerRef}
+              className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
+            >
+              {isLoadingColumns ? (
+                <Card className="bg-background shadow-sm border border-border/50">
+                  <CardContent className="p-6 text-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-crimson-red mx-auto mb-2"></div>
+                    <p className="text-xs text-muted-foreground">Loading...</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-6">
+                  {sortedParentTabs.map((parentTab) => {
+                    const IconComponent = getParentTabIcon(parentTab);
+                    const filteredColumns =
+                      groupedColumns[parentTab].filter(shouldDisplayColumn);
 
-                  if (filteredColumns.length === 0) return null;
+                    if (filteredColumns.length === 0) return null;
 
-                  return (
-                    <Card
-                      key={parentTab}
-                      id={`edit-tab-${parentTab}`}
-                      className="bg-background shadow-sm border border-border/50 scroll-mt-4"
-                    >
-                      <CardHeader className="pb-1 bg-crimson-red/10 border-2 border-crimson-red/20 border-red-500 py-1">
-                        <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
-                          <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                            <IconComponent className="h-3 w-3 text-crimson-red" />
-                          </div>
-                          {parentTab}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <div className="border border-purple-300">
-                          {filteredColumns.map((column) => {
-                            const error = fieldErrors[column.id];
-                            const isFunction = column.dataType === "function";
+                    return (
+                      <Card
+                        key={parentTab}
+                        id={`edit-tab-${parentTab}`}
+                        className="bg-background shadow-sm border border-border/50 scroll-mt-4"
+                      >
+                        <CardHeader className="pb-1 bg-crimson-red/10 border-2 border-crimson-red/20 border-red-500 py-1">
+                          <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
+                            <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
+                              <IconComponent className="h-3 w-3 text-crimson-red" />
+                            </div>
+                            {parentTab}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <div className="border border-purple-300">
+                            {filteredColumns.map((column) => {
+                              const error = fieldErrors[column.id];
+                              const isFunction = column.dataType === "function";
 
-                            return (
-                              <div
-                                key={column.id}
-                                className={cn(
-                                  "flex items-center justify-between border border-purple-300 transition-colors",
-                                  error && "bg-red-50/50",
-                                  isFunction
-                                    ? "bg-sunglow-yellow/20 hover:bg-sunglow-yellow/30 border-sunglow-yellow/30"
-                                    : "hover:bg-muted/10"
-                                )}
-                              >
-                                <div className="flex items-center gap-2 min-w-0 w-[40%] px-3 py-2 border-r border-purple-300">
-                                  <Label
-                                    htmlFor={`field-${column.id}`}
-                                    className="text-xs font-medium"
-                                  >
-                                    {column.columnName}
-                                  </Label>
-                                </div>
-                                <div className="w-[60%] px-3 py-2">
-                                  <div className="space-y-2">
-                                    {renderFormField(column)}
-                                    {error && (
-                                      <p className="text-xs text-red-600">
-                                        {error}
-                                      </p>
-                                    )}
+                              return (
+                                <div
+                                  key={column.id}
+                                  className={cn(
+                                    "flex items-center justify-between border border-purple-300 transition-colors",
+                                    error && "bg-red-50/50",
+                                    isFunction
+                                      ? "bg-sunglow-yellow/20 hover:bg-sunglow-yellow/30 border-sunglow-yellow/30"
+                                      : "hover:bg-muted/10"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0 w-[40%] px-3 py-2 border-r border-purple-300">
+                                    <Label
+                                      htmlFor={`field-${column.id}`}
+                                      className="text-xs font-medium"
+                                    >
+                                      {column.columnName}
+                                    </Label>
+                                  </div>
+                                  <div className="w-[60%] px-3 py-2">
+                                    <div className="space-y-2">
+                                      {renderFormField(column)}
+                                      {error && (
+                                        <p className="text-xs text-red-600">
+                                          {error}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Navigation Sidebar */}
+            {!isLoadingColumns && sortedParentTabs.length > 0 && (
+              <div className="w-48 border-l border-border/50 p-4">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  Sections
+                </h3>
+                <nav className="space-y-1">
+                  {sortedParentTabs.map((parentTab) => {
+                    const IconComponent = getParentTabIcon(parentTab);
+                    const filteredColumns =
+                      groupedColumns[parentTab].filter(shouldDisplayColumn);
+
+                    if (filteredColumns.length === 0) return null;
+
+                    return (
+                      <button
+                        key={parentTab}
+                        onClick={() => scrollToTab(parentTab)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
+                          activeTab === parentTab
+                            ? "bg-crimson-red text-white shadow-sm"
+                            : "text-foreground hover:bg-muted/50"
+                        }`}
+                      >
+                        <IconComponent
+                          className={`h-3 w-3 flex-shrink-0 ${
+                            activeTab === parentTab
+                              ? "text-white"
+                              : "text-crimson-red"
+                          }`}
+                        />
+                        <span className="text-xs font-medium truncate">
+                          {parentTab}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </nav>
               </div>
             )}
           </div>
-
-          {/* Navigation Sidebar */}
-          {!isLoadingColumns && sortedParentTabs.length > 0 && (
-            <div className="w-48 border-l border-border/50 p-4 overflow-y-auto scrollbar-hide scroll-optimized">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                Sections
-              </h3>
-              <nav className="space-y-1">
-                {sortedParentTabs.map((parentTab) => {
-                  const IconComponent = getParentTabIcon(parentTab);
-                  const filteredColumns =
-                    groupedColumns[parentTab].filter(shouldDisplayColumn);
-
-                  if (filteredColumns.length === 0) return null;
-
-                  return (
-                    <button
-                      key={parentTab}
-                      onClick={() => scrollToTab(parentTab)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
-                        activeTab === parentTab
-                          ? "bg-crimson-red text-white shadow-sm"
-                          : "text-foreground hover:bg-muted/50"
-                      }`}
-                    >
-                      <IconComponent
-                        className={`h-3 w-3 flex-shrink-0 ${
-                          activeTab === parentTab
-                            ? "text-white"
-                            : "text-crimson-red"
-                        }`}
-                      />
-                      <span className="text-xs font-medium truncate">
-                        {parentTab}
-                      </span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-          )}
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

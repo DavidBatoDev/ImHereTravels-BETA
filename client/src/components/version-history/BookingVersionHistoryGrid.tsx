@@ -170,7 +170,9 @@ export default function BookingVersionHistoryGrid({
 
         console.log(
           "🔍 [VERSION GRID] Reconstructing grid at timestamp:",
-          new Date(versionTime)
+          new Date(versionTime),
+          "for version ID:",
+          selectedVersionId
         );
 
         // Fetch the latest bookings to avoid stale snapshots after restores or new inserts
@@ -196,11 +198,55 @@ export default function BookingVersionHistoryGrid({
 
         const mergedBookings = Array.from(mergedBookingsMap.values());
 
+        // For delete versions, reconstruct up to (but NOT including) the delete itself
+        // This allows the UI to show the deleted row with highlighting
+        let reconstructUpToVersionId = selectedVersionId;
+        if (selectedVersion.metadata.changeType === "delete") {
+          // Find the version before this delete
+          const sortedVersions = [...versions].sort((a, b) => {
+            const aTime =
+              a.metadata.createdAt &&
+              typeof a.metadata.createdAt === "object" &&
+              "toDate" in a.metadata.createdAt
+                ? a.metadata.createdAt.toDate().getTime()
+                : typeof a.metadata.createdAt === "number"
+                ? a.metadata.createdAt
+                : 0;
+            const bTime =
+              b.metadata.createdAt &&
+              typeof b.metadata.createdAt === "object" &&
+              "toDate" in b.metadata.createdAt
+                ? b.metadata.createdAt.toDate().getTime()
+                : typeof b.metadata.createdAt === "number"
+                ? b.metadata.createdAt
+                : 0;
+            return aTime - bTime;
+          });
+
+          const currentIndex = sortedVersions.findIndex(
+            (v) => v.id === selectedVersionId
+          );
+          if (currentIndex > 0) {
+            reconstructUpToVersionId = sortedVersions[currentIndex - 1].id;
+            console.log(
+              `🔍 [VERSION GRID] Delete version detected - reconstructing up to previous version: ${reconstructUpToVersionId}`
+            );
+          } else {
+            // This is the first version and it's a delete - reconstruct to empty state
+            reconstructUpToVersionId = undefined as any;
+            console.log(
+              `🔍 [VERSION GRID] First version is delete - reconstructing to empty state`
+            );
+          }
+        }
+
         // Use the service to reconstruct complete grid state at the version timestamp
+        // Pass the version ID to ensure we stop at the exact version, not just timestamp
         const historicalGrid =
           await bookingVersionHistoryService.getGridStateAtTimestamp(
             versionTime,
-            mergedBookings
+            mergedBookings,
+            reconstructUpToVersionId // For deletes, this is the version BEFORE the delete
           );
 
         if (!isCancelled) {

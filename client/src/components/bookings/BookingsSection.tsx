@@ -73,6 +73,7 @@ import { bookingService } from "@/services/booking-service";
 import { useToast } from "@/hooks/use-toast";
 import BookingDetailModal from "./BookingDetailModal";
 import AddBookingModal from "./AddBookingModal";
+import BookingVersionHistoryModal from "@/components/version-history/BookingVersionHistoryModal";
 
 // VSCode-style icons for match options
 const MatchCaseIcon = ({ className }: { className?: string }) => (
@@ -218,6 +219,7 @@ export default function BookingsSection() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreatingBooking, setIsCreatingBooking] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
 
   // Ref for the bookings container to enable scrolling after adding a booking
   const bookingsContainerRef = useRef<HTMLDivElement>(null);
@@ -1303,6 +1305,27 @@ export default function BookingsSection() {
                   )}
                 </Button>
               </DialogTrigger>
+
+              {/* Version History Button */}
+              <Button
+                variant="outline"
+                onClick={() => setIsVersionHistoryOpen(true)}
+                className="flex items-center gap-2 border-border hover:bg-royal-purple/10 hover:border-royal-purple hover:text-royal-purple"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                Version History
+              </Button>
               <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                   <div className="flex items-center justify-between">
@@ -3071,6 +3094,16 @@ export default function BookingsSection() {
         onBookingUpdate={handleBookingUpdate}
         router={router}
         searchParams={searchParams}
+      />
+
+      {/* Booking Version History Modal */}
+      <BookingVersionHistoryModal
+        isOpen={isVersionHistoryOpen}
+        onClose={() => setIsVersionHistoryOpen(false)}
+        columns={columns}
+        currentUserId="current-user-id" // TODO: Replace with actual user ID from auth
+        currentUserName="Current User" // TODO: Replace with actual user name from auth
+        allBookingsData={bookings}
       />
 
       {/* Fixed Scroll Buttons - CSS-only visibility */}

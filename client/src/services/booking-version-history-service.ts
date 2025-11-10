@@ -98,7 +98,8 @@ export interface BookingVersionHistoryService {
   // Grid state reconstruction
   getGridStateAtTimestamp(
     timestamp: Date | number,
-    currentBookings: SheetData[]
+    currentBookings: SheetData[],
+    upToVersionId?: string
   ): Promise<SheetData[]>;
 
   // Bulk operations
@@ -1724,12 +1725,14 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
    */
   async getGridStateAtTimestamp(
     timestamp: Date | number,
-    currentBookings: SheetData[]
+    currentBookings: SheetData[],
+    upToVersionId?: string
   ): Promise<SheetData[]> {
     try {
       console.log(
-        "� [REPLAY RECONSTRUCTION] Starting replay-based reconstruction at timestamp:",
-        timestamp
+        "🔄 [REPLAY RECONSTRUCTION] Starting replay-based reconstruction at timestamp:",
+        timestamp,
+        upToVersionId ? `up to version: ${upToVersionId}` : ""
       );
 
       // Convert timestamp to comparable format
@@ -1878,12 +1881,47 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         const versionsAfterRestore: BookingVersionSnapshot[] = [];
         querySnapshot.forEach((doc) => {
           const versionData = doc.data() as BookingVersionSnapshot;
+          const versionId = doc.id;
           const versionTime = this.getVersionTimestamp({
             ...versionData,
             id: doc.id,
           } as BookingVersionSnapshot);
 
-          if (
+          // If upToVersionId is specified, check if this version should be included
+          if (upToVersionId) {
+            const allVersionsArray = Array.from(querySnapshot.docs).map(
+              (d) => ({
+                ...(d.data() as BookingVersionSnapshot),
+                id: d.id,
+              })
+            );
+            allVersionsArray.sort(
+              (a, b) =>
+                this.getVersionTimestamp(a) - this.getVersionTimestamp(b)
+            );
+            const targetIndex = allVersionsArray.findIndex(
+              (v) => v.id === upToVersionId
+            );
+            const currentIndex = allVersionsArray.findIndex(
+              (v) => v.id === versionId
+            );
+
+            if (targetIndex >= 0 && currentIndex >= 0) {
+              // Include only if this version comes after restore but up to target version
+              if (
+                currentIndex >
+                  allVersionsArray.findIndex(
+                    (v) => v.id === latestRestoreBaseline.version.id
+                  ) &&
+                currentIndex <= targetIndex
+              ) {
+                versionsAfterRestore.push({
+                  ...versionData,
+                  id: doc.id,
+                });
+              }
+            }
+          } else if (
             Number.isFinite(versionTime) &&
             versionTime > restoreTime &&
             versionTime <= targetTime
@@ -2034,11 +2072,39 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         ).toISOString()}`
       );
 
-      // Filter versions up to and including the target timestamp
-      const versionsUpToTarget = allVersions.filter((version) => {
+      // Filter versions up to and including the target timestamp or specific version
+      const versionsUpToTarget = allVersions.filter((version, index) => {
         const versionTime = this.getVersionTimestamp(version);
+
+        // If upToVersionId is specified, include versions up to and including that specific version
+        if (upToVersionId) {
+          // Find the index of the target version
+          const targetVersionIndex = allVersions.findIndex(
+            (v) => v.id === upToVersionId
+          );
+          if (targetVersionIndex >= 0) {
+            // Include all versions up to and including the target version by index
+            const shouldInclude = index <= targetVersionIndex;
+            console.log(
+              `🔍 [VERSION FILTER] Version ${version.id} (${
+                version.metadata.changeType
+              }) index ${index}: ${
+                shouldInclude ? "INCLUDED" : "EXCLUDED"
+              } (target index: ${targetVersionIndex})`
+            );
+            return shouldInclude;
+          }
+        }
+
+        // Otherwise use timestamp-based filtering
         return Number.isFinite(versionTime) && versionTime <= targetTime;
       });
+
+      console.log(
+        `🔄 [FORWARD REPLAY] Filtered to ${
+          versionsUpToTarget.length
+        } versions (target: ${upToVersionId || "timestamp-based"})`
+      );
 
       console.log(
         `🔄 [FORWARD REPLAY] Replaying ${versionsUpToTarget.length} versions chronologically up to target time`
