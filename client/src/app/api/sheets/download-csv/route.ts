@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { googleSheetsServerService } from "@/lib/google-sheets/google-sheets-server-service";
-import { writeFile } from "fs/promises";
-import { join } from "path";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,21 +18,6 @@ export async function POST(request: NextRequest) {
       spreadsheetId,
       sheetName || "Main Dashboard"
     );
-
-    // Save CSV to exports folder for inspection
-    try {
-      const timestamp = new Date().toISOString().replace(/:/g, "-");
-      const filename = `google-sheets-${
-        sheetName || "export"
-      }-${timestamp}.csv`;
-      const exportPath = join(process.cwd(), "exports", filename);
-
-      await writeFile(exportPath, csvContent, "utf-8");
-      console.log(`✅ CSV saved to: ${exportPath}`);
-    } catch (saveError) {
-      console.error("Failed to save CSV to exports folder:", saveError);
-      // Continue even if save fails
-    }
 
     // Return CSV as plain text
     return new NextResponse(csvContent, {
