@@ -419,7 +419,7 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
 
       // Generate branch ID (always use main branch for performance)
       let branchId = `main-${bookingId}`;
-      let parentVersionId: string | undefined = undefined;
+      const parentVersionId: string | undefined = undefined;
       console.log(
         "🔍 [VERSION SERVICE] Branch ID:",
         branchId,

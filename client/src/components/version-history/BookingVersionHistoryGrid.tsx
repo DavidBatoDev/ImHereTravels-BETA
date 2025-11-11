@@ -796,7 +796,7 @@ export default function BookingVersionHistoryGrid({
           const isRestoreOperation =
             versionInfo?.metadata?.changeType === "restore";
 
-          let classes = [cellClass];
+          const classes = [cellClass];
 
           // If this is a deleted booking, highlight all cells in red
           if (isDeletedBooking) {
