@@ -1,0 +1,42 @@
+Now I have exising row
+I have 5 rows with the following values in the name column
+row 1 - value 1
+row 2 - value 2
+row 3 - value 3
+row 4 - value 4
+row 5 - value 5
+row 6 - value 6
+
+in version 1 I deleted row 3
+in version 2 I deleted row 4
+
+but when I visit the version 1 it looks like this:
+| Row   | Name Value |
+|-------|------------|
+| row 1 | value 1    |
+| row 2 | value 2    |
+| row 3 | value 5    | 
+| row 4 | value 4    |
+| row 5 | value 3 (this row is highlighted as red indicating this is the one deleted)   |
+| row 6 | value 6    |
+
+
+when I visit version 2 it looks like this
+| Row   | Name Value |
+|-------|------------|
+| row 1 | value 1    |
+| row 2 | value 2    |
+| row 3 | value 5    | 
+| row 4 | value 4 (this row is highlighted as red indicating this is the one deleted)   |
+| row 5 | value 6    |
+
+
+
+
+
+
+
+
+
+
+

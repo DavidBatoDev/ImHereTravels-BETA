@@ -107,6 +107,7 @@ import {
   FileSpreadsheet,
   AlertTriangle,
   HelpCircle,
+  History,
 } from "lucide-react";
 import {
   SheetColumn,
@@ -115,6 +116,7 @@ import {
 } from "@/types/sheet-management";
 import { useSheetManagement } from "@/hooks/use-sheet-management";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthStore } from "@/store/auth-store";
 import { functionExecutionService } from "@/services/function-execution-service";
 import { batchedWriter } from "@/services/batched-writer";
 import { bookingService } from "@/services/booking-service";
@@ -148,6 +150,7 @@ const isEqual = (a: any, b: any): boolean => {
 import ColumnSettingsModal from "./ColumnSettingsModal";
 import SheetConsole from "./SheetConsole";
 import CSVImport from "./CSVImport";
+import BookingVersionHistoryModal from "../version-history/BookingVersionHistoryModal";
 
 // Toggle to control error logging from function recomputation paths
 const LOG_FUNCTION_ERRORS = false;
@@ -200,6 +203,7 @@ export default function BookingsDataGrid({
   // Debug logging
   const { toast } = useToast();
   const router = useRouter();
+  const { user, userProfile } = useAuthStore();
   const [selectedCell, setSelectedCell] = useState<{
     rowId: string;
     columnId: string;
@@ -334,6 +338,11 @@ export default function BookingsDataGrid({
     }
   }, [selectedCellInfo, columns, data]);
 
+  // Set columns in batched writer for version history data type detection
+  useEffect(() => {
+    batchedWriter.setColumns(columns);
+  }, [columns]);
+
   // Set up monitoring for aria-selected changes
   useEffect(() => {
     // Monitor immediately
@@ -431,6 +440,10 @@ export default function BookingsDataGrid({
   } | null>(null);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [versionHistoryBookingId, setVersionHistoryBookingId] = useState<
+    string | null
+  >(null);
   const [frozenColumnIds, setFrozenColumnIds] = useState<Set<string>>(
     new Set()
   );
@@ -851,6 +864,26 @@ export default function BookingsDataGrid({
   const navigateToFunctions = useCallback(() => {
     router.push("/functions");
   }, [router]);
+
+  // Open version history modal
+  const openVersionHistory = useCallback((bookingId?: string) => {
+    setVersionHistoryBookingId(bookingId || null);
+    setIsVersionHistoryOpen(true);
+  }, []);
+
+  // Handle version restore
+  const handleVersionRestore = useCallback(
+    (versionId: string) => {
+      // Version restore is handled by the service, just show success message
+      toast({
+        title: "✅ Version Restored",
+        description: "The booking has been restored to the selected version.",
+        variant: "default",
+      });
+      // The grid will automatically update via Firebase listeners
+    },
+    [toast]
+  );
 
   // Toggle column freeze
   const toggleColumnFreeze = useCallback(
@@ -2194,17 +2227,17 @@ export default function BookingsDataGrid({
   ) => {
     const isFirstColumn = column.key === columns[0]?.id;
 
-    // Debug logging
-    if (isFirstEmptyRow) {
-      console.log("🔍 [ADD BUTTON DEBUG]", {
-        columnKey: column.key,
-        firstColumnId: columns[0]?.id,
-        isFirstColumn,
-        shouldShowAddButton,
-        hasActiveFilters: getActiveFiltersCount() > 0,
-        activeFiltersCount: getActiveFiltersCount(),
-      });
-    }
+    // // Debug logging
+    // if (isFirstEmptyRow) {
+    //   console.log("🔍 [ADD BUTTON DEBUG]", {
+    //     columnKey: column.key,
+    //     firstColumnId: columns[0]?.id,
+    //     isFirstColumn,
+    //     shouldShowAddButton,
+    //     hasActiveFilters: getActiveFiltersCount() > 0,
+    //     activeFiltersCount: getActiveFiltersCount(),
+    //   });
+    // }
 
     if (isFirstColumn && shouldShowAddButton) {
       return (
@@ -2903,22 +2936,19 @@ export default function BookingsDataGrid({
                   onChange={async (e) => {
                     const newValue = e.target.checked;
 
-                    // Save to Firestore - Firebase listener will update the UI
-                    try {
-                      await bookingService.updateBookingField(
-                        row.id,
-                        column.key,
-                        newValue
-                      );
-                      // Trigger recomputation for dependent function columns
-                      await recomputeDirectDependentsForRow(
-                        row.id,
-                        column.key,
-                        newValue
-                      );
-                    } catch (error) {
-                      console.error("Failed to update boolean field:", error);
-                    }
+                    // Use batched writer to track changes in version history
+                    batchedWriter.queueFieldUpdate(
+                      row.id,
+                      column.key,
+                      newValue
+                    );
+
+                    // Trigger recomputation for dependent function columns
+                    await recomputeDirectDependentsForRow(
+                      row.id,
+                      column.key,
+                      newValue
+                    );
                   }}
                   className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
                 />
@@ -2998,22 +3028,15 @@ export default function BookingsDataGrid({
                     ? new Date(e.target.value)
                     : null;
 
-                  // Save to Firestore - Firebase listener will update the UI
-                  try {
-                    await bookingService.updateBookingField(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                    // Trigger recomputation for dependent function columns
-                    await recomputeDirectDependentsForRow(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                  } catch (error) {
-                    console.error("Failed to update date field:", error);
-                  }
+                  // Use batched writer to track changes in version history
+                  batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
+
+                  // Trigger recomputation for dependent function columns
+                  await recomputeDirectDependentsForRow(
+                    row.id,
+                    column.key,
+                    newValue
+                  );
                 }}
                 className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
                   hasColor ? "text-black" : ""
@@ -3051,22 +3074,15 @@ export default function BookingsDataGrid({
                 onChange={async (e) => {
                   const newValue = e.target.value;
 
-                  // Save to Firestore - Firebase listener will update the UI
-                  try {
-                    await bookingService.updateBookingField(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                    // Trigger recomputation for dependent function columns
-                    await recomputeDirectDependentsForRow(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                  } catch (error) {
-                    console.error("Failed to update select field:", error);
-                  }
+                  // Use batched writer to track changes in version history
+                  batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
+
+                  // Trigger recomputation for dependent function columns
+                  await recomputeDirectDependentsForRow(
+                    row.id,
+                    column.key,
+                    newValue
+                  );
                 }}
                 className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
                   hasColor ? "text-black" : ""
@@ -3460,24 +3476,24 @@ export default function BookingsDataGrid({
         totalRows: existingRows.length,
       });
 
-      // Let Firebase generate the document ID automatically first
-      const newRowId = await bookingService.createBooking({});
-
-      // Create new row data with row field and id field populated
-      const newRowData = {
-        id: newRowId, // Save the document UID as a field in the document
+      // Create the initial booking data with row number
+      const initialBookingData = {
         row: nextRowNumber,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        // createdAt and updatedAt will be added by createBooking
       };
 
-      // Update the document with the complete data including the id field
-      await bookingService.updateBooking(newRowId, newRowData);
+      // Create booking with complete initial data
+      const newRowId = await bookingService.createBooking(initialBookingData);
+
+      // Add the document ID as a field using updateBookingField (doesn't create version snapshot)
+      await bookingService.updateBookingField(newRowId, "id", newRowId);
 
       // Create the complete SheetData object for local state
       const newRow: SheetData = {
         id: newRowId,
-        ...newRowData,
+        row: nextRowNumber,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       updateData([...data, newRow]);
@@ -3924,6 +3940,15 @@ export default function BookingsDataGrid({
                     </Tooltip>
                   </div>
                 </TooltipProvider>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => openVersionHistory()}
+                  title="View version history for all bookings"
+                >
+                  <History className="h-4 w-4" />
+                  Version History
+                </Button>
                 {!isFullscreen && (
                   <Button
                     variant="outline"
@@ -4452,6 +4477,22 @@ export default function BookingsDataGrid({
           </div>
         </div>
       )}
+
+      {/* Version History Modal */}
+      <BookingVersionHistoryModal
+        bookingId={versionHistoryBookingId}
+        isOpen={isVersionHistoryOpen}
+        onClose={() => setIsVersionHistoryOpen(false)}
+        onRestore={handleVersionRestore}
+        columns={columns}
+        currentUserId={user?.uid || "anonymous"}
+        currentUserName={
+          userProfile?.profile?.firstName && userProfile?.profile?.lastName
+            ? `${userProfile.profile.firstName} ${userProfile.profile.lastName}`
+            : userProfile?.email || user?.email || "Unknown User"
+        }
+        allBookingsData={localData.length > 0 ? localData : data}
+      />
     </div>
   );
 }
