@@ -48,7 +48,18 @@ import {
   Trash2,
   ChevronUp,
   ChevronDown,
+  Download,
+  RefreshCw,
+  Upload,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import {
   FaUser,
   FaMapMarkerAlt,
@@ -74,6 +85,8 @@ import { useToast } from "@/hooks/use-toast";
 import BookingDetailModal from "./BookingDetailModal";
 import AddBookingModal from "./AddBookingModal";
 import BookingVersionHistoryModal from "@/components/version-history/BookingVersionHistoryModal";
+import CSVImport from "../sheet-management/CSVImport";
+import SpreadsheetSync from "../sheet-management/SpreadsheetSync";
 
 // VSCode-style icons for match options
 const MatchCaseIcon = ({ className }: { className?: string }) => (
@@ -1189,7 +1202,7 @@ export default function BookingsSection() {
         </Card>
 
         {/* Add Booking Button */}
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center gap-3">
           <Button
             onClick={async () => {
               setIsCreatingBooking(true);
@@ -1252,6 +1265,55 @@ export default function BookingsSection() {
               ADD BOOKING
             </span>
           </Button>
+
+          {/* Import Data Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                className="group h-20 w-20 rounded-full rounded-br-none bg-royal-purple hover:bg-crimson-red text-white transition-all duration-300 hover:scale-105 shadow-lg relative"
+                title="Import Data"
+              >
+                <Download className="h-10 w-10 absolute group-hover:opacity-0 group-hover:scale-0 transition-all duration-300" />
+                <span className="text-[9px] font-medium opacity-0 scale-0 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 whitespace-nowrap font-hk-grotesk">
+                  IMPORT DATA
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Import Options</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <SpreadsheetSync
+                onSyncComplete={() => {
+                  toast({
+                    title: "✅ Sync Complete",
+                    description: "Bookings synced from Google Sheets",
+                    variant: "default",
+                  });
+                }}
+                trigger={
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Sync from Google Sheets
+                  </DropdownMenuItem>
+                }
+              />
+              <CSVImport
+                onImportComplete={() => {
+                  toast({
+                    title: "✅ Import Complete",
+                    description: "Bookings imported from CSV",
+                    variant: "default",
+                  });
+                }}
+                trigger={
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload CSV File
+                  </DropdownMenuItem>
+                }
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

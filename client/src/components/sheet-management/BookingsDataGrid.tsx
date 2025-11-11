@@ -84,6 +84,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import {
   Plus,
   Settings,
   Trash2,
@@ -104,6 +112,8 @@ import {
   EyeOff,
   Maximize,
   Upload,
+  Download,
+  ChevronDown,
   FileSpreadsheet,
   AlertTriangle,
   HelpCircle,
@@ -150,6 +160,7 @@ const isEqual = (a: any, b: any): boolean => {
 import ColumnSettingsModal from "./ColumnSettingsModal";
 import SheetConsole from "./SheetConsole";
 import CSVImport from "./CSVImport";
+import SpreadsheetSync from "./SpreadsheetSync";
 import BookingVersionHistoryModal from "../version-history/BookingVersionHistoryModal";
 
 // Toggle to control error logging from function recomputation paths
@@ -3591,15 +3602,38 @@ export default function BookingsDataGrid({
                 <Plus className="w-4 h-4 mr-2" />
                 Add Booking
               </Button>
-              <CSVImport
-                onImportComplete={handleCSVImportComplete}
-                trigger={
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
-                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                    Import CSV
+                    <Download className="w-4 h-4 mr-2" />
+                    Import Data
+                    <ChevronDown className="w-4 h-4 ml-2" />
                   </Button>
-                }
-              />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Import Options</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <SpreadsheetSync
+                    onSyncComplete={handleCSVImportComplete}
+                    trigger={
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Sync from Google Sheets
+                      </DropdownMenuItem>
+                    }
+                  />
+                  <CSVImport
+                    onImportComplete={handleCSVImportComplete}
+                    trigger={
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload CSV File
+                      </DropdownMenuItem>
+                    }
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
