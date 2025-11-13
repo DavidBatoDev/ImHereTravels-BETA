@@ -56,7 +56,9 @@
     "log-payment-terms": "tsx src/scripts/log-payment-terms.ts",
     "log-tour-packages": "tsx src/scripts/log-tour-packages.ts",
     "log-ts-files": "tsx src/scripts/log-ts-files.ts",
-    "log-ts-folders": "tsx src/scripts/log-ts-folders.ts"
+    "log-ts-folders": "tsx src/scripts/log-ts-folders.ts",
+    "export:prod": "node scripts/export-prod-collections.js",
+    "import:dev": "node scripts/import-to-dev.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
