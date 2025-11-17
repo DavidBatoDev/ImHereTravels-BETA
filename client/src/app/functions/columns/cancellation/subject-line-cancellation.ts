@@ -1,26 +1,28 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "@/lib/firebase";
 
 export const subjectLineCancellationColumn: BookingSheetColumn = {
-  id: 'subjectLineCancellation',
+  id: "subjectLineCancellation",
   data: {
-    id: 'subjectLineCancellation',
-    columnName: 'Subject Line (Cancellation)',
-    dataType: 'function',
-    function: 'getEmailSentDateFunction',
-    parentTab: 'Cancellation',
+    id: "subjectLineCancellation",
+    columnName: "Subject Line (Cancellation)",
+    dataType: "function",
+    function: "getEmailSentDateFunction",
+    parentTab: "Cancellation",
     order: 81,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 200,
     arguments: [
       {
-        name: 'draftUrl',
-        type: 'string',
-        columnReference: 'Cancellation Email Draft Link',
+        name: "draftUrl",
+        type: "string",
+        columnReference: "Cancellation Email Draft Link",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -44,7 +46,11 @@ export default async function getEmailSentDate(
 
     const result = await getDraftSubject({ draftUrl });
 
-    if (result.data && typeof result.data === "object" && "subject" in result.data) {
+    if (
+      result.data &&
+      typeof result.data === "object" &&
+      "subject" in result.data
+    ) {
       const data = result.data as { subject: string };
       return data.subject || "";
     }
@@ -55,4 +61,3 @@ export default async function getEmailSentDate(
     return "ERROR";
   }
 }
-

@@ -1,35 +1,37 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "@/lib/firebase";
 
 export const sentEmailLinkColumn: BookingSheetColumn = {
-  id: 'sentEmailLink',
+  id: "sentEmailLink",
   data: {
-    id: 'sentEmailLink',
-    columnName: 'Sent Email Link',
-    dataType: 'function',
-    function: 'sendEmailDraftOnceFunction',
-    parentTab: 'Reservation Email',
+    id: "sentEmailLink",
+    columnName: "Sent Email Link",
+    dataType: "function",
+    function: "sendEmailDraftOnceFunction",
+    parentTab: "Reservation Email",
     order: 31,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 483.3333740234375,
     arguments: [
       {
-        name: 'draftLinkId',
-        type: 'string',
-        columnReference: 'Email Draft Link',
+        name: "draftLinkId",
+        type: "string",
+        columnReference: "Email Draft Link",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'sendEmail',
-        type: 'boolean',
-        columnReference: 'Send Email?',
+        name: "sendEmail",
+        type: "boolean",
+        columnReference: "Send Email?",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },

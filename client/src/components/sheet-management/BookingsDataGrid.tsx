@@ -119,20 +119,14 @@ import {
   HelpCircle,
   History,
 } from "lucide-react";
-import {
-  SheetColumn,
-  SheetData,
-  TypeScriptFunction,
-} from "@/types/sheet-management";
+import { SheetColumn, SheetData } from "@/types/sheet-management";
 import { useSheetManagement } from "@/hooks/use-sheet-management";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthStore } from "@/store/auth-store";
 import { functionExecutionService } from "@/services/function-execution-service";
 import { batchedWriter } from "@/services/batched-writer";
 import { bookingService } from "@/services/booking-service";
-import { typescriptFunctionsService } from "@/services/typescript-functions-service";
 import { isImporting } from "@/services/import-state";
-import { typescriptFunctionService } from "@/services/firebase-function-service";
 import { useRouter } from "next/navigation";
 // Simple deep equality check
 const isEqual = (a: any, b: any): boolean => {
@@ -173,7 +167,6 @@ const logFunctionError = (...args: any[]) => {
 
 // Store navigation function and column metadata globally for function editor
 let globalNavigateToFunctions: (() => void) | null = null;
-let globalAvailableFunctions: TypeScriptFunction[] = [];
 const globalColumnDefs: Map<string, SheetColumn> = new Map();
 let globalAllColumns: SheetColumn[] = [];
 
@@ -185,7 +178,6 @@ interface BookingsDataGridProps {
   updateData: (data: SheetData[]) => void;
   updateRow: (rowId: string, updates: Partial<SheetData>) => void;
   deleteRow: (rowId: string) => Promise<void>;
-  availableFunctions: TypeScriptFunction[];
   // Fullscreen mode props
   isFullscreen?: boolean;
   pageSize?: number;
@@ -203,7 +195,6 @@ export default function BookingsDataGrid({
   updateData,
   updateRow,
   deleteRow,
-  availableFunctions,
   isFullscreen = false,
   pageSize: initialPageSize,
   globalFilter: externalGlobalFilter,
@@ -257,6 +248,14 @@ export default function BookingsDataGrid({
   const [localInputValues, setLocalInputValues] = useState<Map<string, string>>(
     new Map()
   );
+
+  // Loading state for email generation and sending
+  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
+  const [emailGenerationProgress, setEmailGenerationProgress] = useState<{
+    type: "reservation" | "cancellation" | null;
+    bookingId: string | null;
+    action: "generating" | "sending" | null;
+  }>({ type: null, bookingId: null, action: null });
 
   // Debounced Firebase update refs
   const firebaseUpdateTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -497,45 +496,17 @@ export default function BookingsDataGrid({
   // Helper to check if a function is likely to be slow/async
   const isFunctionLikelyAsync = useCallback(
     async (functionId: string): Promise<boolean> => {
+      // All coded functions can be checked by their function name pattern
+      // For now, assume async if function name includes certain keywords
       try {
-        // First check function metadata for async indicators
-        const tsFunction = await typescriptFunctionsService.getFunction(
-          functionId
-        );
-        if (tsFunction) {
-          // Check if function has async-related metadata
-          if (
-            tsFunction.functionName?.toLowerCase().includes("async") ||
-            tsFunction.name?.toLowerCase().includes("async")
-          ) {
-            return true;
-          }
-        }
-
-        // Then check the actual function content
-        const tsFile = await typescriptFunctionService.files.getById(
-          functionId
-        );
-        if (!tsFile?.content) return false;
-
-        const content = tsFile.content.toLowerCase();
-        // Check for async/await patterns, HTTP calls, database operations, etc.
+        const functionName = functionId.toLowerCase();
         return (
-          content.includes("async") ||
-          content.includes("await") ||
-          content.includes("fetch") ||
-          content.includes("httpscallable") ||
-          content.includes("getdocs") ||
-          content.includes("updatedoc") ||
-          content.includes("adddoc") ||
-          content.includes("deletedoc") ||
-          content.includes("settimeout") ||
-          content.includes("setinterval") ||
-          content.includes("promise") ||
-          content.includes("sendemail") ||
-          content.includes("generateemail") ||
-          content.includes(".then(") ||
-          content.includes(".catch(")
+          functionName.includes("async") ||
+          functionName.includes("email") ||
+          functionName.includes("generate") ||
+          functionName.includes("send") ||
+          functionName.includes("fetch") ||
+          functionName.includes("lookup")
         );
       } catch {
         return false;
@@ -702,7 +673,7 @@ export default function BookingsDataGrid({
         return row[funcCol.id]; // Return existing value without recomputation
       }
 
-      if (!funcCol.function) return;
+      if (!funcCol.function && !funcCol.compiledFunction) return;
 
       // Skip computation during initial load unless explicitly requested
       if (isInitialLoadRef.current && !skipInitialCheck) {
@@ -716,63 +687,117 @@ export default function BookingsDataGrid({
         const cacheKey = `${row.id}:${funcCol.id}:${funcCol.function}`;
         const cachedArgs = functionArgsCacheRef.current.get(cacheKey);
 
-        // Check if arguments have actually changed
+        // Check if arguments have actually changed (unless this is a dependency recomputation)
+        // When skipInitialCheck is true, it means a dependency changed and we must recompute
         const argsChanged = !cachedArgs || !isEqual(cachedArgs, args);
 
-        // Skip only if a REQUIRED argument is missing.
-        // Allow undefined/null when the argument is optional or has a default.
-        // const meta = Array.isArray(funcCol.arguments) ? funcCol.arguments : [];
-        // const missingRequiredArg = args.some((argVal, idx) => {
-        //   const m = meta[idx];
-        //   if (argVal === undefined || argVal === null) {
-        //     // If we have metadata and it's optional or has default, allow it
-        //     if (m && (m.isOptional || m.hasDefault)) return false;
-        //     // Otherwise this is a required missing value
-        //     return true;
-        //   }
-        //   return false;
-        // });
-        // if (missingRequiredArg) {
-        //   return row[funcCol.id]; // Return existing value without recomputing
-        // }
-
-        // Skip recomputation if arguments haven't changed
-        if (!argsChanged) {
+        // Skip recomputation if arguments haven't changed AND this is not a forced recomputation
+        if (!argsChanged && !skipInitialCheck) {
+          console.log(
+            `⏭️ [SKIP] ${funcCol.function} for row ${row.id} - args unchanged`
+          );
           return row[funcCol.id]; // Return existing value without recomputing
+        }
+
+        // Log when we're recomputing due to dependency change
+        if (!argsChanged && skipInitialCheck) {
+          console.log(
+            `🔄 [FORCED RECOMPUTE] ${funcCol.function} for row ${row.id} - dependency changed`
+          );
         }
 
         // Update cache with new arguments
         functionArgsCacheRef.current.set(cacheKey, [...args]);
 
-        // Execute function with proper async handling
-        // The function execution service will handle caching based on arguments
-        // Use longer timeout during recompute process for slow functions
-        const timeout = skipInitialCheck ? 30000 : 10000; // 30s for recompute, 10s for normal
-        const executionResult = await functionExecutionService.executeFunction(
-          funcCol.function,
-          args,
-          timeout
-        );
-
-        if (!executionResult.success) {
-          // record attempt error for retry loop tracking
-          attemptErrorCountRef.current =
-            (attemptErrorCountRef.current || 0) + 1;
-          if (isRecomputingAllRef.current) {
-            setRecomputeProgress((prev) => ({
-              ...prev,
-              errorDetected: true,
-              errorCount: (prev.errorCount || 0) + 1,
-            }));
-          }
-          logFunctionError(
-            `Function execution failed for ${funcCol.function}:`,
-            executionResult.error
+        // Use injected compiled function if available, otherwise fall back to service
+        let result: any;
+        if (funcCol.compiledFunction) {
+          // Direct function execution (fastest path)
+          console.log(
+            `⚡ [DIRECT EXEC] Calling ${funcCol.function} with args:`,
+            args
           );
-          return row[funcCol.id]; // Return existing value on error
-        }
 
-        const result = executionResult.result;
+          // Check if this is an email generation or sending function
+          const isEmailGenerationFunction =
+            funcCol.function === "generateGmailDraftFunction" ||
+            funcCol.function === "generateCancellationGmailDraftFunction";
+
+          const isEmailSendingFunction =
+            funcCol.function === "sendEmailDraftOnceFunction" ||
+            funcCol.function === "sendCancellationEmailDraftOnceFunction";
+
+          const isEmailFunction =
+            isEmailGenerationFunction || isEmailSendingFunction;
+
+          if (isEmailFunction) {
+            // Show loading modal for email generation or sending
+            setIsGeneratingEmail(true);
+
+            let emailType: "reservation" | "cancellation" = "reservation";
+            if (
+              funcCol.function === "generateCancellationGmailDraftFunction" ||
+              funcCol.function === "sendCancellationEmailDraftOnceFunction"
+            ) {
+              emailType = "cancellation";
+            }
+
+            setEmailGenerationProgress({
+              type: emailType,
+              bookingId: args[0] || null, // First argument is typically bookingId or draftUrl
+              action: isEmailGenerationFunction ? "generating" : "sending",
+            });
+          }
+
+          try {
+            result = funcCol.compiledFunction(...args);
+
+            // Handle async functions
+            if (result && typeof result.then === "function") {
+              result = await result;
+            }
+          } finally {
+            if (isEmailFunction) {
+              // Hide loading modal after function completes
+              setIsGeneratingEmail(false);
+              setEmailGenerationProgress({
+                type: null,
+                bookingId: null,
+                action: null,
+              });
+            }
+          }
+        } else {
+          // Fallback to function execution service (legacy path)
+          const timeout = skipInitialCheck ? 30000 : 10000;
+          const executionResult =
+            await functionExecutionService.executeFunction(
+              funcCol.function!,
+              args,
+              timeout,
+              row.id, // Pass rowId for dependency-aware caching
+              funcCol.id // Pass columnId for dependency-aware caching
+            );
+
+          if (!executionResult.success) {
+            attemptErrorCountRef.current =
+              (attemptErrorCountRef.current || 0) + 1;
+            if (isRecomputingAllRef.current) {
+              setRecomputeProgress((prev) => ({
+                ...prev,
+                errorDetected: true,
+                errorCount: (prev.errorCount || 0) + 1,
+              }));
+            }
+            logFunctionError(
+              `Function execution failed for ${funcCol.function}:`,
+              executionResult.error
+            );
+            return row[funcCol.id]; // Return existing value on error
+          }
+
+          result = executionResult.result;
+        }
 
         if (!isEqual(row[funcCol.id], result)) {
           // Batch persist to Firestore (debounced)
@@ -816,6 +841,27 @@ export default function BookingsDataGrid({
                 const list = map.get(refCol.id) || [];
                 list.push(col);
                 map.set(refCol.id, list);
+
+                // Debug logging for tour-related dependencies
+                if (col.id === "tourCode" || refCol.id === "tourPackageName") {
+                  console.log("🔗 [DEPENDENCY] Registered:", {
+                    source: { id: refCol.id, name: refCol.columnName },
+                    dependent: {
+                      id: col.id,
+                      name: col.columnName,
+                      function: col.function,
+                    },
+                  });
+                }
+              } else {
+                // Debug: log when column reference not found
+                if (col.id === "tourCode") {
+                  console.warn("⚠️ [DEPENDENCY] Column reference not found:", {
+                    functionColumn: col.columnName,
+                    lookingFor: arg.columnReference,
+                    availableColumns: columns.map((c) => c.columnName),
+                  });
+                }
               }
             }
           }
@@ -837,6 +883,20 @@ export default function BookingsDataGrid({
         });
       }
     });
+
+    // Debug: log the complete dependency map for tourPackageName
+    const tourPackageNameDeps = map.get("tourPackageName");
+    if (tourPackageNameDeps) {
+      console.log(
+        "🔍 [DEPENDENCY MAP] tourPackageName dependents:",
+        tourPackageNameDeps.map((d) => ({
+          id: d.id,
+          name: d.columnName,
+          function: d.function,
+        }))
+      );
+    }
+
     return map;
   }, [columns]);
 
@@ -951,10 +1011,9 @@ export default function BookingsDataGrid({
     [columns, updateColumn, toast]
   );
 
-  // Update global navigation function, available functions, and column definitions
+  // Update global navigation function and column definitions
   useEffect(() => {
     globalNavigateToFunctions = navigateToFunctions;
-    globalAvailableFunctions = availableFunctions;
     globalAllColumns = columns;
     globalColumnDefs.clear();
     columns.forEach((col) => {
@@ -962,11 +1021,10 @@ export default function BookingsDataGrid({
     });
     return () => {
       globalNavigateToFunctions = null;
-      globalAvailableFunctions = [];
       globalAllColumns = [];
       globalColumnDefs.clear();
     };
-  }, [navigateToFunctions, availableFunctions, columns]);
+  }, [navigateToFunctions, columns]);
 
   // Recompute only direct dependent function columns for a single row
   // RECURSIVE: Computes direct dependents, then recursively computes their dependents
@@ -997,12 +1055,37 @@ export default function BookingsDataGrid({
       // Use column ID instead of column name for precise tracking
       const directDependents = dependencyGraph.get(changedColumnId) || [];
 
+      // Get column name for better logging
+      const changedColumn = columns.find((c) => c.id === changedColumnId);
+      const changedColumnName = changedColumn?.columnName || changedColumnId;
+
+      console.log("🔍 [DEPENDENCY GRAPH] Column changed:", {
+        columnId: changedColumnId,
+        columnName: changedColumnName,
+        value: updatedValue,
+        dependentCount: directDependents.length,
+        dependents: directDependents.map((d) => ({
+          id: d.id,
+          name: d.columnName,
+          function: d.function,
+        })),
+        allDependencyKeys: Array.from(dependencyGraph.keys()).map((key) => {
+          const col = columns.find((c) => c.id === key);
+          return { id: key, name: col?.columnName };
+        }),
+      });
+
       if (directDependents.length === 0) return;
 
       // Clear cache for affected functions since data has changed
+      // AND mark them for forced recomputation (skip cache)
       directDependents.forEach((funcCol) => {
         const cacheKey = `${rowId}:${funcCol.id}:${funcCol.function}`;
         functionArgsCacheRef.current.delete(cacheKey);
+
+        // Invalidate result cache and mark for recomputation
+        functionExecutionService.invalidateForRowColumn(rowId, funcCol.id);
+        functionExecutionService.markForRecomputation(rowId, funcCol.id);
       });
 
       // Compute all direct dependents in parallel for speed
@@ -1958,56 +2041,9 @@ export default function BookingsDataGrid({
 
   // Subscribe to changes for only the functions referenced by current columns
   useEffect(() => {
-    const inUseFunctionIds = new Set(
-      columns
-        .filter((c) => c.dataType === "function" && !!c.function)
-        .map((c) => c.function as string)
-    );
-
-    // Add new subscriptions for newly referenced functions
-    inUseFunctionIds.forEach((funcId) => {
-      if (!functionSubscriptionsRef.current.has(funcId)) {
-        const unsubscribe =
-          typescriptFunctionsService.subscribeToFunctionChanges(
-            funcId,
-            (updated) => {
-              if (!updated) return;
-
-              // Skip recomputation during initial load
-              if (isInitialLoadRef.current) {
-                return;
-              }
-
-              // Invalidate compiled function cache so next compute uses fresh code
-              functionExecutionService.invalidate(funcId);
-              // NOTE: Automatic recomputation disabled to prevent recomputation during column resizing
-              // Users can manually trigger recomputation via UI if needed
-              // recomputeForFunction(funcId);
-            }
-          );
-        functionSubscriptionsRef.current.set(funcId, unsubscribe);
-      }
-    });
-
-    // Clean up subscriptions for functions no longer in use
-    const currentSubscriptions = Array.from(
-      functionSubscriptionsRef.current.keys()
-    );
-    currentSubscriptions.forEach((funcId) => {
-      if (!inUseFunctionIds.has(funcId)) {
-        const unsubscribe = functionSubscriptionsRef.current.get(funcId);
-        if (unsubscribe) {
-          unsubscribe();
-          functionSubscriptionsRef.current.delete(funcId);
-        }
-      }
-    });
-
-    // Cleanup on unmount
-    return () => {
-      functionSubscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
-      functionSubscriptionsRef.current.clear();
-    };
+    // Coded functions don't need subscriptions - they're loaded at runtime
+    // Function cache is invalidated when needed
+    return () => {};
   }, [columns]);
 
   // Create Fuse instance for fuzzy search on global filter
@@ -2407,10 +2443,7 @@ export default function BookingsDataGrid({
     // Get function name from global column defs map
     const columnDef = globalColumnDefs.get(column.key);
     const functionId = columnDef?.function;
-    const functionDetails = globalAvailableFunctions?.find(
-      (f) => f.id === functionId
-    );
-    const functionName = functionDetails?.functionName || "EditFunction";
+    const functionName = functionId || "EditFunction";
 
     // Build function signature with arguments
     // Build function signature with actual values from row
@@ -3275,7 +3308,6 @@ export default function BookingsDataGrid({
           // Common properties
           (baseColumn as any).columnDef = col;
           (baseColumn as any).deleteRow = deleteRow;
-          (baseColumn as any).availableFunctions = availableFunctions;
           (baseColumn as any).recomputeCell = recomputeCell;
           (baseColumn as any).openDebugConsole = openDebugConsole;
         } else {
@@ -4382,7 +4414,6 @@ export default function BookingsDataGrid({
         onClose={() => setColumnSettingsModal({ isOpen: false, column: null })}
         onSave={handleColumnSave}
         onDelete={handleColumnDelete}
-        availableFunctions={availableFunctions}
         existingColumns={columns}
       />
 
@@ -4405,6 +4436,46 @@ export default function BookingsDataGrid({
         </div>
       )}
 
+      {/* Loading Modal for Email Generation */}
+      {isGeneratingEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-royal-purple"></div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {emailGenerationProgress.action === "generating"
+                      ? "Generating Email Draft"
+                      : "Sending Email"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {emailGenerationProgress.action === "generating"
+                      ? emailGenerationProgress.type === "reservation"
+                        ? "Creating reservation email draft..."
+                        : "Creating cancellation email draft..."
+                      : emailGenerationProgress.type === "reservation"
+                      ? "Sending reservation email..."
+                      : "Sending cancellation email..."}
+                  </p>
+                </div>
+              </div>
+              {emailGenerationProgress.bookingId && (
+                <div className="text-xs text-muted-foreground border-t pt-3">
+                  <p>
+                    Booking ID:{" "}
+                    <span className="font-mono text-foreground">
+                      {emailGenerationProgress.bookingId}
+                    </span>
+                  </p>
+                  <p className="mt-1">This may take a few moments...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sheet Console - Slide-out panel */}
       <div
         className={`fixed right-0 top-0 h-screen w-96 bg-background shadow-2xl transition-transform duration-300 ease-in-out z-40 ${
@@ -4414,7 +4485,6 @@ export default function BookingsDataGrid({
         <SheetConsole
           columns={columns}
           data={data}
-          availableFunctions={availableFunctions}
           onClose={() => {
             setIsSheetConsoleVisible(false);
             setDebugCell(null);

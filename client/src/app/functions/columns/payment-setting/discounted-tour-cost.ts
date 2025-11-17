@@ -1,26 +1,27 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { firebaseUtils } from "@/app/functions/firebase-utils";
 
 export const discountedTourCostColumn: BookingSheetColumn = {
-  id: 'discountedTourCost',
+  id: "discountedTourCost",
   data: {
-    id: 'discountedTourCost',
-    columnName: 'Discounted Tour Cost',
-    dataType: 'function',
-    function: 'getTourDiscountedCostFunction',
-    parentTab: 'Payment Setting',
+    id: "discountedTourCost",
+    columnName: "Discounted Tour Cost",
+    dataType: "function",
+    function: "getTourDiscountedCostFunction",
+    parentTab: "Payment Setting",
     order: 34,
     includeInForms: false,
-    color: 'gray',
+    color: "gray",
     width: 205.3333740234375,
     arguments: [
       {
-        name: 'tourPackageName',
-        type: 'string',
-        columnReference: 'Tour Package Name',
+        name: "tourPackageName",
+        type: "string",
+        columnReference: "Tour Package Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -48,7 +49,6 @@ export const discountedTourCostColumn: BookingSheetColumn = {
  * - number → the deposit cost of the tour (pricing.deposit)
  * - "" → if no match or invalid input
  */
-
 
 export default async function getTourDiscountedCost(
   tourPackageName: string

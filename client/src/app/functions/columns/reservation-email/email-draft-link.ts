@@ -1,53 +1,56 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { firebaseUtils } from "@/app/functions/firebase-utils";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "@/lib/firebase";
 
 export const emailDraftLinkColumn: BookingSheetColumn = {
-  id: 'emailDraftLink',
+  id: "emailDraftLink",
   data: {
-    id: 'emailDraftLink',
-    columnName: 'Email Draft Link',
-    dataType: 'function',
-    function: 'generateGmailDraftFunction',
-    parentTab: 'Reservation Email',
+    id: "emailDraftLink",
+    columnName: "Email Draft Link",
+    dataType: "function",
+    function: "generateGmailDraftFunction",
+    parentTab: "Reservation Email",
     order: 28,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 425.3333740234375,
     arguments: [
       {
-        name: 'bookingId',
-        type: 'string',
-        columnReference: 'Booking ID',
+        name: "bookingId",
+        type: "string",
+        columnReference: "Booking ID",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'includeBcc',
-        type: 'boolean',
-        columnReference: 'Include BCC (Reservation)',
+        name: "includeBcc",
+        type: "boolean",
+        columnReference: "Include BCC (Reservation)",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'emailAddress',
-        type: 'string',
-        columnReference: 'Email Address',
+        name: "emailAddress",
+        type: "string",
+        columnReference: "Email Address",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'generateEmailDraft',
-        type: 'boolean',
-        columnReference: 'Generate Email Draft',
+        name: "generateEmailDraft",
+        type: "boolean",
+        columnReference: "Generate Email Draft",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -99,27 +102,19 @@ export default async function generateGmailDraft(
   generateEmailDraft: boolean
 ): Promise<string> {
   try {
-    // Get all bookings and filter client-side
+    if (!bookingId) return "";
+
+    // The bookingId parameter is actually the document ID from the "ID" column
+    // Fetch the booking document directly using the document ID
     const bookings = (await firebaseUtils.getCollectionData(
       "bookings"
     )) as BookingData[];
 
-    if (!bookingId) return "";
+    const bookingDoc = bookings.find((b) => b.id === bookingId);
 
-    // Filter to find the booking with matching bookingId AND emailAddress
-    const matchingBookings = bookings.filter(
-      (booking) =>
-        booking.bookingId === bookingId && booking.emailAddress === emailAddress
-    );
-
-    if (!matchingBookings || matchingBookings.length === 0) {
-      throw new Error(
-        `Booking with bookingId ${bookingId} and email ${emailAddress} not found`
-      );
+    if (!bookingDoc) {
+      throw new Error(`Booking with document ID ${bookingId} not found`);
     }
-
-    // Get the first matching booking document
-    const bookingDoc = matchingBookings[0];
 
     console.log(`Found booking document with ID: ${bookingDoc.id}`);
 
@@ -232,7 +227,8 @@ export default async function generateGmailDraft(
 
         // Re-throw with more context
         throw new Error(
-          `Gmail draft creation error: ${functionError.code || "unknown"} - ${functionError.message || "Unknown error"
+          `Gmail draft creation error: ${functionError.code || "unknown"} - ${
+            functionError.message || "Unknown error"
           }`
         );
       }

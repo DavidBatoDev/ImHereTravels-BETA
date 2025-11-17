@@ -10,8 +10,8 @@ export const bookingIdColumn: BookingSheetColumn = {
     parentTab: "Identifier",
     order: 1,
     includeInForms: false,
-    showColumn: false,
-    color: "yellow",
+    showColumn: true,
+    color: "gray",
     width: 288,
     arguments: [
       {

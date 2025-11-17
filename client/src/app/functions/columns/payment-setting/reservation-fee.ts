@@ -1,26 +1,27 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { firebaseUtils } from "@/app/functions/firebase-utils";
 
 export const reservationFeeColumn: BookingSheetColumn = {
-  id: 'reservationFee',
+  id: "reservationFee",
   data: {
-    id: 'reservationFee',
-    columnName: 'Reservation Fee',
-    dataType: 'function',
-    function: 'getTourCurrencyAndDepositFunction',
-    parentTab: 'Payment Setting',
+    id: "reservationFee",
+    columnName: "Reservation Fee",
+    dataType: "function",
+    function: "getTourCurrencyAndDepositFunction",
+    parentTab: "Payment Setting",
     order: 35,
     includeInForms: false,
-    color: 'gray',
+    color: "gray",
     width: 176.666748046875,
     arguments: [
       {
-        name: 'tourPackageName',
-        type: 'string',
-        columnReference: 'Tour Package Name',
+        name: "tourPackageName",
+        type: "string",
+        columnReference: "Tour Package Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },

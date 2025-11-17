@@ -1,4 +1,5 @@
 import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { firebaseUtils, where } from "@/app/functions/firebase-utils";
 
 export const tourPackageNameUniqueCounterColumn: BookingSheetColumn = {
   id: "tourPackageNameUniqueCounter",
@@ -8,9 +9,9 @@ export const tourPackageNameUniqueCounterColumn: BookingSheetColumn = {
     dataType: "function",
     function: "tourPackageUniqueCounterFunction",
     parentTab: "Identifier",
-    order: 6,
+    order: 5,
     includeInForms: false,
-    showColumn: false,
+    showColumn: true,
     color: "gray",
     width: 294.66668701171875,
     arguments: [

@@ -8,9 +8,9 @@ export const travellerInitialsColumn: BookingSheetColumn = {
     dataType: "function",
     function: "travellerInitialsFunction",
     parentTab: "Identifier",
-    order: 5,
+    order: 4,
     includeInForms: false,
-    showColumn: false,
+    showColumn: true,
     color: "gray",
     width: 271.1041259765625,
     arguments: [

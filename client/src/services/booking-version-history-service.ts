@@ -282,27 +282,27 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
     columns?: any[] // Optional column definitions for determining data types
   ): Promise<string> {
     try {
-      console.log("🔍 [VERSION SERVICE] Creating version snapshot:", {
-        bookingId,
-        changeType: options.changeType,
-        description: options.changeDescription,
-      });
+      // console.log("🔍 [VERSION SERVICE] Creating version snapshot:", {
+      //   bookingId,
+      //   changeType: options.changeType,
+      //   description: options.changeDescription,
+      // });
       // Use a simple counter approach for version numbers to avoid expensive queries
       // We'll use timestamp + random to ensure uniqueness instead of sequential numbers
       const versionNumber = Date.now() + Math.floor(Math.random() * 1000);
-      console.log(
-        "🔍 [VERSION SERVICE] Generated version number:",
-        versionNumber
-      );
+      // console.log(
+      //   "🔍 [VERSION SERVICE] Generated version number:",
+      //   versionNumber
+      // );
 
       // For performance, skip change detection unless explicitly provided
       let changes = options.changedFields || [];
 
       // Special handling for "create" change type
       if (options.changeType === "create" && changes.length === 0) {
-        console.log(
-          "🔍 [VERSION SERVICE] Creating 'Added new row' change for create operation"
-        );
+        // console.log(
+        //   "🔍 [VERSION SERVICE] Creating 'Added new row' change for create operation"
+        // );
 
         // Create a single descriptive change entry for row creation
         changes = [
@@ -317,9 +317,9 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       }
       // Special handling for "delete" change type
       else if (options.changeType === "delete" && changes.length === 0) {
-        console.log(
-          "🔍 [VERSION SERVICE] Creating 'Deleted row' change for delete operation"
-        );
+        // console.log(
+        //   "🔍 [VERSION SERVICE] Creating 'Deleted row' change for delete operation"
+        // );
 
         // Create a single descriptive change entry for row deletion
         changes = [
@@ -334,9 +334,9 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       }
       // Special handling for "restore" change type (full replay restore)
       else if (options.changeType === "restore" && changes.length === 0) {
-        console.log(
-          "🔍 [VERSION SERVICE] Creating 'Restored snapshot' change for restore operation"
-        );
+        // console.log(
+        //   "🔍 [VERSION SERVICE] Creating 'Restored snapshot' change for restore operation"
+        // );
 
         changes = [
           {
@@ -356,10 +356,10 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         options.changedFieldPaths &&
         options.changedFieldPaths.length > 0
       ) {
-        console.log(
-          "🔍 [VERSION SERVICE] Creating field changes from provided paths:",
-          options.changedFieldPaths
-        );
+        // console.log(
+        //   "🔍 [VERSION SERVICE] Creating field changes from provided paths:",
+        //   options.changedFieldPaths
+        // );
 
         changes = options.changedFieldPaths.map((fieldPath) => {
           const newValue = documentSnapshot[fieldPath as keyof SheetData];
@@ -402,35 +402,35 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       // Skip creating version snapshot for update operations with no actual changes
       // This prevents creating empty version entries when updates don't modify any fields
       if (options.changeType === "update" && changes.length === 0) {
-        console.log(
-          `⏭️  [VERSION SERVICE] Skipping version snapshot for booking ${bookingId}: update operation with 0 fields modified (all changes filtered out by sanitizer)`
-        );
+        // console.log(
+        //   `⏭️  [VERSION SERVICE] Skipping version snapshot for booking ${bookingId}: update operation with 0 fields modified (all changes filtered out by sanitizer)`
+        // );
         // Return a special marker value to indicate the snapshot was skipped
         // This allows callers to distinguish between skipped and actual version IDs
         return "__SKIPPED__";
       }
 
-      console.log(
-        "🔍 [VERSION SERVICE] Using changes:",
-        changes.length,
-        "fields:",
-        changes.map((c) => `${c.fieldName} (${c.dataType})`)
-      );
+      // console.log(
+      //   "🔍 [VERSION SERVICE] Using changes:",
+      //   changes.length,
+      //   "fields:",
+      //   changes.map((c) => `${c.fieldName} (${c.dataType})`)
+      // );
 
       // Generate branch ID (always use main branch for performance)
       let branchId = `main-${bookingId}`;
       const parentVersionId: string | undefined = undefined;
-      console.log(
-        "🔍 [VERSION SERVICE] Branch ID:",
-        branchId,
-        "Parent ID:",
-        parentVersionId
-      );
+      // console.log(
+      //   "🔍 [VERSION SERVICE] Branch ID:",
+      //   branchId,
+      //   "Parent ID:",
+      //   parentVersionId
+      // );
 
       // If this is a restore point, create a new branch
       if (options.isRestorePoint) {
         branchId = `restore-${Date.now()}-${bookingId}`;
-        console.log("🔍 [VERSION SERVICE] Creating restore branch:", branchId);
+        // console.log("🔍 [VERSION SERVICE] Creating restore branch:", branchId);
       }
 
       // Create branch info
@@ -445,7 +445,7 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       };
 
       // Create version snapshot
-      console.log("🔍 [VERSION SERVICE] Creating version snapshot object");
+      // console.log("🔍 [VERSION SERVICE] Creating version snapshot object");
 
       const cleanedSnapshot = this.sanitizeSheetDataForStorage(
         documentSnapshot as SheetData
@@ -456,17 +456,17 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       const previousGridSnapshotForStorage =
         this.sanitizeGridSnapshotForStorage(options.previousGridSnapshot);
 
-      console.log("🔍 [VERSION SERVICE] Cleaned snapshot:", {
-        originalKeys: Object.keys(documentSnapshot).length,
-        cleanedKeys: Object.keys(cleanedSnapshot).length,
-        sampleCleanedValues: {
-          firstName: cleanedSnapshot.firstName,
-          bookingType: cleanedSnapshot.bookingType,
-          bookingCode: cleanedSnapshot.bookingCode,
-        },
-        gridSnapshotCount: gridSnapshotForStorage?.length || 0,
-        previousGridSnapshotCount: previousGridSnapshotForStorage?.length || 0,
-      });
+      // console.log("🔍 [VERSION SERVICE] Cleaned snapshot:", {
+      //   originalKeys: Object.keys(documentSnapshot).length,
+      //   cleanedKeys: Object.keys(cleanedSnapshot).length,
+      //   sampleCleanedValues: {
+      //     firstName: cleanedSnapshot.firstName,
+      //     bookingType: cleanedSnapshot.bookingType,
+      //     bookingCode: cleanedSnapshot.bookingCode,
+      //   },
+      //   gridSnapshotCount: gridSnapshotForStorage?.length || 0,
+      //   previousGridSnapshotCount: previousGridSnapshotForStorage?.length || 0,
+      // });
 
       // Create the base version snapshot object without undefined fields
       const versionSnapshot: any = {
@@ -519,42 +519,42 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         versionSnapshot.branchInfo.branchStartVersionId =
           branchInfo.branchStartVersionId;
       }
-      console.log("🔍 [VERSION SERVICE] Version snapshot object created:", {
-        bookingId: versionSnapshot.bookingId,
-        versionNumber: versionSnapshot.versionNumber,
-        branchId: versionSnapshot.branchId,
-        changesCount: versionSnapshot.changes.length,
-      });
+      // console.log("🔍 [VERSION SERVICE] Version snapshot object created:", {
+      //   bookingId: versionSnapshot.bookingId,
+      //   versionNumber: versionSnapshot.versionNumber,
+      //   branchId: versionSnapshot.branchId,
+      //   changesCount: versionSnapshot.changes.length,
+      // });
 
       // Add to Firestore
-      console.log(
-        "🔍 [VERSION SERVICE] Adding to Firestore collection:",
-        VERSIONS_COLLECTION
-      );
+      // console.log(
+      //   "🔍 [VERSION SERVICE] Adding to Firestore collection:",
+      //   VERSIONS_COLLECTION
+      // );
 
       // Remove any undefined values recursively to prevent Firestore errors
       const cleanVersionSnapshot = this.removeUndefinedValues(versionSnapshot);
 
       // Log the complete object being sent to Firestore for debugging
-      console.log(
-        "🔍 [VERSION SERVICE] Complete version snapshot being saved:",
-        JSON.stringify(cleanVersionSnapshot, null, 2)
-      );
+      // console.log(
+      //   "🔍 [VERSION SERVICE] Complete version snapshot being saved:",
+      //   JSON.stringify(cleanVersionSnapshot, null, 2)
+      // );
 
       const docRef = await addDoc(
         collection(db, VERSIONS_COLLECTION),
         cleanVersionSnapshot
       );
-      console.log("🔍 [VERSION SERVICE] Document added with ID:", docRef.id);
+      // console.log("🔍 [VERSION SERVICE] Document added with ID:", docRef.id);
 
       // Update parent version to mark it has child branches (if this is a restore)
       if (options.isRestorePoint && parentVersionId) {
         await this.updateParentBranchInfo(parentVersionId, docRef.id);
       }
 
-      console.log(
-        `✅ Created version snapshot ${docRef.id} for booking ${bookingId} (v${versionNumber})`
-      );
+      // console.log(
+      //   `✅ Created version snapshot ${docRef.id} for booking ${bookingId} (v${versionNumber})`
+      // );
       return docRef.id;
     } catch (error) {
       console.error(
@@ -689,10 +689,10 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
     options?: VersionHistoryQueryOptions
   ): Promise<BookingVersionSnapshot[]> {
     try {
-      console.log(
-        "🔍 [VERSION SERVICE] Getting all versions from collection:",
-        VERSIONS_COLLECTION
-      );
+      // console.log(
+      //   "🔍 [VERSION SERVICE] Getting all versions from collection:",
+      //   VERSIONS_COLLECTION
+      // );
 
       // Simple query without ordering to avoid index requirements
       let q = query(collection(db, VERSIONS_COLLECTION));
@@ -703,11 +703,11 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       }
 
       const querySnapshot = await getDocs(q);
-      console.log(
-        "🔍 [VERSION SERVICE] Query returned",
-        querySnapshot.docs.length,
-        "documents"
-      );
+      // console.log(
+      //   "🔍 [VERSION SERVICE] Query returned",
+      //   querySnapshot.docs.length,
+      //   "documents"
+      // );
 
       let versions = querySnapshot.docs.map((doc) => {
         const data = doc.data();
@@ -783,10 +783,10 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         }
       });
 
-      console.log(
-        "🔍 [VERSION SERVICE] Mapped and sorted versions:",
-        versions.length
-      );
+      // console.log(
+      //   "🔍 [VERSION SERVICE] Mapped and sorted versions:",
+      //   versions.length
+      // );
       return versions;
     } catch (error) {
       console.error("❌ Failed to get all versions:", error);
@@ -913,9 +913,9 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         options.reconstructedGridData &&
         options.reconstructedGridData.length > 0
       ) {
-        console.log(
-          `✅ [RESTORE] Using pre-reconstructed grid data from UI (${options.reconstructedGridData.length} bookings)`
-        );
+        // console.log(
+        //   `✅ [RESTORE] Using pre-reconstructed grid data from UI (${options.reconstructedGridData.length} bookings)`
+        // );
         reconstructedGrid = options.reconstructedGridData.map((row) => {
           const snapshot = this.removeUndefinedValues({
             ...(row as SheetData),
@@ -1135,9 +1135,9 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       }
 
       // Validate and fix row numbers: check for duplicates and gaps
-      console.log(
-        "🔍 [RESTORE VALIDATION] Checking for duplicate or invalid row numbers"
-      );
+      // console.log(
+      //   "🔍 [RESTORE VALIDATION] Checking for duplicate or invalid row numbers"
+      // );
 
       const rowNumbersUsed = new Set<number>();
       const duplicateRows: number[] = [];
@@ -1156,10 +1156,10 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       });
 
       if (duplicateRows.length > 0 || invalidRows.length > 0) {
-        console.warn(
-          `⚠️  [RESTORE VALIDATION] Found issues - Duplicates: ${duplicateRows.length}, Invalid: ${invalidRows.length}`
-        );
-        console.log("🔧 [RESTORE VALIDATION] Reordering rows sequentially");
+        // console.warn(
+        //   `⚠️  [RESTORE VALIDATION] Found issues - Duplicates: ${duplicateRows.length}, Invalid: ${invalidRows.length}`
+        // );
+        // console.log("🔧 [RESTORE VALIDATION] Reordering rows sequentially");
 
         // Reorder all rows sequentially
         restoreGridSnapshot.sort((a, b) => {
@@ -1532,9 +1532,9 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         typeof newValue === "string" &&
         newValue === ""
       ) {
-        console.log(
-          `🧹 [SANITIZER] Filtering out meaningless change: ${fieldPath} (${oldValue} → "${newValue}") [dataType: ${dataType}]`
-        );
+        // console.log(
+        //   `🧹 [SANITIZER] Filtering out meaningless change: ${fieldPath} (${oldValue} → "${newValue}") [dataType: ${dataType}]`
+        // );
         return false;
       }
 
@@ -1676,9 +1676,9 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
 
       // Note: In a real implementation, you'd need to update the document
       // For now, we'll just log this operation
-      console.log(
-        `📝 Updated parent version ${parentVersionId} to include child ${childVersionId}`
-      );
+      // console.log(
+      //   `📝 Updated parent version ${parentVersionId} to include child ${childVersionId}`
+      // );
     } catch (error) {
       console.error(
         `❌ Failed to update parent branch info for ${parentVersionId}:`,
@@ -1729,11 +1729,11 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
     upToVersionId?: string
   ): Promise<SheetData[]> {
     try {
-      console.log(
-        "🔄 [REPLAY RECONSTRUCTION] Starting replay-based reconstruction at timestamp:",
-        timestamp,
-        upToVersionId ? `up to version: ${upToVersionId}` : ""
-      );
+      // console.log(
+      //   "🔄 [REPLAY RECONSTRUCTION] Starting replay-based reconstruction at timestamp:",
+      //   timestamp,
+      //   upToVersionId ? `up to version: ${upToVersionId}` : ""
+      // );
 
       // Convert timestamp to comparable format
       let targetTime: number;
@@ -1752,13 +1752,13 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         orderBy("metadata.createdAt", "asc") // Ascending for forward replay
       );
 
-      console.log("� [REPLAY RECONSTRUCTION] Querying all versions...");
+      // console.log("� [REPLAY RECONSTRUCTION] Querying all versions...");
       const querySnapshot = await getDocs(allVersionsQuery);
-      console.log(
-        "� [REPLAY RECONSTRUCTION] Found",
-        querySnapshot.size,
-        "total versions across all time"
-      );
+      // console.log(
+      //   "� [REPLAY RECONSTRUCTION] Found",
+      //   querySnapshot.size,
+      //   "total versions across all time"
+      // );
 
       // Prepare baseline restore snapshot if available at/before the target time
       let latestRestoreBaseline:
@@ -1852,20 +1852,20 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         );
       });
 
-      console.log(
-        `🔄 [REPLAY RECONSTRUCTION] Found versions for ${allVersionsByBooking.size} bookings`
-      );
+      // console.log(
+      //   `🔄 [REPLAY RECONSTRUCTION] Found versions for ${allVersionsByBooking.size} bookings`
+      // );
 
       // If we have a restore baseline, use a completely different reconstruction approach
       if (latestRestoreBaseline) {
         const restoreTime = this.getVersionTimestamp(
           latestRestoreBaseline.version
         );
-        console.log(
-          `🧩 [RESTORE-BASED RECONSTRUCTION] Using restore baseline from version ${
-            latestRestoreBaseline.version.id
-          } at ${new Date(restoreTime).toISOString()}`
-        );
+        // console.log(
+        //   `🧩 [RESTORE-BASED RECONSTRUCTION] Using restore baseline from version ${
+        //     latestRestoreBaseline.version.id
+        //   } at ${new Date(restoreTime).toISOString()}`
+        // );
 
         // Start with the complete grid from the restore snapshot
         const gridState = new Map<string, SheetData>();
@@ -1873,9 +1873,9 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
           gridState.set(bookingId, { ...row });
         });
 
-        console.log(
-          `🧩 [RESTORE-BASED RECONSTRUCTION] Starting with ${gridState.size} bookings from restore snapshot`
-        );
+        // console.log(
+        //   `🧩 [RESTORE-BASED RECONSTRUCTION] Starting with ${gridState.size} bookings from restore snapshot`
+        // );
 
         // Get all versions that happened AFTER the restore and BEFORE/AT the target
         const versionsAfterRestore: BookingVersionSnapshot[] = [];
@@ -1938,24 +1938,24 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
           (a, b) => this.getVersionTimestamp(a) - this.getVersionTimestamp(b)
         );
 
-        console.log(
-          `🧩 [RESTORE-BASED RECONSTRUCTION] Applying ${versionsAfterRestore.length} versions after restore`
-        );
+        // console.log(
+        //   `🧩 [RESTORE-BASED RECONSTRUCTION] Applying ${versionsAfterRestore.length} versions after restore`
+        // );
 
         // Apply each version in chronological order
         versionsAfterRestore.forEach((version) => {
           const bookingId = version.bookingId;
           const versionTime = this.getVersionTimestamp(version);
 
-          console.log(
-            `🧩 [RESTORE-BASED RECONSTRUCTION] Applying version ${
-              version.id
-            } (${
-              version.metadata.changeType
-            }) for booking ${bookingId} at ${new Date(
-              versionTime
-            ).toISOString()}`
-          );
+          // console.log(
+          //   `🧩 [RESTORE-BASED RECONSTRUCTION] Applying version ${
+          //     version.id
+          //   } (${
+          //     version.metadata.changeType
+          //   }) for booking ${bookingId} at ${new Date(
+          //     versionTime
+          //   ).toISOString()}`
+          // );
 
           if (version.metadata.changeType === "create") {
             // Add new booking to grid
@@ -1963,20 +1963,20 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
               ...version.documentSnapshot,
               id: bookingId,
             });
-            console.log(`  ✅ Created booking ${bookingId} in restored grid`);
+            // console.log(`  ✅ Created booking ${bookingId} in restored grid`);
           } else if (version.metadata.changeType === "delete") {
             // Remove booking from grid
             gridState.delete(bookingId);
-            console.log(`  ❌ Deleted booking ${bookingId} from restored grid`);
+            // console.log(`  ❌ Deleted booking ${bookingId} from restored grid`);
           } else if (version.metadata.changeType === "restore") {
             // Another restore happened - use its grid snapshot if available
             if (
               Array.isArray(version.gridSnapshot) &&
               version.gridSnapshot.length > 0
             ) {
-              console.log(
-                `  🔄 Nested restore detected - replacing entire grid with ${version.gridSnapshot.length} bookings`
-              );
+              // console.log(
+              //   `  🔄 Nested restore detected - replacing entire grid with ${version.gridSnapshot.length} bookings`
+              // );
               gridState.clear();
               version.gridSnapshot.forEach((row, index) => {
                 const sanitizedRow = this.removeUndefinedValues({
@@ -2014,31 +2014,31 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
                 }
               });
               gridState.set(bookingId, updatedBooking);
-              console.log(
-                `  📝 Updated booking ${bookingId} (${version.changes.length} fields changed)`
-              );
+              // console.log(
+              //   `  📝 Updated booking ${bookingId} (${version.changes.length} fields changed)`
+              // );
             } else {
               // Booking doesn't exist in restored grid, add it with the version's snapshot
               gridState.set(bookingId, {
                 ...version.documentSnapshot,
                 id: bookingId,
               });
-              console.log(
-                `  ➕ Added missing booking ${bookingId} to restored grid`
-              );
+              // console.log(
+              //   `  ➕ Added missing booking ${bookingId} to restored grid`
+              // );
             }
           }
         });
 
         const reconstructedGrid = Array.from(gridState.values());
-        console.log(
-          `✅ [RESTORE-BASED RECONSTRUCTION] Reconstructed grid with ${reconstructedGrid.length} bookings`
-        );
+        // console.log(
+        //   `✅ [RESTORE-BASED RECONSTRUCTION] Reconstructed grid with ${reconstructedGrid.length} bookings`
+        // );
         return reconstructedGrid;
       }
 
       // Use FORWARD REPLAY approach (not backward) to maintain grid consistency
-      console.log(`🔄 [FORWARD REPLAY] Starting forward replay reconstruction`);
+      // console.log(`🔄 [FORWARD REPLAY] Starting forward replay reconstruction`);
 
       // Get all versions across all bookings and sort chronologically
       const allVersions: BookingVersionSnapshot[] = [];
@@ -2052,9 +2052,9 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
 
       // If there are NO versions at all, just return current bookings
       if (allVersions.length === 0) {
-        console.log(
-          `📄 [FORWARD REPLAY] No version history found, using current bookings as baseline (${currentBookings.length} bookings)`
-        );
+        // console.log(
+        //   `📄 [FORWARD REPLAY] No version history found, using current bookings as baseline (${currentBookings.length} bookings)`
+        // );
         return currentBookings;
       }
 
@@ -2066,11 +2066,11 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       // Get the earliest version timestamp
       const earliestVersionTime = this.getVersionTimestamp(allVersions[0]);
 
-      console.log(
-        `🔄 [FORWARD REPLAY] Earliest version at ${new Date(
-          earliestVersionTime
-        ).toISOString()}`
-      );
+      // console.log(
+      //   `🔄 [FORWARD REPLAY] Earliest version at ${new Date(
+      //     earliestVersionTime
+      //   ).toISOString()}`
+      // );
 
       // Filter versions up to and including the target timestamp or specific version
       const versionsUpToTarget = allVersions.filter((version, index) => {
@@ -2100,15 +2100,15 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         return Number.isFinite(versionTime) && versionTime <= targetTime;
       });
 
-      console.log(
-        `🔄 [FORWARD REPLAY] Filtered to ${
-          versionsUpToTarget.length
-        } versions (target: ${upToVersionId || "timestamp-based"})`
-      );
+      // console.log(
+      //   `🔄 [FORWARD REPLAY] Filtered to ${
+      //     versionsUpToTarget.length
+      //   } versions (target: ${upToVersionId || "timestamp-based"})`
+      // );
 
-      console.log(
-        `🔄 [FORWARD REPLAY] Replaying ${versionsUpToTarget.length} versions chronologically up to target time`
-      );
+      // console.log(
+      //   `🔄 [FORWARD REPLAY] Replaying ${versionsUpToTarget.length} versions chronologically up to target time`
+      // );
 
       // Initialize grid state map
       const gridState = new Map<string, SheetData>();
@@ -2175,11 +2175,11 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         const bookingId = version.bookingId;
         const versionTime = this.getVersionTimestamp(version);
 
-        console.log(
-          `🔄 [FORWARD REPLAY] Applying version ${version.id} (${
-            version.metadata.changeType
-          }) for booking ${bookingId} at ${new Date(versionTime).toISOString()}`
-        );
+        // console.log(
+        //   `🔄 [FORWARD REPLAY] Applying version ${version.id} (${
+        //     version.metadata.changeType
+        //   }) for booking ${bookingId} at ${new Date(versionTime).toISOString()}`
+        // );
 
         if (version.metadata.changeType === "create") {
           // Add new booking to grid
@@ -2224,9 +2224,9 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       });
 
       const reconstructedGrid = Array.from(gridState.values());
-      console.log(
-        `✅ [FORWARD REPLAY] Reconstructed grid with ${reconstructedGrid.length} bookings`
-      );
+      // console.log(
+      //   `✅ [FORWARD REPLAY] Reconstructed grid with ${reconstructedGrid.length} bookings`
+      // );
       return reconstructedGrid;
     } catch (error) {
       console.error(
@@ -2250,10 +2250,10 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
     minVersionsPerBooking: number = 10
   ): Promise<{ deleted: number; retained: number }> {
     try {
-      console.log("🧹 [RETENTION POLICY] Starting cleanup:", {
-        retentionDays,
-        minVersionsPerBooking,
-      });
+      // console.log("🧹 [RETENTION POLICY] Starting cleanup:", {
+      //   retentionDays,
+      //   minVersionsPerBooking,
+      // });
 
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
@@ -2267,9 +2267,9 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       );
       const querySnapshot = await getDocs(allVersionsQuery);
 
-      console.log(
-        `🧹 [RETENTION POLICY] Found ${querySnapshot.size} total versions`
-      );
+      // console.log(
+      //   `🧹 [RETENTION POLICY] Found ${querySnapshot.size} total versions`
+      // );
 
       // Group by bookingId
       const versionsByBooking = new Map<string, BookingVersionSnapshot[]>();
@@ -2345,9 +2345,9 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         }
       }
 
-      console.log(
-        `✅ [RETENTION POLICY] Cleanup complete: ${deleted} versions marked for deletion, ${retained} retained`
-      );
+      // console.log(
+      //   `✅ [RETENTION POLICY] Cleanup complete: ${deleted} versions marked for deletion, ${retained} retained`
+      // );
 
       return { deleted, retained };
     } catch (error) {
@@ -2454,10 +2454,10 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
       // Remove any undefined values recursively
       const cleanVersionSnapshot = this.removeUndefinedValues(versionSnapshot);
 
-      console.log(
-        "🔍 [BULK VERSION] Complete bulk operation snapshot:",
-        JSON.stringify(cleanVersionSnapshot, null, 2)
-      );
+      // console.log(
+      //   "🔍 [BULK VERSION] Complete bulk operation snapshot:",
+      //   JSON.stringify(cleanVersionSnapshot, null, 2)
+      // );
 
       // Add to Firestore
       const docRef = await addDoc(
@@ -2465,9 +2465,9 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
         cleanVersionSnapshot
       );
 
-      console.log(
-        `✅ Created bulk operation snapshot ${docRef.id} for ${options.operationType} operation affecting ${options.totalCount} bookings`
-      );
+      // console.log(
+      //   `✅ Created bulk operation snapshot ${docRef.id} for ${options.operationType} operation affecting ${options.totalCount} bookings`
+      // );
       return docRef.id;
     } catch (error) {
       console.error(

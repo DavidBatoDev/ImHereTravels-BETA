@@ -1,53 +1,56 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { firebaseUtils } from "@/app/functions/firebase-utils";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "@/lib/firebase";
 
 export const cancellationEmailDraftLinkColumn: BookingSheetColumn = {
-  id: 'cancellationEmailDraftLink',
+  id: "cancellationEmailDraftLink",
   data: {
-    id: 'cancellationEmailDraftLink',
-    columnName: 'Cancellation Email Draft Link',
-    dataType: 'function',
-    function: 'generateCancellationGmailDraftFunction',
-    parentTab: 'Cancellation',
+    id: "cancellationEmailDraftLink",
+    columnName: "Cancellation Email Draft Link",
+    dataType: "function",
+    function: "generateCancellationGmailDraftFunction",
+    parentTab: "Cancellation",
     order: 80,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 200,
     arguments: [
       {
-        name: 'bookingId',
-        type: 'string',
-        columnReference: 'ID',
+        name: "bookingId",
+        type: "string",
+        columnReference: "ID",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'includeBcc',
-        type: 'boolean',
-        columnReference: 'Include BCC (Cancellation)',
+        name: "includeBcc",
+        type: "boolean",
+        columnReference: "Include BCC (Cancellation)",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'emailAddress',
-        type: 'string',
-        columnReference: 'Email Address',
+        name: "emailAddress",
+        type: "string",
+        columnReference: "Email Address",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'generateCancellationDraft',
-        type: 'boolean',
-        columnReference: 'Generate Cancellation Email Draft',
+        name: "generateCancellationDraft",
+        type: "boolean",
+        columnReference: "Generate Cancellation Email Draft",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -98,27 +101,19 @@ export default async function generateCancellationGmailDraft(
   generateCancellationDraft: boolean
 ): Promise<string> {
   try {
-    // Get all bookings and filter client-side
+    if (!bookingId) return "";
+
+    // The bookingId parameter is actually the document ID from the "ID" column
+    // Fetch the booking document directly using the document ID
     const bookings = (await firebaseUtils.getCollectionData(
       "bookings"
     )) as BookingData[];
 
-    if (!bookingId) return "";
+    const bookingDoc = bookings.find((b) => b.id === bookingId);
 
-    // Filter to find the booking with matching bookingId AND emailAddress
-    const matchingBookings = bookings.filter(
-      (booking) =>
-        booking.bookingId === bookingId && booking.emailAddress === emailAddress
-    );
-
-    if (!matchingBookings || matchingBookings.length === 0) {
-      throw new Error(
-        `Booking with bookingId ${bookingId} and email ${emailAddress} not found`
-      );
+    if (!bookingDoc) {
+      throw new Error(`Booking with document ID ${bookingId} not found`);
     }
-
-    // Get the first matching booking document
-    const bookingDoc = matchingBookings[0];
 
     console.log(`Found booking document with ID: ${bookingDoc.id}`);
 
@@ -239,7 +234,8 @@ export default async function generateCancellationGmailDraft(
 
         // Re-throw with more context
         throw new Error(
-          `Cancellation Gmail draft creation error: ${functionError.code || "unknown"
+          `Cancellation Gmail draft creation error: ${
+            functionError.code || "unknown"
           } - ${functionError.message || "Unknown error"}`
         );
       }

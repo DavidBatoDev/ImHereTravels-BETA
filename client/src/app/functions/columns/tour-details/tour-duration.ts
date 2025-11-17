@@ -1,27 +1,28 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { firebaseUtils } from "@/app/functions/firebase-utils";
 
 export const tourDurationColumn: BookingSheetColumn = {
-  id: 'tourDuration',
+  id: "tourDuration",
   data: {
-    id: 'tourDuration',
-    columnName: 'Tour Duration',
-    dataType: 'function',
-    function: 'tourDurationByNameFunction',
-    parentTab: 'Tour Details',
-    order: 17,
+    id: "tourDuration",
+    columnName: "Tour Duration",
+    dataType: "function",
+    function: "tourDurationByNameFunction",
+    parentTab: "Tour Details",
+    order: 18,
     includeInForms: false,
-    showColumn: false,
-    color: 'gray',
+    showColumn: true,
+    color: "gray",
     width: 150.6666259765625,
     arguments: [
       {
-        name: 'tourPackageName',
-        type: 'string',
-        columnReference: 'Tour Package Name',
+        name: "tourPackageName",
+        type: "string",
+        columnReference: "Tour Package Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },

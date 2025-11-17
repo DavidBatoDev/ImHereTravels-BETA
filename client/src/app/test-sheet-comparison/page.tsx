@@ -43,7 +43,7 @@ export default function TestSheetComparison() {
           {activeTab === "react-table" ? (
             <BookingsSheet />
           ) : (
-            <BookingsDataGrid
+                        <BookingsDataGrid
               columns={[]}
               data={[]}
               updateColumn={() => {}}
@@ -51,7 +51,7 @@ export default function TestSheetComparison() {
               updateData={() => {}}
               updateRow={() => {}}
               deleteRow={async () => {}}
-              availableFunctions={[]}
+            />
             />
           )}
         </CardContent>

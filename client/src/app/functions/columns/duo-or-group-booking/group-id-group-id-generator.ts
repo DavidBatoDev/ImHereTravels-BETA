@@ -1,71 +1,71 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const groupIdGroupIdGeneratorColumn: BookingSheetColumn = {
-  id: 'groupIdGroupIdGenerator',
+  id: "groupIdGroupIdGenerator",
   data: {
-    id: 'groupIdGroupIdGenerator',
-    columnName: 'Group ID / Group ID Generator',
-    dataType: 'function',
-    function: 'generateGroupMemberIdFunction',
-    parentTab: 'If Duo or Group Booking',
+    id: "groupIdGroupIdGenerator",
+    columnName: "Group ID / Group ID Generator",
+    dataType: "function",
+    function: "generateGroupMemberIdFunction",
+    parentTab: "If Duo or Group Booking",
     order: 23,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 310.6666717529297,
     arguments: [
       {
-        name: 'bookingType',
-        type: 'string',
-        columnReference: 'Booking Type',
+        name: "bookingType",
+        type: "string",
+        columnReference: "Booking Type",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'tourName',
-        type: 'string',
-        columnReference: 'Tour Package Name',
+        name: "tourName",
+        type: "string",
+        columnReference: "Tour Package Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'firstName',
-        type: 'string',
-        columnReference: 'First Name',
+        name: "firstName",
+        type: "string",
+        columnReference: "First Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'lastName',
-        type: 'string',
-        columnReference: 'Last Name',
+        name: "lastName",
+        type: "string",
+        columnReference: "Last Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'email',
-        type: 'string',
-        columnReference: 'Email Address',
+        name: "email",
+        type: "string",
+        columnReference: "Email Address",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'isActive',
-        type: 'boolean',
-        columnReference: 'Is Main Booker?',
+        name: "isActive",
+        type: "boolean",
+        columnReference: "Is Main Booker?",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -95,7 +95,9 @@ export default function generateGroupMemberIdFunction(
   if (!(bookingType === "Duo Booking" || bookingType === "Group Booking")) {
     return "";
   }
-  if (isActive == false) return "";
+
+  // Only generate ID if isActive is explicitly true
+  if (isActive !== true) return "";
 
   const initials =
     (firstName?.[0] ?? "").toUpperCase() + (lastName?.[0] ?? "").toUpperCase();

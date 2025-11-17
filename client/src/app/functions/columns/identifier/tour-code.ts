@@ -1,4 +1,5 @@
 import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { firebaseUtils } from "@/app/functions/firebase-utils";
 
 export const tourCodeColumn: BookingSheetColumn = {
   id: "tourCode",
@@ -10,7 +11,7 @@ export const tourCodeColumn: BookingSheetColumn = {
     parentTab: "Identifier",
     order: 3,
     includeInForms: false,
-    showColumn: false,
+    showColumn: true,
     color: "gray",
     width: 156.66668701171875,
     arguments: [
@@ -54,7 +55,14 @@ export default async function lookupTourCode(
 
   try {
     // Fetch tour packages from Firebase
-    const tourPackages = await firebaseUtils.getCollectionData("tourPackages");
+    const tourPackages = (await firebaseUtils.getCollectionData(
+      "tourPackages"
+    )) as Array<{
+      id: string;
+      name?: string;
+      tourCode?: string;
+      [key: string]: any;
+    }>;
 
     if (!tourPackages || tourPackages.length === 0) {
       console.warn("No tour packages found in Firebase");
@@ -64,10 +72,10 @@ export default async function lookupTourCode(
     const target = tourPackageName.trim().toLowerCase();
 
     const found = tourPackages.find(
-      (p: any) => p.name && p.name.trim().toLowerCase() === target
+      (p) => p.name && p.name.trim().toLowerCase() === target
     );
 
-    return found ? found.tourCode : "XXX";
+    return found?.tourCode || "XXX";
   } catch (error) {
     console.error("Error fetching tour packages:", error);
     return "XXX";

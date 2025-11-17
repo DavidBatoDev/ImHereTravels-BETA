@@ -1,36 +1,36 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const eligible2ndofmonthsColumn: BookingSheetColumn = {
-  id: 'eligible2ndofmonths',
+  id: "eligible2ndofmonths",
   data: {
-    id: 'eligible2ndofmonths',
-    columnName: 'Eligible 2nd-of-Months',
-    dataType: 'function',
-    function: 'eligibleSecondsCountFunction',
-    parentTab: 'Tour Details',
-    order: 19,
+    id: "eligible2ndofmonths",
+    columnName: "Eligible 2nd-of-Months",
+    dataType: "function",
+    function: "eligibleSecondsCountFunction",
+    parentTab: "Tour Details",
+    order: 20,
     includeInForms: false,
-    showColumn: false,
-    color: 'gray',
+    showColumn: true,
+    color: "gray",
     width: 212.66668701171875,
     arguments: [
       {
-        name: 'reservationDate',
-        type: 'unknown',
-        columnReference: 'Reservation Date',
+        name: "reservationDate",
+        type: "unknown",
+        columnReference: "Reservation Date",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'tourDate',
-        type: 'unknown',
-        columnReference: 'Tour Date',
+        name: "tourDate",
+        type: "unknown",
+        columnReference: "Tour Date",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -55,7 +55,7 @@ export const eligible2ndofmonthsColumn: BookingSheetColumn = {
  */
 export default function eligibleSecondsCountFunction(
   reservationDate: unknown, // K
-  tourDate: unknown         // N
+  tourDate: unknown // N
 ): number | "" {
   // ---------- local helpers (robust parsing like our previous funcs) ----------
   const toDate = (input: unknown): Date | null => {
@@ -128,7 +128,8 @@ export default function eligibleSecondsCountFunction(
     }
   };
 
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const startOfDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
   const addDays = (base: Date, days: number): Date => {
     const out = new Date(base);
@@ -161,17 +162,22 @@ export default function eligibleSecondsCountFunction(
   const resD = startOfDay(res);
   const tourD = startOfDay(tour);
 
-  const fullPaymentDue = addDays(tourD, -30);           // tourDate - 30
-  const windowStart = addDays(resD, 3);                 // resDate + 3
+  const fullPaymentDue = addDays(tourD, -30); // tourDate - 30
+  const windowStart = addDays(resD, 3); // resDate + 3
 
   // monthCount = MAX(0, DATEDIF(resDate, fullPaymentDue, "M") + 1)
-  const monthCount = Math.max(0, monthsBetweenInclusiveStart(resD, fullPaymentDue) + 1);
+  const monthCount = Math.max(
+    0,
+    monthsBetweenInclusiveStart(resD, fullPaymentDue) + 1
+  );
 
   // secondDates = DATE(YEAR(resDate), MONTH(resDate) + SEQUENCE(monthCount), 2)
   const seconds = generateMonthSeconds(resD, monthCount);
 
   // validDates: seconds within [res+3, fullPaymentDue]
-  const eligible = seconds.filter(d => d >= windowStart && d <= fullPaymentDue);
+  const eligible = seconds.filter(
+    (d) => d >= windowStart && d <= fullPaymentDue
+  );
 
   // IF(ISERROR(validDates), 0, COUNTA(validDates))
   // In JS, filter won't error; count is just eligible.length

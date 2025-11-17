@@ -1,26 +1,27 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { firebaseUtils } from "@/app/functions/firebase-utils";
 
 export const originalTourCostColumn: BookingSheetColumn = {
-  id: 'originalTourCost',
+  id: "originalTourCost",
   data: {
-    id: 'originalTourCost',
-    columnName: 'Original Tour Cost',
-    dataType: 'function',
-    function: 'getOriginalTourCostFunction',
-    parentTab: 'Payment Setting',
+    id: "originalTourCost",
+    columnName: "Original Tour Cost",
+    dataType: "function",
+    function: "getOriginalTourCostFunction",
+    parentTab: "Payment Setting",
     order: 33,
     includeInForms: false,
-    color: 'gray',
+    color: "gray",
     width: 183.3333740234375,
     arguments: [
       {
-        name: 'tourPackageName',
-        type: 'string',
-        columnReference: 'Tour Package Name',
+        name: "tourPackageName",
+        type: "string",
+        columnReference: "Tour Package Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },

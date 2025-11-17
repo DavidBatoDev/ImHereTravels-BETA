@@ -1,36 +1,36 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const returnDateColumn: BookingSheetColumn = {
-  id: 'returnDate',
+  id: "returnDate",
   data: {
-    id: 'returnDate',
-    columnName: 'Return Date',
-    dataType: 'function',
-    function: 'tourEndDateFromStartAndDurationFunction',
-    parentTab: 'Tour Details',
+    id: "returnDate",
+    columnName: "Return Date",
+    dataType: "function",
+    function: "tourEndDateFromStartAndDurationFunction",
+    parentTab: "Tour Details",
     order: 16,
     includeInForms: false,
-    showColumn: false,
-    color: 'gray',
+    showColumn: true,
+    color: "gray",
     width: 321.9791717529297,
     arguments: [
       {
-        name: 'tourDate',
-        type: 'unknown',
-        columnReference: 'Tour Date',
+        name: "tourDate",
+        type: "unknown",
+        columnReference: "Tour Date",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'durationValue',
-        type: 'unknown',
-        columnReference: 'Tour Duration',
+        name: "durationValue",
+        type: "unknown",
+        columnReference: "Tour Duration",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -117,7 +117,8 @@ export default function tourEndDateFromStartAndDurationFunction(
   if (!start || isNaN(start.getTime())) return "";
 
   // Extract number from string like "13 Days", "8D", or "15"
-  const match = typeof durationDays === "string" ? durationDays.match(/\d+/) : null;
+  const match =
+    typeof durationDays === "string" ? durationDays.match(/\d+/) : null;
   const days = match ? parseInt(match[0], 10) : NaN;
 
   if (!days || isNaN(days)) return "";

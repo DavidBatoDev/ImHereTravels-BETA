@@ -1,34 +1,36 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "@/lib/firebase";
 
 export const cancellationEmailSentDateColumn: BookingSheetColumn = {
-  id: 'cancellationEmailSentDate',
+  id: "cancellationEmailSentDate",
   data: {
-    id: 'cancellationEmailSentDate',
-    columnName: 'Cancellation Email Sent Date',
-    dataType: 'function',
-    function: 'getSentDateCancellationFunction',
-    parentTab: 'Cancellation',
+    id: "cancellationEmailSentDate",
+    columnName: "Cancellation Email Sent Date",
+    dataType: "function",
+    function: "getSentDateCancellationFunction",
+    parentTab: "Cancellation",
     order: 84,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 258,
     arguments: [
       {
-        name: 'draftUrlOrMessageId',
-        type: 'string',
-        columnReference: 'Sent Cancellation Email Link',
+        name: "draftUrlOrMessageId",
+        type: "string",
+        columnReference: "Sent Cancellation Email Link",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'field',
-        type: 'string',
+        name: "field",
+        type: "string",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: 'date',
+        value: "date",
       },
     ],
   },

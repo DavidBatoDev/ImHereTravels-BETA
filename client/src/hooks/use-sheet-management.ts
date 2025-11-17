@@ -13,6 +13,7 @@ import {
   where,
 } from "firebase/firestore";
 import { allBookingSheetColumns } from "@/app/functions/columns";
+import { functionMap } from "@/app/functions/columns/functions-index";
 
 export function useSheetManagement() {
   const { toast } = useToast();
@@ -36,9 +37,28 @@ export function useSheetManagement() {
   useEffect(() => {
     console.log("🔍 [SHEET MANAGEMENT] Loading coded booking sheet columns...");
 
-    // Convert BookingSheetColumn[] to SheetColumn[]
+    // Convert BookingSheetColumn[] to SheetColumn[] and inject function implementations
     const codedColumns: SheetColumn[] = allBookingSheetColumns.map(
-      (col) => col.data
+      (col): SheetColumn => {
+        const columnData = col.data;
+
+        // If this is a function column, inject the actual function implementation
+        if (columnData.dataType === "function" && columnData.function) {
+          const funcImpl = functionMap[columnData.function];
+          if (funcImpl) {
+            return {
+              ...columnData,
+              compiledFunction: funcImpl as (...args: any[]) => any, // Inject the actual function
+            };
+          } else {
+            console.warn(
+              `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`
+            );
+          }
+        }
+
+        return columnData;
+      }
     );
 
     console.log(
@@ -50,6 +70,7 @@ export function useSheetManagement() {
             id: c.id,
             columnName: c.columnName,
             function: c.function,
+            hasCompiledFunction: !!(c as any).compiledFunction,
           })),
         timestamp: new Date().toISOString(),
         source: "coded-columns",

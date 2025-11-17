@@ -30,6 +30,10 @@ import {
 import { Trash2, Settings, Lock } from "lucide-react";
 import { LockColumnModal } from "./LockColumnModal";
 import bookingSheetColumnService from "@/services/booking-sheet-columns-service";
+import {
+  allBookingSheetColumns,
+  getFunctionColumns,
+} from "@/app/functions/columns";
 
 interface ColumnSettingsModalProps {
   column: SheetColumn | null;
@@ -37,7 +41,6 @@ interface ColumnSettingsModalProps {
   onClose: () => void;
   onSave: (column: SheetColumn) => void;
   onDelete?: (columnId: string) => void;
-  availableFunctions?: TypeScriptFunction[];
   existingColumns?: SheetColumn[];
 }
 
@@ -58,7 +61,6 @@ export default function ColumnSettingsModal({
   onClose,
   onSave,
   onDelete,
-  availableFunctions = [],
   existingColumns = [],
 }: ColumnSettingsModalProps) {
   const [formData, setFormData] = useState<Partial<SheetColumn>>({});
@@ -147,11 +149,18 @@ export default function ColumnSettingsModal({
 
   const isFormValid = formData.columnName && formData.dataType;
 
-  const selectedFunction = (
-    formData.function
-      ? availableFunctions.find((f) => f.id === formData.function)
-      : undefined
-  ) as TypeScriptFunction | undefined;
+  // Get available functions from coded columns
+  const availableFunctions = getFunctionColumns().map((col) => ({
+    id: col.data.function || "",
+    name: col.data.function || "",
+    functionName: col.data.function || "",
+    parameterCount: col.data.arguments?.length || 0,
+    arguments: col.data.arguments || [],
+  }));
+
+  const selectedFunction = formData.function
+    ? availableFunctions.find((f) => f.id === formData.function)
+    : undefined;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
