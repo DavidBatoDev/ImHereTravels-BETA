@@ -51,7 +51,7 @@ export default async function tourDurationByName(
   const matchedPackage = tourPackages.find(
     (pkg: any) =>
       pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim()
-  );
+  ) as any;
 
   // Return duration as string (Excel-style)
   return matchedPackage?.duration ? String(matchedPackage.duration) : "";

@@ -65,7 +65,7 @@ export default async function getOriginalTourCost(
   );
 
   // Return the pricing.original field if found
-  const originalTourCost = matchedPackage?.pricing?.original ?? "";
+  const originalTourCost = (matchedPackage as any)?.pricing?.original ?? "";
 
   return originalTourCost;
 }

@@ -66,7 +66,7 @@ export default async function getTourCurrencyAndDeposit(
   const matchedPackage = tourPackages.find(
     (pkg: any) =>
       pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim()
-  );
+  ) as any;
 
   if (!matchedPackage?.pricing) return "";
 

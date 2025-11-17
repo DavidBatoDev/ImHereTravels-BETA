@@ -659,7 +659,6 @@ export default function BookingsColumnsTab() {
         isOpen={isSettingsModalOpen}
         onClose={handleCloseSettings}
         column={selectedColumn}
-        availableFunctions={availableFunctions}
         existingColumns={columns}
         onDelete={handleDeleteColumn}
         onSave={async (updatedColumn) => {

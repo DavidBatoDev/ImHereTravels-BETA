@@ -434,7 +434,6 @@ export default function BookingsFullscreenPage() {
           updateRow={updateRow}
           deleteRow={deleteRow}
           isFullscreen={true}
-          pageSize={pageSize}
           globalFilter={globalFilter}
           columnFilters={columnFilters}
           dateRangeFilters={dateRangeFilters}

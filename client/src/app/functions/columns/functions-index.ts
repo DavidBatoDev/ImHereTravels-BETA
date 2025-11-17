@@ -138,6 +138,7 @@ export {
 
 // Create a lookup map for faster access
 // Includes both the exported name and any aliases used in column definitions
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 export const functionMap: Record<string, Function> = {
   // Traveler Information
   fullNameFunction,

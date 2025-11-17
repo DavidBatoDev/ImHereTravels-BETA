@@ -66,7 +66,7 @@ export default async function getTourDiscountedCost(
   );
 
   // Return the deposit field if found
-  const depositCost = matchedPackage?.pricing?.discounted ?? "";
+  const depositCost = (matchedPackage as any)?.pricing?.discounted ?? "";
 
   return depositCost;
 }
