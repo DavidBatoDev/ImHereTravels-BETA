@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BookingsSection from "./BookingsSection";
 import BookingsSheet from "../sheet-management/BookingsSheet";
-import BookingsColumnsTab from "./BookingsColumnsTab";
 
 // Tab mapping utilities
 const urlToInternalTab = (urlTab: string | null): string => {
@@ -18,10 +17,6 @@ const urlToInternalTab = (urlTab: string | null): string => {
       return "sheet";
     case "sheet-management-tab": // Backward compatibility
       return "sheet";
-    case "fields-management":
-      return "columns";
-    case "columns": // Backward compatibility
-      return "columns";
     default:
       return "list"; // Default to booking list
   }
@@ -33,8 +28,6 @@ const internalTabToUrl = (internalTab: string): string => {
       return "bookings";
     case "sheet":
       return "bookings-sheet";
-    case "columns":
-      return "fields-management";
     default:
       return "bookings";
   }
@@ -87,7 +80,7 @@ export default function BookingsTabs() {
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-3 bg-muted border border-border">
+        <TabsList className="grid w-full grid-cols-2 bg-muted border border-border">
           <TabsTrigger
             value="list"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
@@ -100,12 +93,6 @@ export default function BookingsTabs() {
           >
             Bookings Sheet
           </TabsTrigger>
-          <TabsTrigger
-            value="columns"
-            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
-          >
-            Fields Management
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="mt-6">
@@ -114,10 +101,6 @@ export default function BookingsTabs() {
 
         <TabsContent value="sheet" className="mt-6">
           <BookingsSheet />
-        </TabsContent>
-
-        <TabsContent value="columns" className="mt-6">
-          <BookingsColumnsTab />
         </TabsContent>
       </Tabs>
     </div>

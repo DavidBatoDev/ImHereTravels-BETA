@@ -84,12 +84,6 @@ const navigation = [
     description: "File management",
   },
   {
-    name: "Functions",
-    href: "/functions",
-    icon: Code,
-    description: "Automation tools",
-  },
-  {
     name: "Reports (Coming Soon)",
     href: "/reports",
     icon: BarChart3,

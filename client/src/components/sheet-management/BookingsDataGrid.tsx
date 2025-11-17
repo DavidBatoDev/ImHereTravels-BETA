@@ -165,8 +165,7 @@ const logFunctionError = (...args: any[]) => {
   }
 };
 
-// Store navigation function and column metadata globally for function editor
-let globalNavigateToFunctions: (() => void) | null = null;
+// Store column metadata globally for function editor
 const globalColumnDefs: Map<string, SheetColumn> = new Map();
 let globalAllColumns: SheetColumn[] = [];
 
@@ -931,11 +930,6 @@ export default function BookingsDataGrid({
     setIsSheetConsoleVisible(true);
   }, []);
 
-  // Navigate to functions page
-  const navigateToFunctions = useCallback(() => {
-    router.push("/functions");
-  }, [router]);
-
   // Open version history modal
   const openVersionHistory = useCallback((bookingId?: string) => {
     setVersionHistoryBookingId(bookingId || null);
@@ -1011,20 +1005,18 @@ export default function BookingsDataGrid({
     [columns, updateColumn, toast]
   );
 
-  // Update global navigation function and column definitions
+  // Update global column definitions
   useEffect(() => {
-    globalNavigateToFunctions = navigateToFunctions;
     globalAllColumns = columns;
     globalColumnDefs.clear();
     columns.forEach((col) => {
       globalColumnDefs.set(col.id, col);
     });
     return () => {
-      globalNavigateToFunctions = null;
       globalAllColumns = [];
       globalColumnDefs.clear();
     };
-  }, [navigateToFunctions, columns]);
+  }, [columns]);
 
   // Recompute only direct dependent function columns for a single row
   // RECURSIVE: Computes direct dependents, then recursively computes their dependents
@@ -2518,19 +2510,8 @@ export default function BookingsDataGrid({
     const signature = `${functionName}(${args})`;
 
     return (
-      <span className="h-8 w-full flex items-center justify-center px-2">
-        <button
-          onClick={() => {
-            if (globalNavigateToFunctions) {
-              globalNavigateToFunctions();
-            }
-            onClose(false);
-          }}
-          className="text-sm text-royal-purple hover:text-royal-purple/80 underline flex items-center gap-1 hover:no-underline transition-all"
-        >
-          <ExternalLink className="h-4 w-4" />
-          {signature}
-        </button>
+      <span className="h-8 w-full flex items-center justify-center px-2 text-sm text-royal-purple">
+        {signature}
       </span>
     );
   }
@@ -3477,7 +3458,6 @@ export default function BookingsDataGrid({
     deleteRow,
     recomputeCell,
     openDebugConsole,
-    navigateToFunctions,
     selectedColumnId,
     selectedRowId,
     frozenColumnIds,
