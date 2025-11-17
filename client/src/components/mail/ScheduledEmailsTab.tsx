@@ -501,7 +501,10 @@ export default function ScheduledEmailsTab() {
                 </div>
               </CardHeader>
 
-              <Collapsible open={isOpen} onOpenChange={() => toggleGroup(bookingId)}>
+              <Collapsible
+                open={isOpen}
+                onOpenChange={() => toggleGroup(bookingId)}
+              >
                 <CollapsibleContent>
                   <CardContent className="pt-0 space-y-3">
                     {emails.map((email) => (
@@ -519,7 +522,9 @@ export default function ScheduledEmailsTab() {
                                 </span>
                               </Badge>
                               {email.emailType && (
-                                <Badge variant="outline">{email.emailType}</Badge>
+                                <Badge variant="outline">
+                                  {email.emailType}
+                                </Badge>
                               )}
                               <span className="text-sm text-gray-500">
                                 Attempt {email.attempts}/{email.maxAttempts}
@@ -559,7 +564,9 @@ export default function ScheduledEmailsTab() {
                                   onClick={() => {
                                     setSelectedEmail(email);
                                     setNewScheduleTime(
-                                      email.scheduledFor.toISOString().slice(0, 16)
+                                      email.scheduledFor
+                                        .toISOString()
+                                        .slice(0, 16)
                                     );
                                     setIsRescheduleDialogOpen(true);
                                   }}
@@ -605,14 +612,19 @@ export default function ScheduledEmailsTab() {
               Other Scheduled Emails
             </h3>
             {ungroupedEmails.map((email) => (
-              <Card key={email.id} className="hover:shadow-md transition-shadow">
+              <Card
+                key={email.id}
+                className="hover:shadow-md transition-shadow"
+              >
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge className={statusStyles[email.status]}>
                           {statusIcons[email.status]}
-                          <span className="ml-1 capitalize">{email.status}</span>
+                          <span className="ml-1 capitalize">
+                            {email.status}
+                          </span>
                         </Badge>
                         {email.emailType && (
                           <Badge variant="outline">{email.emailType}</Badge>
@@ -703,9 +715,7 @@ export default function ScheduledEmailsTab() {
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 No scheduled emails found
               </h3>
-              <p className="text-gray-600">
-                Schedule an email to get started
-              </p>
+              <p className="text-gray-600">Schedule an email to get started</p>
             </CardContent>
           </Card>
         )}
