@@ -12,6 +12,7 @@ import {
   orderBy,
   where,
 } from "firebase/firestore";
+import { allBookingSheetColumns } from "@/app/functions/columns";
 
 export function useSheetManagement() {
   const { toast } = useToast();
@@ -29,45 +30,40 @@ export function useSheetManagement() {
   const [error, setError] = useState<string | null>(null);
 
   // ============================================================================
-  // REAL-TIME COLUMN SUBSCRIPTION
+  // LOAD CODED COLUMNS (Replaces Firebase bookingSheetColumns)
   // ============================================================================
 
   useEffect(() => {
     console.log(
-      "🔍 [SHEET MANAGEMENT] Setting up real-time column subscription..."
+      "🔍 [SHEET MANAGEMENT] Loading coded booking sheet columns..."
     );
 
-    const unsubscribeColumns = bookingSheetColumnService.subscribeToColumns(
-      (fetchedColumns) => {
-        console.log(
-          `✅ [SHEET MANAGEMENT] Received ${fetchedColumns.length} columns from Firestore:`,
-          {
-            functionColumns: fetchedColumns
-              .filter((c) => c.dataType === "function")
-              .map((c) => ({
-                id: c.id,
-                columnName: c.columnName,
-                function: c.function,
-              })),
-            timestamp: new Date().toISOString(),
-          }
-        );
-        setColumns(fetchedColumns);
-        setConfig((prev) => ({
-          ...prev,
-          columns: fetchedColumns,
-          updatedAt: new Date(),
-        }));
-        setIsLoading(false);
-        setError(null);
+    // Convert BookingSheetColumn[] to SheetColumn[]
+    const codedColumns: SheetColumn[] = allBookingSheetColumns.map((col) => col.data);
+
+    console.log(
+      `✅ [SHEET MANAGEMENT] Loaded ${codedColumns.length} coded columns:`,
+      {
+        functionColumns: codedColumns
+          .filter((c) => c.dataType === "function")
+          .map((c) => ({
+            id: c.id,
+            columnName: c.columnName,
+            function: c.function,
+          })),
+        timestamp: new Date().toISOString(),
+        source: "coded-columns",
       }
     );
 
-    // Cleanup subscription on unmount
-    return () => {
-      console.log("🧹 Cleaning up column subscription");
-      unsubscribeColumns();
-    };
+    setColumns(codedColumns);
+    setConfig((prev) => ({
+      ...prev,
+      columns: codedColumns,
+      updatedAt: new Date(),
+    }));
+    setIsLoading(false);
+    setError(null);
   }, []);
 
   // ============================================================================

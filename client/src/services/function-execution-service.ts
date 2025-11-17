@@ -20,6 +20,7 @@ import {
 } from "@/app/functions/firebase-utils";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
+import { allBookingSheetColumns } from "@/app/functions/columns";
 
 type CompiledFn = (...args: any[]) => any;
 type AsyncCompiledFn = (...args: any[]) => Promise<any>;
@@ -279,13 +280,72 @@ class FunctionExecutionService {
     return fnString.includes("async") || fnString.includes("await");
   }
 
-  // Fetch, transpile, and cache the function by ts_file id
-  async getCompiledFunction(fileId: string): Promise<CompiledFn> {
-    if (this.cache.has(fileId)) return this.cache.get(fileId)!;
+  // Fetch, transpile, and cache the function by function name (string reference)
+  // Now supports both Firebase ts_files (legacy) and coded column functions
+  async getCompiledFunction(functionRef: string): Promise<CompiledFn> {
+    if (this.cache.has(functionRef)) return this.cache.get(functionRef)!;
 
-    const tsFile = await typescriptFunctionService.files.getById(fileId);
+    // First, try to get the function from coded columns
+    const codedColumn = allBookingSheetColumns.find(
+      (col) => col.data.function === functionRef
+    );
+
+    if (codedColumn && codedColumn.data.dataType === "function") {
+      // This is a coded column function - import it directly
+      try {
+        // Dynamic import the column module
+        const columnId = codedColumn.id;
+        const category = codedColumn.data.parentTab.toLowerCase().replace(/\s+/g, '-');
+        
+        // Map parent tab names to folder names
+        const folderMap: Record<string, string> = {
+          'identifier': 'identifier',
+          'traveler-information': 'traveler-information',
+          'tour-details': 'tour-details',
+          'payment-setting': 'payment-setting',
+          'full-payment': 'full-payment',
+          'payment-term-1': 'payment-term-1',
+          'payment-term-2': 'payment-term-2',
+          'payment-term-3': 'payment-term-3',
+          'payment-term-4': 'payment-term-4',
+          'reservation-email': 'reservation-email',
+          'cancellation': 'cancellation',
+          'duo-or-group-booking': 'duo-or-group-booking',
+        };
+
+        const folderName = folderMap[category] || category;
+        const modulePath = `@/app/functions/columns/${folderName}/${columnId}`;
+        
+        console.log(`📦 [CODED FUNCTION] Loading ${functionRef} from ${modulePath}`);
+        
+        const module = await import(modulePath);
+        const compiled = module.default;
+
+        if (typeof compiled !== "function") {
+          throw new Error(`Default export is not a function for ${functionRef}`);
+        }
+
+        // Inject globals into function context (wrap it)
+        const wrappedFunction = (...args: any[]) => {
+          // The coded functions already have access to globals via TypeScript declarations
+          // Just call the function directly
+          return compiled(...args);
+        };
+
+        this.cache.set(functionRef, wrappedFunction);
+        console.log(`✅ [CODED FUNCTION] Successfully loaded ${functionRef}`);
+        return wrappedFunction;
+      } catch (error) {
+        console.error(`❌ [CODED FUNCTION] Failed to load ${functionRef}:`, error);
+        // Fall through to legacy Firebase lookup
+      }
+    }
+
+    // Legacy: Try to get from Firebase ts_files
+    console.log(`🔍 [LEGACY FUNCTION] Looking up ${functionRef} in Firebase ts_files...`);
+    const tsFile = await typescriptFunctionService.files.getById(functionRef);
     if (!tsFile || !tsFile.content) {
-      throw new Error(`TS file not found or has no content: ${fileId}`);
+      throw new Error(`Function not found: ${functionRef} (not in coded columns or Firebase)`);
     }
 
     const transpiled = ts.transpileModule(tsFile.content, {
@@ -347,10 +407,10 @@ class FunctionExecutionService {
     );
 
     if (typeof compiled !== "function") {
-      throw new Error(`Default export is not a function in file ${fileId}`);
+      throw new Error(`Default export is not a function in file ${functionRef}`);
     }
 
-    this.cache.set(fileId, compiled);
+    this.cache.set(functionRef, compiled);
     return compiled;
   }
 

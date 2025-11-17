@@ -1,0 +1,268 @@
+import { BookingSheetColumn } from '@/types/booking-sheet-column';
+
+export const p3AmountColumn: BookingSheetColumn = {
+  id: 'p3Amount',
+  data: {
+    id: 'p3Amount',
+    columnName: 'P3 Amount',
+    dataType: 'function',
+    function: 'getP3AmountFunction',
+    parentTab: 'Payment Term 3',
+    order: 68,
+    includeInForms: false,
+    color: 'yellow',
+    width: 120,
+    arguments: [
+      {
+        name: 'p3DueDate',
+        type: 'any',
+        columnReference: 'P3 Due Date',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'useDiscountedTourCost',
+        type: 'boolean',
+        columnReference: 'Use Discounted Tour Cost?',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'discountedTourCost',
+        type: 'number',
+        columnReference: 'Discounted Tour Cost',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'originalTourCost',
+        type: 'number',
+        columnReference: 'Original Tour Cost',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'reservationFee',
+        type: 'number',
+        columnReference: 'Reservation Fee',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'creditFrom',
+        type: 'string',
+        columnReference: 'Credit From',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'creditAmount',
+        type: 'number',
+        columnReference: 'Manual Credit',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'paymentPlan',
+        type: 'string',
+        columnReference: 'Payment Plan',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'paymentMethod',
+        type: 'string',
+        columnReference: 'Payment Method',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'fullPaymentDatePaid',
+        type: 'any',
+        columnReference: 'Full Payment Date Paid',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'fullPaymentAmount',
+        type: 'number',
+        columnReference: 'Full Payment Amount',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'p1DatePaid',
+        type: 'any',
+        columnReference: 'P1 Date Paid',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'p1Amount',
+        type: 'number',
+        columnReference: 'P1 Amount',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'p2DatePaid',
+        type: 'any',
+        columnReference: 'P2 Date Paid',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'p2Amount',
+        type: 'number',
+        columnReference: 'P2 Amount',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'p4DatePaid',
+        type: 'any',
+        columnReference: 'P4 Date Paid',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+      {
+        name: 'p4Amount',
+        type: 'number',
+        columnReference: 'P4 Amount',
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: '',
+      },
+    ],
+  },
+};
+
+// Column Function Implementation
+export default function getP3AmountFunction(
+  p3DueDate?: string | Date,
+  useDiscountedTourCost?: boolean,
+  discountedTourCost?: number,
+  originalTourCost?: number,
+  reservationFee?: number,
+  creditFrom?: string,
+  creditAmount?: number,
+  paymentPlan?: string,
+  paymentMethod?: string,
+  fullPaymentDatePaid?: string | Date,
+  fullPaymentAmount?: number,
+  p1DatePaid?: string | Date,
+  p1Amount?: number,
+  p2DatePaid?: string | Date,
+  p2Amount?: number,
+  p4DatePaid?: string | Date,
+  p4Amount?: number
+) {
+  // =IF($BO1003<>"", ...)
+  if (!p3DueDate) return "";
+
+  // total, credit_from, credit_amt
+  const total =
+    (useDiscountedTourCost ? discountedTourCost ?? 0 : originalTourCost ?? 0) -
+    (reservationFee ?? 0);
+  const credit_from = creditFrom ?? "";
+  const credit_amt = creditAmount ?? 0;
+
+  // IF(AND($AM1003="", $AN1003=""), ...)
+  if (!paymentPlan && !paymentMethod) {
+    const result =
+      (total -
+        (fullPaymentDatePaid ? fullPaymentAmount ?? 0 : 0) -
+        (p1DatePaid ? p1Amount ?? 0 : 0) -
+        (p2DatePaid ? p2Amount ?? 0 : 0) -
+        (p4DatePaid ? p4Amount ?? 0 : 0)) /
+      3;
+    return Math.round(result * 100) / 100;
+  }
+
+  // LET(terms, SWITCH(...))
+  const termsMap: Record<string, number> = {
+    "": 1,
+    P1: 1,
+    P2: 2,
+    P3: 3,
+    P4: 4,
+  };
+  const terms = termsMap[paymentPlan ?? ""] ?? 1;
+
+  // cf, pThree, paid1, paid2, paid3
+  const cf = `,${credit_from},`;
+  const pThree = cf.includes(",P3,");
+  const paid1 = !!p1DatePaid;
+  const paid2 = !!p2DatePaid;
+  const paid3 = !!p3DueDate; // GSheet $BQ1003<>"" check
+
+  // credited, unpaidCount, adjustedDenom
+  const credited = Math.min(terms, Number(pThree) + Number(paid3));
+  const unpaidCount = terms - Number(paid1) - Number(paid2) - Number(paid3);
+  const adjustedDenom = Math.max(1, unpaidCount - credited);
+
+  // k, base
+  const k =
+    credit_from === "Reservation"
+      ? 0
+      : credit_from === "P1"
+        ? 1
+        : credit_from === "P2"
+          ? 2
+          : credit_from === "P3"
+            ? 3
+            : credit_from === "P4"
+              ? 4
+              : 0;
+  const base = total / terms;
+
+  // amount
+  let amount: number;
+  if (k === 0) {
+    amount = (total - credit_amt) / terms;
+  } else if (k === 3) {
+    amount = credit_amt;
+  } else if (k > 3) {
+    amount = base;
+  } else {
+    amount = (total - base * (k - 1) - credit_amt) / Math.max(1, terms - k);
+  }
+
+  // IF(terms<3,"", amount)
+  if (terms < 3) return "";
+
+  return Math.round((isNaN(amount) ? 0 : amount) * 100) / 100;
+}
