@@ -12,6 +12,7 @@ export class EmailTemplateLoader {
 
   /**
    * Load an HTML email template and replace variables
+   * If data is empty, returns raw template without variable replacement
    */
   static loadTemplate(templateName: string, data: EmailTemplateData): string {
     try {
@@ -20,6 +21,11 @@ export class EmailTemplateLoader {
         `${templateName}.html`
       );
       let html = fs.readFileSync(templatePath, "utf8");
+
+      // If data is empty, return raw template (for Nunjucks processing)
+      if (Object.keys(data).length === 0) {
+        return html;
+      }
 
       // Replace template variables
       Object.keys(data).forEach((key) => {
