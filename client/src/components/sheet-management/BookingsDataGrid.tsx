@@ -204,7 +204,7 @@ export default function BookingsDataGrid({
   // Debug logging
   const { toast } = useToast();
   const router = useRouter();
-  const { user, userProfile } = useAuthStore();
+  const { user, userProfile, refreshUserProfile } = useAuthStore();
   const [selectedCell, setSelectedCell] = useState<{
     rowId: string;
     columnId: string;
@@ -569,10 +569,62 @@ export default function BookingsDataGrid({
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(initialPageSize || 100);
 
+  // Load column metadata from user preferences
+  const [customColumnWidths, setCustomColumnWidths] = useState<
+    Record<string, number>
+  >(() => {
+    return userProfile?.preferences?.columnsMetadata?.widths || {};
+  });
+
+  const [customColumnVisibility, setCustomColumnVisibility] = useState<
+    Record<string, boolean>
+  >(() => {
+    return userProfile?.preferences?.columnsMetadata?.visibility || {};
+  });
+
+  const [customColumnOrder, setCustomColumnOrder] = useState<string[]>(() => {
+    return userProfile?.preferences?.columnsMetadata?.order || [];
+  });
+
+  // Save column metadata to user preferences in Firebase
+  const saveColumnMetadata = useCallback(
+    async (updates: {
+      widths?: Record<string, number>;
+      visibility?: Record<string, boolean>;
+      order?: string[];
+    }) => {
+      if (!user?.uid) return;
+
+      try {
+        const { doc, updateDoc } = await import("firebase/firestore");
+        const { db } = await import("@/lib/firebase");
+
+        const userRef = doc(db, "users", user.uid);
+        const updateData: any = {};
+
+        if (updates.widths) {
+          updateData["preferences.columnsMetadata.widths"] = updates.widths;
+        }
+        if (updates.visibility) {
+          updateData["preferences.columnsMetadata.visibility"] =
+            updates.visibility;
+        }
+        if (updates.order) {
+          updateData["preferences.columnsMetadata.order"] = updates.order;
+        }
+
+        await updateDoc(userRef, updateData);
+      } catch (error) {
+        console.error("Failed to save column metadata:", error);
+      }
+    },
+    [user?.uid]
+  );
+
   // Debounced resize handler
   const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Debounced function to update column width in Firebase
+  // Debounced function to update column width in user preferences
   const debouncedUpdateColumnWidth = useCallback(
     async (columnId: string, newWidth: number) => {
       // Clear any existing timeout
@@ -581,24 +633,77 @@ export default function BookingsDataGrid({
       }
 
       // Set a new timeout
-      resizeTimeoutRef.current = setTimeout(async () => {
-        try {
-          const columnToUpdate = columns.find((col) => col.id === columnId);
-          if (columnToUpdate) {
-            const updatedColumn = {
-              ...columnToUpdate,
-              width: newWidth,
-            };
+      resizeTimeoutRef.current = setTimeout(() => {
+        const updatedWidths = {
+          ...customColumnWidths,
+          [columnId]: newWidth,
+        };
 
-            await updateColumn(updatedColumn);
-          }
-        } catch (error) {
-          // Handle column update errors silently
-        }
+        // Update local state immediately for responsive UI
+        setCustomColumnWidths(updatedWidths);
+
+        // Save to Firebase
+        saveColumnMetadata({ widths: updatedWidths });
       }, 300); // 300ms delay
     },
-    [columns, updateColumn]
+    [customColumnWidths, saveColumnMetadata]
   );
+
+  // Function to toggle column visibility
+  const toggleColumnVisibility = useCallback(
+    (columnId: string) => {
+      // Find the column to get its default visibility
+      const column = columns.find((col) => col.id === columnId);
+      if (!column) return;
+
+      // Get current visibility (check user preference first, then column default)
+      const currentVisibility =
+        customColumnVisibility[columnId] !== undefined
+          ? customColumnVisibility[columnId]
+          : column.showColumn !== false;
+
+      const updatedVisibility = {
+        ...customColumnVisibility,
+        [columnId]: !currentVisibility,
+      };
+
+      setCustomColumnVisibility(updatedVisibility);
+      saveColumnMetadata({ visibility: updatedVisibility });
+    },
+    [customColumnVisibility, saveColumnMetadata, columns]
+  );
+
+  // Function to update column order
+  const updateColumnOrder = useCallback(
+    (newOrder: string[]) => {
+      setCustomColumnOrder(newOrder);
+      saveColumnMetadata({ order: newOrder });
+    },
+    [saveColumnMetadata]
+  );
+
+  // Refresh user profile on mount to get latest preferences
+  useEffect(() => {
+    refreshUserProfile();
+  }, [refreshUserProfile]);
+
+  // Sync column metadata state with userProfile when it updates
+  useEffect(() => {
+    if (userProfile?.preferences?.columnsMetadata) {
+      const { widths, visibility, order } =
+        userProfile.preferences.columnsMetadata;
+
+      if (widths) {
+        setCustomColumnWidths(widths);
+      }
+      if (visibility) {
+        setCustomColumnVisibility(visibility);
+      }
+      if (order) {
+        setCustomColumnOrder(order);
+      }
+    }
+  }, [userProfile]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -967,42 +1072,6 @@ export default function BookingsDataGrid({
       });
     },
     []
-  );
-
-  // Toggle column visibility
-  const toggleColumnVisibility = useCallback(
-    async (columnId: string) => {
-      const column = columns.find((col) => col.id === columnId);
-      if (!column) return;
-
-      const updatedColumn = {
-        ...column,
-        showColumn: column.showColumn === false ? true : false,
-      };
-
-      try {
-        await updateColumn(updatedColumn);
-        toast({
-          title: updatedColumn.showColumn
-            ? "✅ Column Shown"
-            : "✅ Column Hidden",
-          description: `Column "${column.columnName}" ${
-            updatedColumn.showColumn ? "is now visible" : "is now hidden"
-          }`,
-          variant: "default",
-        });
-      } catch (error) {
-        console.error("Failed to toggle column visibility:", error);
-        toast({
-          title: "❌ Failed to Update Column",
-          description: `Error: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-          variant: "destructive",
-        });
-      }
-    },
-    [columns, updateColumn, toast]
   );
 
   // Update global column definitions
@@ -2734,686 +2803,708 @@ export default function BookingsDataGrid({
       "bg-muted border-l border-r border-border h-20 !p-0"; // Increased height for two-row header, no padding
     (rowNumberColumn as any).cellClass = "bg-muted";
 
-    const dataColumns = columns
-      .filter(
-        (col) => col && col.id && col.columnName && col.showColumn !== false
-      ) // Filter out invalid columns and hidden columns
-      .sort((a, b) => a.order - b.order)
-      .map((col) => {
-        const baseColumn: Column<SheetData> = {
-          key: col.id,
-          name: col.columnName,
-          width: col.width || 150,
-          minWidth: 50,
-          maxWidth: 3000,
-          resizable: true,
-          sortable: false,
-          frozen: frozenColumnIds.has(col.id),
-        };
+    // Apply user preferences for visibility and order
+    let filteredColumns = columns.filter((col) => {
+      if (!col || !col.id || !col.columnName) return false;
 
-        // Add group-based background styling for cells
+      // Check user preference first, then fall back to column's showColumn property
+      const userVisibility = customColumnVisibility[col.id];
+      const isVisible =
+        userVisibility !== undefined
+          ? userVisibility
+          : col.showColumn !== false;
+
+      return isVisible;
+    });
+
+    // Apply custom order if exists
+    if (customColumnOrder.length > 0) {
+      filteredColumns = filteredColumns.sort((a, b) => {
+        const indexA = customColumnOrder.indexOf(a.id);
+        const indexB = customColumnOrder.indexOf(b.id);
+
+        // If both columns are in the custom order, sort by that
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        // If only one is in the custom order, prioritize it
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        // Otherwise, use default order
+        return a.order - b.order;
+      });
+    } else {
+      // Use default order
+      filteredColumns = filteredColumns.sort((a, b) => a.order - b.order);
+    }
+
+    const dataColumns = filteredColumns.map((col) => {
+      const baseColumn: Column<SheetData> = {
+        key: col.id,
+        name: col.columnName,
+        width: customColumnWidths[col.id] || col.width || 150, // Use custom width if available
+        minWidth: 50,
+        maxWidth: 3000,
+        resizable: true,
+        sortable: false,
+        frozen: frozenColumnIds.has(col.id),
+      };
+
+      // Add group-based background styling for cells
+      const parentTab = col.parentTab || "General";
+      const sortedColumns = filteredColumns;
+      const currentIndex = sortedColumns.findIndex((c) => c.id === col.id);
+      const isFirstInGroup =
+        currentIndex === 0 ||
+        sortedColumns[currentIndex - 1].parentTab !== parentTab;
+      const isLastInGroup =
+        currentIndex === sortedColumns.length - 1 ||
+        sortedColumns[currentIndex + 1].parentTab !== parentTab;
+
+      // Apply group-based cell styling
+      let cellClass = "";
+      if (isFirstInGroup && isLastInGroup) {
+        // Single column group
+        cellClass = "bg-gray-100 border-l border-r border-gray-300";
+      } else if (isFirstInGroup) {
+        // First column in group
+        cellClass = "bg-gray-100 border-l border-r border-gray-300";
+      } else if (isLastInGroup) {
+        // Last column in group
+        cellClass = "bg-gray-100 border-l border-r border-gray-300";
+      } else {
+        // Middle column in group
+        cellClass = "bg-gray-100 border-l border-r border-gray-300";
+      }
+
+      // Override with individual column color if specified and not "none"
+      if (col.color && col.color !== "none") {
+        const colorClasses = {
+          purple:
+            "bg-royal-purple/8 border-l border-r border-royal-purple/40 text-black",
+          blue: "bg-blue-100 border-l border-r border-royal-purple/40 text-black",
+          green:
+            "bg-green-100 border-l border-r border-royal-purple/40 text-black",
+          yellow:
+            "bg-yellow-100 border-l border-r border-royal-purple/40 text-black",
+          orange:
+            "bg-orange-100 border-l border-r border-royal-purple/40 text-black",
+          red: "bg-red-100 border-l border-r border-royal-purple/40 text-black",
+          pink: "bg-pink-100 border-l border-r border-royal-purple/40 text-black",
+          cyan: "bg-cyan-100 border-l border-r border-royal-purple/40 text-black",
+          gray: "bg-gray-100 border-l border-r border-royal-purple/40 text-black",
+        };
+        cellClass = colorClasses[col.color] || cellClass;
+      }
+
+      // Apply cell styling
+      (baseColumn as any).cellClass = (row: SheetData) => {
+        const isColumnSelected = selectedColumnId === col.id;
+        const isRowSelected = selectedRowId === row.id;
+        const isFrozen = frozenColumnIds.has(col.id);
+
+        // Build classes array for easier management
+        const classes = [cellClass];
+
+        // Add ring if column is selected, frozen, or row is selected
+        if (isColumnSelected || isFrozen || isRowSelected) {
+          classes.push("ring-2 ring-inset ring-royal-purple/40");
+        }
+
+        return classes.join(" ");
+      };
+
+      // Add header height styling for two-row header structure and remove padding
+      (baseColumn as any).headerCellClass = "bg-black h-20 !p-0 text-xs"; // Increased height for two-row header, no padding
+
+      // Add custom header with parent tab (no sorting indicators)
+      baseColumn.renderHeaderCell = ({ column }) => {
         const parentTab = col.parentTab || "General";
+
+        // Find the current column index in the sorted columns
         const sortedColumns = columns
           .filter((c) => c && c.id && c.columnName)
           .sort((a, b) => a.order - b.order);
         const currentIndex = sortedColumns.findIndex((c) => c.id === col.id);
+
+        // Check if this is the first column in a group of same parent tabs
         const isFirstInGroup =
           currentIndex === 0 ||
           sortedColumns[currentIndex - 1].parentTab !== parentTab;
+
+        // Check if this is the last column in a group of same parent tabs
         const isLastInGroup =
           currentIndex === sortedColumns.length - 1 ||
           sortedColumns[currentIndex + 1].parentTab !== parentTab;
 
-        // Apply group-based cell styling
-        let cellClass = "";
-        if (isFirstInGroup && isLastInGroup) {
-          // Single column group
-          cellClass = "bg-gray-100 border-l border-r border-gray-300";
-        } else if (isFirstInGroup) {
-          // First column in group
-          cellClass = "bg-gray-100 border-l border-r border-gray-300";
-        } else if (isLastInGroup) {
-          // Last column in group
-          cellClass = "bg-gray-100 border-l border-r border-gray-300";
-        } else {
-          // Middle column in group
-          cellClass = "bg-gray-100 border-l border-r border-gray-300";
-        }
-
-        // Override with individual column color if specified and not "none"
-        if (col.color && col.color !== "none") {
-          const colorClasses = {
-            purple:
-              "bg-royal-purple/8 border-l border-r border-royal-purple/40 text-black",
-            blue: "bg-blue-100 border-l border-r border-royal-purple/40 text-black",
-            green:
-              "bg-green-100 border-l border-r border-royal-purple/40 text-black",
-            yellow:
-              "bg-yellow-100 border-l border-r border-royal-purple/40 text-black",
-            orange:
-              "bg-orange-100 border-l border-r border-royal-purple/40 text-black",
-            red: "bg-red-100 border-l border-r border-royal-purple/40 text-black",
-            pink: "bg-pink-100 border-l border-r border-royal-purple/40 text-black",
-            cyan: "bg-cyan-100 border-l border-r border-royal-purple/40 text-black",
-            gray: "bg-gray-100 border-l border-r border-royal-purple/40 text-black",
-          };
-          cellClass = colorClasses[col.color] || cellClass;
-        }
-
-        // Apply cell styling
-        (baseColumn as any).cellClass = (row: SheetData) => {
-          const isColumnSelected = selectedColumnId === col.id;
-          const isRowSelected = selectedRowId === row.id;
-          const isFrozen = frozenColumnIds.has(col.id);
-
-          // Build classes array for easier management
-          const classes = [cellClass];
-
-          // Add ring if column is selected, frozen, or row is selected
-          if (isColumnSelected || isFrozen || isRowSelected) {
-            classes.push("ring-2 ring-inset ring-royal-purple/40");
-          }
-
-          return classes.join(" ");
-        };
-
-        // Add header height styling for two-row header structure and remove padding
-        (baseColumn as any).headerCellClass = "bg-black h-20 !p-0 text-xs"; // Increased height for two-row header, no padding
-
-        // Add custom header with parent tab (no sorting indicators)
-        baseColumn.renderHeaderCell = ({ column }) => {
-          const parentTab = col.parentTab || "General";
-
-          // Find the current column index in the sorted columns
-          const sortedColumns = columns
-            .filter((c) => c && c.id && c.columnName)
-            .sort((a, b) => a.order - b.order);
-          const currentIndex = sortedColumns.findIndex((c) => c.id === col.id);
-
-          // Check if this is the first column in a group of same parent tabs
-          const isFirstInGroup =
-            currentIndex === 0 ||
-            sortedColumns[currentIndex - 1].parentTab !== parentTab;
-
-          // Check if this is the last column in a group of same parent tabs
-          const isLastInGroup =
-            currentIndex === sortedColumns.length - 1 ||
-            sortedColumns[currentIndex + 1].parentTab !== parentTab;
-
-          // Calculate the width of the merged parent tab cell
-          let parentTabWidth = column.width || 150;
-          if (isFirstInGroup && !isLastInGroup) {
-            // Calculate total width of all columns in this parent tab group
-            let groupWidth = 0;
-            for (let i = currentIndex; i < sortedColumns.length; i++) {
-              if (sortedColumns[i].parentTab === parentTab) {
-                groupWidth += sortedColumns[i].width || 150;
-              } else {
-                break;
-              }
+        // Calculate the width of the merged parent tab cell
+        let parentTabWidth = column.width || 150;
+        if (isFirstInGroup && !isLastInGroup) {
+          // Calculate total width of all columns in this parent tab group
+          let groupWidth = 0;
+          for (let i = currentIndex; i < sortedColumns.length; i++) {
+            if (sortedColumns[i].parentTab === parentTab) {
+              groupWidth += sortedColumns[i].width || 150;
+            } else {
+              break;
             }
-            parentTabWidth = groupWidth;
           }
+          parentTabWidth = groupWidth;
+        }
+
+        return (
+          <div className="flex flex-col w-full h-full relative">
+            {/* Parent Tab Row - only show if first in group */}
+            {isFirstInGroup && isLastInGroup && (
+              <div
+                className="parent-tab-seperator bg-gray-400 border-r border-l border-gray-900 px-2 py-1 text-lg font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 flex items-center"
+                style={{ height: "40px" }}
+              >
+                <div className="z-[999999999] flex items-center justify-center w-full">
+                  {parentTab}
+                </div>
+              </div>
+            )}
+            {isFirstInGroup && !isLastInGroup && (
+              <div
+                className="parent-tab-seperator bg-gray-400 border-r border-gray-900 px-2 py-1 text-xs font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 flex items-center"
+                style={{
+                  width: `${parentTabWidth}px`,
+                  height: "40px",
+                }}
+              >
+                <div className="z-[999999999] flex items-center justify-center ">
+                  {parentTab}
+                </div>
+              </div>
+            )}
+            {/* Background for all columns in the group - only show if NOT first in group */}
+            {!isFirstInGroup && (
+              <div
+                className="bg-gray-400 absolute top-0 left-0 z-5 w-full"
+                style={{ height: "40px" }}
+              />
+            )}
+            {/* Background for last column in the group */}
+            {isLastInGroup && (
+              <div
+                className="bg-gray-400 border-r border-gray-900 absolute top-0 left-0 z-5 w-full"
+                style={{ height: "40px" }}
+              />
+            )}
+
+            {/* Column Name Row */}
+            <div
+              className={`flex items-center justify-between flex-1 px-2 mt-10 cursor-pointer hover:bg-gray-700 transition-colors group/header ${
+                selectedColumnId === col.id
+                  ? "bg-gray-600 ring-2 ring-inset ring-white"
+                  : ""
+              } ${frozenColumnIds.has(col.id) ? "bg-gray-800" : ""}`}
+              onClick={() =>
+                setSelectedColumnId(selectedColumnId === col.id ? null : col.id)
+              }
+              title="Click to highlight column"
+            >
+              <div className="flex items-center gap-1 flex-1 justify-center text-xs">
+                {col.dataType === "function" && (
+                  <FunctionSquare className="h-4 w-4 text-white" />
+                )}
+                {frozenColumnIds.has(col.id) && (
+                  <Pin className="h-3 w-3 text-white" />
+                )}
+                <span className="font-medium truncate text-white text-xs">
+                  {column.name}
+                </span>
+              </div>
+              <button
+                onClick={(e) => toggleColumnFreeze(col.id, e)}
+                className={`p-1 hover:bg-gray-600 rounded transition-all ${
+                  frozenColumnIds.has(col.id)
+                    ? "opacity-100"
+                    : "opacity-0 group-hover/header:opacity-100"
+                }`}
+                title={
+                  frozenColumnIds.has(col.id)
+                    ? "Unfreeze column"
+                    : "Freeze column"
+                }
+              >
+                {frozenColumnIds.has(col.id) ? (
+                  <PinOff className="h-3 w-3 text-white" />
+                ) : (
+                  <Pin className="h-3 w-3 text-white" />
+                )}
+              </button>
+            </div>
+          </div>
+        );
+      };
+
+      // Add column-specific properties
+      if (col.dataType === "boolean") {
+        // Always render checkbox input for boolean columns
+        baseColumn.renderCell = ({ row, column }) => {
+          const cellValue = !!row[column.key as keyof SheetData];
+
+          const hasColor = col.color && col.color !== "none";
 
           return (
-            <div className="flex flex-col w-full h-full relative">
-              {/* Parent Tab Row - only show if first in group */}
-              {isFirstInGroup && isLastInGroup && (
-                <div
-                  className="parent-tab-seperator bg-gray-400 border-r border-l border-gray-900 px-2 py-1 text-lg font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 flex items-center"
-                  style={{ height: "40px" }}
-                >
-                  <div className="z-[999999999] flex items-center justify-center w-full">
-                    {parentTab}
-                  </div>
-                </div>
-              )}
-              {isFirstInGroup && !isLastInGroup && (
-                <div
-                  className="parent-tab-seperator bg-gray-400 border-r border-gray-900 px-2 py-1 text-xs font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 flex items-center"
-                  style={{
-                    width: `${parentTabWidth}px`,
-                    height: "40px",
-                  }}
-                >
-                  <div className="z-[999999999] flex items-center justify-center ">
-                    {parentTab}
-                  </div>
-                </div>
-              )}
-              {/* Background for all columns in the group - only show if NOT first in group */}
-              {!isFirstInGroup && (
-                <div
-                  className="bg-gray-400 absolute top-0 left-0 z-5 w-full"
-                  style={{ height: "40px" }}
-                />
-              )}
-              {/* Background for last column in the group */}
-              {isLastInGroup && (
-                <div
-                  className="bg-gray-400 border-r border-gray-900 absolute top-0 left-0 z-5 w-full"
-                  style={{ height: "40px" }}
-                />
-              )}
+            <span className="h-8 w-full flex items-center justify-center px-2">
+              <input
+                type="checkbox"
+                checked={cellValue}
+                onChange={async (e) => {
+                  const newValue = e.target.checked;
 
-              {/* Column Name Row */}
-              <div
-                className={`flex items-center justify-between flex-1 px-2 mt-10 cursor-pointer hover:bg-gray-700 transition-colors group/header ${
-                  selectedColumnId === col.id
-                    ? "bg-gray-600 ring-2 ring-inset ring-white"
-                    : ""
-                } ${frozenColumnIds.has(col.id) ? "bg-gray-800" : ""}`}
-                onClick={() =>
-                  setSelectedColumnId(
-                    selectedColumnId === col.id ? null : col.id
-                  )
-                }
-                title="Click to highlight column"
-              >
-                <div className="flex items-center gap-1 flex-1 justify-center text-xs">
-                  {col.dataType === "function" && (
-                    <FunctionSquare className="h-4 w-4 text-white" />
-                  )}
-                  {frozenColumnIds.has(col.id) && (
-                    <Pin className="h-3 w-3 text-white" />
-                  )}
-                  <span className="font-medium truncate text-white text-xs">
-                    {column.name}
-                  </span>
-                </div>
-                <button
-                  onClick={(e) => toggleColumnFreeze(col.id, e)}
-                  className={`p-1 hover:bg-gray-600 rounded transition-all ${
-                    frozenColumnIds.has(col.id)
-                      ? "opacity-100"
-                      : "opacity-0 group-hover/header:opacity-100"
-                  }`}
-                  title={
-                    frozenColumnIds.has(col.id)
-                      ? "Unfreeze column"
-                      : "Freeze column"
-                  }
-                >
-                  {frozenColumnIds.has(col.id) ? (
-                    <PinOff className="h-3 w-3 text-white" />
-                  ) : (
-                    <Pin className="h-3 w-3 text-white" />
-                  )}
-                </button>
-              </div>
-            </div>
+                  // Use batched writer to track changes in version history
+                  batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
+
+                  // Trigger recomputation for dependent function columns
+                  await recomputeDirectDependentsForRow(
+                    row.id,
+                    column.key,
+                    newValue
+                  );
+                }}
+                className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
+              />
+            </span>
           );
         };
+        baseColumn.editable = false; // We handle editing through the checkbox
+      } else if (col.dataType === "date") {
+        // Always render date input for date columns
+        baseColumn.renderCell = ({ row, column }) => {
+          const isEmptyRow = (row as any)._isEmptyRow;
+          const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+          const shouldShowAddButton = (row as any)._shouldShowAddButton;
 
-        // Add column-specific properties
-        if (col.dataType === "boolean") {
-          // Always render checkbox input for boolean columns
+          if (isEmptyRow) {
+            return renderEmptyRowCell(
+              column,
+              isFirstEmptyRow,
+              shouldShowAddButton
+            );
+          }
+
+          const cellValue = row[column.key as keyof SheetData];
+
+          const hasColor = col.color && col.color !== "none";
+
+          return (
+            <input
+              type="date"
+              value={(() => {
+                if (cellValue) {
+                  try {
+                    let date: Date | null = null;
+                    if (
+                      cellValue &&
+                      typeof cellValue === "object" &&
+                      "toDate" in cellValue &&
+                      typeof (cellValue as any).toDate === "function"
+                    ) {
+                      date = (cellValue as any).toDate();
+                    } else if (
+                      cellValue &&
+                      typeof cellValue === "object" &&
+                      "seconds" in cellValue &&
+                      typeof (cellValue as any).seconds === "number"
+                    ) {
+                      date = new Date((cellValue as any).seconds * 1000);
+                    } else if (typeof cellValue === "number") {
+                      if (cellValue > 1000000000000) {
+                        date = new Date(cellValue);
+                      } else {
+                        date = new Date(cellValue * 1000);
+                      }
+                    } else if (typeof cellValue === "string") {
+                      const numericValue = parseFloat(cellValue);
+                      if (!isNaN(numericValue)) {
+                        if (numericValue > 1000000000000) {
+                          date = new Date(numericValue);
+                        } else {
+                          date = new Date(numericValue * 1000);
+                        }
+                      } else {
+                        date = new Date(cellValue);
+                      }
+                    } else if (cellValue instanceof Date) {
+                      date = cellValue;
+                    }
+                    if (date && !isNaN(date.getTime())) {
+                      return date.toISOString().split("T")[0];
+                    }
+                  } catch (error) {}
+                }
+                return "";
+              })()}
+              onChange={async (e) => {
+                const newValue = e.target.value
+                  ? new Date(e.target.value)
+                  : null;
+
+                // Use batched writer to track changes in version history
+                batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
+
+                // Trigger recomputation for dependent function columns
+                await recomputeDirectDependentsForRow(
+                  row.id,
+                  column.key,
+                  newValue
+                );
+              }}
+              className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
+                hasColor ? "text-black" : ""
+              } ${!cellValue ? "text-transparent" : ""}`}
+              style={{
+                backgroundColor: "transparent",
+                colorScheme: !cellValue ? "light" : "auto",
+              }}
+            />
+          );
+        };
+        baseColumn.editable = false; // We handle editing through the input
+      } else if (col.dataType === "select") {
+        // Always render select input for select columns
+        baseColumn.renderCell = ({ row, column }) => {
+          const isEmptyRow = (row as any)._isEmptyRow;
+          const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+          const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+          if (isEmptyRow) {
+            return renderEmptyRowCell(
+              column,
+              isFirstEmptyRow,
+              shouldShowAddButton
+            );
+          }
+
+          const cellValue = row[column.key as keyof SheetData];
+          const options = col.options || [];
+          const hasColor = col.color && col.color !== "none";
+
+          return (
+            <select
+              value={cellValue?.toString() || ""}
+              onChange={async (e) => {
+                const newValue = e.target.value;
+
+                // Use batched writer to track changes in version history
+                batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
+
+                // Trigger recomputation for dependent function columns
+                await recomputeDirectDependentsForRow(
+                  row.id,
+                  column.key,
+                  newValue
+                );
+              }}
+              className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
+                hasColor ? "text-black" : ""
+              }`}
+              style={{ backgroundColor: "transparent" }}
+            >
+              <option value=""></option>
+              {options.map((option: string) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          );
+        };
+        baseColumn.renderEditCell = selectEditor;
+        baseColumn.editable = true;
+      } else if (col.dataType === "currency") {
+        // Always render currency input (like select/date inputs)
+        baseColumn.renderCell = ({ row, column }) => {
+          const isEmptyRow = (row as any)._isEmptyRow;
+          const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+          const shouldShowAddButton = (row as any)._shouldShowAddButton;
+          const hasColor = col.color && col.color !== "none";
+
+          if (isEmptyRow) {
+            return renderEmptyRowCell(
+              column,
+              isFirstEmptyRow,
+              shouldShowAddButton
+            );
+          }
+
+          const cellValue = row[column.key as keyof SheetData];
+          const displayValue = getInputValue(row.id, column.key, cellValue);
+
+          // Check if this cell has unsaved changes
+          const hasUnsavedChanges = localInputValues.has(
+            `${row.id}:${column.key}`
+          );
+
+          const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const inputValue = e.target.value;
+            // Only allow numeric characters and one decimal point
+            const filteredValue = inputValue.replace(/[^0-9.]/g, "");
+            // Ensure only one decimal point
+            const parts = filteredValue.split(".");
+            const finalValue =
+              parts.length > 2
+                ? parts[0] + "." + parts.slice(1).join("")
+                : filteredValue;
+
+            // Update with debounced Firebase update
+            updateInputValue(row.id, column.key, finalValue, "currency");
+          };
+
+          const handleBlur = () => {
+            // Don't save if we're canceling changes (Escape key)
+            if (isCancelingChanges.current) {
+              return;
+            }
+
+            // Save to Firebase on blur only if value has changed
+            const currentValue = getInputValue(
+              row.id,
+              column.key,
+              row[column.key as keyof SheetData]
+            );
+
+            // Get the original value from the row data
+            const originalValue = row[column.key as keyof SheetData];
+
+            // Convert values for comparison (handle currency type)
+            const currentValueConverted =
+              currentValue === "" ? "" : parseFloat(currentValue) || 0;
+            const originalValueConverted =
+              originalValue === ""
+                ? ""
+                : parseFloat(originalValue?.toString() || "0") || 0;
+
+            // Only save if the value has actually changed
+            if (currentValueConverted !== originalValueConverted) {
+              saveToFirebase(row.id, column.key, currentValue, "currency");
+            }
+          };
+
+          return (
+            <input
+              type="text"
+              value={displayValue}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              className={`h-8 w-full px-2 text-xs border-none outline-none bg-transparent ${
+                hasColor ? "text-black" : ""
+              }`}
+            />
+          );
+        };
+        baseColumn.editable = false; // We handle editing through the input
+      } else if (col.dataType === "function") {
+        if (allowFunctionOverride) {
+          // Render as editable text input when override is enabled
+          // Use the same pattern as string columns for editing
           baseColumn.renderCell = ({ row, column }) => {
-            const cellValue = !!row[column.key as keyof SheetData];
+            const isEmptyRow = (row as any)._isEmptyRow;
+            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+            const shouldShowAddButton = (row as any)._shouldShowAddButton;
 
+            if (isEmptyRow) {
+              return renderEmptyRowCell(
+                column,
+                isFirstEmptyRow,
+                shouldShowAddButton
+              );
+            }
+
+            const cellValue = row[column.key as keyof SheetData];
+            const displayValue = getInputValue(row.id, column.key, cellValue);
             const hasColor = col.color && col.color !== "none";
 
+            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+              const newValue = e.target.value;
+              updateInputValue(row.id, column.key, newValue, "string");
+            };
+
+            const handleBlur = () => {
+              const currentValue = getInputValue(
+                row.id,
+                column.key,
+                row[column.key as keyof SheetData]
+              );
+              const originalValue = row[column.key];
+
+              if (currentValue !== originalValue) {
+                saveToFirebase(row.id, column.key, currentValue, "string");
+              }
+            };
+
             return (
-              <span className="h-8 w-full flex items-center justify-center px-2">
-                <input
-                  type="checkbox"
-                  checked={cellValue}
-                  onChange={async (e) => {
-                    const newValue = e.target.checked;
+              <input
+                type="text"
+                value={displayValue}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`h-8 w-full px-2 text-xs border-none outline-none bg-sunglow-yellow/10 ${
+                  hasColor ? "text-black" : ""
+                }`}
+                title="Function override enabled - Click to edit"
+              />
+            );
+          };
+          baseColumn.editable = false; // We handle editing through the input
+        } else {
+          // Normal function behavior with FunctionEditor
+          baseColumn.renderCell = ({ row, column }) => {
+            const isEmptyRow = (row as any)._isEmptyRow;
+            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+            const shouldShowAddButton = (row as any)._shouldShowAddButton;
 
-                    // Use batched writer to track changes in version history
-                    batchedWriter.queueFieldUpdate(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
+            if (isEmptyRow) {
+              return renderEmptyRowCell(
+                column,
+                isFirstEmptyRow,
+                shouldShowAddButton
+              );
+            }
 
-                    // Trigger recomputation for dependent function columns
-                    await recomputeDirectDependentsForRow(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                  }}
-                  className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
-                />
+            return (
+              <span className="h-8 w-full flex items-center text-xs px-2">
+                <FunctionFormatter row={row} column={column} />
               </span>
             );
           };
-          baseColumn.editable = false; // We handle editing through the checkbox
-        } else if (col.dataType === "date") {
-          // Always render date input for date columns
-          baseColumn.renderCell = ({ row, column }) => {
-            const isEmptyRow = (row as any)._isEmptyRow;
-            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+          baseColumn.renderEditCell = FunctionEditor; // Show button when editing
+          baseColumn.sortable = false;
+          baseColumn.editable = true; // Make editable so user can click to "edit"
+        }
 
-            if (isEmptyRow) {
-              return renderEmptyRowCell(
-                column,
-                isFirstEmptyRow,
-                shouldShowAddButton
-              );
-            }
+        // Common properties
+        (baseColumn as any).columnDef = col;
+        (baseColumn as any).deleteRow = deleteRow;
+        (baseColumn as any).recomputeCell = recomputeCell;
+        (baseColumn as any).openDebugConsole = openDebugConsole;
+      } else {
+        // Always render text input (like select/date inputs)
+        baseColumn.renderCell = ({ row, column }) => {
+          const isEmptyRow = (row as any)._isEmptyRow;
+          const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+          const shouldShowAddButton = (row as any)._shouldShowAddButton;
+          const hasColor = col.color && col.color !== "none";
 
-            const cellValue = row[column.key as keyof SheetData];
-
-            const hasColor = col.color && col.color !== "none";
-
-            return (
-              <input
-                type="date"
-                value={(() => {
-                  if (cellValue) {
-                    try {
-                      let date: Date | null = null;
-                      if (
-                        cellValue &&
-                        typeof cellValue === "object" &&
-                        "toDate" in cellValue &&
-                        typeof (cellValue as any).toDate === "function"
-                      ) {
-                        date = (cellValue as any).toDate();
-                      } else if (
-                        cellValue &&
-                        typeof cellValue === "object" &&
-                        "seconds" in cellValue &&
-                        typeof (cellValue as any).seconds === "number"
-                      ) {
-                        date = new Date((cellValue as any).seconds * 1000);
-                      } else if (typeof cellValue === "number") {
-                        if (cellValue > 1000000000000) {
-                          date = new Date(cellValue);
-                        } else {
-                          date = new Date(cellValue * 1000);
-                        }
-                      } else if (typeof cellValue === "string") {
-                        const numericValue = parseFloat(cellValue);
-                        if (!isNaN(numericValue)) {
-                          if (numericValue > 1000000000000) {
-                            date = new Date(numericValue);
-                          } else {
-                            date = new Date(numericValue * 1000);
-                          }
-                        } else {
-                          date = new Date(cellValue);
-                        }
-                      } else if (cellValue instanceof Date) {
-                        date = cellValue;
-                      }
-                      if (date && !isNaN(date.getTime())) {
-                        return date.toISOString().split("T")[0];
-                      }
-                    } catch (error) {}
-                  }
-                  return "";
-                })()}
-                onChange={async (e) => {
-                  const newValue = e.target.value
-                    ? new Date(e.target.value)
-                    : null;
-
-                  // Use batched writer to track changes in version history
-                  batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
-
-                  // Trigger recomputation for dependent function columns
-                  await recomputeDirectDependentsForRow(
-                    row.id,
-                    column.key,
-                    newValue
-                  );
-                }}
-                className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
-                  hasColor ? "text-black" : ""
-                } ${!cellValue ? "text-transparent" : ""}`}
-                style={{
-                  backgroundColor: "transparent",
-                  colorScheme: !cellValue ? "light" : "auto",
-                }}
-              />
+          if (isEmptyRow) {
+            return renderEmptyRowCell(
+              column,
+              isFirstEmptyRow,
+              shouldShowAddButton
             );
-          };
-          baseColumn.editable = false; // We handle editing through the input
-        } else if (col.dataType === "select") {
-          // Always render select input for select columns
-          baseColumn.renderCell = ({ row, column }) => {
-            const isEmptyRow = (row as any)._isEmptyRow;
-            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-            const shouldShowAddButton = (row as any)._shouldShowAddButton;
-
-            if (isEmptyRow) {
-              return renderEmptyRowCell(
-                column,
-                isFirstEmptyRow,
-                shouldShowAddButton
-              );
-            }
-
-            const cellValue = row[column.key as keyof SheetData];
-            const options = col.options || [];
-            const hasColor = col.color && col.color !== "none";
-
-            return (
-              <select
-                value={cellValue?.toString() || ""}
-                onChange={async (e) => {
-                  const newValue = e.target.value;
-
-                  // Use batched writer to track changes in version history
-                  batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
-
-                  // Trigger recomputation for dependent function columns
-                  await recomputeDirectDependentsForRow(
-                    row.id,
-                    column.key,
-                    newValue
-                  );
-                }}
-                className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
-                  hasColor ? "text-black" : ""
-                }`}
-                style={{ backgroundColor: "transparent" }}
-              >
-                <option value=""></option>
-                {options.map((option: string) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            );
-          };
-          baseColumn.renderEditCell = selectEditor;
-          baseColumn.editable = true;
-        } else if (col.dataType === "currency") {
-          // Always render currency input (like select/date inputs)
-          baseColumn.renderCell = ({ row, column }) => {
-            const isEmptyRow = (row as any)._isEmptyRow;
-            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-            const shouldShowAddButton = (row as any)._shouldShowAddButton;
-            const hasColor = col.color && col.color !== "none";
-
-            if (isEmptyRow) {
-              return renderEmptyRowCell(
-                column,
-                isFirstEmptyRow,
-                shouldShowAddButton
-              );
-            }
-
-            const cellValue = row[column.key as keyof SheetData];
-            const displayValue = getInputValue(row.id, column.key, cellValue);
-
-            // Check if this cell has unsaved changes
-            const hasUnsavedChanges = localInputValues.has(
-              `${row.id}:${column.key}`
-            );
-
-            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-              const inputValue = e.target.value;
-              // Only allow numeric characters and one decimal point
-              const filteredValue = inputValue.replace(/[^0-9.]/g, "");
-              // Ensure only one decimal point
-              const parts = filteredValue.split(".");
-              const finalValue =
-                parts.length > 2
-                  ? parts[0] + "." + parts.slice(1).join("")
-                  : filteredValue;
-
-              // Update with debounced Firebase update
-              updateInputValue(row.id, column.key, finalValue, "currency");
-            };
-
-            const handleBlur = () => {
-              // Don't save if we're canceling changes (Escape key)
-              if (isCancelingChanges.current) {
-                return;
-              }
-
-              // Save to Firebase on blur only if value has changed
-              const currentValue = getInputValue(
-                row.id,
-                column.key,
-                row[column.key as keyof SheetData]
-              );
-
-              // Get the original value from the row data
-              const originalValue = row[column.key as keyof SheetData];
-
-              // Convert values for comparison (handle currency type)
-              const currentValueConverted =
-                currentValue === "" ? "" : parseFloat(currentValue) || 0;
-              const originalValueConverted =
-                originalValue === ""
-                  ? ""
-                  : parseFloat(originalValue?.toString() || "0") || 0;
-
-              // Only save if the value has actually changed
-              if (currentValueConverted !== originalValueConverted) {
-                saveToFirebase(row.id, column.key, currentValue, "currency");
-              }
-            };
-
-            return (
-              <input
-                type="text"
-                value={displayValue}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                className={`h-8 w-full px-2 text-xs border-none outline-none bg-transparent ${
-                  hasColor ? "text-black" : ""
-                }`}
-              />
-            );
-          };
-          baseColumn.editable = false; // We handle editing through the input
-        } else if (col.dataType === "function") {
-          if (allowFunctionOverride) {
-            // Render as editable text input when override is enabled
-            // Use the same pattern as string columns for editing
-            baseColumn.renderCell = ({ row, column }) => {
-              const isEmptyRow = (row as any)._isEmptyRow;
-              const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-              const shouldShowAddButton = (row as any)._shouldShowAddButton;
-
-              if (isEmptyRow) {
-                return renderEmptyRowCell(
-                  column,
-                  isFirstEmptyRow,
-                  shouldShowAddButton
-                );
-              }
-
-              const cellValue = row[column.key as keyof SheetData];
-              const displayValue = getInputValue(row.id, column.key, cellValue);
-              const hasColor = col.color && col.color !== "none";
-
-              const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                const newValue = e.target.value;
-                updateInputValue(row.id, column.key, newValue, "string");
-              };
-
-              const handleBlur = () => {
-                const currentValue = getInputValue(
-                  row.id,
-                  column.key,
-                  row[column.key as keyof SheetData]
-                );
-                const originalValue = row[column.key];
-
-                if (currentValue !== originalValue) {
-                  saveToFirebase(row.id, column.key, currentValue, "string");
-                }
-              };
-
-              return (
-                <input
-                  type="text"
-                  value={displayValue}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`h-8 w-full px-2 text-xs border-none outline-none bg-sunglow-yellow/10 ${
-                    hasColor ? "text-black" : ""
-                  }`}
-                  title="Function override enabled - Click to edit"
-                />
-              );
-            };
-            baseColumn.editable = false; // We handle editing through the input
-          } else {
-            // Normal function behavior with FunctionEditor
-            baseColumn.renderCell = ({ row, column }) => {
-              const isEmptyRow = (row as any)._isEmptyRow;
-              const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-              const shouldShowAddButton = (row as any)._shouldShowAddButton;
-
-              if (isEmptyRow) {
-                return renderEmptyRowCell(
-                  column,
-                  isFirstEmptyRow,
-                  shouldShowAddButton
-                );
-              }
-
-              return (
-                <span className="h-8 w-full flex items-center text-xs px-2">
-                  <FunctionFormatter row={row} column={column} />
-                </span>
-              );
-            };
-            baseColumn.renderEditCell = FunctionEditor; // Show button when editing
-            baseColumn.sortable = false;
-            baseColumn.editable = true; // Make editable so user can click to "edit"
           }
 
-          // Common properties
-          (baseColumn as any).columnDef = col;
-          (baseColumn as any).deleteRow = deleteRow;
-          (baseColumn as any).recomputeCell = recomputeCell;
-          (baseColumn as any).openDebugConsole = openDebugConsole;
-        } else {
-          // Always render text input (like select/date inputs)
-          baseColumn.renderCell = ({ row, column }) => {
-            const isEmptyRow = (row as any)._isEmptyRow;
-            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-            const shouldShowAddButton = (row as any)._shouldShowAddButton;
-            const hasColor = col.color && col.color !== "none";
+          const cellValue = row[column.key as keyof SheetData];
+          const displayValue = getInputValue(row.id, column.key, cellValue);
 
-            if (isEmptyRow) {
-              return renderEmptyRowCell(
-                column,
-                isFirstEmptyRow,
-                shouldShowAddButton
-              );
+          const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const newValue = e.target.value;
+            // Update with debounced Firebase update
+            updateInputValue(row.id, column.key, newValue);
+          };
+
+          const handleBlur = () => {
+            // Don't save if we're canceling changes (Escape key)
+            if (isCancelingChanges.current) {
+              return;
             }
 
-            const cellValue = row[column.key as keyof SheetData];
-            const displayValue = getInputValue(row.id, column.key, cellValue);
-
-            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-              const newValue = e.target.value;
-              // Update with debounced Firebase update
-              updateInputValue(row.id, column.key, newValue);
-            };
-
-            const handleBlur = () => {
-              // Don't save if we're canceling changes (Escape key)
-              if (isCancelingChanges.current) {
-                return;
-              }
-
-              // Save to Firebase on blur only if value has changed
-              const currentValue = getInputValue(
-                row.id,
-                column.key,
-                row[column.key as keyof SheetData]
-              );
-
-              // Get the original value from the row data
-              const originalValue = row[column.key as keyof SheetData];
-
-              // Only save if the value has actually changed
-              if (currentValue !== originalValue?.toString()) {
-                saveToFirebase(row.id, column.key, currentValue);
-              }
-            };
-
-            return (
-              <input
-                type="text"
-                value={displayValue}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                className={`h-8 w-full px-2 text-xs border-none outline-none bg-transparent ${
-                  hasColor ? "text-black" : ""
-                }`}
-              />
+            // Save to Firebase on blur only if value has changed
+            const currentValue = getInputValue(
+              row.id,
+              column.key,
+              row[column.key as keyof SheetData]
             );
+
+            // Get the original value from the row data
+            const originalValue = row[column.key as keyof SheetData];
+
+            // Only save if the value has actually changed
+            if (currentValue !== originalValue?.toString()) {
+              saveToFirebase(row.id, column.key, currentValue);
+            }
           };
-          baseColumn.editable = false; // We handle editing through the input
-        }
 
-        // Ensure every column has a renderCell function
-        if (!baseColumn.renderCell) {
-          baseColumn.renderCell = ({ row, column }) => {
-            const isEmptyRow = (row as any)._isEmptyRow;
-            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+          return (
+            <input
+              type="text"
+              value={displayValue}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              className={`h-8 w-full px-2 text-xs border-none outline-none bg-transparent ${
+                hasColor ? "text-black" : ""
+              }`}
+            />
+          );
+        };
+        baseColumn.editable = false; // We handle editing through the input
+      }
 
-            if (isEmptyRow) {
-              return renderEmptyRowCell(
-                column,
-                isFirstEmptyRow,
-                shouldShowAddButton
-              );
+      // Ensure every column has a renderCell function
+      if (!baseColumn.renderCell) {
+        baseColumn.renderCell = ({ row, column }) => {
+          const isEmptyRow = (row as any)._isEmptyRow;
+          const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+          const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+          if (isEmptyRow) {
+            return renderEmptyRowCell(
+              column,
+              isFirstEmptyRow,
+              shouldShowAddButton
+            );
+          }
+
+          const cellValue = row[column.key as keyof SheetData];
+          const displayValue = getInputValue(row.id, column.key, cellValue);
+
+          const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const newValue = e.target.value;
+            // Update with debounced Firebase update
+            updateInputValue(row.id, column.key, newValue);
+          };
+
+          const handleBlur = () => {
+            // Don't save if we're canceling changes (Escape key)
+            if (isCancelingChanges.current) {
+              return;
             }
 
-            const cellValue = row[column.key as keyof SheetData];
-            const displayValue = getInputValue(row.id, column.key, cellValue);
-
-            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-              const newValue = e.target.value;
-              // Update with debounced Firebase update
-              updateInputValue(row.id, column.key, newValue);
-            };
-
-            const handleBlur = () => {
-              // Don't save if we're canceling changes (Escape key)
-              if (isCancelingChanges.current) {
-                return;
-              }
-
-              // Save to Firebase on blur only if value has changed
-              const currentValue = getInputValue(
-                row.id,
-                column.key,
-                row[column.key as keyof SheetData]
-              );
-
-              // Get the original value from the row data
-              const originalValue = row[column.key as keyof SheetData];
-
-              // Only save if the value has actually changed
-              if (currentValue !== originalValue?.toString()) {
-                saveToFirebase(row.id, column.key, currentValue);
-              }
-            };
-
-            return (
-              <input
-                type="text"
-                value={displayValue}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                className="h-8 w-full px-2 text-xs border-none outline-none bg-transparent"
-              />
+            // Save to Firebase on blur only if value has changed
+            const currentValue = getInputValue(
+              row.id,
+              column.key,
+              row[column.key as keyof SheetData]
             );
-          };
-          baseColumn.editable = false; // We handle editing through the input
-        }
 
-        return baseColumn;
-      });
+            // Get the original value from the row data
+            const originalValue = row[column.key as keyof SheetData];
+
+            // Only save if the value has actually changed
+            if (currentValue !== originalValue?.toString()) {
+              saveToFirebase(row.id, column.key, currentValue);
+            }
+          };
+
+          return (
+            <input
+              type="text"
+              value={displayValue}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              className="h-8 w-full px-2 text-xs border-none outline-none bg-transparent"
+            />
+          );
+        };
+        baseColumn.editable = false; // We handle editing through the input
+      }
+
+      return baseColumn;
+    });
 
     const allColumns = [rowNumberColumn, ...dataColumns];
 
@@ -3467,6 +3558,9 @@ export default function BookingsDataGrid({
     saveToFirebase,
     forceRerender,
     allowFunctionOverride,
+    customColumnVisibility,
+    customColumnWidths,
+    customColumnOrder,
   ]);
 
   const handleAddNewRow = async () => {
@@ -3927,7 +4021,11 @@ export default function BookingsDataGrid({
                   <PopoverContent className="w-80 max-h-[500px] overflow-y-auto p-2">
                     <div className="space-y-1">
                       {columns.map((col) => {
-                        const isVisible = col.showColumn !== false;
+                        // Check user preference first, then fall back to column default
+                        const isVisible =
+                          customColumnVisibility[col.id] !== undefined
+                            ? customColumnVisibility[col.id]
+                            : col.showColumn !== false;
                         return (
                           <button
                             key={col.id}

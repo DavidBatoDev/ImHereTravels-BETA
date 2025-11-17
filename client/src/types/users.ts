@@ -47,6 +47,12 @@ export interface UserPreferences {
     payments: boolean;
     cancellations: boolean;
   };
+  columnsMetadata?: {
+    widths?: Record<string, number>; // Column ID -> width in pixels
+    order?: string[]; // Array of column IDs in display order
+    visibility?: Record<string, boolean>; // Column ID -> visible/hidden
+    frozen?: string[]; // Array of frozen column IDs
+  };
 }
 
 export interface UserSecurity {
