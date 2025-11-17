@@ -54,13 +54,11 @@ import {
   RotateCcw,
   TestTube,
   Mail,
-  Trash,
 } from "lucide-react";
 import TemplateDialog from "./TemplateDialog";
 import TestTab from "./TestTab";
 import EmailsTab from "./EmailsTab";
 import ScheduledEmailsTab from "./ScheduledEmailsTab";
-import RecycleBinTab from "./RecycleBinTab";
 import EmailTemplateService from "@/services/email-template-service";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "@/hooks/use-toast";
@@ -497,45 +495,57 @@ export default function MailCenter() {
 
   // Tab to index mapping (Gmail-style)
   const tabIndexMap: { [key: string]: number } = {
-    drafts: 0, // Emails tab
-    scheduled: 1, // Scheduled tab
-    recycle: 2, // Recycle Bin tab
-    templates: 3, // Templates tab
-    test: 4, // Test Tab
+    drafts: 0, // Emails tab - always /mail/u/0
   };
 
   // Index to tab mapping
   const indexToTab: { [key: number]: string } = {
     0: "drafts",
-    1: "scheduled",
-    2: "recycle",
-    3: "templates",
-    4: "test",
   };
 
   // Get active tab from URL
   const getActiveTabFromUrl = useCallback(() => {
+    // Check for custom routes
+    if (pathname === "/mail/payment-reminders") {
+      return "scheduled";
+    }
+    if (pathname === "/mail/email-templates") {
+      return "templates";
+    }
+    if (pathname === "/mail/email-templates-test") {
+      return "test";
+    }
+
     // Extract tabId from URL path like /mail/u/0
     const match = pathname.match(/\/mail\/u\/(\d+)/);
     if (match) {
       const index = parseInt(match[1], 10);
       return indexToTab[index] || "drafts";
     }
-    // Default to drafts if no tab in URL
-    return hasEmailsPermission ? "drafts" : "templates";
+    // Default to scheduled (payment reminders) if no tab in URL
+    return hasEmailsPermission ? "scheduled" : "templates";
   }, [pathname, hasEmailsPermission]);
 
   const [activeTab, setActiveTab] = useState(() => {
+    // Check for custom routes
+    if (pathname === "/mail/payment-reminders") {
+      return "scheduled";
+    }
+    if (pathname === "/mail/email-templates") {
+      return "templates";
+    }
+    if (pathname === "/mail/email-templates-test") {
+      return "test";
+    }
+
     // Initialize from URL - this is only called once
     const match = pathname.match(/\/mail\/u\/(\d+)/);
     if (match) {
       const index = parseInt(match[1], 10);
       return indexToTab[index] || "drafts";
     }
-    return hasEmailsPermission ? "drafts" : "templates";
-  });
-
-  // Track the requested tab (what user wants to switch to)
+    return hasEmailsPermission ? "scheduled" : "templates";
+  }); // Track the requested tab (what user wants to switch to)
   const [requestedTab, setRequestedTab] = useState<string | null>(null);
 
   // Update active tab when URL changes (only if different)
@@ -554,8 +564,6 @@ export default function MailCenter() {
 
   // Handle tab change
   const handleTabChange = (value: string) => {
-    const index = tabIndexMap[value] || 0;
-
     // Show loading indicator only if changing to a different tab
     if (value !== activeTab) {
       setIsTabChanging(true);
@@ -567,7 +575,15 @@ export default function MailCenter() {
 
     // Update URL in a transition (non-blocking)
     startTransition(() => {
-      router.push(`/mail/u/${index}`, { scroll: false });
+      if (value === "scheduled") {
+        router.push("/mail/payment-reminders", { scroll: false });
+      } else if (value === "templates") {
+        router.push("/mail/email-templates", { scroll: false });
+      } else if (value === "test") {
+        router.push("/mail/email-templates-test", { scroll: false });
+      } else if (value === "drafts") {
+        router.push("/mail/u/0", { scroll: false });
+      }
     });
   };
 
@@ -1030,27 +1046,20 @@ export default function MailCenter() {
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-5 bg-muted border border-royal-purple/20 dark:border-border">
+        <TabsList className="grid w-full grid-cols-4 bg-muted border border-royal-purple/20 dark:border-border">
+          <TabsTrigger
+            value="scheduled"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            <Clock className="mr-2 h-4 w-4" />
+            Payment Reminders
+          </TabsTrigger>
           <TabsTrigger
             value="drafts"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
           >
             <Mail className="mr-2 h-4 w-4" />
             Emails
-          </TabsTrigger>
-          <TabsTrigger
-            value="scheduled"
-            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
-          >
-            <Clock className="mr-2 h-4 w-4" />
-            Scheduled
-          </TabsTrigger>
-          <TabsTrigger
-            value="recycle"
-            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
-          >
-            <Trash className="mr-2 h-4 w-4" />
-            Recycle Bin
           </TabsTrigger>
           <TabsTrigger
             value="templates"
@@ -1077,18 +1086,9 @@ export default function MailCenter() {
         <TabsContent value="scheduled" className="mt-6">
           <TabPermissionGuard
             permission="canManageEmails"
-            tabName="Scheduled Emails"
+            tabName="Payment Reminders"
           >
             <ScheduledEmailsTab />
-          </TabPermissionGuard>
-        </TabsContent>
-
-        <TabsContent value="recycle" className="mt-6">
-          <TabPermissionGuard
-            permission="canManageEmails"
-            tabName="Recycle Bin"
-          >
-            <RecycleBinTab />
           </TabPermissionGuard>
         </TabsContent>
 
