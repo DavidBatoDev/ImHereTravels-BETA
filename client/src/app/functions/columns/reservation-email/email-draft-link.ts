@@ -120,7 +120,7 @@ export default async function generateGmailDraft(
 
     // Check if booking already has a Gmail draft URL
     const existingGmailDraftUrl =
-      bookingDoc.emailDraftUrl || bookingDoc.cancellationEmailDraftId;
+      bookingDoc.emailDraftLink || bookingDoc.cancellationEmailDraftId;
 
     console.log("Gmail draft URL exists: ", existingGmailDraftUrl);
 
