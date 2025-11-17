@@ -26,11 +26,21 @@ function getGmailDraftUrl(draftId: string, messageId: string): string {
 // Helper function to format GBP currency
 function formatGBP(value: number | string): string {
   if (!value) return "";
-  return `£${Number(value).toFixed(2)}`;
+
+  // If it's already a string with £, return as-is to avoid double £
+  if (typeof value === "string" && value.includes("£")) {
+    return value;
+  }
+
+  // Convert to number and format
+  const numValue = Number(value);
+  if (isNaN(numValue)) return "";
+
+  return `£${numValue.toFixed(2)}`;
 }
 
-// Helper function to handle Firestore Timestamps
-function formatFirestoreDate(dateValue: any): string {
+// Helper function to format dates like Google Sheets: "Dec 2, 2025"
+function formatDateLikeSheets(dateValue: any): string {
   if (!dateValue) return "";
 
   try {
@@ -40,18 +50,51 @@ function formatFirestoreDate(dateValue: any): string {
     if (dateValue && typeof dateValue === "object" && dateValue._seconds) {
       date = new Date(dateValue._seconds * 1000);
     }
-    // Handle string dates
+    // Handle string dates (including comma-separated dates like P2/P3/P4)
     else if (typeof dateValue === "string" && dateValue.trim() !== "") {
-      date = new Date(dateValue);
+      const trimmedValue = dateValue.trim();
+
+      // Check if it's already in the correct format from P2/P3/P4 functions
+      // These functions already return formatted strings like "Dec 2, 2025, Jan 2, 2026"
+      // If the string contains a month name (Jan, Feb, etc.), assume it's already formatted
+      const monthNames = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const hasMonthName = monthNames.some((month) =>
+        trimmedValue.includes(month)
+      );
+
+      if (hasMonthName) {
+        // Already formatted by P2/P3/P4 functions, return as-is
+        return trimmedValue;
+      }
+
+      // Otherwise, try to parse and format the date
+      date = new Date(trimmedValue);
     }
     // Handle Date objects
     else if (dateValue instanceof Date) {
       date = dateValue;
     }
 
-    // Validate the date before formatting
+    // Validate and format the date
     if (date && !isNaN(date.getTime())) {
-      return date.toISOString().split("T")[0];
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
     }
 
     return "";
@@ -226,31 +269,35 @@ export const generateReservationEmail = onCall(
       }
 
       // Prepare template variables
+      // Note: reservationFee is passed as raw number because template has hardcoded £
+      // Payment amounts are formatted with £ as template doesn't have hardcoded £
       const templateVariables: Record<string, any> = {
         fullName,
         mainBooker,
         tourPackage,
-        tourDate: formatFirestoreDate(tourDateRaw),
-        returnDate: formatFirestoreDate(returnDateRaw),
+        tourDate: formatDateLikeSheets(tourDateRaw),
+        returnDate: formatDateLikeSheets(returnDateRaw),
         availablePaymentTerms,
         tourDuration,
         bookingType,
         bookingId: bookingIdValue,
         groupId,
-        reservationFee: formatGBP(reservationFee),
+        reservationFee: Number(reservationFee).toFixed(2), // Raw number - template adds £
         remainingBalance: formatGBP(remainingBalance),
         fullPaymentAmount: formatGBP(fullPaymentAmount),
-        fullPaymentDueDate: formatFirestoreDate(fullPaymentDueDate),
+        fullPaymentDueDate: formatDateLikeSheets(fullPaymentDueDate),
         p1Amount: formatGBP(p1Amount),
-        p1DueDate: formatFirestoreDate(p1DueDate),
+        p1DueDate: formatDateLikeSheets(p1DueDate),
         p2Amount: formatGBP(p2Amount),
-        p2DueDate: formatFirestoreDate(p2DueDate),
+        p2DueDate: formatDateLikeSheets(p2DueDate),
         p3Amount: formatGBP(p3Amount),
-        p3DueDate: formatFirestoreDate(p3DueDate),
+        p3DueDate: formatDateLikeSheets(p3DueDate),
         p4Amount: formatGBP(p4Amount),
-        p4DueDate: formatFirestoreDate(p4DueDate),
+        p4DueDate: formatDateLikeSheets(p4DueDate),
         isCancelled,
-        cancelledRefundAmount: isCancelled ? formatGBP(reservationFee) : "",
+        cancelledRefundAmount: isCancelled
+          ? Number(reservationFee).toFixed(2)
+          : "", // Raw for template's £
       };
 
       logger.info(`Template variables prepared for booking: ${bookingId}`);

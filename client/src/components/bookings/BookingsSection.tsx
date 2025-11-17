@@ -2803,11 +2803,58 @@ export default function BookingsSection() {
 
           {/* Add Booking Card */}
           <Card
-            onClick={() => {
-              setIsAddModalOpen(true);
-              const params = new URLSearchParams(searchParams.toString());
-              params.set("action", "new");
-              router.push(`/bookings?${params.toString()}`, { scroll: false });
+            onClick={async () => {
+              setIsCreatingBooking(true);
+              try {
+                // Compute next row number (fill gaps)
+                const rowNumbers = (bookings || [])
+                  .map((b) => (typeof b.row === "number" ? b.row : 0))
+                  .filter((n) => n > 0)
+                  .sort((a, b) => a - b);
+                let nextRowNumber = 1;
+                for (let i = 0; i < rowNumbers.length; i++) {
+                  if (rowNumbers[i] !== i + 1) {
+                    nextRowNumber = i + 1;
+                    break;
+                  }
+                  nextRowNumber = i + 2;
+                }
+
+                // Create minimal doc then update with id/row/timestamps
+                const newBookingId = await bookingService.createBooking({});
+                const bookingData = {
+                  id: newBookingId,
+                  row: nextRowNumber,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                } as any;
+                await bookingService.updateBooking(newBookingId, bookingData);
+
+                // Navigate with bookingId to open detail modal
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("bookingId", newBookingId);
+                params.delete("action");
+                router.push(`/bookings?${params.toString()}`, {
+                  scroll: false,
+                });
+
+                toast({
+                  title: "✅ Booking Created",
+                  description: `Successfully created a booking in row ${nextRowNumber}`,
+                  variant: "default",
+                });
+
+                setIsCreatingBooking(false);
+              } catch (error) {
+                setIsCreatingBooking(false);
+                toast({
+                  title: "❌ Failed to Create Booking",
+                  description: `Error: ${
+                    error instanceof Error ? error.message : "Unknown error"
+                  }`,
+                  variant: "destructive",
+                });
+              }
             }}
             className="group border-2 border-dashed border-crimson-red/30 hover:border-crimson-red/50 hover:bg-crimson-red/5 transition-all duration-300 cursor-pointer overflow-hidden relative"
           >
@@ -3085,15 +3132,67 @@ export default function BookingsSection() {
 
                   {/* Add Booking Row */}
                   <tr
-                    onClick={() => {
-                      setIsAddModalOpen(true);
-                      const params = new URLSearchParams(
-                        searchParams.toString()
-                      );
-                      params.set("action", "new");
-                      router.push(`/bookings?${params.toString()}`, {
-                        scroll: false,
-                      });
+                    onClick={async () => {
+                      setIsCreatingBooking(true);
+                      try {
+                        // Compute next row number (fill gaps)
+                        const rowNumbers = (bookings || [])
+                          .map((b) => (typeof b.row === "number" ? b.row : 0))
+                          .filter((n) => n > 0)
+                          .sort((a, b) => a - b);
+                        let nextRowNumber = 1;
+                        for (let i = 0; i < rowNumbers.length; i++) {
+                          if (rowNumbers[i] !== i + 1) {
+                            nextRowNumber = i + 1;
+                            break;
+                          }
+                          nextRowNumber = i + 2;
+                        }
+
+                        // Create minimal doc then update with id/row/timestamps
+                        const newBookingId = await bookingService.createBooking(
+                          {}
+                        );
+                        const bookingData = {
+                          id: newBookingId,
+                          row: nextRowNumber,
+                          createdAt: new Date(),
+                          updatedAt: new Date(),
+                        } as any;
+                        await bookingService.updateBooking(
+                          newBookingId,
+                          bookingData
+                        );
+
+                        // Navigate with bookingId to open detail modal
+                        const params = new URLSearchParams(
+                          searchParams.toString()
+                        );
+                        params.set("bookingId", newBookingId);
+                        params.delete("action");
+                        router.push(`/bookings?${params.toString()}`, {
+                          scroll: false,
+                        });
+
+                        toast({
+                          title: "✅ Booking Created",
+                          description: `Successfully created a booking in row ${nextRowNumber}`,
+                          variant: "default",
+                        });
+
+                        setIsCreatingBooking(false);
+                      } catch (error) {
+                        setIsCreatingBooking(false);
+                        toast({
+                          title: "❌ Failed to Create Booking",
+                          description: `Error: ${
+                            error instanceof Error
+                              ? error.message
+                              : "Unknown error"
+                          }`,
+                          variant: "destructive",
+                        });
+                      }
                     }}
                     className="group border-b border-dashed border-crimson-red/30 hover:border-crimson-red/50 hover:bg-crimson-red/5 transition-all duration-300 cursor-pointer"
                   >
