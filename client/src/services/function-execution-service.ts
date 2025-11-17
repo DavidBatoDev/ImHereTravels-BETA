@@ -295,34 +295,40 @@ class FunctionExecutionService {
       try {
         // Dynamic import the column module
         const columnId = codedColumn.id;
-        const category = codedColumn.data.parentTab.toLowerCase().replace(/\s+/g, '-');
-        
+        const category = codedColumn.data.parentTab
+          .toLowerCase()
+          .replace(/\s+/g, "-");
+
         // Map parent tab names to folder names
         const folderMap: Record<string, string> = {
-          'identifier': 'identifier',
-          'traveler-information': 'traveler-information',
-          'tour-details': 'tour-details',
-          'payment-setting': 'payment-setting',
-          'full-payment': 'full-payment',
-          'payment-term-1': 'payment-term-1',
-          'payment-term-2': 'payment-term-2',
-          'payment-term-3': 'payment-term-3',
-          'payment-term-4': 'payment-term-4',
-          'reservation-email': 'reservation-email',
-          'cancellation': 'cancellation',
-          'duo-or-group-booking': 'duo-or-group-booking',
+          identifier: "identifier",
+          "traveler-information": "traveler-information",
+          "tour-details": "tour-details",
+          "payment-setting": "payment-setting",
+          "full-payment": "full-payment",
+          "payment-term-1": "payment-term-1",
+          "payment-term-2": "payment-term-2",
+          "payment-term-3": "payment-term-3",
+          "payment-term-4": "payment-term-4",
+          "reservation-email": "reservation-email",
+          cancellation: "cancellation",
+          "duo-or-group-booking": "duo-or-group-booking",
         };
 
         const folderName = folderMap[category] || category;
         const modulePath = `@/app/functions/columns/${folderName}/${columnId}`;
-        
-        console.log(`📦 [CODED FUNCTION] Loading ${functionRef} from ${modulePath}`);
-        
+
+        console.log(
+          `📦 [CODED FUNCTION] Loading ${functionRef} from ${modulePath}`
+        );
+
         const module = await import(modulePath);
         const compiled = module.default;
 
         if (typeof compiled !== "function") {
-          throw new Error(`Default export is not a function for ${functionRef}`);
+          throw new Error(
+            `Default export is not a function for ${functionRef}`
+          );
         }
 
         // Inject globals into function context (wrap it)
@@ -336,16 +342,23 @@ class FunctionExecutionService {
         console.log(`✅ [CODED FUNCTION] Successfully loaded ${functionRef}`);
         return wrappedFunction;
       } catch (error) {
-        console.error(`❌ [CODED FUNCTION] Failed to load ${functionRef}:`, error);
+        console.error(
+          `❌ [CODED FUNCTION] Failed to load ${functionRef}:`,
+          error
+        );
         // Fall through to legacy Firebase lookup
       }
     }
 
     // Legacy: Try to get from Firebase ts_files
-    console.log(`🔍 [LEGACY FUNCTION] Looking up ${functionRef} in Firebase ts_files...`);
+    console.log(
+      `🔍 [LEGACY FUNCTION] Looking up ${functionRef} in Firebase ts_files...`
+    );
     const tsFile = await typescriptFunctionService.files.getById(functionRef);
     if (!tsFile || !tsFile.content) {
-      throw new Error(`Function not found: ${functionRef} (not in coded columns or Firebase)`);
+      throw new Error(
+        `Function not found: ${functionRef} (not in coded columns or Firebase)`
+      );
     }
 
     const transpiled = ts.transpileModule(tsFile.content, {
@@ -407,7 +420,9 @@ class FunctionExecutionService {
     );
 
     if (typeof compiled !== "function") {
-      throw new Error(`Default export is not a function in file ${functionRef}`);
+      throw new Error(
+        `Default export is not a function in file ${functionRef}`
+      );
     }
 
     this.cache.set(functionRef, compiled);

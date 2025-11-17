@@ -1,52 +1,51 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const tourPackageNameUniqueCounterColumn: BookingSheetColumn = {
-  id: 'tourPackageNameUniqueCounter',
+  id: "tourPackageNameUniqueCounter",
   data: {
-    id: 'tourPackageNameUniqueCounter',
-    columnName: 'Tour Package Name Unique Counter',
-    dataType: 'function',
-    function: 'tourPackageUniqueCounterFunction',
-    parentTab: 'Identifier',
+    id: "tourPackageNameUniqueCounter",
+    columnName: "Tour Package Name Unique Counter",
+    dataType: "function",
+    function: "tourPackageUniqueCounterFunction",
+    parentTab: "Identifier",
     order: 6,
     includeInForms: false,
     showColumn: false,
-    color: 'gray',
+    color: "gray",
     width: 294.66668701171875,
     arguments: [
       {
-        name: 'tourPackageName',
-        type: 'string',
-        columnReference: 'Tour Package Name',
+        name: "tourPackageName",
+        type: "string",
+        columnReference: "Tour Package Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'email',
-        type: 'string',
-        columnReference: 'Email Address',
+        name: "email",
+        type: "string",
+        columnReference: "Email Address",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'tourDate',
-        type: 'unknown',
-        columnReference: 'Tour Date',
+        name: "tourDate",
+        type: "unknown",
+        columnReference: "Tour Date",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
 };
 
 // Column Function Implementation
-
 
 export default async function tourPackageUniqueCounter(
   tourPackageName?: string | null,
@@ -74,7 +73,9 @@ export default async function tourPackageUniqueCounter(
     });
 
   // Find the index of the current booking in that sorted order
-  const currentIndex = sorted.findIndex((b: any) => String(b.row) === String(row));
+  const currentIndex = sorted.findIndex(
+    (b: any) => String(b.row) === String(row)
+  );
 
   // Excel logic: if not found, default to last + 1
   const count = currentIndex === -1 ? sorted.length : currentIndex + 1;

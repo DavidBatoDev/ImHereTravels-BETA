@@ -1,27 +1,27 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const tourCodeColumn: BookingSheetColumn = {
-  id: 'tourCode',
+  id: "tourCode",
   data: {
-    id: 'tourCode',
-    columnName: 'Tour Code',
-    dataType: 'function',
-    function: 'lookupTourCodeFunction',
-    parentTab: 'Identifier',
+    id: "tourCode",
+    columnName: "Tour Code",
+    dataType: "function",
+    function: "lookupTourCodeFunction",
+    parentTab: "Identifier",
     order: 3,
     includeInForms: false,
     showColumn: false,
-    color: 'gray',
+    color: "gray",
     width: 156.66668701171875,
     arguments: [
       {
-        name: 'tourPackageName',
-        type: 'string',
-        columnReference: 'Tour Package Name',
+        name: "tourPackageName",
+        type: "string",
+        columnReference: "Tour Package Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -54,7 +54,7 @@ export default async function lookupTourCode(
 
   try {
     // Fetch tour packages from Firebase
-    const tourPackages = await firebaseUtils.getCollectionData('tourPackages');
+    const tourPackages = await firebaseUtils.getCollectionData("tourPackages");
 
     if (!tourPackages || tourPackages.length === 0) {
       console.warn("No tour packages found in Firebase");

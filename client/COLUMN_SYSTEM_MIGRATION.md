@@ -7,15 +7,17 @@ Successfully migrated the booking sheet columns system from a Firebase-based dyn
 ## What Changed
 
 ### Before (Firebase-based)
+
 - **Columns**: Stored in Firebase `bookingSheetColumns` collection
 - **Functions**: Stored in Firebase `ts_files` collection
-- **Issues**: 
+- **Issues**:
   - User-editable code causing potential errors
   - Runtime type safety issues
   - No compile-time validation
   - Functions and columns stored separately
 
 ### After (Coded TypeScript)
+
 - **Columns**: Coded in `src/app/functions/columns/` directory (84 columns)
 - **Functions**: Embedded directly in column files (43 functions)
 - **Benefits**:
@@ -29,6 +31,7 @@ Successfully migrated the booking sheet columns system from a Firebase-based dyn
 ## Architecture
 
 ### Directory Structure
+
 ```
 src/app/functions/columns/
 ├── index.ts                      # Central export with system utilities
@@ -49,6 +52,7 @@ src/app/functions/columns/
 ```
 
 ### Column File Format
+
 ```typescript
 import { BookingSheetColumn } from '@/types/booking-sheet-column';
 
@@ -78,6 +82,7 @@ export default function functionNameFunction(...args) {
 Column functions have access to runtime-injected utilities (no imports needed):
 
 ### Firebase Utilities (`firebaseUtils`)
+
 ```typescript
 firebaseUtils.getCurrentUser()
 firebaseUtils.getDocumentData(collection, docId)
@@ -88,16 +93,18 @@ firebaseUtils.deleteDocument(collection, docId)
 ```
 
 ### Functions Utilities (`functionsUtils`)
+
 ```typescript
-functionsUtils.callFunction(name, data)
-functionsUtils.emailUtils.generateReservationEmail(bookingId)
-functionsUtils.emailUtils.sendReservationEmail(draftId)
-functionsUtils.templateUtils.processTemplate(template, vars)
-functionsUtils.utils.formatCurrency(value, currency)
-functionsUtils.utils.formatDate(date)
+functionsUtils.callFunction(name, data);
+functionsUtils.emailUtils.generateReservationEmail(bookingId);
+functionsUtils.emailUtils.sendReservationEmail(draftId);
+functionsUtils.templateUtils.processTemplate(template, vars);
+functionsUtils.utils.formatCurrency(value, currency);
+functionsUtils.utils.formatDate(date);
 ```
 
 ### Firebase SDK
+
 Direct access to: `auth`, `db`, `storage`, `collection`, `doc`, `query`, `where`, `orderBy`, etc.
 
 ## Migration Implementation
@@ -105,6 +112,7 @@ Direct access to: `auth`, `db`, `storage`, `collection`, `doc`, `query`, `where`
 ### 1. Columns Loading (`use-sheet-management.ts`)
 
 **Before:**
+
 ```typescript
 const unsubscribeColumns = bookingSheetColumnService.subscribeToColumns(
   (fetchedColumns) => {
@@ -114,11 +122,14 @@ const unsubscribeColumns = bookingSheetColumnService.subscribeToColumns(
 ```
 
 **After:**
+
 ```typescript
 import { allBookingSheetColumns } from "@/app/functions/columns";
 
 useEffect(() => {
-  const codedColumns: SheetColumn[] = allBookingSheetColumns.map((col) => col.data);
+  const codedColumns: SheetColumn[] = allBookingSheetColumns.map(
+    (col) => col.data
+  );
   setColumns(codedColumns);
   setIsLoading(false);
 }, []);
@@ -127,6 +138,7 @@ useEffect(() => {
 ### 2. Function Execution (`function-execution-service.ts`)
 
 **Before:**
+
 ```typescript
 async getCompiledFunction(fileId: string): Promise<CompiledFn> {
   const tsFile = await typescriptFunctionService.files.getById(fileId);
@@ -135,18 +147,19 @@ async getCompiledFunction(fileId: string): Promise<CompiledFn> {
 ```
 
 **After:**
+
 ```typescript
 async getCompiledFunction(functionRef: string): Promise<CompiledFn> {
   // Try coded columns first
   const codedColumn = allBookingSheetColumns.find(
     (col) => col.data.function === functionRef
   );
-  
+
   if (codedColumn) {
     const module = await import(`@/app/functions/columns/${folder}/${columnId}`);
     return module.default;
   }
-  
+
   // Fallback to legacy Firebase ts_files
   const tsFile = await typescriptFunctionService.files.getById(functionRef);
   // ...
@@ -156,21 +169,25 @@ async getCompiledFunction(functionRef: string): Promise<CompiledFn> {
 ## Key Features
 
 ### 1. Dual System Support
+
 - New coded columns take priority
 - Legacy Firebase functions still supported as fallback
 - Seamless migration path
 
 ### 2. Type Safety
+
 - Full TypeScript typing for all columns
 - IntelliSense for injected functions
 - Compile-time error detection
 
 ### 3. Runtime Injection
+
 - `injected-globals.d.ts` provides TypeScript declarations
 - Functions work exactly like before at runtime
 - No import statements needed in column functions
 
 ### 4. Helper Functions
+
 ```typescript
 import {
   getColumnById,
@@ -178,7 +195,7 @@ import {
   getColumnsByDataType,
   getFunctionColumns,
   getFormColumns,
-} from '@/app/functions/columns';
+} from "@/app/functions/columns";
 ```
 
 ## Statistics
@@ -192,9 +209,11 @@ import {
 ## Scripts
 
 ### Generate Column Files
+
 ```bash
 node scripts/embed-functions-in-columns.js
 ```
+
 Reads JSON exports and generates all column files with embedded functions.
 
 ## Future Improvements
@@ -225,12 +244,14 @@ None! The system maintains backward compatibility with existing Firebase functio
 ## Developer Experience
 
 ### Before
+
 1. Edit column in UI
 2. Edit function in separate Firebase document
 3. Hope it works at runtime
 4. Debug production issues
 
 ### After
+
 1. Edit column definition in TypeScript
 2. Function is in the same file
 3. TypeScript errors during development

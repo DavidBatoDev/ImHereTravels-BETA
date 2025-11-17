@@ -34,12 +34,12 @@ export function useSheetManagement() {
   // ============================================================================
 
   useEffect(() => {
-    console.log(
-      "🔍 [SHEET MANAGEMENT] Loading coded booking sheet columns..."
-    );
+    console.log("🔍 [SHEET MANAGEMENT] Loading coded booking sheet columns...");
 
     // Convert BookingSheetColumn[] to SheetColumn[]
-    const codedColumns: SheetColumn[] = allBookingSheetColumns.map((col) => col.data);
+    const codedColumns: SheetColumn[] = allBookingSheetColumns.map(
+      (col) => col.data
+    );
 
     console.log(
       `✅ [SHEET MANAGEMENT] Loaded ${codedColumns.length} coded columns:`,

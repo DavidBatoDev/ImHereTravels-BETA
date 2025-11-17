@@ -1,4 +1,4 @@
-import { SheetColumn } from './sheet-management';
+import { SheetColumn } from "./sheet-management";
 
 /**
  * Represents a booking sheet column with its configuration

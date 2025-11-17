@@ -1,15 +1,15 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const emailAddressColumn: BookingSheetColumn = {
-  id: 'emailAddress',
+  id: "emailAddress",
   data: {
-    id: 'emailAddress',
-    columnName: 'Email Address',
-    dataType: 'string',
-    parentTab: 'Traveler Information',
+    id: "emailAddress",
+    columnName: "Email Address",
+    dataType: "string",
+    parentTab: "Traveler Information",
     order: 7,
     includeInForms: true,
-    color: 'cyan',
+    color: "cyan",
     width: 284.66668701171875,
   },
 };

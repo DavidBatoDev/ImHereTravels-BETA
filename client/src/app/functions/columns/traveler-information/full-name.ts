@@ -1,35 +1,35 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const fullNameColumn: BookingSheetColumn = {
-  id: 'fullName',
+  id: "fullName",
   data: {
-    id: 'fullName',
-    columnName: 'Full Name',
-    dataType: 'function',
-    function: 'fullNameFunction',
-    parentTab: 'Traveler Information',
+    id: "fullName",
+    columnName: "Full Name",
+    dataType: "function",
+    function: "fullNameFunction",
+    parentTab: "Traveler Information",
     order: 10,
     includeInForms: false,
-    color: 'gray',
+    color: "gray",
     width: 327.3333740234375,
     arguments: [
       {
-        name: 'f',
-        type: 'string',
-        columnReference: 'First Name',
+        name: "f",
+        type: "string",
+        columnReference: "First Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'l',
-        type: 'string',
-        columnReference: 'Last Name',
+        name: "l",
+        type: "string",
+        columnReference: "Last Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -42,11 +42,11 @@ export const fullNameColumn: BookingSheetColumn = {
 
 export default function fullNameFunction(
   f: string | null | undefined,
-  l: string | null | undefined,
+  l: string | null | undefined
 ) {
   if (f && l) {
-    return `${f} ${l}`
+    return `${f} ${l}`;
   }
 
-  return ""
+  return "";
 }

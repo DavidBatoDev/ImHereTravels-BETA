@@ -1,27 +1,27 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const bookingCodeColumn: BookingSheetColumn = {
-  id: 'bookingCode',
+  id: "bookingCode",
   data: {
-    id: 'bookingCode',
-    columnName: 'Booking Code',
-    dataType: 'function',
-    function: 'bookingCodeColumnFunction',
-    parentTab: 'Identifier',
+    id: "bookingCode",
+    columnName: "Booking Code",
+    dataType: "function",
+    function: "bookingCodeColumnFunction",
+    parentTab: "Identifier",
     order: 2,
     includeInForms: false,
     showColumn: false,
-    color: 'gray',
+    color: "gray",
     width: 167.54165649414062,
     arguments: [
       {
-        name: 'bookingType',
-        type: 'string',
-        columnReference: 'Booking Type',
+        name: "bookingType",
+        type: "string",
+        columnReference: "Booking Type",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -38,7 +38,9 @@ export const bookingCodeColumn: BookingSheetColumn = {
  *  - If bookingType = "Group Booking"  -> "GB"
  *  - Else -> ""
  */
-export default function bookingCodeColumnFunction(bookingType: string | null | undefined): string {
+export default function bookingCodeColumnFunction(
+  bookingType: string | null | undefined
+): string {
   if (!bookingType) return "";
 
   if (bookingType === "Single Booking") return "SB";

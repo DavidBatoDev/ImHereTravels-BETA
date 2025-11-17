@@ -1,6 +1,6 @@
 /**
  * Booking Sheet Columns
- * 
+ *
  * This module provides all booking sheet column definitions organized by category.
  * Each column is typed and includes configuration for display, validation, and functions.
  */
@@ -25,53 +25,53 @@ export {
   limit,
   serverTimestamp,
   Timestamp,
-} from '@/app/functions/firebase-utils';
+} from "@/app/functions/firebase-utils";
 
 // Identifier columns
-export * from './identifier';
+export * from "./identifier";
 
 // Traveler Information columns
-export * from './traveler-information';
+export * from "./traveler-information";
 
 // Tour Details columns
-export * from './tour-details';
+export * from "./tour-details";
 
 // Payment Setting columns
-export * from './payment-setting';
+export * from "./payment-setting";
 
 // Full Payment columns
-export * from './full-payment';
+export * from "./full-payment";
 
 // Payment Term columns
-export * from './payment-term-1';
-export * from './payment-term-2';
-export * from './payment-term-3';
-export * from './payment-term-4';
+export * from "./payment-term-1";
+export * from "./payment-term-2";
+export * from "./payment-term-3";
+export * from "./payment-term-4";
 
 // Reservation Email columns
-export * from './reservation-email';
+export * from "./reservation-email";
 
 // Cancellation columns
-export * from './cancellation';
+export * from "./cancellation";
 
 // Group Booking columns
-export * from './duo-or-group-booking';
+export * from "./duo-or-group-booking";
 
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 // Import all columns from each category
-import * as identifier from './identifier';
-import * as travelerInfo from './traveler-information';
-import * as tourDetails from './tour-details';
-import * as paymentSetting from './payment-setting';
-import * as fullPayment from './full-payment';
-import * as paymentTerm1 from './payment-term-1';
-import * as paymentTerm2 from './payment-term-2';
-import * as paymentTerm3 from './payment-term-3';
-import * as paymentTerm4 from './payment-term-4';
-import * as reservationEmail from './reservation-email';
-import * as cancellation from './cancellation';
-import * as groupBooking from './duo-or-group-booking';
+import * as identifier from "./identifier";
+import * as travelerInfo from "./traveler-information";
+import * as tourDetails from "./tour-details";
+import * as paymentSetting from "./payment-setting";
+import * as fullPayment from "./full-payment";
+import * as paymentTerm1 from "./payment-term-1";
+import * as paymentTerm2 from "./payment-term-2";
+import * as paymentTerm3 from "./payment-term-3";
+import * as paymentTerm4 from "./payment-term-4";
+import * as reservationEmail from "./reservation-email";
+import * as cancellation from "./cancellation";
+import * as groupBooking from "./duo-or-group-booking";
 
 /**
  * Collection of all booking sheet columns grouped by category
@@ -113,7 +113,7 @@ export const allBookingSheetColumns: BookingSheetColumn[] = [
  * Map of column ID to column definition for quick lookup
  */
 export const bookingSheetColumnsById = new Map<string, BookingSheetColumn>(
-  allBookingSheetColumns.map(col => [col.id, col])
+  allBookingSheetColumns.map((col) => [col.id, col])
 );
 
 /**
@@ -127,26 +127,28 @@ export function getColumnById(id: string): BookingSheetColumn | undefined {
  * Get all columns for a specific parent tab
  */
 export function getColumnsByParentTab(parentTab: string): BookingSheetColumn[] {
-  return allBookingSheetColumns.filter(col => col.data.parentTab === parentTab);
+  return allBookingSheetColumns.filter(
+    (col) => col.data.parentTab === parentTab
+  );
 }
 
 /**
  * Get all columns of a specific data type
  */
 export function getColumnsByDataType(dataType: string): BookingSheetColumn[] {
-  return allBookingSheetColumns.filter(col => col.data.dataType === dataType);
+  return allBookingSheetColumns.filter((col) => col.data.dataType === dataType);
 }
 
 /**
  * Get all function-type columns
  */
 export function getFunctionColumns(): BookingSheetColumn[] {
-  return getColumnsByDataType('function');
+  return getColumnsByDataType("function");
 }
 
 /**
  * Get all columns that should be included in forms
  */
 export function getFormColumns(): BookingSheetColumn[] {
-  return allBookingSheetColumns.filter(col => col.data.includeInForms);
+  return allBookingSheetColumns.filter((col) => col.data.includeInForms);
 }
