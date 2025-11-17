@@ -1,6 +1,6 @@
 {
   "projects": {
-    "default": "imheretravels",
+    "default": "imheretravels-a3f81",
     "dev": "imheretravels-dev",
     "prod": "imheretravels-a3f81"
   }
