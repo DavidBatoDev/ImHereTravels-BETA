@@ -76,14 +76,14 @@ import { IoWallet } from "react-icons/io5";
 import { HiTrendingUp } from "react-icons/hi";
 import type { Booking } from "@/types/bookings";
 import { SheetColumn } from "@/types/sheet-management";
-import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
+import { allBookingSheetColumns } from "@/app/functions/columns";
+import { functionMap } from "@/app/functions/columns/functions-index";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { Timestamp } from "firebase/firestore";
 import { bookingService } from "@/services/booking-service";
 import { useToast } from "@/hooks/use-toast";
 import BookingDetailModal from "./BookingDetailModal";
-import AddBookingModal from "./AddBookingModal";
 import BookingVersionHistoryModal from "@/components/version-history/BookingVersionHistoryModal";
 import CSVImport from "../sheet-management/CSVImport";
 import SpreadsheetSync from "../sheet-management/SpreadsheetSync";
@@ -272,14 +272,39 @@ export default function BookingsSection() {
     });
   }, [bookings, columns]);
 
-  // Fetch booking sheet columns
+  // Load coded booking sheet columns
   useEffect(() => {
-    const unsubscribe = bookingSheetColumnService.subscribeToColumns(
-      (fetchedColumns) => {
-        setColumns(fetchedColumns);
+    console.log("🔍 [BOOKINGS SECTION] Loading coded booking sheet columns...");
+
+    // Convert BookingSheetColumn[] to SheetColumn[] and inject function implementations
+    const codedColumns: SheetColumn[] = allBookingSheetColumns.map(
+      (col): SheetColumn => {
+        const columnData = col.data;
+
+        // If this is a function column, inject the actual function implementation
+        if (columnData.dataType === "function" && columnData.function) {
+          const funcImpl = functionMap[columnData.function];
+          if (funcImpl) {
+            return {
+              ...columnData,
+              compiledFunction: funcImpl as (...args: any[]) => any, // Inject the actual function
+            };
+          } else {
+            console.warn(
+              `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`
+            );
+          }
+        }
+
+        return columnData;
       }
     );
-    return () => unsubscribe();
+
+    console.log(
+      `✅ [BOOKINGS SECTION] Loaded ${codedColumns.length} coded columns from TypeScript files`
+    );
+
+    setColumns(codedColumns);
   }, []);
 
   // Subscribe to real-time bookings data
@@ -3134,19 +3159,6 @@ export default function BookingsSection() {
           </CardContent>
         </Card>
       )}
-
-      {/* Add Booking Modal */}
-      <AddBookingModal
-        isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          // Remove action from URL
-          const params = new URLSearchParams(searchParams.toString());
-          params.delete("action");
-          router.push(`/bookings?${params.toString()}`, { scroll: false });
-        }}
-        onSave={handleBookingCreate}
-      />
 
       {/* Booking Detail Modal */}
       <BookingDetailModal

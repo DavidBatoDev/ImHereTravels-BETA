@@ -1,35 +1,35 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const p3ScheduledReminderDateColumn: BookingSheetColumn = {
-  id: 'p3ScheduledReminderDate',
+  id: "p3ScheduledReminderDate",
   data: {
-    id: 'p3ScheduledReminderDate',
-    columnName: 'P3 Scheduled Reminder Date',
-    dataType: 'function',
-    function: 'getBaseMondayFromP3DueDateFunction',
-    parentTab: 'Payment Term 3',
+    id: "p3ScheduledReminderDate",
+    columnName: "P3 Scheduled Reminder Date",
+    dataType: "function",
+    function: "getBaseMondayFromP3DueDateFunction",
+    parentTab: "Payment Term 3",
     order: 63,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 213.33331298828125,
     arguments: [
       {
-        name: 'p3DueDate',
-        type: 'any',
-        columnReference: 'P3 Due Date',
+        name: "p3DueDate",
+        type: "any",
+        columnReference: "P3 Due Date",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p3DatePaid',
-        type: 'any',
-        columnReference: 'P3 Date Paid',
+        name: "p3DatePaid",
+        type: "any",
+        columnReference: "P3 Date Paid",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -49,7 +49,10 @@ export default function getBaseMondayFromP3DueDateFunction(
       if (val?.seconds && typeof val.seconds === "number") {
         return new Date(val.seconds * 1000);
       }
-      if (val?.type === "firestore/timestamp/1.0" && typeof val.seconds === "number") {
+      if (
+        val?.type === "firestore/timestamp/1.0" &&
+        typeof val.seconds === "number"
+      ) {
         return new Date(val.seconds * 1000);
       }
     }
@@ -57,7 +60,22 @@ export default function getBaseMondayFromP3DueDateFunction(
     if (val instanceof Date && !isNaN(val.getTime())) return val;
 
     if (typeof val === "string" && val.trim() !== "") {
+      // Split by comma to handle P3/P4 format: "Feb 2, 2025, May 2, 2025, Aug 2, 2025"
       const parts = val.split(",").map((p) => p.trim());
+
+      // For P3, we need the 3rd date
+      // Pattern: "Month Day, Year, Month Day, Year, Month Day, Year"
+      // After split: ["Month Day", "Year", "Month Day", "Year", "Month Day", "Year"]
+      // 3rd date is at parts[4] + ", " + parts[5]
+
+      if (parts.length >= 6) {
+        // Reconstruct the 3rd date from parts[4] and parts[5]
+        const thirdDate = `${parts[4]}, ${parts[5]}`;
+        const parsed = new Date(thirdDate);
+        if (!isNaN(parsed.getTime())) return parsed;
+      }
+
+      // Fallback: try parsing all parts
       for (const part of parts) {
         const parsed = new Date(part);
         if (!isNaN(parsed.getTime())) return parsed;
@@ -70,21 +88,24 @@ export default function getBaseMondayFromP3DueDateFunction(
   const d = toDate(p3DueDate);
   if (!d) return "";
 
+  // Spreadsheet formula: EOMONTH(d,-1) - get last day of previous month
   const eomPrev = new Date(d.getFullYear(), d.getMonth(), 0);
-  const weekday = ((eomPrev.getDay() + 6) % 7) + 1;
+
+  // limit = lastDay - 6 (a week before month end)
+  const limit = new Date(eomPrev);
+  limit.setDate(limit.getDate() - 6);
+
+  // Find Monday: limit - MOD(WEEKDAY(limit,2)-1, 7)
+  // WEEKDAY(limit, 2) makes Monday = 1, Sunday = 7
+  const weekday = ((limit.getDay() + 6) % 7) + 1; // Convert to ISO weekday
   const mod = (weekday - 1) % 7;
-  const base = new Date(eomPrev);
+  const base = new Date(limit);
   base.setDate(base.getDate() - mod);
 
-  const diffDays = (d.getTime() - base.getTime()) / (1000 * 60 * 60 * 24);
-  const finalDate =
-    diffDays < 7
-      ? new Date(base.getTime() - 7 * 24 * 60 * 60 * 1000)
-      : base;
-
-  const y = finalDate.getFullYear();
-  const m = String(finalDate.getMonth() + 1).padStart(2, "0");
-  const day = String(finalDate.getDate()).padStart(2, "0");
+  // Format to yyyy-mm-dd string
+  const y = base.getFullYear();
+  const m = String(base.getMonth() + 1).padStart(2, "0");
+  const day = String(base.getDate()).padStart(2, "0");
 
   return `${y}-${m}-${day}`;
 }

@@ -52,7 +52,8 @@ import {
 import { HiTrendingUp } from "react-icons/hi";
 import type { Booking } from "@/types/bookings";
 import { SheetColumn } from "@/types/sheet-management";
-import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
+import { allBookingSheetColumns } from "@/app/functions/columns";
+import { functionMap } from "@/app/functions/columns/functions-index";
 import { bookingService } from "@/services/booking-service";
 import { useToast } from "@/hooks/use-toast";
 import EditBookingModal from "./EditBookingModal";
@@ -227,27 +228,42 @@ export default function BookingDetailModal({
     };
   }, [booking?.id, isOpen]);
 
-  // Fetch booking sheet columns
+  // Load coded booking sheet columns
   useEffect(() => {
     if (!isOpen) return;
 
-    console.log("🔍 [BOOKING DETAIL MODAL] Fetching columns...");
+    console.log("🔍 [BOOKING DETAIL MODAL] Loading coded columns...");
     setIsLoadingColumns(true);
 
-    const unsubscribe = bookingSheetColumnService.subscribeToColumns(
-      (fetchedColumns) => {
-        console.log(
-          `✅ [BOOKING DETAIL MODAL] Received ${fetchedColumns.length} columns`
-        );
-        setColumns(fetchedColumns);
-        setIsLoadingColumns(false);
+    // Convert BookingSheetColumn[] to SheetColumn[] and inject function implementations
+    const codedColumns: SheetColumn[] = allBookingSheetColumns.map(
+      (col): SheetColumn => {
+        const columnData = col.data;
+
+        // If this is a function column, inject the actual function implementation
+        if (columnData.dataType === "function" && columnData.function) {
+          const funcImpl = functionMap[columnData.function];
+          if (funcImpl) {
+            return {
+              ...columnData,
+              compiledFunction: funcImpl as (...args: any[]) => any,
+            };
+          } else {
+            console.warn(
+              `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`
+            );
+          }
+        }
+
+        return columnData;
       }
     );
 
-    return () => {
-      console.log("🧹 [BOOKING DETAIL MODAL] Cleaning up column subscription");
-      unsubscribe();
-    };
+    console.log(
+      `✅ [BOOKING DETAIL MODAL] Loaded ${codedColumns.length} coded columns`
+    );
+    setColumns(codedColumns);
+    setIsLoadingColumns(false);
   }, [isOpen]);
 
   // Set first tab as active on load - must be unconditional and placed with other hooks

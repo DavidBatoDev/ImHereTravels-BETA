@@ -19,7 +19,7 @@ export const emailDraftLinkColumn: BookingSheetColumn = {
       {
         name: "bookingId",
         type: "string",
-        columnReference: "Booking ID",
+        columnReference: "ID",
         isOptional: false,
         hasDefault: false,
         isRest: false,

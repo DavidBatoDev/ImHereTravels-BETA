@@ -1,35 +1,35 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const p1ScheduledReminderDateColumn: BookingSheetColumn = {
-  id: 'p1ScheduledReminderDate',
+  id: "p1ScheduledReminderDate",
   data: {
-    id: 'p1ScheduledReminderDate',
-    columnName: 'P1 Scheduled Reminder Date',
-    dataType: 'function',
-    function: 'getBaseMondayFromP1DueDateFunction',
-    parentTab: 'Payment Term 1',
+    id: "p1ScheduledReminderDate",
+    columnName: "P1 Scheduled Reminder Date",
+    dataType: "function",
+    function: "getBaseMondayFromP1DueDateFunction",
+    parentTab: "Payment Term 1",
     order: 49,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 180,
     arguments: [
       {
-        name: 'p1DueDate',
-        type: 'any',
-        columnReference: 'P1 Due Date',
+        name: "p1DueDate",
+        type: "any",
+        columnReference: "P1 Due Date",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p1DatePaid',
-        type: 'any',
-        columnReference: 'P1 Date Paid',
+        name: "p1DatePaid",
+        type: "any",
+        columnReference: "P1 Date Paid",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -51,14 +51,18 @@ export default function getBaseMondayFromP1DueDateFunction(
     if (typeof val === "object") {
       // Firestore-style { seconds, nanoseconds }
       if (val?.seconds && typeof val.seconds === "number") {
-        return new Date(val.seconds * 1000 + Math.floor((val.nanoseconds || 0) / 1e6));
+        return new Date(
+          val.seconds * 1000 + Math.floor((val.nanoseconds || 0) / 1e6)
+        );
       }
 
       // Firestore legacy format { type: "firestore/timestamp/1.0", seconds, nanoseconds }
-      if (val?.type === "firestore/timestamp/1.0" && typeof val.seconds === "number") {
+      if (
+        val?.type === "firestore/timestamp/1.0" &&
+        typeof val.seconds === "number"
+      ) {
         return new Date(val.seconds * 1000);
       }
-      
     }
 
     // JS Date instance
@@ -76,28 +80,24 @@ export default function getBaseMondayFromP1DueDateFunction(
   const d = toDate(p1DueDate);
   if (!d) return "";
 
-  // --- EOMONTH(d, -1): last day of previous month ---
+  // Spreadsheet formula: EOMONTH(d,-1) - get last day of previous month
   const eomPrev = new Date(d.getFullYear(), d.getMonth(), 0);
 
-  // --- WEEKDAY(EOMONTH(d,-1), 2): Monday = 1, Sunday = 7 ---
-  const weekday = ((eomPrev.getDay() + 6) % 7) + 1;
+  // limit = lastDay - 6 (a week before month end)
+  const limit = new Date(eomPrev);
+  limit.setDate(limit.getDate() - 6);
 
-  // --- base = EOMONTH(d,-1) - MOD(WEEKDAY(...)-1,7) ---
+  // Find Monday: limit - MOD(WEEKDAY(limit,2)-1, 7)
+  // WEEKDAY(limit, 2) makes Monday = 1, Sunday = 7
+  const weekday = ((limit.getDay() + 6) % 7) + 1; // Convert to ISO weekday
   const mod = (weekday - 1) % 7;
-  const base = new Date(eomPrev);
+  const base = new Date(limit);
   base.setDate(base.getDate() - mod);
 
-  // --- if (d - base < 7 days), then base - 7 days ---
-  const diffDays = (d.getTime() - base.getTime()) / (1000 * 60 * 60 * 24);
-  const finalDate =
-    diffDays < 7
-      ? new Date(base.getTime() - 7 * 24 * 60 * 60 * 1000)
-      : base;
-
-  // --- Format to yyyy-mm-dd string ---
-  const y = finalDate.getFullYear();
-  const m = String(finalDate.getMonth() + 1).padStart(2, "0");
-  const day = String(finalDate.getDate()).padStart(2, "0");
+  // Format to yyyy-mm-dd string
+  const y = base.getFullYear();
+  const m = String(base.getMonth() + 1).padStart(2, "0");
+  const day = String(base.getDate()).padStart(2, "0");
 
   return `${y}-${m}-${day}`;
 }
