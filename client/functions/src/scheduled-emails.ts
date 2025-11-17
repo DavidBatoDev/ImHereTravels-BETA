@@ -3,6 +3,8 @@ import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import GmailApiService from "./gmail-api-service";
+import EmailTemplateService from "./email-template-service";
+import { EmailTemplateLoader } from "./email-template-loader";
 import * as dotenv from "dotenv";
 
 // Load environment variables from .env
@@ -49,6 +51,92 @@ type SheetColumn = {
 // Helper function to get Gmail sent URL
 function getGmailSentUrl(messageId: string): string {
   return `https://mail.google.com/mail/u/0/#sent/${messageId}`;
+}
+
+// Helper function to re-render template with fresh booking data
+async function rerenderEmailTemplate(
+  bookingId: string,
+  templateId: string,
+  templateVariables: Record<string, any>
+): Promise<{ subject: string; htmlContent: string }> {
+  try {
+    // Fetch fresh booking data
+    const bookingDoc = await db.collection("bookings").doc(bookingId).get();
+
+    if (!bookingDoc.exists) {
+      throw new Error(`Booking ${bookingId} not found`);
+    }
+
+    const bookingData = bookingDoc.data()!;
+
+    // Update template variables with fresh data
+    const freshVariables = {
+      ...templateVariables,
+      // Update key fields with fresh data
+      fullName: bookingData.fullName,
+      emailAddress: bookingData.emailAddress,
+      tourPackageName: bookingData.tourPackageName,
+      bookingId: bookingData.bookingId,
+      tourDate: bookingData.tourDate,
+      paid: bookingData.paid,
+      remainingBalance: bookingData.remainingBalance,
+      originalTourCost: bookingData.originalTourCost,
+      discountedTourCost: bookingData.discountedTourCost,
+      useDiscountedTourCost: bookingData.useDiscountedTourCost,
+      paymentMethod: bookingData.paymentCondition || "Other",
+      paymentPlan: bookingData.availablePaymentTerms || "",
+    };
+
+    // Update payment term data if applicable
+    if (templateVariables.paymentTerm) {
+      const term = templateVariables.paymentTerm as string;
+      const termLower = term.toLowerCase();
+
+      freshVariables[`${termLower}Amount`] = bookingData[`${termLower}Amount`];
+      freshVariables[`${termLower}DueDate`] =
+        bookingData[`${termLower}DueDate`];
+      freshVariables[`${termLower}DatePaid`] =
+        bookingData[`${termLower}DatePaid`];
+    }
+
+    // Update term data array if showTable is true
+    if (templateVariables.showTable && templateVariables.termData) {
+      const terms = ["P1", "P2", "P3", "P4"];
+      freshVariables.termData = terms
+        .filter((t) => bookingData.availablePaymentTerms?.includes(t))
+        .map((t) => ({
+          term: t,
+          amount: bookingData[`${t.toLowerCase()}Amount`] || 0,
+          dueDate: bookingData[`${t.toLowerCase()}DueDate`] || "",
+          datePaid: bookingData[`${t.toLowerCase()}DatePaid`] || "",
+        }));
+    }
+
+    // Load and render the template
+    const templateName =
+      templateId === "scheduledReminderEmail"
+        ? "scheduledReminderEmail"
+        : templateId;
+
+    const rawTemplate = await EmailTemplateLoader.loadTemplate(
+      templateName,
+      {}
+    );
+    const htmlContent = await EmailTemplateService.processTemplate(
+      rawTemplate,
+      freshVariables
+    );
+
+    // Generate subject with fresh data
+    const subject = `Payment Reminder - ${freshVariables.fullName} - ${
+      templateVariables.paymentTerm || "Payment"
+    } Due`;
+
+    return { subject, htmlContent };
+  } catch (error) {
+    logger.error("Error re-rendering email template:", error);
+    throw error;
+  }
 }
 
 /**
@@ -99,11 +187,44 @@ export const processScheduledEmails = onSchedule(
           // Initialize Gmail API service
           const gmailService = new GmailApiService();
 
+          let emailSubject = emailData.subject;
+          let emailHtmlContent = emailData.htmlContent;
+
+          // Re-render template with fresh data for payment reminders
+          if (
+            emailData.emailType === "payment-reminder" &&
+            emailData.bookingId &&
+            emailData.templateId &&
+            emailData.templateVariables
+          ) {
+            try {
+              logger.info(
+                `Re-rendering template for booking ${emailData.bookingId} with fresh data`
+              );
+              const freshEmail = await rerenderEmailTemplate(
+                emailData.bookingId,
+                emailData.templateId,
+                emailData.templateVariables
+              );
+              emailSubject = freshEmail.subject;
+              emailHtmlContent = freshEmail.htmlContent;
+              logger.info(
+                `Template re-rendered successfully for email ${emailId}`
+              );
+            } catch (rerenderError) {
+              logger.warn(
+                `Failed to re-render template for email ${emailId}, using original content:`,
+                rerenderError
+              );
+              // Fall back to original content if re-rendering fails
+            }
+          }
+
           // Send the email
           const result = await gmailService.sendEmail({
             to: emailData.to,
-            subject: emailData.subject,
-            htmlContent: emailData.htmlContent,
+            subject: emailSubject,
+            htmlContent: emailHtmlContent,
             bcc: emailData.bcc,
             cc: emailData.cc,
             from: emailData.from,
