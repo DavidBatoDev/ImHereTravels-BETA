@@ -52,12 +52,14 @@ export default async function getSentDateCancellation(
   if (!draftUrlOrMessageId || draftUrlOrMessageId.trim() === "") return "";
   if (!field || field.trim() === "") return "";
 
+  const messageId = draftUrlOrMessageId;
+
   try {
     // Call the cloud function to get the email details from Gmail
     const getEmailDetailsCallable = httpsCallable(functions, "getEmailDetails");
 
     const result = await getEmailDetailsCallable({
-      messageIdOrUrl: draftUrlOrMessageId,
+      messageIdOrUrl: messageId,
     });
 
     // The cloud function returns email details with various fields

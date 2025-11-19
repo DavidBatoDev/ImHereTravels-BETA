@@ -138,47 +138,69 @@ export default async function generateCancellationGmailDraft(
   try {
     if (!bookingId) return "";
 
-    // The bookingId parameter is actually the document ID from the "ID" column
-    // Fetch the LATEST booking document directly from Firestore (not cached data)
-    const bookingDoc = (await firebaseUtils.getDocumentData(
-      "bookings",
-      bookingId
-    )) as BookingData;
+    console.log(`[CANCELLATION DRAFT LINK] Called with:`, {
+      bookingId,
+      generateCancellationDraft,
+    });
 
-    if (!bookingDoc) {
-      throw new Error(`Booking with document ID ${bookingId} not found`);
-    }
+    // If generateCancellationDraft is false, always return empty string
+    // This ensures the link is cleared immediately when toggled off
+    if (!generateCancellationDraft) {
+      // The bookingId parameter is actually the document ID from the "ID" column
+      // Fetch the LATEST booking document directly from Firestore (not cached data)
+      const bookingDoc = (await firebaseUtils.getDocumentData(
+        "bookings",
+        bookingId
+      )) as BookingData;
 
-    console.log(`Found booking document with ID: ${bookingDoc.id}`);
-
-    // Check if we need to delete existing draft when toggling off
-    const existingGmailDraftUrl = bookingDoc.cancellationEmailDraftLink;
-
-    if (!generateCancellationDraft && existingGmailDraftUrl) {
-      // Clear existing Gmail draft URL if Generate Cancellation Draft is false
-      console.log(
-        `Clearing existing cancellation Gmail draft URL: ${existingGmailDraftUrl}`
-      );
-
-      // Extract draft ID from URL and delete the Gmail draft
-      try {
-        const draftId = extractDraftIdFromUrl(existingGmailDraftUrl);
-        if (draftId) {
-          console.log(`Deleting cancellation Gmail draft with ID: ${draftId}`);
-          const deleteGmailDraft = httpsCallable(functions, "deleteGmailDraft");
-          await deleteGmailDraft({ draftId });
-          console.log("Cancellation Gmail draft deleted successfully");
-        }
-      } catch (deleteError) {
-        console.error("Error deleting cancellation Gmail draft:", deleteError);
-        // Continue to clear the URL even if deletion fails
+      if (!bookingDoc) {
+        throw new Error(`Booking with document ID ${bookingId} not found`);
       }
 
-      // Clear only the generateCancellationDraft flag
-      // The cancellationEmailDraftLink will be cleared by the return value
-      await firebaseUtils.updateDocument("bookings", bookingDoc.id, {
-        generateCancellationDraft: false,
-      });
+      console.log(`Found booking document with ID: ${bookingDoc.id}`);
+
+      // Check if we need to delete existing draft when toggling off
+      let existingGmailDraftUrl = bookingDoc.cancellationEmailDraftLink;
+
+      // Remove SENT: prefix if present to get the actual draft URL
+      if (existingGmailDraftUrl && existingGmailDraftUrl.startsWith("SENT:")) {
+        existingGmailDraftUrl = existingGmailDraftUrl.substring(5);
+      }
+
+      if (existingGmailDraftUrl) {
+        // Clear existing Gmail draft URL if Generate Cancellation Draft is false
+        console.log(
+          `Clearing existing cancellation Gmail draft URL: ${existingGmailDraftUrl}`
+        );
+
+        // Extract draft ID from URL and delete the Gmail draft
+        try {
+          const draftId = extractDraftIdFromUrl(existingGmailDraftUrl);
+          if (draftId) {
+            console.log(
+              `Deleting cancellation Gmail draft with ID: ${draftId}`
+            );
+            const deleteGmailDraft = httpsCallable(
+              functions,
+              "deleteGmailDraft"
+            );
+            await deleteGmailDraft({ draftId });
+            console.log("Cancellation Gmail draft deleted successfully");
+          }
+        } catch (deleteError) {
+          console.error(
+            "Error deleting cancellation Gmail draft:",
+            deleteError
+          );
+          // Continue to clear the URL even if deletion fails
+        }
+
+        // Clear only the generateCancellationDraft flag
+        // The cancellationEmailDraftLink will be cleared by the return value
+        await firebaseUtils.updateDocument("bookings", bookingDoc.id, {
+          generateCancellationDraft: false,
+        });
+      }
 
       console.log("Cancellation Gmail draft URL cleared successfully");
       return "";
@@ -186,6 +208,25 @@ export default async function generateCancellationGmailDraft(
 
     // If Generate Cancellation Draft is true, always create new Gmail draft
     if (generateCancellationDraft) {
+      // Fetch the booking document to get existing draft URL
+      const bookingDoc = (await firebaseUtils.getDocumentData(
+        "bookings",
+        bookingId
+      )) as BookingData;
+
+      if (!bookingDoc) {
+        throw new Error(`Booking with document ID ${bookingId} not found`);
+      }
+
+      console.log(`Found booking document with ID: ${bookingDoc.id}`);
+
+      let existingGmailDraftUrl = bookingDoc.cancellationEmailDraftLink;
+
+      // Remove SENT: prefix if present to get the actual draft URL
+      if (existingGmailDraftUrl && existingGmailDraftUrl.startsWith("SENT:")) {
+        existingGmailDraftUrl = existingGmailDraftUrl.substring(5);
+      }
+
       // Delete existing draft if it exists
       if (existingGmailDraftUrl) {
         console.log(
