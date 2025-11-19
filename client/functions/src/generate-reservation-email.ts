@@ -23,22 +23,6 @@ function getGmailDraftUrl(draftId: string, messageId: string): string {
   return `https://mail.google.com/mail/u/0/#drafts?compose=${messageId}`;
 }
 
-// Helper function to format GBP currency
-function formatGBP(value: number | string): string {
-  if (!value) return "";
-
-  // If it's already a string with £, return as-is to avoid double £
-  if (typeof value === "string" && value.includes("£")) {
-    return value;
-  }
-
-  // Convert to number and format
-  const numValue = Number(value);
-  if (isNaN(numValue)) return "";
-
-  return `£${numValue.toFixed(2)}`;
-}
-
 // Helper function to format dates like Google Sheets: "Dec 2, 2025"
 function formatDateLikeSheets(dateValue: any): string {
   if (!dateValue) return "";
@@ -269,8 +253,8 @@ export const generateReservationEmail = onCall(
       }
 
       // Prepare template variables
-      // Note: reservationFee is passed as raw number because template has hardcoded £
-      // Payment amounts are formatted with £ as template doesn't have hardcoded £
+      // Note: All payment amounts are passed as raw numbers (e.g., "950.00")
+      // because the template has hardcoded £ symbols
       const templateVariables: Record<string, any> = {
         fullName,
         mainBooker,
@@ -283,16 +267,16 @@ export const generateReservationEmail = onCall(
         bookingId: bookingIdValue,
         groupId,
         reservationFee: Number(reservationFee).toFixed(2), // Raw number - template adds £
-        remainingBalance: formatGBP(remainingBalance),
-        fullPaymentAmount: formatGBP(fullPaymentAmount),
+        remainingBalance: Number(remainingBalance).toFixed(2), // Raw number - template adds £
+        fullPaymentAmount: Number(fullPaymentAmount).toFixed(2), // Raw number - template adds £
         fullPaymentDueDate: formatDateLikeSheets(fullPaymentDueDate),
-        p1Amount: formatGBP(p1Amount),
+        p1Amount: Number(p1Amount).toFixed(2), // Raw number - template adds £
         p1DueDate: formatDateLikeSheets(p1DueDate),
-        p2Amount: formatGBP(p2Amount),
+        p2Amount: Number(p2Amount).toFixed(2), // Raw number - template adds £
         p2DueDate: formatDateLikeSheets(p2DueDate),
-        p3Amount: formatGBP(p3Amount),
+        p3Amount: Number(p3Amount).toFixed(2), // Raw number - template adds £
         p3DueDate: formatDateLikeSheets(p3DueDate),
-        p4Amount: formatGBP(p4Amount),
+        p4Amount: Number(p4Amount).toFixed(2), // Raw number - template adds £
         p4DueDate: formatDateLikeSheets(p4DueDate),
         isCancelled,
         cancelledRefundAmount: isCancelled

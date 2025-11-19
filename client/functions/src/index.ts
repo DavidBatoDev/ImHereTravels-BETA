@@ -19,6 +19,7 @@ export { generateCancellationEmail } from "./generate-cancellation-email";
 export { sendCancellationEmail } from "./send-cancellation-email";
 export { getDraftSubject } from "./get-draft-subject";
 export { getEmailDetails } from "./get-email-details";
+export { deleteGmailDraft } from "./delete-gmail-draft";
 // Export email utilities
 export { EmailTemplateLoader } from "./email-template-loader";
 // Export only the scheduled email processor (cron job)
@@ -27,16 +28,12 @@ export { processScheduledEmails } from "./scheduled-emails";
 // Export payment reminder trigger
 export { onPaymentReminderEnabled } from "./payment-reminder-trigger";
 
-
-
 // export { telegramBot } from "./telegram-bot";
 // export {
 //   onTypeScriptFunctionUpdated,
 //   onTypeScriptFunctionUpdatedSimple,
 // } from "./recompute-on-function-update";
 // export { testRecompute } from "./test-recompute";
-
-
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript

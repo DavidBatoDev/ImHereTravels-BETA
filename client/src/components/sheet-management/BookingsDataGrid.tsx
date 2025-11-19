@@ -253,7 +253,7 @@ export default function BookingsDataGrid({
   const [emailGenerationProgress, setEmailGenerationProgress] = useState<{
     type: "reservation" | "cancellation" | null;
     bookingId: string | null;
-    action: "generating" | "sending" | null;
+    action: "generating" | "sending" | "deleting" | null;
   }>({ type: null, bookingId: null, action: null });
 
   // Debounced Firebase update refs
@@ -846,10 +846,21 @@ export default function BookingsDataGrid({
               emailType = "cancellation";
             }
 
+            // Determine if we're toggling off (deleting draft)
+            let action: "generating" | "sending" | "deleting" = "generating";
+            if (isEmailSendingFunction) {
+              action = "sending";
+            } else if (isEmailGenerationFunction) {
+              // Check if toggling off by looking at the generate flag argument (usually index 3)
+              const generateFlagIndex = 3; // generateEmailDraft or generateCancellationDraft is typically the 4th argument
+              const isTogglingOff = args[generateFlagIndex] === false;
+              action = isTogglingOff ? "deleting" : "generating";
+            }
+
             setEmailGenerationProgress({
               type: emailType,
               bookingId: args[0] || null, // First argument is typically bookingId or draftUrl
-              action: isEmailGenerationFunction ? "generating" : "sending",
+              action: action,
             });
           }
 
@@ -3056,6 +3067,29 @@ export default function BookingsDataGrid({
                 onChange={async (e) => {
                   const newValue = e.target.checked;
 
+                  // Prevent toggling "Send Email?" on if there's no draft link
+                  const isSendEmailField =
+                    column.key === "sendEmail" ||
+                    column.key === "sendCancellationEmail";
+                  if (isSendEmailField && newValue) {
+                    const hasDraftLink =
+                      column.key === "sendEmail"
+                        ? Boolean(row.emailDraftLink)
+                        : Boolean(row.cancellationEmailDraftUrl);
+
+                    if (!hasDraftLink) {
+                      toast({
+                        title: "Cannot Send Email",
+                        description:
+                          column.key === "sendEmail"
+                            ? "Please generate an email draft first before sending."
+                            : "Please generate a cancellation email draft first before sending.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+
                   // Use batched writer to track changes in version history
                   batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
 
@@ -4525,6 +4559,8 @@ export default function BookingsDataGrid({
                   <h3 className="text-lg font-semibold text-foreground">
                     {emailGenerationProgress.action === "generating"
                       ? "Generating Email Draft"
+                      : emailGenerationProgress.action === "deleting"
+                      ? "Deleting Email Draft"
                       : "Sending Email"}
                   </h3>
                   <p className="text-sm text-muted-foreground">
@@ -4532,6 +4568,10 @@ export default function BookingsDataGrid({
                       ? emailGenerationProgress.type === "reservation"
                         ? "Creating reservation email draft..."
                         : "Creating cancellation email draft..."
+                      : emailGenerationProgress.action === "deleting"
+                      ? emailGenerationProgress.type === "reservation"
+                        ? "Deleting reservation email draft if it exists..."
+                        : "Deleting cancellation email draft if it exists..."
                       : emailGenerationProgress.type === "reservation"
                       ? "Sending reservation email..."
                       : "Sending cancellation email..."}

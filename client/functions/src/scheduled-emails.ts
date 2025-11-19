@@ -70,7 +70,7 @@ async function rerenderEmailTemplate(
     const bookingData = bookingDoc.data()!;
 
     // Update template variables with fresh data
-    const freshVariables = {
+    const freshVariables: Record<string, any> = {
       ...templateVariables,
       // Update key fields with fresh data
       fullName: bookingData.fullName,
@@ -92,11 +92,15 @@ async function rerenderEmailTemplate(
       const term = templateVariables.paymentTerm as string;
       const termLower = term.toLowerCase();
 
-      freshVariables[`${termLower}Amount`] = bookingData[`${termLower}Amount`];
-      freshVariables[`${termLower}DueDate`] =
-        bookingData[`${termLower}DueDate`];
-      freshVariables[`${termLower}DatePaid`] =
-        bookingData[`${termLower}DatePaid`];
+      freshVariables[`${termLower}Amount`] = (bookingData as any)[
+        `${termLower}Amount`
+      ];
+      freshVariables[`${termLower}DueDate`] = (bookingData as any)[
+        `${termLower}DueDate`
+      ];
+      freshVariables[`${termLower}DatePaid`] = (bookingData as any)[
+        `${termLower}DatePaid`
+      ];
     }
 
     // Update term data array if showTable is true
@@ -106,9 +110,9 @@ async function rerenderEmailTemplate(
         .filter((t) => bookingData.availablePaymentTerms?.includes(t))
         .map((t) => ({
           term: t,
-          amount: bookingData[`${t.toLowerCase()}Amount`] || 0,
-          dueDate: bookingData[`${t.toLowerCase()}DueDate`] || "",
-          datePaid: bookingData[`${t.toLowerCase()}DatePaid`] || "",
+          amount: (bookingData as any)[`${t.toLowerCase()}Amount`] || 0,
+          dueDate: (bookingData as any)[`${t.toLowerCase()}DueDate`] || "",
+          datePaid: (bookingData as any)[`${t.toLowerCase()}DatePaid`] || "",
         }));
     }
 
@@ -120,7 +124,7 @@ async function rerenderEmailTemplate(
 
     const rawTemplate = await EmailTemplateLoader.loadTemplate(
       templateName,
-      {}
+      {} as any
     );
     const htmlContent = await EmailTemplateService.processTemplate(
       rawTemplate,

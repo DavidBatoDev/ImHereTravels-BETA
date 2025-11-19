@@ -747,6 +747,53 @@ export class GmailApiService {
   }
 
   /**
+   * Find draft ID by message ID
+   * @param messageId - Message ID from the draft URL
+   * @returns Draft ID if found, null otherwise
+   */
+  async findDraftIdByMessageId(messageId: string): Promise<string | null> {
+    try {
+      logger.info(`Searching for draft with message ID: ${messageId}`);
+
+      // List all drafts
+      const listResponse = await this.gmail.users.drafts.list({
+        userId: "me",
+        maxResults: 500, // Increase to search more drafts
+      });
+
+      const drafts = listResponse.data.drafts || [];
+
+      // Search through drafts to find matching message ID
+      for (const draft of drafts) {
+        try {
+          const draftResponse = await this.gmail.users.drafts.get({
+            userId: "me",
+            id: draft.id,
+            format: "metadata",
+          });
+
+          // Check if this draft's message ID matches
+          if (draftResponse.data.message?.id === messageId) {
+            logger.info(
+              `Found draft ID ${draft.id} for message ID ${messageId}`
+            );
+            return draft.id;
+          }
+        } catch (error) {
+          logger.warn(`Error checking draft ${draft.id}:`, error);
+          continue;
+        }
+      }
+
+      logger.warn(`No draft found with message ID: ${messageId}`);
+      return null;
+    } catch (error) {
+      logger.error("Error finding draft by message ID:", error);
+      throw new Error(`Failed to find draft: ${error}`);
+    }
+  }
+
+  /**
    * Get all drafts from Gmail
    * @param maxResults - Maximum number of drafts to fetch
    * @returns Array of draft objects

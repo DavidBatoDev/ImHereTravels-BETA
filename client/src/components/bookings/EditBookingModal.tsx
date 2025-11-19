@@ -92,7 +92,7 @@ export default function EditBookingModal({
   const [emailGenerationProgress, setEmailGenerationProgress] = useState<{
     type: "reservation" | "cancellation" | null;
     bookingId: string | null;
-    action: "generating" | "sending" | null;
+    action: "generating" | "sending" | "deleting" | null;
   }>({ type: null, bookingId: null, action: null });
 
   const { toast } = useToast();
@@ -497,10 +497,26 @@ export default function EditBookingModal({
           emailType = "cancellation";
         }
 
+        // Determine if we're toggling off (deleting draft)
+        let action: "generating" | "sending" | "deleting" = "generating";
+        if (isEmailSendingFunction) {
+          action = "sending";
+        } else if (isEmailGenerationFunction) {
+          // Check if toggling off by looking at the current value in formData
+          const generateField =
+            emailType === "reservation"
+              ? "generateEmailDraft"
+              : "generateCancellationDraft";
+          const currentValue =
+            currentData[generateField as keyof typeof currentData];
+          const isTogglingOff = currentValue === false;
+          action = isTogglingOff ? "deleting" : "generating";
+        }
+
         setEmailGenerationProgress({
           type: emailType,
           bookingId: currentData.id || null,
-          action: isEmailGenerationFunction ? "generating" : "sending",
+          action: action,
         });
       }
 
@@ -553,6 +569,16 @@ export default function EditBookingModal({
       try {
         // Find function columns that depend on the changed field
         const directDependents = dependencyGraph.get(changedColumnId) || [];
+
+        console.log(`🔍 Execute dependents for ${changedColumnId}:`, {
+          dependentsCount: directDependents.length,
+          dependents: directDependents.map((d) => d.id),
+          currentData: {
+            [changedColumnId]: currentData[changedColumnId as keyof Booking],
+            emailDraftLink: currentData.emailDraftLink,
+            cancellationEmailDraftLink: currentData.cancellationEmailDraftLink,
+          },
+        });
 
         if (directDependents.length === 0) return currentData;
 
@@ -905,12 +931,43 @@ export default function EditBookingModal({
 
       switch (column.dataType) {
         case "boolean":
+          // Check if this is the "Send Email?" field and prevent toggling if no draft link exists
+          const isSendEmailField =
+            column.id === "sendEmail" || column.id === "sendCancellationEmail";
+          const hasDraftLink = isSendEmailField
+            ? column.id === "sendEmail"
+              ? Boolean(formData.emailDraftLink)
+              : Boolean(formData.cancellationEmailDraftLink)
+            : true;
+
           return (
             <div className="flex items-center space-x-2">
               <Switch
                 id={fieldId}
                 checked={Boolean(value)}
                 onCheckedChange={(checked) => {
+                  console.log(
+                    `🔘 Boolean field toggled: ${column.id} = ${checked}`
+                  );
+                  console.log(`📊 Current formData for draft link:`, {
+                    emailDraftLink: formData.emailDraftLink,
+                    cancellationEmailDraftLink:
+                      formData.cancellationEmailDraftLink,
+                  });
+
+                  // Prevent toggling on if it's a send email field and there's no draft link
+                  if (isSendEmailField && checked && !hasDraftLink) {
+                    toast({
+                      title: "Cannot Send Email",
+                      description:
+                        column.id === "sendEmail"
+                          ? "Please generate an email draft first before sending."
+                          : "Please generate a cancellation email draft first before sending.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+
                   // For switches, commit immediately to Firebase (discrete choice)
                   if (booking?.id) {
                     batchedWriter.queueFieldUpdate(
@@ -923,15 +980,53 @@ export default function EditBookingModal({
                   setIsSaving(true);
                   debouncedSaveIndicator();
 
+                  // Mark this boolean field as computing to prevent rapid toggling
+                  setComputingFields((prev) => new Set([...prev, column.id]));
+
+                  // For email-related fields, invalidate cache to force fresh execution
+                  if (
+                    column.id === "generateEmailDraft" ||
+                    column.id === "generateCancellationDraft" ||
+                    column.id === "sendEmail" ||
+                    column.id === "sendCancellationEmail"
+                  ) {
+                    // Find the dependent function column and invalidate by function name
+                    const dependents = dependencyGraph.get(column.id) || [];
+                    dependents.forEach((dep) => {
+                      if (dep.function) {
+                        console.log(
+                          `🗑️ Invalidating cache for function: ${dep.function}`
+                        );
+                        functionExecutionService.invalidate(dep.function);
+                      }
+                    });
+                  }
+
                   // Execute dependent functions immediately
                   executeDirectDependents(column.id, {
                     ...formData,
                     [column.id]: checked,
-                  }).then((finalData) => {
-                    if (finalData) {
-                      setFormData(finalData);
-                    }
-                  });
+                  })
+                    .then((finalData) => {
+                      console.log(`✅ Dependents completed for ${column.id}`, {
+                        finalData,
+                        emailDraftLink: finalData?.emailDraftLink,
+                        cancellationEmailDraftLink:
+                          finalData?.cancellationEmailDraftLink,
+                      });
+                      if (finalData) {
+                        // Force update formData with final results to prevent stale values
+                        setFormData(finalData);
+                      }
+                    })
+                    .finally(() => {
+                      // Remove boolean field from computing state
+                      setComputingFields((prev) => {
+                        const newSet = new Set(prev);
+                        newSet.delete(column.id);
+                        return newSet;
+                      });
+                    });
                 }}
                 disabled={isReadOnly || isComputing}
               />
@@ -1110,67 +1205,66 @@ export default function EditBookingModal({
               {isComputing && (
                 <RefreshCw className="h-4 w-4 animate-spin text-royal-purple" />
               )}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                tabIndex={-1}
-                onClick={async () => {
-                  if (!booking?.id) return;
-                  setComputingFields((prev) => new Set([...prev, column.id]));
-                  try {
-                    // First, recompute this specific function column
-                    const result = await executeFunction(column, formData);
+              {!isComputing && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  tabIndex={-1}
+                  onClick={async () => {
+                    if (!booking?.id) return;
+                    setComputingFields((prev) => new Set([...prev, column.id]));
+                    try {
+                      // First, recompute this specific function column
+                      const result = await executeFunction(column, formData);
 
-                    if (result !== undefined) {
-                      // Update form data with the computed result
-                      const updatedData = { ...formData, [column.id]: result };
+                      if (result !== undefined) {
+                        // Update form data with the computed result
+                        const updatedData = {
+                          ...formData,
+                          [column.id]: result,
+                        };
 
-                      // Queue Firebase update
-                      batchedWriter.queueFieldUpdate(
-                        booking.id,
-                        column.id,
-                        result
-                      );
+                        // Queue Firebase update
+                        batchedWriter.queueFieldUpdate(
+                          booking.id,
+                          column.id,
+                          result
+                        );
 
-                      // Then compute dependent functions
-                      const finalData = await executeDirectDependents(
-                        column.id,
-                        updatedData
-                      );
+                        // Then compute dependent functions
+                        const finalData = await executeDirectDependents(
+                          column.id,
+                          updatedData
+                        );
 
-                      if (finalData) {
-                        setFormData(finalData);
+                        if (finalData) {
+                          setFormData(finalData);
+                        }
                       }
+                    } catch (error) {
+                      console.error(
+                        `Error recomputing ${column.columnName}:`,
+                        error
+                      );
+                      toast({
+                        title: "Recomputation Failed",
+                        description: `Failed to recompute ${column.columnName}`,
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setComputingFields((prev) => {
+                        const newSet = new Set(prev);
+                        newSet.delete(column.id);
+                        return newSet;
+                      });
                     }
-                  } catch (error) {
-                    console.error(
-                      `Error recomputing ${column.columnName}:`,
-                      error
-                    );
-                    toast({
-                      title: "Recomputation Failed",
-                      description: `Failed to recompute ${column.columnName}`,
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setComputingFields((prev) => {
-                      const newSet = new Set(prev);
-                      newSet.delete(column.id);
-                      return newSet;
-                    });
-                  }
-                }}
-                disabled={isComputing}
-                className="h-7 w-7 p-0"
-              >
-                <RefreshCw
-                  className={cn(
-                    "h-3 w-3 text-royal-purple",
-                    isComputing && "animate-spin"
-                  )}
-                />
-              </Button>
+                  }}
+                  className="h-7 w-7 p-0"
+                >
+                  <RefreshCw className="h-3 w-3 text-royal-purple" />
+                </Button>
+              )}
             </div>
           );
 
@@ -1587,37 +1681,59 @@ export default function EditBookingModal({
 
       {/* Loading Modal for Email Generation */}
       {isGeneratingEmail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 z-[99990] flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4 border border-royal-purple/20">
             <div className="flex flex-col space-y-4">
               <div className="flex items-center space-x-4">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-royal-purple"></div>
+                <div className="relative">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-royal-purple/20 border-t-royal-purple"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <MdEmail className="h-5 w-5 text-royal-purple" />
+                  </div>
+                </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-foreground">
                     {emailGenerationProgress.action === "generating"
                       ? "Generating Email Draft"
+                      : emailGenerationProgress.action === "deleting"
+                      ? "Deleting Email Draft"
                       : "Sending Email"}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {emailGenerationProgress.action === "generating"
                       ? emailGenerationProgress.type === "reservation"
-                        ? "Creating reservation email draft..."
-                        : "Creating cancellation email draft..."
+                        ? "Creating reservation email draft in Gmail..."
+                        : "Creating cancellation email draft in Gmail..."
+                      : emailGenerationProgress.action === "deleting"
+                      ? emailGenerationProgress.type === "reservation"
+                        ? "Deleting reservation email draft if it exists..."
+                        : "Deleting cancellation email draft if it exists..."
                       : emailGenerationProgress.type === "reservation"
-                      ? "Sending reservation email..."
-                      : "Sending cancellation email..."}
+                      ? "Sending reservation email to customer..."
+                      : "Sending cancellation email to customer..."}
                   </p>
                 </div>
               </div>
               {emailGenerationProgress.bookingId && (
-                <div className="text-xs text-muted-foreground border-t pt-3">
-                  <p>
-                    Booking ID:{" "}
-                    <span className="font-mono text-foreground">
+                <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Booking ID:</span>
+                    <span className="font-mono text-foreground font-medium">
                       {emailGenerationProgress.bookingId}
                     </span>
-                  </p>
-                  <p className="mt-1">This may take a few moments...</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Email Type:</span>
+                    <span className="font-medium text-foreground capitalize">
+                      {emailGenerationProgress.type}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t border-border/50">
+                    <p className="text-center text-muted-foreground flex items-center justify-center gap-2">
+                      <span className="inline-block animate-pulse">⏳</span>
+                      This may take a few moments...
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

@@ -23,14 +23,8 @@ function getGmailDraftUrl(draftId: string, messageId: string): string {
   return `https://mail.google.com/mail/u/0/#drafts?compose=${messageId}`;
 }
 
-// Helper function to format GBP currency
-function formatGBP(value: number | string): string {
-  if (!value) return "";
-  return `£${Number(value).toFixed(2)}`;
-}
-
-// Helper function to handle Firestore Timestamps
-function formatFirestoreDate(dateValue: any): string {
+// Helper function to format dates like Google Sheets: "Dec 2, 2025"
+function formatDateLikeSheets(dateValue: any): string {
   if (!dateValue) return "";
 
   try {
@@ -42,16 +36,47 @@ function formatFirestoreDate(dateValue: any): string {
     }
     // Handle string dates
     else if (typeof dateValue === "string" && dateValue.trim() !== "") {
-      date = new Date(dateValue);
+      const trimmedValue = dateValue.trim();
+
+      // Check if it's already in the correct format
+      const monthNames = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const hasMonthName = monthNames.some((month) =>
+        trimmedValue.includes(month)
+      );
+
+      if (hasMonthName) {
+        // Already formatted, return as-is
+        return trimmedValue;
+      }
+
+      // Otherwise, try to parse and format the date
+      date = new Date(trimmedValue);
     }
     // Handle Date objects
     else if (dateValue instanceof Date) {
       date = dateValue;
     }
 
-    // Validate the date before formatting
+    // Validate and format the date
     if (date && !isNaN(date.getTime())) {
-      return date.toISOString().split("T")[0];
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
     }
 
     return "";
@@ -85,7 +110,9 @@ export const generateCancellationEmail = onCall(
       }
 
       logger.info(
-        `Processing cancellation email draft for booking: ${bookingId}, generateDraftCell: ${generateDraftCell}, includeBCC: ${bcc ? "yes" : "no"}`
+        `Processing cancellation email draft for booking: ${bookingId}, generateDraftCell: ${generateDraftCell}, includeBCC: ${
+          bcc ? "yes" : "no"
+        }`
       );
 
       // If generateDraftCell is false, just return without doing anything
@@ -141,11 +168,13 @@ export const generateCancellationEmail = onCall(
       const subject = `Important Update: Your ${tourPackage} has been Cancelled`;
 
       // Prepare template variables (only the ones needed by cancellation template)
+      // Note: All payment amounts are passed as raw numbers (e.g., "150.00")
+      // because the template has hardcoded £ symbols
       const templateVariables: Record<string, any> = {
         fullName,
         tourPackage,
-        tourDate: formatFirestoreDate(tourDateRaw),
-        cancelledRefundAmount: formatGBP(reservationFee),
+        tourDate: formatDateLikeSheets(tourDateRaw),
+        cancelledRefundAmount: Number(reservationFee).toFixed(2), // Raw number - template adds £
       };
 
       logger.info(
@@ -182,9 +211,11 @@ export const generateCancellationEmail = onCall(
       try {
         // Get BCC list from request
         const bccList = getBCCList(bcc);
-        
+
         if (bccList.length > 0) {
-          logger.info(`Including ${bccList.length} BCC recipients in cancellation email draft`);
+          logger.info(
+            `Including ${bccList.length} BCC recipients in cancellation email draft`
+          );
         }
 
         // Create Gmail draft in Bella's account

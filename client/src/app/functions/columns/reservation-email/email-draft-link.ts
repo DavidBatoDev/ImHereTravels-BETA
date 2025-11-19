@@ -2,6 +2,7 @@ import { BookingSheetColumn } from "@/types/booking-sheet-column";
 import { firebaseUtils } from "@/app/functions/firebase-utils";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
+import { subjectLineReservationColumn } from "./subject-line-reservation";
 
 export const emailDraftLinkColumn: BookingSheetColumn = {
   id: "emailDraftLink",
@@ -58,6 +59,41 @@ export const emailDraftLinkColumn: BookingSheetColumn = {
 
 // Column Function Implementation
 
+/**
+ * Extract draft ID from Gmail draft URL
+ * Examples:
+ * - https://mail.google.com/mail/u/0/#drafts?compose=abc123xyz -> abc123xyz
+ * - https://mail.google.com/mail/u/0/#drafts/abc123xyz -> abc123xyz
+ */
+function extractDraftIdFromUrl(url: string): string | null {
+  try {
+    // Try to extract from query parameter
+    const urlObj = new URL(url);
+    const composeParam = urlObj.searchParams.get("compose");
+    if (composeParam) {
+      return composeParam;
+    }
+
+    // Try to extract from hash (for Gmail URLs)
+    const hash = urlObj.hash;
+    const composeMatch = hash.match(/compose=([^&]+)/);
+    if (composeMatch) {
+      return composeMatch[1];
+    }
+
+    // Try to extract from path (e.g., #drafts/abc123xyz)
+    const pathMatch = hash.match(/#drafts\/([^?&]+)/);
+    if (pathMatch) {
+      return pathMatch[1];
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error parsing draft URL:", error);
+    return null;
+  }
+}
+
 // Define types for the function response
 interface GmailDraftResult {
   success: boolean;
@@ -80,7 +116,7 @@ interface BookingData {
   id: string;
   bookingId?: string;
   emailAddress?: string;
-  emailDraftUrl?: string; // Changed from emailDraftLink to emailDraftUrl
+  emailDraftLink?: string;
   cancellationEmailDraftId?: string;
   [key: string]: any;
 }
@@ -105,12 +141,11 @@ export default async function generateGmailDraft(
     if (!bookingId) return "";
 
     // The bookingId parameter is actually the document ID from the "ID" column
-    // Fetch the booking document directly using the document ID
-    const bookings = (await firebaseUtils.getCollectionData(
-      "bookings"
-    )) as BookingData[];
-
-    const bookingDoc = bookings.find((b) => b.id === bookingId);
+    // Fetch the LATEST booking document directly from Firestore (not cached data)
+    const bookingDoc = (await firebaseUtils.getDocumentData(
+      "bookings",
+      bookingId
+    )) as BookingData;
 
     if (!bookingDoc) {
       throw new Error(`Booking with document ID ${bookingId} not found`);
@@ -118,38 +153,60 @@ export default async function generateGmailDraft(
 
     console.log(`Found booking document with ID: ${bookingDoc.id}`);
 
-    // Check if booking already has a Gmail draft URL
-    const existingGmailDraftUrl =
-      bookingDoc.emailDraftLink || bookingDoc.cancellationEmailDraftId;
+    // Check if we need to delete existing draft when toggling off
+    const existingGmailDraftUrl = bookingDoc.emailDraftLink;
 
-    console.log("Gmail draft URL exists: ", existingGmailDraftUrl);
+    if (!generateEmailDraft && existingGmailDraftUrl) {
+      // Clear existing Gmail draft URL if Generate Email Draft is false
+      console.log(
+        `Clearing existing Gmail draft URL: ${existingGmailDraftUrl}`
+      );
 
-    if (existingGmailDraftUrl) {
-      if (generateEmailDraft) {
-        // Return existing Gmail draft URL if Generate Email Draft is true
-        console.log(
-          `Returning existing Gmail draft URL: ${existingGmailDraftUrl}`
-        );
-        return existingGmailDraftUrl;
-      } else {
-        // Clear existing Gmail draft URL if Generate Email Draft is false
-        console.log(
-          `Clearing existing Gmail draft URL: ${existingGmailDraftUrl}`
-        );
-
-        // Since we're not storing local drafts anymore, we just clear the URL from booking
-        await firebaseUtils.updateDocument("bookings", bookingDoc.id, {
-          emailDraftUrl: null,
-          generateEmailDraft: false,
-        });
-
-        console.log("Gmail draft URL cleared successfully");
-        return "";
+      // Extract draft ID from URL and delete the Gmail draft
+      try {
+        const draftId = extractDraftIdFromUrl(existingGmailDraftUrl);
+        if (draftId) {
+          console.log(`Deleting Gmail draft with ID: ${draftId}`);
+          const deleteGmailDraft = httpsCallable(functions, "deleteGmailDraft");
+          await deleteGmailDraft({ draftId });
+          console.log("Gmail draft deleted successfully");
+        }
+      } catch (deleteError) {
+        console.error("Error deleting Gmail draft:", deleteError);
+        // Continue to clear the URL even if deletion fails
       }
+
+      // Clear the URL from booking
+      await firebaseUtils.updateDocument("bookings", bookingDoc.id, {
+        emailDraftLink: null,
+        generateEmailDraft: false,
+        subjectLineReservationColumn: "",
+      });
+
+      console.log("Gmail draft URL cleared successfully");
+      return "";
     }
 
-    // If no existing draft and Generate Email Draft is true, create new Gmail draft
+    // If Generate Email Draft is true, always create new Gmail draft
     if (generateEmailDraft) {
+      // Delete existing draft if it exists
+      if (existingGmailDraftUrl) {
+        console.log(`Deleting existing Gmail draft before creating new one`);
+        try {
+          const draftId = extractDraftIdFromUrl(existingGmailDraftUrl);
+          if (draftId) {
+            const deleteGmailDraft = httpsCallable(
+              functions,
+              "deleteGmailDraft"
+            );
+            await deleteGmailDraft({ draftId });
+            console.log("Existing Gmail draft deleted successfully");
+          }
+        } catch (deleteError) {
+          console.error("Error deleting existing Gmail draft:", deleteError);
+          // Continue to create new draft even if deletion fails
+        }
+      }
       console.log(`Generating new Gmail draft for booking: ${bookingId}`);
 
       // Fetch BCC users if includeBcc is true
@@ -187,6 +244,11 @@ export default async function generateGmailDraft(
         console.log("Gmail draft creation result:", emailResult.data);
 
         const emailResultData = emailResult.data as GmailDraftResult;
+        console.log(
+          "Full email result data:",
+          JSON.stringify(emailResultData, null, 2)
+        );
+
         if (emailResultData && emailResultData.success) {
           const gmailDraftUrl = emailResultData.draftUrl || "";
           const gmailDraftId = emailResultData.draftId || "";
@@ -194,11 +256,20 @@ export default async function generateGmailDraft(
           console.log(`Generated Gmail draft with ID: ${gmailDraftId}`);
           console.log(`Generated Gmail draft URL: ${gmailDraftUrl}`);
 
-          // Update booking document with Gmail draft URL (not just ID)
+          if (!gmailDraftUrl) {
+            console.error("WARNING: Gmail draft URL is empty!");
+            console.error("Email result data:", emailResultData);
+          }
+
+          // Only update the generateEmailDraft flag, not the emailDraftLink
+          // The emailDraftLink will be updated automatically when this function returns the URL
+          console.log(
+            `Updating generateEmailDraft flag for booking ${bookingDoc.id}`
+          );
           await firebaseUtils.updateDocument("bookings", bookingDoc.id, {
-            emailDraftUrl: gmailDraftUrl, // Store the clickable URL
             generateEmailDraft: true,
           });
+          console.log("Generate email draft flag updated successfully");
 
           return gmailDraftUrl; // Return Gmail draft URL for the column
         } else {
