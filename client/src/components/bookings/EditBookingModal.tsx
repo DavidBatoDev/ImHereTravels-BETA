@@ -530,11 +530,14 @@ export default function EditBookingModal({
           columns
         );
 
-        // Use longer timeout for email-sending functions (30 seconds)
+        // Use longer timeout for email-sending and email-generating functions (30 seconds)
         // Regular functions timeout after 10 seconds
         const isEmailFunction =
+          funcCol.function === "sendEmailDraftOnceFunction" ||
           funcCol.function === "sendReservationEmailDraftOnceFunction" ||
-          funcCol.function === "sendCancellationEmailDraftOnceFunction";
+          funcCol.function === "sendCancellationEmailDraftOnceFunction" ||
+          funcCol.function === "generateGmailDraftFunction" ||
+          funcCol.function === "generateCancellationGmailDraftFunction";
         const timeout = isEmailFunction ? 30000 : 10000;
 
         const result = await functionExecutionService.executeFunction(
