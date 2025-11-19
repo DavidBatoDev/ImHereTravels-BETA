@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+# ImHereTravels BETA
+
+> Modern travel management platform for tour operators, agencies, and travelers.
+
+## Overview
+
+ImHereTravels is a comprehensive travel management web application designed to streamline booking, tour package management, payment tracking, and communication for travel businesses and their clients. Built with Next.js, Firebase, and modern UI technologies, it offers robust features for both administrators and end-users.
+
+## Key Features
+
+- **Tour Package Management**: Create, update, and organize tour packages with detailed itineraries, pricing, and availability.
+- **Booking System**: Manage customer bookings, including multi-date, multi-person, and custom requests. Automated booking columns and calendar views.
+- **Payment Tracking**: Integrated payment plans, reminders, and status tracking for each booking. Supports multiple currencies and custom payment terms.
+- **Email Automation**: Automated email templates for booking confirmations, payment reminders, cancellations, and custom notifications.
+- **User Roles & Permissions**: Admin, staff, and customer roles with tailored access and functionality.
+- **Migration Toolkit**: Scripts and utilities for migrating legacy data and updating system columns.
+- **Data Export/Import**: Export bookings, packages, and other data to JSON for backup or analysis. Import tools for bulk updates.
+- **Customizable Columns**: Flexible column system for bookings and packages, supporting custom fields and dynamic operations.
+- **Debug & Testing Utilities**: Tools for local debugging, test data generation, and function triggers.
+- **Mobile-Friendly UI**: Responsive design for seamless use on desktop and mobile devices.
+
+## Technologies Used
+
+- **Next.js**: Frontend framework for fast, scalable web apps.
+- **Firebase**: Authentication, Firestore database, and cloud functions.
+- **Tailwind CSS**: Utility-first CSS for rapid UI development.
+- **Node.js**: Backend scripts and migration tools.
 
 ## Getting Started
 
-First, run the development server:
+1. **Install dependencies**:
+	```bash
+	npm install
+	```
+2. **Run the development server**:
+	```bash
+	npm run dev
+	```
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Project Structure
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- `client/` — Main Next.js app, components, configs, and public assets.
+- `functions/` — Firebase Cloud Functions, email logic, and backend scripts.
+- `migrations/` — Data migration scripts for evolving database schemas.
+- `exports/` — Data export files (JSON) for bookings, packages, etc.
+- `keys/` — Service account keys for development and production.
+- `documentation/` — System architecture, database, and feature docs.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How It Works
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Tour Operators/Admins** create and manage packages, bookings, and payment plans.
+2. **Customers** book tours, receive automated emails, and track payments.
+3. **System** automates reminders, updates, and exports for reporting.
 
-## Learn More
+## Deployment
 
-To learn more about Next.js, take a look at the following resources:
+Deploy easily on [Vercel](https://vercel.com/) or your preferred cloud provider. See `firebase.json` and Next.js deployment docs for details.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Contributions are welcome! Please see the documentation folder for guidelines and submit pull requests via GitHub.
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT License. See LICENSE file for details.
