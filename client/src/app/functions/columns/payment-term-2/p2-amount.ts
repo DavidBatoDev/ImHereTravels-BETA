@@ -245,30 +245,34 @@ export default function getP2AmountFunction(
   const adjustedDenom = Math.max(1, unpaidCount - credited);
 
   // k, base
+  // Only set k if there's an actual credit amount, otherwise treat as no credit
   const k =
-    credit_from === "Reservation"
+    credit_amt > 0 && credit_from === "Reservation"
       ? 0
-      : credit_from === "P1"
+      : credit_amt > 0 && credit_from === "P1"
       ? 1
-      : credit_from === "P2"
+      : credit_amt > 0 && credit_from === "P2"
       ? 2
-      : credit_from === "P3"
+      : credit_amt > 0 && credit_from === "P3"
       ? 3
-      : credit_from === "P4"
+      : credit_amt > 0 && credit_from === "P4"
       ? 4
       : 0;
   const base = total / terms;
 
   // amount
   let amount: number;
-  if (k === 0) {
+  if (k === 0 && credit_amt > 0) {
     amount = (total - credit_amt) / terms;
-  } else if (k === 2) {
+  } else if (k === 2 && credit_amt > 0) {
     amount = credit_amt;
-  } else if (k > 2) {
+  } else if (k > 2 && credit_amt > 0) {
     amount = base;
-  } else {
+  } else if (credit_amt > 0) {
     amount = (total - base * (k - 1) - credit_amt) / Math.max(1, terms - k);
+  } else {
+    // No credit applied, just divide total by terms
+    amount = total / terms;
   }
 
   // IF(terms<2,"", amount)
