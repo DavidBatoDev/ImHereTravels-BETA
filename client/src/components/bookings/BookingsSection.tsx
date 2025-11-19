@@ -511,6 +511,8 @@ export default function BookingsSection() {
   const isBookingInvalid = (booking: Booking): boolean => {
     // A booking is considered invalid if it's missing critical identifying information
     // Check if the booking has no meaningful data at all
+    const hasNoBookingId =
+      !booking.bookingId || booking.bookingId.trim() === "";
     const hasNoName = !booking.fullName || booking.fullName.trim() === "";
     const hasNoEmail =
       !booking.emailAddress || booking.emailAddress.trim() === "";
@@ -518,7 +520,7 @@ export default function BookingsSection() {
       !booking.tourPackageName || booking.tourPackageName.trim() === "";
 
     // A booking is invalid if it's missing all three critical fields
-    return hasNoName && hasNoEmail && hasNoPackage;
+    return hasNoBookingId || hasNoName || hasNoEmail || hasNoPackage;
   };
 
   // Handle booking deletion
@@ -934,6 +936,10 @@ export default function BookingsSection() {
     if (!fuse || searchTerm === "") {
       return bookings;
     }
+    // Special case: searching for 'Invalid Booking' in main search
+    if (searchTerm.trim().toLowerCase() === "invalid booking") {
+      return bookings.filter(isBookingInvalid);
+    }
     const results = fuse.search(searchTerm);
     return results.map((result) => result.item);
   }, [fuse, searchTerm, bookings]);
@@ -953,6 +959,14 @@ export default function BookingsSection() {
           col.dataType === "function"
             ? f.dataTypeOverride || "string"
             : col.dataType;
+
+        // Special case: searching for 'Invalid Booking' in bookingId column
+        if (
+          f.columnId === "bookingId" &&
+          String(f.value).toLowerCase().includes("invalid booking")
+        ) {
+          return isBookingInvalid(booking);
+        }
 
         // String-like
         if (effectiveType === "string" || effectiveType === "email") {

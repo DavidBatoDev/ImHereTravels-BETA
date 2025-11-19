@@ -41,6 +41,7 @@ import {
   FaCopy,
   FaEdit,
   FaTrash,
+  FaTimes,
 } from "react-icons/fa";
 import { MdEmail } from "react-icons/md";
 import {
@@ -675,7 +676,7 @@ export default function BookingDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl min-h-[90vh] max-h-[90vh] bg-background p-0 rounded-full overflow-hidden">
+      <DialogContent className="max-w-5xl max-h-[90vh] bg-background p-0 rounded-full overflow-hidden">
         <DialogHeader className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
@@ -685,119 +686,137 @@ export default function BookingDetailModal({
               <div>
                 <span className="block text-base">Booking Details</span>
                 <span className="text-2xl font-mono font-semibold text-crimson-red block">
-                  {currentBooking?.bookingId}
+                  {currentBooking?.bookingId || "Invalid Booking"}
                 </span>
               </div>
             </DialogTitle>
-            <div className="flex items-center gap-2">
-              {/* View Mode Toggle */}
-              <div className="flex border border-border rounded-md bg-background shadow-sm">
+            {/* X button for closing modal, always visible */}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="ml-4 p-2 rounded-full hover:bg-muted focus:outline-none focus:ring-2 focus:ring-crimson-red"
+            >
+              {/* Use FaTimes or MdClose if available, fallback to × */}
+              {typeof FaTimes !== "undefined" ? (
+                <FaTimes className="h-5 w-5 text-foreground" />
+              ) : (
+                <span className="text-2xl">×</span>
+              )}
+            </button>
+            {/* Only show controls if booking is valid */}
+            {currentBooking?.bookingId && (
+              <div className="flex items-center gap-2">
+                {/* View Mode Toggle */}
+                <div className="flex border border-border rounded-md bg-background shadow-sm">
+                  <Button
+                    variant={viewMode === "card" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("card")}
+                    className={`rounded-r-none border-r border-border transition-colors ${
+                      viewMode === "card"
+                        ? "bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25"
+                        : "hover:bg-crimson-red/10"
+                    }`}
+                    title="Card view"
+                  >
+                    <BsGrid3X3Gap className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    className={`rounded-l-none transition-colors ${
+                      viewMode === "list"
+                        ? "bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25"
+                        : "hover:bg-crimson-red/10"
+                    }`}
+                    title="List view"
+                  >
+                    <BsListUl className="h-4 w-4" />
+                  </Button>
+                </div>
                 <Button
-                  variant={viewMode === "card" ? "default" : "ghost"}
+                  variant="ghost"
                   size="sm"
-                  onClick={() => setViewMode("card")}
-                  className={`rounded-r-none border-r border-border transition-colors ${
-                    viewMode === "card"
-                      ? "bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25"
-                      : "hover:bg-crimson-red/10"
-                  }`}
-                  title="Card view"
+                  onClick={() => setShowEmptyFields(!showEmptyFields)}
+                  className="h-8 px-3 hover:bg-muted flex items-center gap-2"
+                  title={
+                    showEmptyFields ? "Hide empty fields" : "Show empty fields"
+                  }
                 >
-                  <BsGrid3X3Gap className="h-4 w-4" />
+                  {showEmptyFields ? (
+                    <>
+                      <FaEyeSlash className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">
+                        Hide empty fields
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <FaEye className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">
+                        Show empty fields
+                      </span>
+                    </>
+                  )}
                 </Button>
                 <Button
-                  variant={viewMode === "list" ? "default" : "ghost"}
+                  variant="default"
                   size="sm"
-                  onClick={() => setViewMode("list")}
-                  className={`rounded-l-none transition-colors ${
-                    viewMode === "list"
-                      ? "bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25"
-                      : "hover:bg-crimson-red/10"
-                  }`}
-                  title="List view"
+                  onClick={() => {
+                    setIsEditModalOpen(true);
+                  }}
+                  className="h-8 px-4 bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25 flex items-center gap-2"
+                  title="Edit booking"
                 >
-                  <BsListUl className="h-4 w-4" />
+                  <FaEdit className="h-4 w-4" />
+                  <span className="text-xs font-medium">Edit</span>
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  className="h-8 px-4 bg-red-600 hover:bg-red-700 text-white shadow shadow-red-600/25 flex items-center gap-2"
+                  title="Delete booking"
+                >
+                  <FaTrash className="h-4 w-4" />
+                  <span className="text-xs font-medium">Delete</span>
                 </Button>
               </div>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowEmptyFields(!showEmptyFields)}
-                className="h-8 px-3 hover:bg-muted flex items-center gap-2"
-                title={
-                  showEmptyFields ? "Hide empty fields" : "Show empty fields"
-                }
-              >
-                {showEmptyFields ? (
-                  <>
-                    <FaEyeSlash className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">
-                      Hide empty fields
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <FaEye className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">
-                      Show empty fields
-                    </span>
-                  </>
-                )}
-              </Button>
-
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => {
-                  setIsEditModalOpen(true);
-                }}
-                className="h-8 px-4 bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25 flex items-center gap-2"
-                title="Edit booking"
-              >
-                <FaEdit className="h-4 w-4" />
-                <span className="text-xs font-medium">Edit</span>
-              </Button>
-
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setIsDeleteDialogOpen(true)}
-                className="h-8 px-4 bg-red-600 hover:bg-red-700 text-white shadow shadow-red-600/25 flex items-center gap-2"
-                title="Delete booking"
-              >
-                <FaTrash className="h-4 w-4" />
-                <span className="text-xs font-medium">Delete</span>
-              </Button>
-            </div>
+            )}
           </div>
-          <div className="mt-2 ml-[56px] space-y-1">
-            <div className="flex items-center gap-2">
+
+          {/* Only show email and row info if booking is valid */}
+          {currentBooking?.bookingId && (
+            <div className="mt-2 ml-[56px] space-y-1">
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {currentBooking?.emailAddress}
+                </p>
+                <button
+                  onClick={copyEmailToClipboard}
+                  className="p-1 hover:bg-muted rounded transition-colors"
+                  title="Copy email"
+                >
+                  <FaCopy className="h-3 w-3 text-muted-foreground hover:text-crimson-red" />
+                </button>
+              </div>
               <p className="text-xs text-muted-foreground">
-                {currentBooking?.emailAddress}
+                Row #:{" "}
+                <span className="font-mono font-semibold text-crimson-red">
+                  {currentBooking?.row || "N/A"}
+                </span>
               </p>
-              <button
-                onClick={copyEmailToClipboard}
-                className="p-1 hover:bg-muted rounded transition-colors"
-                title="Copy email"
-              >
-                <FaCopy className="h-3 w-3 text-muted-foreground hover:text-crimson-red" />
-              </button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Row #:{" "}
-              <span className="font-mono font-semibold text-crimson-red">
-                {currentBooking?.row || "N/A"}
-              </span>
-            </p>
-          </div>
+          )}
         </DialogHeader>
 
         <div className="flex overflow-hidden max-h-[calc(90vh-120px)]">
           {/* Check if booking is invalid (no bookingId) */}
           {!currentBooking?.bookingId ? (
             <div className="flex-1 flex items-center justify-center p-8">
-              <Card className="max-w-md w-full border border-red-200 bg-red-50/50">
+              <Card className="max-w-md w-full bg-muted/10 border-none">
                 <CardContent className="p-6 text-center">
                   <div className="mb-4">
                     <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">

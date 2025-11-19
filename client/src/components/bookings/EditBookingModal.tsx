@@ -762,19 +762,17 @@ export default function EditBookingModal({
         return newOriginal;
       });
 
-      // Remove from active editing set after a short delay to allow for quick refocusing
-      setTimeout(() => {
-        setActiveEditingFields((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(columnId);
-          return newSet;
-        });
-        setLocalFieldValues((prev) => {
-          const newValues = { ...prev };
-          delete newValues[columnId];
-          return newValues;
-        });
-      }, 100); // Small delay to handle rapid focus changes
+      // Remove from active editing set immediately (no timeout)
+      setActiveEditingFields((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(columnId);
+        return newSet;
+      });
+      setLocalFieldValues((prev) => {
+        const newValues = { ...prev };
+        delete newValues[columnId];
+        return newValues;
+      });
     },
     [
       pendingChanges,
@@ -789,8 +787,26 @@ export default function EditBookingModal({
   // Handle key events during editing
   const handleFieldKeyDown = useCallback(
     (e: React.KeyboardEvent, columnId: string) => {
-      if (e.key === "Enter" || e.key === "Tab") {
-        // Prevent default to avoid unwanted behavior
+      // Find the column to check its type
+      const column = columns.find((col) => col.id === columnId);
+
+      if (e.key === "Enter") {
+        // For date inputs, open the date picker instead of closing
+        if (column?.dataType === "date") {
+          const target = e.target as HTMLInputElement;
+          if (target.showPicker && typeof target.showPicker === "function") {
+            e.preventDefault();
+            try {
+              target.showPicker();
+            } catch (error) {
+              // Fallback: just focus the input if showPicker fails
+              target.focus();
+            }
+          }
+          return;
+        }
+
+        // For other inputs, prevent default and close
         e.preventDefault();
 
         // User is done editing this field - save changes on blur
@@ -800,6 +816,11 @@ export default function EditBookingModal({
         if (document.activeElement instanceof HTMLElement) {
           document.activeElement.blur();
         }
+      }
+      if (e.key === "Tab") {
+        // Allow Tab to navigate naturally to next input
+        // Just save the current field on blur (which will trigger automatically)
+        // Don't prevent default - let browser handle Tab navigation
       }
       if (e.key === "Escape") {
         // Prevent default to avoid unwanted behavior
@@ -1306,14 +1327,62 @@ export default function EditBookingModal({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-full overflow-hidden">
+      <Dialog open={isOpen} onOpenChange={handleClose} modal={true}>
+        <DialogContent
+          className="max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-full overflow-hidden"
+          onOpenAutoFocus={(e) => {
+            // Prevent dialog from auto-focusing on open
+            e.preventDefault();
+          }}
+        >
           <form
             autoComplete="off"
             onSubmit={(e) => e.preventDefault()}
+            onKeyDown={(e) => {
+              if (e.key === "Tab") {
+                // Get all focusable inputs within the form (including selects, switches, and combobox triggers)
+                const focusableElements = Array.from(
+                  e.currentTarget.querySelectorAll<HTMLElement>(
+                    'input:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), button[role="switch"]:not([disabled]):not([tabindex="-1"]), button[role="combobox"]:not([disabled]):not([tabindex="-1"])'
+                  )
+                );
+
+                if (focusableElements.length === 0) return;
+
+                const currentIndex = focusableElements.indexOf(
+                  document.activeElement as HTMLElement
+                );
+
+                if (currentIndex === -1) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                let nextIndex;
+                if (e.shiftKey) {
+                  // Shift+Tab: go backwards
+                  nextIndex = currentIndex - 1;
+                  if (nextIndex < 0) {
+                    nextIndex = focusableElements.length - 1;
+                  }
+                } else {
+                  // Tab: go forwards
+                  nextIndex = currentIndex + 1;
+                  if (nextIndex >= focusableElements.length) {
+                    nextIndex = 0;
+                  }
+                }
+
+                focusableElements[nextIndex]?.focus();
+              }
+            }}
             className="h-full flex flex-col"
+            tabIndex={-1}
           >
-            <DialogHeader className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6">
+            <DialogHeader
+              className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6"
+              tabIndex={-1}
+            >
               <div className="flex items-center justify-between">
                 <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
                   <div className="p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
@@ -1373,11 +1442,15 @@ export default function EditBookingModal({
               </div>
             </DialogHeader>
 
-            <div className="flex overflow-hidden max-h-[calc(90vh-120px)]">
+            <div
+              className="flex overflow-hidden max-h-[calc(90vh-120px)]"
+              tabIndex={-1}
+            >
               {/* Main Content */}
               <div
                 ref={scrollContainerRef}
                 className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
+                tabIndex={-1}
               >
                 {isLoadingColumns ? (
                   <Card className="bg-background shadow-sm border border-border/50">
@@ -1389,7 +1462,7 @@ export default function EditBookingModal({
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="space-y-6">
+                  <div className="space-y-6" tabIndex={-1}>
                     {sortedParentTabs.map((parentTab) => {
                       const IconComponent = getParentTabIcon(parentTab);
                       const filteredColumns =
@@ -1402,8 +1475,12 @@ export default function EditBookingModal({
                           key={parentTab}
                           id={`edit-tab-${parentTab}`}
                           className="bg-background shadow-sm border border-border/50 scroll-mt-4"
+                          tabIndex={-1}
                         >
-                          <CardHeader className="pb-1 bg-crimson-red/10 border-2 border-crimson-red/20 border-red-500 py-1">
+                          <CardHeader
+                            className="pb-1 bg-crimson-red/10 border-2 border-crimson-red/20 border-red-500 py-1"
+                            tabIndex={-1}
+                          >
                             <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
                               <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
                                 <IconComponent className="h-3 w-3 text-crimson-red" />
@@ -1411,7 +1488,7 @@ export default function EditBookingModal({
                               {parentTab}
                             </CardTitle>
                           </CardHeader>
-                          <CardContent className="p-0">
+                          <CardContent className="p-0" tabIndex={-1}>
                             <div className="border border-purple-300">
                               {filteredColumns.map((column) => {
                                 const error = fieldErrors[column.id];
@@ -1461,7 +1538,10 @@ export default function EditBookingModal({
 
               {/* Navigation Sidebar */}
               {!isLoadingColumns && sortedParentTabs.length > 0 && (
-                <div className="w-48 border-l border-border/50 p-4">
+                <div
+                  className="w-48 border-l border-border/50 p-4"
+                  tabIndex={-1}
+                >
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                     Sections
                   </h3>
@@ -1477,6 +1557,7 @@ export default function EditBookingModal({
                         <button
                           key={parentTab}
                           onClick={() => scrollToTab(parentTab)}
+                          tabIndex={-1}
                           className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
                             activeTab === parentTab
                               ? "bg-crimson-red text-white shadow-sm"
