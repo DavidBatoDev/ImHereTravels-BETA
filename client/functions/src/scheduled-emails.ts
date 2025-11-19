@@ -231,12 +231,32 @@ export const processScheduledEmails = onSchedule(
             replyTo: emailData.replyTo,
           });
 
+          const sentTimestamp = Timestamp.now();
+
+          // Create sent attempt record
+          await db
+            .collection("scheduledEmails")
+            .doc(emailId)
+            .collection("sentAttempts")
+            .add({
+              attemptNumber: emailData.attempts + 1,
+              status: "success",
+              sentAt: sentTimestamp,
+              messageId: result.messageId,
+              to: emailData.to,
+              subject: emailSubject,
+              bcc: emailData.bcc || [],
+              cc: emailData.cc || [],
+              emailType: emailData.emailType,
+              bookingId: emailData.bookingId,
+            });
+
           // Update document with success status
           await db.collection("scheduledEmails").doc(emailId).update({
             status: "sent",
-            sentAt: Timestamp.now(),
+            sentAt: sentTimestamp,
             messageId: result.messageId,
-            updatedAt: Timestamp.now(),
+            updatedAt: sentTimestamp,
           });
 
           logger.info(
@@ -281,11 +301,29 @@ export const processScheduledEmails = onSchedule(
           logger.error(`Error sending scheduled email ${emailId}:`, error);
 
           const newAttempts = emailData.attempts + 1;
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+
+          // Create failed attempt record
+          await db
+            .collection("scheduledEmails")
+            .doc(emailId)
+            .collection("sentAttempts")
+            .add({
+              attemptNumber: newAttempts,
+              status: "failed",
+              attemptedAt: Timestamp.now(),
+              errorMessage: errorMessage,
+              to: emailData.to,
+              subject: emailData.subject,
+              emailType: emailData.emailType,
+              bookingId: emailData.bookingId,
+            });
+
           const updateData: Partial<ScheduledEmail> = {
             attempts: newAttempts,
             updatedAt: Timestamp.now(),
-            errorMessage:
-              error instanceof Error ? error.message : "Unknown error",
+            errorMessage: errorMessage,
           };
 
           // Mark as failed if max attempts reached

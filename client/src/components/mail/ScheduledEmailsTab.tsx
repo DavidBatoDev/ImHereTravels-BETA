@@ -219,6 +219,27 @@ export default function ScheduledEmailsTab() {
     }
   };
 
+  // Retry failed email
+  const handleRetryEmail = async (emailId: string) => {
+    try {
+      await ScheduledEmailService.retryFailedEmail(emailId);
+
+      toast({
+        title: "Success",
+        description: "Email retry scheduled successfully",
+      });
+
+      fetchScheduledEmails();
+    } catch (error) {
+      console.error("Error retrying email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to retry email",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Trigger manual processing (for testing)
   const handleTriggerProcessing = async () => {
     try {

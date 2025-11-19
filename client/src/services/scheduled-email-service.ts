@@ -218,6 +218,34 @@ export class ScheduledEmailService {
   }
 
   /**
+   * Retry a failed email by resetting its status to pending
+   */
+  static async retryFailedEmail(scheduledEmailId: string) {
+    // Call Next.js API route instead of Firebase Functions
+    const response = await fetch(
+      `/api/scheduled-emails/${scheduledEmailId}/retry`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to retry email");
+    }
+
+    return result.data;
+  }
+
+  /**
    * Manually trigger scheduled email processing (for testing)
    */
   static async triggerProcessing() {
