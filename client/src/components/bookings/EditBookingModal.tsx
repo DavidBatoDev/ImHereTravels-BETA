@@ -101,8 +101,12 @@ export default function EditBookingModal({
   const prevGenerateCancellationDraft = React.useRef<boolean | undefined>(
     undefined
   );
+  const prevSendEmail = React.useRef<boolean | undefined>(undefined);
+  const prevSendCancellationEmail = React.useRef<boolean | undefined>(undefined);
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const cancellationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const sendEmailTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const sendCancellationEmailTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Loading state for cleaning scheduled emails
   const [isCleaningScheduledEmails, setIsCleaningScheduledEmails] =
@@ -464,6 +468,169 @@ export default function EditBookingModal({
   }, [
     formData.generateCancellationDraft,
     formData.cancellationEmailDraftLink,
+    booking?.id,
+    isOpen,
+  ]);
+
+  // Watch for sendEmail changes and show progress modal
+  useEffect(() => {
+    if (!booking?.id || !isOpen) {
+      prevSendEmail.current = undefined;
+      return;
+    }
+
+    const currentValue = formData.sendEmail;
+    const previousValue = prevSendEmail.current;
+    const sentEmailLink = formData.sentEmailLink;
+
+    console.log("🔍 [SEND EMAIL WATCHER]", {
+      currentValue,
+      previousValue,
+      sentEmailLink,
+      hasChanged: previousValue !== undefined && currentValue !== previousValue,
+    });
+
+    // Detect change from false to true (toggled ON)
+    if (previousValue === false && currentValue === true) {
+      console.log("✅ [SEND EMAIL] Toggled ON - showing sending modal");
+
+      // Clear any existing timeout
+      if (sendEmailTimeoutRef.current) {
+        clearTimeout(sendEmailTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(true);
+      setEmailGenerationProgress({
+        type: "reservation",
+        bookingId: booking.id,
+        action: "sending",
+      });
+
+      // Set timeout to hide modal after 30 seconds
+      sendEmailTimeoutRef.current = setTimeout(() => {
+        console.log("⏱️ [SEND EMAIL] Timeout reached - hiding modal");
+        setIsGeneratingEmail(false);
+        setEmailGenerationProgress({
+          type: null,
+          bookingId: null,
+          action: null,
+        });
+      }, 30000);
+    }
+
+    // If sendEmail is true and we now have sent email link, hide modal
+    if (
+      currentValue === true &&
+      sentEmailLink &&
+      emailGenerationProgress.action === "sending"
+    ) {
+      console.log("✅ [SEND EMAIL] Sent email link received - hiding modal");
+
+      if (sendEmailTimeoutRef.current) {
+        clearTimeout(sendEmailTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(false);
+      setEmailGenerationProgress({
+        type: null,
+        bookingId: null,
+        action: null,
+      });
+    }
+
+    // Update previous value
+    prevSendEmail.current = currentValue;
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (sendEmailTimeoutRef.current) {
+        clearTimeout(sendEmailTimeoutRef.current);
+      }
+    };
+  }, [formData.sendEmail, formData.sentEmailLink, booking?.id, isOpen]);
+
+  // Watch for sendCancellationEmail changes and show progress modal
+  useEffect(() => {
+    if (!booking?.id || !isOpen) {
+      prevSendCancellationEmail.current = undefined;
+      return;
+    }
+
+    const currentValue = formData.sendCancellationEmail;
+    const previousValue = prevSendCancellationEmail.current;
+    const sentCancellationEmailLink = formData.sentCancellationEmailLink;
+
+    console.log("🔍 [SEND CANCELLATION EMAIL WATCHER]", {
+      currentValue,
+      previousValue,
+      sentCancellationEmailLink,
+      hasChanged: previousValue !== undefined && currentValue !== previousValue,
+    });
+
+    // Detect change from false to true (toggled ON)
+    if (previousValue === false && currentValue === true) {
+      console.log(
+        "✅ [SEND CANCELLATION EMAIL] Toggled ON - showing sending modal"
+      );
+
+      // Clear any existing timeout
+      if (sendCancellationEmailTimeoutRef.current) {
+        clearTimeout(sendCancellationEmailTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(true);
+      setEmailGenerationProgress({
+        type: "cancellation",
+        bookingId: booking.id,
+        action: "sending",
+      });
+
+      // Set timeout to hide modal after 30 seconds
+      sendCancellationEmailTimeoutRef.current = setTimeout(() => {
+        console.log("⏱️ [SEND CANCELLATION EMAIL] Timeout reached - hiding modal");
+        setIsGeneratingEmail(false);
+        setEmailGenerationProgress({
+          type: null,
+          bookingId: null,
+          action: null,
+        });
+      }, 30000);
+    }
+
+    // If sendCancellationEmail is true and we now have sent email link, hide modal
+    if (
+      currentValue === true &&
+      sentCancellationEmailLink &&
+      emailGenerationProgress.action === "sending"
+    ) {
+      console.log(
+        "✅ [SEND CANCELLATION EMAIL] Sent email link received - hiding modal"
+      );
+
+      if (sendCancellationEmailTimeoutRef.current) {
+        clearTimeout(sendCancellationEmailTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(false);
+      setEmailGenerationProgress({
+        type: null,
+        bookingId: null,
+        action: null,
+      });
+    }
+
+    // Update previous value
+    prevSendCancellationEmail.current = currentValue;
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (sendCancellationEmailTimeoutRef.current) {
+        clearTimeout(sendCancellationEmailTimeoutRef.current);
+      }
+    };
+  }, [
+    formData.sendCancellationEmail,
+    formData.sentCancellationEmailLink,
     booking?.id,
     isOpen,
   ]);

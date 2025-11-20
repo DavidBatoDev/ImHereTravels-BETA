@@ -7,32 +7,12 @@ export const reservationEmailSentDateColumn: BookingSheetColumn = {
   data: {
     id: "reservationEmailSentDate",
     columnName: "Reservation Email Sent Date",
-    dataType: "function",
-    function: "getSentDateReservationFunction",
+    dataType: "string",
     parentTab: "Reservation Email",
     order: 32,
     includeInForms: false,
     color: "yellow",
     width: 252,
-    arguments: [
-      {
-        name: "draftUrlOrMessageId",
-        type: "string",
-        columnReference: "Sent Email Link",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-      {
-        name: "field",
-        type: "string",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "date",
-      },
-    ],
   },
 };
 

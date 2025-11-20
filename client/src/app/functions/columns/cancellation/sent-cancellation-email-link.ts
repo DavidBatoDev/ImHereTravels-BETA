@@ -8,42 +8,12 @@ export const sentCancellationEmailLinkColumn: BookingSheetColumn = {
   data: {
     id: "sentCancellationEmailLink",
     columnName: "Sent Cancellation Email Link",
-    dataType: "function",
-    function: "sendCancellationEmailDraftOnceFunction",
+    dataType: "string",
     parentTab: "Cancellation",
     order: 83,
     includeInForms: false,
     color: "yellow",
     width: 200,
-    arguments: [
-      {
-        name: "draftUrl",
-        type: "string",
-        columnReference: "Cancellation Email Draft Link",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-      {
-        name: "sendEmail",
-        type: "boolean",
-        columnReference: "Send Cancellation Email?",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-      {
-        name: "bookingId",
-        type: "string",
-        columnReference: "ID",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-    ],
   },
 };
 

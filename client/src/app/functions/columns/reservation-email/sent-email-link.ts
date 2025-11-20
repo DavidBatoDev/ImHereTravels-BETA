@@ -7,33 +7,12 @@ export const sentEmailLinkColumn: BookingSheetColumn = {
   data: {
     id: "sentEmailLink",
     columnName: "Sent Email Link",
-    dataType: "function",
-    function: "sendEmailDraftOnceFunction",
+    dataType: "string",
     parentTab: "Reservation Email",
     order: 31,
     includeInForms: false,
     color: "yellow",
     width: 483.3333740234375,
-    arguments: [
-      {
-        name: "draftLinkId",
-        type: "string",
-        columnReference: "Email Draft Link",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-      {
-        name: "sendEmail",
-        type: "boolean",
-        columnReference: "Send Email?",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-    ],
   },
 };
 

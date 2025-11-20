@@ -7,32 +7,12 @@ export const cancellationEmailSentDateColumn: BookingSheetColumn = {
   data: {
     id: "cancellationEmailSentDate",
     columnName: "Cancellation Email Sent Date",
-    dataType: "function",
-    function: "getSentDateCancellationFunction",
+    dataType: "string",
     parentTab: "Cancellation",
     order: 84,
     includeInForms: false,
     color: "yellow",
     width: 258,
-    arguments: [
-      {
-        name: "draftUrlOrMessageId",
-        type: "string",
-        columnReference: "Sent Cancellation Email Link",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-      {
-        name: "field",
-        type: "string",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "date",
-      },
-    ],
   },
 };
 
