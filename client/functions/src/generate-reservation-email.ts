@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
@@ -14,9 +14,6 @@ if (getApps().length === 0) {
   initializeApp();
 }
 const db = getFirestore();
-
-// Initialize Gmail API Service
-const gmailService = new GmailApiService();
 
 // Helper function to generate Gmail draft URL
 function getGmailDraftUrl(draftId: string, messageId: string): string {
@@ -138,182 +135,288 @@ async function getMainBookerByGroupId(groupId: string): Promise<string | null> {
   }
 }
 
-// Helper function to get BCC list from request or return empty array
-function getBCCList(bccFromRequest?: string[]): string[] {
-  // Use BCC list from request if provided, otherwise return empty array
-  return bccFromRequest || [];
+// Helper function to get BCC list from includeBcc flag
+async function getBCCList(includeBcc: boolean): Promise<string[]> {
+  if (!includeBcc) return [];
+
+  try {
+    const bccUsersSnap = await db.collection("bcc-users").get();
+    const bccList = bccUsersSnap.docs
+      .map((doc) => doc.data())
+      .filter((user: any) => user.isActive === true)
+      .map((user: any) => user.email)
+      .filter((email: string) => email && email.trim() !== "");
+
+    logger.info(`Found ${bccList.length} active BCC users`);
+    return bccList;
+  } catch (error) {
+    logger.error("Error fetching BCC users:", error);
+    return [];
+  }
 }
 
-// Main function to generate email draft
-export const generateReservationEmail = onCall(
+// Helper function to extract message ID from Gmail URL
+function extractMessageIdFromUrl(url: string): string | null {
+  try {
+    const urlObj = new URL(url);
+    const composeParam = urlObj.searchParams.get("compose");
+    if (composeParam) return composeParam;
+
+    const hash = urlObj.hash;
+    const composeMatch = hash.match(/compose=([^&]+)/);
+    if (composeMatch) return composeMatch[1];
+
+    const pathMatch = hash.match(/#drafts\/([^?&]+)/);
+    if (pathMatch) return pathMatch[1];
+
+    return null;
+  } catch (error) {
+    logger.error("Error parsing draft URL:", error);
+    return null;
+  }
+}
+
+/**
+ * Firestore trigger that runs when a booking document is updated
+ * Detects when generateEmailDraft changes and:
+ * - When toggled ON: Creates Gmail draft and updates emailDraftLink & subjectLineReservation
+ * - When toggled OFF: Deletes Gmail draft and clears emailDraftLink & subjectLineReservation
+ */
+export const onGenerateEmailDraftChanged = onDocumentUpdated(
   {
+    document: "bookings/{bookingId}",
     region: "asia-southeast1",
-    maxInstances: 10,
     timeoutSeconds: 300,
     memory: "1GiB",
-    cors: true,
   },
-  async (request) => {
+  async (event) => {
     try {
-      const { bookingId, generateDraftCell, bcc } = request.data;
+      const bookingId = event.params.bookingId as string;
+      const beforeData = event.data?.before.data();
+      const afterData = event.data?.after.data();
 
-      if (!bookingId) {
-        throw new HttpsError("invalid-argument", "Booking ID is required");
+      if (!beforeData || !afterData) {
+        logger.info("No data found in before or after snapshot");
+        return;
       }
 
-      logger.info(
-        `Processing email draft for booking: ${bookingId}, generateDraftCell: ${generateDraftCell}, includeBCC: ${
-          bcc ? "yes" : "no"
-        }`
-      );
+      logger.info(`📧 Checking generateEmailDraft for booking: ${bookingId}`);
 
-      // If generateDraftCell is false, just return without doing anything
-      // No need to delete since we're not storing local drafts anymore
-      if (!generateDraftCell) {
-        return {
-          success: true,
-          status: "skipped",
-          message: "Draft generation skipped as requested",
+      // Check if generateEmailDraft changed
+      const wasEnabled = beforeData.generateEmailDraft === true;
+      const isNowEnabled = afterData.generateEmailDraft === true;
+
+      logger.info("Generate email draft status:", {
+        wasEnabled,
+        isNowEnabled,
+        beforeValue: beforeData.generateEmailDraft,
+        afterValue: afterData.generateEmailDraft,
+      });
+
+      // No change detected
+      if (wasEnabled === isNowEnabled) {
+        logger.info("No change in generateEmailDraft status, skipping");
+        return;
+      }
+
+      // Initialize Gmail API service
+      const gmailService = new GmailApiService();
+
+      // TOGGLE OFF: Delete draft and clear fields
+      if (wasEnabled && !isNowEnabled) {
+        logger.info("🗑️ Generate email draft toggled OFF - deleting draft");
+
+        // Use afterData instead of beforeData to get the current emailDraftLink
+        const existingDraftUrl = afterData.emailDraftLink;
+        logger.info(`Existing draft URL from afterData: ${existingDraftUrl}`);
+
+        if (existingDraftUrl) {
+          try {
+            // Extract message ID from the URL
+            const messageId = extractMessageIdFromUrl(existingDraftUrl);
+            logger.info(`Extracted message ID from URL: ${messageId}`);
+
+            if (messageId) {
+              // Find the actual draft ID using the message ID
+              logger.info(`Finding draft ID for message ID: ${messageId}`);
+              const draftId = await gmailService.findDraftIdByMessageId(
+                messageId
+              );
+
+              if (draftId) {
+                logger.info(`Found draft ID: ${draftId}, deleting...`);
+                await gmailService.deleteDraft(draftId);
+                logger.info("✅ Gmail draft deleted successfully");
+              } else {
+                logger.warn(
+                  `Could not find draft with message ID: ${messageId}`
+                );
+              }
+            } else {
+              logger.warn("Could not extract message ID from URL");
+            }
+          } catch (deleteError) {
+            logger.error("❌ Error deleting Gmail draft:", deleteError);
+            // Continue to clear fields even if deletion fails
+          }
+        } else {
+          logger.info("No existing draft URL found, skipping deletion");
+        } // Clear the email draft link and subject line
+        await db.collection("bookings").doc(bookingId).update({
+          emailDraftLink: "",
+          subjectLineReservation: "",
+        });
+
+        logger.info("Email draft fields cleared successfully");
+        return;
+      }
+
+      // TOGGLE ON: Create draft and update fields
+      if (!wasEnabled && isNowEnabled) {
+        logger.info("✅ Generate email draft toggled ON - creating draft");
+
+        const bookingData = afterData;
+
+        // Validate email
+        const email = (bookingData.emailAddress as string)?.trim();
+        if (!email || !email.includes("@")) {
+          logger.warn(`Invalid email address: "${email}"`);
+          return;
+        }
+
+        // Delete existing draft if it exists
+        const existingDraftUrl = bookingData.emailDraftLink;
+        if (existingDraftUrl) {
+          try {
+            // Extract message ID from the URL
+            const messageId = extractMessageIdFromUrl(existingDraftUrl);
+            if (messageId) {
+              // Find the actual draft ID using the message ID
+              logger.info(
+                "Finding existing draft to delete before creating new one"
+              );
+              const draftId = await gmailService.findDraftIdByMessageId(
+                messageId
+              );
+
+              if (draftId) {
+                logger.info(`Deleting existing draft with ID: ${draftId}`);
+                await gmailService.deleteDraft(draftId);
+                logger.info("Existing draft deleted successfully");
+              }
+            }
+          } catch (deleteError) {
+            logger.error("Error deleting existing draft:", deleteError);
+          }
+        }
+
+        // Get template data
+        const templateDoc = await db
+          .collection("emailTemplates")
+          .doc("BnRGgT6E8SVrXZH961LT")
+          .get();
+
+        if (!templateDoc.exists) {
+          logger.error("Email template not found");
+          return;
+        }
+
+        const templateData = templateDoc.data()!;
+
+        // Extract booking data for template variables
+        const fullName = bookingData.fullName || "";
+        const bookingIdValue = bookingData.bookingId || "";
+        const groupId = bookingData.groupIdGroupIdGenerator || "";
+        const tourPackage = bookingData.tourPackageName || "";
+        const tourDateRaw = bookingData.tourDate;
+        const returnDateRaw = bookingData.returnDate;
+        const tourDuration = bookingData.tourDuration || "";
+        const bookingType = bookingData.bookingType || "";
+        const reservationFee = bookingData.reservationFee || 0;
+        const remainingBalance = bookingData.remainingBalance || 0;
+        const fullPaymentAmount = bookingData.fullPaymentAmount || 0;
+        const fullPaymentDueDate = bookingData.fullPaymentDueDate;
+        const p1Amount = bookingData.p1Amount || 0;
+        const p1DueDate = bookingData.p1DueDate;
+        const p2Amount = bookingData.p2Amount || 0;
+        const p2DueDate = bookingData.p2DueDate;
+        const p3Amount = bookingData.p3Amount || 0;
+        const p3DueDate = bookingData.p3DueDate;
+        const p4Amount = bookingData.p4Amount || 0;
+        const p4DueDate = bookingData.p4DueDate;
+        const availablePaymentTerms = bookingData.availablePaymentTerms || "";
+        const reasonForCancellation = bookingData.reasonForCancellation || "";
+
+        // Determine if this is a cancellation email
+        const isCancelled =
+          availablePaymentTerms === "Cancelled" || !!reasonForCancellation;
+
+        // Generate subject line
+        const subject = getSubjectLine(
+          availablePaymentTerms,
+          fullName,
+          tourPackage,
+          isCancelled
+        );
+
+        // Get main booker for group bookings
+        let mainBooker = fullName;
+        if (
+          (bookingType === "Group Booking" || bookingType === "Duo Booking") &&
+          groupId
+        ) {
+          const mainBookerResult = await getMainBookerByGroupId(groupId);
+          mainBooker = mainBookerResult || fullName;
+        }
+
+        // Prepare template variables
+        const templateVariables: Record<string, any> = {
+          fullName,
+          mainBooker,
+          tourPackage,
+          tourDate: formatDateLikeSheets(tourDateRaw),
+          returnDate: formatDateLikeSheets(returnDateRaw),
+          availablePaymentTerms,
+          tourDuration,
+          bookingType,
+          bookingId: bookingIdValue,
+          groupId,
+          reservationFee: Number(reservationFee).toFixed(2),
+          remainingBalance: Number(remainingBalance).toFixed(2),
+          fullPaymentAmount: Number(fullPaymentAmount).toFixed(2),
+          fullPaymentDueDate: formatDateLikeSheets(fullPaymentDueDate),
+          p1Amount: Number(p1Amount).toFixed(2),
+          p1DueDate: formatDateLikeSheets(p1DueDate),
+          p2Amount: Number(p2Amount).toFixed(2),
+          p2DueDate: formatDateLikeSheets(p2DueDate),
+          p3Amount: Number(p3Amount).toFixed(2),
+          p3DueDate: formatDateLikeSheets(p3DueDate),
+          p4Amount: Number(p4Amount).toFixed(2),
+          p4DueDate: formatDateLikeSheets(p4DueDate),
+          isCancelled,
+          cancelledRefundAmount: isCancelled
+            ? Number(reservationFee).toFixed(2)
+            : "",
         };
-      }
 
-      logger.info(`Generating Gmail draft for booking: ${bookingId}`);
+        // Process template content
+        let processedHtml: string;
+        try {
+          processedHtml = EmailTemplateService.processTemplate(
+            templateData.content,
+            templateVariables
+          );
+          logger.info(
+            `Template processed successfully, HTML length: ${processedHtml.length}`
+          );
+        } catch (templateError) {
+          logger.error(`Template processing error:`, templateError);
+          return;
+        }
 
-      // Get booking data
-      const bookingDoc = await db.collection("bookings").doc(bookingId).get();
-      if (!bookingDoc.exists) {
-        throw new HttpsError("not-found", "Booking not found");
-      }
-
-      const bookingData = bookingDoc.data()!;
-      logger.info(`Booking data retrieved for booking: ${bookingId}`);
-
-      // Validate email
-      const email = (bookingData.emailAddress as string)?.trim();
-      if (!email || !email.includes("@")) {
-        throw new HttpsError("invalid-argument", `Invalid email: "${email}"`);
-      }
-
-      // Get template data
-      const templateDoc = await db
-        .collection("emailTemplates")
-        .doc("BnRGgT6E8SVrXZH961LT")
-        .get();
-      if (!templateDoc.exists) {
-        throw new HttpsError("not-found", "Email template not found");
-      }
-
-      const templateData = templateDoc.data()!;
-      logger.info(`Email template retrieved`);
-
-      // Extract booking data for template variables
-      const fullName = bookingData.fullName || "";
-      const bookingIdValue = bookingData.bookingId || "";
-      const groupId = bookingData.groupIdGroupIdGenerator || "";
-      const tourPackage = bookingData.tourPackageName || "";
-      const tourDateRaw = bookingData.tourDate;
-      const returnDateRaw = bookingData.returnDate;
-      const tourDuration = bookingData.tourDuration || "";
-      const bookingType = bookingData.bookingType || "";
-      const reservationFee = bookingData.reservationFee || 0;
-      const remainingBalance = bookingData.remainingBalance || 0;
-      const fullPaymentAmount = bookingData.fullPaymentAmount || 0;
-      const fullPaymentDueDate = bookingData.fullPaymentDueDate;
-      const p1Amount = bookingData.p1Amount || 0;
-      const p1DueDate = bookingData.p1DueDate;
-      const p2Amount = bookingData.p2Amount || 0;
-      const p2DueDate = bookingData.p2DueDate;
-      const p3Amount = bookingData.p3Amount || 0;
-      const p3DueDate = bookingData.p3DueDate;
-      const p4Amount = bookingData.p4Amount || 0;
-      const p4DueDate = bookingData.p4DueDate;
-      const availablePaymentTerms = bookingData.availablePaymentTerms || "";
-      const reasonForCancellation = bookingData.reasonForCancellation || "";
-
-      // Determine if this is a cancellation email
-      const isCancelled =
-        availablePaymentTerms === "Cancelled" || !!reasonForCancellation;
-
-      // Generate subject line
-      const subject = getSubjectLine(
-        availablePaymentTerms,
-        fullName,
-        tourPackage,
-        isCancelled
-      );
-
-      // Get main booker for group bookings
-      let mainBooker = fullName;
-      if (
-        (bookingType === "Group Booking" || bookingType === "Duo Booking") &&
-        groupId
-      ) {
-        const mainBookerResult = await getMainBookerByGroupId(groupId);
-        mainBooker = mainBookerResult || fullName;
-      }
-
-      // Prepare template variables
-      // Note: All payment amounts are passed as raw numbers (e.g., "950.00")
-      // because the template has hardcoded £ symbols
-      const templateVariables: Record<string, any> = {
-        fullName,
-        mainBooker,
-        tourPackage,
-        tourDate: formatDateLikeSheets(tourDateRaw),
-        returnDate: formatDateLikeSheets(returnDateRaw),
-        availablePaymentTerms,
-        tourDuration,
-        bookingType,
-        bookingId: bookingIdValue,
-        groupId,
-        reservationFee: Number(reservationFee).toFixed(2), // Raw number - template adds £
-        remainingBalance: Number(remainingBalance).toFixed(2), // Raw number - template adds £
-        fullPaymentAmount: Number(fullPaymentAmount).toFixed(2), // Raw number - template adds £
-        fullPaymentDueDate: formatDateLikeSheets(fullPaymentDueDate),
-        p1Amount: Number(p1Amount).toFixed(2), // Raw number - template adds £
-        p1DueDate: formatDateLikeSheets(p1DueDate),
-        p2Amount: Number(p2Amount).toFixed(2), // Raw number - template adds £
-        p2DueDate: formatDateLikeSheets(p2DueDate),
-        p3Amount: Number(p3Amount).toFixed(2), // Raw number - template adds £
-        p3DueDate: formatDateLikeSheets(p3DueDate),
-        p4Amount: Number(p4Amount).toFixed(2), // Raw number - template adds £
-        p4DueDate: formatDateLikeSheets(p4DueDate),
-        isCancelled,
-        cancelledRefundAmount: isCancelled
-          ? Number(reservationFee).toFixed(2)
-          : "", // Raw for template's £
-      };
-
-      logger.info(`Template variables prepared for booking: ${bookingId}`);
-
-      // Process template content
-      let processedHtml: string;
-      try {
-        processedHtml = EmailTemplateService.processTemplate(
-          templateData.content,
-          templateVariables
-        );
-        logger.info(
-          `Template processed successfully, HTML length: ${processedHtml.length}`
-        );
-      } catch (templateError) {
-        logger.error(`Template processing error:`, templateError);
-        throw new HttpsError(
-          "internal",
-          `Template processing failed: ${
-            templateError instanceof Error
-              ? templateError.message
-              : String(templateError)
-          }`
-        );
-      }
-
-      // Create Gmail draft using Gmail API service
-      logger.info(`Creating Gmail draft for booking: ${bookingId}`);
-
-      try {
-        // Get BCC list from request
-        const bccList = getBCCList(bcc);
+        // Get BCC list
+        const includeBcc = bookingData.includeBccReservation === true;
+        const bccList = await getBCCList(includeBcc);
 
         if (bccList.length > 0) {
           logger.info(
@@ -321,64 +424,43 @@ export const generateReservationEmail = onCall(
           );
         }
 
-        // Create Gmail draft in Bella's account
-        const gmailDraftResult = await gmailService.createDraft({
-          to: email,
-          subject: subject,
-          htmlContent: processedHtml,
-          bcc: bccList,
-          from: "Bella | ImHereTravels <bella@imheretravels.com>",
-        });
+        // Create Gmail draft
+        try {
+          const gmailDraftResult = await gmailService.createDraft({
+            to: email,
+            subject: subject,
+            htmlContent: processedHtml,
+            bcc: bccList,
+            from: "Bella | ImHereTravels <bella@imheretravels.com>",
+          });
 
-        logger.info(
-          `Gmail draft created successfully: ${gmailDraftResult.draftId}`
-        );
+          logger.info(
+            `Gmail draft created successfully: ${gmailDraftResult.draftId}`
+          );
 
-        // Generate the Gmail draft URL using messageId for compose parameter
-        const draftUrl = getGmailDraftUrl(
-          gmailDraftResult.draftId,
-          gmailDraftResult.messageId
-        );
+          // Generate the Gmail draft URL
+          const draftUrl = getGmailDraftUrl(
+            gmailDraftResult.draftId,
+            gmailDraftResult.messageId
+          );
 
-        return {
-          success: true,
-          draftId: gmailDraftResult.draftId,
-          draftUrl: draftUrl,
-          messageId: gmailDraftResult.messageId,
-          threadId: gmailDraftResult.threadId,
-          subject: subject,
-          email: email,
-          fullName: fullName,
-          tourPackage: tourPackage,
-          isCancellation: isCancelled,
-          emailType: isCancelled ? "cancellation" : "reservation",
-          status: "gmail_draft_created",
-          message: `Gmail draft created successfully. Click the URL to open: ${draftUrl}`,
-        };
-      } catch (gmailError) {
-        logger.error("Error creating Gmail draft:", gmailError);
-        throw new HttpsError(
-          "internal",
-          `Failed to create Gmail draft: ${
-            gmailError instanceof Error
-              ? gmailError.message
-              : String(gmailError)
-          }`
-        );
+          // Update booking with draft URL and subject
+          await db.collection("bookings").doc(bookingId).update({
+            emailDraftLink: draftUrl,
+            subjectLineReservation: subject,
+          });
+
+          logger.info(
+            `✅ Email draft created and booking updated with URL and subject`
+          );
+        } catch (gmailError) {
+          logger.error("Error creating Gmail draft:", gmailError);
+          // Don't throw error, just log it
+        }
       }
     } catch (error) {
-      logger.error("Error generating email draft:", error);
-
-      if (error instanceof HttpsError) {
-        throw error;
-      }
-
-      throw new HttpsError(
-        "internal",
-        `Failed to generate email draft: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
+      logger.error("❌ Error in onGenerateEmailDraftChanged:", error);
+      // Don't throw error to prevent retries
     }
   }
 );

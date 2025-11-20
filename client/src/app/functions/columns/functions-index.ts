@@ -49,8 +49,8 @@ import groupIdGeneratorFunction from "./duo-or-group-booking/group-id-group-id-g
 import generateGroupMemberIdFunction from "./duo-or-group-booking/group-id-group-id-generator";
 
 // Email Functions - Reservation
-import generateGmailDraftFunction from "./reservation-email/email-draft-link";
-import getEmailDraftSubjectFunction from "./reservation-email/subject-line-reservation";
+// import generateGmailDraftFunction from "./reservation-email/email-draft-link";
+// import getEmailDraftSubjectFunction from "./reservation-email/subject-line-reservation";
 import sendEmailDraftOnceFunction from "./reservation-email/sent-email-link";
 import getSentDateReservationFunction from "./reservation-email/reservation-email-sent-date";
 
@@ -100,8 +100,8 @@ export {
   generateGroupMemberIdFunction,
   groupIdGeneratorFunction,
   // Email - Reservation
-  generateGmailDraftFunction,
-  getEmailDraftSubjectFunction,
+  // generateGmailDraftFunction,
+  // getEmailDraftSubjectFunction,
   sendEmailDraftOnceFunction,
   getSentDateReservationFunction,
   // Email - Cancellation
@@ -194,8 +194,8 @@ export const functionMap: Record<string, Function> = {
   generateGroupMemberIdFunction,
 
   // Email functions - Reservation
-  generateGmailDraftFunction,
-  getEmailDraftSubjectFunction,
+  // generateGmailDraftFunction,
+  // getEmailDraftSubjectFunction,
   sendEmailDraftOnceFunction,
   getSentDateReservationFunction,
 

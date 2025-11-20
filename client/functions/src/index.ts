@@ -13,7 +13,7 @@ import { setGlobalOptions } from "firebase-functions";
 export { sendVerificationEmail } from "./send-verification-email";
 export { verifyEmail } from "./verify-email";
 
-export { generateReservationEmail } from "./generate-reservation-email";
+export { onGenerateEmailDraftChanged } from "./generate-reservation-email";
 export { sendReservationEmail } from "./send-reservation-email";
 export { generateCancellationEmail } from "./generate-cancellation-email";
 export { sendCancellationEmail } from "./send-cancellation-email";

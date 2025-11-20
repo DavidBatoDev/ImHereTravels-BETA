@@ -96,6 +96,10 @@ export default function EditBookingModal({
     action: "generating" | "sending" | "deleting" | null;
   }>({ type: null, bookingId: null, action: null });
 
+  // Track previous values for detecting changes
+  const prevGenerateEmailDraft = React.useRef<boolean | undefined>(undefined);
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
   // Loading state for cleaning scheduled emails
   const [isCleaningScheduledEmails, setIsCleaningScheduledEmails] =
     useState(false);
@@ -179,6 +183,144 @@ export default function EditBookingModal({
       unsubscribe();
     };
   }, [booking?.id, isOpen, columns]);
+
+  // Watch for generateEmailDraft changes and show progress modal
+  useEffect(() => {
+    if (!booking?.id || !isOpen) {
+      prevGenerateEmailDraft.current = undefined;
+      return;
+    }
+
+    const currentValue = formData.generateEmailDraft;
+    const previousValue = prevGenerateEmailDraft.current;
+    const emailDraftLink = formData.emailDraftLink;
+
+    console.log("🔍 [GENERATE EMAIL DRAFT WATCHER]", {
+      currentValue,
+      previousValue,
+      emailDraftLink,
+      hasChanged: previousValue !== undefined && currentValue !== previousValue,
+    });
+
+    // Detect change from false to true (toggled ON)
+    if (previousValue === false && currentValue === true) {
+      console.log(
+        "✅ [GENERATE EMAIL DRAFT] Toggled ON - showing generating modal"
+      );
+
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      setIsGeneratingEmail(true);
+      setEmailGenerationProgress({
+        type: "reservation",
+        bookingId: booking.id,
+        action: "generating",
+      });
+
+      // Set timeout to hide modal after 30 seconds
+      timeoutRef.current = setTimeout(() => {
+        console.log("⏱️ [GENERATE EMAIL DRAFT] Timeout reached - hiding modal");
+        setIsGeneratingEmail(false);
+        setEmailGenerationProgress({
+          type: null,
+          bookingId: null,
+          action: null,
+        });
+      }, 30000);
+    }
+
+    // Detect change from true to false (toggled OFF)
+    if (previousValue === true && currentValue === false) {
+      console.log(
+        "🗑️ [GENERATE EMAIL DRAFT] Toggled OFF - showing deleting modal"
+      );
+
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      setIsGeneratingEmail(true);
+      setEmailGenerationProgress({
+        type: "reservation",
+        bookingId: booking.id,
+        action: "deleting",
+      });
+
+      // Set timeout to hide modal after 30 seconds
+      timeoutRef.current = setTimeout(() => {
+        console.log("⏱️ [GENERATE EMAIL DRAFT] Timeout reached - hiding modal");
+        setIsGeneratingEmail(false);
+        setEmailGenerationProgress({
+          type: null,
+          bookingId: null,
+          action: null,
+        });
+      }, 30000);
+    }
+
+    // If generateEmailDraft is true and we now have email draft link, hide modal
+    if (
+      currentValue === true &&
+      emailDraftLink &&
+      emailGenerationProgress.action === "generating"
+    ) {
+      console.log(
+        "✅ [GENERATE EMAIL DRAFT] Draft link received - hiding modal"
+      );
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      setIsGeneratingEmail(false);
+      setEmailGenerationProgress({
+        type: null,
+        bookingId: null,
+        action: null,
+      });
+    }
+
+    // If generateEmailDraft is false and draft link is cleared, hide modal
+    if (
+      currentValue === false &&
+      !emailDraftLink &&
+      emailGenerationProgress.action === "deleting"
+    ) {
+      console.log(
+        "✅ [GENERATE EMAIL DRAFT] Draft link cleared - hiding modal"
+      );
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      setIsGeneratingEmail(false);
+      setEmailGenerationProgress({
+        type: null,
+        bookingId: null,
+        action: null,
+      });
+    }
+
+    // Update previous value
+    prevGenerateEmailDraft.current = currentValue;
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [
+    formData.generateEmailDraft,
+    formData.emailDraftLink,
+    booking?.id,
+    isOpen,
+  ]);
 
   // Initialize form data when modal opens
   useEffect(() => {
