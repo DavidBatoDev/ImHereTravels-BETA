@@ -1,0 +1,30 @@
+[debug] [2025-11-20T09:32:30.343Z] ----------------------------------------------------------------------
+[debug] [2025-11-20T09:32:30.346Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\huawei\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions:processScheduledEmails
+[debug] [2025-11-20T09:32:30.346Z] CLI Version:   14.17.0
+[debug] [2025-11-20T09:32:30.346Z] Platform:      win32
+[debug] [2025-11-20T09:32:30.346Z] Node Version:  v20.16.0
+[debug] [2025-11-20T09:32:30.346Z] Time:          Thu Nov 20 2025 17:32:30 GMT+0800 (Philippine Standard Time)
+[debug] [2025-11-20T09:32:30.347Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-11-20T09:32:30.545Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-11-20T09:32:30.546Z] > authorizing via signed-in user (bella@imheretravels.com)
+[debug] [2025-11-20T09:32:30.546Z] [iam] checking project imheretravels-dev for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2025-11-20T09:32:30.547Z] Checked if tokens are valid: true, expires at: 1763632292652
+[debug] [2025-11-20T09:32:30.547Z] Checked if tokens are valid: true, expires at: 1763632292652
+[debug] [2025-11-20T09:32:30.548Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/imheretravels-dev:testIamPermissions [none]
+[debug] [2025-11-20T09:32:30.549Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/imheretravels-dev:testIamPermissions x-goog-quota-user=projects/imheretravels-dev
+[debug] [2025-11-20T09:32:30.549Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/imheretravels-dev:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2025-11-20T09:32:31.648Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/imheretravels-dev:testIamPermissions 200
+[debug] [2025-11-20T09:32:31.649Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/imheretravels-dev:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2025-11-20T09:32:31.649Z] Checked if tokens are valid: true, expires at: 1763632292652
+[debug] [2025-11-20T09:32:31.649Z] Checked if tokens are valid: true, expires at: 1763632292652
+[debug] [2025-11-20T09:32:31.649Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/imheretravels-dev/serviceAccounts/imheretravels-dev@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2025-11-20T09:32:31.649Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/imheretravels-dev/serviceAccounts/imheretravels-dev@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-11-20T09:32:32.889Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/imheretravels-dev/serviceAccounts/imheretravels-dev@appspot.gserviceaccount.com:testIamPermissions 404
+[debug] [2025-11-20T09:32:32.889Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/imheretravels-dev/serviceAccounts/imheretravels-dev@appspot.gserviceaccount.com:testIamPermissions {"error":{"code":404,"message":"Unknown service account","status":"NOT_FOUND"}}
+[debug] [2025-11-20T09:32:32.889Z] [functions] service account IAM check errored, deploy may fail: Request to https://iam.googleapis.com/v1/projects/imheretravels-dev/serviceAccounts/imheretravels-dev@appspot.gserviceaccount.com:testIamPermissions had HTTP Error: 404, Unknown service account {"name":"FirebaseError","children":[],"context":{"body":{"error":{"code":404,"message":"Unknown service account","status":"NOT_FOUND"}},"response":{"statusCode":404}},"exit":1,"message":"Request to https://iam.googleapis.com/v1/projects/imheretravels-dev/serviceAccounts/imheretravels-dev@appspot.gserviceaccount.com:testIamPermissions had HTTP Error: 404, Unknown service account","status":404}
+[info] 
+[info] === Deploying to 'imheretravels-dev'...
+[info] 
+[info] i  deploying functions 
+[info] Running command: npm --prefix "$RESOURCE_DIR" run build

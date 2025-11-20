@@ -188,6 +188,20 @@ export const processScheduledEmails = onSchedule(
         const emailId = doc.id;
 
         try {
+          // Check if email status has changed (e.g., manually skipped or cancelled)
+          const currentDoc = await db
+            .collection("scheduledEmails")
+            .doc(emailId)
+            .get();
+          const currentStatus = currentDoc.data()?.status;
+
+          if (currentStatus !== "pending") {
+            logger.info(
+              `Email ${emailId} status changed to ${currentStatus}, skipping send`
+            );
+            return;
+          }
+
           // Initialize Gmail API service
           const gmailService = new GmailApiService();
 

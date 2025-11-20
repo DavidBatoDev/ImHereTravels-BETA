@@ -25,7 +25,7 @@ export interface ScheduledEmail {
   from?: string;
   replyTo?: string;
   scheduledFor: Date;
-  status: "pending" | "sent" | "failed" | "cancelled";
+  status: "pending" | "sent" | "failed" | "cancelled" | "skipped";
   createdAt: Date;
   updatedAt: Date;
   attempts: number;
@@ -108,6 +108,62 @@ export class ScheduledEmailService {
 
     if (!result.success) {
       throw new Error(result.error || "Failed to cancel scheduled email");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Skip a scheduled email (mark as skipped without deleting)
+   */
+  static async skipScheduledEmail(scheduledEmailId: string) {
+    // Call Next.js API route
+    const response = await fetch(
+      `/api/scheduled-emails/${scheduledEmailId}/skip`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to skip scheduled email");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Unskip a scheduled email (mark as pending again)
+   */
+  static async unskipScheduledEmail(scheduledEmailId: string) {
+    // Call Next.js API route
+    const response = await fetch(
+      `/api/scheduled-emails/${scheduledEmailId}/unskip`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to unskip scheduled email");
     }
 
     return result.data;

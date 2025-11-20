@@ -97,6 +97,7 @@ const statusStyles = {
   sent: "bg-green-100 text-green-800 border border-green-200",
   failed: "bg-red-100 text-red-800 border border-red-200",
   cancelled: "bg-gray-100 text-gray-800 border border-gray-200",
+  skipped: "bg-blue-100 text-blue-800 border border-blue-200",
 };
 
 const statusIcons = {
@@ -104,6 +105,7 @@ const statusIcons = {
   sent: <CheckCircle className="w-4 h-4" />,
   failed: <AlertCircle className="w-4 h-4" />,
   cancelled: <X className="w-4 h-4" />,
+  skipped: <Pause className="w-4 h-4" />,
 };
 
 export default function ScheduledEmailsTab() {
@@ -115,6 +117,9 @@ export default function ScheduledEmailsTab() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isSkipDialogOpen, setIsSkipDialogOpen] = useState(false);
+  const [isSkippingEmail, setIsSkippingEmail] = useState(false);
+  const [isUnskippingEmail, setIsUnskippingEmail] = useState(false);
   const [isViewEmailDialogOpen, setIsViewEmailDialogOpen] = useState(false);
   const [
     isDeletePaymentRemindersDialogOpen,
@@ -300,6 +305,57 @@ export default function ScheduledEmailsTab() {
     }
   };
 
+  // Skip email
+  const handleSkipEmail = async () => {
+    if (!selectedEmail) return;
+
+    setIsSkippingEmail(true);
+    try {
+      await ScheduledEmailService.skipScheduledEmail(selectedEmail.id);
+
+      toast({
+        title: "Success",
+        description: "Email skipped successfully",
+      });
+
+      setIsSkipDialogOpen(false);
+      // Real-time listener will auto-update
+    } catch (error) {
+      console.error("Error skipping email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to skip email",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSkippingEmail(false);
+    }
+  };
+
+  // Unskip email
+  const handleUnskipEmail = async (emailId: string) => {
+    setIsUnskippingEmail(true);
+    try {
+      await ScheduledEmailService.unskipScheduledEmail(emailId);
+
+      toast({
+        title: "Success",
+        description: "Email unskipped successfully - status changed to pending",
+      });
+
+      // Real-time listener will auto-update
+    } catch (error) {
+      console.error("Error unskipping email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to unskip email",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUnskippingEmail(false);
+    }
+  };
+
   // Retry failed email
   const handleRetryEmail = async (emailId: string) => {
     try {
@@ -434,16 +490,19 @@ export default function ScheduledEmailsTab() {
             discountedTourCost: bookingData.discountedTourCost,
             useDiscountedTourCost: bookingData.useDiscountedTourCost,
             // Extract payment method from paymentCondition (e.g., "Standard Booking" from "Standard Booking, P4")
-            paymentMethod: bookingData.paymentCondition 
-              ? bookingData.paymentCondition.split(",")[0].trim() 
+            paymentMethod: bookingData.paymentCondition
+              ? bookingData.paymentCondition.split(",")[0].trim()
               : "Other",
             paymentPlan: bookingData.availablePaymentTerms || "",
           };
 
           // Helper function to parse due date for a specific term
-          const parseDueDateForTerm = (dueDateRaw: any, termIndex: number): string => {
+          const parseDueDateForTerm = (
+            dueDateRaw: any,
+            termIndex: number
+          ): string => {
             if (!dueDateRaw) return "";
-            
+
             if (typeof dueDateRaw === "string" && dueDateRaw.includes(",")) {
               const parts = dueDateRaw.split(",").map((p) => p.trim());
               // Dates are in format: "Month Day", "Year", "Month Day", "Year"
@@ -452,7 +511,7 @@ export default function ScheduledEmailsTab() {
                 return `${parts[termIndex * 2]}, ${parts[termIndex * 2 + 1]}`;
               }
             }
-            
+
             return dueDateRaw;
           };
 
@@ -465,35 +524,46 @@ export default function ScheduledEmailsTab() {
           // Helper function to format date
           const formatDate = (dateValue: any): string => {
             if (!dateValue) return "";
-            
+
             try {
               let date: Date | null = null;
-              
+
               // Handle Firestore Timestamp objects
               if (dateValue && typeof dateValue === "object") {
                 if (dateValue.seconds) {
                   date = new Date(dateValue.seconds * 1000);
-                } else if (dateValue.type === "firestore/timestamp/1.0" && dateValue.seconds) {
+                } else if (
+                  dateValue.type === "firestore/timestamp/1.0" &&
+                  dateValue.seconds
+                ) {
                   date = new Date(dateValue.seconds * 1000);
                 }
               }
               // Handle string dates
-              else if (typeof dateValue === "string" && dateValue.trim() !== "") {
+              else if (
+                typeof dateValue === "string" &&
+                dateValue.trim() !== ""
+              ) {
                 date = new Date(dateValue);
               }
               // Handle Date objects
               else if (dateValue instanceof Date) {
                 date = dateValue;
               }
-              
+
               // Validate and format
               if (date && !isNaN(date.getTime())) {
                 return date.toISOString().split("T")[0];
               }
-              
+
               return "";
             } catch (error) {
-              console.warn("Error formatting date:", error, "Value:", dateValue);
+              console.warn(
+                "Error formatting date:",
+                error,
+                "Value:",
+                dateValue
+              );
               return "";
             }
           };
@@ -515,10 +585,12 @@ export default function ScheduledEmailsTab() {
             freshVariables[`${termLower}DatePaid`] = (bookingData as any)[
               `${termLower}DatePaid`
             ];
-            
+
             // Update the main dueDate and amount with parsed values
             freshVariables.dueDate = formatDate(parsedDueDate);
-            freshVariables.amount = formatGBP((bookingData as any)[`${termLower}Amount`]);
+            freshVariables.amount = formatGBP(
+              (bookingData as any)[`${termLower}Amount`]
+            );
           }
 
           // Update term data array if showTable is true
@@ -527,12 +599,15 @@ export default function ScheduledEmailsTab() {
             email.templateVariables.termData
           ) {
             const allTerms = ["P1", "P2", "P3", "P4"];
-            
+
             // Determine which terms to show based on payment plan
             // If availablePaymentTerms is "P3", we should show P1, P2, P3
-            const paymentPlanValue = bookingData.availablePaymentTerms || bookingData.paymentPlan || "";
+            const paymentPlanValue =
+              bookingData.availablePaymentTerms ||
+              bookingData.paymentPlan ||
+              "";
             let maxTermIndex = 0;
-            
+
             // Extract the highest payment term number
             if (paymentPlanValue.includes("P4")) {
               maxTermIndex = 4;
@@ -543,27 +618,27 @@ export default function ScheduledEmailsTab() {
             } else if (paymentPlanValue.includes("P1")) {
               maxTermIndex = 1;
             }
-            
+
             // Get all terms up to the max payment plan
             const availableTerms = allTerms.slice(0, maxTermIndex);
-            
+
             // Only show terms up to current payment term
             const currentTerm = email.templateVariables.paymentTerm as string;
             const currentTermIndex = allTerms.indexOf(currentTerm);
             const visibleTerms = availableTerms.slice(0, currentTermIndex + 1);
-            
+
             console.log("Payment plan value:", paymentPlanValue);
             console.log("Max term index:", maxTermIndex);
             console.log("Available terms:", availableTerms);
             console.log("Current term:", currentTerm);
             console.log("Visible terms:", visibleTerms);
-            
+
             freshVariables.termData = visibleTerms.map((t) => {
               const tIndex = parseInt(t.replace("P", "")) - 1;
               const tLower = t.toLowerCase();
               const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
               const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
-              
+
               return {
                 term: t,
                 amount: formatGBP((bookingData as any)[`${tLower}Amount`]),
@@ -571,7 +646,7 @@ export default function ScheduledEmailsTab() {
                 datePaid: formatDate((bookingData as any)[`${tLower}DatePaid`]),
               };
             });
-            
+
             // Update totals
             freshVariables.totalAmount = formatGBP(
               bookingData.useDiscountedTourCost
@@ -579,7 +654,9 @@ export default function ScheduledEmailsTab() {
                 : bookingData.originalTourCost
             );
             freshVariables.paid = formatGBP(bookingData.paid);
-            freshVariables.remainingBalance = formatGBP(bookingData.remainingBalance);
+            freshVariables.remainingBalance = formatGBP(
+              bookingData.remainingBalance
+            );
           }
 
           console.log("Fresh variables prepared:", freshVariables);
@@ -1066,6 +1143,7 @@ export default function ScheduledEmailsTab() {
                 <SelectItem value="sent">Sent</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="skipped">Skipped</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1255,12 +1333,24 @@ export default function ScheduledEmailsTab() {
                                   size="sm"
                                   onClick={() => {
                                     setSelectedEmail(email);
-                                    setIsCancelDialogOpen(true);
+                                    setIsSkipDialogOpen(true);
                                   }}
+                                  title="Skip this email"
                                 >
                                   <Pause className="w-4 h-4" />
                                 </Button>
                               </>
+                            )}
+                            {email.status === "skipped" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleUnskipEmail(email.id)}
+                                title="Unskip this email"
+                                disabled={isUnskippingEmail}
+                              >
+                                <Play className="w-4 h-4" />
+                              </Button>
                             )}
                             {email.status === "failed" && (
                               <Button
@@ -1368,12 +1458,24 @@ export default function ScheduledEmailsTab() {
                             size="sm"
                             onClick={() => {
                               setSelectedEmail(email);
-                              setIsCancelDialogOpen(true);
+                              setIsSkipDialogOpen(true);
                             }}
+                            title="Skip this email"
                           >
                             <Pause className="w-4 h-4" />
                           </Button>
                         </>
+                      )}
+                      {email.status === "skipped" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUnskipEmail(email.id)}
+                          title="Unskip this email"
+                          disabled={isUnskippingEmail}
+                        >
+                          <Play className="w-4 h-4" />
+                        </Button>
                       )}
                       {email.status === "failed" && (
                         <Button
@@ -1585,6 +1687,30 @@ export default function ScheduledEmailsTab() {
             <AlertDialogCancel>Keep Email</AlertDialogCancel>
             <AlertDialogAction onClick={handleCancelEmail}>
               Cancel Email
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Skip Confirmation Dialog */}
+      <AlertDialog open={isSkipDialogOpen} onOpenChange={setIsSkipDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Skip Scheduled Email</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to skip this scheduled email? The email will
+              be marked as skipped and will not be sent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSkippingEmail}>
+              Keep Email
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSkipEmail}
+              disabled={isSkippingEmail}
+            >
+              {isSkippingEmail ? "Skipping..." : "Skip Email"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
