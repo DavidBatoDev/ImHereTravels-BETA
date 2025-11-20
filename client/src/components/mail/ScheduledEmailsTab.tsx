@@ -146,6 +146,7 @@ export default function ScheduledEmailsTab() {
     bcc: string;
     subject: string;
     htmlContent: string;
+    actualBookingId?: string;
   } | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -458,6 +459,7 @@ export default function ScheduledEmailsTab() {
 
     let htmlContent = email.htmlContent;
     let subject = email.subject;
+    let actualBookingId: string | undefined = undefined;
 
     console.log("handleViewEmail called for email:", email.id);
     console.log("Email type:", email.emailType);
@@ -485,6 +487,9 @@ export default function ScheduledEmailsTab() {
         if (bookingDoc.exists()) {
           const bookingData = bookingDoc.data()!;
           console.log("Fetched booking data:", bookingData);
+
+          // Store the actual bookingId from the booking document
+          actualBookingId = bookingData.bookingId;
 
           // Update template variables with fresh data
           const freshVariables: Record<string, any> = {
@@ -724,6 +729,7 @@ export default function ScheduledEmailsTab() {
       bcc: email.bcc?.join(", ") || "",
       subject: subject,
       htmlContent: htmlContent,
+      actualBookingId: actualBookingId,
     });
     setIsViewEmailDialogOpen(true);
   };
@@ -895,7 +901,7 @@ export default function ScheduledEmailsTab() {
 
   // Navigate to booking detail
   const handleNavigateToBooking = (bookingId: string) => {
-    router.push(`/bookings/${bookingId}`);
+    window.open(`/bookings?tab=bookings&bookingId=${bookingId}`, "_blank");
   };
 
   // Toggle group open/closed
@@ -1013,6 +1019,9 @@ export default function ScheduledEmailsTab() {
           const hasPending = allStatuses.includes("pending");
           const hasFailed = allStatuses.includes("failed");
           const allSent = allStatuses.every((s) => s === "sent");
+          // Get the actual bookingId from templateVariables if available
+          const actualBookingId =
+            emails[0]?.templateVariables?.bookingId || bookingId;
 
           return (
             <Card
@@ -1024,7 +1033,7 @@ export default function ScheduledEmailsTab() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <CardTitle className="text-lg">
-                        Booking: {bookingId}
+                        Booking: {actualBookingId}
                       </CardTitle>
                       <Badge
                         variant="outline"
@@ -1761,7 +1770,8 @@ export default function ScheduledEmailsTab() {
                           Booking ID:
                         </span>
                         <span className="ml-2 font-mono text-xs">
-                          {selectedEmail.bookingId}
+                          {viewEmailData?.actualBookingId ||
+                            selectedEmail.bookingId}
                         </span>
                       </div>
                     )}

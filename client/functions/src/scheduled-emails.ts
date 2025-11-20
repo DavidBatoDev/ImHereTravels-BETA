@@ -58,6 +58,22 @@ function formatGBP(value: any): string {
   return `£${Number(value).toFixed(2)}`;
 }
 
+// Helper function to parse due date for a specific term
+function parseDueDateForTerm(dueDateRaw: any, termIndex: number): string {
+  if (!dueDateRaw) return "";
+
+  if (typeof dueDateRaw === "string" && dueDateRaw.includes(",")) {
+    const parts = dueDateRaw.split(",").map((p) => p.trim());
+    // Dates are in format: "Month Day", "Year", "Month Day", "Year"
+    // For term index n, we need parts[n*2] + ", " + parts[n*2+1]
+    if (parts.length > termIndex * 2 + 1) {
+      return `${parts[termIndex * 2]}, ${parts[termIndex * 2 + 1]}`;
+    }
+  }
+
+  return dueDateRaw;
+}
+
 // Helper function to format date
 function formatDate(dateValue: any): string {
   if (!dateValue) return "";
@@ -132,13 +148,15 @@ async function rerenderEmailTemplate(
     if (templateVariables.paymentTerm) {
       const term = templateVariables.paymentTerm as string;
       const termLower = term.toLowerCase();
+      const termIndex = parseInt(term.replace("P", "")) - 1;
+
+      const dueDateRaw = (bookingData as any)[`${termLower}DueDate`];
+      const parsedDueDate = parseDueDateForTerm(dueDateRaw, termIndex);
 
       freshVariables[`${termLower}Amount`] = (bookingData as any)[
         `${termLower}Amount`
       ];
-      freshVariables[`${termLower}DueDate`] = (bookingData as any)[
-        `${termLower}DueDate`
-      ];
+      freshVariables[`${termLower}DueDate`] = parsedDueDate;
       freshVariables[`${termLower}DatePaid`] = (bookingData as any)[
         `${termLower}DatePaid`
       ];
@@ -147,28 +165,49 @@ async function rerenderEmailTemplate(
       freshVariables.amount = formatGBP(
         (bookingData as any)[`${termLower}Amount`]
       );
-      freshVariables.dueDate = formatDate(
-        (bookingData as any)[`${termLower}DueDate`]
-      );
+      freshVariables.dueDate = formatDate(parsedDueDate);
     }
 
     // Update term data array if showTable is true
     if (templateVariables.showTable && templateVariables.termData) {
-      const terms = ["P1", "P2", "P3", "P4"];
-      freshVariables.termData = terms
-        .filter((t) => bookingData.availablePaymentTerms?.includes(t))
-        .map((t) => ({
+      const allTerms = ["P1", "P2", "P3", "P4"];
+
+      // Determine which terms to show based on payment plan
+      const paymentPlanValue =
+        bookingData.availablePaymentTerms || bookingData.paymentPlan || "";
+      let maxTermIndex = 0;
+
+      if (paymentPlanValue.includes("P4")) {
+        maxTermIndex = 4;
+      } else if (paymentPlanValue.includes("P3")) {
+        maxTermIndex = 3;
+      } else if (paymentPlanValue.includes("P2")) {
+        maxTermIndex = 2;
+      } else if (paymentPlanValue.includes("P1")) {
+        maxTermIndex = 1;
+      }
+
+      // Get all terms up to the max payment plan
+      const availableTerms = allTerms.slice(0, maxTermIndex);
+
+      // Only show terms up to current payment term
+      const currentTerm = templateVariables.paymentTerm as string;
+      const currentTermIndex = allTerms.indexOf(currentTerm);
+      const visibleTerms = availableTerms.slice(0, currentTermIndex + 1);
+
+      freshVariables.termData = visibleTerms.map((t) => {
+        const tIndex = parseInt(t.replace("P", "")) - 1;
+        const tLower = t.toLowerCase();
+        const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
+        const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
+
+        return {
           term: t,
-          amount: formatGBP(
-            (bookingData as any)[`${t.toLowerCase()}Amount`] || 0
-          ),
-          dueDate: formatDate(
-            (bookingData as any)[`${t.toLowerCase()}DueDate`] || ""
-          ),
-          datePaid: formatDate(
-            (bookingData as any)[`${t.toLowerCase()}DatePaid`] || ""
-          ),
-        }));
+          amount: formatGBP((bookingData as any)[`${tLower}Amount`] || 0),
+          dueDate: formatDate(parsedDueDate),
+          datePaid: formatDate((bookingData as any)[`${tLower}DatePaid`] || ""),
+        };
+      });
 
       // Add formatted totals
       freshVariables.totalAmount = formatGBP(
