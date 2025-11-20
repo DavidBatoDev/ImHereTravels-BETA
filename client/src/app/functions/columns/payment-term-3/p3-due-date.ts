@@ -1,53 +1,53 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const p3DueDateColumn: BookingSheetColumn = {
-  id: 'p3DueDate',
+  id: "p3DueDate",
   data: {
-    id: 'p3DueDate',
-    columnName: 'P3 Due Date',
-    dataType: 'function',
-    function: 'getP3DueDateFunction',
-    parentTab: 'Payment Term 3',
+    id: "p3DueDate",
+    columnName: "P3 Due Date",
+    dataType: "function",
+    function: "getP3DueDateFunction",
+    parentTab: "Payment Term 3",
     order: 67,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 120,
     arguments: [
       {
-        name: 'reservationDate',
-        type: 'unknown',
-        columnReference: 'Reservation Date',
+        name: "reservationDate",
+        type: "unknown",
+        columnReference: "Reservation Date",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'tourDate',
-        type: 'unknown',
-        columnReference: 'Tour Date',
+        name: "tourDate",
+        type: "unknown",
+        columnReference: "Tour Date",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'paymentPlan',
-        type: 'string',
-        columnReference: 'Payment Plan',
+        name: "paymentPlan",
+        type: "string",
+        columnReference: "Payment Plan",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'paymentCondition',
-        type: 'string',
-        columnReference: 'Payment Condition',
+        name: "paymentCondition",
+        type: "string",
+        columnReference: "Payment Condition",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -92,9 +92,10 @@ export function tourDateToYyyymmdd(tourDate: unknown): string {
     } else return "ERROR";
 
     if (!date || isNaN(date.getTime())) return "ERROR";
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-      date.getDate(),
-    ).padStart(2, "0")}`;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(date.getDate()).padStart(2, "0")}`;
   } catch {
     return "ERROR";
   }
@@ -104,7 +105,7 @@ export default function getP3DueDateFunction(
   reservationDate?: unknown,
   tourDate?: unknown,
   paymentPlan?: string,
-  paymentCondition?: string,
+  paymentCondition?: string
 ): string | "" | "ERROR" {
   if (["Full Payment", "P1", "P2"].includes(paymentPlan ?? "")) return "";
   if (!reservationDate) return "";
@@ -125,19 +126,24 @@ export default function getP3DueDateFunction(
     1;
 
   const DAY_MS = 86400000;
-  const secondDates = Array.from({ length: monthCount }, (_, i) =>
-    new Date(res.getFullYear(), res.getMonth() + i + 1, 2),
+  const secondDates = Array.from(
+    { length: monthCount },
+    (_, i) => new Date(res.getFullYear(), res.getMonth() + i + 1, 2)
   );
   const validDates = secondDates.filter(
     (d) =>
       d.getTime() > res.getTime() + 2 * DAY_MS &&
-      d.getTime() <= tour.getTime() - 3 * DAY_MS,
+      d.getTime() <= tour.getTime() - 3 * DAY_MS
   );
 
   if (validDates.length < 3) return "";
   const fmt = (d: Date) =>
-    d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
 
-  if (paymentPlan === "P3" || paymentPlan === "P4") return fmt(validDates[2]);
+  // Always return all three dates for P3 and P4 plans
   return [0, 1, 2].map((i) => fmt(validDates[i])).join(", ");
 }
