@@ -17,10 +17,10 @@ import {
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   try {
-    const bookingId = params.bookingId;
+    const { bookingId } = await params;
 
     if (!bookingId) {
       return NextResponse.json(

@@ -4,10 +4,10 @@ import { db } from "@/lib/firebase";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const scheduledEmailId = params.id;
+    const { id: scheduledEmailId } = await params;
 
     if (!scheduledEmailId) {
       return NextResponse.json(

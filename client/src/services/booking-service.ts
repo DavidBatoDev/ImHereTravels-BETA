@@ -804,7 +804,7 @@ class BookingServiceImpl implements BookingService {
 
       // Delete all scheduled emails in a batch
       const batch = writeBatch(db);
-      let statusCounts: Record<string, number> = {};
+      const statusCounts: Record<string, number> = {};
 
       snapshot.docs.forEach((doc) => {
         const emailData = doc.data();
