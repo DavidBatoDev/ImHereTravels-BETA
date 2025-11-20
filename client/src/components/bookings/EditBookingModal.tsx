@@ -102,11 +102,15 @@ export default function EditBookingModal({
     undefined
   );
   const prevSendEmail = React.useRef<boolean | undefined>(undefined);
-  const prevSendCancellationEmail = React.useRef<boolean | undefined>(undefined);
+  const prevSendCancellationEmail = React.useRef<boolean | undefined>(
+    undefined
+  );
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const cancellationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const sendEmailTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-  const sendCancellationEmailTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const sendCancellationEmailTimeoutRef = React.useRef<NodeJS.Timeout | null>(
+    null
+  );
 
   // Loading state for cleaning scheduled emails
   const [isCleaningScheduledEmails, setIsCleaningScheduledEmails] =
@@ -587,7 +591,9 @@ export default function EditBookingModal({
 
       // Set timeout to hide modal after 30 seconds
       sendCancellationEmailTimeoutRef.current = setTimeout(() => {
-        console.log("⏱️ [SEND CANCELLATION EMAIL] Timeout reached - hiding modal");
+        console.log(
+          "⏱️ [SEND CANCELLATION EMAIL] Timeout reached - hiding modal"
+        );
         setIsGeneratingEmail(false);
         setEmailGenerationProgress({
           type: null,
