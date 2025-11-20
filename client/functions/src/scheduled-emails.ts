@@ -4,7 +4,6 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import GmailApiService from "./gmail-api-service";
 import EmailTemplateService from "./email-template-service";
-import { EmailTemplateLoader } from "./email-template-loader";
 import * as dotenv from "dotenv";
 
 // Load environment variables from .env
@@ -51,6 +50,48 @@ type SheetColumn = {
 // Helper function to get Gmail sent URL
 function getGmailSentUrl(messageId: string): string {
   return `https://mail.google.com/mail/u/0/#sent/${messageId}`;
+}
+
+// Helper function to format currency
+function formatGBP(value: any): string {
+  if (!value) return "£0.00";
+  return `£${Number(value).toFixed(2)}`;
+}
+
+// Helper function to format date
+function formatDate(dateValue: any): string {
+  if (!dateValue) return "";
+
+  try {
+    let date: Date | null = null;
+
+    // Handle Firestore Timestamp objects
+    if (dateValue && typeof dateValue === "object") {
+      if (dateValue.seconds) {
+        date = new Date(dateValue.seconds * 1000);
+      } else if (dateValue.toDate && typeof dateValue.toDate === "function") {
+        date = dateValue.toDate();
+      }
+    }
+    // Handle string dates
+    else if (typeof dateValue === "string" && dateValue.trim() !== "") {
+      date = new Date(dateValue);
+    }
+    // Handle Date objects
+    else if (dateValue instanceof Date) {
+      date = dateValue;
+    }
+
+    // Validate and format
+    if (date && !isNaN(date.getTime())) {
+      return date.toISOString().split("T")[0];
+    }
+
+    return "";
+  } catch (error) {
+    logger.warn("Error formatting date:", error, "Value:", dateValue);
+    return "";
+  }
 }
 
 // Helper function to re-render template with fresh booking data
@@ -101,6 +142,14 @@ async function rerenderEmailTemplate(
       freshVariables[`${termLower}DatePaid`] = (bookingData as any)[
         `${termLower}DatePaid`
       ];
+
+      // Add formatted values for display
+      freshVariables.amount = formatGBP(
+        (bookingData as any)[`${termLower}Amount`]
+      );
+      freshVariables.dueDate = formatDate(
+        (bookingData as any)[`${termLower}DueDate`]
+      );
     }
 
     // Update term data array if showTable is true
@@ -110,22 +159,46 @@ async function rerenderEmailTemplate(
         .filter((t) => bookingData.availablePaymentTerms?.includes(t))
         .map((t) => ({
           term: t,
-          amount: (bookingData as any)[`${t.toLowerCase()}Amount`] || 0,
-          dueDate: (bookingData as any)[`${t.toLowerCase()}DueDate`] || "",
-          datePaid: (bookingData as any)[`${t.toLowerCase()}DatePaid`] || "",
+          amount: formatGBP(
+            (bookingData as any)[`${t.toLowerCase()}Amount`] || 0
+          ),
+          dueDate: formatDate(
+            (bookingData as any)[`${t.toLowerCase()}DueDate`] || ""
+          ),
+          datePaid: formatDate(
+            (bookingData as any)[`${t.toLowerCase()}DatePaid`] || ""
+          ),
         }));
+
+      // Add formatted totals
+      freshVariables.totalAmount = formatGBP(
+        bookingData.useDiscountedTourCost
+          ? bookingData.discountedTourCost
+          : bookingData.originalTourCost
+      );
+      freshVariables.paid = formatGBP(bookingData.paid);
+      freshVariables.remainingBalance = formatGBP(bookingData.remainingBalance);
     }
 
-    // Load and render the template
-    const templateName =
-      templateId === "scheduledReminderEmail"
-        ? "scheduledReminderEmail"
-        : templateId;
+    // Fetch the template from the database to ensure we're using the latest version
+    const templateDoc = await db
+      .collection("emailTemplates")
+      .doc(templateId)
+      .get();
 
-    const rawTemplate = await EmailTemplateLoader.loadTemplate(
-      templateName,
-      {} as any
-    );
+    if (!templateDoc.exists) {
+      throw new Error(`Template ${templateId} not found in database`);
+    }
+
+    const templateData = templateDoc.data();
+    const rawTemplate = templateData?.content || "";
+
+    if (!rawTemplate) {
+      throw new Error(`Template ${templateId} has no content`);
+    }
+
+    logger.info(`Successfully fetched template ${templateId} from database`);
+
     const htmlContent = await EmailTemplateService.processTemplate(
       rawTemplate,
       freshVariables
@@ -156,7 +229,10 @@ export const processScheduledEmails = onSchedule(
     try {
       logger.info("Processing scheduled emails...");
 
-      const now = Timestamp.now();
+      // Add 1 minute buffer to ensure we catch emails scheduled for exactly 9:00 AM
+      const now = Timestamp.fromDate(
+        new Date(Date.now() + 60 * 1000) // Add 1 minute (60,000 milliseconds)
+      );
 
       // Query for pending emails that should be sent now
       const query = db
@@ -270,12 +346,16 @@ export const processScheduledEmails = onSchedule(
             });
 
           // Update document with success status
-          await db.collection("scheduledEmails").doc(emailId).update({
-            status: "sent",
-            sentAt: sentTimestamp,
-            messageId: result.messageId,
-            updatedAt: sentTimestamp,
-          });
+          await db
+            .collection("scheduledEmails")
+            .doc(emailId)
+            .update({
+              status: "sent",
+              sentAt: sentTimestamp,
+              messageId: result.messageId,
+              attempts: (emailData.attempts || 0) + 1,
+              updatedAt: sentTimestamp,
+            });
 
           logger.info(
             `Successfully sent scheduled email ${emailId} to ${emailData.to}`

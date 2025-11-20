@@ -138,7 +138,7 @@ export default function ScheduledEmailsTab() {
       maxAttempts: 3,
     }
   );
-  const [newScheduleTime, setNewScheduleTime] = useState("");
+  const [newScheduleDate, setNewScheduleDate] = useState("");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [viewEmailData, setViewEmailData] = useState<{
     to: string;
@@ -229,9 +229,14 @@ export default function ScheduledEmailsTab() {
     }
 
     try {
-      await ScheduledEmailService.scheduleEmail(
-        newEmailData as ScheduledEmailData
-      );
+      // Convert date to datetime with 9:00 AM time
+      const scheduledDate = new Date(newEmailData.scheduledFor);
+      scheduledDate.setHours(9, 0, 0, 0);
+
+      await ScheduledEmailService.scheduleEmail({
+        ...newEmailData,
+        scheduledFor: scheduledDate.toISOString(),
+      } as ScheduledEmailData);
 
       toast({
         title: "Success",
@@ -253,23 +258,27 @@ export default function ScheduledEmailsTab() {
 
   // Reschedule email
   const handleRescheduleEmail = async () => {
-    if (!selectedEmail || !newScheduleTime) {
+    if (!selectedEmail || !newScheduleDate) {
       return;
     }
 
     try {
+      // Convert date to datetime with 9:00 AM time
+      const scheduledDate = new Date(newScheduleDate);
+      scheduledDate.setHours(9, 0, 0, 0);
+
       await ScheduledEmailService.rescheduleEmail(
         selectedEmail.id,
-        newScheduleTime
+        scheduledDate.toISOString()
       );
 
       toast({
         title: "Success",
-        description: "Email rescheduled successfully",
+        description: "Email rescheduled successfully (9:00 AM)",
       });
 
       setIsRescheduleDialogOpen(false);
-      setNewScheduleTime("");
+      setNewScheduleDate("");
       // Real-time listener will auto-update
     } catch (error) {
       console.error("Error rescheduling email:", error);
@@ -452,18 +461,20 @@ export default function ScheduledEmailsTab() {
 
     console.log("handleViewEmail called for email:", email.id);
     console.log("Email type:", email.emailType);
+    console.log("Email status:", email.status);
     console.log("Booking ID:", email.bookingId);
     console.log("Template ID:", email.templateId);
     console.log("Has template variables:", !!email.templateVariables);
 
-    // Re-render template with fresh data for payment reminders
+    // Re-render template with fresh data for payment reminders ONLY if not sent yet
     if (
+      email.status !== "sent" &&
       email.emailType === "payment-reminder" &&
       email.bookingId &&
       email.templateId &&
       email.templateVariables
     ) {
-      console.log("Starting template re-render process...");
+      console.log("Starting template re-render process for pending email...");
       try {
         // Fetch fresh booking data directly from Firestore
         const bookingRef = doc(db, "bookings", email.bookingId);
@@ -665,209 +676,25 @@ export default function ScheduledEmailsTab() {
           console.log("Due Date:", freshVariables.dueDate);
           console.log("Amount:", freshVariables.amount);
 
-          // Use the raw template HTML directly (same as what's stored in the cloud function)
-          const rawTemplateHtml = `<!-- scheduledReminderEmail.html -->
-<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6">
-  <p>Hi {{ fullName }},</p>
+          // Fetch the template from the database to ensure we're using the latest version
+          console.log("Fetching template from database:", email.templateId);
+          const templateRef = doc(db, "emailTemplates", email.templateId);
+          const templateDoc = await getDoc(templateRef);
 
-  <!-- SUBJECT DYNAMICALLY SET IN CLOUD FUNCTION -->
-  <p>
-    {% if paymentTerm == "P1" %} We hope you're getting excited for your
-    upcoming adventure with <strong>{{ tourPackageName }}</strong>!<br />
-    This is a friendly reminder that your <strong>first payment</strong> is due
-    soon. {% elif paymentTerm == "P2" %} We hope you're still as excited as we
-    are about your upcoming adventure with
-    <strong>{{ tourPackageName }}</strong>!<br />
-    This is a friendly reminder that your <strong>second payment</strong> is due
-    soon. {% elif paymentTerm == "P3" %} We hope you're still as excited as we
-    are about your upcoming adventure with
-    <strong>{{ tourPackageName }}</strong>!<br />
-    This is a friendly reminder that your <strong>third payment</strong> is due
-    soon. {% elif paymentTerm == "P4" %} We hope you're still as excited as we
-    are about your upcoming adventure with
-    <strong>{{ tourPackageName }}</strong>!<br />
-    This is a friendly reminder that your <strong>final payment</strong> is due
-    soon. {% endif %}
-  </p>
+          if (!templateDoc.exists()) {
+            throw new Error(
+              `Template ${email.templateId} not found in database`
+            );
+          }
 
-  <h3 style="color: #d00">Important Details:</h3>
-  <ul>
-    <li><strong>Amount:</strong> {{ amount }}</li>
-    <li><strong>Due Date:</strong> {{ dueDate }}</li>
-    <li>
-      <strong>Payment Method:</strong> {{ paymentMethod }} {% if paymentMethod
-      == "Stripe" %} <br /><a
-        href="https://buy.stripe.com/7sY5kD5NF2uBfGj1NJco03g"
-        target="_blank"
-        style="
-          background-color: #28a745;
-          color: white;
-          text-decoration: none;
-          font-weight: bold;
-          padding: 8px 16px;
-          border-radius: 4px;
-          display: inline-block;
-          margin-top: 8px;
-        "
-        >Pay securely online with Stripe</a
-      >
-      {% elif paymentMethod == "Revolut" %}
-      <ul>
-        <li>Account Name: I'M HERE TRAVELS LTD</li>
-        <li>Account Number: 36834154</li>
-        <li>Sort Code: 23-01-20</li>
-        <li>IBAN: GB52REVO00996983499052</li>
-        <li>BIC: REVOGB21</li>
-      </ul>
-      {% elif paymentMethod == "Ulster" %}
-      <ul>
-        <li>Account Name: Shawn V Keeley</li>
-        <li>Account Number: 10561155</li>
-        <li>Sort Code: 98-05-83</li>
-        <li>IBAN: GB45ULSB98058310561155</li>
-        <li>BIC: ULSBGB2B</li>
-      </ul>
-      {% else %}
-      <ul>
-        <li>[Details will be provided separately]</li>
-      </ul>
-      {% endif %}
-    </li>
-  </ul>
+          const templateData = templateDoc.data();
+          const rawTemplateHtml = templateData.content || "";
 
-  {% if showTable %}
-  <h3 style="color: #d00">Payment Tracker</h3>
-  <table
-    style="
-      border-collapse: collapse;
-      width: 100%;
-      max-width: 600px;
-      font-size: 14px;
-      border: 1px solid #ddd;
-    "
-    cellpadding="8"
-    cellspacing="0"
-  >
-    <thead>
-      <tr style="background-color: #f8f9fa">
-        <th
-          style="
-            border: 1px solid #ddd;
-            text-align: left;
-            font-weight: bold;
-            padding: 10px;
-          "
-        >
-          Payment Term
-        </th>
-        <th
-          style="
-            border: 1px solid #ddd;
-            text-align: left;
-            font-weight: bold;
-            padding: 10px;
-          "
-        >
-          Amount
-        </th>
-        <th
-          style="
-            border: 1px solid #ddd;
-            text-align: left;
-            font-weight: bold;
-            padding: 10px;
-          "
-        >
-          Due Date
-        </th>
-        <th
-          style="
-            border: 1px solid #ddd;
-            text-align: left;
-            font-weight: bold;
-            padding: 10px;
-          "
-        >
-          Date Paid
-        </th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in termData %}
-      <tr>
-        <td style="border: 1px solid #ddd; padding: 10px">{{ item.term }}</td>
-        <td style="border: 1px solid #ddd; padding: 10px">{{ item.amount }}</td>
-        <td style="border: 1px solid #ddd; padding: 10px">
-          {{ item.dueDate }}
-        </td>
-        <td style="border: 1px solid #ddd; padding: 10px">
-          {{ item.datePaid }}
-        </td>
-      </tr>
-      {% endfor %}
-      <tr style="background-color: #f8f9fa">
-        <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold">
-          Total
-        </td>
-        <td
-          style="border: 1px solid #ddd; padding: 10px; font-weight: bold"
-          colspan="3"
-        >
-          {{ totalAmount }}
-        </td>
-      </tr>
-      <tr style="background-color: #f8f9fa">
-        <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold">
-          Paid
-        </td>
-        <td
-          style="border: 1px solid #ddd; padding: 10px; font-weight: bold"
-          colspan="3"
-        >
-          {{ paid }}
-        </td>
-      </tr>
-      <tr style="background-color: #f8f9fa">
-        <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold">
-          Remaining Balance
-        </td>
-        <td
-          style="border: 1px solid #ddd; padding: 10px; font-weight: bold"
-          colspan="3"
-        >
-          {{ remainingBalance }}
-        </td>
-      </tr>
-    </tbody>
-  </table>
-  {% endif %}
+          if (!rawTemplateHtml) {
+            throw new Error(`Template ${email.templateId} has no content`);
+          }
 
-  <h3 style="color: #d00">Action Needed:</h3>
-  <p>
-    Please send us <strong>proof of payment</strong> once you've made the
-    transfer. You can reply directly to this email with the receipt or
-    confirmation.
-  </p>
-
-  <p>
-    We can't wait to have you with us on this incredible journey! See you soon!
-  </p>
-
-  <p>
-    <strong
-      >Warm regards,<br />
-      The ImHereTravels Team</strong
-    >
-  </p>
-
-  <div style="margin-top: 20px">
-    <img
-      src="https://imheretravels.com/wp-content/uploads/2025/04/ImHereTravels-Logo.png"
-      alt="ImHereTravels Logo"
-      style="width: 120px"
-    />
-  </div>
-</div>`;
+          console.log("Successfully fetched template from database");
 
           // Re-render the template with fresh data using EmailTemplateService
           htmlContent = EmailTemplateService.processTemplate(
@@ -1348,7 +1175,7 @@ export default function ScheduledEmailsTab() {
                                               | number
                                               | Date
                                           ).toISOString();
-                                    setNewScheduleTime(isoString.slice(0, 16));
+                                    setNewScheduleDate(isoString.slice(0, 10));
                                     setIsRescheduleDialogOpen(true);
                                   }}
                                 >
@@ -1484,7 +1311,7 @@ export default function ScheduledEmailsTab() {
                                         | number
                                         | Date
                                     ).toISOString();
-                              setNewScheduleTime(isoString.slice(0, 16));
+                              setNewScheduleDate(isoString.slice(0, 10));
                               setIsRescheduleDialogOpen(true);
                             }}
                           >
@@ -1569,15 +1396,15 @@ export default function ScheduledEmailsTab() {
                 />
               </div>
               <div>
-                <Label htmlFor="scheduledFor">Scheduled For *</Label>
+                <Label htmlFor="scheduledFor">Scheduled Date * (9:00 AM)</Label>
                 <Input
                   id="scheduledFor"
-                  type="datetime-local"
+                  type="date"
                   value={
                     newEmailData.scheduledFor
                       ? new Date(newEmailData.scheduledFor)
                           .toISOString()
-                          .slice(0, 16)
+                          .slice(0, 10)
                       : ""
                   }
                   onChange={(e) =>
@@ -1686,13 +1513,18 @@ export default function ScheduledEmailsTab() {
           </DialogHeader>
 
           <div className="py-4">
-            <Label htmlFor="newScheduleTime">New Scheduled Time</Label>
+            <Label htmlFor="newScheduleDate">
+              New Scheduled Date (9:00 AM)
+            </Label>
             <Input
-              id="newScheduleTime"
-              type="datetime-local"
-              value={newScheduleTime}
-              onChange={(e) => setNewScheduleTime(e.target.value)}
+              id="newScheduleDate"
+              type="date"
+              value={newScheduleDate}
+              onChange={(e) => setNewScheduleDate(e.target.value)}
             />
+            <p className="text-sm text-muted-foreground mt-2">
+              Emails are processed daily at 9:00 AM Philippine time
+            </p>
           </div>
 
           <DialogFooter>
@@ -1834,53 +1666,42 @@ export default function ScheduledEmailsTab() {
 
           {viewEmailData && (
             <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-              {/* Email Recipients */}
-              <div className="space-y-2">
-                <Label htmlFor="view-to">To</Label>
-                <Input
-                  id="view-to"
-                  value={viewEmailData.to}
-                  readOnly
-                  placeholder="recipient@example.com"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="view-cc">CC (comma-separated)</Label>
-                  <Input
-                    id="view-cc"
-                    value={viewEmailData.cc}
-                    readOnly
-                    placeholder="cc1@example.com, cc2@example.com"
-                  />
+              {/* Email Recipients - Compact View */}
+              <div className="border rounded-lg p-3 bg-gray-50 space-y-2 text-sm">
+                <div className="flex items-start gap-2">
+                  <span className="text-muted-foreground font-medium min-w-[60px]">
+                    To:
+                  </span>
+                  <span className="flex-1 break-words">{viewEmailData.to}</span>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="view-bcc">BCC (comma-separated)</Label>
-                  <Input
-                    id="view-bcc"
-                    value={viewEmailData.bcc}
-                    readOnly
-                    placeholder="bcc1@example.com, bcc2@example.com"
-                  />
+                {viewEmailData.cc && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-muted-foreground font-medium min-w-[60px]">
+                      CC:
+                    </span>
+                    <span className="flex-1 break-words">
+                      {viewEmailData.cc}
+                    </span>
+                  </div>
+                )}
+                {viewEmailData.bcc && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-muted-foreground font-medium min-w-[60px]">
+                      BCC:
+                    </span>
+                    <span className="flex-1 break-words">
+                      {viewEmailData.bcc}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-start gap-2 pt-1 border-t">
+                  <span className="text-muted-foreground font-medium min-w-[60px]">
+                    Subject:
+                  </span>
+                  <span className="flex-1 break-words font-medium">
+                    {viewEmailData.subject}
+                  </span>
                 </div>
-              </div>
-
-              {/* Subject */}
-              <div className="space-y-2">
-                <Label htmlFor="view-subject">Subject</Label>
-                <Input
-                  id="view-subject"
-                  value={viewEmailData.subject}
-                  onChange={(e) =>
-                    setViewEmailData({
-                      ...viewEmailData,
-                      subject: e.target.value,
-                    })
-                  }
-                  placeholder="Email subject"
-                />
               </div>
 
               {/* Email Body */}
@@ -1950,6 +1771,21 @@ export default function ScheduledEmailsTab() {
                         <span className="ml-2 text-green-600">
                           {formatDate(selectedEmail.sentAt)}
                         </span>
+                      </div>
+                    )}
+                    {selectedEmail.messageId && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">
+                          Gmail Link:
+                        </span>
+                        <a
+                          href={`https://mail.google.com/mail/u/0/#sent/${selectedEmail.messageId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-2 text-blue-600 hover:underline"
+                        >
+                          View in Gmail
+                        </a>
                       </div>
                     )}
                     {selectedEmail.errorMessage && (

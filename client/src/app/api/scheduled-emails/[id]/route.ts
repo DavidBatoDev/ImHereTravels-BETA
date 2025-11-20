@@ -220,16 +220,6 @@ export async function PATCH(
       if (isNaN(newScheduledTime.getTime())) {
         throw new Error("Invalid date format");
       }
-
-      if (newScheduledTime <= new Date()) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "New scheduled time must be in the future",
-          },
-          { status: 400 }
-        );
-      }
     } catch (error) {
       return NextResponse.json(
         {
