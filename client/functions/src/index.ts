@@ -15,7 +15,7 @@ export { verifyEmail } from "./verify-email";
 
 export { onGenerateEmailDraftChanged } from "./generate-reservation-email";
 export { sendReservationEmail } from "./send-reservation-email";
-export { generateCancellationEmail } from "./generate-cancellation-email";
+export { onGenerateCancellationDraftChanged } from "./generate-cancellation-email";
 export { sendCancellationEmail } from "./send-cancellation-email";
 export { getDraftSubject } from "./get-draft-subject";
 export { getEmailDetails } from "./get-email-details";

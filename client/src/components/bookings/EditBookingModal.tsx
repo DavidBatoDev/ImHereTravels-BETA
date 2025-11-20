@@ -98,7 +98,11 @@ export default function EditBookingModal({
 
   // Track previous values for detecting changes
   const prevGenerateEmailDraft = React.useRef<boolean | undefined>(undefined);
+  const prevGenerateCancellationDraft = React.useRef<boolean | undefined>(
+    undefined
+  );
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const cancellationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Loading state for cleaning scheduled emails
   const [isCleaningScheduledEmails, setIsCleaningScheduledEmails] =
@@ -318,6 +322,148 @@ export default function EditBookingModal({
   }, [
     formData.generateEmailDraft,
     formData.emailDraftLink,
+    booking?.id,
+    isOpen,
+  ]);
+
+  // Watch for generateCancellationDraft changes and show progress modal
+  useEffect(() => {
+    if (!booking?.id || !isOpen) {
+      prevGenerateCancellationDraft.current = undefined;
+      return;
+    }
+
+    const currentValue = formData.generateCancellationDraft;
+    const previousValue = prevGenerateCancellationDraft.current;
+    const cancellationDraftLink = formData.cancellationEmailDraftLink;
+
+    console.log("🔍 [GENERATE CANCELLATION DRAFT WATCHER]", {
+      currentValue,
+      previousValue,
+      cancellationDraftLink,
+      hasChanged: previousValue !== undefined && currentValue !== previousValue,
+    });
+
+    // Detect change from false to true (toggled ON)
+    if (previousValue === false && currentValue === true) {
+      console.log(
+        "✅ [GENERATE CANCELLATION DRAFT] Toggled ON - showing generating modal"
+      );
+
+      // Clear any existing timeout
+      if (cancellationTimeoutRef.current) {
+        clearTimeout(cancellationTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(true);
+      setEmailGenerationProgress({
+        type: "cancellation",
+        bookingId: booking.id,
+        action: "generating",
+      });
+
+      // Set timeout to hide modal after 30 seconds
+      cancellationTimeoutRef.current = setTimeout(() => {
+        console.log(
+          "⏱️ [GENERATE CANCELLATION DRAFT] Timeout reached - hiding modal"
+        );
+        setIsGeneratingEmail(false);
+        setEmailGenerationProgress({
+          type: null,
+          bookingId: null,
+          action: null,
+        });
+      }, 30000);
+    }
+
+    // Detect change from true to false (toggled OFF)
+    if (previousValue === true && currentValue === false) {
+      console.log(
+        "🗑️ [GENERATE CANCELLATION DRAFT] Toggled OFF - showing deleting modal"
+      );
+
+      // Clear any existing timeout
+      if (cancellationTimeoutRef.current) {
+        clearTimeout(cancellationTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(true);
+      setEmailGenerationProgress({
+        type: "cancellation",
+        bookingId: booking.id,
+        action: "deleting",
+      });
+
+      // Set timeout to hide modal after 30 seconds
+      cancellationTimeoutRef.current = setTimeout(() => {
+        console.log(
+          "⏱️ [GENERATE CANCELLATION DRAFT] Timeout reached - hiding modal"
+        );
+        setIsGeneratingEmail(false);
+        setEmailGenerationProgress({
+          type: null,
+          bookingId: null,
+          action: null,
+        });
+      }, 30000);
+    }
+
+    // If generateCancellationDraft is true and we now have draft link, hide modal
+    if (
+      currentValue === true &&
+      cancellationDraftLink &&
+      emailGenerationProgress.action === "generating"
+    ) {
+      console.log(
+        "✅ [GENERATE CANCELLATION DRAFT] Draft link received - hiding modal"
+      );
+
+      if (cancellationTimeoutRef.current) {
+        clearTimeout(cancellationTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(false);
+      setEmailGenerationProgress({
+        type: null,
+        bookingId: null,
+        action: null,
+      });
+    }
+
+    // If generateCancellationDraft is false and draft link is cleared, hide modal
+    if (
+      currentValue === false &&
+      !cancellationDraftLink &&
+      emailGenerationProgress.action === "deleting"
+    ) {
+      console.log(
+        "✅ [GENERATE CANCELLATION DRAFT] Draft link cleared - hiding modal"
+      );
+
+      if (cancellationTimeoutRef.current) {
+        clearTimeout(cancellationTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(false);
+      setEmailGenerationProgress({
+        type: null,
+        bookingId: null,
+        action: null,
+      });
+    }
+
+    // Update previous value
+    prevGenerateCancellationDraft.current = currentValue;
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (cancellationTimeoutRef.current) {
+        clearTimeout(cancellationTimeoutRef.current);
+      }
+    };
+  }, [
+    formData.generateCancellationDraft,
+    formData.cancellationEmailDraftLink,
     booking?.id,
     isOpen,
   ]);

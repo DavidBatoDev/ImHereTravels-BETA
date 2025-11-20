@@ -7,24 +7,12 @@ export const subjectLineCancellationColumn: BookingSheetColumn = {
   data: {
     id: "subjectLineCancellation",
     columnName: "Subject Line (Cancellation)",
-    dataType: "function",
-    function: "getEmailSentDateFunction",
+    dataType: "string",
     parentTab: "Cancellation",
     order: 81,
     includeInForms: false,
     color: "yellow",
     width: 200,
-    arguments: [
-      {
-        name: "draftUrl",
-        type: "string",
-        columnReference: "Cancellation Email Draft Link",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-    ],
   },
 };
 
