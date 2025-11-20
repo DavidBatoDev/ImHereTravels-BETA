@@ -10,8 +10,11 @@ import {
   orderBy,
   onSnapshot,
   Timestamp,
+  doc,
+  getDoc,
 } from "firebase/firestore";
 import DOMPurify from "dompurify";
+import EmailTemplateService from "@/services/email-template-service";
 import {
   MdFormatBold,
   MdFormatItalic,
@@ -385,14 +388,128 @@ export default function ScheduledEmailsTab() {
   };
 
   // Handle view email
-  const handleViewEmail = (email: ScheduledEmail) => {
+  const handleViewEmail = async (email: ScheduledEmail) => {
     setSelectedEmail(email);
+
+    let htmlContent = email.htmlContent;
+    let subject = email.subject;
+
+    console.log("handleViewEmail called for email:", email.id);
+    console.log("Email type:", email.emailType);
+    console.log("Booking ID:", email.bookingId);
+    console.log("Template ID:", email.templateId);
+    console.log("Has template variables:", !!email.templateVariables);
+
+    // Re-render template with fresh data for payment reminders
+    if (
+      email.emailType === "payment-reminder" &&
+      email.bookingId &&
+      email.templateId &&
+      email.templateVariables
+    ) {
+      console.log("Starting template re-render process...");
+      try {
+        // Fetch fresh booking data directly from Firestore
+        const bookingRef = doc(db, "bookings", email.bookingId);
+        const bookingDoc = await getDoc(bookingRef);
+
+        console.log("Booking doc exists:", bookingDoc.exists());
+
+        if (bookingDoc.exists()) {
+          const bookingData = bookingDoc.data()!;
+          console.log("Fetched booking data:", bookingData);
+
+          // Update template variables with fresh data
+          const freshVariables: Record<string, any> = {
+            ...email.templateVariables,
+            // Update key fields with fresh data
+            fullName: bookingData.fullName,
+            emailAddress: bookingData.emailAddress,
+            tourPackageName: bookingData.tourPackageName,
+            bookingId: bookingData.bookingId,
+            tourDate: bookingData.tourDate,
+            paid: bookingData.paid,
+            remainingBalance: bookingData.remainingBalance,
+            originalTourCost: bookingData.originalTourCost,
+            discountedTourCost: bookingData.discountedTourCost,
+            useDiscountedTourCost: bookingData.useDiscountedTourCost,
+            paymentMethod: bookingData.paymentCondition || "Other",
+            paymentPlan: bookingData.availablePaymentTerms || "",
+          };
+
+          // Update payment term data if applicable
+          if (email.templateVariables.paymentTerm) {
+            const term = email.templateVariables.paymentTerm as string;
+            const termLower = term.toLowerCase();
+
+            freshVariables[`${termLower}Amount`] = (bookingData as any)[
+              `${termLower}Amount`
+            ];
+            freshVariables[`${termLower}DueDate`] = (bookingData as any)[
+              `${termLower}DueDate`
+            ];
+            freshVariables[`${termLower}DatePaid`] = (bookingData as any)[
+              `${termLower}DatePaid`
+            ];
+          }
+
+          // Update term data array if showTable is true
+          if (
+            email.templateVariables.showTable &&
+            email.templateVariables.termData
+          ) {
+            const terms = ["P1", "P2", "P3", "P4"];
+            freshVariables.termData = terms
+              .filter((t) => bookingData.availablePaymentTerms?.includes(t))
+              .map((t) => ({
+                term: t,
+                amount: (bookingData as any)[`${t.toLowerCase()}Amount`] || 0,
+                dueDate:
+                  (bookingData as any)[`${t.toLowerCase()}DueDate`] || "",
+                datePaid:
+                  (bookingData as any)[`${t.toLowerCase()}DatePaid`] || "",
+              }));
+          }
+
+          console.log("Fresh variables prepared:", freshVariables);
+
+          // Load the raw template from Firestore
+          const templateRef = doc(db, "emailTemplates", email.templateId);
+          const templateDoc = await getDoc(templateRef);
+
+          if (templateDoc.exists()) {
+            const templateData = templateDoc.data();
+            console.log("Loaded template:", templateData.name);
+
+            // Re-render the template with fresh data using EmailTemplateService
+            htmlContent = EmailTemplateService.processTemplate(
+              templateData.content, // Use raw template content, not the already-rendered email.htmlContent
+              freshVariables
+            );
+
+            // Update subject with fresh data
+            subject = EmailTemplateService.processTemplate(
+              templateData.subject,
+              freshVariables
+            );
+
+            console.log("Successfully re-rendered template with fresh data");
+          } else {
+            console.warn("Template not found, using original content");
+          }
+        }
+      } catch (error) {
+        console.error("Error re-rendering template:", error);
+        // Fall back to original content if re-rendering fails
+      }
+    }
+
     setViewEmailData({
       to: email.to,
       cc: email.cc?.join(", ") || "",
       bcc: email.bcc?.join(", ") || "",
-      subject: email.subject,
-      htmlContent: email.htmlContent,
+      subject: subject,
+      htmlContent: htmlContent,
     });
     setIsViewEmailDialogOpen(true);
   };

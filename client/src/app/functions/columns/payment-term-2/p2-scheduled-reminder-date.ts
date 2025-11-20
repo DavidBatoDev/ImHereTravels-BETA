@@ -25,7 +25,7 @@ export const p2ScheduledReminderDateColumn: BookingSheetColumn = {
       {
         name: "p2DatePaid",
         type: "any",
-        columnReference: "P1 Date Paid",
+        columnReference: "P2 Date Paid",
         isOptional: true,
         hasDefault: false,
         isRest: false,
