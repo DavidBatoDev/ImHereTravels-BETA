@@ -128,6 +128,7 @@ import { batchedWriter } from "@/services/batched-writer";
 import { bookingService } from "@/services/booking-service";
 import { isImporting } from "@/services/import-state";
 import { useRouter } from "next/navigation";
+import { ScheduledEmailService } from "@/services/scheduled-email-service";
 // Simple deep equality check
 const isEqual = (a: any, b: any): boolean => {
   if (a === b) return true;
