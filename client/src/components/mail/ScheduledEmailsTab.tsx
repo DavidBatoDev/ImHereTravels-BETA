@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import {
@@ -11,6 +11,16 @@ import {
   onSnapshot,
   Timestamp,
 } from "firebase/firestore";
+import DOMPurify from "dompurify";
+import {
+  MdFormatBold,
+  MdFormatItalic,
+  MdFormatUnderlined,
+  MdFormatListBulleted,
+  MdFormatListNumbered,
+  MdUndo,
+  MdRedo,
+} from "react-icons/md";
 import {
   Card,
   CardContent,
@@ -71,6 +81,7 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  Eye,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ScheduledEmailService, {
@@ -101,6 +112,7 @@ export default function ScheduledEmailsTab() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isViewEmailDialogOpen, setIsViewEmailDialogOpen] = useState(false);
   const [
     isDeletePaymentRemindersDialogOpen,
     setIsDeletePaymentRemindersDialogOpen,
@@ -120,6 +132,14 @@ export default function ScheduledEmailsTab() {
   );
   const [newScheduleTime, setNewScheduleTime] = useState("");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [viewEmailData, setViewEmailData] = useState<{
+    to: string;
+    cc: string;
+    bcc: string;
+    subject: string;
+    htmlContent: string;
+  } | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   // Real-time Firestore subscription for scheduled emails
   useEffect(() => {
@@ -362,6 +382,117 @@ export default function ScheduledEmailsTab() {
       subject: `${type.charAt(0).toUpperCase() + type.slice(1)} Reminder`,
     });
     setIsCreateDialogOpen(true);
+  };
+
+  // Handle view email
+  const handleViewEmail = (email: ScheduledEmail) => {
+    setSelectedEmail(email);
+    setViewEmailData({
+      to: email.to,
+      cc: email.cc?.join(", ") || "",
+      bcc: email.bcc?.join(", ") || "",
+      subject: email.subject,
+      htmlContent: email.htmlContent,
+    });
+    setIsViewEmailDialogOpen(true);
+  };
+
+  // Rich text editor commands
+  const execCommand = (cmd: string, value?: string) => {
+    document.execCommand(cmd, false, value);
+    handleInput();
+  };
+
+  // Handle editor input
+  const handleInput = () => {
+    if (editorRef.current && viewEmailData) {
+      const sanitized = DOMPurify.sanitize(editorRef.current.innerHTML, {
+        ALLOWED_TAGS: [
+          "div",
+          "span",
+          "p",
+          "b",
+          "i",
+          "u",
+          "br",
+          "strong",
+          "em",
+          "a",
+          "img",
+          "table",
+          "tr",
+          "td",
+          "tbody",
+          "thead",
+          "h1",
+          "h2",
+          "h3",
+          "ul",
+          "ol",
+          "li",
+        ],
+        ALLOWED_ATTR: [
+          "style",
+          "class",
+          "href",
+          "src",
+          "alt",
+          "width",
+          "height",
+        ],
+      });
+      setViewEmailData({
+        ...viewEmailData,
+        htmlContent: sanitized,
+      });
+    }
+  };
+
+  // Update editor content when dialog opens
+  useEffect(() => {
+    if (isViewEmailDialogOpen && viewEmailData && editorRef.current) {
+      // Set the content when dialog opens or email changes
+      const content = viewEmailData.htmlContent || "";
+      if (editorRef.current.innerHTML !== content) {
+        editorRef.current.innerHTML = content;
+      }
+    } else if (!isViewEmailDialogOpen && editorRef.current) {
+      // Clear editor when dialog closes
+      editorRef.current.innerHTML = "";
+    }
+  }, [isViewEmailDialogOpen, viewEmailData]);
+
+  // Handle update email content
+  const handleUpdateEmail = async () => {
+    if (!selectedEmail || !viewEmailData) return;
+
+    try {
+      await ScheduledEmailService.updateScheduledEmail(selectedEmail.id, {
+        to: viewEmailData.to,
+        cc: viewEmailData.cc
+          ? viewEmailData.cc.split(",").map((e) => e.trim())
+          : undefined,
+        bcc: viewEmailData.bcc
+          ? viewEmailData.bcc.split(",").map((e) => e.trim())
+          : undefined,
+        subject: viewEmailData.subject,
+        htmlContent: viewEmailData.htmlContent,
+      });
+
+      toast({
+        title: "Success",
+        description: "Email updated successfully",
+      });
+
+      setIsViewEmailDialogOpen(false);
+    } catch (error) {
+      console.error("Error updating email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update email",
+        variant: "destructive",
+      });
+    }
   };
 
   // Format date for display
@@ -667,6 +798,14 @@ export default function ScheduledEmailsTab() {
                           </div>
 
                           <div className="flex items-center gap-2 ml-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewEmail(email)}
+                              title="View Email"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
                             {email.status === "pending" && (
                               <>
                                 <Button
@@ -774,6 +913,14 @@ export default function ScheduledEmailsTab() {
                     </div>
 
                     <div className="flex items-center gap-2 ml-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewEmail(email)}
+                        title="View Email"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
                       {email.status === "pending" && (
                         <>
                           <Button
@@ -1081,6 +1228,164 @@ export default function ScheduledEmailsTab() {
           </div>
         </div>
       )}
+
+      {/* View Email Dialog */}
+      <Dialog
+        open={isViewEmailDialogOpen}
+        onOpenChange={setIsViewEmailDialogOpen}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>View Scheduled Email</DialogTitle>
+            <DialogDescription>
+              View the scheduled email details and content.
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewEmailData && (
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+              {/* Email Recipients */}
+              <div className="space-y-2">
+                <Label htmlFor="view-to">To</Label>
+                <Input
+                  id="view-to"
+                  value={viewEmailData.to}
+                  readOnly
+                  placeholder="recipient@example.com"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="view-cc">CC (comma-separated)</Label>
+                  <Input
+                    id="view-cc"
+                    value={viewEmailData.cc}
+                    readOnly
+                    placeholder="cc1@example.com, cc2@example.com"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="view-bcc">BCC (comma-separated)</Label>
+                  <Input
+                    id="view-bcc"
+                    value={viewEmailData.bcc}
+                    readOnly
+                    placeholder="bcc1@example.com, bcc2@example.com"
+                  />
+                </div>
+              </div>
+
+              {/* Subject */}
+              <div className="space-y-2">
+                <Label htmlFor="view-subject">Subject</Label>
+                <Input
+                  id="view-subject"
+                  value={viewEmailData.subject}
+                  onChange={(e) =>
+                    setViewEmailData({
+                      ...viewEmailData,
+                      subject: e.target.value,
+                    })
+                  }
+                  placeholder="Email subject"
+                />
+              </div>
+
+              {/* Email Body */}
+              <div className="space-y-2">
+                <Label>Email Content</Label>
+
+                {/* Email Preview */}
+                <div
+                  key={selectedEmail?.id}
+                  className="border rounded-md p-4 bg-white min-h-[300px] max-h-[500px] overflow-y-auto"
+                  style={{
+                    fontFamily: "sans-serif",
+                    fontSize: "14px",
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: viewEmailData.htmlContent,
+                  }}
+                />
+              </div>
+
+              {/* Email Metadata */}
+              {selectedEmail && (
+                <div className="space-y-2 pt-4 border-t">
+                  <h4 className="font-semibold text-sm">Email Information</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Status:</span>
+                      <Badge
+                        className={`ml-2 ${statusStyles[selectedEmail.status]}`}
+                      >
+                        {selectedEmail.status}
+                      </Badge>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Type:</span>
+                      <span className="ml-2">
+                        {selectedEmail.emailType || "N/A"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">
+                        Scheduled For:
+                      </span>
+                      <span className="ml-2">
+                        {formatDate(selectedEmail.scheduledFor)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Attempts:</span>
+                      <span className="ml-2">
+                        {selectedEmail.attempts}/{selectedEmail.maxAttempts}
+                      </span>
+                    </div>
+                    {selectedEmail.bookingId && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">
+                          Booking ID:
+                        </span>
+                        <span className="ml-2 font-mono text-xs">
+                          {selectedEmail.bookingId}
+                        </span>
+                      </div>
+                    )}
+                    {selectedEmail.sentAt && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Sent At:</span>
+                        <span className="ml-2 text-green-600">
+                          {formatDate(selectedEmail.sentAt)}
+                        </span>
+                      </div>
+                    )}
+                    {selectedEmail.errorMessage && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Error:</span>
+                        <span className="ml-2 text-red-600">
+                          {selectedEmail.errorMessage}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsViewEmailDialogOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

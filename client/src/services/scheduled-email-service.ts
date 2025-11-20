@@ -218,6 +218,41 @@ export class ScheduledEmailService {
   }
 
   /**
+   * Update a scheduled email's content
+   */
+  static async updateScheduledEmail(
+    scheduledEmailId: string,
+    updates: {
+      to?: string;
+      cc?: string[];
+      bcc?: string[];
+      subject?: string;
+      htmlContent?: string;
+    }
+  ) {
+    // Call Next.js API route
+    const response = await fetch(`/api/scheduled-emails/${scheduledEmailId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to update email");
+    }
+
+    return result.data;
+  }
+
+  /**
    * Retry a failed email by resetting its status to pending
    */
   static async retryFailedEmail(scheduledEmailId: string) {
