@@ -2,6 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  Timestamp,
+} from "firebase/firestore";
 import {
   Card,
   CardContent,
@@ -112,28 +121,68 @@ export default function ScheduledEmailsTab() {
   const [newScheduleTime, setNewScheduleTime] = useState("");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-  // Fetch scheduled emails
-  const fetchScheduledEmails = async (filters?: any) => {
+  // Real-time Firestore subscription for scheduled emails
+  useEffect(() => {
     setIsLoading(true);
-    try {
-      const result = await ScheduledEmailService.getScheduledEmails({
-        status: statusFilter !== "all" ? (statusFilter as any) : undefined,
-        limit: 100,
-        ...filters,
-      });
 
-      setScheduledEmails(result.scheduledEmails);
-    } catch (error) {
-      console.error("Error fetching scheduled emails:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch scheduled emails",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+    // Build query
+    const scheduledEmailsRef = collection(db, "scheduledEmails");
+    let q = query(scheduledEmailsRef, orderBy("scheduledFor", "asc"));
+
+    // Add status filter if not "all"
+    if (statusFilter !== "all") {
+      q = query(
+        scheduledEmailsRef,
+        where("status", "==", statusFilter),
+        orderBy("scheduledFor", "asc")
+      );
     }
-  };
+
+    // Subscribe to real-time updates
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const emails: ScheduledEmail[] = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            scheduledFor:
+              data.scheduledFor instanceof Timestamp
+                ? data.scheduledFor.toDate().toISOString()
+                : data.scheduledFor,
+            createdAt:
+              data.createdAt instanceof Timestamp
+                ? data.createdAt.toDate().toISOString()
+                : data.createdAt,
+            updatedAt:
+              data.updatedAt instanceof Timestamp
+                ? data.updatedAt.toDate().toISOString()
+                : data.updatedAt,
+            sentAt:
+              data.sentAt && data.sentAt instanceof Timestamp
+                ? data.sentAt.toDate().toISOString()
+                : data.sentAt,
+          } as ScheduledEmail;
+        });
+
+        setScheduledEmails(emails);
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error("Error subscribing to scheduled emails:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load scheduled emails",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+      }
+    );
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, [statusFilter]);
 
   // Create new scheduled email
   const handleCreateScheduledEmail = async () => {
@@ -163,7 +212,7 @@ export default function ScheduledEmailsTab() {
 
       setIsCreateDialogOpen(false);
       setNewEmailData({ maxAttempts: 3 });
-      fetchScheduledEmails();
+      // Real-time listener will auto-update
     } catch (error) {
       console.error("Error scheduling email:", error);
       toast({
@@ -193,7 +242,7 @@ export default function ScheduledEmailsTab() {
 
       setIsRescheduleDialogOpen(false);
       setNewScheduleTime("");
-      fetchScheduledEmails();
+      // Real-time listener will auto-update
     } catch (error) {
       console.error("Error rescheduling email:", error);
       toast({
@@ -217,7 +266,7 @@ export default function ScheduledEmailsTab() {
       });
 
       setIsCancelDialogOpen(false);
-      fetchScheduledEmails();
+      // Real-time listener will auto-update
     } catch (error) {
       console.error("Error cancelling email:", error);
       toast({
@@ -238,7 +287,7 @@ export default function ScheduledEmailsTab() {
         description: "Email retry scheduled successfully",
       });
 
-      fetchScheduledEmails();
+      // Real-time listener will auto-update
     } catch (error) {
       console.error("Error retrying email:", error);
       toast({
@@ -257,8 +306,7 @@ export default function ScheduledEmailsTab() {
         title: "Success",
         description: "Email processing triggered",
       });
-      // Refresh after a short delay to see results
-      setTimeout(() => fetchScheduledEmails(), 2000);
+      // Real-time listener will auto-update when processing completes
     } catch (error) {
       console.error("Error triggering processing:", error);
       toast({
@@ -289,7 +337,7 @@ export default function ScheduledEmailsTab() {
       });
 
       setSelectedBookingId(null);
-      fetchScheduledEmails();
+      // Real-time listener will auto-update
     } catch (error) {
       console.error("Error deleting payment reminders:", error);
       toast({
@@ -379,10 +427,6 @@ export default function ScheduledEmailsTab() {
     }));
   };
 
-  useEffect(() => {
-    fetchScheduledEmails();
-  }, [statusFilter]);
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -466,14 +510,6 @@ export default function ScheduledEmailsTab() {
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
-            <Button
-              onClick={() => fetchScheduledEmails()}
-              variant="outline"
-              size="sm"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -990,19 +1026,24 @@ export default function ScheduledEmailsTab() {
             <AlertDialogTitle>Delete All Payment Reminders</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete all payment reminder emails for
-              this booking? This will also:
-              <ul className="list-disc ml-6 mt-2 space-y-1">
-                <li>Set "Enable Payment Reminder" to OFF</li>
-                <li>Clear all P1-P4 Scheduled Email Links</li>
-                <li>
-                  Delete all pending, sent, and failed payment reminder emails
-                </li>
-              </ul>
-              <p className="mt-2 font-semibold text-red-600">
-                This action cannot be undone.
-              </p>
+              this booking?
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-2">
+              This will also:
+            </p>
+            <ul className="list-disc ml-6 space-y-1 text-sm text-muted-foreground">
+              <li>Set "Enable Payment Reminder" to OFF</li>
+              <li>Clear all P1-P4 Scheduled Email Links</li>
+              <li>
+                Delete all pending, sent, and failed payment reminder emails
+              </li>
+            </ul>
+            <p className="mt-4 font-semibold text-red-600 text-sm">
+              This action cannot be undone.
+            </p>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
