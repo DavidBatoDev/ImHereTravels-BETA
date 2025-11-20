@@ -1000,7 +1000,24 @@ export default function ScheduledEmailsTab() {
   };
 
   // Format date for display
-  const formatDate = (date: Date) => {
+  const formatDate = (dateValue: Date | string | null | undefined) => {
+    if (!dateValue) {
+      return "";
+    }
+
+    let date: Date;
+    if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if ((dateValue as any)?.toDate) {
+      date = (dateValue as any).toDate();
+    } else {
+      date = new Date(dateValue);
+    }
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
     return date.toLocaleString("en-US", {
       year: "numeric",
       month: "short",
@@ -1318,11 +1335,20 @@ export default function ScheduledEmailsTab() {
                                   size="sm"
                                   onClick={() => {
                                     setSelectedEmail(email);
-                                    setNewScheduleTime(
-                                      email.scheduledFor
-                                        .toISOString()
-                                        .slice(0, 16)
-                                    );
+                                    const isoString =
+                                      typeof email.scheduledFor === "string"
+                                        ? email.scheduledFor
+                                        : (email.scheduledFor as any)?.toDate
+                                        ? (email.scheduledFor as any)
+                                            .toDate()
+                                            .toISOString()
+                                        : new Date(
+                                            email.scheduledFor as unknown as
+                                              | string
+                                              | number
+                                              | Date
+                                          ).toISOString();
+                                    setNewScheduleTime(isoString.slice(0, 16));
                                     setIsRescheduleDialogOpen(true);
                                   }}
                                 >
@@ -1445,9 +1471,20 @@ export default function ScheduledEmailsTab() {
                             size="sm"
                             onClick={() => {
                               setSelectedEmail(email);
-                              setNewScheduleTime(
-                                email.scheduledFor.toISOString().slice(0, 16)
-                              );
+                              const isoString =
+                                typeof email.scheduledFor === "string"
+                                  ? email.scheduledFor
+                                  : (email.scheduledFor as any)?.toDate
+                                  ? (email.scheduledFor as any)
+                                      .toDate()
+                                      .toISOString()
+                                  : new Date(
+                                      email.scheduledFor as unknown as
+                                        | string
+                                        | number
+                                        | Date
+                                    ).toISOString();
+                              setNewScheduleTime(isoString.slice(0, 16));
                               setIsRescheduleDialogOpen(true);
                             }}
                           >

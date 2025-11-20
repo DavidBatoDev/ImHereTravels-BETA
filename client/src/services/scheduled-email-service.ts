@@ -24,14 +24,14 @@ export interface ScheduledEmail {
   cc?: string[];
   from?: string;
   replyTo?: string;
-  scheduledFor: Date;
+  scheduledFor: string; // ISO string from Firestore conversion
   status: "pending" | "sent" | "failed" | "cancelled" | "skipped";
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string; // ISO string from Firestore conversion
+  updatedAt: string; // ISO string from Firestore conversion
   attempts: number;
   maxAttempts: number;
   errorMessage?: string;
-  sentAt?: Date;
+  sentAt?: string; // ISO string from Firestore conversion
   messageId?: string;
   emailType?: string;
   bookingId?: string;
