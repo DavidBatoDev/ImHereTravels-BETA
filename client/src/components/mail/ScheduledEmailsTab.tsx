@@ -433,24 +433,92 @@ export default function ScheduledEmailsTab() {
             originalTourCost: bookingData.originalTourCost,
             discountedTourCost: bookingData.discountedTourCost,
             useDiscountedTourCost: bookingData.useDiscountedTourCost,
-            paymentMethod: bookingData.paymentCondition || "Other",
+            // Extract payment method from paymentCondition (e.g., "Standard Booking" from "Standard Booking, P4")
+            paymentMethod: bookingData.paymentCondition 
+              ? bookingData.paymentCondition.split(",")[0].trim() 
+              : "Other",
             paymentPlan: bookingData.availablePaymentTerms || "",
+          };
+
+          // Helper function to parse due date for a specific term
+          const parseDueDateForTerm = (dueDateRaw: any, termIndex: number): string => {
+            if (!dueDateRaw) return "";
+            
+            if (typeof dueDateRaw === "string" && dueDateRaw.includes(",")) {
+              const parts = dueDateRaw.split(",").map((p) => p.trim());
+              // Dates are in format: "Month Day", "Year", "Month Day", "Year"
+              // For term index n, we need parts[n*2] + ", " + parts[n*2+1]
+              if (parts.length > termIndex * 2 + 1) {
+                return `${parts[termIndex * 2]}, ${parts[termIndex * 2 + 1]}`;
+              }
+            }
+            
+            return dueDateRaw;
+          };
+
+          // Helper function to format currency
+          const formatGBP = (value: any): string => {
+            if (!value) return "£0.00";
+            return `£${Number(value).toFixed(2)}`;
+          };
+
+          // Helper function to format date
+          const formatDate = (dateValue: any): string => {
+            if (!dateValue) return "";
+            
+            try {
+              let date: Date | null = null;
+              
+              // Handle Firestore Timestamp objects
+              if (dateValue && typeof dateValue === "object") {
+                if (dateValue.seconds) {
+                  date = new Date(dateValue.seconds * 1000);
+                } else if (dateValue.type === "firestore/timestamp/1.0" && dateValue.seconds) {
+                  date = new Date(dateValue.seconds * 1000);
+                }
+              }
+              // Handle string dates
+              else if (typeof dateValue === "string" && dateValue.trim() !== "") {
+                date = new Date(dateValue);
+              }
+              // Handle Date objects
+              else if (dateValue instanceof Date) {
+                date = dateValue;
+              }
+              
+              // Validate and format
+              if (date && !isNaN(date.getTime())) {
+                return date.toISOString().split("T")[0];
+              }
+              
+              return "";
+            } catch (error) {
+              console.warn("Error formatting date:", error, "Value:", dateValue);
+              return "";
+            }
           };
 
           // Update payment term data if applicable
           if (email.templateVariables.paymentTerm) {
             const term = email.templateVariables.paymentTerm as string;
             const termLower = term.toLowerCase();
+            const termIndex = parseInt(term.replace("P", "")) - 1;
+
+            // Parse due date for this specific term
+            const dueDateRaw = (bookingData as any)[`${termLower}DueDate`];
+            const parsedDueDate = parseDueDateForTerm(dueDateRaw, termIndex);
 
             freshVariables[`${termLower}Amount`] = (bookingData as any)[
               `${termLower}Amount`
             ];
-            freshVariables[`${termLower}DueDate`] = (bookingData as any)[
-              `${termLower}DueDate`
-            ];
+            freshVariables[`${termLower}DueDate`] = parsedDueDate;
             freshVariables[`${termLower}DatePaid`] = (bookingData as any)[
               `${termLower}DatePaid`
             ];
+            
+            // Update the main dueDate and amount with parsed values
+            freshVariables.dueDate = formatDate(parsedDueDate);
+            freshVariables.amount = formatGBP((bookingData as any)[`${termLower}Amount`]);
           }
 
           // Update term data array if showTable is true
@@ -458,45 +526,287 @@ export default function ScheduledEmailsTab() {
             email.templateVariables.showTable &&
             email.templateVariables.termData
           ) {
-            const terms = ["P1", "P2", "P3", "P4"];
-            freshVariables.termData = terms
-              .filter((t) => bookingData.availablePaymentTerms?.includes(t))
-              .map((t) => ({
+            const allTerms = ["P1", "P2", "P3", "P4"];
+            
+            // Determine which terms to show based on payment plan
+            // If availablePaymentTerms is "P3", we should show P1, P2, P3
+            const paymentPlanValue = bookingData.availablePaymentTerms || bookingData.paymentPlan || "";
+            let maxTermIndex = 0;
+            
+            // Extract the highest payment term number
+            if (paymentPlanValue.includes("P4")) {
+              maxTermIndex = 4;
+            } else if (paymentPlanValue.includes("P3")) {
+              maxTermIndex = 3;
+            } else if (paymentPlanValue.includes("P2")) {
+              maxTermIndex = 2;
+            } else if (paymentPlanValue.includes("P1")) {
+              maxTermIndex = 1;
+            }
+            
+            // Get all terms up to the max payment plan
+            const availableTerms = allTerms.slice(0, maxTermIndex);
+            
+            // Only show terms up to current payment term
+            const currentTerm = email.templateVariables.paymentTerm as string;
+            const currentTermIndex = allTerms.indexOf(currentTerm);
+            const visibleTerms = availableTerms.slice(0, currentTermIndex + 1);
+            
+            console.log("Payment plan value:", paymentPlanValue);
+            console.log("Max term index:", maxTermIndex);
+            console.log("Available terms:", availableTerms);
+            console.log("Current term:", currentTerm);
+            console.log("Visible terms:", visibleTerms);
+            
+            freshVariables.termData = visibleTerms.map((t) => {
+              const tIndex = parseInt(t.replace("P", "")) - 1;
+              const tLower = t.toLowerCase();
+              const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
+              const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
+              
+              return {
                 term: t,
-                amount: (bookingData as any)[`${t.toLowerCase()}Amount`] || 0,
-                dueDate:
-                  (bookingData as any)[`${t.toLowerCase()}DueDate`] || "",
-                datePaid:
-                  (bookingData as any)[`${t.toLowerCase()}DatePaid`] || "",
-              }));
+                amount: formatGBP((bookingData as any)[`${tLower}Amount`]),
+                dueDate: formatDate(parsedDueDate),
+                datePaid: formatDate((bookingData as any)[`${tLower}DatePaid`]),
+              };
+            });
+            
+            // Update totals
+            freshVariables.totalAmount = formatGBP(
+              bookingData.useDiscountedTourCost
+                ? bookingData.discountedTourCost
+                : bookingData.originalTourCost
+            );
+            freshVariables.paid = formatGBP(bookingData.paid);
+            freshVariables.remainingBalance = formatGBP(bookingData.remainingBalance);
           }
 
           console.log("Fresh variables prepared:", freshVariables);
+          console.log("Term data:", freshVariables.termData);
+          console.log("Payment Method:", freshVariables.paymentMethod);
+          console.log("Due Date:", freshVariables.dueDate);
+          console.log("Amount:", freshVariables.amount);
 
-          // Load the raw template from Firestore
-          const templateRef = doc(db, "emailTemplates", email.templateId);
-          const templateDoc = await getDoc(templateRef);
+          // Use the raw template HTML directly (same as what's stored in the cloud function)
+          const rawTemplateHtml = `<!-- scheduledReminderEmail.html -->
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6">
+  <p>Hi {{ fullName }},</p>
 
-          if (templateDoc.exists()) {
-            const templateData = templateDoc.data();
-            console.log("Loaded template:", templateData.name);
+  <!-- SUBJECT DYNAMICALLY SET IN CLOUD FUNCTION -->
+  <p>
+    {% if paymentTerm == "P1" %} We hope you're getting excited for your
+    upcoming adventure with <strong>{{ tourPackageName }}</strong>!<br />
+    This is a friendly reminder that your <strong>first payment</strong> is due
+    soon. {% elif paymentTerm == "P2" %} We hope you're still as excited as we
+    are about your upcoming adventure with
+    <strong>{{ tourPackageName }}</strong>!<br />
+    This is a friendly reminder that your <strong>second payment</strong> is due
+    soon. {% elif paymentTerm == "P3" %} We hope you're still as excited as we
+    are about your upcoming adventure with
+    <strong>{{ tourPackageName }}</strong>!<br />
+    This is a friendly reminder that your <strong>third payment</strong> is due
+    soon. {% elif paymentTerm == "P4" %} We hope you're still as excited as we
+    are about your upcoming adventure with
+    <strong>{{ tourPackageName }}</strong>!<br />
+    This is a friendly reminder that your <strong>final payment</strong> is due
+    soon. {% endif %}
+  </p>
 
-            // Re-render the template with fresh data using EmailTemplateService
-            htmlContent = EmailTemplateService.processTemplate(
-              templateData.content, // Use raw template content, not the already-rendered email.htmlContent
-              freshVariables
-            );
+  <h3 style="color: #d00">Important Details:</h3>
+  <ul>
+    <li><strong>Amount:</strong> {{ amount }}</li>
+    <li><strong>Due Date:</strong> {{ dueDate }}</li>
+    <li>
+      <strong>Payment Method:</strong> {{ paymentMethod }} {% if paymentMethod
+      == "Stripe" %} <br /><a
+        href="https://buy.stripe.com/7sY5kD5NF2uBfGj1NJco03g"
+        target="_blank"
+        style="
+          background-color: #28a745;
+          color: white;
+          text-decoration: none;
+          font-weight: bold;
+          padding: 8px 16px;
+          border-radius: 4px;
+          display: inline-block;
+          margin-top: 8px;
+        "
+        >Pay securely online with Stripe</a
+      >
+      {% elif paymentMethod == "Revolut" %}
+      <ul>
+        <li>Account Name: I'M HERE TRAVELS LTD</li>
+        <li>Account Number: 36834154</li>
+        <li>Sort Code: 23-01-20</li>
+        <li>IBAN: GB52REVO00996983499052</li>
+        <li>BIC: REVOGB21</li>
+      </ul>
+      {% elif paymentMethod == "Ulster" %}
+      <ul>
+        <li>Account Name: Shawn V Keeley</li>
+        <li>Account Number: 10561155</li>
+        <li>Sort Code: 98-05-83</li>
+        <li>IBAN: GB45ULSB98058310561155</li>
+        <li>BIC: ULSBGB2B</li>
+      </ul>
+      {% else %}
+      <ul>
+        <li>[Details will be provided separately]</li>
+      </ul>
+      {% endif %}
+    </li>
+  </ul>
 
-            // Update subject with fresh data
-            subject = EmailTemplateService.processTemplate(
-              templateData.subject,
-              freshVariables
-            );
+  {% if showTable %}
+  <h3 style="color: #d00">Payment Tracker</h3>
+  <table
+    style="
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 600px;
+      font-size: 14px;
+      border: 1px solid #ddd;
+    "
+    cellpadding="8"
+    cellspacing="0"
+  >
+    <thead>
+      <tr style="background-color: #f8f9fa">
+        <th
+          style="
+            border: 1px solid #ddd;
+            text-align: left;
+            font-weight: bold;
+            padding: 10px;
+          "
+        >
+          Payment Term
+        </th>
+        <th
+          style="
+            border: 1px solid #ddd;
+            text-align: left;
+            font-weight: bold;
+            padding: 10px;
+          "
+        >
+          Amount
+        </th>
+        <th
+          style="
+            border: 1px solid #ddd;
+            text-align: left;
+            font-weight: bold;
+            padding: 10px;
+          "
+        >
+          Due Date
+        </th>
+        <th
+          style="
+            border: 1px solid #ddd;
+            text-align: left;
+            font-weight: bold;
+            padding: 10px;
+          "
+        >
+          Date Paid
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in termData %}
+      <tr>
+        <td style="border: 1px solid #ddd; padding: 10px">{{ item.term }}</td>
+        <td style="border: 1px solid #ddd; padding: 10px">{{ item.amount }}</td>
+        <td style="border: 1px solid #ddd; padding: 10px">
+          {{ item.dueDate }}
+        </td>
+        <td style="border: 1px solid #ddd; padding: 10px">
+          {{ item.datePaid }}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr style="background-color: #f8f9fa">
+        <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold">
+          Total
+        </td>
+        <td
+          style="border: 1px solid #ddd; padding: 10px; font-weight: bold"
+          colspan="3"
+        >
+          {{ totalAmount }}
+        </td>
+      </tr>
+      <tr style="background-color: #f8f9fa">
+        <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold">
+          Paid
+        </td>
+        <td
+          style="border: 1px solid #ddd; padding: 10px; font-weight: bold"
+          colspan="3"
+        >
+          {{ paid }}
+        </td>
+      </tr>
+      <tr style="background-color: #f8f9fa">
+        <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold">
+          Remaining Balance
+        </td>
+        <td
+          style="border: 1px solid #ddd; padding: 10px; font-weight: bold"
+          colspan="3"
+        >
+          {{ remainingBalance }}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  {% endif %}
 
-            console.log("Successfully re-rendered template with fresh data");
-          } else {
-            console.warn("Template not found, using original content");
-          }
+  <h3 style="color: #d00">Action Needed:</h3>
+  <p>
+    Please send us <strong>proof of payment</strong> once you've made the
+    transfer. You can reply directly to this email with the receipt or
+    confirmation.
+  </p>
+
+  <p>
+    We can't wait to have you with us on this incredible journey! See you soon!
+  </p>
+
+  <p>
+    <strong
+      >Warm regards,<br />
+      The ImHereTravels Team</strong
+    >
+  </p>
+
+  <div style="margin-top: 20px">
+    <img
+      src="https://imheretravels.com/wp-content/uploads/2025/04/ImHereTravels-Logo.png"
+      alt="ImHereTravels Logo"
+      style="width: 120px"
+    />
+  </div>
+</div>`;
+
+          // Re-render the template with fresh data using EmailTemplateService
+          htmlContent = EmailTemplateService.processTemplate(
+            rawTemplateHtml,
+            freshVariables
+          );
+
+          console.log("Rendered HTML length:", htmlContent.length);
+          console.log("Rendered HTML preview:", htmlContent.substring(0, 500));
+
+          // Update subject with fresh data
+          subject = `Payment Reminder - ${freshVariables.fullName} - ${
+            email.templateVariables.paymentTerm || "Payment"
+          } Due`;
+
+          console.log("Successfully re-rendered template with fresh data");
         }
       } catch (error) {
         console.error("Error re-rendering template:", error);

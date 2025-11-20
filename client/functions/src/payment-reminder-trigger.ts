@@ -317,7 +317,9 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
       // Use availablePaymentTerms directly from booking (e.g., "P1", "P1, P2", "P1, P2, P3", "P1, P2, P3, P4")
       const paymentPlan = booking.availablePaymentTerms || "";
       // PaymentMethod might be stored in paymentCondition or a separate field
-      const paymentMethod = booking.paymentCondition || "Other";
+      // Extract actual payment method (e.g., "Standard Booking" from "Standard Booking, P4")
+      const paymentConditionRaw = booking.paymentCondition || "Other";
+      const paymentMethod = paymentConditionRaw.split(",")[0].trim();
 
       logger.info("Booking details:", {
         paymentPlan,
@@ -510,11 +512,24 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             `${term} Amount`,
             PAYMENT_REMINDER_COLUMNS
           );
-          const dueDate = getColumnValue(
+          const dueDateRaw = getColumnValue(
             booking,
             `${term} Due Date`,
             PAYMENT_REMINDER_COLUMNS
           );
+
+          // Parse due date for this specific term
+          // Due dates can be comma-separated: "Dec 2, 2025, Jan 2, 2026, Feb 2, 2026, Mar 2, 2026"
+          let dueDate = dueDateRaw;
+          if (typeof dueDateRaw === "string" && dueDateRaw.includes(",")) {
+            const parts = dueDateRaw.split(",").map((p) => p.trim());
+            const termIndex = parseInt(term.replace("P", "")) - 1; // P1=0, P2=1, P3=2, P4=3
+            // Dates are in format: "Month Day", "Year", "Month Day", "Year"
+            // For term index n, we need parts[n*2] + ", " + parts[n*2+1]
+            if (parts.length > termIndex * 2 + 1) {
+              dueDate = `${parts[termIndex * 2]}, ${parts[termIndex * 2 + 1]}`;
+            }
+          }
 
           // Convert scheduled reminder date to Timestamp
           let scheduledFor: Timestamp;
@@ -571,23 +586,42 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             formatDate(dueDate)
           );
 
-          // Build term data for template
-          const termData = terms.map((t) => ({
-            term: t,
-            amount: formatGBP(
-              getColumnValue(booking, `${t} Amount`, PAYMENT_REMINDER_COLUMNS)
-            ),
-            dueDate: formatDate(
-              getColumnValue(booking, `${t} Due Date`, PAYMENT_REMINDER_COLUMNS)
-            ),
-            datePaid: formatDate(
-              getColumnValue(
-                booking,
-                `${t} Date Paid`,
-                PAYMENT_REMINDER_COLUMNS
-              )
-            ),
-          }));
+          // Build term data for template - only show terms up to current payment plan
+          const currentTermIndex = terms.indexOf(term);
+          const visibleTerms = terms.slice(0, currentTermIndex + 1);
+
+          const termData = visibleTerms.map((t) => {
+            const tDueDateRaw = getColumnValue(
+              booking,
+              `${t} Due Date`,
+              PAYMENT_REMINDER_COLUMNS
+            );
+            let tDueDate = tDueDateRaw;
+
+            // Parse due date for each term
+            if (typeof tDueDateRaw === "string" && tDueDateRaw.includes(",")) {
+              const parts = tDueDateRaw.split(",").map((p) => p.trim());
+              const tIndex = parseInt(t.replace("P", "")) - 1;
+              if (parts.length > tIndex * 2 + 1) {
+                tDueDate = `${parts[tIndex * 2]}, ${parts[tIndex * 2 + 1]}`;
+              }
+            }
+
+            return {
+              term: t,
+              amount: formatGBP(
+                getColumnValue(booking, `${t} Amount`, PAYMENT_REMINDER_COLUMNS)
+              ),
+              dueDate: formatDate(tDueDate),
+              datePaid: formatDate(
+                getColumnValue(
+                  booking,
+                  `${t} Date Paid`,
+                  PAYMENT_REMINDER_COLUMNS
+                )
+              ),
+            };
+          });
 
           // Prepare template variables
           const templateVariables = {
