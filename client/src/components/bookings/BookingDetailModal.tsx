@@ -677,6 +677,18 @@ export default function BookingDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] bg-background p-0 rounded-full overflow-hidden">
+        {/* Loading Overlay */}
+        {isDeleting && (
+          <div className="absolute inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-crimson-red"></div>
+              <p className="text-lg font-semibold text-foreground">
+                Deleting...
+              </p>
+            </div>
+          </div>
+        )}
+
         <DialogHeader className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
