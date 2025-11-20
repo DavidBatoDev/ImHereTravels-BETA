@@ -92,9 +92,18 @@ export default function ScheduledEmailsTab() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [
+    isDeletePaymentRemindersDialogOpen,
+    setIsDeletePaymentRemindersDialogOpen,
+  ] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<ScheduledEmail | null>(
     null
   );
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
+    null
+  );
+  const [isDeletingPaymentReminders, setIsDeletingPaymentReminders] =
+    useState(false);
   const [newEmailData, setNewEmailData] = useState<Partial<ScheduledEmailData>>(
     {
       maxAttempts: 3,
@@ -257,6 +266,39 @@ export default function ScheduledEmailsTab() {
         description: "Failed to trigger processing",
         variant: "destructive",
       });
+    }
+  };
+
+  // Delete all payment reminders for a booking
+  const handleDeletePaymentReminders = async () => {
+    if (!selectedBookingId) return;
+
+    try {
+      setIsDeletingPaymentReminders(true);
+      setIsDeletePaymentRemindersDialogOpen(false);
+
+      const result = await ScheduledEmailService.deletePaymentReminders(
+        selectedBookingId
+      );
+
+      toast({
+        title: "Success",
+        description: `Deleted ${result.deletedCount} payment reminder${
+          result.deletedCount !== 1 ? "s" : ""
+        } and disabled payment reminders for this booking`,
+      });
+
+      setSelectedBookingId(null);
+      fetchScheduledEmails();
+    } catch (error) {
+      console.error("Error deleting payment reminders:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete payment reminders",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingPaymentReminders(false);
     }
   };
 
@@ -506,6 +548,18 @@ export default function ScheduledEmailsTab() {
                     >
                       <ExternalLink className="w-4 h-4" />
                       View Booking
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedBookingId(bookingId);
+                        setIsDeletePaymentRemindersDialogOpen(true);
+                      }}
+                      className="gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete All
                     </Button>
                     <Button
                       variant="ghost"
@@ -925,6 +979,67 @@ export default function ScheduledEmailsTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete Payment Reminders Confirmation Dialog */}
+      <AlertDialog
+        open={isDeletePaymentRemindersDialogOpen}
+        onOpenChange={setIsDeletePaymentRemindersDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Payment Reminders</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete all payment reminder emails for
+              this booking? This will also:
+              <ul className="list-disc ml-6 mt-2 space-y-1">
+                <li>Set "Enable Payment Reminder" to OFF</li>
+                <li>Clear all P1-P4 Scheduled Email Links</li>
+                <li>
+                  Delete all pending, sent, and failed payment reminder emails
+                </li>
+              </ul>
+              <p className="mt-2 font-semibold text-red-600">
+                This action cannot be undone.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePaymentReminders}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete All Reminders
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Loading Modal for Deleting Payment Reminders */}
+      {isDeletingPaymentReminders && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600"></div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Deleting Payment Reminders
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Removing scheduled emails and updating booking...
+                  </p>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>• Deleting scheduled payment reminder emails</p>
+                <p>• Disabling payment reminders on booking</p>
+                <p>• Clearing P1-P4 scheduled email links</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

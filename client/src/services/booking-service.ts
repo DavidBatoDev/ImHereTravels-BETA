@@ -229,6 +229,9 @@ class BookingServiceImpl implements BookingService {
         }
       }
 
+      // Clean up associated scheduled payment reminder emails
+      await this.cleanupScheduledEmails(bookingId);
+
       // Perform the actual deletion
       await deleteDoc(docRef);
       console.log(`✅ Deleted booking ${bookingId}`);
@@ -767,6 +770,65 @@ class BookingServiceImpl implements BookingService {
   }
 
   // ========================================================================
+  // SCHEDULED EMAIL CLEANUP
+  // ========================================================================
+
+  /**
+   * Clean up scheduled payment reminder emails associated with a booking
+   * Called automatically when a booking is deleted
+   */
+  private async cleanupScheduledEmails(bookingId: string): Promise<void> {
+    try {
+      console.log(
+        `🧹 Cleaning up scheduled emails for booking ${bookingId}...`
+      );
+
+      // Query for all scheduled payment reminder emails for this booking
+      const scheduledEmailsRef = collection(db, "scheduledEmails");
+      const q = query(
+        scheduledEmailsRef,
+        where("bookingId", "==", bookingId),
+        where("emailType", "==", "payment-reminder")
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        console.log(`No scheduled emails found for booking ${bookingId}`);
+        return;
+      }
+
+      console.log(
+        `Found ${snapshot.docs.length} scheduled emails to delete for booking ${bookingId}`
+      );
+
+      // Delete all scheduled emails in a batch
+      const batch = writeBatch(db);
+      let statusCounts: Record<string, number> = {};
+
+      snapshot.docs.forEach((doc) => {
+        const emailData = doc.data();
+        const status = emailData.status || "unknown";
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+
+      console.log(
+        `✅ Successfully deleted ${snapshot.docs.length} scheduled emails for booking ${bookingId}`,
+        statusCounts
+      );
+    } catch (error) {
+      console.error(
+        `⚠️ Error cleaning up scheduled emails for booking ${bookingId}:`,
+        error
+      );
+      // Don't throw - we don't want to fail the booking deletion if cleanup fails
+    }
+  }
+
+  // ========================================================================
   // DELETE WITH ROW SHIFTING
   // ========================================================================
 
@@ -803,6 +865,9 @@ class BookingServiceImpl implements BookingService {
             "delete"
           );
         }
+
+        // Clean up scheduled emails before deleting
+        await this.cleanupScheduledEmails(bookingId);
 
         await deleteDoc(doc(db, COLLECTION_NAME, bookingId));
         return;
@@ -841,6 +906,9 @@ class BookingServiceImpl implements BookingService {
           `Deleted booking at row ${deletedRowNumber} with row shifting`
         );
       }
+
+      // Clean up scheduled emails before deleting
+      await this.cleanupScheduledEmails(bookingId);
 
       // Delete the original booking
       await deleteDoc(doc(db, COLLECTION_NAME, bookingId));

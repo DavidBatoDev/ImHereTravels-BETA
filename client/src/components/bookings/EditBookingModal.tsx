@@ -42,6 +42,7 @@ import { functionMap } from "@/app/functions/columns/functions-index";
 import { functionExecutionService } from "@/services/function-execution-service";
 import { typescriptFunctionsService } from "@/services/typescript-functions-service";
 import { batchedWriter } from "@/services/batched-writer";
+import ScheduledEmailService from "@/services/scheduled-email-service";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { isEqual, debounce } from "lodash";
@@ -94,6 +95,10 @@ export default function EditBookingModal({
     bookingId: string | null;
     action: "generating" | "sending" | "deleting" | null;
   }>({ type: null, bookingId: null, action: null });
+
+  // Loading state for cleaning scheduled emails
+  const [isCleaningScheduledEmails, setIsCleaningScheduledEmails] =
+    useState(false);
 
   const { toast } = useToast();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -988,6 +993,60 @@ export default function EditBookingModal({
                     return;
                   }
 
+                  // Check if this is enablePaymentReminder being toggled OFF
+                  const isEnablePaymentReminder =
+                    column.id === "enablePaymentReminder";
+                  const wasEnabled = Boolean(formData[column.id]);
+
+                  if (
+                    isEnablePaymentReminder &&
+                    wasEnabled &&
+                    !checked &&
+                    booking?.id
+                  ) {
+                    // Toggle OFF: Clean up scheduled emails first
+                    setIsCleaningScheduledEmails(true);
+
+                    ScheduledEmailService.deletePaymentReminders(booking.id)
+                      .then(() => {
+                        // Now update the field
+                        batchedWriter.queueFieldUpdate(
+                          booking.id,
+                          column.id,
+                          checked
+                        );
+                        setFormData((prev) => ({
+                          ...prev,
+                          [column.id]: checked,
+                        }));
+                        setIsSaving(true);
+                        debouncedSaveIndicator();
+
+                        toast({
+                          title: "Payment Reminders Disabled",
+                          description:
+                            "All scheduled payment reminder emails have been deleted.",
+                        });
+                      })
+                      .catch((error) => {
+                        console.error(
+                          "Error cleaning scheduled emails:",
+                          error
+                        );
+                        toast({
+                          title: "Error",
+                          description:
+                            "Failed to clean up scheduled emails. Please try again.",
+                          variant: "destructive",
+                        });
+                      })
+                      .finally(() => {
+                        setIsCleaningScheduledEmails(false);
+                      });
+
+                    return; // Don't continue with normal flow
+                  }
+
                   // For switches, commit immediately to Firebase (discrete choice)
                   if (booking?.id) {
                     batchedWriter.queueFieldUpdate(
@@ -1698,6 +1757,32 @@ export default function EditBookingModal({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Loading Modal for Cleaning Scheduled Emails */}
+      {isCleaningScheduledEmails && (
+        <div className="fixed inset-0 z-[99990] flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4 border border-red-600/20">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600"></div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Clearing Payment Reminders
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Removing all scheduled reminder emails...
+                  </p>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1 bg-muted/30 rounded-md p-3">
+                <p>• Deleting scheduled payment reminder emails</p>
+                <p>• Clearing P1-P4 scheduled email links</p>
+                <p>• Updating booking settings</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Loading Modal for Email Generation */}
       {isGeneratingEmail && (

@@ -246,6 +246,34 @@ export class ScheduledEmailService {
   }
 
   /**
+   * Delete all payment reminder scheduled emails for a booking
+   * and update the booking to disable payment reminders
+   */
+  static async deletePaymentReminders(bookingId: string) {
+    const response = await fetch(
+      `/api/scheduled-emails/payment-reminders/${bookingId}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to delete payment reminders");
+    }
+
+    return result.data;
+  }
+
+  /**
    * Manually trigger scheduled email processing (for testing)
    */
   static async triggerProcessing() {
