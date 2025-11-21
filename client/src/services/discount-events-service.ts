@@ -27,6 +27,7 @@ export interface DiscountEvent {
   name: string;
   active: boolean;
   items: DiscountEventItem[];
+  bannerCover?: string; // URL to banner cover image
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -48,12 +49,14 @@ export const DiscountEventsService = {
     name: string;
     active: boolean;
     items: DiscountEventItem[];
+    bannerCover?: string;
   }): Promise<string> {
     const now = Timestamp.now();
     const ref = await addDoc(collection(db, COLLECTION), {
       name: input.name,
       active: input.active,
       items: input.items,
+      bannerCover: input.bannerCover || "",
       createdAt: now,
       updatedAt: now,
     });

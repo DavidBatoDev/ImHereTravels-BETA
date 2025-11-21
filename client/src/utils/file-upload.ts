@@ -310,6 +310,35 @@ export const uploadTourGalleryImages = async (
 };
 
 // ============================================================================
+// DISCOUNT EVENT-SPECIFIC UPLOAD FUNCTIONS
+// ============================================================================
+
+export const uploadDiscountEventBanner = async (
+  file: File,
+  eventId: string
+): Promise<UploadResult> => {
+  console.log(`Uploading discount event banner to Firebase storage`);
+
+  const result = await uploadFile(file, {
+    bucket: STORAGE_BUCKET,
+    folder: "discount-events/banners",
+    maxSize: 5 * 1024 * 1024, // 5MB
+    allowedTypes: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
+    generateUniqueName: true,
+  });
+
+  if (result.success) {
+    console.log(
+      `Successfully uploaded discount event banner to Firebase storage`
+    );
+  } else {
+    console.error(`Failed to upload discount event banner:`, result.error);
+  }
+
+  return result;
+};
+
+// ============================================================================
 // DELETE FUNCTIONS
 // ============================================================================
 
