@@ -335,7 +335,42 @@ export default function TourDetails({
                       {tour.travelDates
                         .filter((date) => date.isAvailable)
                         .slice(0, 5)
-                        .map((date, index) => (
+                        .map((date, index) => {
+                          // Handle both Timestamp and string/number dates
+                          let startDate: Date;
+                          let endDate: Date;
+                          
+                          try {
+                            if (typeof date.startDate === 'string') {
+                              startDate = new Date(date.startDate);
+                            } else if (typeof date.startDate?.toDate === 'function') {
+                              startDate = date.startDate.toDate();
+                            } else if (typeof date.startDate === 'number') {
+                              startDate = new Date(date.startDate);
+                            } else {
+                              startDate = new Date(date.startDate);
+                            }
+                            
+                            if (typeof date.endDate === 'string') {
+                              endDate = new Date(date.endDate);
+                            } else if (typeof date.endDate?.toDate === 'function') {
+                              endDate = date.endDate.toDate();
+                            } else if (typeof date.endDate === 'number') {
+                              endDate = new Date(date.endDate);
+                            } else {
+                              endDate = new Date(date.endDate);
+                            }
+                            
+                            // Validate dates
+                            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                              return null;
+                            }
+                          } catch (error) {
+                            console.error('Error parsing date:', date, error);
+                            return null;
+                          }
+                          
+                          return (
                           <div
                             key={index}
                             className="p-3 bg-spring-green/5 rounded-lg border border-spring-green/20"
@@ -343,16 +378,12 @@ export default function TourDetails({
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="font-medium text-foreground">
-                                  {format(date.startDate.toDate(), "MMM dd")} -{" "}
-                                  {format(
-                                    date.endDate.toDate(),
-                                    "MMM dd, yyyy"
-                                  )}
+                                  {format(startDate, "MMM dd")} -{" "}
+                                  {format(endDate, "MMM dd, yyyy")}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
                                   {Math.ceil(
-                                    (date.endDate.toDate().getTime() -
-                                      date.startDate.toDate().getTime()) /
+                                    (endDate.getTime() - startDate.getTime()) /
                                       (1000 * 60 * 60 * 24)
                                   )}{" "}
                                   days
@@ -371,7 +402,8 @@ export default function TourDetails({
                               )}
                             </div>
                           </div>
-                        ))}
+                        );
+                        }).filter(Boolean)}
                       {tour.travelDates.filter((date) => date.isAvailable)
                         .length > 5 && (
                         <p className="text-sm text-muted-foreground text-center">
