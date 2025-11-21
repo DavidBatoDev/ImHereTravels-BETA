@@ -339,71 +339,98 @@ export default function TourDetails({
                           // Handle both Timestamp and string/number dates
                           let startDate: Date;
                           let endDate: Date;
-                          
+
                           try {
-                            if (typeof date.startDate === 'string') {
+                            if (typeof date.startDate === "string") {
                               startDate = new Date(date.startDate);
-                            } else if (typeof date.startDate?.toDate === 'function') {
+                            } else if (
+                              typeof date.startDate?.toDate === "function"
+                            ) {
                               startDate = date.startDate.toDate();
-                            } else if (typeof date.startDate === 'number') {
+                            } else if (typeof date.startDate === "number") {
                               startDate = new Date(date.startDate);
+                            } else if (
+                              date.startDate &&
+                              typeof date.startDate === "object" &&
+                              "seconds" in date.startDate
+                            ) {
+                              // Handle Firestore Timestamp with seconds/nanoseconds
+                              startDate = new Date(
+                                date.startDate.seconds * 1000
+                              );
                             } else {
-                              startDate = new Date(date.startDate);
+                              // Fallback
+                              startDate = new Date();
                             }
-                            
-                            if (typeof date.endDate === 'string') {
+
+                            if (typeof date.endDate === "string") {
                               endDate = new Date(date.endDate);
-                            } else if (typeof date.endDate?.toDate === 'function') {
+                            } else if (
+                              typeof date.endDate?.toDate === "function"
+                            ) {
                               endDate = date.endDate.toDate();
-                            } else if (typeof date.endDate === 'number') {
+                            } else if (typeof date.endDate === "number") {
                               endDate = new Date(date.endDate);
+                            } else if (
+                              date.endDate &&
+                              typeof date.endDate === "object" &&
+                              "seconds" in date.endDate
+                            ) {
+                              // Handle Firestore Timestamp with seconds/nanoseconds
+                              endDate = new Date(date.endDate.seconds * 1000);
                             } else {
-                              endDate = new Date(date.endDate);
+                              // Fallback
+                              endDate = new Date();
                             }
-                            
+
                             // Validate dates
-                            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                            if (
+                              isNaN(startDate.getTime()) ||
+                              isNaN(endDate.getTime())
+                            ) {
                               return null;
                             }
                           } catch (error) {
-                            console.error('Error parsing date:', date, error);
+                            console.error("Error parsing date:", date, error);
                             return null;
                           }
-                          
+
                           return (
-                          <div
-                            key={index}
-                            className="p-3 bg-spring-green/5 rounded-lg border border-spring-green/20"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-foreground">
-                                  {format(startDate, "MMM dd")} -{" "}
-                                  {format(endDate, "MMM dd, yyyy")}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {Math.ceil(
-                                    (endDate.getTime() - startDate.getTime()) /
-                                      (1000 * 60 * 60 * 24)
-                                  )}{" "}
-                                  days
-                                </p>
-                              </div>
-                              {date.maxCapacity && (
-                                <div className="text-right">
-                                  <p className="text-sm text-muted-foreground">
-                                    Capacity
-                                  </p>
+                            <div
+                              key={index}
+                              className="p-3 bg-spring-green/5 rounded-lg border border-spring-green/20"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
                                   <p className="font-medium text-foreground">
-                                    {date.currentBookings || 0}/
-                                    {date.maxCapacity}
+                                    {format(startDate, "MMM dd")} -{" "}
+                                    {format(endDate, "MMM dd, yyyy")}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {Math.ceil(
+                                      (endDate.getTime() -
+                                        startDate.getTime()) /
+                                        (1000 * 60 * 60 * 24)
+                                    )}{" "}
+                                    days
                                   </p>
                                 </div>
-                              )}
+                                {date.maxCapacity && (
+                                  <div className="text-right">
+                                    <p className="text-sm text-muted-foreground">
+                                      Capacity
+                                    </p>
+                                    <p className="font-medium text-foreground">
+                                      {date.currentBookings || 0}/
+                                      {date.maxCapacity}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        );
-                        }).filter(Boolean)}
+                          );
+                        })
+                        .filter(Boolean)}
                       {tour.travelDates.filter((date) => date.isAvailable)
                         .length > 5 && (
                         <p className="text-sm text-muted-foreground text-center">
