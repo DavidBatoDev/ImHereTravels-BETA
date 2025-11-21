@@ -11,6 +11,7 @@ export const tourPackageNameColumn: BookingSheetColumn = {
     includeInForms: true,
     width: 208,
     options: [
+      "",
       "India Discovery Tour",
       "Argentina's Wonders",
       "Maldives Bucketlist",

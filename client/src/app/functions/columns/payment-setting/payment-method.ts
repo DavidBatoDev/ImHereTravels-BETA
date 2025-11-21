@@ -1,15 +1,15 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const paymentMethodColumn: BookingSheetColumn = {
-  id: 'paymentMethod',
+  id: "paymentMethod",
   data: {
-    id: 'paymentMethod',
-    columnName: 'Payment Method',
-    dataType: 'select',
-    parentTab: 'Payment Setting',
+    id: "paymentMethod",
+    columnName: "Payment Method",
+    dataType: "select",
+    parentTab: "Payment Setting",
     order: 41,
     includeInForms: true,
     width: 179.3333740234375,
-    options: ['Revolut', 'Ulster', 'Stripe'],
+    options: ["", "Revolut", "Ulster", "Stripe"],
   },
 };

@@ -1,15 +1,15 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const creditFromColumn: BookingSheetColumn = {
-  id: 'creditFrom',
+  id: "creditFrom",
   data: {
-    id: 'creditFrom',
-    columnName: 'Credit From',
-    dataType: 'select',
-    parentTab: 'Payment Setting',
+    id: "creditFrom",
+    columnName: "Credit From",
+    dataType: "select",
+    parentTab: "Payment Setting",
     order: 39,
     includeInForms: true,
     width: 156,
-    options: ['Reservation', 'P1', 'P2', 'P3'],
+    options: ["", "Reservation", "P1", "P2", "P3"],
   },
 };

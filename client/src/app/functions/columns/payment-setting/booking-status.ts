@@ -1,90 +1,90 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const bookingStatusColumn: BookingSheetColumn = {
-  id: 'bookingStatus',
+  id: "bookingStatus",
   data: {
-    id: 'bookingStatus',
-    columnName: 'Booking Status',
-    dataType: 'function',
-    function: 'bookingStatusFunction',
-    parentTab: 'Payment Setting',
+    id: "bookingStatus",
+    columnName: "Booking Status",
+    dataType: "function",
+    function: "bookingStatusFunction",
+    parentTab: "Payment Setting",
     order: 43,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 168,
-    options: ['Confirmed', 'Pending', 'Cancelled', 'Completed'],
+    options: ["", "Confirmed", "Pending", "Cancelled", "Completed"],
     arguments: [
       {
-        name: 'reason',
-        type: 'string',
-        columnReference: 'Reason for Cancellation',
+        name: "reason",
+        type: "string",
+        columnReference: "Reason for Cancellation",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'paymentPlan',
-        type: 'string',
-        columnReference: 'Payment Plan',
+        name: "paymentPlan",
+        type: "string",
+        columnReference: "Payment Plan",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'remainingBalance',
-        type: 'string | number',
-        columnReference: 'Remaining Balance',
+        name: "remainingBalance",
+        type: "string | number",
+        columnReference: "Remaining Balance",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'fullPaymentDatePaid',
-        type: 'any',
-        columnReference: 'Full Payment Date Paid',
+        name: "fullPaymentDatePaid",
+        type: "any",
+        columnReference: "Full Payment Date Paid",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p1DatePaid',
-        type: 'any',
-        columnReference: 'P1 Date Paid',
+        name: "p1DatePaid",
+        type: "any",
+        columnReference: "P1 Date Paid",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p2DatePaid',
-        type: 'any',
-        columnReference: 'P2 Date Paid',
+        name: "p2DatePaid",
+        type: "any",
+        columnReference: "P2 Date Paid",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p3DatePaid',
-        type: 'any',
-        columnReference: 'P3 Date Paid',
+        name: "p3DatePaid",
+        type: "any",
+        columnReference: "P3 Date Paid",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p4DatePaid',
-        type: 'any',
-        columnReference: 'P4 Date Paid',
+        name: "p4DatePaid",
+        type: "any",
+        columnReference: "P4 Date Paid",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -114,15 +114,17 @@ export default function bookingStatusFunction(
 
   // Detect completely empty rows early
   const isAllEmpty =
-    !plan && !hasAnyDate && (remainingBalance === null || remainingBalance === undefined);
+    !plan &&
+    !hasAnyDate &&
+    (remainingBalance === null || remainingBalance === undefined);
   if (isAllEmpty) return "";
 
   const rem =
     typeof remainingBalance === "string"
       ? parseFloat(remainingBalance.replace(/[^\d.-]/g, "")) || 0
       : typeof remainingBalance === "number"
-        ? remainingBalance
-        : 0;
+      ? remainingBalance
+      : 0;
 
   // --- 3. Enhanced date parser (handles Firestore timestamps too) ---
   const toDate = (d: any): Date | null => {
@@ -157,8 +159,8 @@ export default function bookingStatusFunction(
     plan === "Full Payment"
       ? 1
       : plan.match(/P(\d)/)
-        ? parseInt(plan.match(/P(\d)/)![1], 10)
-        : 0;
+      ? parseInt(plan.match(/P(\d)/)![1], 10)
+      : 0;
 
   // --- 5. Count how many payments made ---
   const paidCount =
@@ -175,14 +177,14 @@ export default function bookingStatusFunction(
     plan === "Full Payment"
       ? full
       : plan === "P1"
-        ? p1
-        : plan === "P2"
-          ? maxDate(p1, p2)
-          : plan === "P3"
-            ? maxDate(p1, p2, p3)
-            : plan === "P4"
-              ? maxDate(p1, p2, p3, p4)
-              : null;
+      ? p1
+      : plan === "P2"
+      ? maxDate(p1, p2)
+      : plan === "P3"
+      ? maxDate(p1, p2, p3)
+      : plan === "P4"
+      ? maxDate(p1, p2, p3, p4)
+      : null;
 
   // --- 7. Compute base status ---
   let baseStatus = "";
@@ -200,18 +202,16 @@ export default function bookingStatusFunction(
   const formatDate = (d: Date | null): string =>
     d
       ? d.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
       : "";
 
   let status = baseStatus;
 
   if (rem === 0 && baseStatus === "Booking Confirmed") {
-    status = lastPaid
-      ? `${baseStatus} — ${formatDate(lastPaid)}`
-      : baseStatus;
+    status = lastPaid ? `${baseStatus} — ${formatDate(lastPaid)}` : baseStatus;
   } else if (paidCount > 0 && lastPaid) {
     status = `${baseStatus} — last paid ${formatDate(lastPaid)}`;
   }

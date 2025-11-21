@@ -1,16 +1,16 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const bookingTypeColumn: BookingSheetColumn = {
-  id: 'bookingType',
+  id: "bookingType",
   data: {
-    id: 'bookingType',
-    columnName: 'Booking Type',
-    dataType: 'select',
-    parentTab: 'Tour Details',
+    id: "bookingType",
+    columnName: "Booking Type",
+    dataType: "select",
+    parentTab: "Tour Details",
     order: 13,
     includeInForms: true,
-    color: 'none',
+    color: "none",
     width: 158,
-    options: ['Single Booking', 'Duo Booking', 'Group Booking'],
+    options: ["", "Single Booking", "Duo Booking", "Group Booking"],
   },
 };
