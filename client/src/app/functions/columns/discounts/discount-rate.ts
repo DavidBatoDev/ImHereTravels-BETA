@@ -46,12 +46,12 @@ export const discountRateColumn: BookingSheetColumn = {
 // Column Function Implementation
 // get-discount-rate.ts
 // Retrieves the discount rate for a booking based on event name, tour package, and tour date
-// This mirrors the spreadsheet formula that looks up discount rates from the Discounted Tour Rates sheet
+// Replicates the spreadsheet INDEX-MATCH formula that looks up discount rates
 
 export default async function getDiscountRateFunction(
   eventName: string | null | undefined,
   tourPackageName: string | null | undefined,
-  tourDate: Date | string | null | undefined
+  tourDate: any
 ): Promise<number | string> {
   // Return empty if any required field is missing
   if (!eventName || !tourPackageName || !tourDate) {
@@ -60,24 +60,35 @@ export default async function getDiscountRateFunction(
 
   try {
     // Import Firebase functions
-    const { collection, query, where, getDocs } = await import(
-      "firebase/firestore"
-    );
+    const { collection, getDocs } = await import("firebase/firestore");
     const { db } = await import("@/app/functions/firebase");
 
-    // Convert tourDate to Date object if it's a string
+    // Convert tourDate to Date object based on its type
     let tourDateObj: Date;
+
     if (typeof tourDate === "string") {
+      // Handle string date
       tourDateObj = new Date(tourDate);
-    } else {
+    } else if (tourDate instanceof Date) {
+      // Handle Date object
       tourDateObj = tourDate;
+    } else if (tourDate?.seconds !== undefined) {
+      // Handle Firestore Timestamp object
+      tourDateObj = new Date(tourDate.seconds * 1000);
+    } else if (tourDate?.toDate && typeof tourDate.toDate === "function") {
+      // Handle Firestore Timestamp with toDate method
+      tourDateObj = tourDate.toDate();
+    } else {
+      // Try to convert to Date
+      tourDateObj = new Date(tourDate);
     }
 
-    // Format the tour date to match the format stored in discount events (YYYY-MM-DD)
+    // Format the tour date to match the format stored (YYYY-MM-DD)
     const tourDateStr = tourDateObj.toISOString().split("T")[0];
 
-    // Query for the discount event by name
+    // Query for active discount events matching the event name
     const discountEventsRef = collection(db, "discountEvents");
+    const { query, where } = await import("firebase/firestore");
     const eventQuery = query(
       discountEventsRef,
       where("name", "==", eventName),
@@ -94,16 +105,21 @@ export default async function getDiscountRateFunction(
     const eventData = eventSnapshot.docs[0].data();
     const items = eventData.items || [];
 
-    // Find the matching tour package and date discount
+    // Find the matching tour package in items array
     for (const item of items) {
+      // Check if tour package name matches
       if (item.tourPackageName === tourPackageName) {
         const dateDiscounts = item.dateDiscounts || [];
 
-        // Look through all date discounts for a match
+        // Search through dateDiscounts array for matching date
         for (const dateDiscount of dateDiscounts) {
           if (dateDiscount.date === tourDateStr) {
-            // Return the discount rate as a decimal (e.g., 0.10 for 10%)
-            return (dateDiscount.discountRate || 0) / 100;
+            // Return the discount rate as a percentage string (e.g., "20%")
+            const rate = dateDiscount.discountRate || 0;
+            // Ensure rate is a number and format as percentage
+            const numericRate =
+              typeof rate === "number" ? rate : parseFloat(rate) || 0;
+            return `${numericRate}%`;
           }
         }
       }

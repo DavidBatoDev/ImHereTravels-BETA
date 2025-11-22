@@ -69,7 +69,7 @@ export const originalTourCostColumn: BookingSheetColumn = {
  * Parameters:
  * - tourPackageName → string representing the name of the selected tour package.
  * - eventName → optional string representing the discount event name (X column)
- * - discountRate → optional number representing the discount rate as decimal (Y column)
+ * - discountRate → optional number or string representing the discount rate (Y column, e.g., "20%" or 0.20)
  *
  * Returns:
  * - number → the original cost (with discount applied if eventName and discountRate exist)
@@ -78,7 +78,7 @@ export const originalTourCostColumn: BookingSheetColumn = {
 export default async function getOriginalTourCost(
   tourPackageName: string,
   eventName?: string | null,
-  discountRate?: number | null
+  discountRate?: number | string | null
 ): Promise<number | ""> {
   if (!tourPackageName) return "";
 
@@ -98,9 +98,26 @@ export default async function getOriginalTourCost(
   if (baseCost === "") return "";
 
   // If eventName and discountRate exist, apply the discount
-  if (eventName && discountRate !== null && discountRate !== undefined) {
-    // discountRate is already in decimal form (e.g., 0.10 for 10%)
-    const discountedCost = baseCost * (1 - discountRate);
+  if (
+    eventName &&
+    discountRate !== null &&
+    discountRate !== undefined &&
+    discountRate !== ""
+  ) {
+    // Parse discountRate - handle both percentage string ("40%") and decimal (0.40)
+    let discountDecimal: number;
+
+    if (typeof discountRate === "string") {
+      // Remove "%" and convert to decimal (e.g., "40%" -> 0.40)
+      const numericValue = parseFloat(discountRate.replace("%", ""));
+      discountDecimal = numericValue / 100;
+    } else {
+      // If already a number, check if it's percentage (>1) or decimal
+      discountDecimal = discountRate > 1 ? discountRate / 100 : discountRate;
+    }
+
+    // Apply discount
+    const discountedCost = baseCost * (1 - discountDecimal);
     return discountedCost;
   }
 
