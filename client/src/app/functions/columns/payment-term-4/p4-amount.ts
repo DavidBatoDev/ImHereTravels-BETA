@@ -8,7 +8,7 @@ export const p4AmountColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getP4AmountFunction",
     parentTab: "Payment Term 4",
-    order: 75,
+    order: 76,
     includeInForms: false,
     color: "yellow",
     width: 120,

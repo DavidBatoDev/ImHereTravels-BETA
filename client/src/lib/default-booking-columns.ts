@@ -390,7 +390,27 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Payment Terms",
 
     width: 160,
+    order: 42,
+  },
+  {
+    columnName: "Sent Initial Reminder Link",
+    dataType: "string",
+    includeInForms: false,
+
+    parentTab: "Payment Setting",
+
+    width: 200,
     order: 43,
+  },
+  {
+    columnName: "Booking Status",
+    dataType: "string",
+    includeInForms: false,
+
+    parentTab: "Payment Setting",
+
+    width: 168,
+    order: 44,
   },
   {
     columnName: "Payment Progress",
@@ -400,7 +420,17 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Payment Terms",
 
     width: 140,
-    order: 42,
+    order: 45,
+  },
+  {
+    columnName: "Guest Info Email Sent Link",
+    dataType: "string",
+    includeInForms: true,
+
+    parentTab: "Payment Setting",
+
+    width: 200,
+    order: 46,
   },
   {
     columnName: "Full Payment Due Date",
@@ -410,7 +440,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Payment Details",
 
     width: 160,
-    order: 43,
+    order: 47,
   },
   {
     columnName: "Full Payment Amount",
@@ -420,7 +450,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Payment Details",
 
     width: 160,
-    order: 42,
+    order: 48,
   },
   {
     columnName: "Full Payment Date Paid",
@@ -430,7 +460,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Payment Details",
 
     width: 160,
-    order: 43,
+    order: 49,
   },
   // P1 Payment Term columns
   {
@@ -439,7 +469,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 180,
-    order: 86,
+    order: 50,
   },
   {
     columnName: "P1 Scheduled Email Link",
@@ -447,7 +477,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
     parentTab: "Payment Details",
     width: 180,
-    order: 85,
+    order: 51,
   },
   {
     columnName: "P1 Calendar Event ID",
@@ -455,7 +485,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
     parentTab: "Payment Details",
     width: 160,
-    order: 86,
+    order: 52,
   },
   {
     columnName: "P1 Calendar Event Link",
@@ -463,7 +493,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
     parentTab: "Payment Details",
     width: 160,
-    order: 85,
+    order: 53,
   },
   {
     columnName: "P1 Due Date",
@@ -471,7 +501,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 120,
-    order: 86,
+    order: 54,
   },
   {
     columnName: "P1 Amount",
@@ -479,7 +509,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 120,
-    order: 85,
+    order: 55,
   },
   {
     columnName: "P1 Date Paid",
@@ -487,7 +517,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 120,
-    order: 86,
+    order: 56,
   },
 
   // P2 Payment Term columns
@@ -497,7 +527,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 180,
-    order: 85,
+    order: 57,
   },
   {
     columnName: "P2 Scheduled Email Link",
@@ -505,7 +535,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
     parentTab: "Payment Details",
     width: 180,
-    order: 86,
+    order: 58,
   },
   {
     columnName: "P2 Calendar Event ID",
@@ -513,7 +543,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
     parentTab: "Payment Details",
     width: 160,
-    order: 85,
+    order: 59,
   },
   {
     columnName: "P2 Calendar Event Link",
@@ -521,7 +551,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
     parentTab: "Payment Details",
     width: 160,
-    order: 86,
+    order: 60,
   },
   {
     columnName: "P2 Due Date",
@@ -529,7 +559,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 120,
-    order: 85,
+    order: 61,
   },
   {
     columnName: "P2 Amount",
@@ -537,7 +567,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 120,
-    order: 86,
+    order: 62,
   },
   {
     columnName: "P2 Date Paid",
@@ -545,7 +575,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 120,
-    order: 85,
+    order: 63,
   },
 
   // P3 Payment Term columns
@@ -555,7 +585,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 180,
-    order: 86,
+    order: 64,
   },
   {
     columnName: "P3 Scheduled Email Link",
@@ -563,7 +593,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
     parentTab: "Payment Details",
     width: 180,
-    order: 85,
+    order: 65,
   },
   {
     columnName: "P3 Calendar Event ID",
@@ -571,7 +601,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
     parentTab: "Payment Details",
     width: 160,
-    order: 86,
+    order: 66,
   },
   {
     columnName: "P3 Calendar Event Link",
@@ -579,7 +609,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
     parentTab: "Payment Details",
     width: 160,
-    order: 85,
+    order: 67,
   },
   {
     columnName: "P3 Due Date",
@@ -587,7 +617,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 120,
-    order: 86,
+    order: 68,
   },
   {
     columnName: "P3 Amount",
@@ -595,7 +625,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 120,
-    order: 85,
+    order: 69,
   },
   {
     columnName: "P3 Date Paid",
@@ -603,7 +633,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 120,
-    order: 86,
+    order: 70,
   },
 
   // P4 Payment Term columns
@@ -613,7 +643,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 180,
-    order: 85,
+    order: 71,
   },
   {
     columnName: "P4 Scheduled Email Link",
@@ -621,7 +651,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
     parentTab: "Payment Details",
     width: 180,
-    order: 86,
+    order: 72,
   },
   {
     columnName: "P4 Calendar Event ID",
@@ -629,7 +659,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
     parentTab: "Payment Details",
     width: 160,
-    order: 85,
+    order: 73,
   },
   {
     columnName: "P4 Calendar Event Link",
@@ -637,7 +667,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
     parentTab: "Payment Details",
     width: 160,
-    order: 86,
+    order: 74,
   },
   {
     columnName: "P4 Due Date",
@@ -645,7 +675,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 120,
-    order: 85,
+    order: 75,
   },
   {
     columnName: "P4 Amount",
@@ -653,7 +683,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 120,
-    order: 86,
+    order: 76,
   },
   {
     columnName: "P4 Date Paid",
@@ -661,7 +691,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: true,
     parentTab: "Payment Details",
     width: 120,
-    order: 85,
+    order: 77,
   },
   {
     columnName: "Reservation Fee",
@@ -671,7 +701,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Payment Details",
 
     width: 140,
-    order: 86,
+    order: 35,
   },
   {
     columnName: "Paid",
@@ -681,7 +711,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Payment Details",
 
     width: 100,
-    order: 75,
+    order: 36,
   },
   {
     columnName: "Remaining Balance",
@@ -691,7 +721,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Payment Details",
 
     width: 140,
-    order: 86,
+    order: 37,
   },
   {
     columnName: "Manual Credit",
@@ -701,7 +731,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Payment Details",
 
     width: 140,
-    order: 85,
+    order: 38,
   },
   {
     columnName: "Credit From",
@@ -711,7 +741,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Payment Details",
 
     width: 120,
-    order: 86,
+    order: 39,
   },
   {
     columnName: "Reason for Cancellation",
@@ -721,7 +751,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Cancellation Management",
 
     width: 200,
-    order: 85,
+    order: 78,
   },
   {
     columnName: "Include BCC (Cancellation)",
@@ -731,7 +761,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Cancellation Management",
 
     width: 180,
-    order: 86,
+    order: 79,
   },
   {
     columnName: "Generate Cancellation Email Draft",
@@ -741,7 +771,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Cancellation Management",
 
     width: 200,
-    order: 85,
+    order: 80,
   },
   {
     columnName: "Cancellation Email Draft Link",
@@ -751,7 +781,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Cancellation Management",
 
     width: 200,
-    order: 86,
+    order: 81,
   },
   {
     columnName: "Subject Line (Cancellation)",
@@ -761,7 +791,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Cancellation Management",
 
     width: 200,
-    order: 85,
+    order: 82,
   },
   {
     columnName: "Send Cancellation Email?",
@@ -771,7 +801,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Cancellation Management",
 
     width: 180,
-    order: 86,
+    order: 83,
   },
   {
     columnName: "Sent Cancellation Email Link",
@@ -781,7 +811,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     parentTab: "Cancellation Management",
 
     width: 200,
-    order: 85,
+    order: 84,
   },
   {
     columnName: "Cancellation Email Sent Date",
@@ -789,6 +819,6 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     includeInForms: false,
 
     width: 200,
-    order: 86,
+    order: 85,
   },
 ];

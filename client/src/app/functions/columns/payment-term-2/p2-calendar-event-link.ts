@@ -1,15 +1,15 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const p2CalendarEventLinkColumn: BookingSheetColumn = {
-  id: 'p2CalendarEventLink',
+  id: "p2CalendarEventLink",
   data: {
-    id: 'p2CalendarEventLink',
-    columnName: 'P2 Calendar Event Link',
-    dataType: 'string',
-    parentTab: 'Payment Term 2',
-    order: 59,
-    includeInForms: true,
-    color: 'yellow',
+    id: "p2CalendarEventLink",
+    columnName: "P2 Calendar Event Link",
+    dataType: "string",
+    parentTab: "Payment Term 2",
+    order: 60,
+    includeInForms: false,
+    color: "yellow",
     width: 160,
   },
 };

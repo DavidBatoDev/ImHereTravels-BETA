@@ -54,6 +54,7 @@ export interface Booking {
   paymentPlan?: "Monthly" | "Quarterly" | "Custom";
   paymentMethod?: "Credit Card" | "Bank Transfer" | "Cash" | "PayPal";
   enablePaymentReminder: boolean;
+  sentInitialReminderLink?: string;
   paymentProgress: number;
 
   // Payment details

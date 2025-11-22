@@ -7,7 +7,7 @@ export const generateCancellationEmailDraftColumn: BookingSheetColumn = {
     columnName: "Generate Cancellation Email Draft",
     dataType: "boolean",
     parentTab: "Cancellation",
-    order: 79,
+    order: 80,
     includeInForms: false,
     color: "orange",
     width: 200,

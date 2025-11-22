@@ -1,53 +1,53 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const p2DueDateColumn: BookingSheetColumn = {
-  id: 'p2DueDate',
+  id: "p2DueDate",
   data: {
-    id: 'p2DueDate',
-    columnName: 'P2 Due Date',
-    dataType: 'function',
-    function: 'getP2DueDateFunction',
-    parentTab: 'Payment Term 2',
-    order: 60,
+    id: "p2DueDate",
+    columnName: "P2 Due Date",
+    dataType: "function",
+    function: "getP2DueDateFunction",
+    parentTab: "Payment Term 2",
+    order: 61,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 120,
     arguments: [
       {
-        name: 'reservationDate',
-        type: 'unknown',
-        columnReference: 'Reservation Date',
+        name: "reservationDate",
+        type: "unknown",
+        columnReference: "Reservation Date",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'tourDate',
-        type: 'unknown',
-        columnReference: 'Tour Date',
+        name: "tourDate",
+        type: "unknown",
+        columnReference: "Tour Date",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'paymentPlan',
-        type: 'string',
-        columnReference: 'Payment Plan',
+        name: "paymentPlan",
+        type: "string",
+        columnReference: "Payment Plan",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'paymentCondition',
-        type: 'string',
-        columnReference: 'Payment Condition',
+        name: "paymentCondition",
+        type: "string",
+        columnReference: "Payment Condition",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -123,7 +123,7 @@ export default function getP2DueDateFunction(
   reservationDate?: unknown,
   tourDate?: unknown,
   paymentPlan?: string,
-  paymentCondition?: string,
+  paymentCondition?: string
 ): string | "" | "ERROR" {
   if (paymentPlan === "Full Payment" || paymentPlan === "P1") return "";
   if (!reservationDate) return "";
@@ -148,17 +148,22 @@ export default function getP2DueDateFunction(
     1;
 
   const DAY_MS = 86400000;
-  const secondDates = Array.from({ length: monthCount }, (_, i) =>
-    new Date(res.getFullYear(), res.getMonth() + i + 1, 2),
+  const secondDates = Array.from(
+    { length: monthCount },
+    (_, i) => new Date(res.getFullYear(), res.getMonth() + i + 1, 2)
   );
   const validDates = secondDates.filter(
     (d) =>
       d.getTime() > res.getTime() + 2 * DAY_MS &&
-      d.getTime() <= tour.getTime() - 3 * DAY_MS,
+      d.getTime() <= tour.getTime() - 3 * DAY_MS
   );
 
   if (validDates.length < 2) return "";
   const fmt = (d: Date) =>
-    d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   return `${fmt(validDates[0])}, ${fmt(validDates[1])}`;
 }

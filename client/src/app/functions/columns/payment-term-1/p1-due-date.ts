@@ -1,53 +1,53 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const p1DueDateColumn: BookingSheetColumn = {
-  id: 'p1DueDate',
+  id: "p1DueDate",
   data: {
-    id: 'p1DueDate',
-    columnName: 'P1 Due Date',
-    dataType: 'function',
-    function: 'getP1DueDateFunction',
-    parentTab: 'Payment Term 1',
-    order: 53,
+    id: "p1DueDate",
+    columnName: "P1 Due Date",
+    dataType: "function",
+    function: "getP1DueDateFunction",
+    parentTab: "Payment Term 1",
+    order: 54,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 120,
     arguments: [
       {
-        name: 'reservationDate',
-        type: 'unknown',
-        columnReference: 'Reservation Date',
+        name: "reservationDate",
+        type: "unknown",
+        columnReference: "Reservation Date",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'tourDate',
-        type: 'unknown',
-        columnReference: 'Tour Date',
+        name: "tourDate",
+        type: "unknown",
+        columnReference: "Tour Date",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'paymentPlan',
-        type: 'string',
-        columnReference: 'Payment Plan',
+        name: "paymentPlan",
+        type: "string",
+        columnReference: "Payment Plan",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'paymentCondition',
-        type: 'string',
-        columnReference: 'Payment Condition',
+        name: "paymentCondition",
+        type: "string",
+        columnReference: "Payment Condition",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -155,7 +155,7 @@ export function tourDateToYyyymmdd(tourDate: unknown): string {
 
 /**
  * Excel equivalent:
- * =IF( 
+ * =IF(
  *   OR($AM1003="Full Payment", ISBLANK($K1003)),
  *   "",
  *   IF(
@@ -191,7 +191,7 @@ export default function getP1DueDateFunction(
   reservationDate?: unknown,
   tourDate?: unknown,
   paymentPlan?: string,
-  paymentCondition?: string,
+  paymentCondition?: string
 ): string | "" | "ERROR" {
   // Same guard as Excel: if payment plan is Full Payment or reservation blank => ""
   if (paymentPlan === "Full Payment") return "";
@@ -229,8 +229,9 @@ export default function getP1DueDateFunction(
   if (monthCount <= 0) return "";
 
   // generate the 2nd day of each month between res and tour (1..monthCount)
-  const secondDates: Date[] = Array.from({ length: monthCount }, (_, i) =>
-    new Date(res.getFullYear(), res.getMonth() + i + 1, 2),
+  const secondDates: Date[] = Array.from(
+    { length: monthCount },
+    (_, i) => new Date(res.getFullYear(), res.getMonth() + i + 1, 2)
   );
 
   // validDates: (secondDates > res + 2) * (secondDates <= tour - 3)
@@ -238,7 +239,7 @@ export default function getP1DueDateFunction(
   const validDates = secondDates.filter(
     (d) =>
       d.getTime() > res.getTime() + 2 * DAY_MS &&
-      d.getTime() <= tour.getTime() - 3 * DAY_MS,
+      d.getTime() <= tour.getTime() - 3 * DAY_MS
   );
 
   if (validDates.length < 1) return "";

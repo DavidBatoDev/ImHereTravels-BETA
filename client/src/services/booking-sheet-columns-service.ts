@@ -133,6 +133,7 @@ const DEFAULT_COLUMN_IDS = [
   "paymentPlan",
   "paymentMethod",
   "enablePaymentReminder",
+  "sentInitialReminderLink",
   "paymentProgress",
   "fullPayment",
   "fullPaymentDueDate",

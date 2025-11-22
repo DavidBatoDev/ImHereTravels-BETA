@@ -1,80 +1,80 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const fullPaymentAmountColumn: BookingSheetColumn = {
-  id: 'fullPaymentAmount',
+  id: "fullPaymentAmount",
   data: {
-    id: 'fullPaymentAmount',
-    columnName: 'Full Payment Amount',
-    dataType: 'function',
-    function: 'getFullPaymentRemainingFunction',
-    parentTab: 'Full Payment',
-    order: 47,
+    id: "fullPaymentAmount",
+    columnName: "Full Payment Amount",
+    dataType: "function",
+    function: "getFullPaymentRemainingFunction",
+    parentTab: "Full Payment",
+    order: 48,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 160,
     arguments: [
       {
-        name: 'tourPackageName',
-        type: 'string',
-        columnReference: 'Tour Package Name',
+        name: "tourPackageName",
+        type: "string",
+        columnReference: "Tour Package Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'paymentPlan',
-        type: 'string',
-        columnReference: 'Payment Plan',
+        name: "paymentPlan",
+        type: "string",
+        columnReference: "Payment Plan",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'isMainBooker',
-        type: 'boolean',
-        columnReference: 'Is Main Booker?',
+        name: "isMainBooker",
+        type: "boolean",
+        columnReference: "Is Main Booker?",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'discountedTourCost',
-        type: 'number',
-        columnReference: 'Discounted Tour Cost',
+        name: "discountedTourCost",
+        type: "number",
+        columnReference: "Discounted Tour Cost",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'originalTourCost',
-        type: 'number',
-        columnReference: 'Original Tour Cost',
+        name: "originalTourCost",
+        type: "number",
+        columnReference: "Original Tour Cost",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'reservationFee',
-        type: 'number',
-        columnReference: 'Reservation Fee',
+        name: "reservationFee",
+        type: "number",
+        columnReference: "Reservation Fee",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'creditAmount',
-        type: 'number',
-        columnReference: 'Manual Credit',
+        name: "creditAmount",
+        type: "number",
+        columnReference: "Manual Credit",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -107,7 +107,7 @@ export default function getFullPaymentRemainingFunction(
   discountedTourCost?: number, // $AG1003
   originalTourCost?: number, // $AF1003
   reservationFee?: number, // $AH1003
-  creditAmount?: number, // $AK1003
+  creditAmount?: number // $AK1003
 ): number | string {
   // if no tour package name, return ""
   if (!tourPackageName) return "";
@@ -117,7 +117,9 @@ export default function getFullPaymentRemainingFunction(
   if (paymentPlan !== "Full Payment") return "";
 
   // choose cost depending on isMainBooker
-  const baseCost = isMainBooker ? discountedTourCost || 0 : originalTourCost || 0;
+  const baseCost = isMainBooker
+    ? discountedTourCost || 0
+    : originalTourCost || 0;
 
   // handle reservation and credit safely
   const resFee = reservationFee || 0;
