@@ -117,6 +117,8 @@ const DEFAULT_COLUMN_IDS = [
   "useDiscountedTourCost",
   "originalTourCost",
   "discountedTourCost",
+  "eventName",
+  "discountRate",
   "reservationEmail",
   "includeBccReservation",
   "generateEmailDraft",

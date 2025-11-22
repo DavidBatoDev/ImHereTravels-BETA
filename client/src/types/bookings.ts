@@ -33,6 +33,10 @@ export interface Booking {
   originalTourCost: number;
   discountedTourCost?: number;
 
+  // Discounts
+  eventName?: string;
+  discountRate?: number;
+
   // Email management - Reservation
   reservationEmail?: string;
   includeBccReservation: boolean;

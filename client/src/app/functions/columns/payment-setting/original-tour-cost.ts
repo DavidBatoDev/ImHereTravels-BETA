@@ -23,6 +23,24 @@ export const originalTourCostColumn: BookingSheetColumn = {
         isRest: false,
         value: "",
       },
+      {
+        name: "eventName",
+        type: "string",
+        columnReference: "Event Name",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
+        name: "discountRate",
+        type: "number",
+        columnReference: "Discount Rate",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
     ],
   },
 };
@@ -30,27 +48,37 @@ export const originalTourCostColumn: BookingSheetColumn = {
 // Column Function Implementation
 /**
  * Excel equivalent:
- * =IF(M1003="","",INDEX(
- *     '{INDEX} Tour Packages'!$A:$ZQ,
- *     MATCH($M1003, '{INDEX} Tour Packages'!$A:$A, 0),
- *     MATCH(AF$3, '{INDEX} Tour Packages'!$4:$4, 0)
- *   ))
+ * =IF(M998="","",
+ *   IF(AND(X998<>"", Y998<>""),
+ *     INDEX('{INDEX} Tour Packages'!$A:$ZQ,
+ *           MATCH($M998, '{INDEX} Tour Packages'!$A:$A, 0),
+ *           MATCH(AH$3, '{INDEX} Tour Packages'!$4:$4, 0)) * (1 - Y998),
+ *     INDEX('{INDEX} Tour Packages'!$A:$ZQ,
+ *           MATCH($M998, '{INDEX} Tour Packages'!$A:$A, 0),
+ *           MATCH(AH$3, '{INDEX} Tour Packages'!$4:$4, 0))
+ *   )
+ * )
  *
  * Description:
  * - Retrieves the `originalTourCost` (pricing.original) for a given tour package.
+ * - If eventName and discountRate are provided, applies the discount to the original cost.
  * - Equivalent to the Excel formula that looks up a value from the `{INDEX} Tour Packages` sheet
- *   using the tour package name (`M1003`) as the key.
+ *   using the tour package name as the key, then applies discount if applicable.
  * - If the tour package name is blank or not found, returns an empty string.
  *
  * Parameters:
  * - tourPackageName → string representing the name of the selected tour package.
+ * - eventName → optional string representing the discount event name (X column)
+ * - discountRate → optional number representing the discount rate as decimal (Y column)
  *
  * Returns:
- * - number → the original cost of the tour (pricing.original)
+ * - number → the original cost (with discount applied if eventName and discountRate exist)
  * - "" → if no match or invalid input
  */
 export default async function getOriginalTourCost(
-  tourPackageName: string
+  tourPackageName: string,
+  eventName?: string | null,
+  discountRate?: number | null
 ): Promise<number | ""> {
   if (!tourPackageName) return "";
 
@@ -64,8 +92,18 @@ export default async function getOriginalTourCost(
       pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim()
   );
 
-  // Return the pricing.original field if found
-  const originalTourCost = (matchedPackage as any)?.pricing?.original ?? "";
+  // Get the base original tour cost
+  const baseCost = (matchedPackage as any)?.pricing?.original ?? "";
 
-  return originalTourCost;
+  if (baseCost === "") return "";
+
+  // If eventName and discountRate exist, apply the discount
+  if (eventName && discountRate !== null && discountRate !== undefined) {
+    // discountRate is already in decimal form (e.g., 0.10 for 10%)
+    const discountedCost = baseCost * (1 - discountRate);
+    return discountedCost;
+  }
+
+  // Otherwise, return the base cost
+  return baseCost;
 }
