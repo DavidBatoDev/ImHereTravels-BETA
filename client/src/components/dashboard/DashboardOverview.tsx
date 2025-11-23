@@ -54,6 +54,12 @@ export default function DashboardOverview() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingBooking, setIsCreatingBooking] = useState(false);
+  const [paymentRemindersCount, setPaymentRemindersCount] = useState(0);
+  const [paymentReminderStats, setPaymentReminderStats] = useState({
+    pending: 0,
+    sent: 0,
+    skipped: 0,
+  });
 
   // Fetch real booking data from Firebase
   useEffect(() => {
@@ -83,6 +89,43 @@ export default function DashboardOverview() {
       setBookings(bookingData);
       setIsLoading(false);
       console.log("Loaded bookings:", bookingData.length, bookingData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch payment reminders count from scheduledEmails
+  useEffect(() => {
+    const scheduledEmailsQuery = query(
+      collection(db, "scheduledEmails"),
+      // Optionally filter by status if needed
+    );
+
+    const unsubscribe = onSnapshot(scheduledEmailsQuery, (snapshot) => {
+      const paymentReminderEmails = snapshot.docs.filter((doc) => {
+        const data = doc.data();
+        return data.emailType === "payment-reminder";
+      });
+
+      setPaymentRemindersCount(paymentReminderEmails.length);
+
+      // Calculate stats by status
+      const stats = {
+        pending: 0,
+        sent: 0,
+        skipped: 0,
+      };
+
+      paymentReminderEmails.forEach((doc) => {
+        const data = doc.data();
+        const status = data.status?.toLowerCase() || "pending";
+        if (status === "pending") stats.pending++;
+        else if (status === "sent") stats.sent++;
+        else if (status === "skipped") stats.skipped++;
+      });
+
+      setPaymentReminderStats(stats);
+      console.log("Loaded payment reminders:", paymentReminderEmails.length, stats);
     });
 
     return () => unsubscribe();
@@ -143,9 +186,7 @@ export default function DashboardOverview() {
         new Date(booking.tourDate) > today &&
         getBookingStatusCategory(booking.bookingStatus) === "Confirmed"
     ).length,
-    pendingReminders: bookings.filter(
-      (booking) => booking.enablePaymentReminder && booking.remainingBalance > 0
-    ).length,
+    pendingReminders: paymentRemindersCount,
     confirmedBookings: bookings.filter(
       (booking) =>
         getBookingStatusCategory(booking.bookingStatus) === "Confirmed"
@@ -362,7 +403,7 @@ export default function DashboardOverview() {
       title: "Payment Reminders",
       description: "Check pending payment reminders",
       icon: FiAlertTriangle,
-      onClick: () => router.push("/bookings?filter=urgent"),
+      onClick: () => router.push("/mail/payment-reminders"),
       color: "bg-vivid-orange",
       iconColor: "text-white",
     },
@@ -587,11 +628,32 @@ export default function DashboardOverview() {
                 <p className="text-3xl font-bold text-foreground">
                   {metrics.pendingReminders}
                 </p>
-                <div className="flex items-center gap-3 mt-2">
+                <div className="flex items-center gap-3 mt-2 flex-wrap">
                   <div className="flex items-center gap-1">
-                    <FiAlertTriangle className="h-3 w-3 text-vivid-orange" />
+                    <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
                     <p className="text-xs text-muted-foreground">
-                      Require attention
+                      Pending:{" "}
+                      <span className="text-vivid-orange font-bold">
+                        {paymentReminderStats.pending}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-spring-green"></div>
+                    <p className="text-xs text-muted-foreground">
+                      Sent:{" "}
+                      <span className="text-spring-green font-bold">
+                        {paymentReminderStats.sent}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                    <p className="text-xs text-muted-foreground">
+                      Skipped:{" "}
+                      <span className="text-gray-400 font-bold">
+                        {paymentReminderStats.skipped}
+                      </span>
                     </p>
                   </div>
                 </div>
