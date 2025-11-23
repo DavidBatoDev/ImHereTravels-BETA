@@ -142,6 +142,11 @@ export default function getP4DueDateFunction(
       year: "numeric",
     });
 
-  // Always return all four dates for P4 plan
+  // If payment plan is P4, return only the 4th date
+  if (paymentPlan === "P4") {
+    return fmt(validDates[3]);
+  }
+
+  // If no payment plan, return all four dates comma-separated
   return [0, 1, 2, 3].map((i) => fmt(validDates[i])).join(", ");
 }

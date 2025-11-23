@@ -244,7 +244,8 @@ export default function getP1DueDateFunction(
 
   if (validDates.length < 1) return "";
 
-  // Return 1st valid date formatted like "mmm d, yyyy"
+  // If payment plan is P1, return only the first date
+  // Otherwise return first valid date (matching spreadsheet logic)
   return validDates[0].toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",

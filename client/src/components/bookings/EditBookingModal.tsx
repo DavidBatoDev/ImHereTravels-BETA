@@ -1509,6 +1509,42 @@ export default function EditBookingModal({
                     return;
                   }
 
+                  // Prevent toggling "Enable Payment Reminder" on if payment plan or payment method is missing
+                  const isEnablePaymentReminderField =
+                    column.id === "enablePaymentReminder";
+                  if (isEnablePaymentReminderField && checked) {
+                    const hasPaymentPlan = Boolean(formData.paymentPlan);
+                    const hasPaymentMethod = Boolean(formData.paymentMethod);
+
+                    if (!hasPaymentPlan || !hasPaymentMethod) {
+                      toast({
+                        title: "Cannot Enable Payment Reminder",
+                        description:
+                          "Please set Payment Plan and Payment Method before enabling payment reminders.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+
+                  // Prevent toggling "Generate Email Draft" on if payment plan or payment method exists
+                  const isGenerateEmailDraftField =
+                    column.id === "generateEmailDraft";
+                  if (isGenerateEmailDraftField && checked) {
+                    const hasPaymentPlan = Boolean(formData.paymentPlan);
+                    const hasPaymentMethod = Boolean(formData.paymentMethod);
+
+                    if (hasPaymentPlan || hasPaymentMethod) {
+                      toast({
+                        title: "Cannot Generate Reservation Email",
+                        description:
+                          "Payment Plan and Payment Method must be empty for reservation emails. Please clear them first.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+
                   // Check if this is enablePaymentReminder being toggled OFF
                   const isEnablePaymentReminder =
                     column.id === "enablePaymentReminder";

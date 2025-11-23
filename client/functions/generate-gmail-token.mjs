@@ -25,6 +25,7 @@ const SCOPES = [
   "https://www.googleapis.com/auth/gmail.modify",
   "https://www.googleapis.com/auth/spreadsheets.readonly",
   "https://www.googleapis.com/auth/drive.readonly",
+  "https://www.googleapis.com/auth/calendar.events"
 ];
 
 console.log("🚀 Gmail + Google Sheets OAuth2 Token Generator");

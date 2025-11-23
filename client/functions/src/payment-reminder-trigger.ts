@@ -5,6 +5,7 @@ import { logger } from "firebase-functions";
 import EmailTemplateService from "./email-template-service";
 import { EmailTemplateLoader } from "./email-template-loader";
 import GmailApiService from "./gmail-api-service";
+import { google } from "googleapis";
 import * as dotenv from "dotenv";
 
 // Load environment variables from .env
@@ -83,6 +84,16 @@ const PAYMENT_REMINDER_COLUMNS: SheetColumn[] = [
     columnName: "P1 Scheduled Email Link",
     dataType: "TEXT",
   },
+  {
+    id: "p1CalendarEventId",
+    columnName: "P1 Calendar Event ID",
+    dataType: "TEXT",
+  },
+  {
+    id: "p1CalendarEventLink",
+    columnName: "P1 Calendar Event Link",
+    dataType: "TEXT",
+  },
   { id: "p2Amount", columnName: "P2 Amount", dataType: "NUMBER" },
   { id: "p2DueDate", columnName: "P2 Due Date", dataType: "DATE" },
   { id: "p2DatePaid", columnName: "P2 Date Paid", dataType: "DATE" },
@@ -94,6 +105,16 @@ const PAYMENT_REMINDER_COLUMNS: SheetColumn[] = [
   {
     id: "p2ScheduledEmailLink",
     columnName: "P2 Scheduled Email Link",
+    dataType: "TEXT",
+  },
+  {
+    id: "p2CalendarEventId",
+    columnName: "P2 Calendar Event ID",
+    dataType: "TEXT",
+  },
+  {
+    id: "p2CalendarEventLink",
+    columnName: "P2 Calendar Event Link",
     dataType: "TEXT",
   },
   { id: "p3Amount", columnName: "P3 Amount", dataType: "NUMBER" },
@@ -109,6 +130,16 @@ const PAYMENT_REMINDER_COLUMNS: SheetColumn[] = [
     columnName: "P3 Scheduled Email Link",
     dataType: "TEXT",
   },
+  {
+    id: "p3CalendarEventId",
+    columnName: "P3 Calendar Event ID",
+    dataType: "TEXT",
+  },
+  {
+    id: "p3CalendarEventLink",
+    columnName: "P3 Calendar Event Link",
+    dataType: "TEXT",
+  },
   { id: "p4Amount", columnName: "P4 Amount", dataType: "NUMBER" },
   { id: "p4DueDate", columnName: "P4 Due Date", dataType: "DATE" },
   { id: "p4DatePaid", columnName: "P4 Date Paid", dataType: "DATE" },
@@ -120,6 +151,16 @@ const PAYMENT_REMINDER_COLUMNS: SheetColumn[] = [
   {
     id: "p4ScheduledEmailLink",
     columnName: "P4 Scheduled Email Link",
+    dataType: "TEXT",
+  },
+  {
+    id: "p4CalendarEventId",
+    columnName: "P4 Calendar Event ID",
+    dataType: "TEXT",
+  },
+  {
+    id: "p4CalendarEventLink",
+    columnName: "P4 Calendar Event Link",
     dataType: "TEXT",
   },
 ];
@@ -165,6 +206,85 @@ function formatDate(dateValue: any): string {
 // Helper function to get Gmail sent URL
 function getGmailSentUrl(messageId: string): string {
   return `https://mail.google.com/mail/u/0/#sent/${messageId}`;
+}
+
+// Helper function to create Google Calendar event
+async function createCalendarEvent(
+  term: string,
+  dueDate: string,
+  fullName: string,
+  tourPackage: string,
+  bookingId: string,
+  guestEmail: string
+): Promise<{ eventId: string; eventLink: string }> {
+  try {
+    // Initialize OAuth2 client
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GMAIL_CLIENT_ID,
+      process.env.GMAIL_CLIENT_SECRET,
+      "urn:ietf:wg:oauth:2.0:oob"
+    );
+
+    oauth2Client.setCredentials({
+      refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+    });
+
+    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+    const firstName = fullName.split(" ")[0];
+    const title = `Hi ${firstName}, ${term} Payment Due – ${tourPackage}`;
+    const description = [
+      `Hi ${fullName},`,
+      `This is a reminder for your ${term} payment on ${dueDate} for the tour: ${tourPackage}`,
+      `Booking ID: ${bookingId}`,
+      `You'll receive a popup and email reminder 3 days before the due date.`,
+      `Thank you, ImHereTravels`,
+    ].join("\n");
+
+    // Create calendar event
+    const event = await calendar.events.insert({
+      calendarId: "primary",
+      requestBody: {
+        summary: title,
+        description,
+        start: {
+          date: dueDate, // yyyy-MM-dd format
+          timeZone: "Asia/Manila",
+        },
+        end: {
+          date: dueDate,
+          timeZone: "Asia/Manila",
+        },
+        attendees: [
+          {
+            email: guestEmail,
+            displayName: fullName,
+          },
+        ],
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: "popup", minutes: 4320 }, // 3 days before (72 hours)
+          ],
+        },
+        guestsCanModify: false,
+        guestsCanInviteOthers: false,
+        guestsCanSeeOtherGuests: false,
+        colorId: "11", // Red color
+      },
+      sendUpdates: "all", // Send invites to attendees
+    });
+
+    logger.info(`Created calendar event for ${term}: ${event.data.id}`);
+
+    return {
+      eventId: event.data.id || "",
+      eventLink: event.data.htmlLink || "",
+    };
+  } catch (error) {
+    logger.error(`Error creating calendar event for ${term}:`, error);
+    throw error;
+  }
 }
 
 // Helper function to generate subject line based on payment plan and term
@@ -354,53 +474,103 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
         try {
           const terms = getApplicableTerms(paymentPlan);
 
-          // Build term data for initial email
+          // Create calendar events for all terms first
+          logger.info("📅 Creating calendar events for payment due dates...");
+          const calendarLinks: Record<string, string> = {};
+          const calendarEventIds: Record<string, string> = {};
+
+          for (const term of terms) {
+            const dueDateRaw = getColumnValue(
+              booking,
+              `${term} Due Date`,
+              PAYMENT_REMINDER_COLUMNS
+            );
+            const calendarEventId = getColumnValue(
+              booking,
+              `${term} Calendar Event ID`,
+              PAYMENT_REMINDER_COLUMNS
+            );
+
+            // Skip if calendar event already exists or no due date
+            if (!dueDateRaw || calendarEventId) {
+              logger.info(
+                `Skipping calendar event for ${term} - ${
+                  calendarEventId ? "already exists" : "no due date"
+                }`
+              );
+              continue;
+            }
+
+            try {
+              const dueDate = formatDate(dueDateRaw);
+              const { eventId, eventLink } = await createCalendarEvent(
+                term,
+                dueDate,
+                fullName || "",
+                tourPackage || "",
+                getColumnValue(
+                  booking,
+                  "Booking ID",
+                  PAYMENT_REMINDER_COLUMNS
+                ) || "",
+                emailAddress
+              );
+
+              calendarLinks[term] = eventLink;
+              calendarEventIds[term] = eventId;
+
+              // Update booking with calendar event ID and link
+              const calendarEventIdCol = PAYMENT_REMINDER_COLUMNS.find(
+                (col) => col.columnName === `${term} Calendar Event ID`
+              );
+              const calendarEventLinkCol = PAYMENT_REMINDER_COLUMNS.find(
+                (col) => col.columnName === `${term} Calendar Event Link`
+              );
+
+              const updateData: Record<string, any> = {};
+              if (calendarEventIdCol) {
+                updateData[calendarEventIdCol.id] = eventId;
+              }
+              if (calendarEventLinkCol) {
+                updateData[calendarEventLinkCol.id] = eventLink;
+              }
+
+              if (Object.keys(updateData).length > 0) {
+                await db
+                  .collection("bookings")
+                  .doc(bookingId)
+                  .update(updateData);
+              }
+
+              logger.info(`✅ Created and saved calendar event for ${term}`);
+            } catch (calendarError) {
+              logger.error(
+                `Error creating calendar event for ${term}:`,
+                calendarError
+              );
+              // Continue with other terms even if one fails
+            }
+          }
+
+          // Build term data for initial email template (array of objects for Nunjucks)
           const termData = terms.map((t) => ({
-            term: t,
+            name: t,
             amount: formatGBP(
               getColumnValue(booking, `${t} Amount`, PAYMENT_REMINDER_COLUMNS)
             ),
             dueDate: formatDate(
               getColumnValue(booking, `${t} Due Date`, PAYMENT_REMINDER_COLUMNS)
             ),
-            datePaid: formatDate(
-              getColumnValue(
-                booking,
-                `${t} Date Paid`,
-                PAYMENT_REMINDER_COLUMNS
-              )
-            ),
+            calendarLink: calendarLinks[t] || "",
           }));
 
           // Prepare template variables for initial email
           const templateVariables = {
             fullName: fullName || "",
             tourPackage: tourPackage || "",
+            paymentPlan: paymentPlan || "",
             paymentMethod: paymentMethod || "",
-            paymentTerm: "initial", // Special term for initial email
-            amount: formatGBP(
-              getColumnValue(
-                booking,
-                "Remaining Balance",
-                PAYMENT_REMINDER_COLUMNS
-              )
-            ),
-            dueDate: formatDate(
-              getColumnValue(
-                booking,
-                `${terms[0]} Due Date`,
-                PAYMENT_REMINDER_COLUMNS
-              )
-            ),
-            bookingId:
-              getColumnValue(booking, "Booking ID", PAYMENT_REMINDER_COLUMNS) ||
-              "",
-            tourDate: formatDate(
-              getColumnValue(booking, "Tour Date", PAYMENT_REMINDER_COLUMNS)
-            ),
-            paid: formatGBP(
-              getColumnValue(booking, "Paid", PAYMENT_REMINDER_COLUMNS)
-            ),
+            terms: termData, // Array of objects with name, amount, dueDate, calendarLink
             remainingBalance: formatGBP(
               getColumnValue(
                 booking,
@@ -408,32 +578,26 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
                 PAYMENT_REMINDER_COLUMNS
               )
             ),
-            totalAmount: formatGBP(
-              getColumnValue(
-                booking,
-                "Use Discounted Tour Cost?",
-                PAYMENT_REMINDER_COLUMNS
-              )
-                ? getColumnValue(
-                    booking,
-                    "Discounted Tour Cost",
-                    PAYMENT_REMINDER_COLUMNS
-                  )
-                : getColumnValue(
-                    booking,
-                    "Original Tour Cost",
-                    PAYMENT_REMINDER_COLUMNS
-                  )
-            ),
-            showTable: true,
-            termData: termData,
           };
 
-          // Load raw template HTML from file
-          const rawTemplateHtml = EmailTemplateLoader.loadTemplate(
-            "scheduledReminderEmail",
-            {} as any
-          );
+          // Fetch template from Firestore
+          const templateDoc = await db
+            .collection("emailTemplates")
+            .doc("DisPYJPnL01OmomT8Mch")
+            .get();
+
+          if (!templateDoc.exists) {
+            throw new Error(
+              "Initial Payment Reminder template not found in database"
+            );
+          }
+
+          const templateData = templateDoc.data();
+          const rawTemplateHtml = templateData?.content || "";
+
+          if (!rawTemplateHtml) {
+            throw new Error("Template has no content");
+          }
 
           // Process template with Nunjucks
           const htmlContent = EmailTemplateService.processTemplate(

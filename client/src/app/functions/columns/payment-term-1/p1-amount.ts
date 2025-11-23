@@ -205,10 +205,10 @@ export default function getP1AmountFunction(
   const total =
     (useDiscountedTourCost ? discountedTourCost ?? 0 : originalTourCost ?? 0) -
     (reservationFee ?? 0);
-  const cf = creditFrom ?? "";
-  const ca = creditAmount ?? 0;
+  const credit_from = creditFrom ?? "";
+  const credit_amt = creditAmount ?? 0;
 
-  // Case: No payment plan or condition → return unpaid balance
+  // Case: No payment plan or condition → return unpaid balance divided by 4
   if (!paymentPlan && !paymentCondition) {
     const paidSum =
       (fullPaymentDatePaid ? fullPaymentAmount ?? 0 : 0) +
@@ -216,7 +216,7 @@ export default function getP1AmountFunction(
       (p3DatePaid ? p3Amount ?? 0 : 0) +
       (p4DatePaid ? p4Amount ?? 0 : 0);
 
-    return total - paidSum;
+    return Math.round(((total - paidSum) / 4) * 100) / 100;
   }
 
   // Determine number of terms (P1–P4)
@@ -229,53 +229,44 @@ export default function getP1AmountFunction(
   };
   const terms = termsMap[paymentPlan ?? ""] ?? 1;
 
-  // Detect credits and payments
-  const creditFlags = {
-    P1: cf.includes("P1"),
-    P2: cf.includes("P2"),
-    P3: cf.includes("P3"),
-    P4: cf.includes("P4"),
-  };
-  const paidFlags = {
-    P1: false,
-    P2: !!p2DatePaid,
-    P3: !!p3DatePaid,
-    P4: !!p4DatePaid,
-  };
+  // Build credit detection string
+  const cf = `,${credit_from},`;
+  const pOne = cf.includes(",P1,");
+  const paid1 = !!p1DueDate;
+  const paid2 = !!p2DatePaid;
+  const paid3 = !!p3DatePaid;
+  const paid4 = !!p4DatePaid;
 
-  const creditedCount = Math.min(
-    terms,
-    Object.values(creditFlags).filter(Boolean).length +
-      Object.values(paidFlags).filter(Boolean).length
-  );
-  const denom = Math.max(1, terms - creditedCount);
+  const credited = Math.min(terms, Number(pOne) + Number(paid1));
+  const unpaidCount =
+    terms - Number(paid1) - Number(paid2) - Number(paid3) - Number(paid4);
+  const adjustedDenom = Math.max(1, unpaidCount - credited);
 
   // Assign numeric order to credit source
-  // Only set k if there's an actual credit amount, otherwise treat as no credit
   const k =
-    ca > 0 && cf === "Reservation"
+    credit_amt > 0 && credit_from === "Reservation"
       ? 0
-      : ca > 0 && cf === "P1"
+      : credit_amt > 0 && credit_from === "P1"
       ? 1
-      : ca > 0 && cf === "P2"
+      : credit_amt > 0 && credit_from === "P2"
       ? 2
-      : ca > 0 && cf === "P3"
+      : credit_amt > 0 && credit_from === "P3"
       ? 3
-      : ca > 0 && cf === "P4"
+      : credit_amt > 0 && credit_from === "P4"
       ? 4
       : 0;
 
   const base = total / terms;
 
   let amount: number;
-  if (k === 0 && ca > 0) {
-    amount = (total - ca) / terms;
-  } else if (k === 1 && ca > 0) {
-    amount = ca;
-  } else if (k > 1 && ca > 0) {
+  if (k === 0 && credit_amt > 0) {
+    amount = (total - credit_amt) / terms;
+  } else if (k === 1 && credit_amt > 0) {
+    amount = credit_amt;
+  } else if (k > 1 && credit_amt > 0) {
     amount = base;
-  } else if (ca > 0) {
-    amount = (total - base * (k - 1) - ca) / Math.max(1, terms - k);
+  } else if (credit_amt > 0) {
+    amount = (total - base * (k - 1) - credit_amt) / Math.max(1, terms - k);
   } else {
     // No credit applied, just divide total by terms
     amount = total / terms;

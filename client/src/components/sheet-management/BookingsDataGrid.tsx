@@ -3143,6 +3143,42 @@ export default function BookingsDataGrid({
                     }
                   }
 
+                  // Prevent toggling "Enable Payment Reminder" on if payment plan or payment method is missing
+                  const isEnablePaymentReminderField =
+                    column.key === "enablePaymentReminder";
+                  if (isEnablePaymentReminderField && newValue) {
+                    const hasPaymentPlan = Boolean(row.paymentPlan);
+                    const hasPaymentMethod = Boolean(row.paymentMethod);
+
+                    if (!hasPaymentPlan || !hasPaymentMethod) {
+                      toast({
+                        title: "Cannot Enable Payment Reminder",
+                        description:
+                          "Please set Payment Plan and Payment Method before enabling payment reminders.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+
+                  // Prevent toggling "Generate Email Draft" on if payment plan or payment method exists
+                  const isGenerateEmailDraftField =
+                    column.key === "generateEmailDraft";
+                  if (isGenerateEmailDraftField && newValue) {
+                    const hasPaymentPlan = Boolean(row.paymentPlan);
+                    const hasPaymentMethod = Boolean(row.paymentMethod);
+
+                    if (hasPaymentPlan || hasPaymentMethod) {
+                      toast({
+                        title: "Cannot Generate Reservation Email",
+                        description:
+                          "Payment Plan and Payment Method must be empty for reservation emails. Please clear them first.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+
                   // Use batched writer to track changes in version history
                   batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
 

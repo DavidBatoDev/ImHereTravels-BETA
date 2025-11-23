@@ -317,6 +317,48 @@ export const processScheduledEmails = onSchedule(
             return;
           }
 
+          // Check if this payment term has already been paid (AppScript logic)
+          if (
+            emailData.emailType === "payment-reminder" &&
+            emailData.bookingId &&
+            emailData.templateVariables?.paymentTerm
+          ) {
+            const term = emailData.templateVariables.paymentTerm as string;
+            const bookingDoc = await db
+              .collection("bookings")
+              .doc(emailData.bookingId)
+              .get();
+
+            if (bookingDoc.exists) {
+              const bookingData = bookingDoc.data()!;
+              const termLower = term.toLowerCase();
+              const paidDateVal = (bookingData as any)[`${termLower}DatePaid`];
+
+              if (paidDateVal) {
+                const today = formatDate(new Date());
+                const paidDateStr = formatDate(paidDateVal);
+
+                if (paidDateStr && paidDateStr <= today) {
+                  logger.info(
+                    `Skipping email ${emailId} - ${term} already paid on ${paidDateStr}`
+                  );
+
+                  // Update email status to cancelled since payment is already made
+                  await db
+                    .collection("scheduledEmails")
+                    .doc(emailId)
+                    .update({
+                      status: "cancelled",
+                      updatedAt: Timestamp.now(),
+                      errorMessage: `Payment already made on ${paidDateStr}`,
+                    });
+
+                  return;
+                }
+              }
+            }
+          }
+
           // Initialize Gmail API service
           const gmailService = new GmailApiService();
 

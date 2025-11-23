@@ -165,5 +165,12 @@ export default function getP2DueDateFunction(
       day: "numeric",
       year: "numeric",
     });
+
+  // If payment plan is selected (P2, P3, or P4), return only the 2nd date
+  // Otherwise return both dates comma-separated (when no payment plan)
+  if (paymentPlan && ["P2", "P3", "P4"].includes(paymentPlan)) {
+    return fmt(validDates[1]);
+  }
+
   return `${fmt(validDates[0])}, ${fmt(validDates[1])}`;
 }
