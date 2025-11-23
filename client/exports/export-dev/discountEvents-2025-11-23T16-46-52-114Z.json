@@ -1,0 +1,111 @@
+[
+  {
+    "id": "OfAD8razyLPi99f4AFTK",
+    "data": {
+      "items": [
+        {
+          "dateDiscounts": [
+            {
+              "date": "2026-03-27",
+              "discountedCost": 899.1,
+              "discountRate": 10
+            }
+          ],
+          "tourPackageId": "8FYTEasiSwDYFGWiuM76",
+          "tourPackageName": "India Discovery Tour",
+          "originalCost": 999
+        }
+      ],
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763526587,
+        "nanoseconds": 72000000
+      },
+      "name": "(Sample Event) Christmas - Dec 2025",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763526557,
+        "nanoseconds": 521000000
+      },
+      "active": false
+    }
+  },
+  {
+    "id": "LpGHV9iGMe7uyLDwfSUI",
+    "data": {
+      "active": true,
+      "bannerCover": "https://firebasestorage.googleapis.com/v0/b/imheretravels-dev.firebasestorage.app/o/discount-events%2Fbanners%2Fistockphoto_1435116123_612x612_1763749617725_7vztk81uqke.jpg?alt=media&token=1616c8a7-9c23-4d3b-b98f-647cdc70db4e",
+      "name": "Black Friday - Nov 2025",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763374073,
+        "nanoseconds": 624000000
+      },
+      "items": [
+        {
+          "discountedCost": 799.2,
+          "dateDiscounts": [
+            {
+              "discountRate": 20,
+              "date": "2026-03-27",
+              "discountedCost": 799.2
+            }
+          ],
+          "discountRate": 20,
+          "tourPackageId": "8FYTEasiSwDYFGWiuM76",
+          "tourPackageName": "India Discovery Tour",
+          "dates": [
+            "2026-03-27"
+          ],
+          "originalCost": 999
+        },
+        {
+          "dateDiscounts": [
+            {
+              "date": "2026-03-17",
+              "discountRate": 40,
+              "discountedCost": 660
+            },
+            {
+              "date": "2026-02-20",
+              "discountRate": 40,
+              "discountedCost": 660
+            }
+          ],
+          "tourPackageId": "rvFdmGMSRh9ERBUqa4N3",
+          "tourPackageName": "Philippine Sunrise",
+          "originalCost": 1100
+        },
+        {
+          "tourPackageName": "Japan Adventure (Standard)",
+          "dateDiscounts": [
+            {
+              "discountRate": 10,
+              "discountedCost": 1845,
+              "date": "2026-03-14"
+            }
+          ],
+          "originalCost": 2050,
+          "tourPackageId": "agD7Q7PMvPZAFywNWcs8"
+        },
+        {
+          "tourPackageId": "mZsWqyIe3sR1PIfrXKut",
+          "dateDiscounts": [
+            {
+              "date": "2026-03-05",
+              "discountRate": 40,
+              "discountedCost": 660
+            }
+          ],
+          "tourPackageName": "Philippines Sunset",
+          "originalCost": 1100
+        }
+      ],
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763751227,
+        "nanoseconds": 308000000
+      }
+    }
+  }
+]
