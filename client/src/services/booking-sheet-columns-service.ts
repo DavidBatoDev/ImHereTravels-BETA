@@ -18,6 +18,7 @@ import {
   Unsubscribe,
 } from "firebase/firestore";
 import { SheetColumn } from "@/types/sheet-management";
+import { allBookingSheetColumns } from "@/app/functions/columns";
 
 // ============================================================================
 // COLLECTION CONSTANTS
@@ -233,16 +234,14 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
 
   async getColumn(columnId: string): Promise<SheetColumn | null> {
     try {
-      // Column "id" is the logical field (e.g., returnDate), not necessarily the Firestore document id.
-      // We need to find the document where field "id" == columnId.
-      const qSnap = await getDocs(
-        query(collection(db, COLLECTION_NAME), where("id", "==", columnId))
-      );
-      const docSnap = qSnap.docs[0];
-
-      if (docSnap && docSnap.exists()) {
-        const data = docSnap.data() as SheetColumn;
-        return { ...data, docId: docSnap.id } as SheetColumn;
+      // Find column in coded columns
+      const column = allBookingSheetColumns.find((col) => col.id === columnId);
+      
+      if (column) {
+        return {
+          ...column.data,
+          docId: column.id, // Use the column ID as docId for compatibility
+        };
       }
 
       return null;
@@ -258,14 +257,11 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
 
   async getAllColumns(): Promise<SheetColumn[]> {
     try {
-      const querySnapshot = await getDocs(
-        query(collection(db, COLLECTION_NAME), orderBy("order", "asc"))
-      );
-
-      return querySnapshot.docs.map((doc) => {
-        const data = doc.data() as SheetColumn;
-        return { ...data, docId: doc.id } as SheetColumn;
-      });
+      // Return coded columns from the app/functions/columns folder
+      return allBookingSheetColumns.map((col) => ({
+        ...col.data,
+        docId: col.id, // Use the column ID as docId for compatibility
+      }));
     } catch (error) {
       console.error(
         `❌ Failed to get all columns: ${
