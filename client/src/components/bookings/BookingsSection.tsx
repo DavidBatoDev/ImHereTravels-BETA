@@ -683,6 +683,8 @@ export default function BookingsSection() {
     count += Object.keys(columnFilters).length;
     count += Object.keys(dateRangeFilters).length;
     count += Object.keys(currencyRangeFilters).length;
+    // Count advanced filters that have a column selected
+    count += activeFilters.filter((f) => f.columnId).length;
     return count;
   };
 
@@ -744,6 +746,8 @@ export default function BookingsSection() {
     count += Object.keys(tempColumnFilters).length;
     count += Object.keys(tempDateRangeFilters).length;
     count += Object.keys(tempCurrencyRangeFilters).length;
+    // Count advanced filters that have a column selected
+    count += tempFilters.filter((f) => f.columnId).length;
     return count;
   };
 
