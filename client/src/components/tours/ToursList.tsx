@@ -445,16 +445,6 @@ export default function ToursList() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground font-hk-grotesk">
-          Tour Packages
-        </h1>
-        <p className="text-muted-foreground mt-2 text-lg">
-          Manage your tour packages and itineraries
-        </p>
-      </div>
-
       {/* Statistics Cards with Add Button */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-4">
         {/* Total Tours */}
