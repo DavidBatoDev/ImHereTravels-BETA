@@ -236,7 +236,7 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
     try {
       // Find column in coded columns
       const column = allBookingSheetColumns.find((col) => col.id === columnId);
-      
+
       if (column) {
         return {
           ...column.data,
