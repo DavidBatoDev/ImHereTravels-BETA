@@ -1,0 +1,2063 @@
+[
+  {
+    "id": "8Qz6WIMkBlvky3CLcnKK",
+    "metadata": {
+      "migratedBy": "033-convert-duration-to-string",
+      "updatedAt": {
+        "_nanoseconds": 108000000,
+        "_seconds": 1761579202
+      },
+      "createdBy": "migration-script",
+      "status": "active",
+      "createdAt": {
+        "_nanoseconds": 787000000,
+        "_seconds": 1756016852
+      },
+      "rating": 0,
+      "featured": false,
+      "bookingsCount": 0,
+      "updatedBy": "migration-script",
+      "reviewCount": 0
+    },
+    "details": {
+      "highlights": [
+        "Iguazu Waterfalls",
+        "Tango",
+        "Perito Moreno Trek",
+        "Buenos Aires culture",
+        "Patagonia landscapes"
+      ],
+      "requirements": [
+        "Good fitness level for trekking",
+        "Comfortable with cold weather",
+        "Travel insurance required",
+        "Valid passport"
+      ],
+      "itinerary": [
+        {
+          "title": "Arrival in Buenos Aires",
+          "description": "Arrive in Buenos Aires, check-in, welcome dinner and tango show",
+          "day": 1
+        },
+        {
+          "description": "Visit La Boca, Recoleta Cemetery, Plaza de Mayo",
+          "title": "Buenos Aires City Tour",
+          "day": 2
+        },
+        {
+          "description": "Tango lesson, visit San Telmo market, evening milonga",
+          "title": "Tango Experience",
+          "day": 3
+        },
+        {
+          "description": "Flight to Iguazu, check-in and orientation",
+          "day": 4,
+          "title": "Travel to Iguazu"
+        },
+        {
+          "title": "Iguazu Falls - Argentina Side",
+          "description": "Full day exploring the Argentine side of Iguazu Falls",
+          "day": 5
+        },
+        {
+          "day": 6,
+          "title": "Iguazu Falls - Brazil Side",
+          "description": "Cross to Brazil side for different perspectives of the falls"
+        },
+        {
+          "day": 7,
+          "description": "Flight back to Buenos Aires, evening at leisure",
+          "title": "Return to Buenos Aires"
+        },
+        {
+          "day": 8,
+          "title": "Travel to Patagonia",
+          "description": "Flight to El Calafate, transfer to hotel"
+        },
+        {
+          "title": "Perito Moreno Glacier",
+          "day": 9,
+          "description": "Full day at Perito Moreno Glacier, trekking and boat tour"
+        },
+        {
+          "title": "Patagonia Exploration",
+          "description": "Visit nearby viewpoints and hiking trails",
+          "day": 10
+        },
+        {
+          "title": "Return to Buenos Aires & Departure",
+          "day": 11,
+          "description": "Flight back to Buenos Aires, final dinner, transfer to airport"
+        }
+      ]
+    },
+    "status": "active",
+    "highlights": [
+      "Iguazu Waterfalls",
+      "Tango",
+      "Perito Moreno Trek"
+    ],
+    "media": {
+      "gallery": [],
+      "coverImage": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1759341310782_argentina-header-2.webp?alt=media&token=6148f26b-1c54-47bd-8833-5a6472e273d8"
+    },
+    "pricing": {
+      "deposit": 250,
+      "original": 2399,
+      "discounted": 0,
+      "currency": "EUR"
+    },
+    "destinations": [
+      "Buenos Aires",
+      "Patagonia",
+      "Iguazu"
+    ],
+    "location": "Argentina",
+    "description": "Tango, Patagonia trekking, Iguazu Falls",
+    "name": "Argentina's Wonders",
+    "url": "https://imheretravels.com/all-tours/argentinas-wonders/",
+    "itinerarySummary": "Day 1–11 (Buenos Aires → Iguazú → Checkout)",
+    "slug": "argentinas-wonders",
+    "tourCode": "ARW",
+    "brochureLink": "https://drive.google.com/file/d/1OjUzbqC2MZL8igo9wUunjP3hS5xVmF5b/view?usp=drive_link",
+    "duration": "11 days",
+    "travelDates": [
+      {
+        "maxCapacity": 12,
+        "startDate": {
+          "_seconds": 1769126400,
+          "_nanoseconds": 0
+        },
+        "currentBookings": 0,
+        "isAvailable": true,
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1769990400
+        }
+      }
+    ],
+    "preDeparturePack": "",
+    "stripePaymentLink": "https://book.stripe.com/9B63cvb7Z0mtdyb2RNco031"
+  },
+  {
+    "id": "lliEGGCpiI04PAnkgmWm",
+    "details": {
+      "requirements": [
+        "Comfortable with humidity and heat",
+        "Good fitness level for walking tours",
+        "Travel insurance required",
+        "Valid passport"
+      ],
+      "highlights": [
+        "Amazon Cruise",
+        "Sambadrome",
+        "Rio City Icons",
+        "Paraty colonial town",
+        "Carnival experience"
+      ],
+      "itinerary": [
+        {
+          "title": "Arrival in Manaus",
+          "description": "Arrive in Manaus, check-in, welcome dinner and briefing",
+          "day": 1
+        },
+        {
+          "day": 2,
+          "title": "Manaus City Tour",
+          "description": "Visit Opera House, floating port, and local markets"
+        },
+        {
+          "description": "Board riverboat, start Amazon adventure, wildlife spotting",
+          "day": 3,
+          "title": "Amazon River Cruise"
+        },
+        {
+          "description": "Jungle trekking, piranha fishing, night safari",
+          "title": "Amazon Exploration",
+          "day": 4
+        },
+        {
+          "description": "Visit local community, learn about traditions",
+          "title": "Amazon Indigenous Village",
+          "day": 5
+        },
+        {
+          "day": 6,
+          "description": "Return to Manaus, evening at leisure",
+          "title": "Return to Manaus"
+        },
+        {
+          "day": 7,
+          "description": "Flight to Rio, transfer to Paraty, check-in",
+          "title": "Travel to Paraty"
+        },
+        {
+          "description": "Colonial town tour, boat trip to nearby islands",
+          "day": 8,
+          "title": "Paraty Exploration"
+        },
+        {
+          "title": "Travel to Rio",
+          "description": "Transfer to Rio de Janeiro, check-in and orientation",
+          "day": 9
+        },
+        {
+          "description": "Christ the Redeemer, Sugarloaf Mountain, Copacabana",
+          "day": 10,
+          "title": "Rio Iconic Sites"
+        },
+        {
+          "day": 11,
+          "description": "Visit Sambadrome, samba school rehearsal, carnival parade",
+          "title": "Carnival Experience"
+        },
+        {
+          "description": "Final shopping, farewell dinner, transfer to airport",
+          "day": 12,
+          "title": "Final Day & Departure"
+        }
+      ]
+    },
+    "destinations": [
+      "Manaus",
+      "Amazon",
+      "Paraty",
+      "Rio"
+    ],
+    "preDeparturePack": "",
+    "name": "Brazil's Treasures",
+    "travelDates": [
+      {
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1771027200
+        },
+        "currentBookings": 0,
+        "isAvailable": true,
+        "startDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1770076800
+        },
+        "maxCapacity": 15
+      }
+    ],
+    "metadata": {
+      "status": "active",
+      "createdAt": {
+        "_seconds": 1756016852,
+        "_nanoseconds": 787000000
+      },
+      "bookingsCount": 0,
+      "createdBy": "migration-script",
+      "migratedBy": "033-convert-duration-to-string",
+      "rating": 0,
+      "reviewCount": 0,
+      "featured": false,
+      "updatedBy": "migration-script",
+      "updatedAt": {
+        "_nanoseconds": 853000000,
+        "_seconds": 1761579202
+      }
+    },
+    "url": "https://imheretravels.com/all-tours/brazils-treasure/",
+    "itinerarySummary": "Day 1–12 (Manaus → Rio → Checkout)",
+    "brochureLink": "https://drive.google.com/file/d/1BsdO0lR_b7K28B-q3PQ-M8tmNqlAXhl8/view?usp=drive_link",
+    "stripePaymentLink": "https://book.stripe.com/fZu8wP2Btd9f51F63Zco02Z",
+    "location": "Brazil",
+    "duration": "12 days",
+    "slug": "brazils-treasures",
+    "highlights": [
+      "Amazon Cruise",
+      "Sambadrome",
+      "Rio City Icons"
+    ],
+    "description": "Amazon cruise, Paraty, Rio Carnival",
+    "pricing": {
+      "currency": "EUR",
+      "discounted": 0,
+      "original": 1700,
+      "deposit": 200
+    },
+    "tourCode": "BZT",
+    "status": "active",
+    "media": {
+      "coverImage": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1759341307739_brazil-header-4.webp?alt=media&token=811f0f81-f1ba-4267-9da5-69c568c29335",
+      "gallery": []
+    }
+  },
+  {
+    "id": "8FYTEasiSwDYFGWiuM76",
+    "slug": "india-discovery-tour",
+    "media": {
+      "gallery": [],
+      "coverImage": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1759341302125_india-header-1.webp?alt=media&token=3f969113-15f2-4d4e-bc0c-0f5e8ac5043e"
+    },
+    "duration": "13 days",
+    "metadata": {
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763373806,
+        "nanoseconds": 662000000
+      },
+      "bookingsCount": 0,
+      "featured": false,
+      "updatedBy": "migration-script",
+      "createdBy": "migration-script",
+      "reviewCount": 0,
+      "status": "active",
+      "migratedBy": "033-convert-duration-to-string",
+      "createdAt": {
+        "_seconds": 1756017232,
+        "_nanoseconds": 390000000
+      },
+      "rating": 0
+    },
+    "tourCode": "IDD",
+    "status": "active",
+    "location": "India",
+    "preDeparturePack": "",
+    "details": {
+      "itinerary": [
+        {
+          "day": 1,
+          "description": "Arrive in Delhi, check-in, welcome dinner and briefing",
+          "title": "Arrival in Delhi"
+        },
+        {
+          "description": "Visit Red Fort, Qutub Minar, Humayun's Tomb",
+          "title": "Delhi City Tour",
+          "day": 2
+        },
+        {
+          "title": "Delhi to Jaipur",
+          "description": "Transfer to Jaipur, visit City Palace and Hawa Mahal",
+          "day": 3
+        },
+        {
+          "title": "Jaipur Exploration",
+          "description": "Amber Fort, Jantar Mantar, local markets",
+          "day": 4
+        },
+        {
+          "title": "Travel to Ranthambhore",
+          "description": "Transfer to Ranthambhore, evening safari",
+          "day": 5
+        },
+        {
+          "title": "Ranthambhore Safari",
+          "description": "Morning and evening safaris in search of tigers",
+          "day": 6
+        },
+        {
+          "day": 7,
+          "description": "Travel to Agra, visit Agra Fort",
+          "title": "Ranthambhore to Agra"
+        },
+        {
+          "title": "Taj Mahal Day",
+          "description": "Sunrise at Taj Mahal, Fatehpur Sikri",
+          "day": 8
+        },
+        {
+          "title": "Travel to Udaipur",
+          "day": 9,
+          "description": "Transfer to Udaipur, check-in and orientation"
+        },
+        {
+          "description": "City Palace, Lake Pichola boat ride",
+          "day": 10,
+          "title": "Udaipur City Tour"
+        },
+        {
+          "description": "Jagdish Temple, Saheliyon ki Bari gardens",
+          "title": "Udaipur Exploration",
+          "day": 11
+        },
+        {
+          "title": "Return to Delhi",
+          "description": "Flight back to Delhi, final shopping",
+          "day": 12
+        },
+        {
+          "description": "Final breakfast, farewell dinner, transfer to airport",
+          "title": "Final Day & Departure",
+          "day": 13
+        }
+      ],
+      "highlights": [
+        "Ranthambhore Safari",
+        "Lake Pichola",
+        "Taj Mahal",
+        "Jaipur Palace",
+        "Delhi Heritage",
+        "Cultural experiences"
+      ],
+      "requirements": [
+        "Comfortable with hot weather",
+        "Good fitness level for walking tours",
+        "Respect for local customs and dress codes",
+        "Travel insurance required",
+        "Valid passport and visa"
+      ]
+    },
+    "itinerarySummary": "Day 1–13 (Delhi → Jaipur → Agra → Checkout)",
+    "brochureLink": "https://drive.google.com/file/d/1zHm8bpYGOR4wJEZy4_M5tGLrmyHmu2ug/view?usp=drive_link",
+    "description": "Classic India cultural + safari + Taj Mahal",
+    "pricing": {
+      "deposit": 150,
+      "discounted": 899,
+      "original": 999,
+      "currency": "EUR"
+    },
+    "destinations": [
+      "Delhi",
+      "Jaipur",
+      "Agra",
+      "Ranthambhore",
+      "Udaipur"
+    ],
+    "stripePaymentLink": "https://book.stripe.com/eVacOX5dlezP6bK4if",
+    "highlights": [
+      "Ranthambhore Safari",
+      "Lake Pichola",
+      "Taj Mahal"
+    ],
+    "url": "https://imheretravels.com/all-tours/india/",
+    "travelDates": [
+      {
+        "startDate": {
+          "type": "firestore/timestamp/1.0",
+          "seconds": 1774569600,
+          "nanoseconds": 0
+        },
+        "endDate": {
+          "type": "firestore/timestamp/1.0",
+          "seconds": 1775692800,
+          "nanoseconds": 0
+        },
+        "isAvailable": true,
+        "currentBookings": 0,
+        "maxCapacity": 15
+      }
+    ],
+    "name": "India Discovery Tour"
+  },
+  {
+    "id": "jSrh8ZNzbaVq0VaHhEvv",
+    "details": {
+      "requirements": [
+        "Comfortable with hot weather",
+        "Good fitness level for walking tours",
+        "Respect for local customs and dress codes",
+        "Travel insurance required",
+        "Valid passport and visa",
+        "Willing to participate in Holi festival"
+      ],
+      "itinerary": [
+        {
+          "title": "Arrival in Delhi",
+          "description": "Arrive in Delhi, check-in, welcome dinner and briefing",
+          "day": 1
+        },
+        {
+          "title": "Delhi City Tour",
+          "day": 2,
+          "description": "Visit Red Fort, Qutub Minar, Humayun's Tomb"
+        },
+        {
+          "description": "Transfer to Jaipur, visit City Palace and Hawa Mahal",
+          "title": "Delhi to Jaipur",
+          "day": 3
+        },
+        {
+          "day": 4,
+          "title": "Jaipur Exploration",
+          "description": "Amber Fort, Jantar Mantar, local markets"
+        },
+        {
+          "day": 5,
+          "description": "Transfer to Ranthambhore, evening safari",
+          "title": "Travel to Ranthambhore"
+        },
+        {
+          "day": 6,
+          "description": "Morning and evening safaris in search of tigers",
+          "title": "Ranthambhore Safari"
+        },
+        {
+          "title": "Ranthambhore to Agra",
+          "description": "Travel to Agra, visit Agra Fort",
+          "day": 7
+        },
+        {
+          "day": 8,
+          "description": "Sunrise at Taj Mahal, Fatehpur Sikri",
+          "title": "Taj Mahal Day"
+        },
+        {
+          "title": "Travel to Udaipur",
+          "description": "Transfer to Udaipur, check-in and orientation",
+          "day": 9
+        },
+        {
+          "title": "Udaipur City Tour",
+          "day": 10,
+          "description": "City Palace, Lake Pichola boat ride"
+        },
+        {
+          "day": 11,
+          "title": "Holi Festival Celebration",
+          "description": "Participate in Holi festival celebrations"
+        },
+        {
+          "description": "Flight back to Delhi, final shopping",
+          "title": "Return to Delhi",
+          "day": 12
+        },
+        {
+          "day": 13,
+          "description": "Final breakfast, farewell dinner, transfer to airport",
+          "title": "Final Day & Departure"
+        }
+      ],
+      "highlights": [
+        "Holi Festival Celebration",
+        "Ranthambhore Safari",
+        "Lake Pichola",
+        "Taj Mahal",
+        "Jaipur Palace",
+        "Delhi Heritage"
+      ]
+    },
+    "itinerarySummary": "Day 1–13 (Delhi → Jaipur → Agra → Checkout)",
+    "brochureLink": "https://drive.google.com/file/d/1zHm8bpYGOR4wJEZy4_M5tGLrmyHmu2ug/view?usp=drive_link",
+    "travelDates": [
+      {
+        "currentBookings": 0,
+        "endDate": {
+          "_seconds": 1773360000,
+          "_nanoseconds": 0
+        },
+        "maxCapacity": 15,
+        "isAvailable": true,
+        "startDate": {
+          "_seconds": 1772323200,
+          "_nanoseconds": 0
+        }
+      }
+    ],
+    "destinations": [
+      "Delhi",
+      "Jaipur",
+      "Agra",
+      "Ranthambhore"
+    ],
+    "highlights": [
+      "Holi Festival",
+      "Ranthambhore Safari",
+      "Taj Mahal"
+    ],
+    "stripePaymentLink": "https://book.stripe.com/fZu9AT8ZR4CJ51FgIDco036",
+    "tourCode": "IHF",
+    "description": "Festival of Colors + Taj Mahal + Safari",
+    "location": "India",
+    "pricing": {
+      "original": 999,
+      "deposit": 150,
+      "discounted": 0,
+      "currency": "EUR"
+    },
+    "preDeparturePack": "",
+    "name": "India Holi Festival Tour",
+    "media": {
+      "coverImage": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1759341302125_india-header-1.webp?alt=media&token=3f969113-15f2-4d4e-bc0c-0f5e8ac5043e",
+      "gallery": []
+    },
+    "status": "active",
+    "url": "https://imheretravels.com/all-tours/india-holi-festival-tour/",
+    "duration": "13 days",
+    "metadata": {
+      "createdAt": {
+        "_nanoseconds": 390000000,
+        "_seconds": 1756017232
+      },
+      "reviewCount": 0,
+      "migratedBy": "033-convert-duration-to-string",
+      "bookingsCount": 0,
+      "updatedAt": {
+        "_nanoseconds": 750000000,
+        "_seconds": 1761579202
+      },
+      "status": "active",
+      "rating": 0,
+      "createdBy": "migration-script",
+      "featured": false,
+      "updatedBy": "migration-script"
+    },
+    "slug": "india-holi-festival-tour"
+  },
+  {
+    "id": "agD7Q7PMvPZAFywNWcs8",
+    "details": {
+      "itinerary": [
+        {
+          "day": 1,
+          "description": "A driver will wait for you upon arrival at the airport and transfer you and your fellow travelers to your accommodation in downtown Tokyo. Use the rest of your day for your own first exploration of the city.",
+          "title": "Welcome to Tokyo!"
+        }
+      ],
+      "requirements": [],
+      "highlights": [
+        "Skiing"
+      ]
+    },
+    "tourCode": "JA",
+    "slug": "japan-adventure",
+    "preDeparturePack": "",
+    "travelDates": [
+      {
+        "endDate": {
+          "type": "firestore/timestamp/1.0",
+          "seconds": 1774310400,
+          "nanoseconds": 0
+        },
+        "isAvailable": true,
+        "currentBookings": 0,
+        "maxCapacity": 0,
+        "startDate": {
+          "type": "firestore/timestamp/1.0",
+          "seconds": 1773446400,
+          "nanoseconds": 0
+        }
+      }
+    ],
+    "brochureLink": "",
+    "stripePaymentLink": "https://book.stripe.com/fZubJ1ekbfhngKneAvco03G",
+    "location": "Other",
+    "pricingHistory": [
+      {
+        "date": {
+          "_seconds": 1761640377,
+          "_nanoseconds": 923000000
+        },
+        "price": 2050,
+        "changedBy": "6VhhlJhcEGdjZCQINyu566DU5Xp2"
+      }
+    ],
+    "name": "Japan Adventure (Standard)",
+    "media": {
+      "gallery": [],
+      "coverImage": "https://imheretravels.com/wp-content/uploads/2025/10/japan-header-6.webp"
+    },
+    "url": "",
+    "pricing": {
+      "discounted": 0,
+      "deposit": 250,
+      "original": 2050,
+      "currency": "GBP"
+    },
+    "description": "Experience the perfect blend of tradition and innovation on this unforgettable journey through Japan. We start off in Tokyo, the vibrant capital where modern skyscrapers meet historic temples. Enjoy a guided city tour featuring iconic sights like the Meiji Shrine and Shibuya Crossing. After a few days in Tokyo, we will ride the world-renowned bullet train to Kyoto, Japan’s cultural heart. Explore ancient temples, serene gardens, and the famous Gion district, home to traditional tea houses and geisha culture. The final stop on the tour will be Sapporo. Discover its laid-back charm, local cuisine, and unique seasonal beauty during a scenic city tour. This tour offers the best of Japan’s dynamic cities, rich heritage, and stunning landscapes.",
+    "status": "active",
+    "duration": "10 days",
+    "metadata": {
+      "createdAt": {
+        "_nanoseconds": 923000000,
+        "_seconds": 1761640377
+      },
+      "createdBy": "6VhhlJhcEGdjZCQINyu566DU5Xp2",
+      "bookingsCount": 0,
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763526347,
+        "nanoseconds": 116000000
+      }
+    }
+  },
+  {
+    "id": "9UYSC04riJFxCYpRditJ",
+    "duration": "8 days and 7 Nights",
+    "travelDates": [
+      {
+        "isAvailable": true,
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1746835200
+        },
+        "startDate": {
+          "_seconds": 1746230400,
+          "_nanoseconds": 0
+        },
+        "currentBookings": 0,
+        "maxCapacity": 12
+      },
+      {
+        "startDate": {
+          "_seconds": 1749772800,
+          "_nanoseconds": 0
+        },
+        "currentBookings": 0,
+        "maxCapacity": 12,
+        "isAvailable": true,
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1750377600
+        }
+      },
+      {
+        "isAvailable": true,
+        "startDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1752364800
+        },
+        "currentBookings": 0,
+        "endDate": {
+          "_seconds": 1752969600,
+          "_nanoseconds": 0
+        },
+        "maxCapacity": 12
+      }
+    ],
+    "name": "Maldives Bucketlist",
+    "metadata": {
+      "createdAt": {
+        "_seconds": 1756015641,
+        "_nanoseconds": 148000000
+      },
+      "createdBy": "system",
+      "migratedBy": "033-convert-duration-to-string",
+      "bookingsCount": 0,
+      "updatedAt": {
+        "_seconds": 1761579851,
+        "_nanoseconds": 699000000
+      },
+      "updatedBy": "migration-script"
+    },
+    "location": "Maldives",
+    "preDeparturePack": "",
+    "tourCode": "MLB",
+    "brochureLink": "",
+    "media": {
+      "gallery": [],
+      "coverImage": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1759341315607_maldives-header-1.webp?alt=media&token=f8ec555a-c844-4b1d-a4ce-cac0ca5fdd0e"
+    },
+    "slug": "maldives-bucketlist",
+    "description": "Male City, Rasdhoo reefs, dolphin cruise",
+    "details": {
+      "requirements": [
+        "Strong swimming ability",
+        "Comfortable with boat travel",
+        "Able to handle sea conditions",
+        "Travel insurance required"
+      ],
+      "itinerary": [
+        {
+          "day": 1,
+          "description": "Arrive in Male International Airport, transfer to hotel, welcome dinner",
+          "title": "Arrival in Male"
+        },
+        {
+          "day": 2,
+          "description": "Explore Male city, visit fish market, Grand Friday Mosque, and local markets",
+          "title": "Male City Tour"
+        },
+        {
+          "title": "Transfer to Rasdhoo",
+          "description": "Speedboat transfer to Rasdhoo Atoll, check-in to floating resort",
+          "day": 3
+        },
+        {
+          "day": 4,
+          "description": "Full day snorkeling at Rasdhoo reefs, explore vibrant coral gardens",
+          "title": "Rasdhoo Reefs"
+        },
+        {
+          "day": 5,
+          "title": "Dolphin Cruise",
+          "description": "Morning dolphin watching cruise, afternoon beach relaxation"
+        },
+        {
+          "day": 6,
+          "title": "Sunset Paddle",
+          "description": "Kayaking and paddleboarding, sunset photography session"
+        },
+        {
+          "title": "Whale Shark Hunt",
+          "day": 7,
+          "description": "Search for whale sharks, additional snorkeling opportunities"
+        },
+        {
+          "description": "Final breakfast, checkout, transfer to airport",
+          "day": 8,
+          "title": "Checkout & Departure"
+        }
+      ],
+      "highlights": [
+        "Snorkeling",
+        "Floating Resorts",
+        "Sunset Paddle",
+        "Dolphin watching",
+        "Coral reef exploration"
+      ]
+    },
+    "pricingHistory": [
+      {
+        "changedBy": "system",
+        "price": 1300,
+        "date": {
+          "_seconds": 1756015641,
+          "_nanoseconds": 148000000
+        }
+      }
+    ],
+    "pricing": {
+      "currency": "EUR",
+      "discounted": 0,
+      "deposit": 200,
+      "original": 1300
+    },
+    "url": "https://imheretravels.com/all-tours/maldives-bucketlist/",
+    "status": "active",
+    "stripePaymentLink": "https://book.stripe.com/28o02bgW377n0Rq5l8"
+  },
+  {
+    "id": "wa6MbOuosVfCDd7Yg1Hu",
+    "pricingHistory": [
+      {
+        "price": 999,
+        "changedBy": "6VhhlJhcEGdjZCQINyu566DU5Xp2",
+        "date": {
+          "_nanoseconds": 477000000,
+          "_seconds": 1761384552
+        }
+      }
+    ],
+    "stripePaymentLink": "https://book.stripe.com/eVq14n2Bt1qxfGjgIDco03j",
+    "description": "Welcome to Nepal, a land of towering peaks, ancient cities, and unforgettable trails. This journey takes you from the vibrant streets and sacred temples of Kathmandu to the wild jungles of Chitwan and the serene lakeside charm of Pokhara. Along the way, hike through hillside villages, spot rhinos on safari, paddle peaceful rivers, and wake to mountain views that stop you in your tracks. With rich culture, deep spirituality, and Himalayan adventure at every turn, Nepal is ready to challenge and inspire.",
+    "metadata": {
+      "updatedAt": {
+        "_seconds": 1761629713,
+        "_nanoseconds": 333000000
+      },
+      "createdBy": "6VhhlJhcEGdjZCQINyu566DU5Xp2",
+      "updatedBy": "migration-script",
+      "migratedBy": "033-convert-duration-to-string",
+      "createdAt": {
+        "_seconds": 1761384552,
+        "_nanoseconds": 477000000
+      },
+      "bookingsCount": 0
+    },
+    "slug": "nepal-horizons",
+    "location": "Other",
+    "url": "https://imheretravels.com/all-tours/nepal-horizons/",
+    "media": {
+      "gallery": [],
+      "coverImage": "https://imheretravels.com/wp-content/uploads/2025/08/nepal-header-1.webp"
+    },
+    "details": {
+      "itinerary": [
+        {
+          "description": "Welcome to Kathmandu! Settle in at your hotel—the rest of the day is free for you to relax after your journey or explore the nearby area at your own pace. Let’s have an evening of culture with welcome dinner at a local Nepali restaurant.",
+          "day": 1,
+          "title": "A Himalayan Welcome"
+        },
+        {
+          "day": 2,
+          "title": "Heritage Hunt",
+          "description": "Let’s start the day at the sacred Bagmati River, where the iconic Pashupatinath Temple whispers stories of devotion. Next, feel the calm energy at the majestic Boudhanath Stupa before stepping back in time at the historic Kathmandu Durbar Square. In the afternoon, wander through the charming streets of Bhaktapur filled with ancient palaces, stunning temples, and vibrant local life."
+        },
+        {
+          "description": "We’ll take a scenic drive along Trishuli River to Chitwan National Park. After a relaxed check-in and delicious lunch, let’s take a stroll to the village to catch a beautiful sunset view by the riverbank.",
+          "day": 3,
+          "title": "Journey To Chitwan"
+        },
+        {
+          "title": "Into the Wild",
+          "day": 4,
+          "description": "Wake up to nature and kick off the day with a peaceful canoe ride through Chitwan’s waterways, spotting rare birds and maybe a croc or two! Then, let’s lace up for a jungle walk with our expert naturalist—the best way to see wildlife up close! After lunch, hop on a Jeep Safari deep into the forest, on the lookout for rhinos, sloth bears, and if luck is on your side… the legendary Royal Bengal Tiger! Cap off the day with Tharu Tribal Dance under the stars and a hearty dinner."
+        },
+        {
+          "description": "Say goodbye to the jungle and hello to Bandipur, a charming hilltop town frozen in time. Stroll its colorful bazaar, soak up those Himalayan views, and breathe in the mountain air. Ready for a little adventure? Hike to Ramkot Village and experience authentic rural life. Bonus: If you’re feeling curious, you can taste local homemade liquor (Raksi) straight from the source—cheers to that!\n",
+          "title": "Bandipur Awaits",
+          "day": 5
+        },
+        {
+          "day": 6,
+          "title": "Lakes & Peaks",
+          "description": "After a refreshing forest walk, we drive off to Pokhara, the ultimate chill-and-thrill destination.\nWe’ll glide across Phewa Lake in a boat, visit a temple on a tiny island, and soak in the mesmerizing reflection of Machhapuchhre (Fishtail Peak). Pure magic!"
+        },
+        {
+          "description": "Fuel up—it’s hike day! From Kande, we’ll begin our scenic trek to Australian Base Camp, winding through lush forests, Gurung villages, and stone-paved trails, rewarded with jaw-dropping views of Annapurna, Manaslu, and Fishtail. After our scenic trek, we’ll return to Pokhara for some well-earned downtime.",
+          "title": "Hike to Heaven",
+          "day": 7
+        },
+        {
+          "description": "Today is yours! Stroll the lakeside, sip coffee in cozy cafés, shop for souvenirs, or simply relax. In the evening, we’ll gather for a farewell dinner to toast our adventure together. Laughter, stories, and good vibes guaranteed.",
+          "day": 8,
+          "title": "Your Day, Your Way"
+        },
+        {
+          "title": "Until Next Time",
+          "day": 9,
+          "description": "Enjoy your last breakfast with a view before heading to the airport. You’re leaving Nepal but trust us, part of your heart will stay behind."
+        }
+      ],
+      "requirements": [],
+      "highlights": [
+        "Cultural immersion in Bandipur Charming bazaar streets for the authentic rural life",
+        "Hike to Australian Base Camp Scenic trek with panoramic views of Annapurna and Manaslu",
+        "Sacred temples of Kathmandu Explore Pashupatinath & Durbar Square, the spiritual heart of Nepal",
+        "Jungle adventure in Chitwan Jungle walk & jeep safari in search of rhinos, tigers & rare birds"
+      ]
+    },
+    "name": "Nepal Horizons",
+    "duration": "9 days",
+    "status": "active",
+    "preDeparturePack": "",
+    "travelDates": [
+      {
+        "currentBookings": 0,
+        "maxCapacity": 10,
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1774137600
+        },
+        "isAvailable": true,
+        "startDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1773446400
+        }
+      }
+    ],
+    "tourCode": "NZE",
+    "pricing": {
+      "original": 999,
+      "discounted": 0,
+      "deposit": 150,
+      "currency": "EUR"
+    },
+    "brochureLink": ""
+  },
+  {
+    "id": "Xru9fnd5MSoVV5ErGMXE",
+    "metadata": {
+      "bookingsCount": 0,
+      "migratedBy": "033-convert-duration-to-string",
+      "featured": false,
+      "reviewCount": 0,
+      "updatedAt": {
+        "_nanoseconds": 341000000,
+        "_seconds": 1761579202
+      },
+      "rating": 0,
+      "updatedBy": "migration-script",
+      "status": "active",
+      "createdBy": "migration-script",
+      "createdAt": {
+        "_nanoseconds": 390000000,
+        "_seconds": 1756017232
+      }
+    },
+    "media": {
+      "coverImage": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1759341296278_new-zealand-header-1.webp?alt=media&token=0f4c3603-faac-4a9b-98a0-6a64c61cac13",
+      "gallery": []
+    },
+    "description": "15-day full NZ tour (Auckland → Queenstown)",
+    "destinations": [
+      "Auckland",
+      "Rotorua",
+      "Queenstown",
+      "Milford Sound"
+    ],
+    "name": "New Zealand Expedition",
+    "brochureLink": "",
+    "status": "active",
+    "url": "https://imheretravels.com/all-tours/new-zealand-expedition/",
+    "travelDates": [
+      {
+        "maxCapacity": 15,
+        "isAvailable": true,
+        "currentBookings": 0,
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1764028800
+        },
+        "startDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1762819200
+        }
+      }
+    ],
+    "highlights": [
+      "Kiwi Hatchery",
+      "Milford Sound",
+      "Māori Village"
+    ],
+    "location": "New Zealand",
+    "duration": "15 days",
+    "stripePaymentLink": "https://book.stripe.com/8wM5mv35dfDTas02aV",
+    "preDeparturePack": "",
+    "itinerarySummary": "Day 1–15 (Auckland → Queenstown → Checkout)",
+    "slug": "new-zealand-expedition",
+    "tourCode": "NZE",
+    "pricing": {
+      "discounted": 0,
+      "currency": "EUR",
+      "deposit": 200,
+      "original": 1799
+    },
+    "details": {
+      "requirements": [
+        "Good fitness level for walking and hiking",
+        "Comfortable with adventure activities",
+        "Travel insurance required",
+        "Valid passport",
+        "Comfortable with changing weather conditions"
+      ],
+      "itinerary": [
+        {
+          "day": 1,
+          "description": "Arrive in Auckland, check-in, welcome dinner and briefing",
+          "title": "Arrival in Auckland"
+        },
+        {
+          "title": "Auckland City Tour",
+          "description": "Sky Tower, Auckland Museum, waterfront",
+          "day": 2
+        },
+        {
+          "title": "Auckland to Rotorua",
+          "day": 3,
+          "description": "Transfer to Rotorua, visit Te Puia geothermal area"
+        },
+        {
+          "title": "Rotorua Exploration",
+          "day": 4,
+          "description": "Māori cultural performance, geothermal parks"
+        },
+        {
+          "title": "Rotorua Adventures",
+          "description": "Zorbing, luge, or hot springs",
+          "day": 5
+        },
+        {
+          "day": 6,
+          "title": "Travel to Taupo",
+          "description": "Visit Huka Falls, Lake Taupo"
+        },
+        {
+          "description": "Travel to Wellington, visit Te Papa Museum",
+          "title": "Taupo to Wellington",
+          "day": 7
+        },
+        {
+          "description": "Ferry to South Island, travel to Nelson",
+          "day": 8,
+          "title": "Wellington to South Island"
+        },
+        {
+          "title": "Nelson to Westport",
+          "description": "Visit Abel Tasman National Park",
+          "day": 9
+        },
+        {
+          "day": 10,
+          "description": "Travel along West Coast, visit glaciers",
+          "title": "Westport to Franz Josef"
+        },
+        {
+          "day": 11,
+          "title": "Franz Josef to Queenstown",
+          "description": "Travel to Queenstown, check-in"
+        },
+        {
+          "day": 12,
+          "title": "Queenstown Adventures",
+          "description": "Optional bungee jumping, jet boating"
+        },
+        {
+          "title": "Milford Sound Day Trip",
+          "day": 13,
+          "description": "Full day trip to Milford Sound, cruise"
+        },
+        {
+          "title": "Queenstown Free Day",
+          "day": 14,
+          "description": "Relax or choose from adventure activities"
+        },
+        {
+          "day": 15,
+          "title": "Final Day & Departure",
+          "description": "Final breakfast, transfer to airport"
+        }
+      ],
+      "highlights": [
+        "Kiwi Hatchery",
+        "Milford Sound",
+        "Māori Village",
+        "Rotorua Geothermal",
+        "Queenstown Adventures",
+        "Auckland Sky Tower"
+      ]
+    }
+  },
+  {
+    "id": "rvFdmGMSRh9ERBUqa4N3",
+    "pricingHistory": [
+      {
+        "price": 1100,
+        "changedBy": "system",
+        "date": {
+          "_nanoseconds": 148000000,
+          "_seconds": 1756015641
+        }
+      }
+    ],
+    "tourCode": "PHSR",
+    "name": "Philippine Sunrise",
+    "metadata": {
+      "createdBy": "system",
+      "createdAt": {
+        "_seconds": 1756015641,
+        "_nanoseconds": 148000000
+      },
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763374836,
+        "nanoseconds": 10000000
+      },
+      "updatedBy": "migration-script",
+      "migratedBy": "033-convert-duration-to-string",
+      "bookingsCount": 0
+    },
+    "status": "active",
+    "media": {
+      "gallery": [],
+      "coverImage": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1759341320242_philippinessunrise-header-1-3.webp?alt=media&token=176752d3-cd01-486b-b97b-d397a869db93"
+    },
+    "description": "Cebu, Moalboal sardine run & canyoneering, Siargao surfing",
+    "preDeparturePack": "",
+    "location": "Philippines",
+    "pricing": {
+      "currency": "EUR",
+      "discounted": 0,
+      "deposit": 150,
+      "original": 1100
+    },
+    "duration": "11 days",
+    "brochureLink": "https://drive.google.com/file/d/1g6aQrfOdP14T3HfD5D9AmIzKaLz5sJ9Q/view?usp=drive_link",
+    "url": "https://imheretravels.com/all-tours/philippine-sunrise/",
+    "stripePaymentLink": "https://book.stripe.com/9B63cv2Bt2uB8dR8c7co032",
+    "details": {
+      "requirements": [
+        "Intermediate swimming ability",
+        "Comfortable with heights (canyoneering)",
+        "Basic surfing experience helpful",
+        "Travel insurance required"
+      ],
+      "itinerary": [
+        {
+          "description": "Arrive in Cebu, transfer to Moalboal, welcome dinner and briefing",
+          "title": "Arrival in Cebu",
+          "day": 1
+        },
+        {
+          "title": "Sardine Run",
+          "day": 2,
+          "description": "Early morning sardine run experience, afternoon free time"
+        },
+        {
+          "title": "Canyoneering Adventure",
+          "description": "Full day canyoneering at Kawasan Falls, swimming and cliff jumping",
+          "day": 3
+        },
+        {
+          "title": "Moalboal Exploration",
+          "description": "Island hopping around Moalboal, snorkeling and beach activities",
+          "day": 4
+        },
+        {
+          "title": "Travel to Siargao",
+          "description": "Morning flight to Siargao, check-in and orientation",
+          "day": 5
+        },
+        {
+          "description": "Full day of surfing at Cloud 9 and other surf spots",
+          "title": "Surfing Day 1",
+          "day": 6
+        },
+        {
+          "day": 7,
+          "title": "Surfing Day 2",
+          "description": "Continue surfing adventure, visit different surf breaks"
+        },
+        {
+          "title": "Island Hopping",
+          "day": 8,
+          "description": "Visit Naked Island, Daku Island, and Guyam Island"
+        },
+        {
+          "description": "Explore northern Siargao, visit viewpoints and hidden beaches",
+          "title": "North Roadtrip",
+          "day": 9
+        },
+        {
+          "description": "Last surfing session, farewell dinner and celebration",
+          "title": "Final Surfing",
+          "day": 10
+        },
+        {
+          "title": "Checkout & Departure",
+          "description": "Final breakfast, checkout, and transfer to airport",
+          "day": 11
+        }
+      ],
+      "highlights": [
+        "Sardine Run",
+        "Canyoneering",
+        "Surfing",
+        "Roadtrip North",
+        "Island hopping"
+      ]
+    },
+    "slug": "philippine-sunrise",
+    "travelDates": [
+      {
+        "currentBookings": 0,
+        "maxCapacity": 15,
+        "startDate": {
+          "type": "firestore/timestamp/1.0",
+          "seconds": 1771545600,
+          "nanoseconds": 0
+        },
+        "endDate": {
+          "type": "firestore/timestamp/1.0",
+          "seconds": 1772496000,
+          "nanoseconds": 0
+        },
+        "isAvailable": true
+      },
+      {
+        "isAvailable": true,
+        "currentBookings": 0,
+        "endDate": {
+          "type": "firestore/timestamp/1.0",
+          "seconds": 1774656000,
+          "nanoseconds": 0
+        },
+        "maxCapacity": 0,
+        "startDate": {
+          "type": "firestore/timestamp/1.0",
+          "seconds": 1773705600,
+          "nanoseconds": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "mZsWqyIe3sR1PIfrXKut",
+    "brochureLink": "https://drive.google.com/file/d/1g6aQrfOdP14T3HfD5D9AmIzKaLz5sJ9Q/view?usp=drive_link",
+    "pricingHistory": [
+      {
+        "changedBy": "system",
+        "date": {
+          "_seconds": 1756015641,
+          "_nanoseconds": 148000000
+        },
+        "price": 1100
+      }
+    ],
+    "slug": "philippines-sunset",
+    "location": "Philippines",
+    "description": "Manila + Port Barton + El Nido adventures",
+    "url": "https://imheretravels.com/all-tours/philippine-sunset/",
+    "duration": "11 days",
+    "travelDates": [
+      {
+        "startDate": {
+          "type": "firestore/timestamp/1.0",
+          "seconds": 1772668800,
+          "nanoseconds": 0
+        },
+        "maxCapacity": 18,
+        "endDate": {
+          "type": "firestore/timestamp/1.0",
+          "seconds": 1773619200,
+          "nanoseconds": 0
+        },
+        "currentBookings": 0,
+        "isAvailable": true
+      }
+    ],
+    "status": "active",
+    "stripePaymentLink": "https://book.stripe.com/cNi00jdg71qxdyb8c7co033",
+    "name": "Philippines Sunset",
+    "pricing": {
+      "discounted": 0,
+      "deposit": 150,
+      "currency": "EUR",
+      "original": 1100
+    },
+    "details": {
+      "highlights": [
+        "Island hopping",
+        "Isla experience",
+        "Kayaking",
+        "Beach exploration",
+        "Cultural experiences"
+      ],
+      "requirements": [
+        "Basic swimming ability",
+        "Comfortable with boat travel",
+        "Able to walk on uneven terrain",
+        "Travel insurance recommended"
+      ],
+      "itinerary": [
+        {
+          "description": "Arrive in Manila, city tour, welcome dinner and orientation",
+          "title": "Arrival in Manila",
+          "day": 1
+        },
+        {
+          "day": 2,
+          "title": "Manila Exploration",
+          "description": "Visit Intramuros, Rizal Park, and other historical sites"
+        },
+        {
+          "description": "Flight to Puerto Princesa, transfer to Port Barton",
+          "day": 3,
+          "title": "Travel to Port Barton"
+        },
+        {
+          "day": 4,
+          "description": "Visit White Beach, German Island, and other nearby islands",
+          "title": "Port Barton Island Hopping"
+        },
+        {
+          "day": 5,
+          "description": "Kayaking, snorkeling, and beach relaxation",
+          "title": "Port Barton Activities"
+        },
+        {
+          "title": "Travel to El Nido",
+          "day": 6,
+          "description": "Transfer to El Nido, check-in and orientation"
+        },
+        {
+          "title": "El Nido Island Hopping A",
+          "day": 7,
+          "description": "Visit Big Lagoon, Small Lagoon, Secret Lagoon, and Shimizu Island"
+        },
+        {
+          "title": "El Nido Island Hopping B",
+          "description": "Visit Snake Island, Cudugnon Cave, and Cathedral Cave",
+          "day": 8
+        },
+        {
+          "day": 9,
+          "description": "Visit Hidden Beach, Secret Beach, and Helicopter Island",
+          "title": "El Nido Island Hopping C"
+        },
+        {
+          "description": "Optional activities, beach relaxation, or additional tours",
+          "title": "El Nido Free Day",
+          "day": 10
+        },
+        {
+          "title": "Checkout & Departure",
+          "description": "Final breakfast, checkout, and transfer to airport",
+          "day": 11
+        }
+      ]
+    },
+    "preDeparturePack": "",
+    "tourCode": "PHSS",
+    "metadata": {
+      "bookingsCount": 0,
+      "migratedBy": "033-convert-duration-to-string",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763526474,
+        "nanoseconds": 337000000
+      },
+      "updatedBy": "migration-script",
+      "createdBy": "system",
+      "createdAt": {
+        "_nanoseconds": 148000000,
+        "_seconds": 1756015641
+      }
+    },
+    "media": {
+      "coverImage": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1759341317907_philippinessunset-day-11.webp?alt=media&token=d3c35f6b-4503-438e-9cd4-c6d6848d0e8f",
+      "gallery": []
+    }
+  },
+  {
+    "id": "s05zp96SOmS5B90Yuphz",
+    "metadata": {
+      "createdBy": "qEgfAhoPUbejRVHrCs2ONubCizD2",
+      "createdAt": {
+        "_seconds": 1756013739,
+        "_nanoseconds": 906000000
+      },
+      "migratedBy": "033-convert-duration-to-string",
+      "updatedAt": {
+        "_seconds": 1761579203,
+        "_nanoseconds": 182000000
+      },
+      "bookingsCount": 0,
+      "updatedBy": "migration-script"
+    },
+    "pricingHistory": [
+      {
+        "date": {
+          "_nanoseconds": 906000000,
+          "_seconds": 1756013739
+        },
+        "price": 430,
+        "changedBy": "qEgfAhoPUbejRVHrCs2ONubCizD2"
+      }
+    ],
+    "status": "inactive",
+    "details": {
+      "requirements": [
+        "Valid passport",
+        "Travel insurance",
+        "Comfortable swimwear",
+        "Sun protection",
+        "Basic fitness level"
+      ],
+      "itinerary": [
+        {
+          "day": 1,
+          "title": "Arrival & Welcome Dinner",
+          "description": "Airport pickup, hotel check-in, welcome dinner at local restaurant"
+        },
+        {
+          "day": 2,
+          "title": "Surfing & Beach Day",
+          "description": "Morning surf lesson, afternoon beach relaxation, sunset viewing"
+        },
+        {
+          "description": "Visit Naked Island, Daku Island, Guyam Island, snorkeling",
+          "title": "Island Hopping Adventure",
+          "day": 3
+        },
+        {
+          "day": 4,
+          "description": "Wakeboarding session, jet ski adventure, water activities",
+          "title": "Wakeboarding & Water Sports"
+        },
+        {
+          "day": 5,
+          "description": "Morning yoga session, spa treatment, wellness workshop",
+          "title": "Yoga & Wellness"
+        },
+        {
+          "day": 6,
+          "description": "Final breakfast, souvenir shopping, airport transfer",
+          "title": "Checkout & Departure"
+        }
+      ],
+      "highlights": [
+        "Wakeboarding",
+        "Island hopping",
+        "Surfing",
+        "Yoga sessions",
+        "Beach exploration"
+      ]
+    },
+    "media": {
+      "gallery": [],
+      "coverImage": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1759341284724_siargao-header-5.webp?alt=media&token=80fe51e2-b00a-40cb-baa2-7c7877c6ec84"
+    },
+    "pricing": {
+      "deposit": 150,
+      "original": 430,
+      "currency": "EUR",
+      "discounted": 0
+    },
+    "location": "Philippines",
+    "description": " Experience the ultimate Siargao adventure with wakeboarding, surfing, island hopping, and yoga. Discover the hidden gems of this tropical paradise while enjoying adrenaline-pumping water sports and serene wellness activities.",
+    "name": "Siargao Island Adventure",
+    "url": "https://imheretravels.com/all-tours/siargao-island-adventure/",
+    "slug": "siargao-island-adventure",
+    "tourCode": "SIA",
+    "brochureLink": "https://drive.google.com/file/d/1g6aQrfOdP14T3HfD5D9AmIzKaLz5sJ9Q/view?usp=drive_link",
+    "duration": "6 days",
+    "travelDates": [
+      {
+        "endDate": {
+          "_seconds": 1742515200,
+          "_nanoseconds": 0
+        },
+        "isAvailable": true,
+        "currentBookings": 0,
+        "startDate": {
+          "_seconds": 1741996800,
+          "_nanoseconds": 0
+        },
+        "maxCapacity": 12
+      }
+    ],
+    "preDeparturePack": "https://drive.google.com/file/d/1g6aQrfOdP14T3HfD5D9AmIzKaLz5sJ9Q/view?usp=drive_link",
+    "stripePaymentLink": "https://book.stripe.com/9B63cv2Bt2uB8dR8c7co032"
+  },
+  {
+    "id": "ePqjSym8fJJsFBuDEfFn",
+    "status": "active",
+    "itinerarySummary": "Day 1–12 (Negombo → Checkout)",
+    "stripePaymentLink": "https://buy.stripe.com/00g02b9tB0IZbw47t6",
+    "brochureLink": "https://drive.google.com/file/d/1JLgKdGk_x5z-zaXtyb99MKlD9UzU7xQt/view?usp=drive_link",
+    "slug": "sri-langka-wander-tour",
+    "metadata": {
+      "createdAt": {
+        "_seconds": 1756016852,
+        "_nanoseconds": 787000000
+      },
+      "bookingsCount": 0,
+      "updatedAt": {
+        "_seconds": 1761579202,
+        "_nanoseconds": 621000000
+      },
+      "reviewCount": 0,
+      "featured": false,
+      "status": "active",
+      "rating": 0,
+      "createdBy": "migration-script",
+      "updatedBy": "migration-script",
+      "migratedBy": "033-convert-duration-to-string"
+    },
+    "travelDates": [
+      {
+        "startDate": {
+          "_seconds": 1750636800,
+          "_nanoseconds": 0
+        },
+        "currentBookings": 0,
+        "maxCapacity": 15,
+        "isAvailable": true,
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1751587200
+        }
+      },
+      {
+        "endDate": {
+          "_seconds": 1753401600,
+          "_nanoseconds": 0
+        },
+        "isAvailable": true,
+        "startDate": {
+          "_seconds": 1752451200,
+          "_nanoseconds": 0
+        },
+        "maxCapacity": 15,
+        "currentBookings": 0
+      },
+      {
+        "isAvailable": true,
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1755216000
+        },
+        "currentBookings": 0,
+        "startDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1754265600
+        },
+        "maxCapacity": 15
+      },
+      {
+        "currentBookings": 0,
+        "endDate": {
+          "_seconds": 1758844800,
+          "_nanoseconds": 0
+        },
+        "isAvailable": true,
+        "startDate": {
+          "_seconds": 1757894400,
+          "_nanoseconds": 0
+        },
+        "maxCapacity": 15
+      },
+      {
+        "currentBookings": 0,
+        "isAvailable": true,
+        "maxCapacity": 15,
+        "startDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1758499200
+        },
+        "endDate": {
+          "_seconds": 1759449600,
+          "_nanoseconds": 0
+        }
+      }
+    ],
+    "url": "https://imheretravels.com/all-tours/sri-lanka-wander-tour/",
+    "duration": "12 days",
+    "preDeparturePack": "",
+    "location": "Sri Lanka",
+    "pricing": {
+      "deposit": 150,
+      "currency": "EUR",
+      "original": 1100,
+      "discounted": 0
+    },
+    "description": "Historical sites, spice gardens, hiking, safaris",
+    "details": {
+      "itinerary": [
+        {
+          "title": "Arrival in Negombo",
+          "description": "Arrive in Negombo, transfer to hotel, welcome dinner and briefing",
+          "day": 1
+        },
+        {
+          "title": "Negombo to Colombo",
+          "day": 2,
+          "description": "Morning transfer to Colombo, city tour and cultural sites"
+        },
+        {
+          "title": "Colombo Exploration",
+          "description": "Visit temples, markets, and colonial architecture",
+          "day": 3
+        },
+        {
+          "title": "Travel to Arugam Bay",
+          "description": "Scenic train journey to Arugam Bay, beach orientation",
+          "day": 4
+        },
+        {
+          "day": 5,
+          "title": "Arugam Bay Adventures",
+          "description": "Surfing, beach activities, and local village visit"
+        },
+        {
+          "title": "Wildlife Safari",
+          "day": 6,
+          "description": "Morning safari at nearby national park, afternoon relaxation"
+        },
+        {
+          "day": 7,
+          "title": "Travel to Ella",
+          "description": "Scenic train journey through tea plantations to Ella"
+        },
+        {
+          "title": "Ella Hiking",
+          "day": 8,
+          "description": "Hike to Little Adam's Peak, visit tea factory"
+        },
+        {
+          "description": "Train journey to Kandy, visit Temple of the Tooth",
+          "day": 9,
+          "title": "Ella to Kandy"
+        },
+        {
+          "description": "Cultural dance performance, spice garden visit",
+          "day": 10,
+          "title": "Kandy Cultural Tour"
+        },
+        {
+          "day": 11,
+          "title": "Return to Colombo",
+          "description": "Travel back to Colombo, final shopping and farewell dinner"
+        },
+        {
+          "day": 12,
+          "description": "Final breakfast, checkout, and transfer to airport",
+          "title": "Checkout & Departure"
+        }
+      ],
+      "highlights": [
+        "Cycling",
+        "Scenic Train",
+        "Colombo City Tour",
+        "Historical sites",
+        "Spice gardens",
+        "Hiking",
+        "Safaris"
+      ],
+      "requirements": [
+        "Moderate fitness level",
+        "Comfortable with long train journeys",
+        "Respect for local customs",
+        "Travel insurance required"
+      ]
+    },
+    "destinations": [
+      "Colombo",
+      "Arugam Bay",
+      "Ella",
+      "Negombo"
+    ],
+    "tourCode": "SLW",
+    "highlights": [
+      "Cycling",
+      "Scenic Train",
+      "Colombo City Tour"
+    ],
+    "name": "Sri Lanka Wander Tour",
+    "media": {
+      "coverImage": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1759341313258_srilanka-header-22.webp?alt=media&token=a9755c83-5fac-4284-87dd-9325e1b24727",
+      "gallery": []
+    }
+  },
+  {
+    "id": "cM62r2g8hgnYSaDxRVpr",
+    "stripePaymentLink": "https://book.stripe.com/5kAdT10X54ZfcA87uK",
+    "status": "active",
+    "brochureLink": "",
+    "duration": "10 days",
+    "metadata": {
+      "featured": false,
+      "createdAt": {
+        "_nanoseconds": 390000000,
+        "_seconds": 1756017232
+      },
+      "migratedBy": "033-convert-duration-to-string",
+      "createdBy": "migration-script",
+      "updatedBy": "migration-script",
+      "reviewCount": 0,
+      "updatedAt": {
+        "_nanoseconds": 486000000,
+        "_seconds": 1761579202
+      },
+      "rating": 0,
+      "bookingsCount": 0,
+      "status": "active"
+    },
+    "details": {
+      "itinerary": [
+        {
+          "title": "Arrival in Arusha",
+          "day": 1,
+          "description": "Arrive in Arusha, check-in, welcome dinner and briefing"
+        },
+        {
+          "description": "Transfer to Serengeti, afternoon game drive",
+          "title": "Arusha to Serengeti",
+          "day": 2
+        },
+        {
+          "day": 3,
+          "title": "Serengeti Game Drives",
+          "description": "Full day game drives in search of the Big Five"
+        },
+        {
+          "day": 4,
+          "title": "Serengeti to Ngorongoro",
+          "description": "Morning game drive, transfer to Ngorongoro"
+        },
+        {
+          "title": "Ngorongoro Crater",
+          "day": 5,
+          "description": "Full day exploring the crater floor"
+        },
+        {
+          "description": "Flight to Zanzibar, check-in and beach time",
+          "day": 6,
+          "title": "Travel to Zanzibar"
+        },
+        {
+          "title": "Zanzibar Exploration",
+          "description": "Stone Town tour, spice plantation visit",
+          "day": 7
+        },
+        {
+          "description": "Full day boat trip, snorkeling, and beach activities",
+          "day": 8,
+          "title": "Safari Blue Adventure"
+        },
+        {
+          "description": "Relax on the beach or optional activities",
+          "title": "Zanzibar Free Day",
+          "day": 9
+        },
+        {
+          "day": 10,
+          "description": "Final breakfast, transfer to airport",
+          "title": "Final Day & Departure"
+        }
+      ],
+      "requirements": [
+        "Good fitness level for walking and trekking",
+        "Comfortable with long game drives",
+        "Travel insurance required",
+        "Valid passport and visa",
+        "Yellow fever vaccination"
+      ],
+      "highlights": [
+        "Game Drives",
+        "Safari Blue",
+        "Mini Trek",
+        "Serengeti Wildlife",
+        "Ngorongoro Crater",
+        "Zanzibar Beaches"
+      ]
+    },
+    "pricing": {
+      "currency": "EUR",
+      "original": 1899,
+      "discounted": 0,
+      "deposit": 150
+    },
+    "preDeparturePack": "",
+    "name": "Tanzania Exploration",
+    "tourCode": "TXP",
+    "highlights": [
+      "Game Drives",
+      "Safari Blue",
+      "Mini Trek"
+    ],
+    "destinations": [
+      "Arusha",
+      "Serengeti",
+      "Ngorongoro",
+      "Zanzibar"
+    ],
+    "url": "https://imheretravels.com/all-tours/tanzania-exploration/",
+    "slug": "tanzania-exploration",
+    "travelDates": [
+      {
+        "maxCapacity": 12,
+        "isAvailable": true,
+        "currentBookings": 0,
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1756684800
+        },
+        "startDate": {
+          "_seconds": 1755907200,
+          "_nanoseconds": 0
+        }
+      }
+    ],
+    "itinerarySummary": "Day 1–10 (Arrival → Checkout)",
+    "location": "Tanzania",
+    "media": {
+      "gallery": [],
+      "coverImage": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1759341299042_tanzania-header-1.webp?alt=media&token=889b4689-5d81-4658-9afd-3066ddc16fbb"
+    },
+    "description": "Kilimanjaro trek + safari + Zanzibar"
+  },
+  {
+    "id": "yLA6kStX6XrIIj0FViUw",
+    "slug": "vietnam-expedition",
+    "preDeparturePack": "",
+    "details": {
+      "itinerary": [
+        {
+          "description": "Arrive in Hanoi, check-in, welcome dinner and briefing",
+          "title": "Arrival in Hanoi",
+          "day": 1
+        },
+        {
+          "title": "Hanoi City Tour",
+          "day": 2,
+          "description": "Visit Hoan Kiem Lake, Temple of Literature, Old Quarter"
+        },
+        {
+          "day": 3,
+          "description": "Transfer to Halong Bay, overnight cruise",
+          "title": "Hanoi to Halong Bay"
+        },
+        {
+          "title": "Halong Bay Exploration",
+          "day": 4,
+          "description": "Kayaking, cave exploration, swimming, return to Hanoi"
+        },
+        {
+          "title": "Travel to Hoi An",
+          "description": "Flight to Da Nang, transfer to Hoi An, check-in",
+          "day": 5
+        },
+        {
+          "day": 6,
+          "description": "Walking tour of UNESCO World Heritage site, lantern making",
+          "title": "Hoi An Ancient Town"
+        },
+        {
+          "description": "Morning market visit, cooking class, afternoon free time",
+          "title": "Hoi An Cooking Class",
+          "day": 7
+        },
+        {
+          "title": "Travel to Ho Chi Minh City",
+          "description": "Flight to Ho Chi Minh City, check-in and orientation",
+          "day": 8
+        },
+        {
+          "title": "Ho Chi Minh City Tour",
+          "description": "Visit Cu Chi Tunnels, War Remnants Museum",
+          "day": 9
+        },
+        {
+          "title": "Mekong Delta Day Trip",
+          "description": "Boat trip to Mekong Delta, floating markets, local villages",
+          "day": 10
+        },
+        {
+          "day": 11,
+          "title": "Final Day & Departure",
+          "description": "Final shopping, farewell dinner, transfer to airport"
+        }
+      ],
+      "requirements": [
+        "Comfortable with hot and humid weather",
+        "Good fitness level for walking tours",
+        "Travel insurance required",
+        "Valid passport"
+      ],
+      "highlights": [
+        "Cooking Class",
+        "Cu Chi Tunnels",
+        "Hoi An",
+        "Hanoi Old Quarter",
+        "Mekong Delta",
+        "Cultural experiences"
+      ]
+    },
+    "url": "https://imheretravels.com/all-tours/vietnam/",
+    "tourCode": "VNE",
+    "itinerarySummary": "Day 1–11 (Hanoi → Hoi An → HCM → Checkout)",
+    "destinations": [
+      "Hanoi",
+      "Hoi An",
+      "Ho Chi Minh"
+    ],
+    "media": {
+      "gallery": [],
+      "coverImage": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1759341305320_vietnam-header-4.webp?alt=media&token=be502580-7b8c-47ce-98c3-ce9c250af05e"
+    },
+    "location": "Vietnam",
+    "duration": "11 days",
+    "status": "active",
+    "brochureLink": "",
+    "description": "North–South Vietnam cultural and adventure tour",
+    "pricing": {
+      "deposit": 150,
+      "discounted": 0,
+      "original": 1100,
+      "currency": "EUR"
+    },
+    "stripePaymentLink": "https://book.stripe.com/cN29CL5dldvLbw46pv",
+    "name": "Vietnam Expedition",
+    "travelDates": [
+      {
+        "maxCapacity": 15,
+        "isAvailable": true,
+        "startDate": {
+          "_seconds": 1743638400,
+          "_nanoseconds": 0
+        },
+        "currentBookings": 0,
+        "endDate": {
+          "_seconds": 1744502400,
+          "_nanoseconds": 0
+        }
+      },
+      {
+        "maxCapacity": 15,
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1748131200
+        },
+        "isAvailable": true,
+        "currentBookings": 0,
+        "startDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1747267200
+        }
+      },
+      {
+        "endDate": {
+          "_seconds": 1751241600,
+          "_nanoseconds": 0
+        },
+        "isAvailable": true,
+        "startDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1750377600
+        },
+        "maxCapacity": 15,
+        "currentBookings": 0
+      },
+      {
+        "startDate": {
+          "_seconds": 1753401600,
+          "_nanoseconds": 0
+        },
+        "isAvailable": true,
+        "currentBookings": 0,
+        "maxCapacity": 15,
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1754265600
+        }
+      },
+      {
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1757289600
+        },
+        "startDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1756425600
+        },
+        "currentBookings": 0,
+        "isAvailable": true,
+        "maxCapacity": 15
+      },
+      {
+        "endDate": {
+          "_nanoseconds": 0,
+          "_seconds": 1759363200
+        },
+        "isAvailable": true,
+        "maxCapacity": 15,
+        "startDate": {
+          "_seconds": 1758499200,
+          "_nanoseconds": 0
+        },
+        "currentBookings": 0
+      },
+      {
+        "startDate": {
+          "_seconds": 1759449600,
+          "_nanoseconds": 0
+        },
+        "isAvailable": true,
+        "endDate": {
+          "_seconds": 1760313600,
+          "_nanoseconds": 0
+        },
+        "currentBookings": 0,
+        "maxCapacity": 15
+      }
+    ],
+    "metadata": {
+      "status": "active",
+      "createdAt": {
+        "_seconds": 1756016852,
+        "_nanoseconds": 787000000
+      },
+      "bookingsCount": 0,
+      "createdBy": "migration-script",
+      "migratedBy": "033-convert-duration-to-string",
+      "rating": 0,
+      "reviewCount": 0,
+      "featured": false,
+      "updatedAt": {
+        "_seconds": 1761579203,
+        "_nanoseconds": 401000000
+      },
+      "updatedBy": "migration-script"
+    },
+    "highlights": [
+      "Cooking Class",
+      "Cu Chi Tunnels",
+      "Hoi An"
+    ]
+  }
+]
