@@ -97,7 +97,7 @@ export default function DashboardOverview() {
   // Fetch payment reminders count from scheduledEmails
   useEffect(() => {
     const scheduledEmailsQuery = query(
-      collection(db, "scheduledEmails"),
+      collection(db, "scheduledEmails")
       // Optionally filter by status if needed
     );
 
@@ -125,7 +125,11 @@ export default function DashboardOverview() {
       });
 
       setPaymentReminderStats(stats);
-      console.log("Loaded payment reminders:", paymentReminderEmails.length, stats);
+      console.log(
+        "Loaded payment reminders:",
+        paymentReminderEmails.length,
+        stats
+      );
     });
 
     return () => unsubscribe();
