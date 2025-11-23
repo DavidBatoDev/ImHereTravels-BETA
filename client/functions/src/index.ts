@@ -12,16 +12,14 @@ import { setGlobalOptions } from "firebase-functions";
 // Import our functions
 export { sendVerificationEmail } from "./send-verification-email";
 export { verifyEmail } from "./verify-email";
-
-export { onGenerateEmailDraftChanged } from "./generate-reservation-email";
-export { onSendReservationEmailChanged } from "./send-reservation-email";
-export { onGenerateCancellationDraftChanged } from "./generate-cancellation-email";
-export { onSendCancellationEmailChanged } from "./send-cancellation-email";
-export { getDraftSubject } from "./get-draft-subject";
-export { getEmailDetails } from "./get-email-details";
-export { deleteGmailDraft } from "./delete-gmail-draft";
-// Export email utilities
+export { onGenerateEmailDraftChanged } from "./generate-reservation-email"; // Trigger for generating reservation email draft
+export { onSendReservationEmailChanged } from "./send-reservation-email"; // Trigger for sending reservation email
+export { onGenerateCancellationDraftChanged } from "./generate-cancellation-email"; // Trigger for generating cancellation email draft
+export { onSendCancellationEmailChanged } from "./send-cancellation-email"; // Trigger for sending cancellation email
 export { EmailTemplateLoader } from "./email-template-loader";
+// export { getDraftSubject } from "./get-draft-subject";
+// export { getEmailDetails } from "./get-email-details";
+// export { deleteGmailDraft } from "./delete-gmail-draft";
 // Export only the scheduled email processor (cron job)
 // Other email functions have been migrated to Next.js API routes
 export { processScheduledEmails } from "./scheduled-emails";
