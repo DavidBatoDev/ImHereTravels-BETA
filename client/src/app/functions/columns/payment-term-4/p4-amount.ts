@@ -8,7 +8,7 @@ export const p4AmountColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getP4AmountFunction",
     parentTab: "Payment Term 4",
-    order: 75,
+    order: 76,
     includeInForms: false,
     color: "yellow",
     width: 120,
@@ -200,11 +200,16 @@ export default function getP4AmountFunction(
   const credit_from = creditFrom ?? "";
   const credit_amt = creditAmount ?? 0;
 
-  // IF(AND($AM1003="", $AN1003=""), ...)
+  // IF(AND($AO999="", $AP999=""), ...)
   if (!paymentPlan && !paymentMethod) {
-    // When no payment plan is specified, split total into 4 equal payments
-    // Don't subtract already paid amounts - P4 amount is fixed
-    const result = total / 4;
+    // When no payment plan is specified, calculate unpaid balance divided by 4
+    const paidSum =
+      (fullPaymentDatePaid ? fullPaymentAmount ?? 0 : 0) +
+      (p1DatePaid ? p1Amount ?? 0 : 0) +
+      (p2DatePaid ? p2Amount ?? 0 : 0) +
+      (p3DatePaid ? p3Amount ?? 0 : 0);
+
+    const result = (total - paidSum) / 4;
     return Math.round(result * 100) / 100;
   }
 

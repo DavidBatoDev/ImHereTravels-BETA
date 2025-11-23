@@ -8,7 +8,7 @@ export const p3AmountColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getP3AmountFunction",
     parentTab: "Payment Term 3",
-    order: 68,
+    order: 69,
     includeInForms: false,
     color: "yellow",
     width: 120,
@@ -202,9 +202,14 @@ export default function getP3AmountFunction(
 
   // IF(AND($AM1003="", $AN1003=""), ...)
   if (!paymentPlan && !paymentMethod) {
-    // When no payment plan is specified, split total into 3 equal payments
-    // Don't subtract already paid amounts - P3 amount is fixed
-    const result = total / 3;
+    // When no payment plan is specified, calculate unpaid balance divided by 3
+    const paidSum =
+      (fullPaymentDatePaid ? fullPaymentAmount ?? 0 : 0) +
+      (p1DatePaid ? p1Amount ?? 0 : 0) +
+      (p2DatePaid ? p2Amount ?? 0 : 0) +
+      (p4DatePaid ? p4Amount ?? 0 : 0);
+
+    const result = (total - paidSum) / 3;
     return Math.round(result * 100) / 100;
   }
 

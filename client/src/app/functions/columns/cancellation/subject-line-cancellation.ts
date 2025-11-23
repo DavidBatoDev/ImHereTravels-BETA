@@ -9,7 +9,7 @@ export const subjectLineCancellationColumn: BookingSheetColumn = {
     columnName: "Subject Line (Cancellation)",
     dataType: "string",
     parentTab: "Cancellation",
-    order: 81,
+    order: 82,
     includeInForms: false,
     color: "yellow",
     width: 200,

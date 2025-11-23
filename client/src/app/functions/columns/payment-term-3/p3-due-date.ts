@@ -8,7 +8,7 @@ export const p3DueDateColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getP3DueDateFunction",
     parentTab: "Payment Term 3",
-    order: 67,
+    order: 68,
     includeInForms: false,
     color: "yellow",
     width: 120,
@@ -144,6 +144,11 @@ export default function getP3DueDateFunction(
       year: "numeric",
     });
 
-  // Always return all three dates for P3 and P4 plans
+  // If payment plan is selected (P3 or P4), return only the 3rd date
+  // Otherwise return all three dates comma-separated (when no payment plan)
+  if (paymentPlan && ["P3", "P4"].includes(paymentPlan)) {
+    return fmt(validDates[2]);
+  }
+
   return [0, 1, 2].map((i) => fmt(validDates[i])).join(", ");
 }

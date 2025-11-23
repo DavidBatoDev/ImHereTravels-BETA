@@ -10,7 +10,7 @@ export const sentCancellationEmailLinkColumn: BookingSheetColumn = {
     columnName: "Sent Cancellation Email Link",
     dataType: "string",
     parentTab: "Cancellation",
-    order: 83,
+    order: 84,
     includeInForms: false,
     color: "yellow",
     width: 200,

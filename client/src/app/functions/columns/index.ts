@@ -57,6 +57,9 @@ export * from "./cancellation";
 // Group Booking columns
 export * from "./duo-or-group-booking";
 
+// Discount columns
+export * from "./discounts";
+
 import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 // Import all columns from each category
@@ -72,6 +75,7 @@ import * as paymentTerm4 from "./payment-term-4";
 import * as reservationEmail from "./reservation-email";
 import * as cancellation from "./cancellation";
 import * as groupBooking from "./duo-or-group-booking";
+import * as discounts from "./discounts";
 
 /**
  * Collection of all booking sheet columns grouped by category
@@ -89,6 +93,7 @@ export const bookingSheetColumns = {
   reservationEmail: Object.values(reservationEmail),
   cancellation: Object.values(cancellation),
   groupBooking: Object.values(groupBooking),
+  discounts: Object.values(discounts),
 };
 
 /**
@@ -107,6 +112,7 @@ export const allBookingSheetColumns: BookingSheetColumn[] = [
   ...bookingSheetColumns.reservationEmail,
   ...bookingSheetColumns.cancellation,
   ...bookingSheetColumns.groupBooking,
+  ...bookingSheetColumns.discounts,
 ].sort((a, b) => a.data.order - b.data.order);
 
 /**

@@ -66,6 +66,14 @@ export default function EditBookingModal({
   >([]);
   const [isLoadingColumns, setIsLoadingColumns] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("");
+  const [dynamicOptions, setDynamicOptions] = useState<
+    Record<string, string[]>
+  >({});
+
+  // Debug: Log when dynamicOptions changes
+  useEffect(() => {
+    console.log("🔄 [DYNAMIC OPTIONS STATE CHANGED]:", dynamicOptions);
+  }, [dynamicOptions]);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Booking>>({});
@@ -663,6 +671,18 @@ export default function EditBookingModal({
       (col): SheetColumn => {
         const columnData = col.data;
 
+        // Log select columns to check loadOptions
+        if (columnData.dataType === "select" && columnData.id === "eventName") {
+          console.log(
+            "🔍 [EDIT BOOKING MODAL] Event Name column data:",
+            columnData
+          );
+          console.log(
+            "🔍 [EDIT BOOKING MODAL] Has loadOptions?",
+            !!columnData.loadOptions
+          );
+        }
+
         // If this is a function column, inject the actual function implementation
         if (columnData.dataType === "function" && columnData.function) {
           const funcImpl = functionMap[columnData.function];
@@ -687,6 +707,41 @@ export default function EditBookingModal({
     );
     setColumns(codedColumns);
     setIsLoadingColumns(false);
+
+    // Load dynamic options for select columns with loadOptions
+    const loadDynamicOptions = async () => {
+      const optionsMap: Record<string, string[]> = {};
+
+      for (const col of codedColumns) {
+        if (col.dataType === "select" && col.loadOptions) {
+          try {
+            console.log(
+              `🔄 [EDIT BOOKING MODAL] Loading options for ${col.columnName}...`
+            );
+            const options = await col.loadOptions();
+            console.log(
+              `✅ [EDIT BOOKING MODAL] Loaded ${options.length} options for ${col.columnName}:`,
+              options
+            );
+            optionsMap[col.id] = options;
+          } catch (error) {
+            console.error(
+              `Failed to load options for ${col.columnName}:`,
+              error
+            );
+            optionsMap[col.id] = col.options || [];
+          }
+        }
+      }
+
+      console.log(
+        "📦 [EDIT BOOKING MODAL] All dynamic options loaded:",
+        optionsMap
+      );
+      setDynamicOptions(optionsMap);
+    };
+
+    loadDynamicOptions();
 
     // Load available functions
     const loadFunctions = async () => {
@@ -1454,6 +1509,42 @@ export default function EditBookingModal({
                     return;
                   }
 
+                  // Prevent toggling "Enable Payment Reminder" on if payment plan or payment method is missing
+                  const isEnablePaymentReminderField =
+                    column.id === "enablePaymentReminder";
+                  if (isEnablePaymentReminderField && checked) {
+                    const hasPaymentPlan = Boolean(formData.paymentPlan);
+                    const hasPaymentMethod = Boolean(formData.paymentMethod);
+
+                    if (!hasPaymentPlan || !hasPaymentMethod) {
+                      toast({
+                        title: "Cannot Enable Payment Reminder",
+                        description:
+                          "Please set Payment Plan and Payment Method before enabling payment reminders.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+
+                  // Prevent toggling "Generate Email Draft" on if payment plan or payment method exists
+                  const isGenerateEmailDraftField =
+                    column.id === "generateEmailDraft";
+                  if (isGenerateEmailDraftField && checked) {
+                    const hasPaymentPlan = Boolean(formData.paymentPlan);
+                    const hasPaymentMethod = Boolean(formData.paymentMethod);
+
+                    if (hasPaymentPlan || hasPaymentMethod) {
+                      toast({
+                        title: "Cannot Generate Reservation Email",
+                        description:
+                          "Payment Plan and Payment Method must be empty for reservation emails. Please clear them first.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+
                   // Check if this is enablePaymentReminder being toggled OFF
                   const isEnablePaymentReminder =
                     column.id === "enablePaymentReminder";
@@ -1701,11 +1792,22 @@ export default function EditBookingModal({
               )}
               disabled={isReadOnly || isComputing}
             >
-              {column.options?.map((option) => (
-                <option key={option || "empty"} value={option}>
-                  {option || `Select ${column.columnName}`}
-                </option>
-              ))}
+              {(() => {
+                const options =
+                  dynamicOptions[column.id] || column.options || [];
+                if (column.id === "eventName") {
+                  console.log("🎯 [RENDER] Event Name options:", {
+                    dynamicOptions: dynamicOptions[column.id],
+                    columnOptions: column.options,
+                    finalOptions: options,
+                  });
+                }
+                return options.map((option) => (
+                  <option key={option || "empty"} value={option}>
+                    {option || `Select ${column.columnName}`}
+                  </option>
+                ));
+              })()}
             </select>
           );
 
@@ -1872,6 +1974,7 @@ export default function EditBookingModal({
       executeFunction,
       toast,
       batchedWriter,
+      dynamicOptions, // Add dynamicOptions to dependencies so select fields re-render when options load
     ]
   );
 

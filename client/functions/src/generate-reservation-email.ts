@@ -85,6 +85,24 @@ function formatDateLikeSheets(dateValue: any): string {
   }
 }
 
+// Helper function to parse discount rate (handles "20%" or 20 → returns 20)
+function parseDiscountRate(discountRate: any): number {
+  if (!discountRate) return 0;
+
+  // If it's already a number, return it
+  if (typeof discountRate === "number") {
+    return discountRate;
+  }
+
+  // If it's a string like "20%", parse it
+  if (typeof discountRate === "string") {
+    const numericValue = parseFloat(discountRate.replace("%", ""));
+    return isNaN(numericValue) ? 0 : numericValue;
+  }
+
+  return 0;
+}
+
 // Helper function to generate subject line based on payment terms
 function getSubjectLine(
   availablePaymentTerms: string,
@@ -333,6 +351,10 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
         const tourDuration = bookingData.tourDuration || "";
         const bookingType = bookingData.bookingType || "";
         const reservationFee = bookingData.reservationFee || 0;
+        const eventName = bookingData.eventName || "";
+        const discountRate = bookingData.discountRate || "";
+        const originalTourCost = bookingData.originalTourCost || 0;
+        const discountedTourCost = bookingData.discountedTourCost || 0;
         const remainingBalance = bookingData.remainingBalance || 0;
         const fullPaymentAmount = bookingData.fullPaymentAmount || 0;
         const fullPaymentDueDate = bookingData.fullPaymentDueDate;
@@ -382,6 +404,13 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
           bookingId: bookingIdValue,
           groupId,
           reservationFee: Number(reservationFee).toFixed(2),
+          eventName: eventName || "",
+          discountRate: parseDiscountRate(discountRate),
+          originalTourCost: Number(originalTourCost).toFixed(2),
+          discountedTourCost: Number(discountedTourCost).toFixed(2),
+          discountSavings: Number(
+            originalTourCost - discountedTourCost
+          ).toFixed(2),
           remainingBalance: Number(remainingBalance).toFixed(2),
           fullPaymentAmount: Number(fullPaymentAmount).toFixed(2),
           fullPaymentDueDate: formatDateLikeSheets(fullPaymentDueDate),

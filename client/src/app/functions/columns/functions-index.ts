@@ -69,6 +69,9 @@ import getRemainingBalanceFunction from "./payment-setting/remaining-balance";
 import bookingStatusFunction from "./payment-setting/booking-status";
 import paymentProgressFunction from "./payment-setting/payment-progress";
 
+// Discount Functions
+import getDiscountRateFunction from "./discounts/discount-rate";
+
 // Payment Reminder Functions
 import getBaseMondayFromP1DueDateFunction from "./payment-term-1/p1-scheduled-reminder-date";
 import getBaseMondayFromP2DueDateFunction from "./payment-term-2/p2-scheduled-reminder-date";
@@ -117,6 +120,8 @@ export {
   getRemainingBalanceFunction,
   bookingStatusFunction,
   paymentProgressFunction,
+  // Discounts
+  getDiscountRateFunction,
   // Payment Terms
   fullPaymentAmountFunction,
   fullPaymentDueDateFunction,
@@ -213,6 +218,9 @@ export const functionMap: Record<string, Function> = {
   getRemainingBalanceFunction,
   bookingStatusFunction,
   paymentProgressFunction,
+
+  // Discount functions
+  getDiscountRateFunction,
 
   // Full Payment functions
   getFullPaymentDueDateFunction: fullPaymentDueDateFunction,

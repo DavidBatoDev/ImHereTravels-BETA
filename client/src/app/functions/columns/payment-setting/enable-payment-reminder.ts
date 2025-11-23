@@ -1,15 +1,15 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const enablePaymentReminderColumn: BookingSheetColumn = {
-  id: 'enablePaymentReminder',
+  id: "enablePaymentReminder",
   data: {
-    id: 'enablePaymentReminder',
-    columnName: 'Enable Payment Reminder',
-    dataType: 'boolean',
-    parentTab: 'Payment Setting',
+    id: "enablePaymentReminder",
+    columnName: "Enable Payment Reminder",
+    dataType: "boolean",
+    parentTab: "Payment Setting",
     order: 42,
     includeInForms: true,
-    color: 'orange',
+    color: "orange",
     width: 239.3333740234375,
   },
 };

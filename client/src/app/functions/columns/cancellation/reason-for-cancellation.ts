@@ -1,15 +1,15 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const reasonForCancellationColumn: BookingSheetColumn = {
-  id: 'reasonForCancellation',
+  id: "reasonForCancellation",
   data: {
-    id: 'reasonForCancellation',
-    columnName: 'Reason for Cancellation',
-    dataType: 'string',
-    parentTab: 'Cancellation',
-    order: 77,
-    includeInForms: false,
-    color: 'none',
+    id: "reasonForCancellation",
+    columnName: "Reason for Cancellation",
+    dataType: "string",
+    parentTab: "Cancellation",
+    order: 78,
+    includeInForms: true,
+    color: "none",
     width: 200,
   },
 };

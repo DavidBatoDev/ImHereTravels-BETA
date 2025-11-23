@@ -8,7 +8,7 @@ export const p2AmountColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getP2AmountFunction",
     parentTab: "Payment Term 2",
-    order: 61,
+    order: 62,
     includeInForms: false,
     color: "yellow",
     width: 120,
@@ -212,9 +212,14 @@ export default function getP2AmountFunction(
 
   // IF(AND($AM1003="", $AN1003=""), ...)
   if (!paymentPlan && !paymentMethod) {
-    // When no payment plan is specified, split total into 2 equal payments
-    // Don't subtract already paid amounts - P2 amount is fixed
-    const result = total / 2;
+    // When no payment plan is specified, calculate unpaid balance divided by 2
+    const paidSum =
+      (fullPaymentDatePaid ? fullPaymentAmount ?? 0 : 0) +
+      (p1DatePaid ? p1Amount ?? 0 : 0) +
+      (p3DatePaid ? p3Amount ?? 0 : 0) +
+      (p4DatePaid ? p4Amount ?? 0 : 0);
+
+    const result = (total - paidSum) / 2;
     return Math.round(result * 100) / 100;
   }
 

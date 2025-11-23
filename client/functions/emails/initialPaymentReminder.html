@@ -1,0 +1,182 @@
+<!-- initialPaymentReminder.html - Nunjucks Version -->
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6">
+  <p>Hi {{ fullName }},</p>
+
+  <p>
+    Thank you for selecting your payment method and plan. We're excited to have
+    you join us for {{ tourPackage }}!
+  </p>
+
+  <p>
+    Please take a moment to review the details below and ensure everything looks
+    correct:
+  </p>
+
+  <ul>
+    <li><strong>Tour:</strong> {{ tourPackage }}</li>
+    <li><strong>Payment Plan:</strong> {{ paymentPlan }}</li>
+    <li>
+      <strong>Payment Method:</strong> {{ paymentMethod }} {% if paymentMethod
+      == "Stripe" %} <br /><a
+        href="https://buy.stripe.com/7sY5kD5NF2uBfGj1NJco03g"
+        target="_blank"
+        style="
+          background-color: #28a745;
+          color: white;
+          text-decoration: none;
+          font-weight: bold;
+          padding: 8px 16px;
+          border-radius: 4px;
+          display: inline-block;
+          margin-top: 8px;
+        "
+        >Pay securely online with Stripe</a
+      >
+      {% elif paymentMethod == "Revolut" %}
+      <ul>
+        <li>Account Name: I'M HERE TRAVELS LTD</li>
+        <li>Account Number: 36834154</li>
+        <li>Sort Code: 23-01-20</li>
+        <li>IBAN: GB52REVO00996983499052</li>
+        <li>BIC: REVOGB21</li>
+      </ul>
+      {% elif paymentMethod == "Ulster" %}
+      <ul>
+        <li>Account Name: Shawn V Keeley</li>
+        <li>Account Number: 10561155</li>
+        <li>Sort Code: 98-05-83</li>
+        <li>IBAN: GB45ULSB98058310561155</li>
+        <li>BIC: ULSBGB2B</li>
+      </ul>
+      {% else %}
+      <ul>
+        <li>[Details will be provided separately]</li>
+      </ul>
+      {% endif %}
+    </li>
+  </ul>
+
+  <p>
+    We've outlined your payment terms and due dates below. To ensure you don't
+    miss any payments, please click 'Yes' to add the payment due date reminders
+    directly to your calendar.
+  </p>
+
+  <h3 style="color: #d00">Payment Tracker</h3>
+
+  <table
+    style="
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 600px;
+      font-size: 14px;
+      border: 1px solid #ddd;
+    "
+    cellpadding="8"
+    cellspacing="0"
+  >
+    <thead>
+      <tr style="background-color: #f8f9fa">
+        <th
+          style="
+            border: 1px solid #ddd;
+            text-align: left;
+            font-weight: bold;
+            padding: 10px;
+          "
+        >
+          Payment Term
+        </th>
+        <th
+          style="
+            border: 1px solid #ddd;
+            text-align: left;
+            font-weight: bold;
+            padding: 10px;
+          "
+        >
+          Amount
+        </th>
+        <th
+          style="
+            border: 1px solid #ddd;
+            text-align: left;
+            font-weight: bold;
+            padding: 10px;
+          "
+        >
+          Due Date
+        </th>
+        <th
+          style="
+            border: 1px solid #ddd;
+            text-align: left;
+            font-weight: bold;
+            padding: 10px;
+          "
+        >
+          Add to Calendar
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for term in terms %}
+      <tr>
+        <td style="border: 1px solid #ddd; padding: 10px">{{ term.name }}</td>
+        <td style="border: 1px solid #ddd; padding: 10px">
+          {{ term.amount or "" }}
+        </td>
+        <td style="border: 1px solid #ddd; padding: 10px">
+          {{ term.dueDate or "" }}
+        </td>
+        <td style="border: 1px solid #ddd; padding: 10px">
+          {% if term.calendarLink %}
+          <a
+            href="{{ term.calendarLink }}"
+            target="_blank"
+            style="color: #007bff; text-decoration: none"
+            >Calendar link</a
+          >
+          {% else %} - {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr style="background-color: #f8f9fa">
+        <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold">
+          Total
+        </td>
+        <td
+          style="border: 1px solid #ddd; padding: 10px; font-weight: bold"
+          colspan="3"
+        >
+          {{ remainingBalance }}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <br />
+
+  <p>
+    <strong>You'll receive a reminder 3 days before each payment is due</strong
+    >, ensuring you have plenty of time to stay on track. We've also added the
+    payment due dates to your calendar for easy reference.
+  </p>
+
+  <p>
+    If you need any assistance or have questions, feel free to reach out to us.
+  </p>
+
+  <p>
+    Warm regards,<br />
+    <strong>The ImHereTravels Team</strong><br />
+  </p>
+
+  <div style="margin-top: 20px">
+    <img
+      src="https://imheretravels.com/wp-content/uploads/2025/04/ImHereTravels-Logo.png"
+      alt="ImHereTravels Logo"
+      style="width: 120px"
+    />
+  </div>
+</div>
