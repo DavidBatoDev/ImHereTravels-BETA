@@ -279,44 +279,45 @@ export default function BookingsSection() {
     const loadColumns = async () => {
       // Convert BookingSheetColumn[] to SheetColumn[] and inject function implementations
       const codedColumns: SheetColumn[] = await Promise.all(
-        allBookingSheetColumns.map(
-          async (col): Promise<SheetColumn> => {
-            const columnData = col.data;
+        allBookingSheetColumns.map(async (col): Promise<SheetColumn> => {
+          const columnData = col.data;
 
-            // If this is a function column, inject the actual function implementation
-            if (columnData.dataType === "function" && columnData.function) {
-              const funcImpl = functionMap[columnData.function];
-              if (funcImpl) {
-                return {
-                  ...columnData,
-                  compiledFunction: funcImpl as (...args: any[]) => any, // Inject the actual function
-                };
-              } else {
-                console.warn(
-                  `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`
-                );
-              }
+          // If this is a function column, inject the actual function implementation
+          if (columnData.dataType === "function" && columnData.function) {
+            const funcImpl = functionMap[columnData.function];
+            if (funcImpl) {
+              return {
+                ...columnData,
+                compiledFunction: funcImpl as (...args: any[]) => any, // Inject the actual function
+              };
+            } else {
+              console.warn(
+                `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`
+              );
             }
-
-            // If column has loadOptions, load dynamic options
-            if (columnData.loadOptions && typeof columnData.loadOptions === "function") {
-              try {
-                const dynamicOptions = await columnData.loadOptions();
-                return {
-                  ...columnData,
-                  options: dynamicOptions,
-                };
-              } catch (error) {
-                console.warn(
-                  `⚠️  Failed to load options for column ${columnData.columnName}:`,
-                  error
-                );
-              }
-            }
-
-            return columnData;
           }
-        )
+
+          // If column has loadOptions, load dynamic options
+          if (
+            columnData.loadOptions &&
+            typeof columnData.loadOptions === "function"
+          ) {
+            try {
+              const dynamicOptions = await columnData.loadOptions();
+              return {
+                ...columnData,
+                options: dynamicOptions,
+              };
+            } catch (error) {
+              console.warn(
+                `⚠️  Failed to load options for column ${columnData.columnName}:`,
+                error
+              );
+            }
+          }
+
+          return columnData;
+        })
       );
 
       console.log(
