@@ -274,17 +274,11 @@ export default function DashboardOverview() {
   // Tour package popularity
   const getTourPopularity = () => {
     if (bookings.length === 0) {
-      // Return sample data for testing
-      return [
-        { name: "Bali Adventure", count: 5 },
-        { name: "Tokyo Experience", count: 3 },
-        { name: "Paris Romance", count: 2 },
-      ];
+      return [];
     }
 
     const tourCount: { [key: string]: number } = {};
     bookings.forEach((booking) => {
-      // Check multiple possible fields for tour name
       const tourName =
         booking.tourPackageName ||
         booking.tourPackage ||
@@ -300,20 +294,16 @@ export default function DashboardOverview() {
     });
 
     const popularity = Object.entries(tourCount)
-      .filter(([name, count]) => count > 0) // Only include tours with bookings
+      .filter(([name, count]) => count > 0)
       .map(([name, count]) => ({
         name: name.length > 20 ? name.substring(0, 20) + "..." : name,
         count,
       }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 8); // Show top 8
+      .slice(0, 8);
 
-    // If no real tour data, show sample data
     if (popularity.length === 0) {
-      return [
-        { name: "Sample Tour A", count: 1 },
-        { name: "Sample Tour B", count: 1 },
-      ];
+      return [];
     }
 
     return popularity;
