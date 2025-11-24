@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react"
 import { collection, onSnapshot } from "firebase/firestore"
 import { db } from "../../lib/firebase"
+import StripePayment from "./StripePayment"
 import BirthdatePicker from "./BirthdatePicker";
 import Select from "./Select";
 
@@ -27,11 +28,27 @@ const Page = () => {
       id: string;
       name: string;
       travelDates: string[];
-      status?: "active" | "inactive";         // ← add this
+      status?: "active" | "inactive";
       stripePaymentLink?: string;
+      deposit?: number; // reservation fee from pricing.deposit
+      price: number; // total tour price
     }>
   >([]);
   const [tourDates, setTourDates] = useState<string[]>([])
+  
+  // Payment terms from Firestore
+  const [paymentTerms, setPaymentTerms] = useState<Array<{
+    id: string;
+    name: string;
+    description: string;
+    paymentPlanType: string;
+    monthsRequired?: number;
+    monthlyPercentages?: number[];
+    color: string;
+  }>>([]);
+  
+  // Selected payment plan
+  const [selectedPaymentPlan, setSelectedPaymentPlan] = useState<string>("");
   
   // animation state for tour date mount/visibility
   const [dateMounted, setDateMounted] = useState(false)
@@ -49,10 +66,208 @@ const Page = () => {
   // ---- multi-step flow state ----
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [bookingId, setBookingId] = useState<string>("");
+  const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [confirmingBooking, setConfirmingBooking] = useState(false);
+  
+  // Generate booking ID after payment
+  // Format: <PREFIX>-<ABBREV>-YYYYMMDD-<INITIALS>-<CODE>
+  // PREFIX: SB (Single Booking), DB (Duo Booking), GB (Group Booking)
+  // For Single: CODE = Count (e.g., 001)
+  // For Duo/Group: CODE = Random4Digits (e.g., 8472, same random code for all guests in group)
+  const generateBookingId = async () => {
+    // Use tour date instead of reservation date
+    const tourDateObj = new Date(tourDate);
+    const year = tourDateObj.getFullYear();
+    const month = String(tourDateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(tourDateObj.getDate()).padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
+    
+    // Determine booking type prefix
+    let prefix = 'SB'; // Default: Single Booking
+    if (bookingType === 'Duo Booking') {
+      prefix = 'DB';
+    } else if (bookingType === 'Group Booking') {
+      prefix = 'GB';
+    }
+    
+    // Get tour package abbreviation from name
+    // Extract first letter of each word (e.g., "Japan Adventure" -> "JA")
+    // Remove any text in parentheses first (e.g., "Japan Adventure (Standard)" -> "Japan Adventure")
+    const packageName = selectedPackage?.name || '';
+    const cleanName = packageName.replace(/\([^)]*\)/g, '').trim(); // Remove text in parentheses
+    const words = cleanName.split(' ').filter(w => w.length > 0);
+    const packageAbbrev = words.map(w => w.charAt(0).toUpperCase()).join('').slice(0, 3) || 'XXX';
+    
+    // Get initials from full name (first letter of first name + first letter of last name)
+    const firstInitial = firstName.charAt(0).toUpperCase() || 'X';
+    const lastInitial = lastName.charAt(0).toUpperCase() || 'X';
+    const initials = `${firstInitial}${lastInitial}`;
+    
+  // Generate code suffix based on booking type (separated from initials by a dash)
+  let codeSuffix = '';
+    
+    if (bookingType === 'Single Booking') {
+      // For single bookings: use count from bookings collection
+      try {
+        const { collection, query, where, getDocs } = await import('firebase/firestore');
+        const bookingsRef = collection(db, 'bookings');
+        const q = query(bookingsRef, where('tourPackageId', '==', tourPackage));
+        const querySnapshot = await getDocs(q);
+        const bookingCount = querySnapshot.size + 1; // Current count + 1 for this new booking
+        codeSuffix = String(bookingCount).padStart(3, '0');
+      } catch (error) {
+        console.error('Error counting bookings:', error);
+        // Fallback to random number if query fails
+        const randomNum = Math.floor(Math.random() * 900) + 100;
+        codeSuffix = String(randomNum);
+      }
+    } else {
+      // For duo/group bookings: use random 4-digit code (same for all guests in the group)
+      // This code will be shared by all members of the duo/group
+      const randomCode = Math.floor(Math.random() * 9000) + 1000; // 4-digit random (1000-9999)
+      codeSuffix = String(randomCode);
+    }
+    
+    return `${prefix}-${packageAbbrev}-${dateStr}-${initials}-${codeSuffix}`;
+  };
 
   // computed helpers
   const canEditStep1 = !paymentConfirmed; // lock step 1 after payment
   const progressWidth = step === 1 ? "w-1/3" : step === 2 ? "w-2/3" : "w-full";
+  
+  // Get deposit amount from selected package
+  const selectedPackage = tourPackages.find((p) => p.id === tourPackage);
+  const depositAmount = selectedPackage?.deposit ?? 250;
+  
+  // Calculate days between reservation date (today) and tour date
+  const calculateDaysBetween = (tourDateStr: string): number => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tour = new Date(tourDateStr);
+    tour.setHours(0, 0, 0, 0);
+    const diffTime = tour.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+  
+  // Determine available payment term based on days between
+  // This calculates how many monthly payment dates (2nd of month) are available
+  // between reservation date and tour date
+  const getAvailablePaymentTerm = (): { term: string; isLastMinute: boolean; isInvalid: boolean } => {
+    if (!tourDate) return { term: '', isLastMinute: false, isInvalid: false };
+    
+    const daysBetween = calculateDaysBetween(tourDate);
+    
+    if (daysBetween < 2) {
+      return { term: 'invalid', isLastMinute: false, isInvalid: true };
+    } else if (daysBetween >= 2 && daysBetween < 30) {
+      // Less than 30 days: Last minute booking
+      return { term: 'last_minute', isLastMinute: true, isInvalid: false };
+    } else {
+      // Calculate how many 2nd-of-month dates are available
+      // Based on spreadsheet formula: counts months from reservation to (tour date - 30 days)
+      // This ensures last payment is at least 30 days before tour
+      const today = new Date();
+      const tourDateObj = new Date(tourDate);
+      const fullPaymentDue = new Date(tourDateObj);
+      fullPaymentDue.setDate(fullPaymentDue.getDate() - 30); // 30 days before tour
+      
+      // Calculate full months between today and full payment due date
+      const yearDiff = fullPaymentDue.getFullYear() - today.getFullYear();
+      const monthDiff = fullPaymentDue.getMonth() - today.getMonth();
+      const monthCount = Math.max(0, yearDiff * 12 + monthDiff);
+      
+      // Determine the payment term based on available months
+      if (monthCount >= 4) {
+        return { term: 'P4', isLastMinute: false, isInvalid: false };
+      } else if (monthCount === 3) {
+        return { term: 'P3', isLastMinute: false, isInvalid: false };
+      } else if (monthCount === 2) {
+        return { term: 'P2', isLastMinute: false, isInvalid: false };
+      } else if (monthCount === 1) {
+        return { term: 'P1', isLastMinute: false, isInvalid: false };
+      } else {
+        // Less than 1 month available but >= 30 days
+        return { term: 'last_minute', isLastMinute: true, isInvalid: false };
+      }
+    }
+  };
+  
+  const availablePaymentTerm = getAvailablePaymentTerm();
+  
+  // Generate payment schedule for a given plan
+  const generatePaymentSchedule = (planType: string, monthsRequired: number): Array<{ date: string; amount: number }> => {
+    if (!tourDate || !selectedPackage) return [];
+    
+    const remainingBalance = selectedPackage.price - depositAmount;
+    const monthlyAmount = remainingBalance / monthsRequired;
+    const schedule: Array<{ date: string; amount: number }> = [];
+    
+    // Start from next month, always on the 2nd day (using UTC to avoid timezone issues)
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    
+    // Calculate next month (handle year rollover)
+    let nextMonth = currentMonth + 1;
+    let nextYear = currentYear;
+    if (nextMonth > 11) {
+      nextMonth = 0;
+      nextYear++;
+    }
+    
+    for (let i = 0; i < monthsRequired; i++) {
+      // Calculate payment month/year
+      let paymentMonth = nextMonth + i;
+      let paymentYear = nextYear;
+      
+      // Handle year rollover
+      while (paymentMonth > 11) {
+        paymentMonth -= 12;
+        paymentYear++;
+      }
+      
+      // Create date string in YYYY-MM-DD format (always 2nd of month)
+      const dateStr = `${paymentYear}-${String(paymentMonth + 1).padStart(2, '0')}-02`;
+      
+      schedule.push({
+        date: dateStr,
+        amount: i === monthsRequired - 1 
+          ? remainingBalance - (monthlyAmount * (monthsRequired - 1)) // Last payment gets the remainder
+          : monthlyAmount
+      });
+    }
+    
+    return schedule;
+  };
+  
+  // Get available payment plan options based on the calculated term
+  const getAvailablePaymentPlans = () => {
+    if (!availablePaymentTerm.term || availablePaymentTerm.isInvalid) return [];
+    if (availablePaymentTerm.isLastMinute) return [{ 
+      type: 'full_payment', 
+      label: 'Full Payment Required Within 48hrs',
+      description: 'Complete payment of remaining balance within 2 days',
+      color: '#f59e0b'
+    }];
+    
+    // Get all plans up to the available term
+    const termMap: { [key: string]: number } = { 'P1': 1, 'P2': 2, 'P3': 3, 'P4': 4 };
+    const maxMonths = termMap[availablePaymentTerm.term] || 0;
+    
+    return paymentTerms
+      .filter(term => term.monthsRequired && term.monthsRequired <= maxMonths)
+      .map(term => ({
+        id: term.id,
+        type: term.paymentPlanType,
+        label: term.name,
+        description: term.description,
+        monthsRequired: term.monthsRequired!,
+        color: term.color,
+        schedule: generatePaymentSchedule(term.paymentPlanType, term.monthsRequired!)
+      }));
+  };
 
   // helper: animate the guests container height using the Web Animations API (with a fallback)
   const animateHeight = (from: number, to: number) => {
@@ -114,7 +329,19 @@ const Page = () => {
         : undefined,
   }));
 
-  const tourDateOptions = (tourDates ?? []).map((d: string) => ({ label: d, value: d }));
+  const tourDateOptions = (tourDates ?? []).map((d: string) => {
+    const daysBetween = calculateDaysBetween(d);
+    const isInvalid = daysBetween < 2;
+    
+    return {
+      label: d,
+      value: d,
+      disabled: isInvalid,
+      description: isInvalid 
+        ? "Too soon! Please choose a date at least 2 days from today"
+        : undefined
+    };
+  });
 
   // Fetch tour packages live from Firestore
   useEffect(() => {
@@ -139,12 +366,44 @@ const Page = () => {
             travelDates: dates,
             stripePaymentLink: payload.stripePaymentLink,
             status: payload.status === "inactive" ? "inactive" : "active",
+            deposit: payload.pricing?.deposit ?? 250, // default to £250 if not found
+            price: payload.pricing?.original ?? 2050, // use 'original' field from pricing map
           };
         });
 
         setTourPackages(pkgList as any); // 'as any' ensures TS doesn't complain about the extra status field
       },
       (err) => console.error("tourPackages snapshot error", err)
+    );
+
+    return () => unsub();
+  }, []);
+
+  // Fetch payment terms from Firestore
+  useEffect(() => {
+    const q = collection(db, "paymentTerms");
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const terms = snap.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name,
+            description: data.description,
+            paymentPlanType: data.paymentPlanType,
+            monthsRequired: data.monthsRequired,
+            monthlyPercentages: data.monthlyPercentages,
+            color: data.color,
+          };
+        }).sort((a, b) => {
+          // Sort by payment plan type order
+          const order = ['p1_single_installment', 'p2_two_installments', 'p3_three_installments', 'p4_four_installments'];
+          return order.indexOf(a.paymentPlanType) - order.indexOf(b.paymentPlanType);
+        });
+        setPaymentTerms(terms);
+      },
+      (err) => console.error("paymentTerms snapshot error", err)
     );
 
     return () => unsub();
@@ -319,17 +578,85 @@ const Page = () => {
 
   const onSubmit = (ev?: React.FormEvent) => {
     ev?.preventDefault()
+    
+    // Don't process form submission in Step 2 or 3 (payment/plan selection)
+    if (step === 2 || step === 3) {
+      return;
+    }
+    
     if (!validate()) return
     // For now, just log values. Replace with API call as needed.
     console.log({ email, firstName, lastName })
     setSubmitted(true)
   }
 
+  const handleConfirmBooking = async () => {
+    try {
+      setConfirmingBooking(true);
+      
+      // Check if payment plan is selected (not required for last minute bookings)
+      if (!availablePaymentTerm.isLastMinute && !selectedPaymentPlan) {
+        alert("Please select a payment plan to continue");
+        return;
+      }
+
+      console.log('🎯 Confirming booking with payment plan:', selectedPaymentPlan);
+      
+      // Get the selected payment plan details
+      const availablePlans = getAvailablePaymentPlans();
+      const selectedPlan = availablePlans.find(plan => plan.id === selectedPaymentPlan || plan.type === selectedPaymentPlan);
+      
+  // Update Firestore with selected payment plan and status progression
+      const { doc, updateDoc, serverTimestamp, collection, query, where, getDocs } = await import('firebase/firestore');
+      
+      // Find the payment document by bookingId
+      const paymentsRef = collection(db, 'stripePayments');
+      const q = query(paymentsRef, where('bookingId', '==', bookingId));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const paymentDoc = querySnapshot.docs[0];
+        console.log('📝 Updating booking with payment plan:', paymentDoc.id);
+        
+        const updateData: any = {
+          status: 'terms_selected',
+          selectedPaymentPlan: selectedPaymentPlan,
+          confirmedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        // Add payment plan details if available
+        if (selectedPlan) {
+          updateData.paymentPlanDetails = selectedPlan;
+        }
+        
+        console.log('📤 Confirmation update data:', updateData);
+        
+        await updateDoc(doc(db, 'stripePayments', paymentDoc.id), updateData);
+        
+        console.log('✅ Booking confirmed successfully!');
+        setBookingConfirmed(true);
+      } else {
+        console.error('❌ Payment document not found for bookingId:', bookingId);
+        alert('Error: Could not find your booking. Please contact support.');
+      }
+    } catch (error) {
+      console.error('❌ Error confirming booking:', error);
+      alert('An error occurred while confirming your booking. Please try again.');
+    } finally {
+      setConfirmingBooking(false);
+    }
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-6">
-      <form
-        onSubmit={onSubmit}
-        className={`w-full max-w-lg bg-card/95 text-card-foreground border border-border shadow-lg rounded-lg p-8 backdrop-blur-sm transition-all duration-300`}
+    <div className="min-h-screen flex items-center justify-center bg-background p-6 relative overflow-hidden">
+      {/* Animated gradient background */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/20 via-creative-midnight/30 to-spring-green/20 animate-gradient-shift bg-[length:200%_200%]" />
+      </div>
+      
+      <div
+        className={`relative z-10 w-full max-w-lg bg-card/95 text-card-foreground border border-border shadow-lg rounded-lg p-8 backdrop-blur-sm transition-all duration-300`}
         aria-labelledby="reservation-form-title"
       >
         {/* assistive live region to announce tour date visibility changes */}
@@ -346,28 +673,67 @@ const Page = () => {
           </div>
 
           <div className="w-full bg-muted/20 rounded-full h-2 overflow-hidden">
-            <div className="h-2 bg-primary rounded-full w-1/3" />
+            <div className={`h-2 bg-primary rounded-full transition-all duration-300 ${progressWidth}`} />
           </div>
 
           <div className="mt-3 grid grid-cols-3 gap-4 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">1</div>
+            <button
+              type="button"
+              onClick={() => {
+                // Can view step 1 even after payment, but it will be locked (read-only)
+                setStep(1);
+              }}
+              className="flex items-center gap-2 transition-opacity hover:opacity-80 cursor-pointer"
+            >
+              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${step === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>1</div>
               <div>Personal & Booking</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded-full bg-muted text-foreground flex items-center justify-center">2</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                // Can go to step 2 if currently in step 2, or from step 1 if form is valid
+                if (step === 2) {
+                  setStep(2);
+                } else if (step === 1 && tourPackage && tourDate) {
+                  setStep(2);
+                }
+              }}
+              disabled={step === 3}
+              className={`flex items-center gap-2 transition-opacity ${step === 3 ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80 cursor-pointer'}`}
+            >
+              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${step === 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>2</div>
               <div>Payment</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded-full bg-muted text-foreground flex items-center justify-center">3</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                // Can only go to step 3 if payment is confirmed
+                if (paymentConfirmed) setStep(3);
+              }}
+              disabled={!paymentConfirmed}
+              className={`flex items-center gap-2 transition-opacity ${!paymentConfirmed ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80 cursor-pointer'}`}
+            >
+              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${step === 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>3</div>
               <div>Payment plan</div>
-            </div>
+            </button>
           </div>
         </div>
 
         <div className="space-y-6">
           {/* STEP 1 - Personal & Booking Details */}
+          {step === 1 && (
           <div className="rounded-md bg-card/60 p-4 border border-border">
+            {/* Show locked message if payment confirmed */}
+            {paymentConfirmed && (
+              <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-md mb-4">
+                <div className="flex items-center gap-2">
+                  <svg className="h-5 w-5 text-amber-500" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M12 15v-3m0 0V9m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="text-sm font-medium text-foreground">Booking details are locked after payment</span>
+                </div>
+              </div>
+            )}
             <h3 className="text-lg font-medium text-foreground mb-3">Personal & Booking details</h3>
             <div className={`space-y-4 transition-all duration-300 ${clearing ? 'opacity-0' : 'opacity-100'}`}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -375,12 +741,15 @@ const Page = () => {
                   <span className="text-sm font-medium text-foreground">Email address</span>
                   <input
                     type="email"
+                    name="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
                     className={`${fieldBase} ${fieldBorder(!!errors.email)} ${fieldFocus}`}
                     aria-invalid={!!errors.email}
                     aria-describedby={errors.email ? "email-error" : undefined}
+                    disabled={paymentConfirmed}
                   />
                   {errors.email && <p id="email-error" className="mt-1 text-xs text-destructive">{errors.email}</p>}
                 </label>
@@ -392,6 +761,7 @@ const Page = () => {
                     onChange={(iso) => setBirthdate(iso)}
                     minYear={1920}
                     maxYear={new Date().getFullYear()}
+                    disabled={paymentConfirmed}
                   />
                   {/* optional error text below if you have validation */}
                   {errors?.birthdate && (
@@ -406,12 +776,15 @@ const Page = () => {
                   <span className="text-sm font-medium text-foreground">First name</span>
                   <input
                     type="text"
+                    name="firstName"
+                    autoComplete="given-name"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="Alex"
                     className={`${fieldBase} ${fieldBorder(!!errors.firstName)} ${fieldFocus}`}
                     aria-invalid={!!errors.firstName}
                     aria-describedby={errors.firstName ? "firstName-error" : undefined}
+                    disabled={paymentConfirmed}
                   />
                     {/* error text here */}
                     {errors.firstName && (
@@ -424,12 +797,15 @@ const Page = () => {
                   <span className="text-sm font-medium text-foreground">Last name</span>
                   <input
                     type="text"
+                    name="lastName"
+                    autoComplete="family-name"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Johnson"
                     className={`${fieldBase} ${fieldBorder(!!errors.lastName)} ${fieldFocus}`}
                     aria-invalid={!!errors.lastName}
                     aria-describedby={errors.lastName ? "lastName-error" : undefined}
+                    disabled={paymentConfirmed}
                   />
                     {/* error text here */}
                     {errors.lastName && (
@@ -449,6 +825,7 @@ const Page = () => {
                     placeholder="Select nationality"
                     ariaLabel="Nationality"
                     className="mt-1"
+                    disabled={paymentConfirmed}
                   />
                     {/* error text here */}
                     {errors.nationality && (
@@ -466,6 +843,7 @@ const Page = () => {
                     placeholder="Select booking type"
                     ariaLabel="Booking Type"
                     className="mt-1"
+                    disabled={paymentConfirmed}
                   />
                     {/* error text here */}
                     {errors.bookingType && (
@@ -490,7 +868,8 @@ const Page = () => {
                             type="button"
                             aria-label="Decrease group size"
                             onClick={() => handleGroupSizeChange(groupSize - 1)}
-                            className="h-8 w-8 rounded-md bg-crimson-red text-white flex items-center justify-center hover:brightness-95 focus:outline-none"
+                            className="h-8 w-8 rounded-md bg-crimson-red text-white flex items-center justify-center hover:brightness-95 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={paymentConfirmed}
                           >
                             −
                           </button>
@@ -505,13 +884,15 @@ const Page = () => {
                             className="w-16 text-center px-2 py-1 rounded-md bg-input border border-border text-foreground [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             inputMode="numeric"
                             pattern="[0-9]*"
+                            disabled={paymentConfirmed}
                           />
 
                           <button
                             type="button"
                             aria-label="Increase group size"
                             onClick={() => handleGroupSizeChange(groupSize + 1)}
-                            className="h-8 w-8 rounded-md bg-crimson-red text-white flex items-center justify-center hover:brightness-95 focus:outline-none"
+                            className="h-8 w-8 rounded-md bg-crimson-red text-white flex items-center justify-center hover:brightness-95 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={paymentConfirmed}
                           >
                             +
                           </button>
@@ -522,19 +903,27 @@ const Page = () => {
                     <div className="space-y-2">
                       {bookingType === "Duo Booking" ? (
                         <input
+                          type="email"
+                          name="guest-email"
+                          autoComplete="email"
                           placeholder="Guest email address"
                           value={additionalGuests[0] ?? ""}
                           onChange={(e) => handleGuestChange(0, e.target.value)}
                           className={`${fieldBase} ${fieldBorder(!!errors["guest-0"])} ${fieldFocus}`}
+                          disabled={paymentConfirmed}
                         />
                       ) : (
                         additionalGuests.map((g, idx) => (
                           <div key={idx}>
                             <input
+                              type="email"
+                              name={`guest-email-${idx}`}
+                              autoComplete="email"
                               placeholder={`Guest #${idx + 1} email address`}
                               value={g}
                               onChange={(e) => handleGuestChange(idx, e.target.value)}
                               className={`${fieldBase} ${fieldBorder(!!errors[`guest-${idx}`])} ${fieldFocus}`}
+                              disabled={paymentConfirmed}
                             />
                             {errors[`guest-${idx}`] && (
                               <p className="mt-1 text-xs text-destructive">{errors[`guest-${idx}`]}</p>
@@ -558,7 +947,7 @@ const Page = () => {
                     ariaLabel="Tour Package"
                     className="mt-1"
                     searchable
-                    disabled={tourPackageOptions.length === 0}
+                    disabled={tourPackageOptions.length === 0 || paymentConfirmed}
                   />  
                     {/* error text here */}
                     {errors.tourPackage && (
@@ -581,7 +970,7 @@ const Page = () => {
                         placeholder="Select a date"
                         ariaLabel="Tour Date"
                         className="mt-1"
-                        disabled={!tourPackage}
+                        disabled={!tourPackage || paymentConfirmed}
                       />
                       {/* error text here */}
                       {errors?.tourDate && (
@@ -593,63 +982,161 @@ const Page = () => {
               </div>
             </div>
           </div>
+          )}
+          
           {/* STEP 2 - PAYMENT */}
           {step === 2 && (
             <div className="rounded-md bg-card/60 p-4 border border-border space-y-4">
-              <h3 className="text-lg font-medium text-foreground">Pay down payment</h3>
+              <h3 className="text-lg font-medium text-foreground">Pay reservation fee</h3>
 
               {!tourPackage ? (
                 <p className="text-sm text-destructive">
                   Please go back and choose a tour package before proceeding to payment.
                 </p>
+              ) : paymentConfirmed ? (
+                <div className="bg-spring-green/10 border border-spring-green/30 p-4 rounded-md">
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-spring-green text-white">
+                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="font-medium text-foreground">Payment confirmed!</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Your reservation fee has been successfully processed. Click Continue to proceed to your payment plan.
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <>
-                  <p className="text-sm text-muted-foreground">
-                    Click the button below to open a secure Stripe Payment Link for your selected package.
-                    Return here after payment to continue.
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Complete your secure payment below to reserve your spot. Your payment will be verified automatically.
                   </p>
 
-                  <div className="flex flex-wrap items-center gap-3">
-                    <a
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      href={tourPackages.find((p) => p.id === tourPackage)?.stripePaymentLink || "#"}
-                      className={`px-4 py-2 rounded-md ${tourPackages.find((p)=>p.id===tourPackage)?.stripePaymentLink ? "bg-crimson-red text-white hover:brightness-95" : "bg-muted text-muted-foreground cursor-not-allowed"}`}
-                      aria-disabled={!tourPackages.find((p)=>p.id===tourPackage)?.stripePaymentLink}
-                    >
-                      Pay now
-                    </a>
-
-                    {/* Temporary confirmation until you wire a webhook */}
-                    <label className="inline-flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4"
-                        checked={paymentConfirmed}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setPaymentConfirmed(checked);
-                          if (checked) {
-                            // lock step 1
-                            // (we already compute canEditStep1 from paymentConfirmed)
-                          }
-                        }}
-                      />
-                      I’ve completed the payment
-                    </label>
+                  {/* Warning before payment */}
+                  <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-md mb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
+                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="font-medium text-foreground">Important notice</div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Once payment is complete, you won't be able to change your booking details. If you need to make changes after payment, you can request a refund through the reservation confirmation email.
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {!tourPackages.find((p)=>p.id===tourPackage)?.stripePaymentLink && (
-                    <p className="text-xs text-muted-foreground">
-                      No Stripe link is configured for this package yet.
-                    </p>
-                  )}
+                  <div className="bg-muted/10 border border-border rounded-md p-4 mb-4">
+                    <div className="flex justify-between items-center text-sm mt-2">
+                      <span className="text-muted-foreground">Tour package:</span>
+                      <span className="font-medium">{tourPackages.find((p) => p.id === tourPackage)?.name}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm mt-2">
+                      <span className="text-muted-foreground">Reservation fee:</span>
+                      <span className="font-medium text-lg">£{depositAmount.toFixed(2)}</span>
+                    </div>
+                  </div>
 
-                  {!paymentConfirmed && (
-                    <p className="text-xs text-muted-foreground">
-                      You can still go <button type="button" onClick={()=>setStep(1)} className="underline">Back</button> to revise your details.
-                    </p>
-                  )}
+                  <StripePayment
+                    tourPackageId={tourPackage}
+                    tourPackageName={selectedPackage?.name || ""}
+                    email={email}
+                    amountGBP={depositAmount}
+                    bookingId={bookingId || "PENDING"}
+                    onSuccess={async (paymentIntentId, paymentDocId) => {
+                      try {
+                        console.log('🎉 Payment success! Intent ID:', paymentIntentId);
+                        console.log('📄 Payment Document ID:', paymentDocId);
+                        
+                        // Generate booking ID after successful payment
+                        const newBookingId = await generateBookingId();
+                        console.log('✅ Generated booking ID:', newBookingId);
+                        setBookingId(newBookingId);
+                        
+                        // Extract group code for duo/group bookings (suffix after initials)
+                        // New Format: DB-JA-20260314-JG-8472 -> groupCode = "8472"
+                        let groupCode = null;
+                        if (bookingType === 'Duo Booking' || bookingType === 'Group Booking') {
+                          const parts = newBookingId.split('-');
+                          if (parts.length >= 5) {
+                            groupCode = parts[4]; // e.g., "8472"
+                          }
+                        }
+                        
+                        // Save personal & booking information to Firestore stripePayments collection
+                        const { doc, updateDoc, serverTimestamp, collection, query, where, getDocs } = await import('firebase/firestore');
+                        
+                        const updateData: any = {
+                          bookingId: newBookingId,
+                          // Personal information
+                          email: email,
+                          firstName: firstName,
+                          lastName: lastName,
+                          birthdate: birthdate,
+                          nationality: nationality,
+                          // Booking details
+                          bookingType: bookingType,
+                          groupSize: bookingType === 'Group Booking' ? groupSize : (bookingType === 'Duo Booking' ? 2 : 1),
+                          additionalGuests: bookingType === 'Duo Booking' || bookingType === 'Group Booking' ? additionalGuests : [],
+                          // Tour information
+                          tourPackageId: tourPackage,
+                          tourPackageName: selectedPackage?.name || '',
+                          tourDate: tourDate,
+                          // Update status and timestamp
+                          status: 'reserve_paid',
+                          updatedAt: serverTimestamp(),
+                        };
+                        
+                        // Add group code for duo/group bookings
+                        if (groupCode) {
+                          updateData.groupCode = groupCode;
+                        }
+                        
+                        console.log('📤 Update data:', updateData);
+                        
+                        // Try to update using document ID first, fallback to query if not available
+                        if (paymentDocId) {
+                          console.log('📝 Updating payment document by ID:', paymentDocId);
+                          await updateDoc(doc(db, 'stripePayments', paymentDocId), updateData);
+                          console.log('✅ Booking information saved successfully!');
+                        } else {
+                          console.warn('⚠️ No payment document ID provided, falling back to query by stripeIntentId');
+                          
+                          // Fallback: Query by stripeIntentId
+                          const paymentsRef = collection(db, 'stripePayments');
+                          const q = query(paymentsRef, where('stripeIntentId', '==', paymentIntentId));
+                          const querySnapshot = await getDocs(q);
+                          
+                          console.log('🔍 Found documents by query:', querySnapshot.size);
+                          
+                          if (!querySnapshot.empty) {
+                            const paymentDoc = querySnapshot.docs[0];
+                            console.log('📝 Updating payment document:', paymentDoc.id);
+                            await updateDoc(doc(db, 'stripePayments', paymentDoc.id), updateData);
+                            console.log('✅ Booking information saved successfully via query!');
+                          } else {
+                            console.error('❌ Payment document not found for paymentIntentId:', paymentIntentId);
+                          }
+                        }
+                        
+                        // Keep session storage until user proceeds, to prevent re-initializing a new PaymentIntent on re-render
+                        // We'll clear this when the user moves to the next step or starts a new booking.
+                        
+                        setPaymentConfirmed(true);
+                      } catch (error) {
+                        console.error('❌ Error saving booking information:', error);
+                        console.error('Error details:', error);
+                        // Still proceed with payment confirmation even if saving fails
+                        setPaymentConfirmed(true);
+                      }
+                    }}
+                  />
                 </>
               )}
             </div>
@@ -658,17 +1145,154 @@ const Page = () => {
           {/* STEP 3 - PAYMENT PLAN */}
           {step === 3 && (
             <div className="rounded-md bg-card/60 p-4 border border-border space-y-4">
-              <h3 className="text-lg font-medium text-foreground">Payment plan</h3>
-              <p className="text-sm text-muted-foreground">
-                We’ll email your schedule and links for monthly payments. You can finalize now or return later via the link we send.
-              </p>
-              {/* Put your plan selector / summary here later */}
+              <div className="bg-spring-green/10 border border-spring-green/30 p-4 rounded-md mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-spring-green text-white">
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-medium text-foreground">Reservation confirmed!</div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Booking ID: <span className="font-mono font-medium text-foreground">{bookingId}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <h3 className="text-lg font-medium text-foreground">Choose your payment plan</h3>
+              
+              {/* Tour Details Summary */}
+              {selectedPackage && (
+                <div className="bg-muted/10 border border-border rounded-md p-4">
+                  <div className="text-sm space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Tour package:</span>
+                      <span className="font-medium">{selectedPackage.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Tour date:</span>
+                      <span className="font-medium">{tourDate}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Days until tour:</span>
+                      <span className="font-medium">{calculateDaysBetween(tourDate)} days</span>
+                    </div>
+                    <div className="border-t border-border my-2"></div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Tour cost:</span>
+                      <span className="font-medium">£{selectedPackage.price.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Reservation fee paid:</span>
+                      <span className="font-medium text-spring-green">-£{depositAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="border-t border-border my-2"></div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Remaining balance:</span>
+                      <span className="font-bold text-lg">£{(selectedPackage.price - depositAmount).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Plan Options */}
+              {availablePaymentTerm.isLastMinute ? (
+                <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-md">
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
+                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="font-medium text-foreground">Last Minute Booking</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Your tour is coming up soon! Full payment of £{selectedPackage ? (selectedPackage.price - depositAmount).toFixed(2) : '0.00'} is required within 48 hours to confirm your spot.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Great news! You have up to <span className="font-medium text-foreground">{availablePaymentTerm.term}</span> flexible payment options. Pick what works best for you:
+                  </p>
+
+                  <div className="space-y-3">
+                    {getAvailablePaymentPlans().map((plan) => (
+                      <button
+                        key={plan.id}
+                        type="button"
+                        onClick={() => setSelectedPaymentPlan(plan.id)}
+                        className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                          selectedPaymentPlan === plan.id
+                            ? 'border-primary bg-primary/5 shadow-md'
+                            : 'border-border bg-card hover:border-primary/50 hover:bg-muted/50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div 
+                            className="flex items-center justify-center h-10 w-10 rounded-full text-white font-semibold flex-shrink-0"
+                            style={{ backgroundColor: plan.color }}
+                          >
+                            P{plan.monthsRequired}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <div className="font-medium text-foreground">{plan.label}</div>
+                              {selectedPaymentPlan === plan.id && (
+                                <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary text-primary-foreground flex-shrink-0">
+                                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                    <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground mb-3">
+                              {plan.description}
+                            </div>
+                            
+                            {/* Payment Schedule */}
+                            <div className="space-y-2 bg-muted/30 rounded-md p-3">
+                              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                                Payment Schedule
+                              </div>
+                              {plan.schedule.map((payment, idx) => (
+                                <div key={idx} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-xs font-medium">
+                                      {idx + 1}
+                                    </div>
+                                    <span className="text-foreground">
+                                      {new Date(payment.date + 'T00:00:00Z').toLocaleDateString('en-US', { 
+                                        month: 'short', 
+                                        day: 'numeric', 
+                                        year: 'numeric',
+                                        timeZone: 'UTC'
+                                      })}
+                                    </span>
+                                  </div>
+                                  <span className="font-medium text-foreground">
+                                    £{payment.amount.toFixed(2)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
             {/* Step footer actions */}
             <div className="flex items-center justify-between mt-2">
-              {step > 1 ? (
+              {step > 1 && step < 3 ? (
                 <button
                   type="button"
                   onClick={() => setStep((s) => (s > 1 ? (s - 1) as 1|2|3 : s))}
@@ -676,7 +1300,7 @@ const Page = () => {
                 >
                   Back
                 </button>
-              ) : (
+              ) : step === 1 && !paymentConfirmed ? (
                 <button
                   type="button"
                   onClick={async () => {
@@ -698,9 +1322,11 @@ const Page = () => {
                 >
                   Reset
                 </button>
+              ) : (
+                <div></div>
               )}
 
-              {step === 1 && (
+              {step === 1 && !paymentConfirmed && (
                 <button
                   type="button"
                   onClick={() => {
@@ -717,7 +1343,14 @@ const Page = () => {
                 <button
                   type="button"
                   disabled={!paymentConfirmed}
-                  onClick={() => setStep(3)}
+                  onClick={() => {
+                    // Clear the payment session when proceeding to next step to allow new bookings later
+                    try {
+                      const sessionKey = `stripe_payment_${email}_${tourPackage}`;
+                      sessionStorage.removeItem(sessionKey);
+                    } catch {}
+                    setStep(3);
+                  }}
                   className={`inline-flex items-center gap-2 px-6 py-3 rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-ring transition
                               ${paymentConfirmed ? "bg-primary text-primary-foreground hover:brightness-95" : "bg-muted text-muted-foreground cursor-not-allowed"}`}
                 >
@@ -725,17 +1358,49 @@ const Page = () => {
                 </button>
               )}
 
-              {step === 3 && (
+              {step === 3 && !bookingConfirmed && (
                 <button
                   type="button"
-                  onClick={() => {
-                    // this is your final submit spot (send to backend later)
-                    onSubmit();
-                  }}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-md shadow-md hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-ring transition"
+                  onClick={handleConfirmBooking}
+                  className={`inline-flex items-center gap-2 px-6 py-3 rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-ring transition ${
+                    availablePaymentTerm.isLastMinute || selectedPaymentPlan
+                      ? "bg-primary text-primary-foreground hover:brightness-95"
+                      : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                  }`}
+                  disabled={(!availablePaymentTerm.isLastMinute && !selectedPaymentPlan) || confirmingBooking}
                 >
-                  Submit
+                  {confirmingBooking ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Confirming...
+                    </>
+                  ) : (
+                    'Confirm Booking'
+                  )}
                 </button>
+              )}
+
+              {step === 3 && bookingConfirmed && (
+                <div className="bg-spring-green/10 text-spring-green border border-spring-green/30 p-6 rounded-md">
+                  <div className="flex items-start gap-3">
+                    <svg className="h-6 w-6 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
+                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg mb-2">Booking Confirmed! 🎉</h3>
+                      <p className="mb-2">Your booking ID is: <span className="font-mono font-bold">{bookingId}</span></p>
+                      <p className="text-sm opacity-90">
+                        A confirmation email with your booking details and payment schedule will be sent to <span className="font-semibold">{email}</span> shortly.
+                      </p>
+                      <p className="text-sm opacity-90 mt-2">
+                        Thank you for choosing I'm Here Travels! We look forward to making your journey unforgettable.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
         </div>
@@ -756,14 +1421,9 @@ const Page = () => {
             </div>
           </div>
         )}
-      </form>
+      </div>
     </div>
   )
 }
-
-// Placeholder components (simple) for sections 2 & 3 can be expanded later
-// Section 2: Payment / Add-ons (placeholder)
-
-// Section 3: Traveler info / Agreements (placeholder)
 
 export default Page

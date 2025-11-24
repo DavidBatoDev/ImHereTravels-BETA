@@ -62,7 +62,7 @@ const paymentPlans = [
   {
     name: "P1 - Single Instalment",
     description:
-      "Simplified payment for shorter lead times. Only 1 eligible payment date available, tour date 30-60 days away.",
+      "Pay everything in one go next month. Simple and done!",
     paymentPlanType: "p1_single_installment",
     paymentType: "monthly_scheduled",
     daysRequired: undefined,
@@ -82,7 +82,7 @@ const paymentPlans = [
   {
     name: "P2 - Two Instalments",
     description:
-      "Balance affordability with business cash flow needs. 2 eligible payment dates available, tour date 60-90 days away.",
+      "Split your balance into 2 easy monthly payments.",
     paymentPlanType: "p2_two_installments",
     paymentType: "monthly_scheduled",
     daysRequired: undefined,
@@ -102,7 +102,7 @@ const paymentPlans = [
   {
     name: "P3 - Three Instalments",
     description:
-      "Make longer-term bookings more affordable. 3 eligible payment dates available, tour date 90-120 days away.",
+      "Spread your payments over 3 months for easier budgeting.",
     paymentPlanType: "p3_three_installments",
     paymentType: "monthly_scheduled",
     daysRequired: undefined,
@@ -122,7 +122,7 @@ const paymentPlans = [
   {
     name: "P4 - Four Instalments",
     description:
-      "Maximum flexibility for early planners. 4+ eligible payment dates available, tour date 120+ days away.",
+      "Maximum flexibility with 4 smaller monthly payments.",
     paymentPlanType: "p4_four_installments",
     paymentType: "monthly_scheduled",
     daysRequired: undefined,

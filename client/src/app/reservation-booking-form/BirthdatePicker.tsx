@@ -8,7 +8,8 @@ type Props = {
   onChange: (iso: string) => void;
   label?: string;
   minYear?: number;            // default 1920
-  maxYear?: number; 
+  maxYear?: number;
+  disabled?: boolean;          // disable the picker
 };
 
 function pad(n: number) { return n < 10 ? `0${n}` : `${n}`; }
@@ -30,6 +31,7 @@ export default function BirthdatePickerModal({
   onChange,
   label = "Birthdate",
   minYear = 1920,
+  disabled = false,
 }: Props) {
   // Allow any age, but never allow future dates
   const today = new Date();
@@ -111,8 +113,9 @@ export default function BirthdatePickerModal({
         ref={triggerRef}
         type="button"
         aria-label={label}
-        onClick={() => setOpen(true)}
-        className="mt-1 block w-full px-4 py-3 rounded-md bg-input text-foreground placeholder:opacity-70 border border-border focus:outline-none focus:border-primary text-left"
+        onClick={() => !disabled && setOpen(true)}
+        disabled={disabled}
+        className="mt-1 block w-full px-4 py-3 rounded-md bg-input text-foreground placeholder:opacity-70 border border-border focus:outline-none focus:border-primary text-left disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {selectedISO ? new Date(selectedISO + "T00:00:00").toLocaleDateString() : "mm/dd/yyyy"}
       </button>
