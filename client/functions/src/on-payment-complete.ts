@@ -442,7 +442,10 @@ export const onPaymentComplete = onDocumentUpdated(
           preDeparturePack.data.fileName
         );
       } else {
-        logger.info("No pre-departure pack found for this tour package");
+        logger.info(
+          "No pre-departure pack found for this tour package - skipping confirmed booking creation"
+        );
+        return;
       }
 
       // Generate booking reference

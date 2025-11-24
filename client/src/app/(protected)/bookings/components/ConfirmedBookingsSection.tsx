@@ -26,16 +26,22 @@ import {
   List,
   Filter,
   Send,
+  Trash2,
+  Plus,
+  RotateCcw,
 } from "lucide-react";
 import { ConfirmedBooking } from "@/types/pre-departure-pack";
 import {
   getAllConfirmedBookings,
   updateConfirmedBookingStatus,
   getUnsentConfirmedBookingsCount,
+  deleteConfirmedBooking,
 } from "@/services/confirmed-bookings-service";
 import { onSnapshot, collection, query, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, functions } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import ConfirmedBookingModal from "./ConfirmedBookingModal";
+import AddConfirmedBookingModal from "./AddConfirmedBookingModal";
 import {
   Select,
   SelectContent,
@@ -71,6 +77,19 @@ export default function ConfirmedBookingsSection() {
   const [sentAtDate, setSentAtDate] = useState("");
   const [sentAtTime, setSentAtTime] = useState("");
   const [marking, setMarking] = useState(false);
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+
+  // Delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingBooking, setDeletingBooking] =
+    useState<ConfirmedBooking | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Add confirmed booking modal
+  const [addBookingModalOpen, setAddBookingModalOpen] = useState(false);
+
+  // Unmarking state
+  const [unmarking, setUnmarking] = useState(false);
 
   // Real-time subscription to confirmed bookings
   useEffect(() => {
@@ -125,6 +144,99 @@ export default function ConfirmedBookingsSection() {
         description: "This booking has not been sent yet",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleSendEmail = async (booking: ConfirmedBooking) => {
+    try {
+      setSendingEmailId(booking.id);
+
+      const sendEmail = httpsCallable(
+        functions,
+        "sendBookingConfirmationEmail"
+      );
+
+      const result = await sendEmail({ confirmedBookingId: booking.id });
+      const data = result.data as {
+        success: boolean;
+        messageId?: string;
+        sentEmailLink?: string;
+      };
+
+      if (data.success) {
+        toast({
+          title: "✅ Email Sent",
+          description: "Booking confirmation email has been sent successfully",
+          variant: "default",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error sending email:", error);
+      toast({
+        title: "❌ Failed to Send Email",
+        description:
+          error.message || "An error occurred while sending the email",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingEmailId(null);
+    }
+  };
+
+  const handleDeleteBooking = (booking: ConfirmedBooking) => {
+    setDeletingBooking(booking);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingBooking) return;
+
+    setDeleting(true);
+    try {
+      await deleteConfirmedBooking(deletingBooking.id);
+
+      toast({
+        title: "✅ Deleted",
+        description: "Confirmed booking has been deleted successfully",
+        variant: "default",
+      });
+
+      setDeleteDialogOpen(false);
+      setDeletingBooking(null);
+    } catch (error: any) {
+      console.error("Error deleting booking:", error);
+      toast({
+        title: "❌ Failed to Delete",
+        description:
+          error.message || "An error occurred while deleting the booking",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleUnmarkAsSent = async (booking: ConfirmedBooking) => {
+    setUnmarking(true);
+    try {
+      await updateConfirmedBookingStatus(booking.id, {
+        status: "created",
+      });
+
+      toast({
+        title: "✅ Unmarked",
+        description: "Booking has been unmarked as sent",
+        variant: "default",
+      });
+    } catch (error: any) {
+      console.error("Error unmarking as sent:", error);
+      toast({
+        title: "❌ Failed",
+        description: error.message || "An error occurred while unmarking",
+        variant: "destructive",
+      });
+    } finally {
+      setUnmarking(false);
     }
   };
 
@@ -246,6 +358,13 @@ export default function ConfirmedBookingsSection() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            onClick={() => setAddBookingModalOpen(true)}
+            className="bg-gradient-to-r from-crimson-red to-crimson-red/80 hover:from-crimson-red/90 hover:to-crimson-red/70"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Confirmed Booking
+          </Button>
           <Button
             variant={viewMode === "cards" ? "default" : "outline"}
             size="sm"
@@ -400,14 +519,50 @@ export default function ConfirmedBookingsSection() {
                   </Button>
                 )}
                 {booking.status === "created" && (
+                  <>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleSendEmail(booking)}
+                      disabled={sendingEmailId === booking.id}
+                      title="Send Email"
+                    >
+                      {sendingEmailId === booking.id ? (
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                      ) : (
+                        <Mail className="h-3 w-3" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleMarkAsSent(booking)}
+                      title="Mark as Sent"
+                    >
+                      <Send className="h-3 w-3" />
+                    </Button>
+                  </>
+                )}
+                {booking.status === "sent" && !booking.sentEmailLink && (
                   <Button
-                    variant="default"
+                    variant="outline"
                     size="sm"
-                    onClick={() => handleMarkAsSent(booking)}
+                    onClick={() => handleUnmarkAsSent(booking)}
+                    disabled={unmarking}
+                    title="Unmark as Sent"
                   >
-                    <Send className="h-3 w-3" />
+                    <RotateCcw className="h-3 w-3" />
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeleteBooking(booking)}
+                  title="Delete"
+                  className="text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </div>
             </Card>
           ))}
@@ -487,14 +642,51 @@ export default function ConfirmedBookingsSection() {
                           </Button>
                         )}
                         {booking.status === "created" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleMarkAsSent(booking)}
-                          >
-                            <Send className="h-4 w-4" />
-                          </Button>
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSendEmail(booking)}
+                              disabled={sendingEmailId === booking.id}
+                              title="Send Email"
+                            >
+                              {sendingEmailId === booking.id ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                              ) : (
+                                <Mail className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleMarkAsSent(booking)}
+                              title="Mark as Sent"
+                            >
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
+                        {booking.status === "sent" &&
+                          !booking.sentEmailLink && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleUnmarkAsSent(booking)}
+                              disabled={unmarking}
+                              title="Unmark as Sent"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteBooking(booking)}
+                          title="Delete"
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -576,6 +768,61 @@ export default function ConfirmedBookingsSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Confirmed Booking</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this confirmed booking?
+            </DialogDescription>
+          </DialogHeader>
+          {deletingBooking && (
+            <div className="py-4">
+              <div className="space-y-2 text-sm">
+                <p>
+                  <span className="font-semibold">Reference:</span>{" "}
+                  {deletingBooking.bookingReference}
+                </p>
+                <p>
+                  <span className="font-semibold">Booking ID:</span>{" "}
+                  {deletingBooking.bookingId}
+                </p>
+                <p>
+                  <span className="font-semibold">Tour Package:</span>{" "}
+                  {deletingBooking.tourPackageName}
+                </p>
+              </div>
+              <p className="mt-4 text-sm text-destructive font-medium">
+                This action cannot be undone.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Confirmed Booking Modal */}
+      <AddConfirmedBookingModal
+        open={addBookingModalOpen}
+        onClose={() => setAddBookingModalOpen(false)}
+      />
     </div>
   );
 }

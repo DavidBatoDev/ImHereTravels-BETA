@@ -544,6 +544,14 @@ export default function PreDeparturePackSection() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">
+            Pre-departure Packs
+          </h2>
+          <p className="text-muted-foreground">
+            Manage pre-departure pack files for tour packages
+          </p>
+        </div>
         <TooltipProvider>
           <div className="flex items-center gap-3 bg-muted/50 px-4 py-3 rounded-lg border border-border">
             <div className="flex items-center gap-2">
