@@ -43,7 +43,6 @@ interface TestResult {
 interface SheetConsoleProps {
   columns: SheetColumn[];
   data: SheetData[];
-  availableFunctions: TypeScriptFunction[];
   onClose?: () => void;
   debugCell?: {
     rowId: string;
@@ -54,7 +53,6 @@ interface SheetConsoleProps {
 export default function SheetConsole({
   columns,
   data,
-  availableFunctions,
   onClose,
   debugCell,
 }: SheetConsoleProps) {
@@ -193,9 +191,7 @@ export default function SheetConsole({
         executionTime,
         timestamp: new Date(),
         consoleLogs: [...consoleLogs],
-        functionName: availableFunctions.find(
-          (f) => f.id === selectedFunctionColumn.function
-        )?.functionName,
+        functionName: selectedFunctionColumn.function,
         columnName: selectedFunctionColumn.columnName,
         rowId: selectedRow.id,
       };
@@ -219,9 +215,7 @@ export default function SheetConsole({
         executionTime,
         timestamp: new Date(),
         consoleLogs: [...consoleLogs],
-        functionName: availableFunctions.find(
-          (f) => f.id === selectedFunctionColumn.function
-        )?.functionName,
+        functionName: selectedFunctionColumn.function,
         columnName: selectedFunctionColumn.columnName,
         rowId: selectedRow.id,
       };

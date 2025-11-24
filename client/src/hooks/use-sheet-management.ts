@@ -12,6 +12,8 @@ import {
   orderBy,
   where,
 } from "firebase/firestore";
+import { allBookingSheetColumns } from "@/app/functions/columns";
+import { functionMap } from "@/app/functions/columns/functions-index";
 
 export function useSheetManagement() {
   const { toast } = useToast();
@@ -29,45 +31,60 @@ export function useSheetManagement() {
   const [error, setError] = useState<string | null>(null);
 
   // ============================================================================
-  // REAL-TIME COLUMN SUBSCRIPTION
+  // LOAD CODED COLUMNS (Replaces Firebase bookingSheetColumns)
   // ============================================================================
 
   useEffect(() => {
-    console.log(
-      "🔍 [SHEET MANAGEMENT] Setting up real-time column subscription..."
-    );
+    console.log("🔍 [SHEET MANAGEMENT] Loading coded booking sheet columns...");
 
-    const unsubscribeColumns = bookingSheetColumnService.subscribeToColumns(
-      (fetchedColumns) => {
-        console.log(
-          `✅ [SHEET MANAGEMENT] Received ${fetchedColumns.length} columns from Firestore:`,
-          {
-            functionColumns: fetchedColumns
-              .filter((c) => c.dataType === "function")
-              .map((c) => ({
-                id: c.id,
-                columnName: c.columnName,
-                function: c.function,
-              })),
-            timestamp: new Date().toISOString(),
+    // Convert BookingSheetColumn[] to SheetColumn[] and inject function implementations
+    const codedColumns: SheetColumn[] = allBookingSheetColumns.map(
+      (col): SheetColumn => {
+        const columnData = col.data;
+
+        // If this is a function column, inject the actual function implementation
+        if (columnData.dataType === "function" && columnData.function) {
+          const funcImpl = functionMap[columnData.function];
+          if (funcImpl) {
+            return {
+              ...columnData,
+              compiledFunction: funcImpl as (...args: any[]) => any, // Inject the actual function
+            };
+          } else {
+            console.warn(
+              `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`
+            );
           }
-        );
-        setColumns(fetchedColumns);
-        setConfig((prev) => ({
-          ...prev,
-          columns: fetchedColumns,
-          updatedAt: new Date(),
-        }));
-        setIsLoading(false);
-        setError(null);
+        }
+
+        return columnData;
       }
     );
 
-    // Cleanup subscription on unmount
-    return () => {
-      console.log("🧹 Cleaning up column subscription");
-      unsubscribeColumns();
-    };
+    console.log(
+      `✅ [SHEET MANAGEMENT] Loaded ${codedColumns.length} coded columns:`,
+      {
+        functionColumns: codedColumns
+          .filter((c) => c.dataType === "function")
+          .map((c) => ({
+            id: c.id,
+            columnName: c.columnName,
+            function: c.function,
+            hasCompiledFunction: !!(c as any).compiledFunction,
+          })),
+        timestamp: new Date().toISOString(),
+        source: "coded-columns",
+      }
+    );
+
+    setColumns(codedColumns);
+    setConfig((prev) => ({
+      ...prev,
+      columns: codedColumns,
+      updatedAt: new Date(),
+    }));
+    setIsLoading(false);
+    setError(null);
   }, []);
 
   // ============================================================================

@@ -48,7 +48,18 @@ import {
   Trash2,
   ChevronUp,
   ChevronDown,
+  Download,
+  RefreshCw,
+  Upload,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import {
   FaUser,
   FaMapMarkerAlt,
@@ -65,14 +76,17 @@ import { IoWallet } from "react-icons/io5";
 import { HiTrendingUp } from "react-icons/hi";
 import type { Booking } from "@/types/bookings";
 import { SheetColumn } from "@/types/sheet-management";
-import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
+import { allBookingSheetColumns } from "@/app/functions/columns";
+import { functionMap } from "@/app/functions/columns/functions-index";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { Timestamp } from "firebase/firestore";
 import { bookingService } from "@/services/booking-service";
 import { useToast } from "@/hooks/use-toast";
 import BookingDetailModal from "./BookingDetailModal";
-import AddBookingModal from "./AddBookingModal";
+import BookingVersionHistoryModal from "@/components/version-history/BookingVersionHistoryModal";
+import CSVImport from "../sheet-management/CSVImport";
+import SpreadsheetSync from "../sheet-management/SpreadsheetSync";
 
 // VSCode-style icons for match options
 const MatchCaseIcon = ({ className }: { className?: string }) => (
@@ -218,6 +232,7 @@ export default function BookingsSection() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreatingBooking, setIsCreatingBooking] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
 
   // Ref for the bookings container to enable scrolling after adding a booking
   const bookingsContainerRef = useRef<HTMLDivElement>(null);
@@ -257,14 +272,62 @@ export default function BookingsSection() {
     });
   }, [bookings, columns]);
 
-  // Fetch booking sheet columns
+  // Load coded booking sheet columns
   useEffect(() => {
-    const unsubscribe = bookingSheetColumnService.subscribeToColumns(
-      (fetchedColumns) => {
-        setColumns(fetchedColumns);
-      }
-    );
-    return () => unsubscribe();
+    console.log("🔍 [BOOKINGS SECTION] Loading coded booking sheet columns...");
+
+    const loadColumns = async () => {
+      // Convert BookingSheetColumn[] to SheetColumn[] and inject function implementations
+      const codedColumns: SheetColumn[] = await Promise.all(
+        allBookingSheetColumns.map(async (col): Promise<SheetColumn> => {
+          const columnData = col.data;
+
+          // If this is a function column, inject the actual function implementation
+          if (columnData.dataType === "function" && columnData.function) {
+            const funcImpl = functionMap[columnData.function];
+            if (funcImpl) {
+              return {
+                ...columnData,
+                compiledFunction: funcImpl as (...args: any[]) => any, // Inject the actual function
+              };
+            } else {
+              console.warn(
+                `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`
+              );
+            }
+          }
+
+          // If column has loadOptions, load dynamic options
+          if (
+            columnData.loadOptions &&
+            typeof columnData.loadOptions === "function"
+          ) {
+            try {
+              const dynamicOptions = await columnData.loadOptions();
+              return {
+                ...columnData,
+                options: dynamicOptions,
+              };
+            } catch (error) {
+              console.warn(
+                `⚠️  Failed to load options for column ${columnData.columnName}:`,
+                error
+              );
+            }
+          }
+
+          return columnData;
+        })
+      );
+
+      console.log(
+        `✅ [BOOKINGS SECTION] Loaded ${codedColumns.length} coded columns from TypeScript files`
+      );
+
+      setColumns(codedColumns);
+    };
+
+    loadColumns();
   }, []);
 
   // Subscribe to real-time bookings data
@@ -471,6 +534,8 @@ export default function BookingsSection() {
   const isBookingInvalid = (booking: Booking): boolean => {
     // A booking is considered invalid if it's missing critical identifying information
     // Check if the booking has no meaningful data at all
+    const hasNoBookingId =
+      !booking.bookingId || booking.bookingId.trim() === "";
     const hasNoName = !booking.fullName || booking.fullName.trim() === "";
     const hasNoEmail =
       !booking.emailAddress || booking.emailAddress.trim() === "";
@@ -478,7 +543,7 @@ export default function BookingsSection() {
       !booking.tourPackageName || booking.tourPackageName.trim() === "";
 
     // A booking is invalid if it's missing all three critical fields
-    return hasNoName && hasNoEmail && hasNoPackage;
+    return hasNoBookingId || hasNoName || hasNoEmail || hasNoPackage;
   };
 
   // Handle booking deletion
@@ -618,6 +683,8 @@ export default function BookingsSection() {
     count += Object.keys(columnFilters).length;
     count += Object.keys(dateRangeFilters).length;
     count += Object.keys(currencyRangeFilters).length;
+    // Count advanced filters that have a column selected
+    count += activeFilters.filter((f) => f.columnId).length;
     return count;
   };
 
@@ -679,6 +746,8 @@ export default function BookingsSection() {
     count += Object.keys(tempColumnFilters).length;
     count += Object.keys(tempDateRangeFilters).length;
     count += Object.keys(tempCurrencyRangeFilters).length;
+    // Count advanced filters that have a column selected
+    count += tempFilters.filter((f) => f.columnId).length;
     return count;
   };
 
@@ -894,6 +963,10 @@ export default function BookingsSection() {
     if (!fuse || searchTerm === "") {
       return bookings;
     }
+    // Special case: searching for 'Invalid Booking' in main search
+    if (searchTerm.trim().toLowerCase() === "invalid booking") {
+      return bookings.filter(isBookingInvalid);
+    }
     const results = fuse.search(searchTerm);
     return results.map((result) => result.item);
   }, [fuse, searchTerm, bookings]);
@@ -913,6 +986,14 @@ export default function BookingsSection() {
           col.dataType === "function"
             ? f.dataTypeOverride || "string"
             : col.dataType;
+
+        // Special case: searching for 'Invalid Booking' in bookingId column
+        if (
+          f.columnId === "bookingId" &&
+          String(f.value).toLowerCase().includes("invalid booking")
+        ) {
+          return isBookingInvalid(booking);
+        }
 
         // String-like
         if (effectiveType === "string" || effectiveType === "email") {
@@ -1187,7 +1268,7 @@ export default function BookingsSection() {
         </Card>
 
         {/* Add Booking Button */}
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center gap-3">
           <Button
             onClick={async () => {
               setIsCreatingBooking(true);
@@ -1250,6 +1331,55 @@ export default function BookingsSection() {
               ADD BOOKING
             </span>
           </Button>
+
+          {/* Import Data Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                className="group h-20 w-20 rounded-full rounded-br-none bg-royal-purple hover:bg-crimson-red text-white transition-all duration-300 hover:scale-105 shadow-lg relative"
+                title="Import Data"
+              >
+                <Download className="h-10 w-10 absolute group-hover:opacity-0 group-hover:scale-0 transition-all duration-300" />
+                <span className="text-[9px] font-medium opacity-0 scale-0 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 whitespace-nowrap font-hk-grotesk">
+                  IMPORT DATA
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Import Options</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <SpreadsheetSync
+                onSyncComplete={() => {
+                  toast({
+                    title: "✅ Sync Complete",
+                    description: "Bookings synced from Google Sheets",
+                    variant: "default",
+                  });
+                }}
+                trigger={
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Sync from Google Sheets
+                  </DropdownMenuItem>
+                }
+              />
+              <CSVImport
+                onImportComplete={() => {
+                  toast({
+                    title: "✅ Import Complete",
+                    description: "Bookings imported from CSV",
+                    variant: "default",
+                  });
+                }}
+                trigger={
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload CSV File
+                  </DropdownMenuItem>
+                }
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -1303,6 +1433,27 @@ export default function BookingsSection() {
                   )}
                 </Button>
               </DialogTrigger>
+
+              {/* Version History Button */}
+              <Button
+                variant="outline"
+                onClick={() => setIsVersionHistoryOpen(true)}
+                className="flex items-center gap-2 border-border hover:bg-royal-purple/10 hover:border-royal-purple hover:text-royal-purple"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                Version History
+              </Button>
               <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                   <div className="flex items-center justify-between">
@@ -2693,11 +2844,58 @@ export default function BookingsSection() {
 
           {/* Add Booking Card */}
           <Card
-            onClick={() => {
-              setIsAddModalOpen(true);
-              const params = new URLSearchParams(searchParams.toString());
-              params.set("action", "new");
-              router.push(`/bookings?${params.toString()}`, { scroll: false });
+            onClick={async () => {
+              setIsCreatingBooking(true);
+              try {
+                // Compute next row number (fill gaps)
+                const rowNumbers = (bookings || [])
+                  .map((b) => (typeof b.row === "number" ? b.row : 0))
+                  .filter((n) => n > 0)
+                  .sort((a, b) => a - b);
+                let nextRowNumber = 1;
+                for (let i = 0; i < rowNumbers.length; i++) {
+                  if (rowNumbers[i] !== i + 1) {
+                    nextRowNumber = i + 1;
+                    break;
+                  }
+                  nextRowNumber = i + 2;
+                }
+
+                // Create minimal doc then update with id/row/timestamps
+                const newBookingId = await bookingService.createBooking({});
+                const bookingData = {
+                  id: newBookingId,
+                  row: nextRowNumber,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                } as any;
+                await bookingService.updateBooking(newBookingId, bookingData);
+
+                // Navigate with bookingId to open detail modal
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("bookingId", newBookingId);
+                params.delete("action");
+                router.push(`/bookings?${params.toString()}`, {
+                  scroll: false,
+                });
+
+                toast({
+                  title: "✅ Booking Created",
+                  description: `Successfully created a booking in row ${nextRowNumber}`,
+                  variant: "default",
+                });
+
+                setIsCreatingBooking(false);
+              } catch (error) {
+                setIsCreatingBooking(false);
+                toast({
+                  title: "❌ Failed to Create Booking",
+                  description: `Error: ${
+                    error instanceof Error ? error.message : "Unknown error"
+                  }`,
+                  variant: "destructive",
+                });
+              }
             }}
             className="group border-2 border-dashed border-crimson-red/30 hover:border-crimson-red/50 hover:bg-crimson-red/5 transition-all duration-300 cursor-pointer overflow-hidden relative"
           >
@@ -2975,15 +3173,67 @@ export default function BookingsSection() {
 
                   {/* Add Booking Row */}
                   <tr
-                    onClick={() => {
-                      setIsAddModalOpen(true);
-                      const params = new URLSearchParams(
-                        searchParams.toString()
-                      );
-                      params.set("action", "new");
-                      router.push(`/bookings?${params.toString()}`, {
-                        scroll: false,
-                      });
+                    onClick={async () => {
+                      setIsCreatingBooking(true);
+                      try {
+                        // Compute next row number (fill gaps)
+                        const rowNumbers = (bookings || [])
+                          .map((b) => (typeof b.row === "number" ? b.row : 0))
+                          .filter((n) => n > 0)
+                          .sort((a, b) => a - b);
+                        let nextRowNumber = 1;
+                        for (let i = 0; i < rowNumbers.length; i++) {
+                          if (rowNumbers[i] !== i + 1) {
+                            nextRowNumber = i + 1;
+                            break;
+                          }
+                          nextRowNumber = i + 2;
+                        }
+
+                        // Create minimal doc then update with id/row/timestamps
+                        const newBookingId = await bookingService.createBooking(
+                          {}
+                        );
+                        const bookingData = {
+                          id: newBookingId,
+                          row: nextRowNumber,
+                          createdAt: new Date(),
+                          updatedAt: new Date(),
+                        } as any;
+                        await bookingService.updateBooking(
+                          newBookingId,
+                          bookingData
+                        );
+
+                        // Navigate with bookingId to open detail modal
+                        const params = new URLSearchParams(
+                          searchParams.toString()
+                        );
+                        params.set("bookingId", newBookingId);
+                        params.delete("action");
+                        router.push(`/bookings?${params.toString()}`, {
+                          scroll: false,
+                        });
+
+                        toast({
+                          title: "✅ Booking Created",
+                          description: `Successfully created a booking in row ${nextRowNumber}`,
+                          variant: "default",
+                        });
+
+                        setIsCreatingBooking(false);
+                      } catch (error) {
+                        setIsCreatingBooking(false);
+                        toast({
+                          title: "❌ Failed to Create Booking",
+                          description: `Error: ${
+                            error instanceof Error
+                              ? error.message
+                              : "Unknown error"
+                          }`,
+                          variant: "destructive",
+                        });
+                      }
                     }}
                     className="group border-b border-dashed border-crimson-red/30 hover:border-crimson-red/50 hover:bg-crimson-red/5 transition-all duration-300 cursor-pointer"
                   >
@@ -3050,19 +3300,6 @@ export default function BookingsSection() {
         </Card>
       )}
 
-      {/* Add Booking Modal */}
-      <AddBookingModal
-        isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          // Remove action from URL
-          const params = new URLSearchParams(searchParams.toString());
-          params.delete("action");
-          router.push(`/bookings?${params.toString()}`, { scroll: false });
-        }}
-        onSave={handleBookingCreate}
-      />
-
       {/* Booking Detail Modal */}
       <BookingDetailModal
         isOpen={isDetailModalOpen}
@@ -3071,6 +3308,16 @@ export default function BookingsSection() {
         onBookingUpdate={handleBookingUpdate}
         router={router}
         searchParams={searchParams}
+      />
+
+      {/* Booking Version History Modal */}
+      <BookingVersionHistoryModal
+        isOpen={isVersionHistoryOpen}
+        onClose={() => setIsVersionHistoryOpen(false)}
+        columns={columns}
+        currentUserId="current-user-id" // TODO: Replace with actual user ID from auth
+        currentUserName="Current User" // TODO: Replace with actual user name from auth
+        allBookingsData={bookings}
       />
 
       {/* Fixed Scroll Buttons - CSS-only visibility */}

@@ -22,12 +22,19 @@ The Payment Reminder System automates the process of sending payment reminders t
    - Sends payment reminders via Gmail API
    - Updates booking documents with sent email links
 
-3. **Email Template Service** (`email-template-service.ts`)
+3. **Booking Service Cleanup** (`booking-service.ts`)
+
+   - Automatically cleans up scheduled emails when a booking is deleted
+   - Runs in the client-side code during booking deletion
+   - Queries and deletes all associated payment reminder emails
+   - Logs summary of cleaned up emails by status
+
+4. **Email Template Service** (`email-template-service.ts`)
 
    - Processes Nunjucks templates with variables
    - Supports conditional logic and loops
 
-4. **Gmail API Service** (`gmail-api-service.ts`)
+5. **Gmail API Service** (`gmail-api-service.ts`)
    - Handles OAuth2 authentication
    - Sends emails via Gmail API
    - Returns message IDs for tracking
@@ -99,6 +106,17 @@ If sending fails:
 - Increments attempt counter
 - Retries up to `maxAttempts` (default: 3)
 - Marks as "failed" if max attempts reached
+
+### Step 6: Cleanup on Deletion
+
+If a booking is deleted:
+
+1. `cleanupScheduledEmails` method runs automatically in the booking service
+2. Queries for all scheduled emails where `bookingId` matches and `emailType` is "payment-reminder"
+3. Deletes all associated scheduled email documents (pending, sent, or failed) in a batch
+4. Logs summary of deleted emails by status
+5. Prevents orphaned scheduled emails in the system
+6. Cleanup runs client-side during booking deletion process
 
 ## Subject Line Logic
 
@@ -409,6 +427,21 @@ Potential improvements:
 - Check Firebase Functions logs for booking update errors
 - Verify column exists: "Px Scheduled Email Link"
 - Check Firestore permissions
+
+### Orphaned Scheduled Emails After Booking Deletion
+
+**This is now automatically handled!** When a booking is deleted:
+
+- The `cleanupScheduledEmails` method automatically runs in the booking service
+- All associated scheduled payment reminder emails are deleted in a batch
+- Check browser console logs for cleanup confirmation
+- Query: `scheduledEmails.where("bookingId", "==", "deleted_booking_id")` should return empty
+
+If you find orphaned emails (e.g., from bookings deleted before this feature):
+
+1. Manually query for them: `scheduledEmails.where("bookingId", "==", "old_booking_id")`
+2. Delete manually or update status to "cancelled"
+3. Or run a cleanup script to find all scheduled emails with non-existent bookingIds
 
 ## Support
 

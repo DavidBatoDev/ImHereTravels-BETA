@@ -65,6 +65,7 @@ export interface SheetColumn {
   dataType: ColumnType; // The data type of the column
   function?: string; // ID of the TypeScript function (only for function type)
   arguments?: FunctionArgument[]; // Arguments for the function (only for function type)
+  compiledFunction?: (...args: any[]) => any; // Pre-compiled function implementation (injected at load time)
   includeInForms: boolean; // Whether to include this column in forms
   parentTab?: string; // Parent tab for organizing columns
 
@@ -73,6 +74,7 @@ export interface SheetColumn {
   minWidth?: number;
   maxWidth?: number;
   options?: string[]; // For select type columns
+  loadOptions?: () => Promise<string[]>; // Dynamic options loader for select type columns
   color?: ColumnColor; // Optional column color theme
   showColumn?: boolean; // Whether to show/hide this column in the grid (default: true)
   defaultValue?: any;

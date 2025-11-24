@@ -1,0 +1,202 @@
+<!-- scheduledReminderEmail.html -->
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6">
+  <p>Hi {{ fullName }},</p>
+
+  <!-- SUBJECT DYNAMICALLY SET IN CLOUD FUNCTION -->
+  <p>
+    {% if paymentTerm == "P1" %} We hope you're getting excited for your
+    upcoming adventure with <strong>{{ tourPackage }}</strong>!<br />
+    This is a friendly reminder that your <strong>first payment</strong> is due
+    soon. {% elif paymentTerm == "P2" %} We hope you're still as excited as we
+    are about your upcoming adventure with
+    <strong>{{ tourPackage }}</strong>!<br />
+    This is a friendly reminder that your <strong>second payment</strong> is due
+    soon. {% elif paymentTerm == "P3" %} We hope you're still as excited as we
+    are about your upcoming adventure with
+    <strong>{{ tourPackage }}</strong>!<br />
+    This is a friendly reminder that your <strong>third payment</strong> is due
+    soon. {% elif paymentTerm == "P4" %} We hope you're still as excited as we
+    are about your upcoming adventure with
+    <strong>{{ tourPackage }}</strong>!<br />
+    This is a friendly reminder that your <strong>final payment</strong> is due
+    soon. {% endif %}
+  </p>
+
+  <h3 style="color: #d00">Important Details:</h3>
+  <ul>
+    <li><strong>Amount:</strong> {{ amount }}</li>
+    <li><strong>Due Date:</strong> {{ dueDate }}</li>
+    <li>
+      <strong>Payment Method:</strong> {{ paymentMethod }} {% if paymentMethod
+      == "Stripe" %} <br /><a
+        href="https://buy.stripe.com/7sY5kD5NF2uBfGj1NJco03g"
+        target="_blank"
+        style="
+          background-color: #28a745;
+          color: white;
+          text-decoration: none;
+          font-weight: bold;
+          padding: 8px 16px;
+          border-radius: 4px;
+          display: inline-block;
+          margin-top: 8px;
+        "
+        >Pay securely online with Stripe</a
+      >
+      {% elif paymentMethod == "Revolut" %}
+      <ul>
+        <li>Account Name: I'M HERE TRAVELS LTD</li>
+        <li>Account Number: 36834154</li>
+        <li>Sort Code: 23-01-20</li>
+        <li>IBAN: GB52REVO00996983499052</li>
+        <li>BIC: REVOGB21</li>
+      </ul>
+      {% elif paymentMethod == "Ulster" %}
+      <ul>
+        <li>Account Name: Shawn V Keeley</li>
+        <li>Account Number: 10561155</li>
+        <li>Sort Code: 98-05-83</li>
+        <li>IBAN: GB45ULSB98058310561155</li>
+        <li>BIC: ULSBGB2B</li>
+      </ul>
+      {% else %}
+      <ul>
+        <li>[Details will be provided separately]</li>
+      </ul>
+      {% endif %}
+    </li>
+  </ul>
+
+  {% if showTable %}
+  <h3 style="color: #d00">Payment Tracker</h3>
+  <table
+    style="
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 600px;
+      font-size: 14px;
+      border: 1px solid #ddd;
+    "
+    cellpadding="8"
+    cellspacing="0"
+  >
+    <thead>
+      <tr style="background-color: #f8f9fa">
+        <th
+          style="
+            border: 1px solid #ddd;
+            text-align: left;
+            font-weight: bold;
+            padding: 10px;
+          "
+        >
+          Payment Term
+        </th>
+        <th
+          style="
+            border: 1px solid #ddd;
+            text-align: left;
+            font-weight: bold;
+            padding: 10px;
+          "
+        >
+          Amount
+        </th>
+        <th
+          style="
+            border: 1px solid #ddd;
+            text-align: left;
+            font-weight: bold;
+            padding: 10px;
+          "
+        >
+          Due Date
+        </th>
+        <th
+          style="
+            border: 1px solid #ddd;
+            text-align: left;
+            font-weight: bold;
+            padding: 10px;
+          "
+        >
+          Date Paid
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in termData %}
+      <tr>
+        <td style="border: 1px solid #ddd; padding: 10px">{{ item.term }}</td>
+        <td style="border: 1px solid #ddd; padding: 10px">{{ item.amount }}</td>
+        <td style="border: 1px solid #ddd; padding: 10px">
+          {{ item.dueDate }}
+        </td>
+        <td style="border: 1px solid #ddd; padding: 10px">
+          {{ item.datePaid }}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr style="background-color: #f8f9fa">
+        <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold">
+          Total
+        </td>
+        <td
+          style="border: 1px solid #ddd; padding: 10px; font-weight: bold"
+          colspan="3"
+        >
+          {{ totalAmount }}
+        </td>
+      </tr>
+      <tr style="background-color: #f8f9fa">
+        <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold">
+          Paid
+        </td>
+        <td
+          style="border: 1px solid #ddd; padding: 10px; font-weight: bold"
+          colspan="3"
+        >
+          {{ paid }}
+        </td>
+      </tr>
+      <tr style="background-color: #f8f9fa">
+        <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold">
+          Remaining Balance
+        </td>
+        <td
+          style="border: 1px solid #ddd; padding: 10px; font-weight: bold"
+          colspan="3"
+        >
+          {{ remainingBalance }}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  {% endif %}
+
+  <h3 style="color: #d00">Action Needed:</h3>
+  <p>
+    Please send us <strong>proof of payment</strong> once you've made the
+    transfer. You can reply directly to this email with the receipt or
+    confirmation.
+  </p>
+
+  <p>
+    We can't wait to have you with us on this incredible journey! See you soon!
+  </p>
+
+  <p>
+    <strong
+      >Warm regards,<br />
+      The ImHereTravels Team</strong
+    >
+  </p>
+
+  <div style="margin-top: 20px">
+    <img
+      src="https://imheretravels.com/wp-content/uploads/2025/04/ImHereTravels-Logo.png"
+      alt="ImHereTravels Logo"
+      style="width: 120px"
+    />
+  </div>
+</div>

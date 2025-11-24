@@ -2,8 +2,8 @@
 import dotenv from "dotenv";
 import path from "path";
 
-// Load .env.local file
-dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+// Load .env.local file from client directory (parent of migrations)
+dotenv.config({ path: path.resolve(__dirname, "..", ".env.local") });
 
 // Import Firebase functions
 import { initializeApp } from "firebase/app";

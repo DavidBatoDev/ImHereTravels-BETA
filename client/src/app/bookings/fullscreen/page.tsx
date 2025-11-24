@@ -47,27 +47,6 @@ export default function BookingsFullscreenPage() {
   const [currencyRangeFilters, setCurrencyRangeFilters] = useState<
     Record<string, { min?: number; max?: number }>
   >({});
-  const [availableFunctions, setAvailableFunctions] = useState<
-    TypeScriptFunction[]
-  >([]);
-  const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
-
-  // Fetch TypeScript functions
-  useEffect(() => {
-    const fetchFunctions = async () => {
-      setIsLoadingFunctions(true);
-      try {
-        const functions = await typescriptFunctionsService.getAllFunctions();
-        setAvailableFunctions(functions);
-      } catch (error) {
-        console.error("Failed to fetch TypeScript functions:", error);
-      } finally {
-        setIsLoadingFunctions(false);
-      }
-    };
-
-    fetchFunctions();
-  }, []);
 
   // Filter management functions
   const clearAllFilters = useCallback(() => {
@@ -454,9 +433,7 @@ export default function BookingsFullscreenPage() {
           updateData={updateData}
           updateRow={updateRow}
           deleteRow={deleteRow}
-          availableFunctions={availableFunctions}
           isFullscreen={true}
-          pageSize={1000}
           globalFilter={globalFilter}
           columnFilters={columnFilters}
           dateRangeFilters={dateRangeFilters}

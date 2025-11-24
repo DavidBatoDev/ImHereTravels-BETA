@@ -114,7 +114,6 @@ export default function BookingsSheetWrapper({}: BookingsSheetWrapperProps) {
           updateData={updateData}
           updateRow={updateRow}
           deleteRow={deleteRow}
-          availableFunctions={availableFunctions}
         />
       ) : (
         <BookingsSheet />

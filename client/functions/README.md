@@ -287,10 +287,17 @@ When enabled, the system automatically:
    - Scheduled email IDs stored in "Px Scheduled Email Link" columns
 
 4. **Automatic Sending**
+
    - Daily at 9 AM, `processScheduledEmails` runs
    - Checks for emails where `scheduledFor <= now`
    - Sends pending payment reminders
    - Updates booking with actual Gmail sent link
+
+5. **Automatic Cleanup on Deletion**
+   - When a booking is deleted, cleanup runs automatically in the booking service
+   - Deletes all associated scheduled payment reminder emails in a batch
+   - Prevents orphaned emails in the system
+   - Logs summary of cleanup operation to console
 
 ### Subject Line Generation
 

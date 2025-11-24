@@ -24,14 +24,14 @@ export interface ScheduledEmail {
   cc?: string[];
   from?: string;
   replyTo?: string;
-  scheduledFor: Date;
-  status: "pending" | "sent" | "failed" | "cancelled";
-  createdAt: Date;
-  updatedAt: Date;
+  scheduledFor: string; // ISO string from Firestore conversion
+  status: "pending" | "sent" | "failed" | "cancelled" | "skipped";
+  createdAt: string; // ISO string from Firestore conversion
+  updatedAt: string; // ISO string from Firestore conversion
   attempts: number;
   maxAttempts: number;
   errorMessage?: string;
-  sentAt?: Date;
+  sentAt?: string; // ISO string from Firestore conversion
   messageId?: string;
   emailType?: string;
   bookingId?: string;
@@ -108,6 +108,62 @@ export class ScheduledEmailService {
 
     if (!result.success) {
       throw new Error(result.error || "Failed to cancel scheduled email");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Skip a scheduled email (mark as skipped without deleting)
+   */
+  static async skipScheduledEmail(scheduledEmailId: string) {
+    // Call Next.js API route
+    const response = await fetch(
+      `/api/scheduled-emails/${scheduledEmailId}/skip`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to skip scheduled email");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Unskip a scheduled email (mark as pending again)
+   */
+  static async unskipScheduledEmail(scheduledEmailId: string) {
+    // Call Next.js API route
+    const response = await fetch(
+      `/api/scheduled-emails/${scheduledEmailId}/unskip`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to unskip scheduled email");
     }
 
     return result.data;
@@ -212,6 +268,97 @@ export class ScheduledEmailService {
 
     if (!result.success) {
       throw new Error(result.error || "Failed to reschedule email");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Update a scheduled email's content
+   */
+  static async updateScheduledEmail(
+    scheduledEmailId: string,
+    updates: {
+      to?: string;
+      cc?: string[];
+      bcc?: string[];
+      subject?: string;
+      htmlContent?: string;
+    }
+  ) {
+    // Call Next.js API route
+    const response = await fetch(`/api/scheduled-emails/${scheduledEmailId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to update email");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Retry a failed email by resetting its status to pending
+   */
+  static async retryFailedEmail(scheduledEmailId: string) {
+    // Call Next.js API route instead of Firebase Functions
+    const response = await fetch(
+      `/api/scheduled-emails/${scheduledEmailId}/retry`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to retry email");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Delete all payment reminder scheduled emails for a booking
+   * and update the booking to disable payment reminders
+   */
+  static async deletePaymentReminders(bookingId: string) {
+    const response = await fetch(
+      `/api/scheduled-emails/payment-reminders/${bookingId}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to delete payment reminders");
     }
 
     return result.data;

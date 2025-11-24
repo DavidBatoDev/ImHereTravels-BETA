@@ -1,6 +1,9 @@
 // Core Firestore Types
 import { Timestamp } from "firebase/firestore";
 
+// Export booking sheet column types
+export * from "./booking-sheet-column";
+
 // ============================================================================
 // COMMON UTILITY TYPES
 // ============================================================================

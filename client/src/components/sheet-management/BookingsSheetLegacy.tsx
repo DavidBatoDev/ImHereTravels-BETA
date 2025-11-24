@@ -2457,7 +2457,6 @@ export default function BookingsSheet() {
         onClose={() => setColumnSettingsModal({ isOpen: false, column: null })}
         onSave={handleColumnSave}
         onDelete={handleColumnDelete}
-        availableFunctions={availableFunctions}
         existingColumns={columns}
       />
 

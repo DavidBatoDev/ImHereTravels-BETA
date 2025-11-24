@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -29,7 +29,13 @@ import {
   Clock,
   FileText,
   AlertCircle,
+  History,
+  RefreshCw,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { bookingVersionHistoryService } from "@/services/booking-version-history-service";
+import { BookingVersionSnapshot } from "@/types/version-history";
+import { useToast } from "@/hooks/use-toast";
 
 // Mock data - replace with real data from your backend
 const mockFinancialData = {
@@ -76,6 +82,105 @@ const mockOperationalData = {
 export default function ReportsCenter() {
   const [dateRange, setDateRange] = useState("30");
   const [reportType, setReportType] = useState("financial");
+  const [activityLogs, setActivityLogs] = useState<BookingVersionSnapshot[]>(
+    []
+  );
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const { toast } = useToast();
+
+  // Load activity logs from booking version history
+  useEffect(() => {
+    loadActivityLogs();
+  }, [dateRange]);
+
+  const loadActivityLogs = async () => {
+    setIsLoadingLogs(true);
+    try {
+      const days = parseInt(dateRange);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      const versions = await bookingVersionHistoryService.getAllVersions({
+        orderBy: "createdAt",
+        orderDirection: "desc",
+        limit: 100,
+      });
+
+      // Filter by date range
+      const filteredVersions = versions.filter((version) => {
+        const createdAt = version.metadata.createdAt;
+        if (!createdAt) return false;
+
+        let versionDate: Date;
+        if (createdAt instanceof Date) {
+          versionDate = createdAt;
+        } else if (typeof createdAt === "object" && "toDate" in createdAt) {
+          versionDate = (createdAt as any).toDate();
+        } else if (typeof createdAt === "number") {
+          versionDate = new Date(createdAt);
+        } else {
+          return false;
+        }
+
+        return versionDate >= startDate;
+      });
+
+      setActivityLogs(filteredVersions);
+    } catch (error) {
+      console.error("Failed to load activity logs:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load activity logs",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  };
+
+  const formatTimestamp = (timestamp: any): string => {
+    if (!timestamp) return "Unknown";
+
+    try {
+      let date: Date;
+      if (timestamp instanceof Date) {
+        date = timestamp;
+      } else if (typeof timestamp === "object" && "toDate" in timestamp) {
+        date = timestamp.toDate();
+      } else if (typeof timestamp === "number") {
+        date = new Date(timestamp);
+      } else {
+        return "Unknown";
+      }
+
+      return date.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      return "Unknown";
+    }
+  };
+
+  const getChangeTypeColor = (changeType: string): string => {
+    switch (changeType) {
+      case "create":
+        return "bg-green-100 text-green-800";
+      case "update":
+        return "bg-blue-100 text-blue-800";
+      case "delete":
+        return "bg-red-100 text-red-800";
+      case "restore":
+        return "bg-purple-100 text-purple-800";
+      case "bulk":
+        return "bg-orange-100 text-orange-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -121,6 +226,10 @@ export default function ReportsCenter() {
           <TabsTrigger value="operational" className="flex items-center">
             <BarChart3 className="mr-2 h-4 w-4" />
             Operational Reports
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="flex items-center">
+            <History className="mr-2 h-4 w-4" />
+            Activity Logs
           </TabsTrigger>
         </TabsList>
 
@@ -497,6 +606,248 @@ export default function ReportsCenter() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-6">
+          {/* Activity Logs Header */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Booking Activity Logs
+                  </CardTitle>
+                  <CardDescription>
+                    Complete history of all booking changes and operations
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={loadActivityLogs}
+                  disabled={isLoadingLogs}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${isLoadingLogs ? "animate-spin" : ""}`}
+                  />
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoadingLogs ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <RefreshCw className="h-5 w-5 animate-spin" />
+                    <span>Loading activity logs...</span>
+                  </div>
+                </div>
+              ) : activityLogs.length === 0 ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center text-muted-foreground">
+                    <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium">No Activity Found</p>
+                    <p className="text-sm mt-2">
+                      No booking changes in the selected time period
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                  {activityLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          {/* Header with change type badge */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge
+                              className={getChangeTypeColor(
+                                log.metadata.changeType
+                              )}
+                            >
+                              {log.metadata.changeType.toUpperCase()}
+                            </Badge>
+                            {(log.metadata.changeType === "bulk_update" ||
+                              log.metadata.changeType === "bulk_delete" ||
+                              log.metadata.changeType === "bulk_import") && (
+                              <Badge variant="outline" className="bg-orange-50">
+                                BULK OPERATION
+                              </Badge>
+                            )}
+                            <span className="text-sm text-muted-foreground">
+                              Version {log.versionNumber}
+                            </span>
+                          </div>
+
+                          {/* Booking Information */}
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">
+                              {log.bookingId
+                                ? `Booking #${log.bookingId}`
+                                : "Booking"}
+                            </span>
+                          </div>
+
+                          {/* Description */}
+                          {log.metadata.changeDescription && (
+                            <p className="text-sm text-muted-foreground">
+                              {log.metadata.changeDescription}
+                            </p>
+                          )}
+
+                          {/* Changes Summary */}
+                          {log.changes && log.changes.length > 0 && (
+                            <div className="text-sm">
+                              <span className="text-muted-foreground">
+                                Changes:
+                              </span>{" "}
+                              {log.changes.slice(0, 3).map((change, idx) => (
+                                <span key={idx}>
+                                  {idx > 0 && ", "}
+                                  <span className="font-medium">
+                                    {change.fieldName || change.fieldPath}
+                                  </span>
+                                  {change.oldValue !== undefined &&
+                                    change.newValue !== undefined && (
+                                      <span className="text-muted-foreground">
+                                        {" "}
+                                        ({String(change.oldValue)} →{" "}
+                                        {String(change.newValue)})
+                                      </span>
+                                    )}
+                                </span>
+                              ))}
+                              {log.changes.length > 3 && (
+                                <span className="text-muted-foreground">
+                                  {" "}
+                                  +{log.changes.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Branch Information */}
+                          {log.branchInfo && !log.branchInfo.isMainBranch && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="text-muted-foreground">
+                                Branch:
+                              </span>
+                              <Badge variant="outline">
+                                {log.branchInfo.branchName || log.branchId}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Right side - User and Time */}
+                        <div className="text-right space-y-1">
+                          <div className="flex items-center gap-2 justify-end">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">
+                              {log.metadata.createdByName || "Unknown User"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 justify-end text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            <span className="text-sm">
+                              {formatTimestamp(log.metadata.createdAt)}
+                            </span>
+                          </div>
+                          {log.parentVersionId && (
+                            <div className="text-xs text-muted-foreground">
+                              Branched from v
+                              {
+                                activityLogs.find(
+                                  (v) => v.id === log.parentVersionId
+                                )?.versionNumber
+                              }
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Activity Statistics */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Changes
+                </CardTitle>
+                <History className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{activityLogs.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  In selected period
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Creates</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {
+                    activityLogs.filter(
+                      (log) => log.metadata.changeType === "create"
+                    ).length
+                  }
+                </div>
+                <p className="text-xs text-muted-foreground">New bookings</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Updates</CardTitle>
+                <FileText className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {
+                    activityLogs.filter(
+                      (log) => log.metadata.changeType === "update"
+                    ).length
+                  }
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Modified bookings
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Deletes</CardTitle>
+                <AlertCircle className="h-4 w-4 text-red-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  {
+                    activityLogs.filter(
+                      (log) => log.metadata.changeType === "delete"
+                    ).length
+                  }
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Deleted bookings
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 

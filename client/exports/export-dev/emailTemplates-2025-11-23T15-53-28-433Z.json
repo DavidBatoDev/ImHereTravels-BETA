@@ -1,0 +1,437 @@
+[
+  {
+    "id": "BnRGgT6E8SVrXZH961LT",
+    "variables": [
+      "fullName",
+      "tourPackage",
+      "reservationFee",
+      "mainBooker",
+      "tourDate",
+      "returnDate",
+      "tourDuration",
+      "bookingType",
+      "bookingId",
+      "groupId",
+      "remainingBalance",
+      "fullPaymentDueDate",
+      "p1DueDate",
+      "eventName",
+      "p1Amount",
+      "discountRate",
+      "p2Amount",
+      "p2DueDate",
+      "p3Amount",
+      "p3DueDate",
+      "p4Amount",
+      "p4DueDate"
+    ],
+    "content": "<html>\n\n<body>\n    <!-- reservationEmailTemplate.html - Nunjucks Version with Discount Support -->\n    <div style=\"font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; margin: 0;\">\n        <div class=\"email-header\" style=\"width: 100%; margin: 0 auto; margin-bottom: 10px\">\n            <img src=\"https://imheretravels.com/wp-content/uploads/2024/05/siargao-header-1.webp\" alt=\"ImHereTravels Banner\" style=\"width: 100%; max-width: 636px; height: auto; display: block; margin: 0 auto;\" />\n        </div>\n        <div class=\"email-container\"\n            style=\"max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);\">\n            <p style=\"font-size: 16px; color: #333333\">Hi <strong>{{ fullName }}</strong>,</p>\n\n            <!-- Refund Details (for Invalid bookings) -->\n            {% if availablePaymentTerms == \"Invalid\" %}\n            <!-- Custom Thank You Message for Invalid Booking -->\n            <p style=\"font-size: 16px; color: #333333\">Thank you for choosing ImHereTravels. We truly appreciate your\n                interest in our <strong>{{ tourPackage }}</strong>.</p>\n\n            <!-- Refund Details Section -->\n            <h3 style=\"color: red\">Refund Details for Your Booking</h3>\n\n            <p style=\"font-size: 16px\">Unfortunately, we're unable to process your booking because the tour is scheduled\n                to begin within 48 hours. Due to the limited time, we're not able to complete the necessary arrangements\n                to ensure a smooth and quality travel experience for you.</p>\n            <p style=\"font-size: 16px\">We'd love to help you explore other options. You may rebook a different tour with\n                a later start date by reaching out to us directly, and we'll be happy to assist.</p>\n            <p style=\"font-size: 16px; color: #333333\">Regarding your deposit of\n                <strong style=\"color: red\">£{{ reservationFee }}</strong>, please let us know your preferred refund\n                method. Kindly send us your bank details so we can process the refund promptly.</p>\n            <p style=\"font-size: 16px\">Thank you for your understanding, and we hope to assist you on your next\n                adventure.</p>\n\n            <p style=\"font-size: 16px; color: #333333\">Best regards,</p>\n            <p style=\"font-size: 16px; color: #333333\"><strong>The ImHereTravels Team</strong></p>\n            <div style=\"text-align: left; margin-top: 20px\">\n                <img src=\"https://imheretravels.com/wp-content/uploads/2025/04/ImHereTravels-Logo.png\" alt=\"ImHereTravels Logo\" style=\"width: 120px; height: auto; display: block\" />\n            </div>\n            {% endif %}\n\n            <!-- Payment Terms Rendering: generic thank-you when none of the special cases apply -->\n            {% if availablePaymentTerms != \"Invalid\" and availablePaymentTerms != \"Full payment required within 48hrs\"\n            and availablePaymentTerms != \"P1\" and availablePaymentTerms != \"P2\" and availablePaymentTerms != \"P3\" and\n            availablePaymentTerms != \"P4\" %}\n            <p style=\"font-size: 16px; color: #333333\">Thank you for booking with\n                <strong style=\"color: red\">ImHereTravels!</strong></p>\n            <p style=\"font-size: 16px; color: #333333\">Your deposit of\n                <span style=\"color: red\"><strong>£{{ reservationFee }}</strong></span> has been received, and we're\n                thrilled to have you join us for an unforgettable adventure!</p>\n            {% endif %}\n\n            <!-- Final Payment Scenario -->\n            {% if availablePaymentTerms == \"Full payment required within 48hrs\" %}\n            <p style=\"font-size: 16px; color: #333333\">Thank you for booking with\n                <strong style=\"color: red\">ImHereTravels!</strong></p>\n            <p style=\"font-size: 16px; color: #333333\">We're holding your spot for <strong>{{ tourPackage }}</strong>,\n                but your reservation isn't confirmed yet.</p>\n\n            <!-- Booking Details -->\n            <h2 style=\"color: red; font-size: 24px; margin-top: 0\">Booking Details</h2>\n            <table cellpadding=\"5\"\n                style=\"border-collapse: collapse; width: 100%; max-width: 600px; color: #333333; margin-bottom: 20px;\">\n                <tr>\n                    <td><strong>Traveler Name:</strong></td>\n                    <td>{{ fullName }}</td>\n                </tr>\n\n                <!-- Conditional rendering for Main Booker -->\n                {% if bookingType == \"Group Booking\" or bookingType == \"Duo Booking\" %}\n                <tr>\n                    <td><strong>Main Booker:</strong></td>\n                    <td>{{ mainBooker }}</td>\n                </tr>\n                {% endif %}\n\n                <tr>\n                    <td><strong>Tour Name:</strong></td>\n                    <td>{{ tourPackage }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Date:</strong></td>\n                    <td>{{ tourDate }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Return Date:</strong></td>\n                    <td>{{ returnDate }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Duration:</strong></td>\n                    <td>{{ tourDuration }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Booking Type:</strong></td>\n                    <td>{{ bookingType }}</td>\n                </tr>\n\n                <!-- Conditional rendering for Booking ID and Group ID -->\n                {% if bookingType == \"Group Booking\" or bookingType == \"Duo Booking\" %}\n                <tr>\n                    <td><strong>Booking ID:</strong></td>\n                    <td>{{ bookingId }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Group ID:</strong></td>\n                    <td>{{ groupId }}</td>\n                </tr>\n                {% endif %}\n            </table>\n\n            <p style=\"font-size: 16px; color: #333333\">We've received your deposit of\n                <span style=\"color: red\"><strong>£{{ reservationFee }}</strong></span> — thank you! You're now ready for\n                the next step to finalize your booking.</p>\n            <h3 style=\"font-size: 18px; color: red; margin-top: 20px\">⚠️ Final Payment Required Within 48 Hours</h3>\n            <p style=\"font-size: 16px; color: #333333\">Your tour is less than 30 days away, so monthly payment plans are\n                no longer available. To secure your spot, the remaining balance must be fully paid within 48 hours.</p>\n\n            <div style=\"padding: 20px; border-radius: 5px; margin-bottom: 20px\">\n                <table\n                    style=\"width: 100%; font-size: 16px; border-collapse: collapse; table-layout: fixed; border: 1px solid black;\">\n                    <thead style=\"background-color: #f2f2f2\">\n                        <tr>\n                            <th align=\"left\" style=\"padding: 10px; width: 35%; border: 1px solid black\">Payment Terms\n                            </th>\n                            <th align=\"left\" style=\"padding: 10px; width: 30%; border: 1px solid black\">Amount</th>\n                            <th align=\"left\" style=\"padding: 10px; width: 35%; border: 1px solid black\">Due Date(s)</th>\n                        </tr>\n                    </thead>\n                    <tbody>\n                        <tr>\n                            <td style=\"padding: 10px; border: 1px solid black\">Full payment</td>\n                            <td style=\"padding: 10px; border: 1px solid black\">£{{ remainingBalance }}</td>\n                            <td style=\"padding: 10px; border: 1px solid black\">{{ fullPaymentDueDate }}</td>\n                        </tr>\n                    </tbody>\n                </table>\n                <p style=\"font-size: 14px; font-style: italic; color: #333333\">Note: All deposits are non-refundable.\n                    Please settle the full balance on or before the due date to avoid cancellations. Don't forget to\n                    send us a proof of payment/screenshot to confirm your booking.</p>\n            </div>\n            {% endif %}\n\n            <!-- P1 Payment Scenario -->\n            {% if availablePaymentTerms == \"P1\" %}\n            <p style=\"font-size: 16px; color: #333333\">Thank you for booking with\n                <strong style=\"color: red\">ImHereTravels!</strong></p>\n            <p style=\"font-size: 16px; color: #333333\">We've received your deposit of\n                <span style=\"color: red\"><strong>£{{ reservationFee }}</strong></span> — and your spot is nearly\n                secured! We just need the remaining balance to finalize your booking.</p>\n\n            <!-- Booking Details for P1 -->\n            <h2 style=\"color: red; font-size: 24px; margin-top: 0\">Booking Details</h2>\n            <table cellpadding=\"5\"\n                style=\"border-collapse: collapse; width: 100%; max-width: 600px; color: #333333; margin-bottom: 20px;\">\n                <tr>\n                    <td><strong>Traveler Name:</strong></td>\n                    <td>{{ fullName }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Name:</strong></td>\n                    <td>{{ tourPackage }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Date:</strong></td>\n                    <td>{{ tourDate }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Return Date:</strong></td>\n                    <td>{{ returnDate }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Duration:</strong></td>\n                    <td>{{ tourDuration }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Booking Type:</strong></td>\n                    <td>{{ bookingType }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Booking ID:</strong></td>\n                    <td>{{ bookingId }}</td>\n                </tr>\n                {% if bookingType == \"Group Booking\" or bookingType == \"Duo Booking\" %}\n                <tr>\n                    <td><strong>Group ID:</strong></td>\n                    <td>{{ groupId }}</td>\n                </tr>\n                {% endif %}\n            </table>\n\n            <!-- Payment Terms for P1 -->\n            <h3 style=\"font-size: 20px; color: red\">Final Payment Due Soon</h3>\n            <p style=\"font-size: 16px; color: #333333\">There is only one available payment plan for your tour, so the\n                remaining balance must be paid in full on <strong>{{ p1DueDate }}</strong>.</p>\n\n            <!-- Discount Banner for P1 -->\n            {% if eventName and discountRate > 0 %}\n            <div\n                style=\"background-color: #e6f7e6; border-left: 5px solid #28a745; padding: 15px; margin-bottom: 20px; border-radius: 5px;\">\n                <h3 style=\"margin: 0 0 5px 0; color: #28a745;\">{{ eventName }} Discount Applied!</h3>\n            </div>\n            {% endif %}\n\n            <div style=\"padding: 20px; border-radius: 5px; margin-bottom: 20px\">\n                <table\n                    style=\"width: 100%; font-size: 16px; border-collapse: collapse; table-layout: fixed; border: 1px solid black;\">\n                    <thead style=\"background-color: #f2f2f2\">\n                        <tr>\n                            <th align=\"left\" style=\"padding: 10px; width: 35%; border: 1px solid black\">Payment Terms\n                            </th>\n                            <th align=\"left\" style=\"padding: 10px; width: 30%; border: 1px solid black\">Amount</th>\n                            <th align=\"left\" style=\"padding: 10px; width: 35%; border: 1px solid black\">Due Date(s)</th>\n                        </tr>\n                    </thead>\n                    <tbody>\n                        <tr>\n                            <td style=\"padding: 10px; border: 1px solid black\">P1 – Full payment</td>\n                            <td style=\"padding: 10px; border: 1px solid black\">\n                                £{{ p1Amount }}\n                                {% if eventName and discountRate > 0 %}\n                                <div style=\"font-size: 13px; color: #28a745;\">After {{ discountRate }}% discount</div>\n                                {% endif %}\n                            </td>\n                            <td style=\"padding: 10px; border: 1px solid black\">{{ p1DueDate }}</td>\n                        </tr>\n                    </tbody>\n                </table>\n                <p style=\"font-size: 14px; font-style: italic; color: #333333\">Note: All deposits are non-refundable.\n                    Please settle the full balance on or before the due date to avoid cancellations. Don't forget to\n                    send us a proof of payment/screenshot to confirm your booking.</p>\n            </div>\n            {% endif %}\n\n            <!-- P2 Payment Scenario -->\n            {% if availablePaymentTerms == \"P2\" %}\n            <p style=\"font-size: 16px; color: #333333\">Thank you for booking with\n                <strong style=\"color: red\">ImHereTravels!</strong></p>\n            <p style=\"font-size: 16px; color: #333333\">We've received your deposit of\n                <span style=\"color: red\"><strong>£{{ reservationFee }}</strong></span>, and your spot is almost\n                confirmed. You now have the option to pay the balance in full or in two monthly payments.</p>\n\n            <!-- Booking Details for P2 -->\n            <h2 style=\"color: red; font-size: 24px; margin-top: 0\">Booking Details</h2>\n            <table cellpadding=\"5\"\n                style=\"border-collapse: collapse; width: 100%; max-width: 600px; color: #333333; margin-bottom: 20px;\">\n                <tr>\n                    <td><strong>Traveler Name:</strong></td>\n                    <td>{{ fullName }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Name:</strong></td>\n                    <td>{{ tourPackage }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Date:</strong></td>\n                    <td>{{ tourDate }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Return Date:</strong></td>\n                    <td>{{ returnDate }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Duration:</strong></td>\n                    <td>{{ tourDuration }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Booking Type:</strong></td>\n                    <td>{{ bookingType }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Booking ID:</strong></td>\n                    <td>{{ bookingId }}</td>\n                </tr>\n                {% if bookingType == \"Group Booking\" or bookingType == \"Duo Booking\" %}\n                <tr>\n                    <td><strong>Group ID:</strong></td>\n                    <td>{{ groupId }}</td>\n                </tr>\n                {% endif %}\n            </table>\n\n            <!-- Payment Terms for P2 -->\n            <h3 style=\"font-size: 20px; color: red\">Choose Your Payment Plan</h3>\n            <p style=\"font-size: 16px; color: #333333\">Based on your tour schedule, you have 2 available payment plans.\n                You can choose the payment plan that works best for you.</p>\n\n            <!-- Discount Banner for P2 -->\n            {% if eventName and discountRate > 0 %}\n            <div\n                style=\"background-color: #e6f7e6; border-left: 5px solid #28a745; padding: 15px; margin-bottom: 20px; border-radius: 5px;\">\n                <h3 style=\"margin: 0 0 5px 0; color: #28a745;\">{{ eventName }} Discount Applied!</h3>\n            </div>\n            {% endif %}\n\n            <div style=\"padding: 20px; border-radius: 5px; margin-bottom: 20px\">\n                <table\n                    style=\"width: 100%; font-size: 16px; border-collapse: collapse; table-layout: fixed; border: 1px solid black;\">\n                    <thead style=\"background-color: #f2f2f2\">\n                        <tr>\n                            <th align=\"left\" style=\"padding: 10px; width: 35%; border: 1px solid black\">Payment Terms\n                            </th>\n                            <th align=\"left\" style=\"padding: 10px; width: 30%; border: 1px solid black\">Amount</th>\n                            <th align=\"left\" style=\"padding: 10px; width: 35%; border: 1px solid black\">Due Date(s)</th>\n                        </tr>\n                    </thead>\n                    <tbody>\n                        <tr>\n                            <td style=\"padding: 10px; border: 1px solid black\">P1 – Full payment</td>\n                            <td style=\"padding: 10px; border: 1px solid black\">\n                                £{{ p1Amount }}\n                                {% if eventName and discountRate > 0 %}\n                                <div style=\"font-size: 13px; color: #28a745;\">After {{ discountRate }}% discount</div>\n                                {% endif %}\n                            </td>\n                            <td style=\"padding: 10px; border: 1px solid black\">{{ p1DueDate }}</td>\n                        </tr>\n                        <tr>\n                            <td style=\"padding: 10px; border: 1px solid black\">P2 – Two payments</td>\n                            <td style=\"padding: 10px; border: 1px solid black\">\n                                £{{ p2Amount }} /month\n                                {% if eventName and discountRate > 0 %}\n                                <div style=\"font-size: 13px; color: #28a745;\">After {{ discountRate }}% discount</div>\n                                {% endif %}\n                            </td>\n                            <td style=\"padding: 10px; border: 1px solid black\">{{ p2DueDate }}</td>\n                        </tr>\n                    </tbody>\n                </table>\n                <p style=\"font-size: 14px; font-style: italic; color: #333333\">Note: All deposits are non-refundable.\n                    Please settle the full balance on or before the due date to avoid cancellations. Don't forget to\n                    send us a proof of payment/screenshot to confirm your booking.</p>\n            </div>\n            {% endif %}\n\n            <!-- P3 Payment Scenario -->\n            {% if availablePaymentTerms == \"P3\" %}\n            <p style=\"font-size: 16px; color: #333333\">Thank you for booking with\n                <strong style=\"color: red\">ImHereTravels!</strong></p>\n            <p style=\"font-size: 16px; color: #333333\">We've received your deposit of\n                <span style=\"color: red\"><strong>£{{ reservationFee }}</strong></span>, and your spot is almost\n                confirmed. You now have the option to pay the balance in full or in three monthly payments.</p>\n\n            <!-- Booking Details for P3 -->\n            <h2 style=\"color: red; font-size: 24px; margin-top: 0\">Booking Details</h2>\n            <table cellpadding=\"5\"\n                style=\"border-collapse: collapse; width: 100%; max-width: 600px; color: #333333; margin-bottom: 20px;\">\n                <tr>\n                    <td><strong>Traveler Name:</strong></td>\n                    <td>{{ fullName }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Name:</strong></td>\n                    <td>{{ tourPackage }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Date:</strong></td>\n                    <td>{{ tourDate }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Return Date:</strong></td>\n                    <td>{{ returnDate }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Duration:</strong></td>\n                    <td>{{ tourDuration }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Booking Type:</strong></td>\n                    <td>{{ bookingType }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Booking ID:</strong></td>\n                    <td>{{ bookingId }}</td>\n                </tr>\n                {% if bookingType == \"Group Booking\" or bookingType == \"Duo Booking\" %}\n                <tr>\n                    <td><strong>Group ID:</strong></td>\n                    <td>{{ groupId }}</td>\n                </tr>\n                {% endif %}\n            </table>\n\n            <!-- Payment Terms for P3 -->\n            <h3 style=\"font-size: 20px; color: red\">Choose Your Payment Plan</h3>\n            <p style=\"font-size: 16px; color: #333333\">Based on your tour schedule, you have 3 available payment plans.\n                You can choose the payment plan that works best for you.</p>\n\n            <!-- Discount Banner for P3 -->\n            {% if eventName and discountRate > 0 %}\n            <div\n                style=\"background-color: #e6f7e6; border-left: 5px solid #28a745; padding: 15px; margin-bottom: 20px; border-radius: 5px;\">\n                <h3 style=\"margin: 0 0 5px 0; color: #28a745;\">{{ eventName }} Discount Applied!</h3>\n            </div>\n            {% endif %}\n\n            <div style=\"padding: 20px; border-radius: 5px; margin-bottom: 20px\">\n                <table\n                    style=\"width: 100%; font-size: 16px; border-collapse: collapse; table-layout: fixed; border: 1px solid black;\">\n                    <thead style=\"background-color: #f2f2f2\">\n                        <tr>\n                            <th align=\"left\" style=\"padding: 10px; width: 35%; border: 1px solid black\">Payment Terms\n                            </th>\n                            <th align=\"left\" style=\"padding: 10px; width: 30%; border: 1px solid black\">Amount</th>\n                            <th align=\"left\" style=\"padding: 10px; width: 35%; border: 1px solid black\">Due Date(s)</th>\n                        </tr>\n                    </thead>\n                    <tbody>\n                        <tr>\n                            <td style=\"padding: 10px; border: 1px solid black\">P1 – Full payment</td>\n                            <td style=\"padding: 10px; border: 1px solid black\">\n                                £{{ p1Amount }}\n                                {% if eventName and discountRate > 0 %}\n                                <div style=\"font-size: 13px; color: #28a745;\">After {{ discountRate }}% discount</div>\n                                {% endif %}\n                            </td>\n                            <td style=\"padding: 10px; border: 1px solid black\">{{ p1DueDate }}</td>\n                        </tr>\n                        <tr>\n                            <td style=\"padding: 10px; border: 1px solid black\">P2 – Two payments</td>\n                            <td style=\"padding: 10px; border: 1px solid black\">\n                                £{{ p2Amount }} /month\n                                {% if eventName and discountRate > 0 %}\n                                <div style=\"font-size: 13px; color: #28a745;\">After {{ discountRate }}% discount</div>\n                                {% endif %}\n                            </td>\n                            <td style=\"padding: 10px; border: 1px solid black\">{{ p2DueDate }}</td>\n                        </tr>\n                        <tr>\n                            <td style=\"padding: 10px; border: 1px solid black\">P3 – Three payments</td>\n                            <td style=\"padding: 10px; border: 1px solid black\">\n                                £{{ p3Amount }} /month\n                                {% if eventName and discountRate > 0 %}\n                                <div style=\"font-size: 13px; color: #28a745;\">After {{ discountRate }}% discount</div>\n                                {% endif %}\n                            </td>\n                            <td style=\"padding: 10px; border: 1px solid black\">{{ p3DueDate }}</td>\n                        </tr>\n                    </tbody>\n                </table>\n                <p style=\"font-size: 14px; font-style: italic; color: #333333\">Note: All deposits are non-refundable.\n                    Please settle the full balance on or before the due date to avoid cancellations. Don't forget to\n                    send us a proof of payment/screenshot to confirm your booking.</p>\n            </div>\n            {% endif %}\n\n            <!-- P4 Payment Scenario -->\n            {% if availablePaymentTerms == \"P4\" %}\n            <p style=\"font-size: 16px; color: #333333\">Thank you for booking with\n                <strong style=\"color: red\">ImHereTravels!</strong></p>\n            <p style=\"font-size: 16px; color: #333333\">We've received your deposit of\n                <span style=\"color: red\"><strong>£{{ reservationFee }}</strong></span>, and your spot is almost\n                confirmed. You now have the option to pay the balance in full or in four monthly payments.</p>\n\n            <!-- Booking Details for P4 -->\n            <h2 style=\"color: red; font-size: 24px; margin-top: 0\">Booking Details</h2>\n            <table cellpadding=\"5\"\n                style=\"border-collapse: collapse; width: 100%; max-width: 600px; color: #333333; margin-bottom: 20px;\">\n                <tr>\n                    <td><strong>Traveler Name:</strong></td>\n                    <td>{{ fullName }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Name:</strong></td>\n                    <td>{{ tourPackage }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Date:</strong></td>\n                    <td>{{ tourDate }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Return Date:</strong></td>\n                    <td>{{ returnDate }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Tour Duration:</strong></td>\n                    <td>{{ tourDuration }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Booking Type:</strong></td>\n                    <td>{{ bookingType }}</td>\n                </tr>\n                <tr>\n                    <td><strong>Booking ID:</strong></td>\n                    <td>{{ bookingId }}</td>\n                </tr>\n                {% if bookingType == \"Group Booking\" or bookingType == \"Duo Booking\" %}\n                <tr>\n                    <td><strong>Group ID:</strong></td>\n                    <td>{{ groupId }}</td>\n                </tr>\n                {% endif %}\n            </table>\n\n            <!-- Payment Terms for P4 -->\n            <h3 style=\"font-size: 20px; color: red\">Choose Your Payment Plan</h3>\n            <p style=\"font-size: 16px; color: #333333\">Based on your tour schedule, you have 4 available payment plans.\n                You can choose the payment plan that works best for you.</p>\n\n            <!-- Discount Banner for P4 -->\n            {% if eventName and discountRate > 0 %}\n            <div\n                style=\"background-color: #e6f7e6; border-left: 5px solid #28a745; padding: 15px; margin-bottom: 20px; border-radius: 5px;\">\n                <h3 style=\"margin: 0 0 5px 0; color: #28a745;\">{{ eventName }} Discount Applied!</h3>\n            </div>\n            {% endif %}\n\n            <div style=\"padding: 20px; border-radius: 5px; margin-bottom: 20px\">\n                <table\n                    style=\"width: 100%; font-size: 16px; border-collapse: collapse; table-layout: fixed; border: 1px solid black;\">\n                    <thead style=\"background-color: #f2f2f2\">\n                        <tr>\n                            <th align=\"left\" style=\"padding: 10px; width: 35%; border: 1px solid black\">Payment Terms\n                            </th>\n                            <th align=\"left\" style=\"padding: 10px; width: 30%; border: 1px solid black\">Amount</th>\n                            <th align=\"left\" style=\"padding: 10px; width: 35%; border: 1px solid black\">Due Date(s)</th>\n                        </tr>\n                    </thead>\n                    <tbody>\n                        <tr>\n                            <td style=\"padding: 10px; border: 1px solid black\">P1 – Full payment</td>\n                            <td style=\"padding: 10px; border: 1px solid black\">\n                                £{{ p1Amount }}\n                                {% if eventName and discountRate > 0 %}\n                                <div style=\"font-size: 13px; color: #28a745;\">After {{ discountRate }}% discount</div>\n                                {% endif %}\n                            </td>\n                            <td style=\"padding: 10px; border: 1px solid black\">{{ p1DueDate }}</td>\n                        </tr>\n                        <tr>\n                            <td style=\"padding: 10px; border: 1px solid black\">P2 – Two payments</td>\n                            <td style=\"padding: 10px; border: 1px solid black\">\n                                £{{ p2Amount }} /month\n                                {% if eventName and discountRate > 0 %}\n                                <div style=\"font-size: 13px; color: #28a745;\">After {{ discountRate }}% discount</div>\n                                {% endif %}\n                            </td>\n                            <td style=\"padding: 10px; border: 1px solid black\">{{ p2DueDate }}</td>\n                        </tr>\n                        <tr>\n                            <td style=\"padding: 10px; border: 1px solid black\">P3 – Three payments</td>\n                            <td style=\"padding: 10px; border: 1px solid black\">\n                                £{{ p3Amount }} /month\n                                {% if eventName and discountRate > 0 %}\n                                <div style=\"font-size: 13px; color: #28a745;\">After {{ discountRate }}% discount</div>\n                                {% endif %}\n                            </td>\n                            <td style=\"padding: 10px; border: 1px solid black\">{{ p3DueDate }}</td>\n                        </tr>\n                        <tr>\n                            <td style=\"padding: 10px; border: 1px solid black\">P4 – Four payments</td>\n                            <td style=\"padding: 10px; border: 1px solid black\">\n                                £{{ p4Amount }} /month\n                                {% if eventName and discountRate > 0 %}\n                                <div style=\"font-size: 13px; color: #28a745;\">After {{ discountRate }}% discount</div>\n                                {% endif %}\n                            </td>\n                            <td style=\"padding: 10px; border: 1px solid black\">{{ p4DueDate }}</td>\n                        </tr>\n                    </tbody>\n                </table>\n                <p style=\"font-size: 14px; font-style: italic; color: #333333\">Note: All deposits are non-refundable.\n                    Please settle the full balance on or before the due date to avoid cancellations. Don't forget to\n                    send us a proof of payment/screenshot to confirm your booking.</p>\n            </div>\n            {% endif %}\n\n            <!-- Payment Methods (shown for any non-Invalid scenario) -->\n            {% if availablePaymentTerms != \"Invalid\" %}\n            <h3 style=\"font-size: 20px; color: red\">Choose Your Payment Method</h3>\n            <div style=\"background-color: #fff9c4; padding: 20px; border-radius: 5px; margin-bottom: 20px;\">\n                <ul\n                    style=\"font-size: 16px; color: #333333; margin-bottom: 20px; list-style-type: disc; padding-left: 20px;\">\n                    <li>\n                        <strong>PM1 – Revolut Business</strong>:<br />\n              Account Name: I'M HERE TRAVELS LTD<br />\n              Account Number: 36834154<br />\n              Sort Code: 23-01-20<br />\n              IBAN: GB52REVO00996983499052<br />\n              BIC: REVOGB21\n                    </li>\n                    <br />\n                    <li>\n                        <strong>PM2 – Ulster Bank Transfer</strong>:<br />\n              Account Name: Shawn V Keeley<br />\n              Account Number: 10561155<br />\n              Sort Code: 98-05-83<br />\n              IBAN: GB45ULSB98058310561155<br />\n              BIC: ULSBGB2B\n                    </li>\n                    <br />\n                    <li>\n                        <strong>PM3 – Stripe Payment (Credit/Debit Cards)</strong>:<br />\n                        <a href=\"https://buy.stripe.com/7sY5kD5NF2uBfGj1NJco03g\" target=\"_blank\"\n                            style=\"background-color: #28a745; color: white; text-decoration: none; font-weight: bold; padding: 8px 16px; border-radius: 4px; display: inline-block; margin-top: 5px;\">\n                            Pay securely online with Stripe\n                        </a>\n                    </li>\n                </ul>\n            </div>\n            <p style=\"font-size: 16px; color: #333333\">We can't wait to welcome you to {{ tourPackage }} — it's going to\n                be an unforgettable adventure!</p>\n            <p style=\"font-size: 16px; color: #333333\">Best regards,</p>\n            <p style=\"font-size: 16px; color: #333333\"><strong>The ImHereTravels Team</strong></p>\n            <div style=\"text-align: left; margin-top: 20px\">\n                <img src=\"https://imheretravels.com/wp-content/uploads/2025/04/ImHereTravels-Logo.png\" alt=\"ImHereTravels Logo\" style=\"width: 120px; height: auto; display: block\" />\n            </div>\n            {% endif %}\n\n            <p style=\"font-size: 12px; color: #666666; text-align: center\">You can reply to this email if you have any\n                questions — we'll get back to you soon.</p>\n        </div>\n    </div>\n</body>\n\n</html>",
+    "variableDefinitions": [
+      {
+        "name": "fullName",
+        "type": "string",
+        "description": "Auto-generated from template usage",
+        "id": "1756155192302"
+      },
+      {
+        "name": "tourPackage",
+        "type": "string",
+        "description": "Auto-generated from template usage",
+        "id": "1756155193291"
+      },
+      {
+        "name": "reservationFee",
+        "id": "1756155194179",
+        "type": "string",
+        "description": "Auto-generated from template usage"
+      },
+      {
+        "type": "string",
+        "name": "mainBooker",
+        "id": "1756155195076",
+        "description": "Auto-generated from template usage"
+      },
+      {
+        "description": "Auto-generated from template usage",
+        "name": "tourDate",
+        "type": "string",
+        "id": "1756155195965"
+      },
+      {
+        "description": "Auto-generated from template usage",
+        "id": "1756155196866",
+        "type": "string",
+        "name": "returnDate"
+      },
+      {
+        "name": "tourDuration",
+        "type": "string",
+        "description": "Auto-generated from template usage",
+        "id": "1756155197707"
+      },
+      {
+        "id": "1756155198564",
+        "description": "Auto-generated from template usage",
+        "type": "string",
+        "name": "bookingType"
+      },
+      {
+        "type": "string",
+        "name": "bookingId",
+        "id": "1756155199435",
+        "description": "Auto-generated from template usage"
+      },
+      {
+        "id": "1756155200286",
+        "name": "groupId",
+        "description": "Auto-generated from template usage",
+        "type": "string"
+      },
+      {
+        "name": "remainingBalance",
+        "description": "Auto-generated from template usage",
+        "type": "string",
+        "id": "1756155201169"
+      },
+      {
+        "name": "fullPaymentDueDate",
+        "type": "string",
+        "id": "1756155202043",
+        "description": "Auto-generated from template usage"
+      },
+      {
+        "description": "Auto-generated from template usage",
+        "id": "1756155202918",
+        "name": "p1DueDate",
+        "type": "string"
+      },
+      {
+        "type": "string",
+        "id": "1756155203855",
+        "description": "Auto-generated from template usage",
+        "name": "p1Amount"
+      },
+      {
+        "id": "1756155204781",
+        "description": "Auto-generated from template usage",
+        "type": "string",
+        "name": "p2Amount"
+      },
+      {
+        "name": "p2DueDate",
+        "type": "string",
+        "description": "Auto-generated from template usage",
+        "id": "1756155205680"
+      },
+      {
+        "name": "p3Amount",
+        "type": "string",
+        "description": "Auto-generated from template usage",
+        "id": "1756155206571"
+      },
+      {
+        "description": "Auto-generated from template usage",
+        "type": "string",
+        "id": "1756155208191",
+        "name": "p3DueDate"
+      },
+      {
+        "description": "Auto-generated from template usage",
+        "type": "string",
+        "id": "1756155209469",
+        "name": "p4Amount"
+      },
+      {
+        "description": "Auto-generated from template usage",
+        "type": "string",
+        "name": "p4DueDate",
+        "id": "1756155211111"
+      },
+      {
+        "name": "availablePaymentTerms",
+        "id": "1756155212413",
+        "type": "string",
+        "description": "Auto-generated from template usage"
+      },
+      {
+        "id": "1763830906797",
+        "description": "Auto-generated from template usage",
+        "name": "eventName",
+        "type": "string"
+      },
+      {
+        "description": "Auto-generated from template usage",
+        "id": "1763830908597",
+        "type": "string",
+        "name": "discountRate"
+      }
+    ],
+    "subject": "Your Adventure Awaits - Booking Confirmed!",
+    "bccGroups": [],
+    "name": "Booking Confirmation",
+    "metadata": {
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763830923,
+        "nanoseconds": 882000000
+      },
+      "createdBy": "qEgfAhoPUbejRVHrCs2ONubCizD2",
+      "usedCount": 0,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763570549,
+        "nanoseconds": 40000000
+      }
+    },
+    "status": "draft"
+  },
+  {
+    "id": "wQK3bh1S9KJdfQJG7cEI",
+    "status": "draft",
+    "variableDefinitions": [
+      {
+        "type": "string",
+        "id": "1756150942125",
+        "description": "Auto-generated from template usage",
+        "name": "fullName"
+      },
+      {
+        "id": "1756150945074",
+        "description": "Auto-generated from template usage",
+        "name": "tourPackage",
+        "type": "string"
+      },
+      {
+        "name": "tourDate",
+        "id": "1756150953411",
+        "description": "Auto-generated from template usage",
+        "type": "string"
+      },
+      {
+        "type": "string",
+        "description": "Auto-generated from template usage",
+        "name": "cancelledRefundAmount",
+        "id": "1756150955527"
+      }
+    ],
+    "subject": "Your Adventure Awaits - Booking Confirmed!",
+    "content": "<!-- cancellationEmailTemplate.html - Nunjucks Version -->\n<html>\n\n<body>\n    <p style=\"font-size: 16px; color: #333333;\">\n        Dear <strong>{{ fullName }}</strong>,\n    </p>\n\n    <p style=\"font-size: 16px; color: #333333;\">\n        We’re reaching out with unfortunate news regarding your upcoming\n        <strong>{{ tourPackage }}</strong> scheduled for\n        <strong>{{ tourDate }}</strong>.\n    </p>\n\n    <p style=\"font-size: 16px; color: #333333;\">\n        Due to unforeseen circumstances, we regret to inform you that this tour has been\n        <strong style=\"color: red;\">cancelled</strong>. We understand how disappointing this may be and sincerely\n        apologize\n        for the inconvenience.\n    </p>\n\n    <p style=\"font-size: 16px; color: #333333;\">\n        <strong>You have a couple of options moving forward:</strong>\n    </p>\n\n    <ul style=\"font-size: 16px; color: #333333; padding-left: 20px;\">\n        <li>\n            <strong>Reschedule:</strong> We’d be happy to help you rebook the same tour for a future date or explore\n            other\n            travel packages that may suit your schedule.\n        </li>\n        <li>\n            <strong>Refund:</strong> If you prefer a full refund of\n            <strong style=\"color: red;\">{{ cancelledRefundAmount }}</strong>, please send us your bank details and we’ll\n            process it promptly.\n        </li>\n    </ul>\n\n    <p style=\"font-size: 16px; color: #333333;\">\n        Our team is ready to assist you and ensure this experience is handled with care. If you have any questions or\n        need\n        support, don’t hesitate to contact us directly.\n    </p>\n\n    <p style=\"font-size: 16px; color: #333333;\">Thank you for your patience and understanding.</p>\n    <p style=\"font-size: 16px; color: #333333;\">Warm regards,</p>\n    <p style=\"font-size: 16px; color: #333333;\"><strong>The ImHereTravels Team</strong></p>\n\n    <div style=\"text-align: left; margin-top: 20px;\">\n        <img src=\"https://imheretravels.com/wp-content/uploads/2025/04/ImHereTravels-Logo.png\" alt=\"ImHereTravels Logo\" style=\"width: 120px; height: auto; display: block;\">\n    </div>\n</body>\n\n</html>",
+    "name": "Cancellation Email",
+    "variables": [
+      "fullName",
+      "tourPackage",
+      "tourDate",
+      "cancelledRefundAmount"
+    ],
+    "metadata": {
+      "updatedAt": {
+        "_nanoseconds": 403000000,
+        "_seconds": 1758972060
+      },
+      "usedCount": 0,
+      "createdAt": {
+        "_nanoseconds": 898000000,
+        "_seconds": 1756150997
+      },
+      "createdBy": "qEgfAhoPUbejRVHrCs2ONubCizD2"
+    },
+    "bccGroups": []
+  },
+  {
+    "id": "DisPYJPnL01OmomT8Mch",
+    "metadata": {
+      "usedCount": 0,
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763833237,
+        "nanoseconds": 159000000
+      },
+      "createdBy": "system",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763833237,
+        "nanoseconds": 158000000
+      }
+    },
+    "subject": "Payment Reminder - Action Required",
+    "name": "Initial Payment Reminder",
+    "variableDefinitions": [
+      {
+        "name": "fullName",
+        "type": "string",
+        "id": "1",
+        "description": "Full name of the recipient"
+      },
+      {
+        "description": "Name of the tour package",
+        "name": "tourPackage",
+        "type": "string",
+        "id": "2"
+      },
+      {
+        "name": "paymentPlan",
+        "id": "3",
+        "description": "Type of payment plan (e.g., Single Installment, Two Installments)",
+        "type": "string"
+      },
+      {
+        "type": "string",
+        "id": "4",
+        "name": "paymentMethod",
+        "description": "Payment method selected (Stripe, Revolut, Ulster, etc.)"
+      },
+      {
+        "type": "array",
+        "arrayElementType": "string",
+        "id": "5",
+        "description": "Array of payment term descriptions",
+        "name": "terms"
+      },
+      {
+        "name": "amounts",
+        "description": "Array of payment amounts",
+        "type": "array",
+        "id": "6",
+        "arrayElementType": "number"
+      },
+      {
+        "arrayElementType": "string",
+        "description": "Array of payment due dates",
+        "type": "array",
+        "id": "7",
+        "name": "dueDates"
+      },
+      {
+        "description": "Array of calendar links for each payment",
+        "name": "calendarLinks",
+        "id": "8",
+        "arrayElementType": "string",
+        "type": "array"
+      },
+      {
+        "name": "remainingBalance",
+        "id": "9",
+        "type": "number",
+        "description": "Total remaining balance to be paid"
+      }
+    ],
+    "content": "<!-- initialPaymentReminder.html - Nunjucks Version -->\n<div style=\"font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6\">\n  <p>Hi {{ fullName }},</p>\n\n  <p>\n    Thank you for selecting your payment method and plan. We're excited to have\n    you join us for {{ tourPackage }}!\n  </p>\n\n  <p>\n    Please take a moment to review the details below and ensure everything looks\n    correct:\n  </p>\n\n  <ul>\n    <li><strong>Tour:</strong> {{ tourPackage }}</li>\n    <li><strong>Payment Plan:</strong> {{ paymentPlan }}</li>\n    <li>\n      <strong>Payment Method:</strong> {{ paymentMethod }} {% if paymentMethod\n      == \"Stripe\" %}\n      <br /><a href=\"https://buy.stripe.com/7sY5kD5NF2uBfGj1NJco03g\" target=\"_blank\" style=\"\n          background-color: #28a745;\n          color: white;\n          text-decoration: none;\n          font-weight: bold;\n          padding: 8px 16px;\n          border-radius: 4px;\n          display: inline-block;\n          margin-top: 8px;\n        \">Pay securely online with Stripe</a>\n      {% elif paymentMethod == \"Revolut\" %}\n      <ul>\n        <li>Account Name: I'M HERE TRAVELS LTD</li>\n        <li>Account Number: 36834154</li>\n        <li>Sort Code: 23-01-20</li>\n        <li>IBAN: GB52REVO00996983499052</li>\n        <li>BIC: REVOGB21</li>\n      </ul>\n      {% elif paymentMethod == \"Ulster\" %}\n      <ul>\n        <li>Account Name: Shawn V Keeley</li>\n        <li>Account Number: 10561155</li>\n        <li>Sort Code: 98-05-83</li>\n        <li>IBAN: GB45ULSB98058310561155</li>\n        <li>BIC: ULSBGB2B</li>\n      </ul>\n      {% else %}\n      <ul>\n        <li>[Details will be provided separately]</li>\n      </ul>\n      {% endif %}\n    </li>\n  </ul>\n\n  <p>\n    We've outlined your payment terms and due dates below. To ensure you don't\n    miss any payments, please click 'Yes' to add the payment due date reminders\n    directly to your calendar.\n  </p>\n\n  <h3 style=\"color: #d00\">Payment Tracker</h3>\n\n  <table style=\"\n      border-collapse: collapse;\n      width: 100%;\n      max-width: 600px;\n      font-size: 14px;\n      border: 1px solid #ddd;\n    \" cellpadding=\"8\" cellspacing=\"0\">\n    <thead>\n      <tr style=\"background-color: #f8f9fa\">\n        <th style=\"\n            border: 1px solid #ddd;\n            text-align: left;\n            font-weight: bold;\n            padding: 10px;\n          \">\n          Payment Term\n        </th>\n        <th style=\"\n            border: 1px solid #ddd;\n            text-align: left;\n            font-weight: bold;\n            padding: 10px;\n          \">\n          Amount\n        </th>\n        <th style=\"\n            border: 1px solid #ddd;\n            text-align: left;\n            font-weight: bold;\n            padding: 10px;\n          \">\n          Due Date\n        </th>\n        <th style=\"\n            border: 1px solid #ddd;\n            text-align: left;\n            font-weight: bold;\n            padding: 10px;\n          \">\n          Add to Calendar\n        </th>\n      </tr>\n    </thead>\n    <tbody>\n      {% for term in terms %}\n      <tr>\n        <td style=\"border: 1px solid #ddd; padding: 10px\">{{ term.name }}</td>\n        <td style=\"border: 1px solid #ddd; padding: 10px\">\n          {{ term.amount or \"\" }}\n        </td>\n        <td style=\"border: 1px solid #ddd; padding: 10px\">\n          {{ term.dueDate or \"\" }}\n        </td>\n        <td style=\"border: 1px solid #ddd; padding: 10px\">\n          {% if term.calendarLink %}\n          <a href=\"{{ term.calendarLink }}\" target=\"_blank\" style=\"color: #007bff; text-decoration: none\">Calendar\n            link</a>\n          {% else %} - {% endif %}\n        </td>\n      </tr>\n      {% endfor %}\n      <tr style=\"background-color: #f8f9fa\">\n        <td style=\"border: 1px solid #ddd; padding: 10px; font-weight: bold\">\n          Total\n        </td>\n        <td style=\"border: 1px solid #ddd; padding: 10px; font-weight: bold\" colspan=\"3\">\n          {{ remainingBalance }}\n        </td>\n      </tr>\n    </tbody>\n  </table>\n\n  <br />\n\n  <p>\n    <strong\n      >You'll receive a reminder 3 days before each payment is due</strong>, ensuring you have plenty of time to stay on\n    track. We've also added the\n    payment due dates to your calendar for easy reference.\n  </p>\n\n  <p>If you need any assistance or have questions, feel free to reach out to us.</p>\n\n  <p>\n    Warm regards,<br />\n    <strong>The ImHereTravels Team</strong><br />\n  </p>\n\n  <div style=\"margin-top: 20px\">\n    <img\n      src=\"https://imheretravels.com/wp-content/uploads/2025/04/ImHereTravels-Logo.png\"\n      alt=\"ImHereTravels Logo\"\n      style=\"width: 120px\"\n    />\n  </div>\n</div>",
+    "variables": [
+      "fullName",
+      "tourPackage",
+      "paymentPlan",
+      "paymentMethod",
+      "term",
+      "name",
+      "amount",
+      "or",
+      "dueDate",
+      "calendarLink",
+      "remainingBalance"
+    ],
+    "bccGroups": [],
+    "status": "active"
+  },
+  {
+    "id": "GEB3llGzftDaWRFXj8qz",
+    "variables": [
+      "fullName",
+      "tourPackage",
+      "amount",
+      "dueDate",
+      "paymentMethod",
+      "term",
+      "datePaid",
+      "totalAmount",
+      "paid",
+      "remainingBalance"
+    ],
+    "metadata": {
+      "createdBy": "system",
+      "usedCount": 0,
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763391395,
+        "nanoseconds": 978000000
+      },
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1763392322,
+        "nanoseconds": 979000000
+      }
+    },
+    "bccGroups": [],
+    "name": "Scheduled Reminder Email",
+    "content": "<!-- scheduledReminderEmail.html -->\n<div style=\"font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6;\">\n  <p>Hi {{ fullName }},</p>\n\n  <!-- SUBJECT DYNAMICALLY SET IN CLOUD FUNCTION -->\n  <p>\n    {% if paymentTerm === \"P1\" %}\n    We hope you're getting excited for your upcoming adventure with <strong>{{ tourPackage }}</strong>!<br>\n      This is a friendly reminder that your <strong>first payment</strong> is due soon.\n    {% elif paymentTerm === \"P2\" %}\n    We hope you're still as excited as we are about your upcoming adventure with <strong>{{ tourPackage }}</strong>!<br>\n      This is a friendly reminder that your <strong>second payment</strong> is due soon.\n    {% elif paymentTerm === \"P3\" %}\n    We hope you're still as excited as we are about your upcoming adventure with <strong>{{ tourPackage }}</strong>!<br>\n      This is a friendly reminder that your <strong>third payment</strong> is due soon.\n    {% elif paymentTerm === \"P4\" %}\n    We hope you're still as excited as we are about your upcoming adventure with <strong>{{ tourPackage }}</strong>!<br>\n      This is a friendly reminder that your <strong>final payment</strong> is due soon.\n    {% endif %}\n  </p>\n\n  <h3 style=\"color: #d00;\">Important Details:</h3>\n  <ul>\n    <li><strong>Amount:</strong> {{ amount }}</li>\n    <li><strong>Due Date:</strong> {{ dueDate }}</li>\n    <li><strong>Payment Method:</strong> {{ paymentMethod }}\n      {% if paymentMethod === \"Stripe\" %}\n      <br><a href=\"https://buy.stripe.com/7sY5kD5NF2uBfGj1NJco03g\" target=\"_blank\"\n        style=\"background-color: #28a745; color: white; text-decoration: none; font-weight: bold; padding: 8px 16px; border-radius: 4px; display: inline-block; margin-top: 8px;\">Pay\n        securely online with Stripe</a>\n      {% elif paymentMethod === \"Revolut\" %}\n      <ul>\n        <li>Account Name: I'M HERE TRAVELS LTD</li>\n        <li>Account Number: 36834154</li>\n        <li>Sort Code: 23-01-20</li>\n        <li>IBAN: GB52REVO00996983499052</li>\n        <li>BIC: REVOGB21</li>\n      </ul>\n      {% elif paymentMethod === \"Ulster\" %}\n      <ul>\n        <li>Account Name: Shawn V Keeley</li>\n        <li>Account Number: 10561155</li>\n        <li>Sort Code: 98-05-83</li>\n        <li>IBAN: GB45ULSB98058310561155</li>\n        <li>BIC: ULSBGB2B</li>\n      </ul>\n      {% else %}\n      <ul>\n        <li>[Details will be provided separately]</li>\n      </ul>\n      {% endif %}\n    </li>\n  </ul>\n\n  {% if showTable %}\n  <h3 style=\"color: #d00;\">Payment Tracker</h3>\n  <table style=\"border-collapse: collapse; width: 100%; max-width: 600px; font-size: 14px; border: 1px solid #ddd;\"\n    cellpadding=\"8\" cellspacing=\"0\">\n    <thead>\n      <tr style=\"background-color: #f8f9fa;\">\n        <th style=\"border: 1px solid #ddd; text-align: left; font-weight: bold; padding: 10px;\">Payment Term</th>\n        <th style=\"border: 1px solid #ddd; text-align: left; font-weight: bold; padding: 10px;\">Amount</th>\n        <th style=\"border: 1px solid #ddd; text-align: left; font-weight: bold; padding: 10px;\">Due Date</th>\n        <th style=\"border: 1px solid #ddd; text-align: left; font-weight: bold; padding: 10px;\">Date Paid</th>\n      </tr>\n    </thead>\n    <tbody>\n      {% for item in termData %}\n      <tr>\n        <td style=\"border: 1px solid #ddd; padding: 10px;\">{{ item.term }}</td>\n        <td style=\"border: 1px solid #ddd; padding: 10px;\">{{ item.amount }}</td>\n        <td style=\"border: 1px solid #ddd; padding: 10px;\">{{ item.dueDate }}</td>\n        <td style=\"border: 1px solid #ddd; padding: 10px;\">{{ item.datePaid }}</td>\n      </tr>\n      {% endfor %}\n      <tr style=\"background-color: #f8f9fa;\">\n        <td style=\"border: 1px solid #ddd; padding: 10px; font-weight: bold;\">Total</td>\n        <td style=\"border: 1px solid #ddd; padding: 10px; font-weight: bold;\" colspan=\"3\">{{ totalAmount }}</td>\n      </tr>\n      <tr style=\"background-color: #f8f9fa;\">\n        <td style=\"border: 1px solid #ddd; padding: 10px; font-weight: bold;\">Paid</td>\n        <td style=\"border: 1px solid #ddd; padding: 10px; font-weight: bold;\" colspan=\"3\">{{ paid }}</td>\n      </tr>\n      <tr style=\"background-color: #f8f9fa;\">\n        <td style=\"border: 1px solid #ddd; padding: 10px; font-weight: bold;\">Remaining Balance</td>\n        <td style=\"border: 1px solid #ddd; padding: 10px; font-weight: bold;\" colspan=\"3\">{{ remainingBalance }}</td>\n      </tr>\n    </tbody>\n  </table>\n  {% endif %}\n\n  <h3 style=\"color: #d00;\">Action Needed:</h3>\n  <p>\n    Please send us <strong>proof of payment</strong> once you've made the transfer.\n    You can reply directly to this email with the receipt or confirmation.\n  </p>\n\n  <p>We can't wait to have you with us on this incredible journey! See you soon!</p>\n\n  <p><strong>Warm regards,<br>\n  The ImHereTravels Team</strong></p>\n\n  <div style=\"margin-top: 20px;\">\n    <img src=\"https://imheretravels.com/wp-content/uploads/2025/04/ImHereTravels-Logo.png\" alt=\"ImHereTravels Logo\" style=\"width: 120px;\">\n  </div>\n</div>",
+    "subject": "Tour Reminder - Your Adventure Awaits!",
+    "status": "active",
+    "variableDefinitions": [
+      {
+        "description": "Auto-generated from template usage",
+        "name": "fullName",
+        "id": "1763391358586",
+        "type": "string"
+      },
+      {
+        "name": "tourPackage",
+        "id": "1763391360881",
+        "description": "Auto-generated from template usage",
+        "type": "string"
+      },
+      {
+        "description": "Auto-generated from template usage",
+        "id": "1763391361609",
+        "type": "string",
+        "name": "amount"
+      },
+      {
+        "name": "dueDate",
+        "description": "Auto-generated from template usage",
+        "id": "1763391362370",
+        "type": "string"
+      },
+      {
+        "type": "string",
+        "name": "paymentMethod",
+        "description": "Auto-generated from template usage",
+        "id": "1763391363137"
+      },
+      {
+        "name": "totalAmount",
+        "type": "string",
+        "description": "Auto-generated from template usage",
+        "id": "1763391363961"
+      },
+      {
+        "name": "paid",
+        "description": "Auto-generated from template usage",
+        "id": "1763391364657",
+        "type": "string"
+      },
+      {
+        "type": "string",
+        "name": "remainingBalance",
+        "id": "1763391365386",
+        "description": "Auto-generated from template usage"
+      },
+      {
+        "id": "1763391366138",
+        "description": "Auto-generated from template usage",
+        "type": "string",
+        "name": "paymentTerm"
+      },
+      {
+        "name": "showTable",
+        "description": "Auto-generated from template usage",
+        "type": "boolean",
+        "id": "1763391366810"
+      },
+      {
+        "id": "1763391367530",
+        "name": "termData",
+        "description": "Auto-generated from template usage",
+        "type": "array"
+      }
+    ]
+  }
+]

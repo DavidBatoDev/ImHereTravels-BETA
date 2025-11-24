@@ -37,10 +37,12 @@ import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Booking } from "@/types/bookings";
 import { SheetColumn, TypeScriptFunction } from "@/types/sheet-management";
-import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
+import { allBookingSheetColumns } from "@/app/functions/columns";
+import { functionMap } from "@/app/functions/columns/functions-index";
 import { functionExecutionService } from "@/services/function-execution-service";
 import { typescriptFunctionsService } from "@/services/typescript-functions-service";
 import { batchedWriter } from "@/services/batched-writer";
+import ScheduledEmailService from "@/services/scheduled-email-service";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { isEqual, debounce } from "lodash";
@@ -64,6 +66,14 @@ export default function EditBookingModal({
   >([]);
   const [isLoadingColumns, setIsLoadingColumns] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("");
+  const [dynamicOptions, setDynamicOptions] = useState<
+    Record<string, string[]>
+  >({});
+
+  // Debug: Log when dynamicOptions changes
+  useEffect(() => {
+    console.log("🔄 [DYNAMIC OPTIONS STATE CHANGED]:", dynamicOptions);
+  }, [dynamicOptions]);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Booking>>({});
@@ -85,6 +95,34 @@ export default function EditBookingModal({
   const [originalValues, setOriginalValues] = useState<Record<string, any>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // Loading state for email generation and sending
+  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
+  const [emailGenerationProgress, setEmailGenerationProgress] = useState<{
+    type: "reservation" | "cancellation" | null;
+    bookingId: string | null;
+    action: "generating" | "sending" | "deleting" | null;
+  }>({ type: null, bookingId: null, action: null });
+
+  // Track previous values for detecting changes
+  const prevGenerateEmailDraft = React.useRef<boolean | undefined>(undefined);
+  const prevGenerateCancellationDraft = React.useRef<boolean | undefined>(
+    undefined
+  );
+  const prevSendEmail = React.useRef<boolean | undefined>(undefined);
+  const prevSendCancellationEmail = React.useRef<boolean | undefined>(
+    undefined
+  );
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const cancellationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const sendEmailTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const sendCancellationEmailTimeoutRef = React.useRef<NodeJS.Timeout | null>(
+    null
+  );
+
+  // Loading state for cleaning scheduled emails
+  const [isCleaningScheduledEmails, setIsCleaningScheduledEmails] =
+    useState(false);
 
   const { toast } = useToast();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -166,6 +204,451 @@ export default function EditBookingModal({
     };
   }, [booking?.id, isOpen, columns]);
 
+  // Watch for generateEmailDraft changes and show progress modal
+  useEffect(() => {
+    if (!booking?.id || !isOpen) {
+      prevGenerateEmailDraft.current = undefined;
+      return;
+    }
+
+    const currentValue = formData.generateEmailDraft;
+    const previousValue = prevGenerateEmailDraft.current;
+    const emailDraftLink = formData.emailDraftLink;
+
+    console.log("🔍 [GENERATE EMAIL DRAFT WATCHER]", {
+      currentValue,
+      previousValue,
+      emailDraftLink,
+      hasChanged: previousValue !== undefined && currentValue !== previousValue,
+    });
+
+    // Detect change from false to true (toggled ON)
+    if (previousValue === false && currentValue === true) {
+      console.log(
+        "✅ [GENERATE EMAIL DRAFT] Toggled ON - showing generating modal"
+      );
+
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      setIsGeneratingEmail(true);
+      setEmailGenerationProgress({
+        type: "reservation",
+        bookingId: booking.id,
+        action: "generating",
+      });
+
+      // Set timeout to hide modal after 30 seconds
+      timeoutRef.current = setTimeout(() => {
+        console.log("⏱️ [GENERATE EMAIL DRAFT] Timeout reached - hiding modal");
+        setIsGeneratingEmail(false);
+        setEmailGenerationProgress({
+          type: null,
+          bookingId: null,
+          action: null,
+        });
+      }, 30000);
+    }
+
+    // Detect change from true to false (toggled OFF)
+    if (previousValue === true && currentValue === false) {
+      console.log(
+        "🗑️ [GENERATE EMAIL DRAFT] Toggled OFF - showing deleting modal"
+      );
+
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      setIsGeneratingEmail(true);
+      setEmailGenerationProgress({
+        type: "reservation",
+        bookingId: booking.id,
+        action: "deleting",
+      });
+
+      // Set timeout to hide modal after 30 seconds
+      timeoutRef.current = setTimeout(() => {
+        console.log("⏱️ [GENERATE EMAIL DRAFT] Timeout reached - hiding modal");
+        setIsGeneratingEmail(false);
+        setEmailGenerationProgress({
+          type: null,
+          bookingId: null,
+          action: null,
+        });
+      }, 30000);
+    }
+
+    // If generateEmailDraft is true and we now have email draft link, hide modal
+    if (
+      currentValue === true &&
+      emailDraftLink &&
+      emailGenerationProgress.action === "generating"
+    ) {
+      console.log(
+        "✅ [GENERATE EMAIL DRAFT] Draft link received - hiding modal"
+      );
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      setIsGeneratingEmail(false);
+      setEmailGenerationProgress({
+        type: null,
+        bookingId: null,
+        action: null,
+      });
+    }
+
+    // If generateEmailDraft is false and draft link is cleared, hide modal
+    if (
+      currentValue === false &&
+      !emailDraftLink &&
+      emailGenerationProgress.action === "deleting"
+    ) {
+      console.log(
+        "✅ [GENERATE EMAIL DRAFT] Draft link cleared - hiding modal"
+      );
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      setIsGeneratingEmail(false);
+      setEmailGenerationProgress({
+        type: null,
+        bookingId: null,
+        action: null,
+      });
+    }
+
+    // Update previous value
+    prevGenerateEmailDraft.current = currentValue;
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [
+    formData.generateEmailDraft,
+    formData.emailDraftLink,
+    booking?.id,
+    isOpen,
+  ]);
+
+  // Watch for generateCancellationDraft changes and show progress modal
+  useEffect(() => {
+    if (!booking?.id || !isOpen) {
+      prevGenerateCancellationDraft.current = undefined;
+      return;
+    }
+
+    const currentValue = formData.generateCancellationDraft;
+    const previousValue = prevGenerateCancellationDraft.current;
+    const cancellationDraftLink = formData.cancellationEmailDraftLink;
+
+    console.log("🔍 [GENERATE CANCELLATION DRAFT WATCHER]", {
+      currentValue,
+      previousValue,
+      cancellationDraftLink,
+      hasChanged: previousValue !== undefined && currentValue !== previousValue,
+    });
+
+    // Detect change from false to true (toggled ON)
+    if (previousValue === false && currentValue === true) {
+      console.log(
+        "✅ [GENERATE CANCELLATION DRAFT] Toggled ON - showing generating modal"
+      );
+
+      // Clear any existing timeout
+      if (cancellationTimeoutRef.current) {
+        clearTimeout(cancellationTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(true);
+      setEmailGenerationProgress({
+        type: "cancellation",
+        bookingId: booking.id,
+        action: "generating",
+      });
+
+      // Set timeout to hide modal after 30 seconds
+      cancellationTimeoutRef.current = setTimeout(() => {
+        console.log(
+          "⏱️ [GENERATE CANCELLATION DRAFT] Timeout reached - hiding modal"
+        );
+        setIsGeneratingEmail(false);
+        setEmailGenerationProgress({
+          type: null,
+          bookingId: null,
+          action: null,
+        });
+      }, 30000);
+    }
+
+    // Detect change from true to false (toggled OFF)
+    if (previousValue === true && currentValue === false) {
+      console.log(
+        "🗑️ [GENERATE CANCELLATION DRAFT] Toggled OFF - showing deleting modal"
+      );
+
+      // Clear any existing timeout
+      if (cancellationTimeoutRef.current) {
+        clearTimeout(cancellationTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(true);
+      setEmailGenerationProgress({
+        type: "cancellation",
+        bookingId: booking.id,
+        action: "deleting",
+      });
+
+      // Set timeout to hide modal after 30 seconds
+      cancellationTimeoutRef.current = setTimeout(() => {
+        console.log(
+          "⏱️ [GENERATE CANCELLATION DRAFT] Timeout reached - hiding modal"
+        );
+        setIsGeneratingEmail(false);
+        setEmailGenerationProgress({
+          type: null,
+          bookingId: null,
+          action: null,
+        });
+      }, 30000);
+    }
+
+    // If generateCancellationDraft is true and we now have draft link, hide modal
+    if (
+      currentValue === true &&
+      cancellationDraftLink &&
+      emailGenerationProgress.action === "generating"
+    ) {
+      console.log(
+        "✅ [GENERATE CANCELLATION DRAFT] Draft link received - hiding modal"
+      );
+
+      if (cancellationTimeoutRef.current) {
+        clearTimeout(cancellationTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(false);
+      setEmailGenerationProgress({
+        type: null,
+        bookingId: null,
+        action: null,
+      });
+    }
+
+    // If generateCancellationDraft is false and draft link is cleared, hide modal
+    if (
+      currentValue === false &&
+      !cancellationDraftLink &&
+      emailGenerationProgress.action === "deleting"
+    ) {
+      console.log(
+        "✅ [GENERATE CANCELLATION DRAFT] Draft link cleared - hiding modal"
+      );
+
+      if (cancellationTimeoutRef.current) {
+        clearTimeout(cancellationTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(false);
+      setEmailGenerationProgress({
+        type: null,
+        bookingId: null,
+        action: null,
+      });
+    }
+
+    // Update previous value
+    prevGenerateCancellationDraft.current = currentValue;
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (cancellationTimeoutRef.current) {
+        clearTimeout(cancellationTimeoutRef.current);
+      }
+    };
+  }, [
+    formData.generateCancellationDraft,
+    formData.cancellationEmailDraftLink,
+    booking?.id,
+    isOpen,
+  ]);
+
+  // Watch for sendEmail changes and show progress modal
+  useEffect(() => {
+    if (!booking?.id || !isOpen) {
+      prevSendEmail.current = undefined;
+      return;
+    }
+
+    const currentValue = formData.sendEmail;
+    const previousValue = prevSendEmail.current;
+    const sentEmailLink = formData.sentEmailLink;
+
+    console.log("🔍 [SEND EMAIL WATCHER]", {
+      currentValue,
+      previousValue,
+      sentEmailLink,
+      hasChanged: previousValue !== undefined && currentValue !== previousValue,
+    });
+
+    // Detect change from false to true (toggled ON)
+    if (previousValue === false && currentValue === true) {
+      console.log("✅ [SEND EMAIL] Toggled ON - showing sending modal");
+
+      // Clear any existing timeout
+      if (sendEmailTimeoutRef.current) {
+        clearTimeout(sendEmailTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(true);
+      setEmailGenerationProgress({
+        type: "reservation",
+        bookingId: booking.id,
+        action: "sending",
+      });
+
+      // Set timeout to hide modal after 30 seconds
+      sendEmailTimeoutRef.current = setTimeout(() => {
+        console.log("⏱️ [SEND EMAIL] Timeout reached - hiding modal");
+        setIsGeneratingEmail(false);
+        setEmailGenerationProgress({
+          type: null,
+          bookingId: null,
+          action: null,
+        });
+      }, 30000);
+    }
+
+    // If sendEmail is true and we now have sent email link, hide modal
+    if (
+      currentValue === true &&
+      sentEmailLink &&
+      emailGenerationProgress.action === "sending"
+    ) {
+      console.log("✅ [SEND EMAIL] Sent email link received - hiding modal");
+
+      if (sendEmailTimeoutRef.current) {
+        clearTimeout(sendEmailTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(false);
+      setEmailGenerationProgress({
+        type: null,
+        bookingId: null,
+        action: null,
+      });
+    }
+
+    // Update previous value
+    prevSendEmail.current = currentValue;
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (sendEmailTimeoutRef.current) {
+        clearTimeout(sendEmailTimeoutRef.current);
+      }
+    };
+  }, [formData.sendEmail, formData.sentEmailLink, booking?.id, isOpen]);
+
+  // Watch for sendCancellationEmail changes and show progress modal
+  useEffect(() => {
+    if (!booking?.id || !isOpen) {
+      prevSendCancellationEmail.current = undefined;
+      return;
+    }
+
+    const currentValue = formData.sendCancellationEmail;
+    const previousValue = prevSendCancellationEmail.current;
+    const sentCancellationEmailLink = formData.sentCancellationEmailLink;
+
+    console.log("🔍 [SEND CANCELLATION EMAIL WATCHER]", {
+      currentValue,
+      previousValue,
+      sentCancellationEmailLink,
+      hasChanged: previousValue !== undefined && currentValue !== previousValue,
+    });
+
+    // Detect change from false to true (toggled ON)
+    if (previousValue === false && currentValue === true) {
+      console.log(
+        "✅ [SEND CANCELLATION EMAIL] Toggled ON - showing sending modal"
+      );
+
+      // Clear any existing timeout
+      if (sendCancellationEmailTimeoutRef.current) {
+        clearTimeout(sendCancellationEmailTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(true);
+      setEmailGenerationProgress({
+        type: "cancellation",
+        bookingId: booking.id,
+        action: "sending",
+      });
+
+      // Set timeout to hide modal after 30 seconds
+      sendCancellationEmailTimeoutRef.current = setTimeout(() => {
+        console.log(
+          "⏱️ [SEND CANCELLATION EMAIL] Timeout reached - hiding modal"
+        );
+        setIsGeneratingEmail(false);
+        setEmailGenerationProgress({
+          type: null,
+          bookingId: null,
+          action: null,
+        });
+      }, 30000);
+    }
+
+    // If sendCancellationEmail is true and we now have sent email link, hide modal
+    if (
+      currentValue === true &&
+      sentCancellationEmailLink &&
+      emailGenerationProgress.action === "sending"
+    ) {
+      console.log(
+        "✅ [SEND CANCELLATION EMAIL] Sent email link received - hiding modal"
+      );
+
+      if (sendCancellationEmailTimeoutRef.current) {
+        clearTimeout(sendCancellationEmailTimeoutRef.current);
+      }
+
+      setIsGeneratingEmail(false);
+      setEmailGenerationProgress({
+        type: null,
+        bookingId: null,
+        action: null,
+      });
+    }
+
+    // Update previous value
+    prevSendCancellationEmail.current = currentValue;
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (sendCancellationEmailTimeoutRef.current) {
+        clearTimeout(sendCancellationEmailTimeoutRef.current);
+      }
+    };
+  }, [
+    formData.sendCancellationEmail,
+    formData.sentCancellationEmailLink,
+    booking?.id,
+    isOpen,
+  ]);
+
   // Initialize form data when modal opens
   useEffect(() => {
     if (booking && isOpen) {
@@ -174,22 +657,91 @@ export default function EditBookingModal({
     }
   }, [booking, isOpen]);
 
-  // Fetch booking sheet columns and functions
+  // Load coded booking sheet columns and functions
   useEffect(() => {
     if (!isOpen) return;
 
-    console.log("🔍 [EDIT BOOKING MODAL] Fetching columns and functions...");
+    console.log(
+      "🔍 [EDIT BOOKING MODAL] Loading coded columns and functions..."
+    );
     setIsLoadingColumns(true);
 
-    const unsubscribeColumns = bookingSheetColumnService.subscribeToColumns(
-      (fetchedColumns) => {
-        console.log(
-          `✅ [EDIT BOOKING MODAL] Received ${fetchedColumns.length} columns`
-        );
-        setColumns(fetchedColumns);
-        setIsLoadingColumns(false);
+    // Convert BookingSheetColumn[] to SheetColumn[] and inject function implementations
+    const codedColumns: SheetColumn[] = allBookingSheetColumns.map(
+      (col): SheetColumn => {
+        const columnData = col.data;
+
+        // Log select columns to check loadOptions
+        if (columnData.dataType === "select" && columnData.id === "eventName") {
+          console.log(
+            "🔍 [EDIT BOOKING MODAL] Event Name column data:",
+            columnData
+          );
+          console.log(
+            "🔍 [EDIT BOOKING MODAL] Has loadOptions?",
+            !!columnData.loadOptions
+          );
+        }
+
+        // If this is a function column, inject the actual function implementation
+        if (columnData.dataType === "function" && columnData.function) {
+          const funcImpl = functionMap[columnData.function];
+          if (funcImpl) {
+            return {
+              ...columnData,
+              compiledFunction: funcImpl as (...args: any[]) => any,
+            };
+          } else {
+            console.warn(
+              `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`
+            );
+          }
+        }
+
+        return columnData;
       }
     );
+
+    console.log(
+      `✅ [EDIT BOOKING MODAL] Loaded ${codedColumns.length} coded columns`
+    );
+    setColumns(codedColumns);
+    setIsLoadingColumns(false);
+
+    // Load dynamic options for select columns with loadOptions
+    const loadDynamicOptions = async () => {
+      const optionsMap: Record<string, string[]> = {};
+
+      for (const col of codedColumns) {
+        if (col.dataType === "select" && col.loadOptions) {
+          try {
+            console.log(
+              `🔄 [EDIT BOOKING MODAL] Loading options for ${col.columnName}...`
+            );
+            const options = await col.loadOptions();
+            console.log(
+              `✅ [EDIT BOOKING MODAL] Loaded ${options.length} options for ${col.columnName}:`,
+              options
+            );
+            optionsMap[col.id] = options;
+          } catch (error) {
+            console.error(
+              `Failed to load options for ${col.columnName}:`,
+              error
+            );
+            optionsMap[col.id] = col.options || [];
+          }
+        }
+      }
+
+      console.log(
+        "📦 [EDIT BOOKING MODAL] All dynamic options loaded:",
+        optionsMap
+      );
+      setDynamicOptions(optionsMap);
+    };
+
+    loadDynamicOptions();
 
     // Load available functions
     const loadFunctions = async () => {
@@ -205,7 +757,6 @@ export default function EditBookingModal({
 
     return () => {
       console.log("🧹 [EDIT BOOKING MODAL] Cleaning up subscriptions");
-      unsubscribeColumns();
 
       // Clean up debounce timer
       if (debounceTimerRef.current) {
@@ -443,6 +994,53 @@ export default function EditBookingModal({
     ): Promise<any> => {
       if (!funcCol.function || funcCol.dataType !== "function") return;
 
+      // Check if this is an email generation or sending function
+      const isEmailGenerationFunction =
+        funcCol.function === "generateGmailDraftFunction" ||
+        funcCol.function === "generateCancellationGmailDraftFunction";
+
+      const isEmailSendingFunction =
+        funcCol.function === "sendEmailDraftOnceFunction" ||
+        funcCol.function === "sendCancellationEmailDraftOnceFunction";
+
+      const isEmailFunction =
+        isEmailGenerationFunction || isEmailSendingFunction;
+
+      if (isEmailFunction) {
+        // Show loading modal for email generation or sending
+        setIsGeneratingEmail(true);
+
+        let emailType: "reservation" | "cancellation" = "reservation";
+        if (
+          funcCol.function === "generateCancellationGmailDraftFunction" ||
+          funcCol.function === "sendCancellationEmailDraftOnceFunction"
+        ) {
+          emailType = "cancellation";
+        }
+
+        // Determine if we're toggling off (deleting draft)
+        let action: "generating" | "sending" | "deleting" = "generating";
+        if (isEmailSendingFunction) {
+          action = "sending";
+        } else if (isEmailGenerationFunction) {
+          // Check if toggling off by looking at the current value in formData
+          const generateField =
+            emailType === "reservation"
+              ? "generateEmailDraft"
+              : "generateCancellationDraft";
+          const currentValue =
+            currentData[generateField as keyof typeof currentData];
+          const isTogglingOff = currentValue === false;
+          action = isTogglingOff ? "deleting" : "generating";
+        }
+
+        setEmailGenerationProgress({
+          type: emailType,
+          bookingId: currentData.id || null,
+          action: action,
+        });
+      }
+
       try {
         setComputingFields((prev) => new Set([...prev, funcCol.id]));
 
@@ -452,10 +1050,30 @@ export default function EditBookingModal({
           currentData as any,
           columns
         );
+
+        // Use longer timeout for email-sending and email-generating functions (30 seconds)
+        // Regular functions timeout after 10 seconds
+        const isEmailFunction =
+          funcCol.function === "sendEmailDraftOnceFunction" ||
+          funcCol.function === "sendReservationEmailDraftOnceFunction" ||
+          funcCol.function === "sendCancellationEmailDraftOnceFunction" ||
+          funcCol.function === "generateGmailDraftFunction" ||
+          funcCol.function === "generateCancellationGmailDraftFunction";
+        const timeout = isEmailFunction ? 30000 : 10000;
+
         const result = await functionExecutionService.executeFunction(
           funcCol.function,
           args,
-          10000
+          timeout
+        );
+
+        console.log(
+          `[EXECUTE FUNCTION] ${funcCol.function} completed with result:`,
+          {
+            success: result.success,
+            result: result.result,
+            executionTime: result.executionTime,
+          }
         );
 
         if (result.success) {
@@ -471,6 +1089,16 @@ export default function EditBookingModal({
           newSet.delete(funcCol.id);
           return newSet;
         });
+
+        if (isEmailFunction) {
+          // Hide loading modal after function completes
+          setIsGeneratingEmail(false);
+          setEmailGenerationProgress({
+            type: null,
+            bookingId: null,
+            action: null,
+          });
+        }
       }
     },
     [columns]
@@ -482,6 +1110,16 @@ export default function EditBookingModal({
       try {
         // Find function columns that depend on the changed field
         const directDependents = dependencyGraph.get(changedColumnId) || [];
+
+        console.log(`🔍 Execute dependents for ${changedColumnId}:`, {
+          dependentsCount: directDependents.length,
+          dependents: directDependents.map((d) => d.id),
+          currentData: {
+            [changedColumnId]: currentData[changedColumnId as keyof Booking],
+            emailDraftLink: currentData.emailDraftLink,
+            cancellationEmailDraftLink: currentData.cancellationEmailDraftLink,
+          },
+        });
 
         if (directDependents.length === 0) return currentData;
 
@@ -691,19 +1329,17 @@ export default function EditBookingModal({
         return newOriginal;
       });
 
-      // Remove from active editing set after a short delay to allow for quick refocusing
-      setTimeout(() => {
-        setActiveEditingFields((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(columnId);
-          return newSet;
-        });
-        setLocalFieldValues((prev) => {
-          const newValues = { ...prev };
-          delete newValues[columnId];
-          return newValues;
-        });
-      }, 100); // Small delay to handle rapid focus changes
+      // Remove from active editing set immediately (no timeout)
+      setActiveEditingFields((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(columnId);
+        return newSet;
+      });
+      setLocalFieldValues((prev) => {
+        const newValues = { ...prev };
+        delete newValues[columnId];
+        return newValues;
+      });
     },
     [
       pendingChanges,
@@ -718,8 +1354,26 @@ export default function EditBookingModal({
   // Handle key events during editing
   const handleFieldKeyDown = useCallback(
     (e: React.KeyboardEvent, columnId: string) => {
-      if (e.key === "Enter" || e.key === "Tab") {
-        // Prevent default to avoid unwanted behavior
+      // Find the column to check its type
+      const column = columns.find((col) => col.id === columnId);
+
+      if (e.key === "Enter") {
+        // For date inputs, open the date picker instead of closing
+        if (column?.dataType === "date") {
+          const target = e.target as HTMLInputElement;
+          if (target.showPicker && typeof target.showPicker === "function") {
+            e.preventDefault();
+            try {
+              target.showPicker();
+            } catch (error) {
+              // Fallback: just focus the input if showPicker fails
+              target.focus();
+            }
+          }
+          return;
+        }
+
+        // For other inputs, prevent default and close
         e.preventDefault();
 
         // User is done editing this field - save changes on blur
@@ -729,6 +1383,11 @@ export default function EditBookingModal({
         if (document.activeElement instanceof HTMLElement) {
           document.activeElement.blur();
         }
+      }
+      if (e.key === "Tab") {
+        // Allow Tab to navigate naturally to next input
+        // Just save the current field on blur (which will trigger automatically)
+        // Don't prevent default - let browser handle Tab navigation
       }
       if (e.key === "Escape") {
         // Prevent default to avoid unwanted behavior
@@ -813,12 +1472,133 @@ export default function EditBookingModal({
 
       switch (column.dataType) {
         case "boolean":
+          // Check if this is the "Send Email?" field and prevent toggling if no draft link exists
+          const isSendEmailField =
+            column.id === "sendEmail" || column.id === "sendCancellationEmail";
+          const hasDraftLink = isSendEmailField
+            ? column.id === "sendEmail"
+              ? Boolean(formData.emailDraftLink)
+              : Boolean(formData.cancellationEmailDraftLink)
+            : true;
+
           return (
             <div className="flex items-center space-x-2">
               <Switch
                 id={fieldId}
                 checked={Boolean(value)}
                 onCheckedChange={(checked) => {
+                  console.log(
+                    `🔘 Boolean field toggled: ${column.id} = ${checked}`
+                  );
+                  console.log(`📊 Current formData for draft link:`, {
+                    emailDraftLink: formData.emailDraftLink,
+                    cancellationEmailDraftLink:
+                      formData.cancellationEmailDraftLink,
+                  });
+
+                  // Prevent toggling on if it's a send email field and there's no draft link
+                  if (isSendEmailField && checked && !hasDraftLink) {
+                    toast({
+                      title: "Cannot Send Email",
+                      description:
+                        column.id === "sendEmail"
+                          ? "Please generate an email draft first before sending."
+                          : "Please generate a cancellation email draft first before sending.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+
+                  // Prevent toggling "Enable Payment Reminder" on if payment plan or payment method is missing
+                  const isEnablePaymentReminderField =
+                    column.id === "enablePaymentReminder";
+                  if (isEnablePaymentReminderField && checked) {
+                    const hasPaymentPlan = Boolean(formData.paymentPlan);
+                    const hasPaymentMethod = Boolean(formData.paymentMethod);
+
+                    if (!hasPaymentPlan || !hasPaymentMethod) {
+                      toast({
+                        title: "Cannot Enable Payment Reminder",
+                        description:
+                          "Please set Payment Plan and Payment Method before enabling payment reminders.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+
+                  // Prevent toggling "Generate Email Draft" on if payment plan or payment method exists
+                  const isGenerateEmailDraftField =
+                    column.id === "generateEmailDraft";
+                  if (isGenerateEmailDraftField && checked) {
+                    const hasPaymentPlan = Boolean(formData.paymentPlan);
+                    const hasPaymentMethod = Boolean(formData.paymentMethod);
+
+                    if (hasPaymentPlan || hasPaymentMethod) {
+                      toast({
+                        title: "Cannot Generate Reservation Email",
+                        description:
+                          "Payment Plan and Payment Method must be empty for reservation emails. Please clear them first.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+
+                  // Check if this is enablePaymentReminder being toggled OFF
+                  const isEnablePaymentReminder =
+                    column.id === "enablePaymentReminder";
+                  const wasEnabled = Boolean(formData[column.id]);
+
+                  if (
+                    isEnablePaymentReminder &&
+                    wasEnabled &&
+                    !checked &&
+                    booking?.id
+                  ) {
+                    // Toggle OFF: Clean up scheduled emails first
+                    setIsCleaningScheduledEmails(true);
+
+                    ScheduledEmailService.deletePaymentReminders(booking.id)
+                      .then(() => {
+                        // Now update the field
+                        batchedWriter.queueFieldUpdate(
+                          booking.id,
+                          column.id,
+                          checked
+                        );
+                        setFormData((prev) => ({
+                          ...prev,
+                          [column.id]: checked,
+                        }));
+                        setIsSaving(true);
+                        debouncedSaveIndicator();
+
+                        toast({
+                          title: "Payment Reminders Disabled",
+                          description:
+                            "All scheduled payment reminder emails have been deleted.",
+                        });
+                      })
+                      .catch((error) => {
+                        console.error(
+                          "Error cleaning scheduled emails:",
+                          error
+                        );
+                        toast({
+                          title: "Error",
+                          description:
+                            "Failed to clean up scheduled emails. Please try again.",
+                          variant: "destructive",
+                        });
+                      })
+                      .finally(() => {
+                        setIsCleaningScheduledEmails(false);
+                      });
+
+                    return; // Don't continue with normal flow
+                  }
+
                   // For switches, commit immediately to Firebase (discrete choice)
                   if (booking?.id) {
                     batchedWriter.queueFieldUpdate(
@@ -831,15 +1611,53 @@ export default function EditBookingModal({
                   setIsSaving(true);
                   debouncedSaveIndicator();
 
+                  // Mark this boolean field as computing to prevent rapid toggling
+                  setComputingFields((prev) => new Set([...prev, column.id]));
+
+                  // For email-related fields, invalidate cache to force fresh execution
+                  if (
+                    column.id === "generateEmailDraft" ||
+                    column.id === "generateCancellationDraft" ||
+                    column.id === "sendEmail" ||
+                    column.id === "sendCancellationEmail"
+                  ) {
+                    // Find the dependent function column and invalidate by function name
+                    const dependents = dependencyGraph.get(column.id) || [];
+                    dependents.forEach((dep) => {
+                      if (dep.function) {
+                        console.log(
+                          `🗑️ Invalidating cache for function: ${dep.function}`
+                        );
+                        functionExecutionService.invalidate(dep.function);
+                      }
+                    });
+                  }
+
                   // Execute dependent functions immediately
                   executeDirectDependents(column.id, {
                     ...formData,
                     [column.id]: checked,
-                  }).then((finalData) => {
-                    if (finalData) {
-                      setFormData(finalData);
-                    }
-                  });
+                  })
+                    .then((finalData) => {
+                      console.log(`✅ Dependents completed for ${column.id}`, {
+                        finalData,
+                        emailDraftLink: finalData?.emailDraftLink,
+                        cancellationEmailDraftLink:
+                          finalData?.cancellationEmailDraftLink,
+                      });
+                      if (finalData) {
+                        // Force update formData with final results to prevent stale values
+                        setFormData(finalData);
+                      }
+                    })
+                    .finally(() => {
+                      // Remove boolean field from computing state
+                      setComputingFields((prev) => {
+                        const newSet = new Set(prev);
+                        newSet.delete(column.id);
+                        return newSet;
+                      });
+                    });
                 }}
                 disabled={isReadOnly || isComputing}
               />
@@ -934,14 +1752,17 @@ export default function EditBookingModal({
                 "text-xs [&::-webkit-calendar-picker-indicator]:text-xs"
               )}
               disabled={isReadOnly || isComputing}
+              autoComplete="off"
             />
           );
 
         case "select":
           return (
-            <Select
+            <select
+              id={fieldId}
               value={String(value || "")}
-              onValueChange={(newValue) => {
+              onChange={(e) => {
+                const newValue = e.target.value;
                 // For select, commit immediately to Firebase (discrete choice)
                 if (booking?.id) {
                   batchedWriter.queueFieldUpdate(
@@ -964,19 +1785,30 @@ export default function EditBookingModal({
                   }
                 });
               }}
+              className={cn(
+                "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px_16px] bg-[right_0.75rem_center] bg-no-repeat pr-10",
+                error && "border-red-500",
+                isReadOnly && "opacity-50"
+              )}
               disabled={isReadOnly || isComputing}
             >
-              <SelectTrigger className={baseClasses}>
-                <SelectValue placeholder={`Select ${column.columnName}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {column.options?.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {(() => {
+                const options =
+                  dynamicOptions[column.id] || column.options || [];
+                if (column.id === "eventName") {
+                  console.log("🎯 [RENDER] Event Name options:", {
+                    dynamicOptions: dynamicOptions[column.id],
+                    columnOptions: column.options,
+                    finalOptions: options,
+                  });
+                }
+                return options.map((option) => (
+                  <option key={option || "empty"} value={option}>
+                    {option || `Select ${column.columnName}`}
+                  </option>
+                ));
+              })()}
+            </select>
           );
 
         case "number":
@@ -995,6 +1827,7 @@ export default function EditBookingModal({
               className={baseClasses}
               disabled={isReadOnly || isComputing}
               placeholder={`Enter ${column.columnName}`}
+              autoComplete="off"
             />
           );
 
@@ -1011,71 +1844,71 @@ export default function EditBookingModal({
                 )}
                 disabled={true}
                 placeholder={isComputing ? "Computing..." : ""}
+                autoComplete="off"
               />
               {isComputing && (
                 <RefreshCw className="h-4 w-4 animate-spin text-royal-purple" />
               )}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                tabIndex={-1}
-                onClick={async () => {
-                  if (!booking?.id) return;
-                  setComputingFields((prev) => new Set([...prev, column.id]));
-                  try {
-                    // First, recompute this specific function column
-                    const result = await executeFunction(column, formData);
+              {!isComputing && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  tabIndex={-1}
+                  onClick={async () => {
+                    if (!booking?.id) return;
+                    setComputingFields((prev) => new Set([...prev, column.id]));
+                    try {
+                      // First, recompute this specific function column
+                      const result = await executeFunction(column, formData);
 
-                    if (result !== undefined) {
-                      // Update form data with the computed result
-                      const updatedData = { ...formData, [column.id]: result };
+                      if (result !== undefined) {
+                        // Update form data with the computed result
+                        const updatedData = {
+                          ...formData,
+                          [column.id]: result,
+                        };
 
-                      // Queue Firebase update
-                      batchedWriter.queueFieldUpdate(
-                        booking.id,
-                        column.id,
-                        result
-                      );
+                        // Queue Firebase update
+                        batchedWriter.queueFieldUpdate(
+                          booking.id,
+                          column.id,
+                          result
+                        );
 
-                      // Then compute dependent functions
-                      const finalData = await executeDirectDependents(
-                        column.id,
-                        updatedData
-                      );
+                        // Then compute dependent functions
+                        const finalData = await executeDirectDependents(
+                          column.id,
+                          updatedData
+                        );
 
-                      if (finalData) {
-                        setFormData(finalData);
+                        if (finalData) {
+                          setFormData(finalData);
+                        }
                       }
+                    } catch (error) {
+                      console.error(
+                        `Error recomputing ${column.columnName}:`,
+                        error
+                      );
+                      toast({
+                        title: "Recomputation Failed",
+                        description: `Failed to recompute ${column.columnName}`,
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setComputingFields((prev) => {
+                        const newSet = new Set(prev);
+                        newSet.delete(column.id);
+                        return newSet;
+                      });
                     }
-                  } catch (error) {
-                    console.error(
-                      `Error recomputing ${column.columnName}:`,
-                      error
-                    );
-                    toast({
-                      title: "Recomputation Failed",
-                      description: `Failed to recompute ${column.columnName}`,
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setComputingFields((prev) => {
-                      const newSet = new Set(prev);
-                      newSet.delete(column.id);
-                      return newSet;
-                    });
-                  }
-                }}
-                disabled={isComputing}
-                className="h-7 w-7 p-0"
-              >
-                <RefreshCw
-                  className={cn(
-                    "h-3 w-3 text-royal-purple",
-                    isComputing && "animate-spin"
-                  )}
-                />
-              </Button>
+                  }}
+                  className="h-7 w-7 p-0"
+                >
+                  <RefreshCw className="h-3 w-3 text-royal-purple" />
+                </Button>
+              )}
             </div>
           );
 
@@ -1091,6 +1924,7 @@ export default function EditBookingModal({
               className={baseClasses}
               disabled={isReadOnly || isComputing}
               placeholder={`Enter ${column.columnName}`}
+              autoComplete="off"
             />
           );
 
@@ -1108,6 +1942,7 @@ export default function EditBookingModal({
               disabled={isReadOnly || isComputing}
               placeholder={`Enter ${column.columnName}`}
               rows={3}
+              autoComplete="off"
             />
           ) : (
             <Input
@@ -1119,6 +1954,7 @@ export default function EditBookingModal({
               className={baseClasses}
               disabled={isReadOnly || isComputing}
               placeholder={`Enter ${column.columnName}`}
+              autoComplete="off"
             />
           );
       }
@@ -1138,6 +1974,7 @@ export default function EditBookingModal({
       executeFunction,
       toast,
       batchedWriter,
+      dynamicOptions, // Add dynamicOptions to dependencies so select fields re-render when options load
     ]
   );
 
@@ -1228,192 +2065,352 @@ export default function EditBookingModal({
   });
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-full overflow-hidden">
-        <DialogHeader className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
-                <FaCog className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <span className="block text-base">Edit Booking</span>
-                <span className="text-2xl font-mono font-semibold text-crimson-red block">
-                  {booking.bookingId}
-                </span>
-                {/* Live Saving Indicator */}
-                <div className="flex items-center gap-2 mt-1">
-                  {isSaving ? (
-                    <div className="flex items-center gap-1 text-xs text-blue-600">
-                      <RefreshCw className="h-3 w-3 animate-spin" />
-                      <span>Saving...</span>
+    <>
+      <Dialog open={isOpen} onOpenChange={handleClose} modal={true}>
+        <DialogContent
+          className="max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-full overflow-hidden"
+          onOpenAutoFocus={(e) => {
+            // Prevent dialog from auto-focusing on open
+            e.preventDefault();
+          }}
+        >
+          <form
+            autoComplete="off"
+            onSubmit={(e) => e.preventDefault()}
+            onKeyDown={(e) => {
+              if (e.key === "Tab") {
+                // Get all focusable inputs within the form (including selects, switches, and combobox triggers)
+                const focusableElements = Array.from(
+                  e.currentTarget.querySelectorAll<HTMLElement>(
+                    'input:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), button[role="switch"]:not([disabled]):not([tabindex="-1"]), button[role="combobox"]:not([disabled]):not([tabindex="-1"])'
+                  )
+                );
+
+                if (focusableElements.length === 0) return;
+
+                const currentIndex = focusableElements.indexOf(
+                  document.activeElement as HTMLElement
+                );
+
+                if (currentIndex === -1) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                let nextIndex;
+                if (e.shiftKey) {
+                  // Shift+Tab: go backwards
+                  nextIndex = currentIndex - 1;
+                  if (nextIndex < 0) {
+                    nextIndex = focusableElements.length - 1;
+                  }
+                } else {
+                  // Tab: go forwards
+                  nextIndex = currentIndex + 1;
+                  if (nextIndex >= focusableElements.length) {
+                    nextIndex = 0;
+                  }
+                }
+
+                focusableElements[nextIndex]?.focus();
+              }
+            }}
+            className="h-full flex flex-col"
+            tabIndex={-1}
+          >
+            <DialogHeader
+              className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6"
+              tabIndex={-1}
+            >
+              <div className="flex items-center justify-between">
+                <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
+                    <FaCog className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <span className="block text-base">Edit Booking</span>
+                    <span className="text-2xl font-mono font-semibold text-crimson-red block">
+                      {booking.bookingId}
+                    </span>
+                    {/* Live Saving Indicator */}
+                    <div className="flex items-center gap-2 mt-1">
+                      {isSaving ? (
+                        <div className="flex items-center gap-1 text-xs text-blue-600">
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                          <span>Saving...</span>
+                        </div>
+                      ) : lastSaved ? (
+                        <div className="flex items-center gap-1 text-xs text-green-600">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span>Saved {lastSaved.toLocaleTimeString()}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                          <span>Auto-save enabled</span>
+                        </div>
+                      )}
                     </div>
-                  ) : lastSaved ? (
-                    <div className="flex items-center gap-1 text-xs text-green-600">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>Saved {lastSaved.toLocaleTimeString()}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                      <span>Auto-save enabled</span>
-                    </div>
-                  )}
+                  </div>
+                </DialogTitle>
+                <div className="flex items-center gap-2">
+                  {/* Close Button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClose}
+                    className={cn(
+                      "h-8 w-8 p-0 hover:bg-gray-100",
+                      computingFields.size > 0 &&
+                        "opacity-50 cursor-not-allowed"
+                    )}
+                    disabled={computingFields.size > 0}
+                    title={
+                      computingFields.size > 0
+                        ? `Please wait for ${computingFields.size} computation(s) to complete`
+                        : "Close"
+                    }
+                  >
+                    {computingFields.size > 0 ? (
+                      <RefreshCw className="h-4 w-4 animate-spin text-royal-purple" />
+                    ) : (
+                      <FaTimes className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
               </div>
-            </DialogTitle>
-            <div className="flex items-center gap-2">
-              {/* Close Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClose}
-                className={cn(
-                  "h-8 w-8 p-0 hover:bg-gray-100",
-                  computingFields.size > 0 && "opacity-50 cursor-not-allowed"
-                )}
-                disabled={computingFields.size > 0}
-                title={
-                  computingFields.size > 0
-                    ? `Please wait for ${computingFields.size} computation(s) to complete`
-                    : "Close"
-                }
+            </DialogHeader>
+
+            <div
+              className="flex overflow-hidden max-h-[calc(90vh-120px)]"
+              tabIndex={-1}
+            >
+              {/* Main Content */}
+              <div
+                ref={scrollContainerRef}
+                className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
+                tabIndex={-1}
               >
-                {computingFields.size > 0 ? (
-                  <RefreshCw className="h-4 w-4 animate-spin text-royal-purple" />
+                {isLoadingColumns ? (
+                  <Card className="bg-background shadow-sm border border-border/50">
+                    <CardContent className="p-6 text-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-crimson-red mx-auto mb-2"></div>
+                      <p className="text-xs text-muted-foreground">
+                        Loading...
+                      </p>
+                    </CardContent>
+                  </Card>
                 ) : (
-                  <FaTimes className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogHeader>
+                  <div className="space-y-6" tabIndex={-1}>
+                    {sortedParentTabs.map((parentTab) => {
+                      const IconComponent = getParentTabIcon(parentTab);
+                      const filteredColumns =
+                        groupedColumns[parentTab].filter(shouldDisplayColumn);
 
-        <div className="flex overflow-hidden max-h-[calc(90vh-120px)]">
-          {/* Main Content */}
-          <div
-            ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
-          >
-            {isLoadingColumns ? (
-              <Card className="bg-background shadow-sm border border-border/50">
-                <CardContent className="p-6 text-center">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-crimson-red mx-auto mb-2"></div>
-                  <p className="text-xs text-muted-foreground">Loading...</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                {sortedParentTabs.map((parentTab) => {
-                  const IconComponent = getParentTabIcon(parentTab);
-                  const filteredColumns =
-                    groupedColumns[parentTab].filter(shouldDisplayColumn);
+                      if (filteredColumns.length === 0) return null;
 
-                  if (filteredColumns.length === 0) return null;
-
-                  return (
-                    <Card
-                      key={parentTab}
-                      id={`edit-tab-${parentTab}`}
-                      className="bg-background shadow-sm border border-border/50 scroll-mt-4"
-                    >
-                      <CardHeader className="pb-1 bg-crimson-red/10 border-2 border-crimson-red/20 border-red-500 py-1">
-                        <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
-                          <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                            <IconComponent className="h-3 w-3 text-crimson-red" />
-                          </div>
-                          {parentTab}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <div className="border border-purple-300">
-                          {filteredColumns.map((column) => {
-                            const error = fieldErrors[column.id];
-                            const isFunction = column.dataType === "function";
-
-                            return (
-                              <div
-                                key={column.id}
-                                className={cn(
-                                  "flex items-center justify-between border border-purple-300 transition-colors",
-                                  error && "bg-red-50/50",
-                                  isFunction
-                                    ? "bg-sunglow-yellow/20 hover:bg-sunglow-yellow/30 border-sunglow-yellow/30"
-                                    : "hover:bg-muted/10"
-                                )}
-                              >
-                                <div className="flex items-center gap-2 min-w-0 w-[40%] px-3 py-2 border-r border-purple-300">
-                                  <Label
-                                    htmlFor={`field-${column.id}`}
-                                    className="text-xs font-medium"
-                                  >
-                                    {column.columnName}
-                                  </Label>
-                                </div>
-                                <div className="w-[60%] px-3 py-2">
-                                  <div className="space-y-2">
-                                    {renderFormField(column)}
-                                    {error && (
-                                      <p className="text-xs text-red-600">
-                                        {error}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
+                      return (
+                        <Card
+                          key={parentTab}
+                          id={`edit-tab-${parentTab}`}
+                          className="bg-background shadow-sm border border-border/50 scroll-mt-4"
+                          tabIndex={-1}
+                        >
+                          <CardHeader
+                            className="pb-1 bg-crimson-red/10 border-2 border-crimson-red/20 border-red-500 py-1"
+                            tabIndex={-1}
+                          >
+                            <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
+                              <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
+                                <IconComponent className="h-3 w-3 text-crimson-red" />
                               </div>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                              {parentTab}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-0" tabIndex={-1}>
+                            <div className="border border-purple-300">
+                              {filteredColumns.map((column) => {
+                                const error = fieldErrors[column.id];
+                                const isFunction =
+                                  column.dataType === "function";
+
+                                return (
+                                  <div
+                                    key={column.id}
+                                    className={cn(
+                                      "flex items-center justify-between border border-purple-300 transition-colors",
+                                      error && "bg-red-50/50",
+                                      isFunction
+                                        ? "bg-sunglow-yellow/20 hover:bg-sunglow-yellow/30 border-sunglow-yellow/30"
+                                        : "hover:bg-muted/10"
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0 w-[40%] px-3 py-2 border-r border-purple-300">
+                                      <Label
+                                        htmlFor={`field-${column.id}`}
+                                        className="text-xs font-medium"
+                                      >
+                                        {column.columnName}
+                                      </Label>
+                                    </div>
+                                    <div className="w-[60%] px-3 py-2">
+                                      <div className="space-y-2">
+                                        {renderFormField(column)}
+                                        {error && (
+                                          <p className="text-xs text-red-600">
+                                            {error}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Navigation Sidebar */}
-          {!isLoadingColumns && sortedParentTabs.length > 0 && (
-            <div className="w-48 border-l border-border/50 p-4 overflow-y-auto scrollbar-hide scroll-optimized">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                Sections
-              </h3>
-              <nav className="space-y-1">
-                {sortedParentTabs.map((parentTab) => {
-                  const IconComponent = getParentTabIcon(parentTab);
-                  const filteredColumns =
-                    groupedColumns[parentTab].filter(shouldDisplayColumn);
+              {/* Navigation Sidebar */}
+              {!isLoadingColumns && sortedParentTabs.length > 0 && (
+                <div
+                  className="w-48 border-l border-border/50 p-4"
+                  tabIndex={-1}
+                >
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                    Sections
+                  </h3>
+                  <nav className="space-y-1">
+                    {sortedParentTabs.map((parentTab) => {
+                      const IconComponent = getParentTabIcon(parentTab);
+                      const filteredColumns =
+                        groupedColumns[parentTab].filter(shouldDisplayColumn);
 
-                  if (filteredColumns.length === 0) return null;
+                      if (filteredColumns.length === 0) return null;
 
-                  return (
-                    <button
-                      key={parentTab}
-                      onClick={() => scrollToTab(parentTab)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
-                        activeTab === parentTab
-                          ? "bg-crimson-red text-white shadow-sm"
-                          : "text-foreground hover:bg-muted/50"
-                      }`}
-                    >
-                      <IconComponent
-                        className={`h-3 w-3 flex-shrink-0 ${
-                          activeTab === parentTab
-                            ? "text-white"
-                            : "text-crimson-red"
-                        }`}
-                      />
-                      <span className="text-xs font-medium truncate">
-                        {parentTab}
-                      </span>
-                    </button>
-                  );
-                })}
-              </nav>
+                      return (
+                        <button
+                          key={parentTab}
+                          onClick={() => scrollToTab(parentTab)}
+                          tabIndex={-1}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
+                            activeTab === parentTab
+                              ? "bg-crimson-red text-white shadow-sm"
+                              : "text-foreground hover:bg-muted/50"
+                          }`}
+                        >
+                          <IconComponent
+                            className={`h-3 w-3 flex-shrink-0 ${
+                              activeTab === parentTab
+                                ? "text-white"
+                                : "text-crimson-red"
+                            }`}
+                          />
+                          <span className="text-xs font-medium truncate">
+                            {parentTab}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
+              )}
             </div>
-          )}
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Loading Modal for Cleaning Scheduled Emails */}
+      {isCleaningScheduledEmails && (
+        <div className="fixed inset-0 z-[99990] flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4 border border-red-600/20">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600"></div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Clearing Payment Reminders
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Removing all scheduled reminder emails...
+                  </p>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1 bg-muted/30 rounded-md p-3">
+                <p>• Deleting scheduled payment reminder emails</p>
+                <p>• Clearing P1-P4 scheduled email links</p>
+                <p>• Updating booking settings</p>
+              </div>
+            </div>
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+
+      {/* Loading Modal for Email Generation */}
+      {isGeneratingEmail && (
+        <div className="fixed inset-0 z-[99990] flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4 border border-royal-purple/20">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-royal-purple/20 border-t-royal-purple"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <MdEmail className="h-5 w-5 text-royal-purple" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {emailGenerationProgress.action === "generating"
+                      ? "Generating Email Draft"
+                      : emailGenerationProgress.action === "deleting"
+                      ? "Deleting Email Draft"
+                      : "Sending Email"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {emailGenerationProgress.action === "generating"
+                      ? emailGenerationProgress.type === "reservation"
+                        ? "Creating reservation email draft in Gmail..."
+                        : "Creating cancellation email draft in Gmail..."
+                      : emailGenerationProgress.action === "deleting"
+                      ? emailGenerationProgress.type === "reservation"
+                        ? "Deleting reservation email draft if it exists..."
+                        : "Deleting cancellation email draft if it exists..."
+                      : emailGenerationProgress.type === "reservation"
+                      ? "Sending reservation email to customer..."
+                      : "Sending cancellation email to customer..."}
+                  </p>
+                </div>
+              </div>
+              {emailGenerationProgress.bookingId && (
+                <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Booking ID:</span>
+                    <span className="font-mono text-foreground font-medium">
+                      {emailGenerationProgress.bookingId}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Email Type:</span>
+                    <span className="font-medium text-foreground capitalize">
+                      {emailGenerationProgress.type}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t border-border/50">
+                    <p className="text-center text-muted-foreground flex items-center justify-center gap-2">
+                      <span className="inline-block animate-pulse">⏳</span>
+                      This may take a few moments...
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

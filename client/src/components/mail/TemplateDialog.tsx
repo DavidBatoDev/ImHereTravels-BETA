@@ -30,6 +30,8 @@ import {
   AlertCircle,
   X,
   Plus,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import EmailTemplateService from "@/services/email-template-service";
@@ -484,6 +486,7 @@ export default function TemplateDialog({
   const [rightSidebarTab, setRightSidebarTab] = useState<
     "info" | "tools" | "variables"
   >("info");
+  const [warningsExpanded, setWarningsExpanded] = useState(true);
 
   // Test data state
   const [testData, setTestData] = useState<{ [key: string]: any }>({});
@@ -1305,19 +1308,6 @@ export default function TemplateDialog({
 
     // Content validation
     if (htmlContent) {
-      // Check for basic HTML structure
-      if (
-        !htmlContent.includes("<html") &&
-        !htmlContent.includes("<!DOCTYPE")
-      ) {
-        warnings.push("Content doesn't appear to be valid HTML");
-      }
-
-      // Check for common email template elements
-      if (!htmlContent.includes("<body")) {
-        warnings.push("Content should include a <body> tag");
-      }
-
       // Check for responsive design
       if (
         !htmlContent.includes("viewport") &&
@@ -1566,62 +1556,87 @@ export default function TemplateDialog({
 
           {/* Validation Messages */}
           {(validationErrors.length > 0 || validationWarnings.length > 0) && (
-            <div className="mb-4 space-y-2">
-              {validationErrors.map((error, index) => (
-                <div
-                  key={index}
-                  className="flex items-center space-x-2 text-red-600 text-sm"
-                >
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{error}</span>
+            <div className="mb-4">
+              <div
+                className="flex items-center justify-between cursor-pointer bg-gray-50 hover:bg-gray-100 p-3 rounded-lg"
+                onClick={() => setWarningsExpanded(!warningsExpanded)}
+              >
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <span className="text-sm font-medium">
+                    {validationErrors.length > 0 &&
+                    validationWarnings.length > 0
+                      ? `${validationErrors.length} error(s), ${validationWarnings.length} warning(s)`
+                      : validationErrors.length > 0
+                      ? `${validationErrors.length} error(s)`
+                      : `${validationWarnings.length} warning(s)`}
+                  </span>
                 </div>
-              ))}
-              {validationWarnings.map((warning, index) => {
-                // Check if this is an undefined variable warning
-                const undefinedVarMatch = warning.match(
-                  /Variable '(.+)' is used in template but not defined/
-                );
-                const variableName = undefinedVarMatch
-                  ? undefinedVarMatch[1]
-                  : null;
-
-                return (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between text-yellow-600 text-sm bg-yellow-50 p-2 rounded"
-                  >
-                    <div className="flex items-center space-x-2">
+                {warningsExpanded ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </div>
+              {warningsExpanded && (
+                <div className="mt-2 space-y-2">
+                  {validationErrors.map((error, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center space-x-2 text-red-600 text-sm bg-red-50 p-2 rounded"
+                    >
                       <AlertCircle className="h-4 w-4" />
-                      <span>{warning}</span>
+                      <span>{error}</span>
                     </div>
-                    {variableName && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          // Add the undefined variable as a new string variable
-                          const newId = Date.now().toString();
-                          const newVariable: VariableDefinition = {
-                            id: newId,
-                            name: variableName,
-                            type: "string",
-                            description: `Auto-generated from template usage`,
-                          };
-                          setVariableDefinitions((prev) => [
-                            ...prev,
-                            newVariable,
-                          ]);
-                          // Switch to variables tab
-                          setRightSidebarTab("variables");
-                        }}
-                        className="h-6 px-2 text-xs text-yellow-700 hover:text-yellow-800 hover:bg-yellow-100"
+                  ))}
+                  {validationWarnings.map((warning, index) => {
+                    // Check if this is an undefined variable warning
+                    const undefinedVarMatch = warning.match(
+                      /Variable '(.+)' is used in template but not defined/
+                    );
+                    const variableName = undefinedVarMatch
+                      ? undefinedVarMatch[1]
+                      : null;
+
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between text-yellow-600 text-sm bg-yellow-50 p-2 rounded"
                       >
-                        + Define
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
+                        <div className="flex items-center space-x-2">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>{warning}</span>
+                        </div>
+                        {variableName && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              // Add the undefined variable as a new string variable
+                              const newId = Date.now().toString();
+                              const newVariable: VariableDefinition = {
+                                id: newId,
+                                name: variableName,
+                                type: "string",
+                                description: `Auto-generated from template usage`,
+                              };
+                              setVariableDefinitions((prev) => [
+                                ...prev,
+                                newVariable,
+                              ]);
+                              // Switch to variables tab
+                              setRightSidebarTab("variables");
+                            }}
+                            className="h-6 px-2 text-xs text-yellow-700 hover:text-yellow-800 hover:bg-yellow-100"
+                          >
+                            + Define
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

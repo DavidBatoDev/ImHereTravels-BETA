@@ -25,6 +25,7 @@ import { auth, db } from "../lib/firebase";
 import type { User as UserType } from "@/types/users";
 import { parseFirebaseError } from "../utils/auth-errors";
 import { toast } from "@/hooks/use-toast";
+import { createInitialColumnsMetadata } from "@/lib/columns-metadata";
 
 interface AuthState {
   // State
@@ -57,6 +58,7 @@ interface AuthState {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateUserProfile: (data: Partial<UserType>) => Promise<void>;
+  refreshUserProfile: () => Promise<void>;
   clearError: () => void;
   setLoading: (loading: boolean) => void;
 }
@@ -429,6 +431,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             payments: true,
             cancellations: true,
           },
+          columnsMetadata: createInitialColumnsMetadata(),
         },
         security: {
           lastLogin: new Date() as any, // Will be converted to Timestamp
@@ -775,6 +778,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: errorMessage,
       });
+    }
+  },
+
+  // Refresh user profile from Firestore
+  refreshUserProfile: async () => {
+    const { user } = get();
+    if (!user) return;
+
+    try {
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data() as UserType;
+        set({
+          userProfile: userData,
+        });
+        console.log("✅ Auth Store: User profile refreshed");
+      }
+    } catch (error) {
+      console.error("❌ Auth Store: Failed to refresh user profile:", error);
     }
   },
 

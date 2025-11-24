@@ -84,6 +84,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import {
   Plus,
   Settings,
   Trash2,
@@ -104,24 +112,23 @@ import {
   EyeOff,
   Maximize,
   Upload,
+  Download,
+  ChevronDown,
   FileSpreadsheet,
   AlertTriangle,
   HelpCircle,
+  History,
 } from "lucide-react";
-import {
-  SheetColumn,
-  SheetData,
-  TypeScriptFunction,
-} from "@/types/sheet-management";
+import { SheetColumn, SheetData } from "@/types/sheet-management";
 import { useSheetManagement } from "@/hooks/use-sheet-management";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthStore } from "@/store/auth-store";
 import { functionExecutionService } from "@/services/function-execution-service";
 import { batchedWriter } from "@/services/batched-writer";
 import { bookingService } from "@/services/booking-service";
-import { typescriptFunctionsService } from "@/services/typescript-functions-service";
 import { isImporting } from "@/services/import-state";
-import { typescriptFunctionService } from "@/services/firebase-function-service";
 import { useRouter } from "next/navigation";
+import { ScheduledEmailService } from "@/services/scheduled-email-service";
 // Simple deep equality check
 const isEqual = (a: any, b: any): boolean => {
   if (a === b) return true;
@@ -148,6 +155,8 @@ const isEqual = (a: any, b: any): boolean => {
 import ColumnSettingsModal from "./ColumnSettingsModal";
 import SheetConsole from "./SheetConsole";
 import CSVImport from "./CSVImport";
+import SpreadsheetSync from "./SpreadsheetSync";
+import BookingVersionHistoryModal from "../version-history/BookingVersionHistoryModal";
 
 // Toggle to control error logging from function recomputation paths
 const LOG_FUNCTION_ERRORS = false;
@@ -157,9 +166,7 @@ const logFunctionError = (...args: any[]) => {
   }
 };
 
-// Store navigation function and column metadata globally for function editor
-let globalNavigateToFunctions: (() => void) | null = null;
-let globalAvailableFunctions: TypeScriptFunction[] = [];
+// Store column metadata globally for function editor
 const globalColumnDefs: Map<string, SheetColumn> = new Map();
 let globalAllColumns: SheetColumn[] = [];
 
@@ -171,7 +178,6 @@ interface BookingsDataGridProps {
   updateData: (data: SheetData[]) => void;
   updateRow: (rowId: string, updates: Partial<SheetData>) => void;
   deleteRow: (rowId: string) => Promise<void>;
-  availableFunctions: TypeScriptFunction[];
   // Fullscreen mode props
   isFullscreen?: boolean;
   pageSize?: number;
@@ -189,7 +195,6 @@ export default function BookingsDataGrid({
   updateData,
   updateRow,
   deleteRow,
-  availableFunctions,
   isFullscreen = false,
   pageSize: initialPageSize,
   globalFilter: externalGlobalFilter,
@@ -200,6 +205,7 @@ export default function BookingsDataGrid({
   // Debug logging
   const { toast } = useToast();
   const router = useRouter();
+  const { user, userProfile, refreshUserProfile } = useAuthStore();
   const [selectedCell, setSelectedCell] = useState<{
     rowId: string;
     columnId: string;
@@ -242,6 +248,18 @@ export default function BookingsDataGrid({
   const [localInputValues, setLocalInputValues] = useState<Map<string, string>>(
     new Map()
   );
+
+  // Loading state for email generation and sending
+  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
+  const [emailGenerationProgress, setEmailGenerationProgress] = useState<{
+    type: "reservation" | "cancellation" | null;
+    bookingId: string | null;
+    action: "generating" | "sending" | "deleting" | null;
+  }>({ type: null, bookingId: null, action: null });
+
+  // Loading state for cleaning scheduled emails
+  const [isCleaningScheduledEmails, setIsCleaningScheduledEmails] =
+    useState(false);
 
   // Debounced Firebase update refs
   const firebaseUpdateTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -333,6 +351,11 @@ export default function BookingsDataGrid({
       }
     }
   }, [selectedCellInfo, columns, data]);
+
+  // Set columns in batched writer for version history data type detection
+  useEffect(() => {
+    batchedWriter.setColumns(columns);
+  }, [columns]);
 
   // Set up monitoring for aria-selected changes
   useEffect(() => {
@@ -431,6 +454,10 @@ export default function BookingsDataGrid({
   } | null>(null);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [versionHistoryBookingId, setVersionHistoryBookingId] = useState<
+    string | null
+  >(null);
   const [frozenColumnIds, setFrozenColumnIds] = useState<Set<string>>(
     new Set()
   );
@@ -473,45 +500,17 @@ export default function BookingsDataGrid({
   // Helper to check if a function is likely to be slow/async
   const isFunctionLikelyAsync = useCallback(
     async (functionId: string): Promise<boolean> => {
+      // All coded functions can be checked by their function name pattern
+      // For now, assume async if function name includes certain keywords
       try {
-        // First check function metadata for async indicators
-        const tsFunction = await typescriptFunctionsService.getFunction(
-          functionId
-        );
-        if (tsFunction) {
-          // Check if function has async-related metadata
-          if (
-            tsFunction.functionName?.toLowerCase().includes("async") ||
-            tsFunction.name?.toLowerCase().includes("async")
-          ) {
-            return true;
-          }
-        }
-
-        // Then check the actual function content
-        const tsFile = await typescriptFunctionService.files.getById(
-          functionId
-        );
-        if (!tsFile?.content) return false;
-
-        const content = tsFile.content.toLowerCase();
-        // Check for async/await patterns, HTTP calls, database operations, etc.
+        const functionName = functionId.toLowerCase();
         return (
-          content.includes("async") ||
-          content.includes("await") ||
-          content.includes("fetch") ||
-          content.includes("httpscallable") ||
-          content.includes("getdocs") ||
-          content.includes("updatedoc") ||
-          content.includes("adddoc") ||
-          content.includes("deletedoc") ||
-          content.includes("settimeout") ||
-          content.includes("setinterval") ||
-          content.includes("promise") ||
-          content.includes("sendemail") ||
-          content.includes("generateemail") ||
-          content.includes(".then(") ||
-          content.includes(".catch(")
+          functionName.includes("async") ||
+          functionName.includes("email") ||
+          functionName.includes("generate") ||
+          functionName.includes("send") ||
+          functionName.includes("fetch") ||
+          functionName.includes("lookup")
         );
       } catch {
         return false;
@@ -575,10 +574,62 @@ export default function BookingsDataGrid({
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(initialPageSize || 100);
 
+  // Load column metadata from user preferences
+  const [customColumnWidths, setCustomColumnWidths] = useState<
+    Record<string, number>
+  >(() => {
+    return userProfile?.preferences?.columnsMetadata?.widths || {};
+  });
+
+  const [customColumnVisibility, setCustomColumnVisibility] = useState<
+    Record<string, boolean>
+  >(() => {
+    return userProfile?.preferences?.columnsMetadata?.visibility || {};
+  });
+
+  const [customColumnOrder, setCustomColumnOrder] = useState<string[]>(() => {
+    return userProfile?.preferences?.columnsMetadata?.order || [];
+  });
+
+  // Save column metadata to user preferences in Firebase
+  const saveColumnMetadata = useCallback(
+    async (updates: {
+      widths?: Record<string, number>;
+      visibility?: Record<string, boolean>;
+      order?: string[];
+    }) => {
+      if (!user?.uid) return;
+
+      try {
+        const { doc, updateDoc } = await import("firebase/firestore");
+        const { db } = await import("@/lib/firebase");
+
+        const userRef = doc(db, "users", user.uid);
+        const updateData: any = {};
+
+        if (updates.widths) {
+          updateData["preferences.columnsMetadata.widths"] = updates.widths;
+        }
+        if (updates.visibility) {
+          updateData["preferences.columnsMetadata.visibility"] =
+            updates.visibility;
+        }
+        if (updates.order) {
+          updateData["preferences.columnsMetadata.order"] = updates.order;
+        }
+
+        await updateDoc(userRef, updateData);
+      } catch (error) {
+        console.error("Failed to save column metadata:", error);
+      }
+    },
+    [user?.uid]
+  );
+
   // Debounced resize handler
   const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Debounced function to update column width in Firebase
+  // Debounced function to update column width in user preferences
   const debouncedUpdateColumnWidth = useCallback(
     async (columnId: string, newWidth: number) => {
       // Clear any existing timeout
@@ -587,24 +638,77 @@ export default function BookingsDataGrid({
       }
 
       // Set a new timeout
-      resizeTimeoutRef.current = setTimeout(async () => {
-        try {
-          const columnToUpdate = columns.find((col) => col.id === columnId);
-          if (columnToUpdate) {
-            const updatedColumn = {
-              ...columnToUpdate,
-              width: newWidth,
-            };
+      resizeTimeoutRef.current = setTimeout(() => {
+        const updatedWidths = {
+          ...customColumnWidths,
+          [columnId]: newWidth,
+        };
 
-            await updateColumn(updatedColumn);
-          }
-        } catch (error) {
-          // Handle column update errors silently
-        }
+        // Update local state immediately for responsive UI
+        setCustomColumnWidths(updatedWidths);
+
+        // Save to Firebase
+        saveColumnMetadata({ widths: updatedWidths });
       }, 300); // 300ms delay
     },
-    [columns, updateColumn]
+    [customColumnWidths, saveColumnMetadata]
   );
+
+  // Function to toggle column visibility
+  const toggleColumnVisibility = useCallback(
+    (columnId: string) => {
+      // Find the column to get its default visibility
+      const column = columns.find((col) => col.id === columnId);
+      if (!column) return;
+
+      // Get current visibility (check user preference first, then column default)
+      const currentVisibility =
+        customColumnVisibility[columnId] !== undefined
+          ? customColumnVisibility[columnId]
+          : column.showColumn !== false;
+
+      const updatedVisibility = {
+        ...customColumnVisibility,
+        [columnId]: !currentVisibility,
+      };
+
+      setCustomColumnVisibility(updatedVisibility);
+      saveColumnMetadata({ visibility: updatedVisibility });
+    },
+    [customColumnVisibility, saveColumnMetadata, columns]
+  );
+
+  // Function to update column order
+  const updateColumnOrder = useCallback(
+    (newOrder: string[]) => {
+      setCustomColumnOrder(newOrder);
+      saveColumnMetadata({ order: newOrder });
+    },
+    [saveColumnMetadata]
+  );
+
+  // Refresh user profile on mount to get latest preferences
+  useEffect(() => {
+    refreshUserProfile();
+  }, [refreshUserProfile]);
+
+  // Sync column metadata state with userProfile when it updates
+  useEffect(() => {
+    if (userProfile?.preferences?.columnsMetadata) {
+      const { widths, visibility, order } =
+        userProfile.preferences.columnsMetadata;
+
+      if (widths) {
+        setCustomColumnWidths(widths);
+      }
+      if (visibility) {
+        setCustomColumnVisibility(visibility);
+      }
+      if (order) {
+        setCustomColumnOrder(order);
+      }
+    }
+  }, [userProfile]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -678,7 +782,7 @@ export default function BookingsDataGrid({
         return row[funcCol.id]; // Return existing value without recomputation
       }
 
-      if (!funcCol.function) return;
+      if (!funcCol.function && !funcCol.compiledFunction) return;
 
       // Skip computation during initial load unless explicitly requested
       if (isInitialLoadRef.current && !skipInitialCheck) {
@@ -692,63 +796,128 @@ export default function BookingsDataGrid({
         const cacheKey = `${row.id}:${funcCol.id}:${funcCol.function}`;
         const cachedArgs = functionArgsCacheRef.current.get(cacheKey);
 
-        // Check if arguments have actually changed
+        // Check if arguments have actually changed (unless this is a dependency recomputation)
+        // When skipInitialCheck is true, it means a dependency changed and we must recompute
         const argsChanged = !cachedArgs || !isEqual(cachedArgs, args);
 
-        // Skip only if a REQUIRED argument is missing.
-        // Allow undefined/null when the argument is optional or has a default.
-        // const meta = Array.isArray(funcCol.arguments) ? funcCol.arguments : [];
-        // const missingRequiredArg = args.some((argVal, idx) => {
-        //   const m = meta[idx];
-        //   if (argVal === undefined || argVal === null) {
-        //     // If we have metadata and it's optional or has default, allow it
-        //     if (m && (m.isOptional || m.hasDefault)) return false;
-        //     // Otherwise this is a required missing value
-        //     return true;
-        //   }
-        //   return false;
-        // });
-        // if (missingRequiredArg) {
-        //   return row[funcCol.id]; // Return existing value without recomputing
-        // }
-
-        // Skip recomputation if arguments haven't changed
-        if (!argsChanged) {
+        // Skip recomputation if arguments haven't changed AND this is not a forced recomputation
+        if (!argsChanged && !skipInitialCheck) {
+          console.log(
+            `⏭️ [SKIP] ${funcCol.function} for row ${row.id} - args unchanged`
+          );
           return row[funcCol.id]; // Return existing value without recomputing
+        }
+
+        // Log when we're recomputing due to dependency change
+        if (!argsChanged && skipInitialCheck) {
+          console.log(
+            `🔄 [FORCED RECOMPUTE] ${funcCol.function} for row ${row.id} - dependency changed`
+          );
         }
 
         // Update cache with new arguments
         functionArgsCacheRef.current.set(cacheKey, [...args]);
 
-        // Execute function with proper async handling
-        // The function execution service will handle caching based on arguments
-        // Use longer timeout during recompute process for slow functions
-        const timeout = skipInitialCheck ? 30000 : 10000; // 30s for recompute, 10s for normal
-        const executionResult = await functionExecutionService.executeFunction(
-          funcCol.function,
-          args,
-          timeout
-        );
-
-        if (!executionResult.success) {
-          // record attempt error for retry loop tracking
-          attemptErrorCountRef.current =
-            (attemptErrorCountRef.current || 0) + 1;
-          if (isRecomputingAllRef.current) {
-            setRecomputeProgress((prev) => ({
-              ...prev,
-              errorDetected: true,
-              errorCount: (prev.errorCount || 0) + 1,
-            }));
-          }
-          logFunctionError(
-            `Function execution failed for ${funcCol.function}:`,
-            executionResult.error
+        // Use injected compiled function if available, otherwise fall back to service
+        let result: any;
+        if (funcCol.compiledFunction) {
+          // Direct function execution (fastest path)
+          console.log(
+            `⚡ [DIRECT EXEC] Calling ${funcCol.function} with args:`,
+            args
           );
-          return row[funcCol.id]; // Return existing value on error
-        }
 
-        const result = executionResult.result;
+          // Check if this is an email generation or sending function
+          const isEmailGenerationFunction =
+            funcCol.function === "generateGmailDraftFunction" ||
+            funcCol.function === "generateCancellationGmailDraftFunction";
+
+          const isEmailSendingFunction =
+            funcCol.function === "sendEmailDraftOnceFunction" ||
+            funcCol.function === "sendCancellationEmailDraftOnceFunction";
+
+          const isEmailFunction =
+            isEmailGenerationFunction || isEmailSendingFunction;
+
+          if (isEmailFunction) {
+            // Show loading modal for email generation or sending
+            setIsGeneratingEmail(true);
+
+            let emailType: "reservation" | "cancellation" = "reservation";
+            if (
+              funcCol.function === "generateCancellationGmailDraftFunction" ||
+              funcCol.function === "sendCancellationEmailDraftOnceFunction"
+            ) {
+              emailType = "cancellation";
+            }
+
+            // Determine if we're toggling off (deleting draft)
+            let action: "generating" | "sending" | "deleting" = "generating";
+            if (isEmailSendingFunction) {
+              action = "sending";
+            } else if (isEmailGenerationFunction) {
+              // Check if toggling off by looking at the generate flag argument (usually index 3)
+              const generateFlagIndex = 3; // generateEmailDraft or generateCancellationDraft is typically the 4th argument
+              const isTogglingOff = args[generateFlagIndex] === false;
+              action = isTogglingOff ? "deleting" : "generating";
+            }
+
+            setEmailGenerationProgress({
+              type: emailType,
+              bookingId: args[0] || null, // First argument is typically bookingId or draftUrl
+              action: action,
+            });
+          }
+
+          try {
+            result = funcCol.compiledFunction(...args);
+
+            // Handle async functions
+            if (result && typeof result.then === "function") {
+              result = await result;
+            }
+          } finally {
+            if (isEmailFunction) {
+              // Hide loading modal after function completes
+              setIsGeneratingEmail(false);
+              setEmailGenerationProgress({
+                type: null,
+                bookingId: null,
+                action: null,
+              });
+            }
+          }
+        } else {
+          // Fallback to function execution service (legacy path)
+          const timeout = skipInitialCheck ? 30000 : 10000;
+          const executionResult =
+            await functionExecutionService.executeFunction(
+              funcCol.function!,
+              args,
+              timeout,
+              row.id, // Pass rowId for dependency-aware caching
+              funcCol.id // Pass columnId for dependency-aware caching
+            );
+
+          if (!executionResult.success) {
+            attemptErrorCountRef.current =
+              (attemptErrorCountRef.current || 0) + 1;
+            if (isRecomputingAllRef.current) {
+              setRecomputeProgress((prev) => ({
+                ...prev,
+                errorDetected: true,
+                errorCount: (prev.errorCount || 0) + 1,
+              }));
+            }
+            logFunctionError(
+              `Function execution failed for ${funcCol.function}:`,
+              executionResult.error
+            );
+            return row[funcCol.id]; // Return existing value on error
+          }
+
+          result = executionResult.result;
+        }
 
         if (!isEqual(row[funcCol.id], result)) {
           // Batch persist to Firestore (debounced)
@@ -792,6 +961,27 @@ export default function BookingsDataGrid({
                 const list = map.get(refCol.id) || [];
                 list.push(col);
                 map.set(refCol.id, list);
+
+                // Debug logging for tour-related dependencies
+                if (col.id === "tourCode" || refCol.id === "tourPackageName") {
+                  console.log("🔗 [DEPENDENCY] Registered:", {
+                    source: { id: refCol.id, name: refCol.columnName },
+                    dependent: {
+                      id: col.id,
+                      name: col.columnName,
+                      function: col.function,
+                    },
+                  });
+                }
+              } else {
+                // Debug: log when column reference not found
+                if (col.id === "tourCode") {
+                  console.warn("⚠️ [DEPENDENCY] Column reference not found:", {
+                    functionColumn: col.columnName,
+                    lookingFor: arg.columnReference,
+                    availableColumns: columns.map((c) => c.columnName),
+                  });
+                }
               }
             }
           }
@@ -813,6 +1003,20 @@ export default function BookingsDataGrid({
         });
       }
     });
+
+    // Debug: log the complete dependency map for tourPackageName
+    const tourPackageNameDeps = map.get("tourPackageName");
+    if (tourPackageNameDeps) {
+      console.log(
+        "🔍 [DEPENDENCY MAP] tourPackageName dependents:",
+        tourPackageNameDeps.map((d) => ({
+          id: d.id,
+          name: d.columnName,
+          function: d.function,
+        }))
+      );
+    }
+
     return map;
   }, [columns]);
 
@@ -847,10 +1051,25 @@ export default function BookingsDataGrid({
     setIsSheetConsoleVisible(true);
   }, []);
 
-  // Navigate to functions page
-  const navigateToFunctions = useCallback(() => {
-    router.push("/functions");
-  }, [router]);
+  // Open version history modal
+  const openVersionHistory = useCallback((bookingId?: string) => {
+    setVersionHistoryBookingId(bookingId || null);
+    setIsVersionHistoryOpen(true);
+  }, []);
+
+  // Handle version restore
+  const handleVersionRestore = useCallback(
+    (versionId: string) => {
+      // Version restore is handled by the service, just show success message
+      toast({
+        title: "✅ Version Restored",
+        description: "The booking has been restored to the selected version.",
+        variant: "default",
+      });
+      // The grid will automatically update via Firebase listeners
+    },
+    [toast]
+  );
 
   // Toggle column freeze
   const toggleColumnFreeze = useCallback(
@@ -871,58 +1090,18 @@ export default function BookingsDataGrid({
     []
   );
 
-  // Toggle column visibility
-  const toggleColumnVisibility = useCallback(
-    async (columnId: string) => {
-      const column = columns.find((col) => col.id === columnId);
-      if (!column) return;
-
-      const updatedColumn = {
-        ...column,
-        showColumn: column.showColumn === false ? true : false,
-      };
-
-      try {
-        await updateColumn(updatedColumn);
-        toast({
-          title: updatedColumn.showColumn
-            ? "✅ Column Shown"
-            : "✅ Column Hidden",
-          description: `Column "${column.columnName}" ${
-            updatedColumn.showColumn ? "is now visible" : "is now hidden"
-          }`,
-          variant: "default",
-        });
-      } catch (error) {
-        console.error("Failed to toggle column visibility:", error);
-        toast({
-          title: "❌ Failed to Update Column",
-          description: `Error: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-          variant: "destructive",
-        });
-      }
-    },
-    [columns, updateColumn, toast]
-  );
-
-  // Update global navigation function, available functions, and column definitions
+  // Update global column definitions
   useEffect(() => {
-    globalNavigateToFunctions = navigateToFunctions;
-    globalAvailableFunctions = availableFunctions;
     globalAllColumns = columns;
     globalColumnDefs.clear();
     columns.forEach((col) => {
       globalColumnDefs.set(col.id, col);
     });
     return () => {
-      globalNavigateToFunctions = null;
-      globalAvailableFunctions = [];
       globalAllColumns = [];
       globalColumnDefs.clear();
     };
-  }, [navigateToFunctions, availableFunctions, columns]);
+  }, [columns]);
 
   // Recompute only direct dependent function columns for a single row
   // RECURSIVE: Computes direct dependents, then recursively computes their dependents
@@ -953,12 +1132,37 @@ export default function BookingsDataGrid({
       // Use column ID instead of column name for precise tracking
       const directDependents = dependencyGraph.get(changedColumnId) || [];
 
+      // Get column name for better logging
+      const changedColumn = columns.find((c) => c.id === changedColumnId);
+      const changedColumnName = changedColumn?.columnName || changedColumnId;
+
+      console.log("🔍 [DEPENDENCY GRAPH] Column changed:", {
+        columnId: changedColumnId,
+        columnName: changedColumnName,
+        value: updatedValue,
+        dependentCount: directDependents.length,
+        dependents: directDependents.map((d) => ({
+          id: d.id,
+          name: d.columnName,
+          function: d.function,
+        })),
+        allDependencyKeys: Array.from(dependencyGraph.keys()).map((key) => {
+          const col = columns.find((c) => c.id === key);
+          return { id: key, name: col?.columnName };
+        }),
+      });
+
       if (directDependents.length === 0) return;
 
       // Clear cache for affected functions since data has changed
+      // AND mark them for forced recomputation (skip cache)
       directDependents.forEach((funcCol) => {
         const cacheKey = `${rowId}:${funcCol.id}:${funcCol.function}`;
         functionArgsCacheRef.current.delete(cacheKey);
+
+        // Invalidate result cache and mark for recomputation
+        functionExecutionService.invalidateForRowColumn(rowId, funcCol.id);
+        functionExecutionService.markForRecomputation(rowId, funcCol.id);
       });
 
       // Compute all direct dependents in parallel for speed
@@ -1914,56 +2118,9 @@ export default function BookingsDataGrid({
 
   // Subscribe to changes for only the functions referenced by current columns
   useEffect(() => {
-    const inUseFunctionIds = new Set(
-      columns
-        .filter((c) => c.dataType === "function" && !!c.function)
-        .map((c) => c.function as string)
-    );
-
-    // Add new subscriptions for newly referenced functions
-    inUseFunctionIds.forEach((funcId) => {
-      if (!functionSubscriptionsRef.current.has(funcId)) {
-        const unsubscribe =
-          typescriptFunctionsService.subscribeToFunctionChanges(
-            funcId,
-            (updated) => {
-              if (!updated) return;
-
-              // Skip recomputation during initial load
-              if (isInitialLoadRef.current) {
-                return;
-              }
-
-              // Invalidate compiled function cache so next compute uses fresh code
-              functionExecutionService.invalidate(funcId);
-              // NOTE: Automatic recomputation disabled to prevent recomputation during column resizing
-              // Users can manually trigger recomputation via UI if needed
-              // recomputeForFunction(funcId);
-            }
-          );
-        functionSubscriptionsRef.current.set(funcId, unsubscribe);
-      }
-    });
-
-    // Clean up subscriptions for functions no longer in use
-    const currentSubscriptions = Array.from(
-      functionSubscriptionsRef.current.keys()
-    );
-    currentSubscriptions.forEach((funcId) => {
-      if (!inUseFunctionIds.has(funcId)) {
-        const unsubscribe = functionSubscriptionsRef.current.get(funcId);
-        if (unsubscribe) {
-          unsubscribe();
-          functionSubscriptionsRef.current.delete(funcId);
-        }
-      }
-    });
-
-    // Cleanup on unmount
-    return () => {
-      functionSubscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
-      functionSubscriptionsRef.current.clear();
-    };
+    // Coded functions don't need subscriptions - they're loaded at runtime
+    // Function cache is invalidated when needed
+    return () => {};
   }, [columns]);
 
   // Create Fuse instance for fuzzy search on global filter
@@ -2194,17 +2351,17 @@ export default function BookingsDataGrid({
   ) => {
     const isFirstColumn = column.key === columns[0]?.id;
 
-    // Debug logging
-    if (isFirstEmptyRow) {
-      console.log("🔍 [ADD BUTTON DEBUG]", {
-        columnKey: column.key,
-        firstColumnId: columns[0]?.id,
-        isFirstColumn,
-        shouldShowAddButton,
-        hasActiveFilters: getActiveFiltersCount() > 0,
-        activeFiltersCount: getActiveFiltersCount(),
-      });
-    }
+    // // Debug logging
+    // if (isFirstEmptyRow) {
+    //   console.log("🔍 [ADD BUTTON DEBUG]", {
+    //     columnKey: column.key,
+    //     firstColumnId: columns[0]?.id,
+    //     isFirstColumn,
+    //     shouldShowAddButton,
+    //     hasActiveFilters: getActiveFiltersCount() > 0,
+    //     activeFiltersCount: getActiveFiltersCount(),
+    //   });
+    // }
 
     if (isFirstColumn && shouldShowAddButton) {
       return (
@@ -2363,10 +2520,7 @@ export default function BookingsDataGrid({
     // Get function name from global column defs map
     const columnDef = globalColumnDefs.get(column.key);
     const functionId = columnDef?.function;
-    const functionDetails = globalAvailableFunctions?.find(
-      (f) => f.id === functionId
-    );
-    const functionName = functionDetails?.functionName || "EditFunction";
+    const functionName = functionId || "EditFunction";
 
     // Build function signature with arguments
     // Build function signature with actual values from row
@@ -2441,19 +2595,8 @@ export default function BookingsDataGrid({
     const signature = `${functionName}(${args})`;
 
     return (
-      <span className="h-8 w-full flex items-center justify-center px-2">
-        <button
-          onClick={() => {
-            if (globalNavigateToFunctions) {
-              globalNavigateToFunctions();
-            }
-            onClose(false);
-          }}
-          className="text-sm text-royal-purple hover:text-royal-purple/80 underline flex items-center gap-1 hover:no-underline transition-all"
-        >
-          <ExternalLink className="h-4 w-4" />
-          {signature}
-        </button>
+      <span className="h-8 w-full flex items-center justify-center px-2 text-sm text-royal-purple">
+        {signature}
       </span>
     );
   }
@@ -2676,704 +2819,815 @@ export default function BookingsDataGrid({
       "bg-muted border-l border-r border-border h-20 !p-0"; // Increased height for two-row header, no padding
     (rowNumberColumn as any).cellClass = "bg-muted";
 
-    const dataColumns = columns
-      .filter(
-        (col) => col && col.id && col.columnName && col.showColumn !== false
-      ) // Filter out invalid columns and hidden columns
-      .sort((a, b) => a.order - b.order)
-      .map((col) => {
-        const baseColumn: Column<SheetData> = {
-          key: col.id,
-          name: col.columnName,
-          width: col.width || 150,
-          minWidth: 50,
-          maxWidth: 3000,
-          resizable: true,
-          sortable: false,
-          frozen: frozenColumnIds.has(col.id),
-        };
+    // Apply user preferences for visibility and order
+    let filteredColumns = columns.filter((col) => {
+      if (!col || !col.id || !col.columnName) return false;
 
-        // Add group-based background styling for cells
+      // Check user preference first, then fall back to column's showColumn property
+      const userVisibility = customColumnVisibility[col.id];
+      const isVisible =
+        userVisibility !== undefined
+          ? userVisibility
+          : col.showColumn !== false;
+
+      return isVisible;
+    });
+
+    // Apply custom order if exists
+    if (customColumnOrder.length > 0) {
+      filteredColumns = filteredColumns.sort((a, b) => {
+        const indexA = customColumnOrder.indexOf(a.id);
+        const indexB = customColumnOrder.indexOf(b.id);
+
+        // If both columns are in the custom order, sort by that
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        // If only one is in the custom order, prioritize it
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        // Otherwise, use default order
+        return a.order - b.order;
+      });
+    } else {
+      // Use default order
+      filteredColumns = filteredColumns.sort((a, b) => a.order - b.order);
+    }
+
+    const dataColumns = filteredColumns.map((col) => {
+      const baseColumn: Column<SheetData> = {
+        key: col.id,
+        name: col.columnName,
+        width: customColumnWidths[col.id] || col.width || 150, // Use custom width if available
+        minWidth: 50,
+        maxWidth: 3000,
+        resizable: true,
+        sortable: false,
+        frozen: frozenColumnIds.has(col.id),
+      };
+
+      // Add group-based background styling for cells
+      const parentTab = col.parentTab || "General";
+      const sortedColumns = filteredColumns;
+      const currentIndex = sortedColumns.findIndex((c) => c.id === col.id);
+      const isFirstInGroup =
+        currentIndex === 0 ||
+        sortedColumns[currentIndex - 1].parentTab !== parentTab;
+      const isLastInGroup =
+        currentIndex === sortedColumns.length - 1 ||
+        sortedColumns[currentIndex + 1].parentTab !== parentTab;
+
+      // Apply group-based cell styling
+      let cellClass = "";
+      if (isFirstInGroup && isLastInGroup) {
+        // Single column group
+        cellClass = "bg-gray-100 border-l border-r border-gray-300";
+      } else if (isFirstInGroup) {
+        // First column in group
+        cellClass = "bg-gray-100 border-l border-r border-gray-300";
+      } else if (isLastInGroup) {
+        // Last column in group
+        cellClass = "bg-gray-100 border-l border-r border-gray-300";
+      } else {
+        // Middle column in group
+        cellClass = "bg-gray-100 border-l border-r border-gray-300";
+      }
+
+      // Override with individual column color if specified and not "none"
+      if (col.color && col.color !== "none") {
+        const colorClasses = {
+          purple:
+            "bg-royal-purple/8 border-l border-r border-royal-purple/40 text-black",
+          blue: "bg-blue-100 border-l border-r border-royal-purple/40 text-black",
+          green:
+            "bg-green-100 border-l border-r border-royal-purple/40 text-black",
+          yellow:
+            "bg-yellow-100 border-l border-r border-royal-purple/40 text-black",
+          orange:
+            "bg-orange-100 border-l border-r border-royal-purple/40 text-black",
+          red: "bg-red-100 border-l border-r border-royal-purple/40 text-black",
+          pink: "bg-pink-100 border-l border-r border-royal-purple/40 text-black",
+          cyan: "bg-cyan-100 border-l border-r border-royal-purple/40 text-black",
+          gray: "bg-gray-100 border-l border-r border-royal-purple/40 text-black",
+        };
+        cellClass = colorClasses[col.color] || cellClass;
+      }
+
+      // Apply cell styling
+      (baseColumn as any).cellClass = (row: SheetData) => {
+        const isColumnSelected = selectedColumnId === col.id;
+        const isRowSelected = selectedRowId === row.id;
+        const isFrozen = frozenColumnIds.has(col.id);
+
+        // Build classes array for easier management
+        const classes = [cellClass];
+
+        // Add ring if column is selected, frozen, or row is selected
+        if (isColumnSelected || isFrozen || isRowSelected) {
+          classes.push("ring-2 ring-inset ring-royal-purple/40");
+        }
+
+        return classes.join(" ");
+      };
+
+      // Add header height styling for two-row header structure and remove padding
+      (baseColumn as any).headerCellClass = "bg-black h-20 !p-0 text-xs"; // Increased height for two-row header, no padding
+
+      // Add custom header with parent tab (no sorting indicators)
+      baseColumn.renderHeaderCell = ({ column }) => {
         const parentTab = col.parentTab || "General";
+
+        // Find the current column index in the sorted columns
         const sortedColumns = columns
           .filter((c) => c && c.id && c.columnName)
           .sort((a, b) => a.order - b.order);
         const currentIndex = sortedColumns.findIndex((c) => c.id === col.id);
+
+        // Check if this is the first column in a group of same parent tabs
         const isFirstInGroup =
           currentIndex === 0 ||
           sortedColumns[currentIndex - 1].parentTab !== parentTab;
+
+        // Check if this is the last column in a group of same parent tabs
         const isLastInGroup =
           currentIndex === sortedColumns.length - 1 ||
           sortedColumns[currentIndex + 1].parentTab !== parentTab;
 
-        // Apply group-based cell styling
-        let cellClass = "";
-        if (isFirstInGroup && isLastInGroup) {
-          // Single column group
-          cellClass = "bg-gray-100 border-l border-r border-gray-300";
-        } else if (isFirstInGroup) {
-          // First column in group
-          cellClass = "bg-gray-100 border-l border-r border-gray-300";
-        } else if (isLastInGroup) {
-          // Last column in group
-          cellClass = "bg-gray-100 border-l border-r border-gray-300";
-        } else {
-          // Middle column in group
-          cellClass = "bg-gray-100 border-l border-r border-gray-300";
-        }
-
-        // Override with individual column color if specified and not "none"
-        if (col.color && col.color !== "none") {
-          const colorClasses = {
-            purple:
-              "bg-royal-purple/8 border-l border-r border-royal-purple/40 text-black",
-            blue: "bg-blue-100 border-l border-r border-royal-purple/40 text-black",
-            green:
-              "bg-green-100 border-l border-r border-royal-purple/40 text-black",
-            yellow:
-              "bg-yellow-100 border-l border-r border-royal-purple/40 text-black",
-            orange:
-              "bg-orange-100 border-l border-r border-royal-purple/40 text-black",
-            red: "bg-red-100 border-l border-r border-royal-purple/40 text-black",
-            pink: "bg-pink-100 border-l border-r border-royal-purple/40 text-black",
-            cyan: "bg-cyan-100 border-l border-r border-royal-purple/40 text-black",
-            gray: "bg-gray-100 border-l border-r border-royal-purple/40 text-black",
-          };
-          cellClass = colorClasses[col.color] || cellClass;
-        }
-
-        // Apply cell styling
-        (baseColumn as any).cellClass = (row: SheetData) => {
-          const isColumnSelected = selectedColumnId === col.id;
-          const isRowSelected = selectedRowId === row.id;
-          const isFrozen = frozenColumnIds.has(col.id);
-
-          // Build classes array for easier management
-          const classes = [cellClass];
-
-          // Add ring if column is selected, frozen, or row is selected
-          if (isColumnSelected || isFrozen || isRowSelected) {
-            classes.push("ring-2 ring-inset ring-royal-purple/40");
-          }
-
-          return classes.join(" ");
-        };
-
-        // Add header height styling for two-row header structure and remove padding
-        (baseColumn as any).headerCellClass = "bg-black h-20 !p-0 text-xs"; // Increased height for two-row header, no padding
-
-        // Add custom header with parent tab (no sorting indicators)
-        baseColumn.renderHeaderCell = ({ column }) => {
-          const parentTab = col.parentTab || "General";
-
-          // Find the current column index in the sorted columns
-          const sortedColumns = columns
-            .filter((c) => c && c.id && c.columnName)
-            .sort((a, b) => a.order - b.order);
-          const currentIndex = sortedColumns.findIndex((c) => c.id === col.id);
-
-          // Check if this is the first column in a group of same parent tabs
-          const isFirstInGroup =
-            currentIndex === 0 ||
-            sortedColumns[currentIndex - 1].parentTab !== parentTab;
-
-          // Check if this is the last column in a group of same parent tabs
-          const isLastInGroup =
-            currentIndex === sortedColumns.length - 1 ||
-            sortedColumns[currentIndex + 1].parentTab !== parentTab;
-
-          // Calculate the width of the merged parent tab cell
-          let parentTabWidth = column.width || 150;
-          if (isFirstInGroup && !isLastInGroup) {
-            // Calculate total width of all columns in this parent tab group
-            let groupWidth = 0;
-            for (let i = currentIndex; i < sortedColumns.length; i++) {
-              if (sortedColumns[i].parentTab === parentTab) {
-                groupWidth += sortedColumns[i].width || 150;
-              } else {
-                break;
-              }
+        // Calculate the width of the merged parent tab cell
+        let parentTabWidth = column.width || 150;
+        if (isFirstInGroup && !isLastInGroup) {
+          // Calculate total width of all columns in this parent tab group
+          let groupWidth = 0;
+          for (let i = currentIndex; i < sortedColumns.length; i++) {
+            if (sortedColumns[i].parentTab === parentTab) {
+              groupWidth += sortedColumns[i].width || 150;
+            } else {
+              break;
             }
-            parentTabWidth = groupWidth;
           }
+          parentTabWidth = groupWidth;
+        }
+
+        return (
+          <div className="flex flex-col w-full h-full relative">
+            {/* Parent Tab Row - only show if first in group */}
+            {isFirstInGroup && isLastInGroup && (
+              <div
+                className="parent-tab-seperator bg-gray-400 border-r border-l border-gray-900 px-2 py-1 text-lg font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 flex items-center"
+                style={{ height: "40px" }}
+              >
+                <div className="z-[999999999] flex items-center justify-center w-full">
+                  {parentTab}
+                </div>
+              </div>
+            )}
+            {isFirstInGroup && !isLastInGroup && (
+              <div
+                className="parent-tab-seperator bg-gray-400 border-r border-gray-900 px-2 py-1 text-xs font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 flex items-center"
+                style={{
+                  width: `${parentTabWidth}px`,
+                  height: "40px",
+                }}
+              >
+                <div className="z-[999999999] flex items-center justify-center ">
+                  {parentTab}
+                </div>
+              </div>
+            )}
+            {/* Background for all columns in the group - only show if NOT first in group */}
+            {!isFirstInGroup && (
+              <div
+                className="bg-gray-400 absolute top-0 left-0 z-5 w-full"
+                style={{ height: "40px" }}
+              />
+            )}
+            {/* Background for last column in the group */}
+            {isLastInGroup && (
+              <div
+                className="bg-gray-400 border-r border-gray-900 absolute top-0 left-0 z-5 w-full"
+                style={{ height: "40px" }}
+              />
+            )}
+
+            {/* Column Name Row */}
+            <div
+              className={`flex items-center justify-between flex-1 px-2 mt-10 cursor-pointer hover:bg-gray-700 transition-colors group/header ${
+                selectedColumnId === col.id
+                  ? "bg-gray-600 ring-2 ring-inset ring-white"
+                  : ""
+              } ${frozenColumnIds.has(col.id) ? "bg-gray-800" : ""}`}
+              onClick={() =>
+                setSelectedColumnId(selectedColumnId === col.id ? null : col.id)
+              }
+              title="Click to highlight column"
+            >
+              <div className="flex items-center gap-1 flex-1 justify-center text-xs">
+                {col.dataType === "function" && (
+                  <FunctionSquare className="h-4 w-4 text-white" />
+                )}
+                {frozenColumnIds.has(col.id) && (
+                  <Pin className="h-3 w-3 text-white" />
+                )}
+                <span className="font-medium truncate text-white text-xs">
+                  {column.name}
+                </span>
+              </div>
+              <button
+                onClick={(e) => toggleColumnFreeze(col.id, e)}
+                className={`p-1 hover:bg-gray-600 rounded transition-all ${
+                  frozenColumnIds.has(col.id)
+                    ? "opacity-100"
+                    : "opacity-0 group-hover/header:opacity-100"
+                }`}
+                title={
+                  frozenColumnIds.has(col.id)
+                    ? "Unfreeze column"
+                    : "Freeze column"
+                }
+              >
+                {frozenColumnIds.has(col.id) ? (
+                  <PinOff className="h-3 w-3 text-white" />
+                ) : (
+                  <Pin className="h-3 w-3 text-white" />
+                )}
+              </button>
+            </div>
+          </div>
+        );
+      };
+
+      // Add column-specific properties
+      if (col.dataType === "boolean") {
+        // Always render checkbox input for boolean columns
+        baseColumn.renderCell = ({ row, column }) => {
+          const cellValue = !!row[column.key as keyof SheetData];
+
+          const hasColor = col.color && col.color !== "none";
 
           return (
-            <div className="flex flex-col w-full h-full relative">
-              {/* Parent Tab Row - only show if first in group */}
-              {isFirstInGroup && isLastInGroup && (
-                <div
-                  className="parent-tab-seperator bg-gray-400 border-r border-l border-gray-900 px-2 py-1 text-lg font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 flex items-center"
-                  style={{ height: "40px" }}
-                >
-                  <div className="z-[999999999] flex items-center justify-center w-full">
-                    {parentTab}
-                  </div>
-                </div>
-              )}
-              {isFirstInGroup && !isLastInGroup && (
-                <div
-                  className="parent-tab-seperator bg-gray-400 border-r border-gray-900 px-2 py-1 text-xs font-semibold text-white uppercase tracking-wide absolute top-0 left-0 z-10 flex items-center"
-                  style={{
-                    width: `${parentTabWidth}px`,
-                    height: "40px",
-                  }}
-                >
-                  <div className="z-[999999999] flex items-center justify-center ">
-                    {parentTab}
-                  </div>
-                </div>
-              )}
-              {/* Background for all columns in the group - only show if NOT first in group */}
-              {!isFirstInGroup && (
-                <div
-                  className="bg-gray-400 absolute top-0 left-0 z-5 w-full"
-                  style={{ height: "40px" }}
-                />
-              )}
-              {/* Background for last column in the group */}
-              {isLastInGroup && (
-                <div
-                  className="bg-gray-400 border-r border-gray-900 absolute top-0 left-0 z-5 w-full"
-                  style={{ height: "40px" }}
-                />
-              )}
+            <span className="h-8 w-full flex items-center justify-center px-2">
+              <input
+                type="checkbox"
+                checked={cellValue}
+                onChange={async (e) => {
+                  const newValue = e.target.checked;
 
-              {/* Column Name Row */}
-              <div
-                className={`flex items-center justify-between flex-1 px-2 mt-10 cursor-pointer hover:bg-gray-700 transition-colors group/header ${
-                  selectedColumnId === col.id
-                    ? "bg-gray-600 ring-2 ring-inset ring-white"
-                    : ""
-                } ${frozenColumnIds.has(col.id) ? "bg-gray-800" : ""}`}
-                onClick={() =>
-                  setSelectedColumnId(
-                    selectedColumnId === col.id ? null : col.id
-                  )
-                }
-                title="Click to highlight column"
-              >
-                <div className="flex items-center gap-1 flex-1 justify-center text-xs">
-                  {col.dataType === "function" && (
-                    <FunctionSquare className="h-4 w-4 text-white" />
-                  )}
-                  {frozenColumnIds.has(col.id) && (
-                    <Pin className="h-3 w-3 text-white" />
-                  )}
-                  <span className="font-medium truncate text-white text-xs">
-                    {column.name}
-                  </span>
-                </div>
-                <button
-                  onClick={(e) => toggleColumnFreeze(col.id, e)}
-                  className={`p-1 hover:bg-gray-600 rounded transition-all ${
-                    frozenColumnIds.has(col.id)
-                      ? "opacity-100"
-                      : "opacity-0 group-hover/header:opacity-100"
-                  }`}
-                  title={
-                    frozenColumnIds.has(col.id)
-                      ? "Unfreeze column"
-                      : "Freeze column"
-                  }
-                >
-                  {frozenColumnIds.has(col.id) ? (
-                    <PinOff className="h-3 w-3 text-white" />
-                  ) : (
-                    <Pin className="h-3 w-3 text-white" />
-                  )}
-                </button>
-              </div>
-            </div>
-          );
-        };
+                  // Check if this is enablePaymentReminder being toggled OFF
+                  const isEnablePaymentReminder =
+                    column.key === "enablePaymentReminder";
+                  const wasEnabled = !!row[column.key as keyof SheetData];
 
-        // Add column-specific properties
-        if (col.dataType === "boolean") {
-          // Always render checkbox input for boolean columns
-          baseColumn.renderCell = ({ row, column }) => {
-            const cellValue = !!row[column.key as keyof SheetData];
+                  if (isEnablePaymentReminder && wasEnabled && !newValue) {
+                    // Toggle OFF: Clean up scheduled emails first
+                    setIsCleaningScheduledEmails(true);
 
-            const hasColor = col.color && col.color !== "none";
-
-            return (
-              <span className="h-8 w-full flex items-center justify-center px-2">
-                <input
-                  type="checkbox"
-                  checked={cellValue}
-                  onChange={async (e) => {
-                    const newValue = e.target.checked;
-
-                    // Save to Firestore - Firebase listener will update the UI
                     try {
-                      await bookingService.updateBookingField(
+                      await ScheduledEmailService.deletePaymentReminders(
+                        row.id
+                      );
+
+                      // Now update the field
+                      batchedWriter.queueFieldUpdate(
                         row.id,
                         column.key,
                         newValue
                       );
+
                       // Trigger recomputation for dependent function columns
                       await recomputeDirectDependentsForRow(
                         row.id,
                         column.key,
                         newValue
                       );
+
+                      toast({
+                        title: "Payment Reminders Disabled",
+                        description:
+                          "All scheduled payment reminder emails have been deleted.",
+                      });
                     } catch (error) {
-                      console.error("Failed to update boolean field:", error);
+                      console.error("Error cleaning scheduled emails:", error);
+                      toast({
+                        title: "Error",
+                        description:
+                          "Failed to clean up scheduled emails. Please try again.",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsCleaningScheduledEmails(false);
                     }
-                  }}
-                  className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
-                />
+
+                    return;
+                  }
+
+                  // Prevent toggling "Send Email?" on if there's no draft link
+                  const isSendEmailField =
+                    column.key === "sendEmail" ||
+                    column.key === "sendCancellationEmail";
+                  if (isSendEmailField && newValue) {
+                    const hasDraftLink =
+                      column.key === "sendEmail"
+                        ? Boolean(row.emailDraftLink)
+                        : Boolean(row.cancellationEmailDraftUrl);
+
+                    if (!hasDraftLink) {
+                      toast({
+                        title: "Cannot Send Email",
+                        description:
+                          column.key === "sendEmail"
+                            ? "Please generate an email draft first before sending."
+                            : "Please generate a cancellation email draft first before sending.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+
+                  // Prevent toggling "Enable Payment Reminder" on if payment plan or payment method is missing
+                  const isEnablePaymentReminderField =
+                    column.key === "enablePaymentReminder";
+                  if (isEnablePaymentReminderField && newValue) {
+                    const hasPaymentPlan = Boolean(row.paymentPlan);
+                    const hasPaymentMethod = Boolean(row.paymentMethod);
+
+                    if (!hasPaymentPlan || !hasPaymentMethod) {
+                      toast({
+                        title: "Cannot Enable Payment Reminder",
+                        description:
+                          "Please set Payment Plan and Payment Method before enabling payment reminders.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+
+                  // Prevent toggling "Generate Email Draft" on if payment plan or payment method exists
+                  const isGenerateEmailDraftField =
+                    column.key === "generateEmailDraft";
+                  if (isGenerateEmailDraftField && newValue) {
+                    const hasPaymentPlan = Boolean(row.paymentPlan);
+                    const hasPaymentMethod = Boolean(row.paymentMethod);
+
+                    if (hasPaymentPlan || hasPaymentMethod) {
+                      toast({
+                        title: "Cannot Generate Reservation Email",
+                        description:
+                          "Payment Plan and Payment Method must be empty for reservation emails. Please clear them first.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                  }
+
+                  // Use batched writer to track changes in version history
+                  batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
+
+                  // Trigger recomputation for dependent function columns
+                  await recomputeDirectDependentsForRow(
+                    row.id,
+                    column.key,
+                    newValue
+                  );
+                }}
+                className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
+              />
+            </span>
+          );
+        };
+        baseColumn.editable = false; // We handle editing through the checkbox
+      } else if (col.dataType === "date") {
+        // Always render date input for date columns
+        baseColumn.renderCell = ({ row, column }) => {
+          const isEmptyRow = (row as any)._isEmptyRow;
+          const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+          const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+          if (isEmptyRow) {
+            return renderEmptyRowCell(
+              column,
+              isFirstEmptyRow,
+              shouldShowAddButton
+            );
+          }
+
+          const cellValue = row[column.key as keyof SheetData];
+
+          const hasColor = col.color && col.color !== "none";
+
+          return (
+            <input
+              type="date"
+              value={(() => {
+                if (cellValue) {
+                  try {
+                    let date: Date | null = null;
+                    if (
+                      cellValue &&
+                      typeof cellValue === "object" &&
+                      "toDate" in cellValue &&
+                      typeof (cellValue as any).toDate === "function"
+                    ) {
+                      date = (cellValue as any).toDate();
+                    } else if (
+                      cellValue &&
+                      typeof cellValue === "object" &&
+                      "seconds" in cellValue &&
+                      typeof (cellValue as any).seconds === "number"
+                    ) {
+                      date = new Date((cellValue as any).seconds * 1000);
+                    } else if (typeof cellValue === "number") {
+                      if (cellValue > 1000000000000) {
+                        date = new Date(cellValue);
+                      } else {
+                        date = new Date(cellValue * 1000);
+                      }
+                    } else if (typeof cellValue === "string") {
+                      const numericValue = parseFloat(cellValue);
+                      if (!isNaN(numericValue)) {
+                        if (numericValue > 1000000000000) {
+                          date = new Date(numericValue);
+                        } else {
+                          date = new Date(numericValue * 1000);
+                        }
+                      } else {
+                        date = new Date(cellValue);
+                      }
+                    } else if (cellValue instanceof Date) {
+                      date = cellValue;
+                    }
+                    if (date && !isNaN(date.getTime())) {
+                      return date.toISOString().split("T")[0];
+                    }
+                  } catch (error) {}
+                }
+                return "";
+              })()}
+              onChange={async (e) => {
+                const newValue = e.target.value
+                  ? new Date(e.target.value)
+                  : null;
+
+                // Use batched writer to track changes in version history
+                batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
+
+                // Trigger recomputation for dependent function columns
+                await recomputeDirectDependentsForRow(
+                  row.id,
+                  column.key,
+                  newValue
+                );
+              }}
+              className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
+                hasColor ? "text-black" : ""
+              } ${!cellValue ? "text-transparent" : ""}`}
+              style={{
+                backgroundColor: "transparent",
+                colorScheme: !cellValue ? "light" : "auto",
+              }}
+            />
+          );
+        };
+        baseColumn.editable = false; // We handle editing through the input
+      } else if (col.dataType === "select") {
+        // Always render select input for select columns
+        baseColumn.renderCell = ({ row, column }) => {
+          const isEmptyRow = (row as any)._isEmptyRow;
+          const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+          const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+          if (isEmptyRow) {
+            return renderEmptyRowCell(
+              column,
+              isFirstEmptyRow,
+              shouldShowAddButton
+            );
+          }
+
+          const cellValue = row[column.key as keyof SheetData];
+          const options = col.options || [];
+          const hasColor = col.color && col.color !== "none";
+
+          return (
+            <select
+              value={cellValue?.toString() || ""}
+              onChange={async (e) => {
+                const newValue = e.target.value;
+
+                // Use batched writer to track changes in version history
+                batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
+
+                // Trigger recomputation for dependent function columns
+                await recomputeDirectDependentsForRow(
+                  row.id,
+                  column.key,
+                  newValue
+                );
+              }}
+              className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
+                hasColor ? "text-black" : ""
+              }`}
+              style={{ backgroundColor: "transparent" }}
+            >
+              <option value=""></option>
+              {options.map((option: string) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          );
+        };
+        baseColumn.renderEditCell = selectEditor;
+        baseColumn.editable = true;
+      } else if (col.dataType === "currency") {
+        // Always render currency input (like select/date inputs)
+        baseColumn.renderCell = ({ row, column }) => {
+          const isEmptyRow = (row as any)._isEmptyRow;
+          const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+          const shouldShowAddButton = (row as any)._shouldShowAddButton;
+          const hasColor = col.color && col.color !== "none";
+
+          if (isEmptyRow) {
+            return renderEmptyRowCell(
+              column,
+              isFirstEmptyRow,
+              shouldShowAddButton
+            );
+          }
+
+          const cellValue = row[column.key as keyof SheetData];
+          const displayValue = getInputValue(row.id, column.key, cellValue);
+
+          // Check if this cell has unsaved changes
+          const hasUnsavedChanges = localInputValues.has(
+            `${row.id}:${column.key}`
+          );
+
+          const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const inputValue = e.target.value;
+            // Only allow numeric characters and one decimal point
+            const filteredValue = inputValue.replace(/[^0-9.]/g, "");
+            // Ensure only one decimal point
+            const parts = filteredValue.split(".");
+            const finalValue =
+              parts.length > 2
+                ? parts[0] + "." + parts.slice(1).join("")
+                : filteredValue;
+
+            // Update with debounced Firebase update
+            updateInputValue(row.id, column.key, finalValue, "currency");
+          };
+
+          const handleBlur = () => {
+            // Don't save if we're canceling changes (Escape key)
+            if (isCancelingChanges.current) {
+              return;
+            }
+
+            // Save to Firebase on blur only if value has changed
+            const currentValue = getInputValue(
+              row.id,
+              column.key,
+              row[column.key as keyof SheetData]
+            );
+
+            // Get the original value from the row data
+            const originalValue = row[column.key as keyof SheetData];
+
+            // Convert values for comparison (handle currency type)
+            const currentValueConverted =
+              currentValue === "" ? "" : parseFloat(currentValue) || 0;
+            const originalValueConverted =
+              originalValue === ""
+                ? ""
+                : parseFloat(originalValue?.toString() || "0") || 0;
+
+            // Only save if the value has actually changed
+            if (currentValueConverted !== originalValueConverted) {
+              saveToFirebase(row.id, column.key, currentValue, "currency");
+            }
+          };
+
+          return (
+            <input
+              type="text"
+              value={displayValue}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              className={`h-8 w-full px-2 text-xs border-none outline-none bg-transparent ${
+                hasColor ? "text-black" : ""
+              }`}
+            />
+          );
+        };
+        baseColumn.editable = false; // We handle editing through the input
+      } else if (col.dataType === "function") {
+        if (allowFunctionOverride) {
+          // Render as editable text input when override is enabled
+          // Use the same pattern as string columns for editing
+          baseColumn.renderCell = ({ row, column }) => {
+            const isEmptyRow = (row as any)._isEmptyRow;
+            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+            if (isEmptyRow) {
+              return renderEmptyRowCell(
+                column,
+                isFirstEmptyRow,
+                shouldShowAddButton
+              );
+            }
+
+            const cellValue = row[column.key as keyof SheetData];
+            const displayValue = getInputValue(row.id, column.key, cellValue);
+            const hasColor = col.color && col.color !== "none";
+
+            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+              const newValue = e.target.value;
+              updateInputValue(row.id, column.key, newValue, "string");
+            };
+
+            const handleBlur = () => {
+              const currentValue = getInputValue(
+                row.id,
+                column.key,
+                row[column.key as keyof SheetData]
+              );
+              const originalValue = row[column.key];
+
+              if (currentValue !== originalValue) {
+                saveToFirebase(row.id, column.key, currentValue, "string");
+              }
+            };
+
+            return (
+              <input
+                type="text"
+                value={displayValue}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`h-8 w-full px-2 text-xs border-none outline-none bg-sunglow-yellow/10 ${
+                  hasColor ? "text-black" : ""
+                }`}
+                title="Function override enabled - Click to edit"
+              />
+            );
+          };
+          baseColumn.editable = false; // We handle editing through the input
+        } else {
+          // Normal function behavior with FunctionEditor
+          baseColumn.renderCell = ({ row, column }) => {
+            const isEmptyRow = (row as any)._isEmptyRow;
+            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+            if (isEmptyRow) {
+              return renderEmptyRowCell(
+                column,
+                isFirstEmptyRow,
+                shouldShowAddButton
+              );
+            }
+
+            return (
+              <span className="h-8 w-full flex items-center text-xs px-2">
+                <FunctionFormatter row={row} column={column} />
               </span>
             );
           };
-          baseColumn.editable = false; // We handle editing through the checkbox
-        } else if (col.dataType === "date") {
-          // Always render date input for date columns
-          baseColumn.renderCell = ({ row, column }) => {
-            const isEmptyRow = (row as any)._isEmptyRow;
-            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+          baseColumn.renderEditCell = FunctionEditor; // Show button when editing
+          baseColumn.sortable = false;
+          baseColumn.editable = true; // Make editable so user can click to "edit"
+        }
 
-            if (isEmptyRow) {
-              return renderEmptyRowCell(
-                column,
-                isFirstEmptyRow,
-                shouldShowAddButton
-              );
-            }
+        // Common properties
+        (baseColumn as any).columnDef = col;
+        (baseColumn as any).deleteRow = deleteRow;
+        (baseColumn as any).recomputeCell = recomputeCell;
+        (baseColumn as any).openDebugConsole = openDebugConsole;
+      } else {
+        // Always render text input (like select/date inputs)
+        baseColumn.renderCell = ({ row, column }) => {
+          const isEmptyRow = (row as any)._isEmptyRow;
+          const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+          const shouldShowAddButton = (row as any)._shouldShowAddButton;
+          const hasColor = col.color && col.color !== "none";
 
-            const cellValue = row[column.key as keyof SheetData];
-
-            const hasColor = col.color && col.color !== "none";
-
-            return (
-              <input
-                type="date"
-                value={(() => {
-                  if (cellValue) {
-                    try {
-                      let date: Date | null = null;
-                      if (
-                        cellValue &&
-                        typeof cellValue === "object" &&
-                        "toDate" in cellValue &&
-                        typeof (cellValue as any).toDate === "function"
-                      ) {
-                        date = (cellValue as any).toDate();
-                      } else if (
-                        cellValue &&
-                        typeof cellValue === "object" &&
-                        "seconds" in cellValue &&
-                        typeof (cellValue as any).seconds === "number"
-                      ) {
-                        date = new Date((cellValue as any).seconds * 1000);
-                      } else if (typeof cellValue === "number") {
-                        if (cellValue > 1000000000000) {
-                          date = new Date(cellValue);
-                        } else {
-                          date = new Date(cellValue * 1000);
-                        }
-                      } else if (typeof cellValue === "string") {
-                        const numericValue = parseFloat(cellValue);
-                        if (!isNaN(numericValue)) {
-                          if (numericValue > 1000000000000) {
-                            date = new Date(numericValue);
-                          } else {
-                            date = new Date(numericValue * 1000);
-                          }
-                        } else {
-                          date = new Date(cellValue);
-                        }
-                      } else if (cellValue instanceof Date) {
-                        date = cellValue;
-                      }
-                      if (date && !isNaN(date.getTime())) {
-                        return date.toISOString().split("T")[0];
-                      }
-                    } catch (error) {}
-                  }
-                  return "";
-                })()}
-                onChange={async (e) => {
-                  const newValue = e.target.value
-                    ? new Date(e.target.value)
-                    : null;
-
-                  // Save to Firestore - Firebase listener will update the UI
-                  try {
-                    await bookingService.updateBookingField(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                    // Trigger recomputation for dependent function columns
-                    await recomputeDirectDependentsForRow(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                  } catch (error) {
-                    console.error("Failed to update date field:", error);
-                  }
-                }}
-                className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
-                  hasColor ? "text-black" : ""
-                } ${!cellValue ? "text-transparent" : ""}`}
-                style={{
-                  backgroundColor: "transparent",
-                  colorScheme: !cellValue ? "light" : "auto",
-                }}
-              />
+          if (isEmptyRow) {
+            return renderEmptyRowCell(
+              column,
+              isFirstEmptyRow,
+              shouldShowAddButton
             );
-          };
-          baseColumn.editable = false; // We handle editing through the input
-        } else if (col.dataType === "select") {
-          // Always render select input for select columns
-          baseColumn.renderCell = ({ row, column }) => {
-            const isEmptyRow = (row as any)._isEmptyRow;
-            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-            const shouldShowAddButton = (row as any)._shouldShowAddButton;
-
-            if (isEmptyRow) {
-              return renderEmptyRowCell(
-                column,
-                isFirstEmptyRow,
-                shouldShowAddButton
-              );
-            }
-
-            const cellValue = row[column.key as keyof SheetData];
-            const options = col.options || [];
-            const hasColor = col.color && col.color !== "none";
-
-            return (
-              <select
-                value={cellValue?.toString() || ""}
-                onChange={async (e) => {
-                  const newValue = e.target.value;
-
-                  // Save to Firestore - Firebase listener will update the UI
-                  try {
-                    await bookingService.updateBookingField(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                    // Trigger recomputation for dependent function columns
-                    await recomputeDirectDependentsForRow(
-                      row.id,
-                      column.key,
-                      newValue
-                    );
-                  } catch (error) {
-                    console.error("Failed to update select field:", error);
-                  }
-                }}
-                className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
-                  hasColor ? "text-black" : ""
-                }`}
-                style={{ backgroundColor: "transparent" }}
-              >
-                <option value=""></option>
-                {options.map((option: string) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            );
-          };
-          baseColumn.renderEditCell = selectEditor;
-          baseColumn.editable = true;
-        } else if (col.dataType === "currency") {
-          // Always render currency input (like select/date inputs)
-          baseColumn.renderCell = ({ row, column }) => {
-            const isEmptyRow = (row as any)._isEmptyRow;
-            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-            const shouldShowAddButton = (row as any)._shouldShowAddButton;
-            const hasColor = col.color && col.color !== "none";
-
-            if (isEmptyRow) {
-              return renderEmptyRowCell(
-                column,
-                isFirstEmptyRow,
-                shouldShowAddButton
-              );
-            }
-
-            const cellValue = row[column.key as keyof SheetData];
-            const displayValue = getInputValue(row.id, column.key, cellValue);
-
-            // Check if this cell has unsaved changes
-            const hasUnsavedChanges = localInputValues.has(
-              `${row.id}:${column.key}`
-            );
-
-            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-              const inputValue = e.target.value;
-              // Only allow numeric characters and one decimal point
-              const filteredValue = inputValue.replace(/[^0-9.]/g, "");
-              // Ensure only one decimal point
-              const parts = filteredValue.split(".");
-              const finalValue =
-                parts.length > 2
-                  ? parts[0] + "." + parts.slice(1).join("")
-                  : filteredValue;
-
-              // Update with debounced Firebase update
-              updateInputValue(row.id, column.key, finalValue, "currency");
-            };
-
-            const handleBlur = () => {
-              // Don't save if we're canceling changes (Escape key)
-              if (isCancelingChanges.current) {
-                return;
-              }
-
-              // Save to Firebase on blur only if value has changed
-              const currentValue = getInputValue(
-                row.id,
-                column.key,
-                row[column.key as keyof SheetData]
-              );
-
-              // Get the original value from the row data
-              const originalValue = row[column.key as keyof SheetData];
-
-              // Convert values for comparison (handle currency type)
-              const currentValueConverted =
-                currentValue === "" ? "" : parseFloat(currentValue) || 0;
-              const originalValueConverted =
-                originalValue === ""
-                  ? ""
-                  : parseFloat(originalValue?.toString() || "0") || 0;
-
-              // Only save if the value has actually changed
-              if (currentValueConverted !== originalValueConverted) {
-                saveToFirebase(row.id, column.key, currentValue, "currency");
-              }
-            };
-
-            return (
-              <input
-                type="text"
-                value={displayValue}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                className={`h-8 w-full px-2 text-xs border-none outline-none bg-transparent ${
-                  hasColor ? "text-black" : ""
-                }`}
-              />
-            );
-          };
-          baseColumn.editable = false; // We handle editing through the input
-        } else if (col.dataType === "function") {
-          if (allowFunctionOverride) {
-            // Render as editable text input when override is enabled
-            // Use the same pattern as string columns for editing
-            baseColumn.renderCell = ({ row, column }) => {
-              const isEmptyRow = (row as any)._isEmptyRow;
-              const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-              const shouldShowAddButton = (row as any)._shouldShowAddButton;
-
-              if (isEmptyRow) {
-                return renderEmptyRowCell(
-                  column,
-                  isFirstEmptyRow,
-                  shouldShowAddButton
-                );
-              }
-
-              const cellValue = row[column.key as keyof SheetData];
-              const displayValue = getInputValue(row.id, column.key, cellValue);
-              const hasColor = col.color && col.color !== "none";
-
-              const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                const newValue = e.target.value;
-                updateInputValue(row.id, column.key, newValue, "string");
-              };
-
-              const handleBlur = () => {
-                const currentValue = getInputValue(
-                  row.id,
-                  column.key,
-                  row[column.key as keyof SheetData]
-                );
-                const originalValue = row[column.key];
-
-                if (currentValue !== originalValue) {
-                  saveToFirebase(row.id, column.key, currentValue, "string");
-                }
-              };
-
-              return (
-                <input
-                  type="text"
-                  value={displayValue}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`h-8 w-full px-2 text-xs border-none outline-none bg-sunglow-yellow/10 ${
-                    hasColor ? "text-black" : ""
-                  }`}
-                  title="Function override enabled - Click to edit"
-                />
-              );
-            };
-            baseColumn.editable = false; // We handle editing through the input
-          } else {
-            // Normal function behavior with FunctionEditor
-            baseColumn.renderCell = ({ row, column }) => {
-              const isEmptyRow = (row as any)._isEmptyRow;
-              const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-              const shouldShowAddButton = (row as any)._shouldShowAddButton;
-
-              if (isEmptyRow) {
-                return renderEmptyRowCell(
-                  column,
-                  isFirstEmptyRow,
-                  shouldShowAddButton
-                );
-              }
-
-              return (
-                <span className="h-8 w-full flex items-center text-xs px-2">
-                  <FunctionFormatter row={row} column={column} />
-                </span>
-              );
-            };
-            baseColumn.renderEditCell = FunctionEditor; // Show button when editing
-            baseColumn.sortable = false;
-            baseColumn.editable = true; // Make editable so user can click to "edit"
           }
 
-          // Common properties
-          (baseColumn as any).columnDef = col;
-          (baseColumn as any).deleteRow = deleteRow;
-          (baseColumn as any).availableFunctions = availableFunctions;
-          (baseColumn as any).recomputeCell = recomputeCell;
-          (baseColumn as any).openDebugConsole = openDebugConsole;
-        } else {
-          // Always render text input (like select/date inputs)
-          baseColumn.renderCell = ({ row, column }) => {
-            const isEmptyRow = (row as any)._isEmptyRow;
-            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-            const shouldShowAddButton = (row as any)._shouldShowAddButton;
-            const hasColor = col.color && col.color !== "none";
+          const cellValue = row[column.key as keyof SheetData];
+          const displayValue = getInputValue(row.id, column.key, cellValue);
 
-            if (isEmptyRow) {
-              return renderEmptyRowCell(
-                column,
-                isFirstEmptyRow,
-                shouldShowAddButton
-              );
+          const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const newValue = e.target.value;
+            // Update with debounced Firebase update
+            updateInputValue(row.id, column.key, newValue);
+          };
+
+          const handleBlur = () => {
+            // Don't save if we're canceling changes (Escape key)
+            if (isCancelingChanges.current) {
+              return;
             }
 
-            const cellValue = row[column.key as keyof SheetData];
-            const displayValue = getInputValue(row.id, column.key, cellValue);
-
-            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-              const newValue = e.target.value;
-              // Update with debounced Firebase update
-              updateInputValue(row.id, column.key, newValue);
-            };
-
-            const handleBlur = () => {
-              // Don't save if we're canceling changes (Escape key)
-              if (isCancelingChanges.current) {
-                return;
-              }
-
-              // Save to Firebase on blur only if value has changed
-              const currentValue = getInputValue(
-                row.id,
-                column.key,
-                row[column.key as keyof SheetData]
-              );
-
-              // Get the original value from the row data
-              const originalValue = row[column.key as keyof SheetData];
-
-              // Only save if the value has actually changed
-              if (currentValue !== originalValue?.toString()) {
-                saveToFirebase(row.id, column.key, currentValue);
-              }
-            };
-
-            return (
-              <input
-                type="text"
-                value={displayValue}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                className={`h-8 w-full px-2 text-xs border-none outline-none bg-transparent ${
-                  hasColor ? "text-black" : ""
-                }`}
-              />
+            // Save to Firebase on blur only if value has changed
+            const currentValue = getInputValue(
+              row.id,
+              column.key,
+              row[column.key as keyof SheetData]
             );
+
+            // Get the original value from the row data
+            const originalValue = row[column.key as keyof SheetData];
+
+            // Only save if the value has actually changed
+            if (currentValue !== originalValue?.toString()) {
+              saveToFirebase(row.id, column.key, currentValue);
+            }
           };
-          baseColumn.editable = false; // We handle editing through the input
-        }
 
-        // Ensure every column has a renderCell function
-        if (!baseColumn.renderCell) {
-          baseColumn.renderCell = ({ row, column }) => {
-            const isEmptyRow = (row as any)._isEmptyRow;
-            const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
-            const shouldShowAddButton = (row as any)._shouldShowAddButton;
+          return (
+            <input
+              type="text"
+              value={displayValue}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              className={`h-8 w-full px-2 text-xs border-none outline-none bg-transparent ${
+                hasColor ? "text-black" : ""
+              }`}
+            />
+          );
+        };
+        baseColumn.editable = false; // We handle editing through the input
+      }
 
-            if (isEmptyRow) {
-              return renderEmptyRowCell(
-                column,
-                isFirstEmptyRow,
-                shouldShowAddButton
-              );
+      // Ensure every column has a renderCell function
+      if (!baseColumn.renderCell) {
+        baseColumn.renderCell = ({ row, column }) => {
+          const isEmptyRow = (row as any)._isEmptyRow;
+          const isFirstEmptyRow = (row as any)._isFirstEmptyRow;
+          const shouldShowAddButton = (row as any)._shouldShowAddButton;
+
+          if (isEmptyRow) {
+            return renderEmptyRowCell(
+              column,
+              isFirstEmptyRow,
+              shouldShowAddButton
+            );
+          }
+
+          const cellValue = row[column.key as keyof SheetData];
+          const displayValue = getInputValue(row.id, column.key, cellValue);
+
+          const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const newValue = e.target.value;
+            // Update with debounced Firebase update
+            updateInputValue(row.id, column.key, newValue);
+          };
+
+          const handleBlur = () => {
+            // Don't save if we're canceling changes (Escape key)
+            if (isCancelingChanges.current) {
+              return;
             }
 
-            const cellValue = row[column.key as keyof SheetData];
-            const displayValue = getInputValue(row.id, column.key, cellValue);
-
-            const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-              const newValue = e.target.value;
-              // Update with debounced Firebase update
-              updateInputValue(row.id, column.key, newValue);
-            };
-
-            const handleBlur = () => {
-              // Don't save if we're canceling changes (Escape key)
-              if (isCancelingChanges.current) {
-                return;
-              }
-
-              // Save to Firebase on blur only if value has changed
-              const currentValue = getInputValue(
-                row.id,
-                column.key,
-                row[column.key as keyof SheetData]
-              );
-
-              // Get the original value from the row data
-              const originalValue = row[column.key as keyof SheetData];
-
-              // Only save if the value has actually changed
-              if (currentValue !== originalValue?.toString()) {
-                saveToFirebase(row.id, column.key, currentValue);
-              }
-            };
-
-            return (
-              <input
-                type="text"
-                value={displayValue}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                className="h-8 w-full px-2 text-xs border-none outline-none bg-transparent"
-              />
+            // Save to Firebase on blur only if value has changed
+            const currentValue = getInputValue(
+              row.id,
+              column.key,
+              row[column.key as keyof SheetData]
             );
-          };
-          baseColumn.editable = false; // We handle editing through the input
-        }
 
-        return baseColumn;
-      });
+            // Get the original value from the row data
+            const originalValue = row[column.key as keyof SheetData];
+
+            // Only save if the value has actually changed
+            if (currentValue !== originalValue?.toString()) {
+              saveToFirebase(row.id, column.key, currentValue);
+            }
+          };
+
+          return (
+            <input
+              type="text"
+              value={displayValue}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              className="h-8 w-full px-2 text-xs border-none outline-none bg-transparent"
+            />
+          );
+        };
+        baseColumn.editable = false; // We handle editing through the input
+      }
+
+      return baseColumn;
+    });
 
     const allColumns = [rowNumberColumn, ...dataColumns];
 
@@ -3418,7 +3672,6 @@ export default function BookingsDataGrid({
     deleteRow,
     recomputeCell,
     openDebugConsole,
-    navigateToFunctions,
     selectedColumnId,
     selectedRowId,
     frozenColumnIds,
@@ -3428,6 +3681,9 @@ export default function BookingsDataGrid({
     saveToFirebase,
     forceRerender,
     allowFunctionOverride,
+    customColumnVisibility,
+    customColumnWidths,
+    customColumnOrder,
   ]);
 
   const handleAddNewRow = async () => {
@@ -3460,24 +3716,24 @@ export default function BookingsDataGrid({
         totalRows: existingRows.length,
       });
 
-      // Let Firebase generate the document ID automatically first
-      const newRowId = await bookingService.createBooking({});
-
-      // Create new row data with row field and id field populated
-      const newRowData = {
-        id: newRowId, // Save the document UID as a field in the document
+      // Create the initial booking data with row number
+      const initialBookingData = {
         row: nextRowNumber,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        // createdAt and updatedAt will be added by createBooking
       };
 
-      // Update the document with the complete data including the id field
-      await bookingService.updateBooking(newRowId, newRowData);
+      // Create booking with complete initial data
+      const newRowId = await bookingService.createBooking(initialBookingData);
+
+      // Add the document ID as a field using updateBookingField (doesn't create version snapshot)
+      await bookingService.updateBookingField(newRowId, "id", newRowId);
 
       // Create the complete SheetData object for local state
       const newRow: SheetData = {
         id: newRowId,
-        ...newRowData,
+        row: nextRowNumber,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       updateData([...data, newRow]);
@@ -3575,15 +3831,38 @@ export default function BookingsDataGrid({
                 <Plus className="w-4 h-4 mr-2" />
                 Add Booking
               </Button>
-              <CSVImport
-                onImportComplete={handleCSVImportComplete}
-                trigger={
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
-                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                    Import CSV
+                    <Download className="w-4 h-4 mr-2" />
+                    Import Data
+                    <ChevronDown className="w-4 h-4 ml-2" />
                   </Button>
-                }
-              />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Import Options</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <SpreadsheetSync
+                    onSyncComplete={handleCSVImportComplete}
+                    trigger={
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Sync from Google Sheets
+                      </DropdownMenuItem>
+                    }
+                  />
+                  <CSVImport
+                    onImportComplete={handleCSVImportComplete}
+                    trigger={
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload CSV File
+                      </DropdownMenuItem>
+                    }
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -3865,7 +4144,11 @@ export default function BookingsDataGrid({
                   <PopoverContent className="w-80 max-h-[500px] overflow-y-auto p-2">
                     <div className="space-y-1">
                       {columns.map((col) => {
-                        const isVisible = col.showColumn !== false;
+                        // Check user preference first, then fall back to column default
+                        const isVisible =
+                          customColumnVisibility[col.id] !== undefined
+                            ? customColumnVisibility[col.id]
+                            : col.showColumn !== false;
                         return (
                           <button
                             key={col.id}
@@ -3924,6 +4207,15 @@ export default function BookingsDataGrid({
                     </Tooltip>
                   </div>
                 </TooltipProvider>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => openVersionHistory()}
+                  title="View version history for all bookings"
+                >
+                  <History className="h-4 w-4" />
+                  Version History
+                </Button>
                 {!isFullscreen && (
                   <Button
                     variant="outline"
@@ -4323,7 +4615,6 @@ export default function BookingsDataGrid({
         onClose={() => setColumnSettingsModal({ isOpen: false, column: null })}
         onSave={handleColumnSave}
         onDelete={handleColumnDelete}
-        availableFunctions={availableFunctions}
         existingColumns={columns}
       />
 
@@ -4346,6 +4637,104 @@ export default function BookingsDataGrid({
         </div>
       )}
 
+      {/* Loading Modal for Cleaning Scheduled Emails */}
+      {isCleaningScheduledEmails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600"></div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Clearing Payment Reminders
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Removing all scheduled reminder emails...
+                  </p>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>• Deleting scheduled payment reminder emails</p>
+                <p>• Clearing P1-P4 scheduled email links</p>
+                <p>• Updating booking settings</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Modal for Cleaning Scheduled Emails */}
+      {isCleaningScheduledEmails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600"></div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Clearing Payment Reminders
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Removing all scheduled reminder emails...
+                  </p>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>• Deleting scheduled payment reminder emails</p>
+                <p>• Clearing P1-P4 scheduled email links</p>
+                <p>• Updating booking settings</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Modal for Email Generation */}
+      {isGeneratingEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-royal-purple"></div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {emailGenerationProgress.action === "generating"
+                      ? "Generating Email Draft"
+                      : emailGenerationProgress.action === "deleting"
+                      ? "Deleting Email Draft"
+                      : "Sending Email"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {emailGenerationProgress.action === "generating"
+                      ? emailGenerationProgress.type === "reservation"
+                        ? "Creating reservation email draft..."
+                        : "Creating cancellation email draft..."
+                      : emailGenerationProgress.action === "deleting"
+                      ? emailGenerationProgress.type === "reservation"
+                        ? "Deleting reservation email draft if it exists..."
+                        : "Deleting cancellation email draft if it exists..."
+                      : emailGenerationProgress.type === "reservation"
+                      ? "Sending reservation email..."
+                      : "Sending cancellation email..."}
+                  </p>
+                </div>
+              </div>
+              {emailGenerationProgress.bookingId && (
+                <div className="text-xs text-muted-foreground border-t pt-3">
+                  <p>
+                    Booking ID:{" "}
+                    <span className="font-mono text-foreground">
+                      {emailGenerationProgress.bookingId}
+                    </span>
+                  </p>
+                  <p className="mt-1">This may take a few moments...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sheet Console - Slide-out panel */}
       <div
         className={`fixed right-0 top-0 h-screen w-96 bg-background shadow-2xl transition-transform duration-300 ease-in-out z-40 ${
@@ -4355,7 +4744,6 @@ export default function BookingsDataGrid({
         <SheetConsole
           columns={columns}
           data={data}
-          availableFunctions={availableFunctions}
           onClose={() => {
             setIsSheetConsoleVisible(false);
             setDebugCell(null);
@@ -4452,6 +4840,22 @@ export default function BookingsDataGrid({
           </div>
         </div>
       )}
+
+      {/* Version History Modal */}
+      <BookingVersionHistoryModal
+        bookingId={versionHistoryBookingId}
+        isOpen={isVersionHistoryOpen}
+        onClose={() => setIsVersionHistoryOpen(false)}
+        onRestore={handleVersionRestore}
+        columns={columns}
+        currentUserId={user?.uid || "anonymous"}
+        currentUserName={
+          userProfile?.profile?.firstName && userProfile?.profile?.lastName
+            ? `${userProfile.profile.firstName} ${userProfile.profile.lastName}`
+            : userProfile?.email || user?.email || "Unknown User"
+        }
+        allBookingsData={localData.length > 0 ? localData : data}
+      />
     </div>
   );
 }

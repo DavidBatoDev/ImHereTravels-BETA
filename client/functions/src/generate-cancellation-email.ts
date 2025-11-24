@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
@@ -15,22 +15,13 @@ if (getApps().length === 0) {
 }
 const db = getFirestore();
 
-// Initialize Gmail API Service
-const gmailService = new GmailApiService();
-
 // Helper function to generate Gmail draft URL
 function getGmailDraftUrl(draftId: string, messageId: string): string {
   return `https://mail.google.com/mail/u/0/#drafts?compose=${messageId}`;
 }
 
-// Helper function to format GBP currency
-function formatGBP(value: number | string): string {
-  if (!value) return "";
-  return `£${Number(value).toFixed(2)}`;
-}
-
-// Helper function to handle Firestore Timestamps
-function formatFirestoreDate(dateValue: any): string {
+// Helper function to format dates like Google Sheets: "Dec 2, 2025"
+function formatDateLikeSheets(dateValue: any): string {
   if (!dateValue) return "";
 
   try {
@@ -42,16 +33,47 @@ function formatFirestoreDate(dateValue: any): string {
     }
     // Handle string dates
     else if (typeof dateValue === "string" && dateValue.trim() !== "") {
-      date = new Date(dateValue);
+      const trimmedValue = dateValue.trim();
+
+      // Check if it's already in the correct format
+      const monthNames = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const hasMonthName = monthNames.some((month) =>
+        trimmedValue.includes(month)
+      );
+
+      if (hasMonthName) {
+        // Already formatted, return as-is
+        return trimmedValue;
+      }
+
+      // Otherwise, try to parse and format the date
+      date = new Date(trimmedValue);
     }
     // Handle Date objects
     else if (dateValue instanceof Date) {
       date = dateValue;
     }
 
-    // Validate the date before formatting
+    // Validate and format the date
     if (date && !isNaN(date.getTime())) {
-      return date.toISOString().split("T")[0];
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
     }
 
     return "";
@@ -61,190 +83,286 @@ function formatFirestoreDate(dateValue: any): string {
   }
 }
 
-// Helper function to get BCC list from request or return empty array
-function getBCCList(bccFromRequest?: string[]): string[] {
-  // Use BCC list from request if provided, otherwise return empty array
-  return bccFromRequest || [];
+// Helper function to get BCC list from includeBcc flag
+async function getBCCList(includeBcc: boolean): Promise<string[]> {
+  if (!includeBcc) return [];
+
+  try {
+    const bccUsersSnap = await db.collection("bcc-users").get();
+    const bccList = bccUsersSnap.docs
+      .map((doc) => doc.data())
+      .filter((user: any) => user.isActive === true)
+      .map((user: any) => user.email)
+      .filter((email: string) => email && email.trim() !== "");
+
+    logger.info(`Found ${bccList.length} active BCC users`);
+    return bccList;
+  } catch (error) {
+    logger.error("Error fetching BCC users:", error);
+    return [];
+  }
 }
 
-// Main function to generate cancellation email draft
-export const generateCancellationEmail = onCall(
+// Helper function to extract message ID from Gmail URL
+function extractMessageIdFromUrl(url: string): string | null {
+  try {
+    const urlObj = new URL(url);
+    const composeParam = urlObj.searchParams.get("compose");
+    if (composeParam) return composeParam;
+
+    const hash = urlObj.hash;
+    const composeMatch = hash.match(/compose=([^&]+)/);
+    if (composeMatch) return composeMatch[1];
+
+    const pathMatch = hash.match(/#drafts\/([^?&]+)/);
+    if (pathMatch) return pathMatch[1];
+
+    return null;
+  } catch (error) {
+    logger.error("Error parsing draft URL:", error);
+    return null;
+  }
+}
+
+/**
+ * Firestore trigger that runs when a booking document is updated
+ * Detects when generateCancellationDraft changes and:
+ * - When toggled ON: Creates Gmail draft and updates cancellationEmailDraftLink & subjectLineCancellation
+ * - When toggled OFF: Deletes Gmail draft and clears cancellationEmailDraftLink & subjectLineCancellation
+ */
+export const onGenerateCancellationDraftChanged = onDocumentUpdated(
   {
+    document: "bookings/{bookingId}",
     region: "asia-southeast1",
-    maxInstances: 10,
     timeoutSeconds: 300,
     memory: "1GiB",
-    cors: true,
   },
-  async (request) => {
+  async (event) => {
     try {
-      const { bookingId, generateDraftCell, bcc } = request.data;
+      const bookingId = event.params.bookingId as string;
+      const beforeData = event.data?.before.data();
+      const afterData = event.data?.after.data();
 
-      if (!bookingId) {
-        throw new HttpsError("invalid-argument", "Booking ID is required");
+      if (!beforeData || !afterData) {
+        logger.info("No data found in before or after snapshot");
+        return;
       }
 
       logger.info(
-        `Processing cancellation email draft for booking: ${bookingId}, generateDraftCell: ${generateDraftCell}, includeBCC: ${bcc ? "yes" : "no"}`
+        `📧 Checking generateCancellationDraft for booking: ${bookingId}`
       );
 
-      // If generateDraftCell is false, just return without doing anything
-      if (!generateDraftCell) {
-        return {
-          success: true,
-          status: "skipped",
-          message: "Cancellation draft generation skipped as requested",
-        };
+      // Check if generateCancellationDraft changed
+      const wasEnabled = beforeData.generateCancellationDraft === true;
+      const isNowEnabled = afterData.generateCancellationDraft === true;
+
+      logger.info("Generate cancellation draft status:", {
+        wasEnabled,
+        isNowEnabled,
+        beforeValue: beforeData.generateCancellationDraft,
+        afterValue: afterData.generateCancellationDraft,
+      });
+
+      // No change detected
+      if (wasEnabled === isNowEnabled) {
+        logger.info("No change in generateCancellationDraft status, skipping");
+        return;
       }
 
-      logger.info(
-        `Generating cancellation Gmail draft for booking: ${bookingId}`
-      );
+      // Initialize Gmail API service
+      const gmailService = new GmailApiService();
 
-      // Get booking data
-      const bookingDoc = await db.collection("bookings").doc(bookingId).get();
-      if (!bookingDoc.exists) {
-        throw new HttpsError("not-found", "Booking not found");
-      }
-
-      const bookingData = bookingDoc.data()!;
-      logger.info(`Booking data retrieved for booking: ${bookingId}`);
-
-      // Validate email
-      const email = (bookingData.emailAddress as string)?.trim();
-      if (!email || !email.includes("@")) {
-        throw new HttpsError("invalid-argument", `Invalid email: "${email}"`);
-      }
-
-      // Get cancellation template data (template ID: wQK3bh1S9KJdfQJG7cEI)
-      const templateDoc = await db
-        .collection("emailTemplates")
-        .doc("wQK3bh1S9KJdfQJG7cEI")
-        .get();
-      if (!templateDoc.exists) {
-        throw new HttpsError(
-          "not-found",
-          "Cancellation email template not found"
-        );
-      }
-
-      const templateData = templateDoc.data()!;
-      logger.info(`Cancellation email template retrieved`);
-
-      // Extract booking data for template variables
-      const fullName = bookingData.fullName || "";
-      const tourPackage = bookingData.tourPackageName || "";
-      const tourDateRaw = bookingData.tourDate;
-      const reservationFee = bookingData.reservationFee || 0;
-
-      // Generate subject line for cancellation
-      const subject = `Important Update: Your ${tourPackage} has been Cancelled`;
-
-      // Prepare template variables (only the ones needed by cancellation template)
-      const templateVariables: Record<string, any> = {
-        fullName,
-        tourPackage,
-        tourDate: formatFirestoreDate(tourDateRaw),
-        cancelledRefundAmount: formatGBP(reservationFee),
-      };
-
-      logger.info(
-        `Cancellation template variables prepared for booking: ${bookingId}`
-      );
-
-      // Process template content
-      let processedHtml: string;
-      try {
-        processedHtml = EmailTemplateService.processTemplate(
-          templateData.content,
-          templateVariables
-        );
+      // TOGGLE OFF: Delete draft and clear fields
+      if (wasEnabled && !isNowEnabled) {
         logger.info(
-          `Cancellation template processed successfully, HTML length: ${processedHtml.length}`
+          "🗑️ Generate cancellation draft toggled OFF - deleting draft"
         );
-      } catch (templateError) {
-        logger.error(`Cancellation template processing error:`, templateError);
-        throw new HttpsError(
-          "internal",
-          `Cancellation template processing failed: ${
-            templateError instanceof Error
-              ? templateError.message
-              : String(templateError)
-          }`
-        );
-      }
 
-      // Create Gmail draft using Gmail API service
-      logger.info(
-        `Creating cancellation Gmail draft for booking: ${bookingId}`
-      );
+        const existingDraftUrl = afterData.cancellationEmailDraftLink;
+        logger.info(`Existing draft URL from afterData: ${existingDraftUrl}`);
 
-      try {
-        // Get BCC list from request
-        const bccList = getBCCList(bcc);
-        
-        if (bccList.length > 0) {
-          logger.info(`Including ${bccList.length} BCC recipients in cancellation email draft`);
+        if (existingDraftUrl) {
+          try {
+            // Extract message ID from the URL
+            const messageId = extractMessageIdFromUrl(existingDraftUrl);
+            logger.info(`Extracted message ID from URL: ${messageId}`);
+
+            if (messageId) {
+              // Find the actual draft ID using the message ID
+              logger.info(`Finding draft ID for message ID: ${messageId}`);
+              const draftId = await gmailService.findDraftIdByMessageId(
+                messageId
+              );
+
+              if (draftId) {
+                logger.info(`Found draft ID: ${draftId}, deleting...`);
+                await gmailService.deleteDraft(draftId);
+                logger.info("✅ Cancellation Gmail draft deleted successfully");
+              } else {
+                logger.warn(
+                  `Could not find draft with message ID: ${messageId}`
+                );
+              }
+            } else {
+              logger.warn("Could not extract message ID from URL");
+            }
+          } catch (deleteError) {
+            logger.error(
+              "❌ Error deleting cancellation Gmail draft:",
+              deleteError
+            );
+            // Continue to clear fields even if deletion fails
+          }
+        } else {
+          logger.info("No existing draft URL found, skipping deletion");
         }
 
-        // Create Gmail draft in Bella's account
-        const gmailDraftResult = await gmailService.createDraft({
-          to: email,
-          subject: subject,
-          htmlContent: processedHtml,
-          bcc: bccList,
-          from: "Bella | ImHereTravels <bella@imheretravels.com>",
+        // Clear the email draft link and subject line
+        await db.collection("bookings").doc(bookingId).update({
+          cancellationEmailDraftLink: "",
+          subjectLineCancellation: "",
         });
 
+        logger.info("Cancellation email draft fields cleared successfully");
+        return;
+      }
+
+      // TOGGLE ON: Create draft and update fields
+      if (!wasEnabled && isNowEnabled) {
         logger.info(
-          `Cancellation Gmail draft created successfully: ${gmailDraftResult.draftId}`
+          "✅ Generate cancellation draft toggled ON - creating draft"
         );
 
-        // Generate the Gmail draft URL using messageId for compose parameter
-        const draftUrl = getGmailDraftUrl(
-          gmailDraftResult.draftId,
-          gmailDraftResult.messageId
-        );
+        const bookingData = afterData;
 
-        return {
-          success: true,
-          draftId: gmailDraftResult.draftId,
-          draftUrl: draftUrl,
-          messageId: gmailDraftResult.messageId,
-          threadId: gmailDraftResult.threadId,
-          subject: subject,
-          email: email,
-          fullName: fullName,
-          tourPackage: tourPackage,
-          isCancellation: true,
-          emailType: "cancellation",
-          status: "gmail_draft_created",
-          message: `Cancellation Gmail draft created successfully. Click the URL to open: ${draftUrl}`,
+        // Validate email
+        const email = (bookingData.emailAddress as string)?.trim();
+        if (!email || !email.includes("@")) {
+          logger.warn(`Invalid email address: "${email}"`);
+          return;
+        }
+
+        // Delete existing draft if it exists
+        const existingDraftUrl = bookingData.cancellationEmailDraftLink;
+        if (existingDraftUrl) {
+          try {
+            // Extract message ID from the URL
+            const messageId = extractMessageIdFromUrl(existingDraftUrl);
+            if (messageId) {
+              // Find the actual draft ID using the message ID
+              logger.info(
+                "Finding existing draft to delete before creating new one"
+              );
+              const draftId = await gmailService.findDraftIdByMessageId(
+                messageId
+              );
+
+              if (draftId) {
+                logger.info(`Deleting existing draft with ID: ${draftId}`);
+                await gmailService.deleteDraft(draftId);
+                logger.info("Existing draft deleted successfully");
+              }
+            }
+          } catch (deleteError) {
+            logger.error("Error deleting existing draft:", deleteError);
+          }
+        }
+
+        // Get template data (cancellation template ID: wQK3bh1S9KJdfQJG7cEI)
+        const templateDoc = await db
+          .collection("emailTemplates")
+          .doc("wQK3bh1S9KJdfQJG7cEI")
+          .get();
+
+        if (!templateDoc.exists) {
+          logger.error("Cancellation email template not found");
+          return;
+        }
+
+        const templateData = templateDoc.data()!;
+
+        // Extract booking data for template variables
+        const fullName = bookingData.fullName || "";
+        const tourPackage = bookingData.tourPackageName || "";
+        const tourDateRaw = bookingData.tourDate;
+        const reservationFee = bookingData.reservationFee || 0;
+
+        // Generate subject line for cancellation
+        const subject = `Important Update: Your ${tourPackage} has been Cancelled`;
+
+        // Prepare template variables
+        const templateVariables: Record<string, any> = {
+          fullName,
+          tourPackage,
+          tourDate: formatDateLikeSheets(tourDateRaw),
+          cancelledRefundAmount: Number(reservationFee).toFixed(2),
         };
-      } catch (gmailError) {
-        logger.error("Error creating cancellation Gmail draft:", gmailError);
-        throw new HttpsError(
-          "internal",
-          `Failed to create cancellation Gmail draft: ${
-            gmailError instanceof Error
-              ? gmailError.message
-              : String(gmailError)
-          }`
-        );
+
+        // Process template content
+        let processedHtml: string;
+        try {
+          processedHtml = EmailTemplateService.processTemplate(
+            templateData.content,
+            templateVariables
+          );
+          logger.info(
+            `Cancellation template processed successfully, HTML length: ${processedHtml.length}`
+          );
+        } catch (templateError) {
+          logger.error(
+            `Cancellation template processing error:`,
+            templateError
+          );
+          return;
+        }
+
+        // Get BCC list
+        const includeBcc = bookingData.includeBccCancellation === true;
+        const bccList = await getBCCList(includeBcc);
+
+        if (bccList.length > 0) {
+          logger.info(
+            `Including ${bccList.length} BCC recipients in cancellation email draft`
+          );
+        }
+
+        // Create Gmail draft
+        try {
+          const gmailDraftResult = await gmailService.createDraft({
+            to: email,
+            subject: subject,
+            htmlContent: processedHtml,
+            bcc: bccList,
+            from: "Bella | ImHereTravels <bella@imheretravels.com>",
+          });
+
+          logger.info(
+            `Cancellation Gmail draft created successfully: ${gmailDraftResult.draftId}`
+          );
+
+          // Generate the Gmail draft URL
+          const draftUrl = getGmailDraftUrl(
+            gmailDraftResult.draftId,
+            gmailDraftResult.messageId
+          );
+
+          // Update booking with draft URL and subject
+          await db.collection("bookings").doc(bookingId).update({
+            cancellationEmailDraftLink: draftUrl,
+            subjectLineCancellation: subject,
+          });
+
+          logger.info(
+            `✅ Cancellation email draft created and booking updated with URL and subject`
+          );
+        } catch (gmailError) {
+          logger.error("Error creating cancellation Gmail draft:", gmailError);
+          // Don't throw error, just log it
+        }
       }
     } catch (error) {
-      logger.error("Error generating cancellation email draft:", error);
-
-      if (error instanceof HttpsError) {
-        throw error;
-      }
-
-      throw new HttpsError(
-        "internal",
-        `Failed to generate cancellation email draft: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
+      logger.error("❌ Error in onGenerateCancellationDraftChanged:", error);
+      // Don't throw error to prevent retries
     }
   }
 );

@@ -1,5 +1,3 @@
-import ts from "typescript";
-import { typescriptFunctionService } from "./firebase-function-service";
 import { SheetColumn, SheetData } from "@/types/sheet-management";
 import {
   auth,
@@ -20,6 +18,8 @@ import {
 } from "@/app/functions/firebase-utils";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
+import { allBookingSheetColumns } from "@/app/functions/columns";
+import { functionMap } from "@/app/functions/columns/functions-index";
 
 type CompiledFn = (...args: any[]) => any;
 type AsyncCompiledFn = (...args: any[]) => Promise<any>;
@@ -43,6 +43,35 @@ class FunctionExecutionService {
   private readonly ARGS_CACHE_TTL = 60000; // 1 minute cache TTL for argument-based caching
   private argsCache: Map<string, { args: any[]; timestamp: number }> =
     new Map();
+
+  // Track which row+column combinations should skip cache (for dependency recomputation)
+  private skipCacheKeys: Set<string> = new Set();
+
+  // Mark a specific row+column combination to skip cache on next execution
+  markForRecomputation(rowId: string, columnId: string): void {
+    const key = `${rowId}:${columnId}`;
+    this.skipCacheKeys.add(key);
+  }
+
+  // Clear the skip cache flag for a row+column combination
+  clearRecomputationFlag(rowId: string, columnId: string): void {
+    const key = `${rowId}:${columnId}`;
+    this.skipCacheKeys.delete(key);
+  }
+
+  // Invalidate result cache for specific row+column (for dependency recomputation)
+  invalidateForRowColumn(rowId: string, columnId: string): void {
+    const prefix = `${rowId}:${columnId}:`;
+    const keysToDelete = Array.from(this.resultCache.keys()).filter((key) =>
+      key.includes(prefix)
+    );
+    keysToDelete.forEach((key) => this.resultCache.delete(key));
+
+    const argsKeysToDelete = Array.from(this.argsCache.keys()).filter((key) =>
+      key.startsWith(prefix)
+    );
+    argsKeysToDelete.forEach((key) => this.argsCache.delete(key));
+  }
 
   // Invalidate a single compiled function by its ts_file id
   invalidate(fileId: string): void {
@@ -140,7 +169,9 @@ class FunctionExecutionService {
   async executeFunction(
     fileId: string,
     args: any[],
-    timeoutMs: number = 10000
+    timeoutMs: number = 10000,
+    rowId?: string,
+    columnId?: string
   ): Promise<{
     success: boolean;
     result?: any;
@@ -149,8 +180,24 @@ class FunctionExecutionService {
   }> {
     const startTime = performance.now();
 
-    // Check if arguments have changed - if not, skip execution entirely
-    if (!this.haveArgsChanged(fileId, args)) {
+    // Check if this execution should skip cache (for dependency recomputation)
+    const skipCacheKey = rowId && columnId ? `${rowId}:${columnId}` : null;
+    const shouldSkipCache = skipCacheKey
+      ? this.skipCacheKeys.has(skipCacheKey)
+      : false;
+
+    if (shouldSkipCache) {
+      console.log(
+        `🔄 [DEPENDENCY RECOMPUTE] Forcing recomputation for ${fileId} (row: ${rowId}, col: ${columnId})`
+      );
+      // Clear the flag immediately after checking
+      if (skipCacheKey) {
+        this.skipCacheKeys.delete(skipCacheKey);
+      }
+    }
+
+    // Check if arguments have changed - if not, skip execution entirely (unless forced)
+    if (!shouldSkipCache && !this.haveArgsChanged(fileId, args)) {
       const cacheKey = this.generateCacheKey(fileId, args);
       const cachedResult = this.resultCache.get(cacheKey);
 
@@ -168,21 +215,23 @@ class FunctionExecutionService {
       }
     }
 
-    // Check result cache first
-    const cacheKey = this.generateCacheKey(fileId, args);
-    const cachedResult = this.resultCache.get(cacheKey);
+    // Check result cache first (unless forced to skip)
+    if (!shouldSkipCache) {
+      const cacheKey = this.generateCacheKey(fileId, args);
+      const cachedResult = this.resultCache.get(cacheKey);
 
-    if (cachedResult && this.isCacheValid(cachedResult.timestamp)) {
-      console.log(
-        `🚀 [CACHE HIT] Function ${fileId} with args [${args.join(
-          ", "
-        )}] executed in ${cachedResult.executionTime}ms (cached)`
-      );
-      return {
-        success: true,
-        result: cachedResult.result,
-        executionTime: cachedResult.executionTime,
-      };
+      if (cachedResult && this.isCacheValid(cachedResult.timestamp)) {
+        console.log(
+          `🚀 [CACHE HIT] Function ${fileId} with args [${args.join(
+            ", "
+          )}] executed in ${cachedResult.executionTime}ms (cached)`
+        );
+        return {
+          success: true,
+          result: cachedResult.result,
+          executionTime: cachedResult.executionTime,
+        };
+      }
     }
 
     // Optionally suppress console.error during user function execution
@@ -190,6 +239,9 @@ class FunctionExecutionService {
     if (!LOG_FUNCTION_ERRORS) {
       (console as any).error = () => {};
     }
+
+    // Generate cache key for storing result
+    const cacheKey = this.generateCacheKey(fileId, args);
 
     try {
       const fn = await this.getCompiledFunction(fileId);
@@ -279,79 +331,35 @@ class FunctionExecutionService {
     return fnString.includes("async") || fnString.includes("await");
   }
 
-  // Fetch, transpile, and cache the function by ts_file id
-  async getCompiledFunction(fileId: string): Promise<CompiledFn> {
-    if (this.cache.has(fileId)) return this.cache.get(fileId)!;
+  // Helper to convert camelCase to kebab-case
+  private camelToKebab(str: string): string {
+    return str.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+  }
 
-    const tsFile = await typescriptFunctionService.files.getById(fileId);
-    if (!tsFile || !tsFile.content) {
-      throw new Error(`TS file not found or has no content: ${fileId}`);
+  // Fetch and cache the function by function name (string reference)
+  // Uses static imports from functions-index for better performance
+  async getCompiledFunction(functionRef: string): Promise<CompiledFn> {
+    if (this.cache.has(functionRef)) return this.cache.get(functionRef)!;
+
+    // Check if function exists in the static function map
+    const fn = functionMap[functionRef];
+
+    if (!fn) {
+      throw new Error(
+        `Function not found: ${functionRef} (not in function map)`
+      );
     }
 
-    const transpiled = ts.transpileModule(tsFile.content, {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2018,
-        jsx: ts.JsxEmit.React,
-        esModuleInterop: true,
-        allowJs: true,
-      },
-      fileName: tsFile.name || "temp.ts",
-    }).outputText;
-
-    // Build a CommonJS evaluation sandbox with Firebase utilities injected
-    const factory = new Function(
-      "exports",
-      "moduleRef",
-      "auth",
-      "db",
-      "storage",
-      "firebaseUtils",
-      "functionsUtils",
-      "collection",
-      "doc",
-      "getDocs",
-      "addDoc",
-      "updateDoc",
-      "deleteDoc",
-      "query",
-      "where",
-      "orderBy",
-      "serverTimestamp",
-      "httpsCallable",
-      "functions",
-      `${transpiled}; return moduleRef.exports?.default ?? exports?.default ?? moduleRef.exports;`
-    ) as (exports: any, moduleRef: any, ...firebaseUtils: any[]) => CompiledFn;
-
-    const moduleObj = { exports: {} as any };
-    const compiled = factory(
-      moduleObj.exports,
-      moduleObj,
-      auth,
-      db,
-      storage,
-      firebaseUtils,
-      functionsUtils,
-      collection,
-      doc,
-      getDocs,
-      addDoc,
-      updateDoc,
-      deleteDoc,
-      query,
-      where,
-      orderBy,
-      serverTimestamp,
-      httpsCallable,
-      functions
-    );
-
-    if (typeof compiled !== "function") {
-      throw new Error(`Default export is not a function in file ${fileId}`);
+    if (typeof fn !== "function") {
+      throw new Error(`Invalid function: ${functionRef} is not a function`);
     }
 
-    this.cache.set(fileId, compiled);
-    return compiled;
+    console.log(`✅ [CODED FUNCTION] Loaded ${functionRef} from static import`);
+
+    // Cast to CompiledFn and cache the function
+    const compiledFn = fn as CompiledFn;
+    this.cache.set(functionRef, compiledFn);
+    return compiledFn;
   }
 
   // Resolve argument list based on column argument mappings and row data

@@ -124,6 +124,7 @@ import {
   runMigration as runMigration033,
   rollbackMigration as rollbackMigration033,
 } from "./033-convert-duration-to-string";
+import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
 // MIGRATION RUNNER
@@ -486,6 +487,23 @@ async function main() {
       }
       break;
 
+    case "034":
+      console.log("📊 Running migration: 034-initialize-columns-metadata");
+      const result034 = await migration034.run();
+      console.log(`\n🎯 ${result034.message}`);
+      if (result034.details) {
+        console.log(
+          `📊 Details: ${result034.details.usersUpdated} users updated, ${result034.details.errors.length} errors`
+        );
+        if (result034.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result034.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
     case "023":
       console.log("📊 Running migration: 023-add-parent-tab-field");
       const result023 = await runMigration023(dryRun);
@@ -818,6 +836,23 @@ async function main() {
         if (rollbackResult033.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           rollbackResult033.details.errors.forEach((error) =>
+            console.log(`  - ${error}`)
+          );
+        }
+      }
+      break;
+
+    case "rollback034":
+      console.log("🔄 Rolling back migration: 034-initialize-columns-metadata");
+      const rollbackResult034 = await migration034.rollback();
+      console.log(`\n🎯 ${rollbackResult034.message}`);
+      if (rollbackResult034.details) {
+        console.log(
+          `📊 Details: ${rollbackResult034.details.usersRolledBack} users rolled back, ${rollbackResult034.details.errors.length} errors`
+        );
+        if (rollbackResult034.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult034.details.errors.forEach((error) =>
             console.log(`  - ${error}`)
           );
         }

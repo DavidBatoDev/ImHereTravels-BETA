@@ -1,6 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  Timestamp,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+import DOMPurify from "dompurify";
+import EmailTemplateService from "@/services/email-template-service";
+import {
+  MdFormatBold,
+  MdFormatItalic,
+  MdFormatUnderlined,
+  MdFormatListBulleted,
+  MdFormatListNumbered,
+  MdUndo,
+  MdRedo,
+} from "react-icons/md";
 import {
   Card,
   CardContent,
@@ -39,6 +62,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Calendar,
   Clock,
   Mail,
@@ -53,6 +81,10 @@ import {
   Pause,
   Play,
   RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Eye,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ScheduledEmailService, {
@@ -65,6 +97,7 @@ const statusStyles = {
   sent: "bg-green-100 text-green-800 border border-green-200",
   failed: "bg-red-100 text-red-800 border border-red-200",
   cancelled: "bg-gray-100 text-gray-800 border border-gray-200",
+  skipped: "bg-blue-100 text-blue-800 border border-blue-200",
 };
 
 const statusIcons = {
@@ -72,9 +105,11 @@ const statusIcons = {
   sent: <CheckCircle className="w-4 h-4" />,
   failed: <AlertCircle className="w-4 h-4" />,
   cancelled: <X className="w-4 h-4" />,
+  skipped: <Pause className="w-4 h-4" />,
 };
 
 export default function ScheduledEmailsTab() {
+  const router = useRouter();
   const [scheduledEmails, setScheduledEmails] = useState<ScheduledEmail[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -82,38 +117,101 @@ export default function ScheduledEmailsTab() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isSkipDialogOpen, setIsSkipDialogOpen] = useState(false);
+  const [isSkippingEmail, setIsSkippingEmail] = useState(false);
+  const [isUnskippingEmail, setIsUnskippingEmail] = useState(false);
+  const [isViewEmailDialogOpen, setIsViewEmailDialogOpen] = useState(false);
+  const [
+    isDeletePaymentRemindersDialogOpen,
+    setIsDeletePaymentRemindersDialogOpen,
+  ] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<ScheduledEmail | null>(
     null
   );
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
+    null
+  );
+  const [isDeletingPaymentReminders, setIsDeletingPaymentReminders] =
+    useState(false);
   const [newEmailData, setNewEmailData] = useState<Partial<ScheduledEmailData>>(
     {
       maxAttempts: 3,
     }
   );
-  const [newScheduleTime, setNewScheduleTime] = useState("");
+  const [newScheduleDate, setNewScheduleDate] = useState("");
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [viewEmailData, setViewEmailData] = useState<{
+    to: string;
+    cc: string;
+    bcc: string;
+    subject: string;
+    htmlContent: string;
+    actualBookingId?: string;
+  } | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
 
-  // Fetch scheduled emails
-  const fetchScheduledEmails = async (filters?: any) => {
+  // Real-time Firestore subscription for scheduled emails
+  useEffect(() => {
     setIsLoading(true);
-    try {
-      const result = await ScheduledEmailService.getScheduledEmails({
-        status: statusFilter !== "all" ? (statusFilter as any) : undefined,
-        limit: 100,
-        ...filters,
-      });
 
-      setScheduledEmails(result.scheduledEmails);
-    } catch (error) {
-      console.error("Error fetching scheduled emails:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch scheduled emails",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+    // Build query
+    const scheduledEmailsRef = collection(db, "scheduledEmails");
+    let q = query(scheduledEmailsRef, orderBy("scheduledFor", "asc"));
+
+    // Add status filter if not "all"
+    if (statusFilter !== "all") {
+      q = query(
+        scheduledEmailsRef,
+        where("status", "==", statusFilter),
+        orderBy("scheduledFor", "asc")
+      );
     }
-  };
+
+    // Subscribe to real-time updates
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const emails: ScheduledEmail[] = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            scheduledFor:
+              data.scheduledFor instanceof Timestamp
+                ? data.scheduledFor.toDate().toISOString()
+                : data.scheduledFor,
+            createdAt:
+              data.createdAt instanceof Timestamp
+                ? data.createdAt.toDate().toISOString()
+                : data.createdAt,
+            updatedAt:
+              data.updatedAt instanceof Timestamp
+                ? data.updatedAt.toDate().toISOString()
+                : data.updatedAt,
+            sentAt:
+              data.sentAt && data.sentAt instanceof Timestamp
+                ? data.sentAt.toDate().toISOString()
+                : data.sentAt,
+          } as ScheduledEmail;
+        });
+
+        setScheduledEmails(emails);
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error("Error subscribing to scheduled emails:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load scheduled emails",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+      }
+    );
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, [statusFilter]);
 
   // Create new scheduled email
   const handleCreateScheduledEmail = async () => {
@@ -132,9 +230,14 @@ export default function ScheduledEmailsTab() {
     }
 
     try {
-      await ScheduledEmailService.scheduleEmail(
-        newEmailData as ScheduledEmailData
-      );
+      // Convert date to datetime with 9:00 AM time
+      const scheduledDate = new Date(newEmailData.scheduledFor);
+      scheduledDate.setHours(9, 0, 0, 0);
+
+      await ScheduledEmailService.scheduleEmail({
+        ...newEmailData,
+        scheduledFor: scheduledDate.toISOString(),
+      } as ScheduledEmailData);
 
       toast({
         title: "Success",
@@ -143,7 +246,7 @@ export default function ScheduledEmailsTab() {
 
       setIsCreateDialogOpen(false);
       setNewEmailData({ maxAttempts: 3 });
-      fetchScheduledEmails();
+      // Real-time listener will auto-update
     } catch (error) {
       console.error("Error scheduling email:", error);
       toast({
@@ -156,24 +259,28 @@ export default function ScheduledEmailsTab() {
 
   // Reschedule email
   const handleRescheduleEmail = async () => {
-    if (!selectedEmail || !newScheduleTime) {
+    if (!selectedEmail || !newScheduleDate) {
       return;
     }
 
     try {
+      // Convert date to datetime with 9:00 AM time
+      const scheduledDate = new Date(newScheduleDate);
+      scheduledDate.setHours(9, 0, 0, 0);
+
       await ScheduledEmailService.rescheduleEmail(
         selectedEmail.id,
-        newScheduleTime
+        scheduledDate.toISOString()
       );
 
       toast({
         title: "Success",
-        description: "Email rescheduled successfully",
+        description: "Email rescheduled successfully (9:00 AM)",
       });
 
       setIsRescheduleDialogOpen(false);
-      setNewScheduleTime("");
-      fetchScheduledEmails();
+      setNewScheduleDate("");
+      // Real-time listener will auto-update
     } catch (error) {
       console.error("Error rescheduling email:", error);
       toast({
@@ -197,12 +304,84 @@ export default function ScheduledEmailsTab() {
       });
 
       setIsCancelDialogOpen(false);
-      fetchScheduledEmails();
+      // Real-time listener will auto-update
     } catch (error) {
       console.error("Error cancelling email:", error);
       toast({
         title: "Error",
         description: "Failed to cancel email",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Skip email
+  const handleSkipEmail = async () => {
+    if (!selectedEmail) return;
+
+    setIsSkippingEmail(true);
+    try {
+      await ScheduledEmailService.skipScheduledEmail(selectedEmail.id);
+
+      toast({
+        title: "Success",
+        description: "Email skipped successfully",
+      });
+
+      setIsSkipDialogOpen(false);
+      // Real-time listener will auto-update
+    } catch (error) {
+      console.error("Error skipping email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to skip email",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSkippingEmail(false);
+    }
+  };
+
+  // Unskip email
+  const handleUnskipEmail = async (emailId: string) => {
+    setIsUnskippingEmail(true);
+    try {
+      await ScheduledEmailService.unskipScheduledEmail(emailId);
+
+      toast({
+        title: "Success",
+        description: "Email unskipped successfully - status changed to pending",
+      });
+
+      // Real-time listener will auto-update
+    } catch (error) {
+      console.error("Error unskipping email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to unskip email",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUnskippingEmail(false);
+    }
+  };
+
+  // Retry failed email
+  const handleRetryEmail = async (emailId: string) => {
+    try {
+      await ScheduledEmailService.retryFailedEmail(emailId);
+
+      toast({
+        title: "Success",
+        description: "Email retry scheduled successfully",
+      });
+
+      // Real-time listener will auto-update
+    } catch (error) {
+      console.error("Error retrying email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to retry email",
         variant: "destructive",
       });
     }
@@ -216,8 +395,7 @@ export default function ScheduledEmailsTab() {
         title: "Success",
         description: "Email processing triggered",
       });
-      // Refresh after a short delay to see results
-      setTimeout(() => fetchScheduledEmails(), 2000);
+      // Real-time listener will auto-update when processing completes
     } catch (error) {
       console.error("Error triggering processing:", error);
       toast({
@@ -225,6 +403,39 @@ export default function ScheduledEmailsTab() {
         description: "Failed to trigger processing",
         variant: "destructive",
       });
+    }
+  };
+
+  // Delete all payment reminders for a booking
+  const handleDeletePaymentReminders = async () => {
+    if (!selectedBookingId) return;
+
+    try {
+      setIsDeletingPaymentReminders(true);
+      setIsDeletePaymentRemindersDialogOpen(false);
+
+      const result = await ScheduledEmailService.deletePaymentReminders(
+        selectedBookingId
+      );
+
+      toast({
+        title: "Success",
+        description: `Deleted ${result.deletedCount} payment reminder${
+          result.deletedCount !== 1 ? "s" : ""
+        } and disabled payment reminders for this booking`,
+      });
+
+      setSelectedBookingId(null);
+      // Real-time listener will auto-update
+    } catch (error) {
+      console.error("Error deleting payment reminders:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete payment reminders",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingPaymentReminders(false);
     }
   };
 
@@ -242,8 +453,404 @@ export default function ScheduledEmailsTab() {
     setIsCreateDialogOpen(true);
   };
 
+  // Handle view email
+  const handleViewEmail = async (email: ScheduledEmail) => {
+    setSelectedEmail(email);
+
+    let htmlContent = email.htmlContent;
+    let subject = email.subject;
+    let actualBookingId: string | undefined = undefined;
+
+    console.log("handleViewEmail called for email:", email.id);
+    console.log("Email type:", email.emailType);
+    console.log("Email status:", email.status);
+    console.log("Booking ID:", email.bookingId);
+    console.log("Template ID:", email.templateId);
+    console.log("Has template variables:", !!email.templateVariables);
+
+    // Re-render template with fresh data for payment reminders ONLY if not sent yet
+    if (
+      email.status !== "sent" &&
+      email.emailType === "payment-reminder" &&
+      email.bookingId &&
+      email.templateId &&
+      email.templateVariables
+    ) {
+      console.log("Starting template re-render process for pending email...");
+      try {
+        // Fetch fresh booking data directly from Firestore
+        const bookingRef = doc(db, "bookings", email.bookingId);
+        const bookingDoc = await getDoc(bookingRef);
+
+        console.log("Booking doc exists:", bookingDoc.exists());
+
+        if (bookingDoc.exists()) {
+          const bookingData = bookingDoc.data()!;
+          console.log("Fetched booking data:", bookingData);
+
+          // Store the actual bookingId from the booking document
+          actualBookingId = bookingData.bookingId;
+
+          // Update template variables with fresh data
+          const freshVariables: Record<string, any> = {
+            ...email.templateVariables,
+            // Update key fields with fresh data
+            fullName: bookingData.fullName,
+            emailAddress: bookingData.emailAddress,
+            tourPackageName: bookingData.tourPackageName,
+            bookingId: bookingData.bookingId,
+            tourDate: bookingData.tourDate,
+            paid: bookingData.paid,
+            remainingBalance: bookingData.remainingBalance,
+            originalTourCost: bookingData.originalTourCost,
+            discountedTourCost: bookingData.discountedTourCost,
+            useDiscountedTourCost: bookingData.useDiscountedTourCost,
+            // Extract payment method from paymentCondition (e.g., "Standard Booking" from "Standard Booking, P4")
+            paymentMethod: bookingData.paymentCondition
+              ? bookingData.paymentCondition.split(",")[0].trim()
+              : "Other",
+            paymentPlan: bookingData.availablePaymentTerms || "",
+          };
+
+          // Helper function to parse due date for a specific term
+          const parseDueDateForTerm = (
+            dueDateRaw: any,
+            termIndex: number
+          ): string => {
+            if (!dueDateRaw) return "";
+
+            if (typeof dueDateRaw === "string" && dueDateRaw.includes(",")) {
+              const parts = dueDateRaw.split(",").map((p) => p.trim());
+              // Dates are in format: "Month Day", "Year", "Month Day", "Year"
+              // For term index n, we need parts[n*2] + ", " + parts[n*2+1]
+              if (parts.length > termIndex * 2 + 1) {
+                return `${parts[termIndex * 2]}, ${parts[termIndex * 2 + 1]}`;
+              }
+            }
+
+            return dueDateRaw;
+          };
+
+          // Helper function to format currency
+          const formatGBP = (value: any): string => {
+            if (!value) return "£0.00";
+            return `£${Number(value).toFixed(2)}`;
+          };
+
+          // Helper function to format date
+          const formatDate = (dateValue: any): string => {
+            if (!dateValue) return "";
+
+            try {
+              let date: Date | null = null;
+
+              // Handle Firestore Timestamp objects
+              if (dateValue && typeof dateValue === "object") {
+                if (dateValue.seconds) {
+                  date = new Date(dateValue.seconds * 1000);
+                } else if (
+                  dateValue.type === "firestore/timestamp/1.0" &&
+                  dateValue.seconds
+                ) {
+                  date = new Date(dateValue.seconds * 1000);
+                }
+              }
+              // Handle string dates
+              else if (
+                typeof dateValue === "string" &&
+                dateValue.trim() !== ""
+              ) {
+                date = new Date(dateValue);
+              }
+              // Handle Date objects
+              else if (dateValue instanceof Date) {
+                date = dateValue;
+              }
+
+              // Validate and format
+              if (date && !isNaN(date.getTime())) {
+                return date.toISOString().split("T")[0];
+              }
+
+              return "";
+            } catch (error) {
+              console.warn(
+                "Error formatting date:",
+                error,
+                "Value:",
+                dateValue
+              );
+              return "";
+            }
+          };
+
+          // Update payment term data if applicable
+          if (email.templateVariables.paymentTerm) {
+            const term = email.templateVariables.paymentTerm as string;
+            const termLower = term.toLowerCase();
+            const termIndex = parseInt(term.replace("P", "")) - 1;
+
+            // Parse due date for this specific term
+            const dueDateRaw = (bookingData as any)[`${termLower}DueDate`];
+            const parsedDueDate = parseDueDateForTerm(dueDateRaw, termIndex);
+
+            freshVariables[`${termLower}Amount`] = (bookingData as any)[
+              `${termLower}Amount`
+            ];
+            freshVariables[`${termLower}DueDate`] = parsedDueDate;
+            freshVariables[`${termLower}DatePaid`] = (bookingData as any)[
+              `${termLower}DatePaid`
+            ];
+
+            // Update the main dueDate and amount with parsed values
+            freshVariables.dueDate = formatDate(parsedDueDate);
+            freshVariables.amount = formatGBP(
+              (bookingData as any)[`${termLower}Amount`]
+            );
+          }
+
+          // Update term data array if showTable is true
+          if (
+            email.templateVariables.showTable &&
+            email.templateVariables.termData
+          ) {
+            const allTerms = ["P1", "P2", "P3", "P4"];
+
+            // Determine which terms to show based on payment plan
+            // If availablePaymentTerms is "P3", we should show P1, P2, P3
+            const paymentPlanValue =
+              bookingData.availablePaymentTerms ||
+              bookingData.paymentPlan ||
+              "";
+            let maxTermIndex = 0;
+
+            // Extract the highest payment term number
+            if (paymentPlanValue.includes("P4")) {
+              maxTermIndex = 4;
+            } else if (paymentPlanValue.includes("P3")) {
+              maxTermIndex = 3;
+            } else if (paymentPlanValue.includes("P2")) {
+              maxTermIndex = 2;
+            } else if (paymentPlanValue.includes("P1")) {
+              maxTermIndex = 1;
+            }
+
+            // Get all terms up to the max payment plan
+            const availableTerms = allTerms.slice(0, maxTermIndex);
+
+            // Only show terms up to current payment term
+            const currentTerm = email.templateVariables.paymentTerm as string;
+            const currentTermIndex = allTerms.indexOf(currentTerm);
+            const visibleTerms = availableTerms.slice(0, currentTermIndex + 1);
+
+            console.log("Payment plan value:", paymentPlanValue);
+            console.log("Max term index:", maxTermIndex);
+            console.log("Available terms:", availableTerms);
+            console.log("Current term:", currentTerm);
+            console.log("Visible terms:", visibleTerms);
+
+            freshVariables.termData = visibleTerms.map((t) => {
+              const tIndex = parseInt(t.replace("P", "")) - 1;
+              const tLower = t.toLowerCase();
+              const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
+              const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
+
+              return {
+                term: t,
+                amount: formatGBP((bookingData as any)[`${tLower}Amount`]),
+                dueDate: formatDate(parsedDueDate),
+                datePaid: formatDate((bookingData as any)[`${tLower}DatePaid`]),
+              };
+            });
+
+            // Update totals
+            freshVariables.totalAmount = formatGBP(
+              bookingData.useDiscountedTourCost
+                ? bookingData.discountedTourCost
+                : bookingData.originalTourCost
+            );
+            freshVariables.paid = formatGBP(bookingData.paid);
+            freshVariables.remainingBalance = formatGBP(
+              bookingData.remainingBalance
+            );
+          }
+
+          console.log("Fresh variables prepared:", freshVariables);
+          console.log("Term data:", freshVariables.termData);
+          console.log("Payment Method:", freshVariables.paymentMethod);
+          console.log("Due Date:", freshVariables.dueDate);
+          console.log("Amount:", freshVariables.amount);
+
+          // Fetch the template from the database to ensure we're using the latest version
+          console.log("Fetching template from database:", email.templateId);
+          const templateRef = doc(db, "emailTemplates", email.templateId);
+          const templateDoc = await getDoc(templateRef);
+
+          if (!templateDoc.exists()) {
+            throw new Error(
+              `Template ${email.templateId} not found in database`
+            );
+          }
+
+          const templateData = templateDoc.data();
+          const rawTemplateHtml = templateData.content || "";
+
+          if (!rawTemplateHtml) {
+            throw new Error(`Template ${email.templateId} has no content`);
+          }
+
+          console.log("Successfully fetched template from database");
+
+          // Re-render the template with fresh data using EmailTemplateService
+          htmlContent = EmailTemplateService.processTemplate(
+            rawTemplateHtml,
+            freshVariables
+          );
+
+          console.log("Rendered HTML length:", htmlContent.length);
+          console.log("Rendered HTML preview:", htmlContent.substring(0, 500));
+
+          // Update subject with fresh data
+          subject = `Payment Reminder - ${freshVariables.fullName} - ${
+            email.templateVariables.paymentTerm || "Payment"
+          } Due`;
+
+          console.log("Successfully re-rendered template with fresh data");
+        }
+      } catch (error) {
+        console.error("Error re-rendering template:", error);
+        // Fall back to original content if re-rendering fails
+      }
+    }
+
+    setViewEmailData({
+      to: email.to,
+      cc: email.cc?.join(", ") || "",
+      bcc: email.bcc?.join(", ") || "",
+      subject: subject,
+      htmlContent: htmlContent,
+      actualBookingId: actualBookingId,
+    });
+    setIsViewEmailDialogOpen(true);
+  };
+
+  // Rich text editor commands
+  const execCommand = (cmd: string, value?: string) => {
+    document.execCommand(cmd, false, value);
+    handleInput();
+  };
+
+  // Handle editor input
+  const handleInput = () => {
+    if (editorRef.current && viewEmailData) {
+      const sanitized = DOMPurify.sanitize(editorRef.current.innerHTML, {
+        ALLOWED_TAGS: [
+          "div",
+          "span",
+          "p",
+          "b",
+          "i",
+          "u",
+          "br",
+          "strong",
+          "em",
+          "a",
+          "img",
+          "table",
+          "tr",
+          "td",
+          "tbody",
+          "thead",
+          "h1",
+          "h2",
+          "h3",
+          "ul",
+          "ol",
+          "li",
+        ],
+        ALLOWED_ATTR: [
+          "style",
+          "class",
+          "href",
+          "src",
+          "alt",
+          "width",
+          "height",
+        ],
+      });
+      setViewEmailData({
+        ...viewEmailData,
+        htmlContent: sanitized,
+      });
+    }
+  };
+
+  // Update editor content when dialog opens
+  useEffect(() => {
+    if (isViewEmailDialogOpen && viewEmailData && editorRef.current) {
+      // Set the content when dialog opens or email changes
+      const content = viewEmailData.htmlContent || "";
+      if (editorRef.current.innerHTML !== content) {
+        editorRef.current.innerHTML = content;
+      }
+    } else if (!isViewEmailDialogOpen && editorRef.current) {
+      // Clear editor when dialog closes
+      editorRef.current.innerHTML = "";
+    }
+  }, [isViewEmailDialogOpen, viewEmailData]);
+
+  // Handle update email content
+  const handleUpdateEmail = async () => {
+    if (!selectedEmail || !viewEmailData) return;
+
+    try {
+      await ScheduledEmailService.updateScheduledEmail(selectedEmail.id, {
+        to: viewEmailData.to,
+        cc: viewEmailData.cc
+          ? viewEmailData.cc.split(",").map((e) => e.trim())
+          : undefined,
+        bcc: viewEmailData.bcc
+          ? viewEmailData.bcc.split(",").map((e) => e.trim())
+          : undefined,
+        subject: viewEmailData.subject,
+        htmlContent: viewEmailData.htmlContent,
+      });
+
+      toast({
+        title: "Success",
+        description: "Email updated successfully",
+      });
+
+      setIsViewEmailDialogOpen(false);
+    } catch (error) {
+      console.error("Error updating email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update email",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Format date for display
-  const formatDate = (date: Date) => {
+  const formatDate = (dateValue: Date | string | null | undefined) => {
+    if (!dateValue) {
+      return "";
+    }
+
+    let date: Date;
+    if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if ((dateValue as any)?.toDate) {
+      date = (dateValue as any).toDate();
+    } else {
+      date = new Date(dateValue);
+    }
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
     return date.toLocaleString("en-US", {
       year: "numeric",
       month: "short",
@@ -260,7 +867,9 @@ export default function ScheduledEmailsTab() {
       email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
       email.to.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (email.emailType &&
-        email.emailType.toLowerCase().includes(searchTerm.toLowerCase()));
+        email.emailType.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (email.bookingId &&
+        email.bookingId.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesStatus =
       statusFilter === "all" || email.status === statusFilter;
@@ -268,9 +877,40 @@ export default function ScheduledEmailsTab() {
     return matchesSearch && matchesStatus;
   });
 
-  useEffect(() => {
-    fetchScheduledEmails();
-  }, [statusFilter]);
+  // Group emails by bookingId
+  const groupEmailsByBookingId = (emails: ScheduledEmail[]) => {
+    const grouped: Record<string, ScheduledEmail[]> = {};
+    const ungrouped: ScheduledEmail[] = [];
+
+    emails.forEach((email) => {
+      if (email.bookingId) {
+        if (!grouped[email.bookingId]) {
+          grouped[email.bookingId] = [];
+        }
+        grouped[email.bookingId].push(email);
+      } else {
+        ungrouped.push(email);
+      }
+    });
+
+    return { grouped, ungrouped };
+  };
+
+  const { grouped: groupedEmails, ungrouped: ungroupedEmails } =
+    groupEmailsByBookingId(filteredEmails);
+
+  // Navigate to booking detail
+  const handleNavigateToBooking = (bookingId: string) => {
+    window.open(`/bookings?tab=bookings&bookingId=${bookingId}`, "_blank");
+  };
+
+  // Toggle group open/closed
+  const toggleGroup = (bookingId: string) => {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [bookingId]: !prev[bookingId],
+    }));
+  };
 
   return (
     <div className="space-y-6">
@@ -353,16 +993,9 @@ export default function ScheduledEmailsTab() {
                 <SelectItem value="sent">Sent</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="skipped">Skipped</SelectItem>
               </SelectContent>
             </Select>
-            <Button
-              onClick={() => fetchScheduledEmails()}
-              variant="outline"
-              size="sm"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -378,127 +1011,375 @@ export default function ScheduledEmailsTab() {
       )}
 
       {/* Scheduled Emails List */}
-      <div className="grid gap-4">
-        {filteredEmails.map((email) => (
-          <Card key={email.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge className={statusStyles[email.status]}>
-                      {statusIcons[email.status]}
-                      <span className="ml-1 capitalize">{email.status}</span>
-                    </Badge>
-                    {email.emailType && (
-                      <Badge variant="outline">{email.emailType}</Badge>
-                    )}
-                    <span className="text-sm text-gray-500">
-                      Attempt {email.attempts}/{email.maxAttempts}
-                    </span>
-                  </div>
+      <div className="space-y-6">
+        {/* Grouped Emails by Booking */}
+        {Object.entries(groupedEmails).map(([bookingId, emails]) => {
+          const isOpen = openGroups[bookingId] ?? true;
+          const allStatuses = emails.map((e) => e.status);
+          const hasPending = allStatuses.includes("pending");
+          const hasFailed = allStatuses.includes("failed");
+          const allSent = allStatuses.every((s) => s === "sent");
+          // Get the actual bookingId from templateVariables if available
+          const actualBookingId =
+            emails[0]?.templateVariables?.bookingId || bookingId;
 
-                  <h3 className="font-medium text-gray-900 mb-1 truncate">
-                    {email.subject}
-                  </h3>
-
-                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                    <span className="flex items-center gap-1">
-                      <Mail className="w-4 h-4" />
-                      To: {email.to}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      Scheduled: {formatDate(email.scheduledFor)}
-                    </span>
-                  </div>
-
-                  {email.errorMessage && (
-                    <p className="text-sm text-red-600 mt-2">
-                      Error: {email.errorMessage}
-                    </p>
-                  )}
-
-                  {email.sentAt && (
-                    <p className="text-sm text-green-600 mt-2">
-                      Sent: {formatDate(email.sentAt)}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 ml-4">
-                  {email.status === "pending" && (
-                    <>
-                      <Button
+          return (
+            <Card
+              key={bookingId}
+              className="border-l-4 border-l-crimson-red hover:shadow-lg transition-shadow"
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <CardTitle className="text-lg">
+                        Booking: {actualBookingId}
+                      </CardTitle>
+                      <Badge
                         variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedEmail(email);
-                          setNewScheduleTime(
-                            email.scheduledFor.toISOString().slice(0, 16)
-                          );
-                          setIsRescheduleDialogOpen(true);
-                        }}
+                        className="bg-red-50 text-crimson-red border-crimson-red"
                       >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedEmail(email);
-                          setIsCancelDialogOpen(true);
-                        }}
-                      >
-                        <Pause className="w-4 h-4" />
-                      </Button>
-                    </>
-                  )}
-                  {email.status === "failed" && (
+                        {emails.length} email{emails.length > 1 ? "s" : ""}
+                      </Badge>
+                      {allSent && (
+                        <Badge className="bg-green-100 text-green-800 border border-green-200">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          All Sent
+                        </Badge>
+                      )}
+                      {hasPending && (
+                        <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-200">
+                          <Clock className="w-3 h-3 mr-1" />
+                          Pending
+                        </Badge>
+                      )}
+                      {hasFailed && (
+                        <Badge className="bg-red-100 text-red-800 border border-red-200">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Failed
+                        </Badge>
+                      )}
+                    </div>
+                    <CardDescription>
+                      {emails[0].to} • Payment reminder emails
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setSelectedEmail(email);
-                        setNewScheduleTime(
-                          new Date(Date.now() + 60000)
-                            .toISOString()
-                            .slice(0, 16)
-                        ); // 1 minute from now
-                        setIsRescheduleDialogOpen(true);
-                      }}
+                      onClick={() => handleNavigateToBooking(bookingId)}
+                      className="gap-2"
                     >
-                      <Play className="w-4 h-4" />
+                      <ExternalLink className="w-4 h-4" />
+                      View Booking
                     </Button>
-                  )}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedBookingId(bookingId);
+                        setIsDeletePaymentRemindersDialogOpen(true);
+                      }}
+                      className="gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete All
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleGroup(bookingId)}
+                    >
+                      {isOpen ? (
+                        <ChevronUp className="w-5 h-5" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              </CardHeader>
+
+              <Collapsible
+                open={isOpen}
+                onOpenChange={() => toggleGroup(bookingId)}
+              >
+                <CollapsibleContent>
+                  <CardContent className="pt-0 space-y-3">
+                    {emails.map((email) => (
+                      <div
+                        key={email.id}
+                        className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className={statusStyles[email.status]}>
+                                {statusIcons[email.status]}
+                                <span className="ml-1 capitalize">
+                                  {email.status}
+                                </span>
+                              </Badge>
+                              {email.emailType && (
+                                <Badge variant="outline">
+                                  {email.emailType}
+                                </Badge>
+                              )}
+                              <span className="text-sm text-gray-500">
+                                Attempt {email.attempts}/{email.maxAttempts}
+                              </span>
+                            </div>
+
+                            <h4 className="font-medium text-gray-900 mb-1 truncate">
+                              {email.subject}
+                            </h4>
+
+                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-4 h-4" />
+                                Scheduled: {formatDate(email.scheduledFor)}
+                              </span>
+                            </div>
+
+                            {email.errorMessage && (
+                              <p className="text-sm text-red-600 mt-2">
+                                Error: {email.errorMessage}
+                              </p>
+                            )}
+
+                            {email.sentAt && (
+                              <p className="text-sm text-green-600 mt-2">
+                                Sent: {formatDate(email.sentAt)}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 ml-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewEmail(email)}
+                              title="View Email"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            {email.status === "pending" && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedEmail(email);
+                                    const isoString =
+                                      typeof email.scheduledFor === "string"
+                                        ? email.scheduledFor
+                                        : (email.scheduledFor as any)?.toDate
+                                        ? (email.scheduledFor as any)
+                                            .toDate()
+                                            .toISOString()
+                                        : new Date(
+                                            email.scheduledFor as unknown as
+                                              | string
+                                              | number
+                                              | Date
+                                          ).toISOString();
+                                    setNewScheduleDate(isoString.slice(0, 10));
+                                    setIsRescheduleDialogOpen(true);
+                                  }}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedEmail(email);
+                                    setIsSkipDialogOpen(true);
+                                  }}
+                                  title="Skip this email"
+                                >
+                                  <Pause className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                            {email.status === "skipped" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleUnskipEmail(email.id)}
+                                title="Unskip this email"
+                                disabled={isUnskippingEmail}
+                              >
+                                <Play className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {email.status === "failed" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRetryEmail(email.id)}
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
+          );
+        })}
+
+        {/* Ungrouped Emails (no bookingId) */}
+        {ungroupedEmails.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-700">
+              Other Scheduled Emails
+            </h3>
+            {ungroupedEmails.map((email) => (
+              <Card
+                key={email.id}
+                className="hover:shadow-md transition-shadow"
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge className={statusStyles[email.status]}>
+                          {statusIcons[email.status]}
+                          <span className="ml-1 capitalize">
+                            {email.status}
+                          </span>
+                        </Badge>
+                        {email.emailType && (
+                          <Badge variant="outline">{email.emailType}</Badge>
+                        )}
+                        <span className="text-sm text-gray-500">
+                          Attempt {email.attempts}/{email.maxAttempts}
+                        </span>
+                      </div>
+
+                      <h3 className="font-medium text-gray-900 mb-1 truncate">
+                        {email.subject}
+                      </h3>
+
+                      <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                        <span className="flex items-center gap-1">
+                          <Mail className="w-4 h-4" />
+                          To: {email.to}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          Scheduled: {formatDate(email.scheduledFor)}
+                        </span>
+                      </div>
+
+                      {email.errorMessage && (
+                        <p className="text-sm text-red-600 mt-2">
+                          Error: {email.errorMessage}
+                        </p>
+                      )}
+
+                      {email.sentAt && (
+                        <p className="text-sm text-green-600 mt-2">
+                          Sent: {formatDate(email.sentAt)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 ml-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewEmail(email)}
+                        title="View Email"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      {email.status === "pending" && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedEmail(email);
+                              const isoString =
+                                typeof email.scheduledFor === "string"
+                                  ? email.scheduledFor
+                                  : (email.scheduledFor as any)?.toDate
+                                  ? (email.scheduledFor as any)
+                                      .toDate()
+                                      .toISOString()
+                                  : new Date(
+                                      email.scheduledFor as unknown as
+                                        | string
+                                        | number
+                                        | Date
+                                    ).toISOString();
+                              setNewScheduleDate(isoString.slice(0, 10));
+                              setIsRescheduleDialogOpen(true);
+                            }}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedEmail(email);
+                              setIsSkipDialogOpen(true);
+                            }}
+                            title="Skip this email"
+                          >
+                            <Pause className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                      {email.status === "skipped" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUnskipEmail(email.id)}
+                          title="Unskip this email"
+                          disabled={isUnskippingEmail}
+                        >
+                          <Play className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {email.status === "failed" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRetryEmail(email.id)}
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {filteredEmails.length === 0 && !isLoading && (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No scheduled emails found
+              </h3>
+              <p className="text-gray-600">Schedule an email to get started</p>
             </CardContent>
           </Card>
-        ))}
+        )}
       </div>
-
-      {/* No Emails State */}
-      {!isLoading && filteredEmails.length === 0 && (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No scheduled emails found
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm || statusFilter !== "all"
-                ? "Try adjusting your search terms or filters"
-                : "Schedule your first email to get started"}
-            </p>
-            {!searchTerm && statusFilter === "all" && (
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Schedule Email
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Create Email Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -524,15 +1405,15 @@ export default function ScheduledEmailsTab() {
                 />
               </div>
               <div>
-                <Label htmlFor="scheduledFor">Scheduled For *</Label>
+                <Label htmlFor="scheduledFor">Scheduled Date * (9:00 AM)</Label>
                 <Input
                   id="scheduledFor"
-                  type="datetime-local"
+                  type="date"
                   value={
                     newEmailData.scheduledFor
                       ? new Date(newEmailData.scheduledFor)
                           .toISOString()
-                          .slice(0, 16)
+                          .slice(0, 10)
                       : ""
                   }
                   onChange={(e) =>
@@ -641,13 +1522,18 @@ export default function ScheduledEmailsTab() {
           </DialogHeader>
 
           <div className="py-4">
-            <Label htmlFor="newScheduleTime">New Scheduled Time</Label>
+            <Label htmlFor="newScheduleDate">
+              New Scheduled Date (9:00 AM)
+            </Label>
             <Input
-              id="newScheduleTime"
-              type="datetime-local"
-              value={newScheduleTime}
-              onChange={(e) => setNewScheduleTime(e.target.value)}
+              id="newScheduleDate"
+              type="date"
+              value={newScheduleDate}
+              onChange={(e) => setNewScheduleDate(e.target.value)}
             />
+            <p className="text-sm text-muted-foreground mt-2">
+              Emails are processed daily at 9:00 AM Philippine time
+            </p>
           </div>
 
           <DialogFooter>
@@ -683,6 +1569,259 @@ export default function ScheduledEmailsTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Skip Confirmation Dialog */}
+      <AlertDialog open={isSkipDialogOpen} onOpenChange={setIsSkipDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Skip Scheduled Email</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to skip this scheduled email? The email will
+              be marked as skipped and will not be sent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSkippingEmail}>
+              Keep Email
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSkipEmail}
+              disabled={isSkippingEmail}
+            >
+              {isSkippingEmail ? "Skipping..." : "Skip Email"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Payment Reminders Confirmation Dialog */}
+      <AlertDialog
+        open={isDeletePaymentRemindersDialogOpen}
+        onOpenChange={setIsDeletePaymentRemindersDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Payment Reminders</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete all payment reminder emails for
+              this booking?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-2">
+              This will also:
+            </p>
+            <ul className="list-disc ml-6 space-y-1 text-sm text-muted-foreground">
+              <li>Set "Enable Payment Reminder" to OFF</li>
+              <li>Clear all P1-P4 Scheduled Email Links</li>
+              <li>
+                Delete all pending, sent, and failed payment reminder emails
+              </li>
+            </ul>
+            <p className="mt-4 font-semibold text-red-600 text-sm">
+              This action cannot be undone.
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePaymentReminders}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete All Reminders
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Loading Modal for Deleting Payment Reminders */}
+      {isDeletingPaymentReminders && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600"></div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Deleting Payment Reminders
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Removing scheduled emails and updating booking...
+                  </p>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>• Deleting scheduled payment reminder emails</p>
+                <p>• Disabling payment reminders on booking</p>
+                <p>• Clearing P1-P4 scheduled email links</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Email Dialog */}
+      <Dialog
+        open={isViewEmailDialogOpen}
+        onOpenChange={setIsViewEmailDialogOpen}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>View Scheduled Email</DialogTitle>
+            <DialogDescription>
+              View the scheduled email details and content.
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewEmailData && (
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+              {/* Email Recipients - Compact View */}
+              <div className="border rounded-lg p-3 bg-gray-50 space-y-2 text-sm">
+                <div className="flex items-start gap-2">
+                  <span className="text-muted-foreground font-medium min-w-[60px]">
+                    To:
+                  </span>
+                  <span className="flex-1 break-words">{viewEmailData.to}</span>
+                </div>
+                {viewEmailData.cc && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-muted-foreground font-medium min-w-[60px]">
+                      CC:
+                    </span>
+                    <span className="flex-1 break-words">
+                      {viewEmailData.cc}
+                    </span>
+                  </div>
+                )}
+                {viewEmailData.bcc && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-muted-foreground font-medium min-w-[60px]">
+                      BCC:
+                    </span>
+                    <span className="flex-1 break-words">
+                      {viewEmailData.bcc}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-start gap-2 pt-1 border-t">
+                  <span className="text-muted-foreground font-medium min-w-[60px]">
+                    Subject:
+                  </span>
+                  <span className="flex-1 break-words font-medium">
+                    {viewEmailData.subject}
+                  </span>
+                </div>
+              </div>
+
+              {/* Email Body */}
+              <div className="space-y-2">
+                <Label>Email Content</Label>
+
+                {/* Email Preview */}
+                <div
+                  key={selectedEmail?.id}
+                  className="border rounded-md p-4 bg-white min-h-[300px] max-h-[500px] overflow-y-auto"
+                  style={{
+                    fontFamily: "sans-serif",
+                    fontSize: "14px",
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: viewEmailData.htmlContent,
+                  }}
+                />
+              </div>
+
+              {/* Email Metadata */}
+              {selectedEmail && (
+                <div className="space-y-2 pt-4 border-t">
+                  <h4 className="font-semibold text-sm">Email Information</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Status:</span>
+                      <Badge
+                        className={`ml-2 ${statusStyles[selectedEmail.status]}`}
+                      >
+                        {selectedEmail.status}
+                      </Badge>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Type:</span>
+                      <span className="ml-2">
+                        {selectedEmail.emailType || "N/A"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">
+                        Scheduled For:
+                      </span>
+                      <span className="ml-2">
+                        {formatDate(selectedEmail.scheduledFor)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Attempts:</span>
+                      <span className="ml-2">
+                        {selectedEmail.attempts}/{selectedEmail.maxAttempts}
+                      </span>
+                    </div>
+                    {selectedEmail.bookingId && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">
+                          Booking ID:
+                        </span>
+                        <span className="ml-2 font-mono text-xs">
+                          {viewEmailData?.actualBookingId ||
+                            selectedEmail.bookingId}
+                        </span>
+                      </div>
+                    )}
+                    {selectedEmail.sentAt && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Sent At:</span>
+                        <span className="ml-2 text-green-600">
+                          {formatDate(selectedEmail.sentAt)}
+                        </span>
+                      </div>
+                    )}
+                    {selectedEmail.messageId && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">
+                          Gmail Link:
+                        </span>
+                        <a
+                          href={`https://mail.google.com/mail/u/0/#sent/${selectedEmail.messageId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-2 text-blue-600 hover:underline"
+                        >
+                          View in Gmail
+                        </a>
+                      </div>
+                    )}
+                    {selectedEmail.errorMessage && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Error:</span>
+                        <span className="ml-2 text-red-600">
+                          {selectedEmail.errorMessage}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsViewEmailDialogOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

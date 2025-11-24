@@ -51,7 +51,6 @@ export default function TestSheetComparison() {
               updateData={() => {}}
               updateRow={() => {}}
               deleteRow={async () => {}}
-              availableFunctions={[]}
             />
           )}
         </CardContent>
