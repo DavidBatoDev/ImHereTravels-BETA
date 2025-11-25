@@ -31,13 +31,13 @@ export async function POST(request: NextRequest) {
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
     // Create recipients string
-    const recipients = [];
+    const recipients: string[] = [];
     if (to && to.length > 0) recipients.push(`To: ${to.join(", ")}`);
     if (cc && cc.length > 0) recipients.push(`Cc: ${cc.join(", ")}`);
     if (bcc && bcc.length > 0) recipients.push(`Bcc: ${bcc.join(", ")}`);
 
     // Add reply/forward headers if present (In-Reply-To and References)
-    const additionalHeaders = [];
+    const additionalHeaders: string[] = [];
     if (inReplyTo) {
       additionalHeaders.push(`In-Reply-To: ${inReplyTo}`);
     }
