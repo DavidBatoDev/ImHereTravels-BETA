@@ -124,6 +124,14 @@ import {
   runMigration as runMigration033,
   rollbackMigration as rollbackMigration033,
 } from "./033-convert-duration-to-string";
+import {
+  runMigration as runMigration040,
+  rollbackMigration as rollbackMigration040,
+} from "./040-booking-confirmation-email-template";
+import {
+  runMigration as runMigration041,
+  rollbackMigration as rollbackMigration041,
+} from "./041-pre-departure-config";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -487,6 +495,18 @@ async function main() {
       }
       break;
 
+    case "040":
+      console.log(
+        "📊 Running migration: 040-booking-confirmation-email-template"
+      );
+      await runMigration040();
+      break;
+
+    case "041":
+      console.log("📊 Running migration: 041-pre-departure-config");
+      await runMigration041();
+      break;
+
     case "034":
       console.log("📊 Running migration: 034-initialize-columns-metadata");
       const result034 = await migration034.run();
@@ -840,6 +860,18 @@ async function main() {
           );
         }
       }
+      break;
+
+    case "rollback040":
+      console.log(
+        "🔄 Rolling back migration: 040-booking-confirmation-email-template"
+      );
+      await rollbackMigration040();
+      break;
+
+    case "rollback041":
+      console.log("🔄 Rolling back migration: 041-pre-departure-config");
+      await rollbackMigration041();
       break;
 
     case "rollback034":

@@ -138,6 +138,11 @@ export class GmailApiService {
     cc?: string[];
     from?: string;
     replyTo?: string;
+    attachments?: Array<{
+      filename: string;
+      content: Buffer;
+      contentType: string;
+    }>;
   }) {
     try {
       const {
@@ -148,6 +153,7 @@ export class GmailApiService {
         cc = [],
         from = "Bella | ImHereTravels <bella@imheretravels.com>",
         replyTo,
+        attachments = [],
       } = emailData;
 
       // Create email message
@@ -159,6 +165,7 @@ export class GmailApiService {
         cc,
         from,
         replyTo,
+        attachments,
       });
 
       // Send the email
@@ -528,6 +535,11 @@ export class GmailApiService {
     cc?: string[];
     from?: string;
     replyTo?: string;
+    attachments?: Array<{
+      filename: string;
+      content: Buffer;
+      contentType: string;
+    }>;
   }): string {
     const {
       to,
@@ -537,13 +549,45 @@ export class GmailApiService {
       cc = [],
       from,
       replyTo,
+      attachments = [],
     } = emailData;
 
+    // If no attachments, use simple format
+    if (attachments.length === 0) {
+      const lines = [
+        `To: ${to}`,
+        `From: ${from}`,
+        `Subject: ${subject}`,
+        "Content-Type: text/html; charset=utf-8",
+        "MIME-Version: 1.0",
+      ];
+
+      if (cc.length > 0) {
+        lines.push(`Cc: ${cc.join(", ")}`);
+      }
+
+      if (bcc.length > 0) {
+        lines.push(`Bcc: ${bcc.join(", ")}`);
+      }
+
+      if (replyTo) {
+        lines.push(`Reply-To: ${replyTo}`);
+      }
+
+      lines.push("");
+      lines.push(htmlContent);
+
+      const message = lines.join("\r\n");
+      return Buffer.from(message).toString("base64url");
+    }
+
+    // With attachments, use multipart format
+    const boundary = `----=_Part_${Date.now()}`;
     const lines = [
       `To: ${to}`,
       `From: ${from}`,
       `Subject: ${subject}`,
-      "Content-Type: text/html; charset=utf-8",
+      "Content-Type: multipart/mixed; boundary=" + boundary,
       "MIME-Version: 1.0",
     ];
 
@@ -560,7 +604,28 @@ export class GmailApiService {
     }
 
     lines.push("");
+
+    // HTML content part
+    lines.push(`--${boundary}`);
+    lines.push("Content-Type: text/html; charset=utf-8");
+    lines.push("");
     lines.push(htmlContent);
+    lines.push("");
+
+    // Attachment parts
+    for (const attachment of attachments) {
+      lines.push(`--${boundary}`);
+      lines.push(`Content-Type: ${attachment.contentType}`);
+      lines.push(
+        `Content-Disposition: attachment; filename="${attachment.filename}"`
+      );
+      lines.push("Content-Transfer-Encoding: base64");
+      lines.push("");
+      lines.push(attachment.content.toString("base64"));
+      lines.push("");
+    }
+
+    lines.push(`--${boundary}--`);
 
     const message = lines.join("\r\n");
     return Buffer.from(message).toString("base64url");
