@@ -505,10 +505,8 @@ export default function ScheduledEmailsTab() {
             originalTourCost: bookingData.originalTourCost,
             discountedTourCost: bookingData.discountedTourCost,
             useDiscountedTourCost: bookingData.useDiscountedTourCost,
-            // Extract payment method from paymentCondition (e.g., "Standard Booking" from "Standard Booking, P4")
-            paymentMethod: bookingData.paymentCondition
-              ? bookingData.paymentCondition.split(",")[0].trim()
-              : "Other",
+            // Use the paymentMethod field from booking data
+            paymentMethod: bookingData.paymentMethod || "Other",
             paymentPlan: bookingData.availablePaymentTerms || "",
           };
 

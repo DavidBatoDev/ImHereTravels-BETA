@@ -1823,7 +1823,10 @@ export default function EditBookingModal({
                 }
 
                 return finalOptions.map((option, index) => (
-                  <option key={option || `placeholder-${column.id}-${index}`} value={option}>
+                  <option
+                    key={option || `placeholder-${column.id}-${index}`}
+                    value={option}
+                  >
                     {option || `Select ${column.columnName}`}
                   </option>
                 ));
