@@ -261,7 +261,8 @@ export default function ConfirmedBookingModal({
         // Update local booking state
         if (booking) {
           booking.status = "sent";
-          booking.sentEmailLink = data.sentEmailLink || null;
+          // Ensure we don't assign `null` to a field that expects `string | undefined`.
+          booking.sentEmailLink = data.sentEmailLink ?? undefined;
           booking.sentAt = new Date() as any;
         }
 
@@ -324,7 +325,7 @@ export default function ConfirmedBookingModal({
       // Update local booking state
       if (booking) {
         booking.status = "sent";
-        booking.sentEmailLink = sentEmailLink || null;
+        booking.sentEmailLink = sentEmailLink || undefined;
         booking.sentAt = Timestamp.fromDate(sentAtDateTime) as any;
       }
 
@@ -395,7 +396,7 @@ export default function ConfirmedBookingModal({
       // Update local booking state
       if (booking) {
         booking.status = "created";
-        booking.sentEmailLink = null;
+        booking.sentEmailLink = undefined;
         booking.sentAt = undefined;
       }
 

@@ -824,8 +824,6 @@ export default function BookingsDataGrid({
         functionArgsCacheRef.current.set(cacheKey, [...args]);
 
         // Use injected compiled function if available, otherwise fall back to service
-        // eslint-disable-next-line prefer-const
-        let result: any;
 
         // Wrap function execution with retry logic
         const retryConfig = createColumnComputationRetryConfig(
@@ -941,7 +939,7 @@ export default function BookingsDataGrid({
           return row[funcCol.id]; // Return existing value on error
         }
 
-        result = retryResult.result;
+        const result: any = retryResult.result;
 
         // Log retry statistics if retries were needed
         if (retryResult.attempts > 1) {
@@ -2538,7 +2536,16 @@ export default function BookingsDataGrid({
   };
 
   // Create data with empty rows for layout
-  const dataWithEmptyRows = useMemo(() => {
+  type EmptyRow = {
+    id: string;
+    _isDataRow: boolean;
+    _isEmptyRow: boolean;
+    _isFirstEmptyRow: boolean;
+    _displayIndex: number;
+    _shouldShowAddButton: boolean;
+  };
+
+  const dataWithEmptyRows = useMemo<(SheetData | EmptyRow)[]>(() => {
     const dataRows = currentPageData.map((row, index) => ({
       ...row,
       _isDataRow: true,
@@ -2546,25 +2553,13 @@ export default function BookingsDataGrid({
     }));
 
     // Add empty rows to reach minimum
-    const emptyRows = [];
+    const emptyRows: EmptyRow[] = [];
     const hasActiveFilters = getActiveFiltersCount() > 0;
 
     for (let i = currentPageData.length; i < rowsToShow; i++) {
       const isFirstEmptyRow = i === currentPageData.length;
       const actualRowNumber = startIndex + i;
       const shouldShowAddButton = isFirstEmptyRow && !hasActiveFilters;
-
-      // Debug logging for first empty row
-      // if (isFirstEmptyRow) {
-      //   console.log("🔍 [EMPTY ROW DEBUG]", {
-      //     currentPageDataLength: currentPageData.length,
-      //     rowsToShow,
-      //     hasActiveFilters,
-      //     activeFiltersCount: getActiveFiltersCount(),
-      //     shouldShowAddButton,
-      //     isFirstEmptyRow,
-      //   });
-      // }
 
       emptyRows.push({
         id: `empty-${i}`,
@@ -4498,7 +4493,7 @@ export default function BookingsDataGrid({
               // Find the column definition for debugging
               const columnDef = column
                 ? columns.find((col) => col.id === column.key)
-                : null;
+                : undefined;
 
               // Helper function to convert value based on column type
               const convertValueByType = (
@@ -5064,7 +5059,7 @@ export default function BookingsDataGrid({
 
       {/* Version History Modal */}
       <BookingVersionHistoryModal
-        bookingId={versionHistoryBookingId}
+        bookingId={versionHistoryBookingId ?? undefined}
         isOpen={isVersionHistoryOpen}
         onClose={() => setIsVersionHistoryOpen(false)}
         onRestore={handleVersionRestore}
