@@ -824,13 +824,14 @@ export default function BookingsDataGrid({
         functionArgsCacheRef.current.set(cacheKey, [...args]);
 
         // Use injected compiled function if available, otherwise fall back to service
+        // eslint-disable-next-line prefer-const
         let result: any;
 
         // Wrap function execution with retry logic
         const retryConfig = createColumnComputationRetryConfig(
           funcCol.columnName
         );
-        
+
         const retryResult = await retryComputation(async () => {
           if (funcCol.compiledFunction) {
             // Direct function execution (fastest path)
@@ -914,7 +915,9 @@ export default function BookingsDataGrid({
               );
 
             if (!executionResult.success) {
-              throw executionResult.error || new Error("Function execution failed");
+              throw (
+                executionResult.error || new Error("Function execution failed")
+              );
             }
 
             return executionResult.result;
@@ -943,7 +946,9 @@ export default function BookingsDataGrid({
         // Log retry statistics if retries were needed
         if (retryResult.attempts > 1) {
           console.log(
-            `✅ [RETRY SUCCESS] ${funcCol.function} succeeded after ${retryResult.attempts} attempts (${retryResult.totalTime.toFixed(2)}ms)`
+            `✅ [RETRY SUCCESS] ${funcCol.function} succeeded after ${
+              retryResult.attempts
+            } attempts (${retryResult.totalTime.toFixed(2)}ms)`
           );
         }
 
@@ -1784,9 +1789,9 @@ export default function BookingsDataGrid({
 
       toast({
         title: "Recomputation complete",
-        description: `Column "${selectedCol.columnName}" recomputed for ${rows.length} rows${
-          errorCount > 0 ? ` (${errorCount} errors)` : ""
-        }`,
+        description: `Column "${selectedCol.columnName}" recomputed for ${
+          rows.length
+        } rows${errorCount > 0 ? ` (${errorCount} errors)` : ""}`,
       });
 
       console.log(
@@ -4366,7 +4371,8 @@ export default function BookingsDataGrid({
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
                       <p className="text-sm">
-                        Retry computation for all function columns across all rows.
+                        Retry computation for all function columns across all
+                        rows.
                         <br />
                         <br />
                         <strong>Features:</strong>
@@ -4380,40 +4386,48 @@ export default function BookingsDataGrid({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                {selectedColumnId && columns.find((c) => c.id === selectedColumnId && c.dataType === "function") && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="flex items-center gap-2"
-                          onClick={() => recomputeSelectedColumn()}
-                          disabled={isRecomputingAll}
-                          title="Retry computation for selected column only"
-                        >
-                          {isRecomputingAll ? (
-                            <RefreshCw className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <RefreshCw className="h-4 w-4" />
-                          )}
-                          Recompute Column
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="text-sm">
-                          Retry computation for the selected column only.
-                          <br />
-                          <br />
-                          <strong>Currently selected:</strong>{" "}
-                          {columns.find((c) => c.id === selectedColumnId)?.columnName}
-                          <br />
-                          <br />
-                          Processes all rows for this column with automatic retry logic.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
+                {selectedColumnId &&
+                  columns.find(
+                    (c) =>
+                      c.id === selectedColumnId && c.dataType === "function"
+                  ) && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="flex items-center gap-2"
+                            onClick={() => recomputeSelectedColumn()}
+                            disabled={isRecomputingAll}
+                            title="Retry computation for selected column only"
+                          >
+                            {isRecomputingAll ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4" />
+                            )}
+                            Recompute Column
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="text-sm">
+                            Retry computation for the selected column only.
+                            <br />
+                            <br />
+                            <strong>Currently selected:</strong>{" "}
+                            {
+                              columns.find((c) => c.id === selectedColumnId)
+                                ?.columnName
+                            }
+                            <br />
+                            <br />
+                            Processes all rows for this column with automatic
+                            retry logic.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 <Button
                   variant="outline"
                   className="flex items-center gap-2"

@@ -9,7 +9,9 @@ async function main() {
   const CLIENT_SECRET =
     process.env.GMAIL_CLIENT_SECRET || process.env.PEOPLE_CLIENT_SECRET;
   const refreshToken =
-    process.argv[2] || process.env.TEST_REFRESH_TOKEN || process.env.GMAIL_REFRESH_TOKEN;
+    process.argv[2] ||
+    process.env.TEST_REFRESH_TOKEN ||
+    process.env.GMAIL_REFRESH_TOKEN;
 
   if (!CLIENT_ID || !CLIENT_SECRET) {
     console.error(
