@@ -121,6 +121,8 @@ export default function ScheduledEmailsTab() {
   const [isSkippingEmail, setIsSkippingEmail] = useState(false);
   const [isUnskippingEmail, setIsUnskippingEmail] = useState(false);
   const [isViewEmailDialogOpen, setIsViewEmailDialogOpen] = useState(false);
+  const [isProcessNowConfirmOpen, setIsProcessNowConfirmOpen] = useState(false);
+  const [isProcessingNow, setIsProcessingNow] = useState(false);
   const [
     isDeletePaymentRemindersDialogOpen,
     setIsDeletePaymentRemindersDialogOpen,
@@ -387,15 +389,21 @@ export default function ScheduledEmailsTab() {
     }
   };
 
-  // Trigger manual processing (for testing)
+  // Trigger manual processing (for testing) - opens confirmation
   const handleTriggerProcessing = async () => {
+    setIsProcessNowConfirmOpen(true);
+  };
+
+  // Perform the actual trigger with loading modal
+  const doTriggerProcessing = async () => {
+    setIsProcessingNow(true);
     try {
+      setIsProcessNowConfirmOpen(false);
       await ScheduledEmailService.triggerProcessing();
       toast({
         title: "Success",
         description: "Email processing triggered",
       });
-      // Real-time listener will auto-update when processing completes
     } catch (error) {
       console.error("Error triggering processing:", error);
       toast({
@@ -403,6 +411,8 @@ export default function ScheduledEmailsTab() {
         description: "Failed to trigger processing",
         variant: "destructive",
       });
+    } finally {
+      setIsProcessingNow(false);
     }
   };
 
@@ -928,9 +938,14 @@ export default function ScheduledEmailsTab() {
             <Plus className="w-4 h-4 mr-2" />
             Schedule Email
           </Button>
-          <Button onClick={handleTriggerProcessing} variant="outline" size="sm">
+          <Button
+            onClick={() => setIsProcessNowConfirmOpen(true)}
+            variant="outline"
+            size="sm"
+            disabled={isProcessingNow}
+          >
             <RefreshCw className="w-4 h-4 mr-2" />
-            Process Now
+            {isProcessingNow ? "Processing..." : "Process Now"}
           </Button>
         </div>
       </div>
@@ -1006,6 +1021,28 @@ export default function ScheduledEmailsTab() {
             <p className="text-gray-600">Loading scheduled emails...</p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Loading Modal for Triggering Processing */}
+      {isProcessingNow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Triggering Email Processing
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Processing pending scheduled emails. This may take a few
+                    moments.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Scheduled Emails List */}
@@ -1563,6 +1600,33 @@ export default function ScheduledEmailsTab() {
             <AlertDialogCancel>Keep Email</AlertDialogCancel>
             <AlertDialogAction onClick={handleCancelEmail}>
               Cancel Email
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Process Now Confirmation Dialog */}
+      <AlertDialog
+        open={isProcessNowConfirmOpen}
+        onOpenChange={setIsProcessNowConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Trigger Email Processing Now</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to trigger email processing now? This will
+              process pending scheduled emails (up to 50) immediately.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isProcessingNow}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={doTriggerProcessing}
+              disabled={isProcessingNow}
+            >
+              {isProcessingNow ? "Processing..." : "Trigger Processing"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

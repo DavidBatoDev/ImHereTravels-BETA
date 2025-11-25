@@ -26,7 +26,9 @@ const SCOPES = [
   "https://www.googleapis.com/auth/gmail.modify",
   "https://www.googleapis.com/auth/spreadsheets.readonly",
   "https://www.googleapis.com/auth/drive.readonly",
-  "https://www.googleapis.com/auth/calendar.events", // NEW: Calendar events scope
+  "https://www.googleapis.com/auth/calendar", // Full calendar access
+  "https://www.googleapis.com/auth/calendar.events", // Calendar events scope
+  "https://www.googleapis.com/auth/calendar.events.owned", // Events created by the app
 ];
 
 console.log(
