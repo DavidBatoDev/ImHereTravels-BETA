@@ -75,25 +75,28 @@ export default function paymentConditionFunction(
 
   if (isBlankLike(tourDate)) return "";
 
-  if (
-    typeof eligibleSecondCount !== "number" ||
-    typeof daysBetweenReservationAndTour !== "number" ||
-    !isFinite(eligibleSecondCount) ||
-    !isFinite(daysBetweenReservationAndTour)
-  ) {
-    return ""; // fallback if inputs invalid
+  // Coerce numeric-like inputs (accept numbers or numeric strings).
+  const eligibleNum = Number(eligibleSecondCount as any);
+  const daysNum = Number(daysBetweenReservationAndTour as any);
+
+  if (!Number.isFinite(eligibleNum) || !Number.isFinite(daysNum)) {
+    return ""; // fallback if inputs invalid or non-numeric
   }
 
-  if (eligibleSecondCount === 0 && daysBetweenReservationAndTour < 2) {
+  // Use integer counts to match spreadsheet COUNTA/DATEDIF behavior
+  const eligible = Math.trunc(eligibleNum);
+  const days = Math.trunc(daysNum);
+
+  if (eligible === 0 && days < 2) {
     return "Invalid Booking";
   }
-  if (eligibleSecondCount === 0 && daysBetweenReservationAndTour >= 2) {
+  if (eligible === 0 && days >= 2) {
     return "Last Minute Booking";
   }
-  if (eligibleSecondCount === 1) return "Standard Booking, P1";
-  if (eligibleSecondCount === 2) return "Standard Booking, P2";
-  if (eligibleSecondCount === 3) return "Standard Booking, P3";
-  if (eligibleSecondCount >= 4) return "Standard Booking, P4";
+  if (eligible === 1) return "Standard Booking, P1";
+  if (eligible === 2) return "Standard Booking, P2";
+  if (eligible === 3) return "Standard Booking, P3";
+  if (eligible >= 4) return "Standard Booking, P4";
 
   return "";
 }
