@@ -42,6 +42,8 @@ import {
   Package,
   Save,
   HelpCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   PreDeparturePack,
@@ -73,6 +75,11 @@ export default function PreDeparturePackSection() {
   const [loading, setLoading] = useState(true);
   const [automaticSends, setAutomaticSends] = useState(false);
   const [updatingConfig, setUpdatingConfig] = useState(false);
+
+  // Carousel state
+  const packsContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   // Create pack dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -540,6 +547,35 @@ export default function PreDeparturePackSection() {
     return chunks;
   }, [tourPackages]);
 
+  // Carousel helpers
+  const updateCarouselButtons = () => {
+    const el = packsContainerRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  };
+
+  const scrollCarousel = (direction: "left" | "right") => {
+    const el = packsContainerRef.current;
+    if (!el) return;
+    const scrollAmount = Math.floor(el.clientWidth * 0.8);
+    const target = direction === "left" ? -scrollAmount : scrollAmount;
+    el.scrollBy({ left: target, behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    updateCarouselButtons();
+    const el = packsContainerRef.current;
+    if (!el) return;
+    const onScroll = () => updateCarouselButtons();
+    window.addEventListener("resize", updateCarouselButtons);
+    el.addEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("resize", updateCarouselButtons);
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, [packs]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -815,123 +851,169 @@ export default function PreDeparturePackSection() {
         </DialogContent>
       </Dialog>
 
+
       {/* Packs Grid */}
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">
           Loading...
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {/* Existing Packs */}
-          {packs.map((pack) => {
-            const fileType = getFileType(pack.fileName);
+        <div className="relative group">
+          {/* Left control */}
+          <div className="absolute left-2 top-1/2 z-20 -translate-y-1/2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => scrollCarousel("left")}
+              disabled={!canScrollLeft}
+              className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          </div>
 
-            return (
-              <Card
-                key={pack.id}
-                className="overflow-hidden aspect-square flex flex-col"
-              >
-                {/* File Preview */}
-                <div className="relative bg-muted/30 flex-1 flex items-center justify-center overflow-hidden">
-                  {fileType === "image" ? (
-                    <img
-                      src={pack.fileDownloadURL}
-                      alt={pack.fileName}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : fileType === "pdf" ? (
-                    <iframe
-                      src={`${pack.fileDownloadURL}#page=1&view=FitH`}
-                      className="w-full h-full pointer-events-none"
-                      title={pack.fileName}
-                    />
-                  ) : (
-                    <FileText className="h-16 w-16 text-muted-foreground" />
-                  )}
+          {/* Scroll container */}
+          <div
+            ref={packsContainerRef}
+            className="flex gap-3 ml-6 overflow-x-auto scrollbar-hide py-2 px-2 snap-x snap-mandatory"
+            role="list"
+          >
+            {/* Upload Card - First */}
+            <Card
+              className="min-w-[220px] flex-shrink-0 p-6 flex flex-col items-center justify-center border-2 border-dashed border-red-500 hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 cursor-pointer transition-all snap-start"
+              onClick={() => setCreateDialogOpen(true)}
+            >
+              <Upload className="h-10 w-10 text-red-500 mb-3" />
+              <h3 className="font-semibold text-base mb-1 text-red-600 dark:text-red-500">
+                Upload Pack
+              </h3>
+              <p className="text-xs text-muted-foreground text-center">
+                Click to upload a new pre-departure pack
+              </p>
+            </Card>
+            {/* Existing Packs */}
+            {packs.map((pack) => {
+              const fileType = getFileType(pack.fileName);
 
-                  {/* Delete button overlay */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeletePack(pack)}
-                    className="absolute top-2 right-2 bg-background/80 hover:bg-background"
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
+              return (
+                <Card
+                  key={pack.id}
+                  className="overflow-hidden flex flex-col min-w-[220px] flex-shrink-0 snap-start"
+                  role="listitem"
+                >
+                  {/* File Preview */}
+                  <div className="relative bg-muted/30 flex-1 flex items-center justify-center overflow-hidden">
+                    {fileType === "image" ? (
+                      <img
+                        src={pack.fileDownloadURL}
+                        alt={pack.fileName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : fileType === "pdf" ? (
+                      <iframe
+                        src={`${pack.fileDownloadURL}#page=1&view=FitH`}
+                        className="w-full h-full pointer-events-none"
+                        title={pack.fileName}
+                      />
+                    ) : (
+                      <FileText className="h-16 w-16 text-muted-foreground" />
+                    )}
 
-                {/* Card Content */}
-                <div className="p-3 space-y-2">
-                  <div>
-                    <p className="font-medium line-clamp-1 text-xs">
-                      {pack.fileName}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {formatFileSize(pack.size)}
-                    </p>
+                    {/* Delete button overlay */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeletePack(pack)}
+                      className="absolute top-2 right-2 bg-background/80 hover:bg-background"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
 
-                  <div>
-                    <div className="flex flex-wrap gap-1">
-                      {pack.tourPackages.map((tp) => (
-                        <Badge
-                          key={tp.tourPackageId}
-                          variant="outline"
-                          className="text-[10px] px-1.5 py-0"
-                        >
-                          {tp.tourPackageName}
-                        </Badge>
-                      ))}
+                  {/* Card Content */}
+                  <div className="p-3 space-y-2">
+                    <div>
+                      <p className="font-medium line-clamp-1 text-xs">
+                        {pack.fileName}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatFileSize(pack.size)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <div className="flex flex-wrap gap-1">
+                        {pack.tourPackages.map((tp) => (
+                          <Badge
+                            key={tp.tourPackageId}
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0"
+                          >
+                            {tp.tourPackageName}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-7 text-[10px]"
+                        onClick={() =>
+                          window.open(pack.fileDownloadURL, "_blank")
+                        }
+                      >
+                        <FileText className="mr-1 h-3 w-3" />
+                        View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-[10px] px-2"
+                        onClick={() => handleEditPack(pack)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2"
+                        onClick={() => handleReplaceFile(pack)}
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                      </Button>
                     </div>
                   </div>
+                </Card>
+              );
+            })}
+          </div>
 
-                  <div className="flex gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 h-7 text-[10px]"
-                      onClick={() =>
-                        window.open(pack.fileDownloadURL, "_blank")
-                      }
-                    >
-                      <FileText className="mr-1 h-3 w-3" />
-                      View
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-[10px] px-2"
-                      onClick={() => handleEditPack(pack)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={() => handleReplaceFile(pack)}
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
+          {/* Left / Right edge gradients to indicate scrollable content */}
+          {canScrollLeft && (
+            <div className="absolute left-0 top-0 bottom-0 w-12 pointer-events-none z-10">
+              <div className="h-full w-full bg-gradient-to-r from-background to-transparent" />
+            </div>
+          )}
+          {canScrollRight && (
+            <div className="absolute right-0 top-0 bottom-0 w-12 pointer-events-none z-10">
+              <div className="h-full w-full bg-gradient-to-l from-background to-transparent" />
+            </div>
+          )}
 
-          {/* Upload Card - Last */}
-          <Card
-            className="aspect-square p-6 flex flex-col items-center justify-center border-2 border-dashed border-red-500 hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 cursor-pointer transition-all"
-            onClick={() => setCreateDialogOpen(true)}
-          >
-            <Upload className="h-10 w-10 text-red-500 mb-3" />
-            <h3 className="font-semibold text-base mb-1 text-red-600 dark:text-red-500">
-              Upload Pack
-            </h3>
-            <p className="text-xs text-muted-foreground text-center">
-              Click to upload a new pre-departure pack
-            </p>
-          </Card>
+          {/* Right control */}
+          <div className="absolute right-2 top-1/2 z-20 -translate-y-1/2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => scrollCarousel("right")}
+              disabled={!canScrollRight}
+              className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
 
