@@ -1290,7 +1290,7 @@ function showHelp() {
   Migration 001 - Initial Tour Packages:
   - Siargao Island Adventure (SIA)
   - Philippine Sunrise (PHS) 
-  - Philippines Sunset (PSS)
+  - Philippine Sunset (PSS)
   - Maldives Bucketlist (MLB)
 
   Migration 002 - Additional Tour Packages:
