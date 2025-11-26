@@ -19,8 +19,10 @@ function VerifyEmailContent() {
   const router = useRouter();
   const { markEmailAsVerified } = useAuthStore();
 
-  const token = searchParams.get("token");
-  const userId = searchParams.get("userId");
+  // `useSearchParams()` may return null in some runtime scenarios,
+  // so safely access it with optional chaining.
+  const token = searchParams?.get("token") ?? undefined;
+  const userId = searchParams?.get("userId") ?? undefined;
 
   useEffect(() => {
     if (token && userId) {

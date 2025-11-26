@@ -214,7 +214,7 @@ export default function DashboardSidebar({
                 const navItem = (
                   <Link
                     key={`nav-${index}-${item.name}`}
-                    href={item.href}
+                    href={item.href!}
                     className={cn(
                       "group relative flex items-center text-sm font-medium rounded-xl transition-all duration-200 ease-in-out",
                       sidebarCollapsed
@@ -235,14 +235,19 @@ export default function DashboardSidebar({
                           : "bg-royal-purple/10 group-hover:bg-royal-purple/20"
                       )}
                     >
-                      <item.icon
-                        className={cn(
-                          "h-5 w-5 flex-shrink-0 transition-colors duration-200",
-                          isActive
-                            ? "text-white"
-                            : "text-royal-purple group-hover:text-royal-purple"
-                        )}
-                      />
+                      {(() => {
+                        const Icon = item.icon;
+                        return Icon ? (
+                          <Icon
+                            className={cn(
+                              "h-5 w-5 flex-shrink-0 transition-colors duration-200",
+                              isActive
+                                ? "text-white"
+                                : "text-royal-purple group-hover:text-royal-purple"
+                            )}
+                          />
+                        ) : null;
+                      })()}
                     </div>
                     {!sidebarCollapsed && (
                       <>
@@ -422,7 +427,7 @@ export default function DashboardSidebar({
                 const navItem = (
                   <Link
                     key={`desktop-nav-${index}-${item.name}`}
-                    href={item.href}
+                    href={item.href!}
                     className={cn(
                       "group relative flex items-center text-sm font-medium rounded-xl transition-all duration-200 ease-in-out",
                       sidebarCollapsed
@@ -442,14 +447,19 @@ export default function DashboardSidebar({
                           : "bg-royal-purple/10 group-hover:bg-royal-purple/20"
                       )}
                     >
-                      <item.icon
-                        className={cn(
-                          "h-5 w-5 flex-shrink-0 transition-colors duration-200",
-                          isActive
-                            ? "text-white"
-                            : "text-royal-purple group-hover:text-royal-purple"
-                        )}
-                      />
+                      {(() => {
+                        const Icon = item.icon;
+                        return Icon ? (
+                          <Icon
+                            className={cn(
+                              "h-5 w-5 flex-shrink-0 transition-colors duration-200",
+                              isActive
+                                ? "text-white"
+                                : "text-royal-purple group-hover:text-royal-purple"
+                            )}
+                          />
+                        ) : null;
+                      })()}
                     </div>
                     {!sidebarCollapsed && (
                       <>

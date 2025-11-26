@@ -501,14 +501,14 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
     });
 
     // Get function details from Firestore
-    const functions = [];
+    const functions: (DocumentData & { id: string })[] = [];
     for (const funcId of functionIds) {
       try {
         const funcDoc = await getDoc(doc(db, "ts_files", funcId));
         if (funcDoc.exists()) {
           functions.push({
             id: funcId,
-            ...funcDoc.data(),
+            ...(funcDoc.data() as DocumentData),
           });
         }
       } catch (error) {

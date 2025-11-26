@@ -39,7 +39,7 @@ import PermissionGuard from "@/components/auth/PermissionGuard";
 
 function PaymentTermsContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams() ?? new URLSearchParams();
   const [paymentTerms, setPaymentTerms] = useState<PaymentTermConfiguration[]>(
     []
   );

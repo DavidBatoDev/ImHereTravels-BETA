@@ -52,7 +52,8 @@ class BatchedWriter {
 
     // Process in chunks to respect Firestore batch limits
     const chunkSize = this.maxBatchSize;
-    const chunks = [];
+    // entries is Array<[string, PendingDocUpdates]>, so chunks is an array of those slices
+    const chunks: Array<Array<[string, PendingDocUpdates]>> = [];
     for (let i = 0; i < entries.length; i += chunkSize) {
       chunks.push(entries.slice(i, i + chunkSize));
     }

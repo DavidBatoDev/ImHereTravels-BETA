@@ -34,11 +34,11 @@ export default function ToursTabs() {
   const [activeTab, setActiveTab] = useState<string>("packages");
 
   useEffect(() => {
-    const urlTab = searchParams.get("tab");
+    const urlTab = searchParams?.get("tab") ?? null;
     const initial = urlToInternalTab(urlTab);
     setActiveTab(initial);
     if (!urlTab || urlTab !== internalTabToUrl(initial)) {
-      const sp = new URLSearchParams(searchParams.toString());
+      const sp = new URLSearchParams(searchParams?.toString() ?? "");
       sp.set("tab", internalTabToUrl(initial));
       router.replace(`/tours?${sp.toString()}`);
     }
@@ -46,7 +46,7 @@ export default function ToursTabs() {
 
   const onChange = (val: string) => {
     setActiveTab(val);
-    const sp = new URLSearchParams(searchParams.toString());
+    const sp = new URLSearchParams(searchParams?.toString() ?? "");
     sp.set("tab", internalTabToUrl(val));
     router.push(`/tours?${sp.toString()}`);
   };

@@ -68,7 +68,7 @@ interface BookingDetailModalProps {
   booking: Booking | null;
   onBookingUpdate?: (updatedBooking: Booking) => void;
   router: ReturnType<typeof useRouter>;
-  searchParams: ReadonlyURLSearchParams;
+  searchParams: ReadonlyURLSearchParams | null;
 }
 
 export default function BookingDetailModal({
@@ -128,13 +128,13 @@ export default function BookingDetailModal({
         hasBookingId: currentBooking?.bookingId,
         isNewBooking,
         isNewBookingByField,
-        mode: searchParams.get("mode"),
+        mode: searchParams?.get("mode"),
       });
 
       if (
         isNewBooking ||
         isNewBookingByField ||
-        searchParams.get("mode") === "edit"
+        searchParams?.get("mode") === "edit"
       ) {
         console.log("🚀 [BOOKING DETAIL MODAL] Opening edit modal");
         setIsEditModalOpen(true);
@@ -163,13 +163,13 @@ export default function BookingDetailModal({
         hasBookingId: realtimeBooking?.bookingId,
         isNewBooking,
         isNewBookingByField,
-        mode: searchParams.get("mode"),
+        mode: searchParams?.get("mode"),
       });
 
       if (
         isNewBooking ||
         isNewBookingByField ||
-        searchParams.get("mode") === "edit"
+        searchParams?.get("mode") === "edit"
       ) {
         console.log(
           "🚀 [BOOKING DETAIL MODAL] Opening edit modal from real-time data"

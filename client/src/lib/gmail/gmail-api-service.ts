@@ -1011,7 +1011,7 @@ export class GmailApiService {
         htmlContent,
         bcc,
         cc,
-        from,
+        from: from || "Bella | ImHereTravels <bella@imheretravels.com>",
         replyTo,
         attachments,
       });
@@ -1082,7 +1082,7 @@ export class GmailApiService {
       htmlContent,
       bcc,
       cc,
-      from,
+      from = "Bella | ImHereTravels <bella@imheretravels.com>",
       replyTo,
       inReplyTo,
       references,

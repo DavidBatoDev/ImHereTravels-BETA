@@ -640,7 +640,8 @@ export default function TourForm({
   ) => {
     const files = e.target.files;
 
-    const fileArray = Array.from(files);
+    // Guard against null FileList returned by some browsers / environments
+    const fileArray = files ? Array.from(files) : [];
 
     const validFiles: File[] = [];
 

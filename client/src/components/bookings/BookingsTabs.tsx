@@ -66,13 +66,15 @@ export default function BookingsTabs() {
 
   // Initialize tab from URL parameters
   useEffect(() => {
-    const urlTab = searchParams.get("tab");
+    const urlTab = searchParams?.get("tab") ?? null;
     const initialTab = urlToInternalTab(urlTab);
     setActiveTab(initialTab);
 
     // If no tab parameter or invalid tab, update URL to show default
     if (!urlTab || urlTab !== internalTabToUrl(initialTab)) {
-      const newSearchParams = new URLSearchParams(searchParams.toString());
+      const newSearchParams = new URLSearchParams(
+        searchParams?.toString() ?? ""
+      );
       newSearchParams.set("tab", internalTabToUrl(initialTab));
       router.replace(`/bookings?${newSearchParams.toString()}`);
     }
@@ -81,7 +83,7 @@ export default function BookingsTabs() {
   // Handle tab changes
   const handleTabChange = (newTab: string) => {
     setActiveTab(newTab);
-    const newSearchParams = new URLSearchParams(searchParams.toString());
+    const newSearchParams = new URLSearchParams(searchParams?.toString() ?? "");
     newSearchParams.set("tab", internalTabToUrl(newTab));
     router.push(`/bookings?${newSearchParams.toString()}`);
   };
