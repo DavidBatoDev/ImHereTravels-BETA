@@ -21,7 +21,7 @@ export const tourPackageNameColumn: BookingSheetColumn = {
       "Sri Lanka Wander Tour",
       "India Holi Festival Tour",
       "Brazil's Treasures",
-      "Philippines Sunset",
+      "Philippine Sunset",
       "Philippine Sunrise",
       "Siargao Island Adventure",
       "Vietnam Expedition",

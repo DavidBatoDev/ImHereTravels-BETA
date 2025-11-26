@@ -63,6 +63,8 @@ export default function AddConfirmedBookingModal({
   const [filteredBookings, setFilteredBookings] = useState<
     BookingWithValidation[]
   >([]);
+  const [onlyCompletePayments, setOnlyCompletePayments] = useState(false);
+  const [onlyWithPack, setOnlyWithPack] = useState(false);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -80,22 +82,39 @@ export default function AddConfirmedBookingModal({
   }, [open]);
 
   useEffect(() => {
-    // Filter bookings based on search term
-    if (!searchTerm.trim()) {
-      setFilteredBookings(bookings);
-    } else {
-      const term = searchTerm.toLowerCase();
-      setFilteredBookings(
-        bookings.filter(
-          (b) =>
-            b.bookingId.toLowerCase().includes(term) ||
-            b.fullName.toLowerCase().includes(term) ||
-            b.emailAddress.toLowerCase().includes(term) ||
-            b.tourPackageName.toLowerCase().includes(term)
-        )
+    // Filter bookings based on search term and optional 'only complete payments'
+    const term = searchTerm.trim().toLowerCase();
+    let results = bookings;
+
+    if (term) {
+      results = results.filter(
+        (b) =>
+          b.bookingId.toLowerCase().includes(term) ||
+          b.fullName.toLowerCase().includes(term) ||
+          b.emailAddress.toLowerCase().includes(term) ||
+          b.tourPackageName.toLowerCase().includes(term)
       );
     }
-  }, [searchTerm, bookings]);
+
+    if (onlyCompletePayments) {
+      results = results.filter((b) => {
+        const rawTotal =
+          b.useDiscountedTourCost && b.discountedTourCost > 0
+            ? b.discountedTourCost
+            : b.originalTourCost;
+        const total = Number(rawTotal);
+        const paid = Number(b.paid || 0);
+        if (!isFinite(total)) return false;
+        return paid >= total;
+      });
+    }
+
+    if (onlyWithPack) {
+      results = results.filter((b) => !!b.hasPreDeparturePack);
+    }
+
+    setFilteredBookings(results);
+  }, [searchTerm, bookings, onlyCompletePayments]);
 
   const validateBooking = async (
     booking: any
@@ -125,14 +144,18 @@ export default function AddConfirmedBookingModal({
     }
 
     // Payment validation
-    const totalCost =
+    const rawTotalCost =
       booking.useDiscountedTourCost && booking.discountedTourCost > 0
         ? booking.discountedTourCost
         : booking.originalTourCost;
 
+    const totalCost = Number(rawTotalCost);
     const paid = Number(booking.paid || 0);
 
-    if (paid < totalCost) {
+    if (!isFinite(totalCost)) {
+      errors.push(`Invalid total cost (${String(rawTotalCost)})`);
+      isValid = false;
+    } else if (paid < totalCost) {
       errors.push(
         `Payment incomplete (${paid.toFixed(2)} / ${totalCost.toFixed(2)})`
       );
@@ -348,14 +371,48 @@ export default function AddConfirmedBookingModal({
         </DialogHeader>
 
         {/* Search */}
-        <div className="relative">
+        <div className="relative flex items-center gap-3">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by booking ID, name, email, or tour package..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+          <div className="flex-1 relative">
+            <Input
+              placeholder="Search across all fields ..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 border-border focus:border-crimson-red focus:ring-crimson-red/20"
+            />
+            {searchTerm && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0 hover:bg-muted"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={onlyCompletePayments}
+                onChange={(e) => setOnlyCompletePayments(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Only complete payments
+            </label>
+
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={onlyWithPack}
+                onChange={(e) => setOnlyWithPack(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Has Pack
+            </label>
+          </div>
         </div>
 
         {/* Bookings List */}
