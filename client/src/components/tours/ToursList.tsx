@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { ReadonlyURLSearchParams, useRouter, useSearchParams } from "next/navigation";
+import {
+  ReadonlyURLSearchParams,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Fuse from "fuse.js";
@@ -109,6 +113,23 @@ export default function ToursList() {
       minMatchCharLength: 2,
     });
   }, [allTours]);
+
+  // Map of booking counts keyed by tour name (computed from bookings collection)
+  const tourBookingCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    bookings.forEach((booking) => {
+      const tourName =
+        booking.tourPackageName ||
+        booking.tourPackage ||
+        booking.tourName ||
+        booking.tour ||
+        booking.package;
+      if (tourName && typeof tourName === "string" && tourName.trim() !== "") {
+        map[tourName] = (map[tourName] || 0) + 1;
+      }
+    });
+    return map;
+  }, [bookings]);
 
   // Filter tours based on search and filters
   const filteredTours = useMemo(() => {
@@ -551,26 +572,11 @@ export default function ToursList() {
                   Most Selected Tour
                 </p>
                 {(() => {
-                  // Calculate actual booking counts from bookings collection
-                  const tourBookingCounts: { [tourName: string]: number } = {};
-                  bookings.forEach((booking) => {
-                    const tourName =
-                      booking.tourPackageName ||
-                      booking.tourPackage ||
-                      booking.tourName ||
-                      booking.tour ||
-                      booking.package;
-                    if (tourName && tourName.trim() !== "") {
-                      tourBookingCounts[tourName] =
-                        (tourBookingCounts[tourName] || 0) + 1;
-                    }
-                  });
-
-                  // Sort tours by actual booking count and get top 3
+                  // Use memoized booking counts map to determine top tours
                   const sortedTours = [...allTours]
-                    .map((tour) => ({
-                      ...tour,
-                      actualBookingsCount: tourBookingCounts[tour.name] || 0,
+                    .map((t) => ({
+                      ...t,
+                      actualBookingsCount: tourBookingCounts[t.name] || 0,
                     }))
                     .sort(
                       (a, b) => b.actualBookingsCount - a.actualBookingsCount
@@ -810,7 +816,7 @@ export default function ToursList() {
                       <div className="flex items-center">
                         <Users className="h-4 w-4 mr-1 text-royal-purple" />
                         <span className="text-foreground">
-                          {tour.metadata.bookingsCount}
+                          {tourBookingCounts[tour.name] || 0}
                         </span>
                       </div>
                     </div>
@@ -977,7 +983,10 @@ export default function ToursList() {
         onArchive={handleArchiveTour}
         onDelete={confirmDelete}
         router={router}
-        searchParams={searchParams ?? (new URLSearchParams() as unknown as ReadonlyURLSearchParams)}
+        searchParams={
+          searchParams ??
+          (new URLSearchParams() as unknown as ReadonlyURLSearchParams)
+        }
       />
 
       {/* Delete Confirmation Dialog */}
