@@ -188,6 +188,7 @@ async function sendBookingConfirmationEmail(
       .where("status", "==", "active")
       .limit(1)
       .get();
+      
 
     if (templateQuery.empty) {
       logger.warn("Booking confirmation template not found");
