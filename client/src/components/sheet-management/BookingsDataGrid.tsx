@@ -254,6 +254,11 @@ export default function BookingsDataGrid({
     new Map()
   );
 
+  // Dynamic options for select columns (loaded via column.loadOptions)
+  const [dynamicOptions, setDynamicOptions] = useState<
+    Record<string, string[]>
+  >({});
+
   // Loading state for email generation and sending
   const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
   const [emailGenerationProgress, setEmailGenerationProgress] = useState<{
@@ -360,6 +365,36 @@ export default function BookingsDataGrid({
   // Set columns in batched writer for version history data type detection
   useEffect(() => {
     batchedWriter.setColumns(columns);
+  }, [columns]);
+
+  // Load dynamic options for select columns that provide a `loadOptions` function
+  useEffect(() => {
+    let mounted = true;
+
+    const loadDynamicOptions = async () => {
+      const map: Record<string, string[]> = {};
+      for (const col of columns) {
+        if (col.dataType === "select" && col.loadOptions) {
+          try {
+            const opts = await col.loadOptions();
+            map[col.id] = opts || [];
+          } catch (error) {
+            console.error(
+              `Failed to load options for ${col.columnName}:`,
+              error
+            );
+            map[col.id] = col.options || [];
+          }
+        }
+      }
+      if (mounted) setDynamicOptions(map);
+    };
+
+    loadDynamicOptions();
+
+    return () => {
+      mounted = false;
+    };
   }, [columns]);
 
   // Set up monitoring for aria-selected changes
@@ -2583,9 +2618,9 @@ export default function BookingsDataGrid({
   // Custom select editor with dropdown functionality
   const selectEditor = useCallback(
     ({ row, column, onRowChange, onClose }: RenderEditCellProps<SheetData>) => {
-      // Get column definition to access options
+      // Get column definition to access options and columnName
       const columnDef = columns.find((col) => col.id === column.key);
-      const options = columnDef?.options || [];
+      const options = dynamicOptions[column.key] || columnDef?.options || [];
 
       const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newValue = e.target.value;
@@ -2618,6 +2653,20 @@ export default function BookingsDataGrid({
       const cellValue = row[column.key as keyof SheetData];
       const displayValue = cellValue?.toString() || "";
 
+      // Build final options list similar to EditBookingModal: ensure current value present and placeholder
+      const currentValue = String(displayValue || "");
+      const hasCurrentValue = currentValue && currentValue !== "";
+      const currentValueInOptions = options.includes(currentValue);
+      const hasEmptyOption = options.includes("");
+
+      const finalOptions = [...options];
+      if (hasCurrentValue && !currentValueInOptions) {
+        finalOptions.unshift(currentValue);
+      }
+      if (!hasCurrentValue && !hasEmptyOption) {
+        finalOptions.unshift("");
+      }
+
       return (
         <select
           value={displayValue}
@@ -2627,16 +2676,18 @@ export default function BookingsDataGrid({
           autoFocus
           className="h-8 w-full px-2 text-xs border-none outline-none bg-white cursor-pointer"
         >
-          <option value=""></option>
-          {options.map((option: string) => (
-            <option key={option} value={option}>
-              {option}
+          {finalOptions.map((option: string, index: number) => (
+            <option
+              key={option || `placeholder-${column.key}-${index}`}
+              value={option}
+            >
+              {option || `Select ${columnDef?.columnName || column.key}`}
             </option>
           ))}
         </select>
       );
     },
-    [columns, recomputeDirectDependentsForRow]
+    [columns, dynamicOptions, recomputeDirectDependentsForRow]
   );
 
   function FunctionEditor({
@@ -3443,8 +3494,22 @@ export default function BookingsDataGrid({
           }
 
           const cellValue = row[column.key as keyof SheetData];
-          const options = col.options || [];
+          const options = dynamicOptions[col.id] || col.options || [];
           const hasColor = col.color && col.color !== "none";
+
+          // Ensure current value is present and add placeholder if necessary (match EditBookingModal)
+          const currentValue = String(cellValue || "");
+          const hasCurrentValue = currentValue && currentValue !== "";
+          const currentValueInOptions = options.includes(currentValue);
+          const hasEmptyOption = options.includes("");
+
+          const finalOptions = [...options];
+          if (hasCurrentValue && !currentValueInOptions) {
+            finalOptions.unshift(currentValue);
+          }
+          if (!hasCurrentValue && !hasEmptyOption) {
+            finalOptions.unshift("");
+          }
 
           return (
             <select
@@ -3467,10 +3532,12 @@ export default function BookingsDataGrid({
               }`}
               style={{ backgroundColor: "transparent" }}
             >
-              <option value=""></option>
-              {options.map((option: string) => (
-                <option key={option} value={option}>
-                  {option}
+              {finalOptions.map((option: string, index: number) => (
+                <option
+                  key={option || `placeholder-${col.id}-${index}`}
+                  value={option}
+                >
+                  {option || `Select ${col.columnName}`}
                 </option>
               ))}
             </select>
