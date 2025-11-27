@@ -508,7 +508,7 @@ const Page = () => {
       setDateVisible(false); // start collapse
       const t = setTimeout(() => setDateMounted(false), 220); // unmount after anim
       setTourDate(""); // clear previous date
-      setErrors((e) => ({ ...e, tourDate: undefined })); // drop error if hidden
+      setErrors((e) => ({ ...e, tourDate: "" })); // drop error if hidden (use empty string to match error type)
       return () => clearTimeout(t);
     }
   }, [tourPackage]);
@@ -1358,7 +1358,7 @@ const Page = () => {
 
                         // Extract group code for duo/group bookings (suffix after initials)
                         // New Format: DB-JA-20260314-JG-8472 -> groupCode = "8472"
-                        let groupCode = null;
+                        let groupCode: string | null = null;
                         if (
                           bookingType === "Duo Booking" ||
                           bookingType === "Group Booking"
