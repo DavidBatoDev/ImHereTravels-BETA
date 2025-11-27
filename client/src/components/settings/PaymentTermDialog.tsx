@@ -535,7 +535,7 @@ export function PaymentTermDialog({
                                 variant="default"
                                 className="bg-spring-green/20 text-spring-green border border-spring-green/30"
                               >
-                                P1 - Single Instalment
+                                P1 - Single Installment
                               </Badge>
                               <span className="text-sm text-muted-foreground">
                                 30-60 days away
@@ -548,7 +548,7 @@ export function PaymentTermDialog({
                                 variant="default"
                                 className="bg-spring-green/20 text-spring-green border border-spring-green/30"
                               >
-                                P2 - Two Instalments
+                                P2 - Two Installments
                               </Badge>
                               <span className="text-sm text-muted-foreground">
                                 60-90 days away
@@ -561,7 +561,7 @@ export function PaymentTermDialog({
                                 variant="default"
                                 className="bg-spring-green/20 text-spring-green border border-spring-green/30"
                               >
-                                P3 - Three Instalments
+                                P3 - Three Installments
                               </Badge>
                               <span className="text-sm text-muted-foreground">
                                 90-120 days away
@@ -574,7 +574,7 @@ export function PaymentTermDialog({
                                 variant="default"
                                 className="bg-spring-green/20 text-spring-green border border-spring-green/30"
                               >
-                                P4 - Four Instalments
+                                P4 - Four Installments
                               </Badge>
                               <span className="text-sm text-muted-foreground">
                                 120+ days away

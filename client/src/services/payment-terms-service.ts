@@ -306,7 +306,7 @@ export class PaymentTermsCalculator {
       (term) => term.paymentPlanType === "p4_four_installments"
     );
     return {
-      applicableTerm: p4Term?.name || "P4 - Four Instalment Plan",
+      applicableTerm: p4Term?.name || "P4 - Four Installment Plan",
       daysDifference,
       isValid: true,
       message: p4Term?.description || "Standard payment plan applies",

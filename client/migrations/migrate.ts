@@ -1308,9 +1308,9 @@ function showHelp() {
   Migration 004 - Payment Plans:
   - Invalid Booking (0% deposit)
   - Full Payment Required Within 2 Days (0% deposit)
-  - P1 - Single Instalment (0% deposit, 100% in 1 payment)
-  - P2 - Two Instalments (0% deposit, 50% × 2 payments)
-  - P3 - Three Instalments (0% deposit, 33.33% × 3 payments)
+  - P1 - Single Installment (0% deposit, 100% in 1 payment)
+  - P2 - Two Installments (0% deposit, 50% × 2 payments)
+  - P3 - Three Installments (0% deposit, 33.33% × 3 payments)
   - P4 - Four Instalments (0% deposit, 25% × 4 payments)
 
   Migration 005 - Currency Conversion:

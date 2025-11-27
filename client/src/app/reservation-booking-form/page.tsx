@@ -6,6 +6,7 @@ import { db } from "../../lib/firebase";
 import StripePayment from "./StripePayment";
 import BirthdatePicker from "./BirthdatePicker";
 import Select from "./Select";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const Page = () => {
   const [email, setEmail] = useState("");
@@ -35,6 +36,7 @@ const Page = () => {
     }>
   >([]);
   const [tourDates, setTourDates] = useState<string[]>([]);
+  const [isLoadingPackages, setIsLoadingPackages] = useState(true);
 
   // Payment terms from Firestore
   const [paymentTerms, setPaymentTerms] = useState<
@@ -67,10 +69,37 @@ const Page = () => {
 
   // ---- multi-step flow state ----
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [bookingId, setBookingId] = useState<string>("");
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [confirmingBooking, setConfirmingBooking] = useState(false);
+
+  // Dynamic step descriptions
+  const getStepDescription = () => {
+    switch (step) {
+      case 1:
+        return "Fill in your personal details and select your tour name";
+      case 2:
+        return selectedPackage 
+          ? `Pay £${depositAmount.toFixed(2)} reservation fee to secure your spot`
+          : "Pay a small reservation fee to secure your spot";
+      case 3:
+        if (availablePaymentTerm.isInvalid) {
+          return "Tour date too close - immediate payment required";
+        } else if (availablePaymentTerm.isLastMinute) {
+          return "Full payment required within 48 hours";
+        } else {
+          const daysDiff = tourDate 
+            ? Math.ceil((new Date(tourDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+            : 0;
+          const planCount = getAvailablePaymentPlans().length;
+          return `Pick from ${planCount} payment plan${planCount !== 1 ? 's' : ''} based on your tour date (${daysDiff} days away)`;
+        }
+      default:
+        return "";
+    }
+  };
 
   // Generate booking ID after payment
   // Format: <PREFIX>-<ABBREV>-YYYYMMDD-<INITIALS>-<CODE>
@@ -261,6 +290,29 @@ const Page = () => {
     return schedule;
   };
 
+  // Helper function to get friendly descriptions
+  const getFriendlyDescription = (monthsRequired: number) => {
+    switch (monthsRequired) {
+      case 1:
+        return "Ready to pay in full? Pick me.";
+      case 2:
+        return "Want to split it into two payments? This is it!";
+      case 3:
+        return "If you like, you can make three equal payments, too!";
+      case 4:
+        return "Since you're booking early, take advantage of 4 easy payments. No extra charges!";
+      default:
+        return "";
+    }
+  };
+
+  // Helper function to fix spelling in term names
+  const fixTermName = (name: string) => {
+    return name
+      .replace(/Instalment/g, "Installment")
+      .replace(/instalments/g, "installments");
+  };
+
   // Get available payment plan options based on the calculated term
   const getAvailablePaymentPlans = () => {
     if (!availablePaymentTerm.term || availablePaymentTerm.isInvalid) return [];
@@ -283,8 +335,8 @@ const Page = () => {
       .map((term) => ({
         id: term.id,
         type: term.paymentPlanType,
-        label: term.name,
-        description: term.description,
+        label: fixTermName(term.name),
+        description: getFriendlyDescription(term.monthsRequired!),
         monthsRequired: term.monthsRequired!,
         color: term.color,
         schedule: generatePaymentSchedule(
@@ -332,12 +384,23 @@ const Page = () => {
     await animateHeight(startH, targetH);
   };
 
-  // shared field classes to keep focus/error border styling uniform
+  // shared field classes with enhanced styling
   const fieldBase =
-    "mt-1 block w-full px-4 py-3 rounded-md bg-input text-foreground placeholder:opacity-70 transition-shadow";
+    "mt-1 block w-full px-4 py-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground/60 transition-all duration-200 shadow-sm";
   const fieldBorder = (err?: boolean) =>
-    `border ${err ? "border-destructive" : "border-border"}`;
-  const fieldFocus = "focus:outline-none focus:border-primary";
+    `border-2 ${err ? "border-destructive" : "border-border"}`;
+  const fieldFocus = "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 focus:shadow-md hover:border-primary/50";
+  const fieldSuccess = "border-green-500/50 bg-green-50/5";
+  const fieldWithIcon = "pl-11";
+
+  // Helper to check if field is valid
+  const isFieldValid = (field: string, value: string) => {
+    if (field === 'email') return value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    if (field === 'firstName' || field === 'lastName') return value.trim().length > 0;
+    if (field === 'birthdate') return value.length > 0;
+    if (field === 'nationality') return value.length > 0;
+    return false;
+  };
 
   const guestsVisible = guestsHeight;
 
@@ -427,6 +490,15 @@ const Page = () => {
             })
             .filter(Boolean) as string[];
 
+          // Warn if tour has no valid dates
+          if (dates.length === 0) {
+            console.warn(
+              `Tour package "${payload.name ?? payload.title ?? doc.id}" has no valid travel dates. ` +
+              `This tour will show "No results" when selected. ` +
+              `Please add dates to the travelDates array in Firestore.`
+            );
+          }
+
           return {
             id: doc.id,
             name: payload.name ?? payload.title ?? "",
@@ -439,8 +511,12 @@ const Page = () => {
         });
 
         setTourPackages(pkgList as any); // 'as any' ensures TS doesn't complain about the extra status field
+        setIsLoadingPackages(false);
       },
-      (err) => console.error("tourPackages snapshot error", err)
+      (err) => {
+        console.error("tourPackages snapshot error", err);
+        setIsLoadingPackages(false);
+      }
     );
 
     return () => unsub();
@@ -637,7 +713,7 @@ const Page = () => {
     if (!lastName) e.lastName = "Last name is required";
     if (!nationality) e.nationality = "Nationality is required";
     if (!bookingType) e.bookingType = "Booking type is required";
-    if (!tourPackage) e.tourPackage = "Tour package is required";
+    if (!tourPackage) e.tourPackage = "Tour name is required";
     if (tourPackage && !tourDate) e.tourDate = "Tour date is required";
 
     // Duo/Group guests email check
@@ -749,122 +825,194 @@ const Page = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-background relative overflow-hidden theme-transition">
       {/* Animated gradient background */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/20 via-creative-midnight/30 to-spring-green/20 animate-gradient-shift bg-[length:200%_200%]" />
       </div>
 
+      {/* Theme Toggle Button */}
+      <div className="fixed top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
+
       <div
-        className={`relative z-10 w-full max-w-lg bg-card/95 text-card-foreground border border-border shadow-lg rounded-lg p-8 backdrop-blur-sm transition-all duration-300`}
+        className="relative z-10 w-full min-h-screen text-card-foreground px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10"
         aria-labelledby="reservation-form-title"
       >
         {/* assistive live region to announce tour date visibility changes */}
         <div aria-live="polite" className="sr-only">
           {dateVisible ? "Tour date shown" : "Tour date hidden"}
         </div>
-        {/* Progress tracker placeholder for Steps 1-3 (static; wire later) */}
-        <div className="mb-6">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <h2
-                id="reservation-form-title"
-                className="text-2xl font-hk-grotesk font-semibold text-creative-midnight mb-1"
-              >
-                Reserve your tour spot
-              </h2>
-              <p className="text-sm text-muted-foreground mb-4">
-                Choose your tour package and date, pay the down payment, then
-                complete your payment plan to secure your spot.
-              </p>
+        
+        {/* Max-width container for better readability on larger screens */}
+        <div className="max-w-4xl mx-auto">
+          {/* Progress tracker placeholder for Steps 1-3 (static; wire later) */}
+          <div className="mb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <h2
+                  id="reservation-form-title"
+                  className="text-2xl sm:text-3xl font-hk-grotesk font-bold text-foreground mb-2"
+                >
+                  Reserve your tour spot
+                </h2>
+                <p className="text-sm sm:text-base text-foreground/80 mb-1 leading-relaxed font-medium">
+                  Choose your tour package and date, pay the down payment, then
+                  complete your payment plan to secure your spot.
+                </p>
+                <p className="text-xs text-foreground/70 flex items-center gap-1.5 font-medium">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Takes about 3-5 minutes
+                </p>
+              </div>
+            </div>
+
+          <div className="relative w-full bg-muted/30 backdrop-blur-sm rounded-full h-3 overflow-hidden shadow-inner border border-border/50">
+            <div
+              className={`h-full bg-gradient-to-r from-primary via-crimson-red to-spring-green rounded-full transition-all duration-500 ease-out shadow-lg relative ${progressWidth}`}
+            >
+              <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full"></div>
             </div>
           </div>
 
-          <div className="w-full bg-muted/20 rounded-full h-2 overflow-hidden">
-            <div
-              className={`h-2 bg-primary rounded-full transition-all duration-300 ${progressWidth}`}
-            />
-          </div>
-
-          <div className="mt-3 grid grid-cols-3 gap-4 text-xs text-muted-foreground">
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
             <button
               type="button"
               onClick={() => {
-                // Can view step 1 even after payment, but it will be locked (read-only)
+                // Always allow going back to step 1
                 setStep(1);
               }}
-              className="flex items-center gap-2 transition-opacity hover:opacity-80 cursor-pointer"
+              className="flex items-center gap-1.5 sm:gap-2 transition-all duration-200 hover:opacity-80 cursor-pointer group"
             >
               <div
-                className={`h-6 w-6 rounded-full flex items-center justify-center ${
+                className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-200 ${
                   step === 1
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground"
+                    ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
+                    : completedSteps.includes(1)
+                      ? "bg-white text-green-600 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
+                      : "bg-muted text-foreground group-hover:scale-105"
                 }`}
               >
-                1
+                {completedSteps.includes(1) && step !== 1 ? (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                ) : '1'}
               </div>
-              <div>Personal & Booking</div>
+              <div className={`hidden sm:block font-semibold ${step === 1 ? 'text-foreground' : 'text-foreground/70'}`}>Personal & Booking</div>
+              <div className={`sm:hidden font-semibold ${step === 1 ? 'text-foreground' : 'text-foreground/70'}`}>Personal</div>
             </button>
             <button
               type="button"
               onClick={() => {
-                // Can go to step 2 if currently in step 2, or from step 1 if form is valid
-                if (step === 2) {
+                // Allow backward navigation from step 3, or forward from step 1 if valid
+                if (completedSteps.includes(2) || step === 2) {
                   setStep(2);
                 } else if (step === 1 && tourPackage && tourDate) {
+                  if (!completedSteps.includes(1)) {
+                    setCompletedSteps([...completedSteps, 1]);
+                  }
                   setStep(2);
                 }
               }}
-              disabled={step === 3}
-              className={`flex items-center gap-2 transition-opacity ${
-                step === 3
+              disabled={step === 1 && (!tourPackage || !tourDate)}
+              className={`flex items-center gap-1.5 sm:gap-2 transition-all duration-200 group ${
+                (step === 1 && (!tourPackage || !tourDate))
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:opacity-80 cursor-pointer"
               }`}
             >
               <div
-                className={`h-6 w-6 rounded-full flex items-center justify-center ${
+                className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-200 ${
                   step === 2
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground"
+                    ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
+                    : completedSteps.includes(2)
+                      ? "bg-white text-green-600 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
+                      : (step === 1 && (!tourPackage || !tourDate))
+                        ? "bg-muted/50 text-muted-foreground"
+                        : "bg-muted text-foreground group-hover:scale-105"
                 }`}
               >
-                2
+                {completedSteps.includes(2) && step !== 2 ? (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                ) : '2'}
               </div>
-              <div>Payment</div>
+              <div className={`font-semibold ${step === 2 ? 'text-foreground' : 'text-foreground/70'}`}>Payment</div>
             </button>
             <button
               type="button"
               onClick={() => {
-                // Can only go to step 3 if payment is confirmed
+                // Allow going to step 3 if payment is confirmed (step 2 completed)
                 if (paymentConfirmed) setStep(3);
               }}
               disabled={!paymentConfirmed}
-              className={`flex items-center gap-2 transition-opacity ${
+              className={`flex items-center gap-1.5 sm:gap-2 transition-all duration-200 group ${
                 !paymentConfirmed
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:opacity-80 cursor-pointer"
               }`}
             >
               <div
-                className={`h-6 w-6 rounded-full flex items-center justify-center ${
+                className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-200 ${
                   step === 3
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground"
+                    ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
+                    : !paymentConfirmed
+                      ? "bg-muted/50 text-muted-foreground"
+                      : "bg-muted text-foreground group-hover:scale-105"
                 }`}
               >
                 3
               </div>
-              <div>Payment plan</div>
+              <div className={`hidden sm:block font-semibold ${step === 3 ? 'text-foreground' : 'text-foreground/70'}`}>Payment plan</div>
+              <div className={`sm:hidden font-semibold ${step === 3 ? 'text-foreground' : 'text-foreground/70'}`}>Plan</div>
             </button>
+          </div>
+
+          {/* Dynamic Step Description */}
+          <div className="mt-4 text-center">
+            <p className="text-sm text-foreground/70 font-medium animate-fade-in">
+              {getStepDescription()}
+            </p>
+          </div>
+
+          {/* Helpful Info Card */}
+          <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-blue-50/10 to-purple-50/10 border-2 border-blue-200/20 backdrop-blur-sm">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10 flex-shrink-0">
+                <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-foreground mb-2">How it works</h4>
+                <ul className="text-sm text-foreground/80 space-y-1.5 font-medium">
+                  <li className="flex items-start gap-2">
+                    <span className="text-crimson-red font-bold">1.</span>
+                    <span>Fill in your personal details and select your tour name</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-crimson-red font-bold">2.</span>
+                    <span>Pay a small reservation fee to secure your spot</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-crimson-red font-bold">3.</span>
+                    <span>Pick a payment plan from a list of available options for your tour date</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="space-y-6">
           {/* STEP 1 - Personal & Booking Details */}
           {step === 1 && (
-            <div className="rounded-md bg-card/60 p-4 border border-border">
+            <div className="rounded-lg bg-card/80 backdrop-blur-md p-4 sm:p-6 border border-border shadow-xl">
               {/* Show locked message if payment confirmed */}
               {paymentConfirmed && (
                 <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-md mb-4">
@@ -889,40 +1037,65 @@ const Page = () => {
                   </div>
                 </div>
               )}
-              <h3 className="text-lg font-medium text-foreground mb-3">
-                Personal & Booking details
-              </h3>
+              <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border/50">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-foreground">
+                  Personal & Booking details
+                </h3>
+              </div>
               <div
                 className={`space-y-4 transition-all duration-300 ${
                   clearing ? "opacity-0" : "opacity-100"
                 }`}
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <label className="block">
-                    <span className="text-sm font-medium text-foreground">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <label className="block relative group">
+                    <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                       Email address
+                      <span className="text-destructive text-xs">*</span>
                     </span>
-                    <input
-                      type="email"
-                      name="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      className={`${fieldBase} ${fieldBorder(
-                        !!errors.email
-                      )} ${fieldFocus}`}
-                      aria-invalid={!!errors.email}
-                      aria-describedby={
-                        errors.email ? "email-error" : undefined
-                      }
-                      disabled={paymentConfirmed}
-                    />
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                        </svg>
+                      </div>
+                      <input
+                        type="email"
+                        name="email"
+                        autoComplete="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="your.email@example.com"
+                        className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
+                          !!errors.email
+                        )} ${isFieldValid('email', email) ? fieldSuccess : ''} ${fieldFocus}`}
+                        aria-invalid={!!errors.email}
+                        aria-describedby={
+                          errors.email ? "email-error" : undefined
+                        }
+                        disabled={paymentConfirmed}
+                      />
+                      {isFieldValid('email', email) && !errors.email && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
                     {errors.email && (
                       <p
                         id="email-error"
-                        className="mt-1 text-xs text-destructive"
+                        className="mt-1.5 text-xs text-destructive flex items-center gap-1"
                       >
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
                         {errors.email}
                       </p>
                     )}
@@ -949,70 +1122,106 @@ const Page = () => {
                 </div>
 
                 {/* First name */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <label className="block">
-                    <span className="text-sm font-medium text-foreground">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <label className="block relative group">
+                    <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                       First name
+                      <span className="text-destructive text-xs">*</span>
                     </span>
-                    <input
-                      type="text"
-                      name="firstName"
-                      autoComplete="given-name"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="Alex"
-                      className={`${fieldBase} ${fieldBorder(
-                        !!errors.firstName
-                      )} ${fieldFocus}`}
-                      aria-invalid={!!errors.firstName}
-                      aria-describedby={
-                        errors.firstName ? "firstName-error" : undefined
-                      }
-                      disabled={paymentConfirmed}
-                    />
-                    {/* error text here */}
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        name="firstName"
+                        autoComplete="given-name"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="e.g. Alex"
+                        className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
+                          !!errors.firstName
+                        )} ${isFieldValid('firstName', firstName) ? fieldSuccess : ''} ${fieldFocus}`}
+                        aria-invalid={!!errors.firstName}
+                        aria-describedby={
+                          errors.firstName ? "firstName-error" : undefined
+                        }
+                        disabled={paymentConfirmed}
+                      />
+                      {isFieldValid('firstName', firstName) && !errors.firstName && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
                     {errors.firstName && (
-                      <p className="mt-1 text-xs text-destructive">
+                      <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
                         {errors.firstName}
                       </p>
                     )}
                   </label>
 
                   {/* Last name */}
-                  <label className="block">
-                    <span className="text-sm font-medium text-foreground">
+                  <label className="block relative group">
+                    <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                       Last name
+                      <span className="text-destructive text-xs">*</span>
                     </span>
-                    <input
-                      type="text"
-                      name="lastName"
-                      autoComplete="family-name"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      placeholder="Johnson"
-                      className={`${fieldBase} ${fieldBorder(
-                        !!errors.lastName
-                      )} ${fieldFocus}`}
-                      aria-invalid={!!errors.lastName}
-                      aria-describedby={
-                        errors.lastName ? "lastName-error" : undefined
-                      }
-                      disabled={paymentConfirmed}
-                    />
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        name="lastName"
+                        autoComplete="family-name"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="e.g. Johnson"
+                        className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
+                          !!errors.lastName
+                        )} ${isFieldValid('lastName', lastName) ? fieldSuccess : ''} ${fieldFocus}`}
+                        aria-invalid={!!errors.lastName}
+                        aria-describedby={
+                          errors.lastName ? "lastName-error" : undefined
+                        }
+                        disabled={paymentConfirmed}
+                      />
+                      {isFieldValid('lastName', lastName) && !errors.lastName && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
                     {/* error text here */}
                     {errors.lastName && (
-                      <p className="mt-1 text-xs text-destructive">
+                      <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
                         {errors.lastName}
                       </p>
                     )}
                   </label>
                 </div>
 
-                {/* Nationality */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Nationality & Booking Type */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <label className="block">
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                       Nationality
+                      <span className="text-destructive text-xs">*</span>
                     </span>
                     <Select
                       value={nationality || null}
@@ -1170,30 +1379,49 @@ const Page = () => {
                   ) : null}
                 </div>
                 {/* Tour package */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <label className="block sm:col-span-2">
-                    <span className="text-sm font-medium text-foreground">
-                      Tour package
+                <div className="pt-6 border-t-2 border-border/30">
+                  <div className="flex items-center gap-2 mb-4">
+                    <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    <h4 className="text-base font-bold text-foreground">Tour Selection</h4>
+                  </div>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      Tour name
+                      <span className="text-destructive text-xs">*</span>
                     </span>
-                    <Select
-                      value={tourPackage || null}
-                      onChange={(v) => setTourPackage(v)}
-                      options={tourPackageOptions}
-                      placeholder={
-                        tourPackageOptions.length
-                          ? "Select a package"
-                          : "No packages available"
-                      }
-                      ariaLabel="Tour Package"
-                      className="mt-1"
-                      searchable
-                      disabled={
-                        tourPackageOptions.length === 0 || paymentConfirmed
-                      }
-                    />
+                    {isLoadingPackages ? (
+                      <div className="mt-1 px-4 py-3 rounded-lg bg-input/50 border-2 border-border backdrop-blur-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent"></div>
+                          <span className="text-muted-foreground">Loading tour packages...</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <Select
+                        value={tourPackage || null}
+                        onChange={(v) => setTourPackage(v)}
+                        options={tourPackageOptions}
+                        placeholder={
+                          tourPackageOptions.length
+                            ? "Select a package"
+                            : "No packages available"
+                        }
+                        ariaLabel="Tour Package"
+                        className="mt-1"
+                        searchable
+                        disabled={
+                          tourPackageOptions.length === 0 || paymentConfirmed
+                        }
+                      />
+                    )}
                     {/* error text here */}
                     {errors.tourPackage && (
-                      <p className="mt-1 text-xs text-destructive">
+                      <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
                         {errors.tourPackage}
                       </p>
                     )}
@@ -1201,32 +1429,54 @@ const Page = () => {
                 </div>
                 {/* Tour date (conditionally shown) */}
                 <div
-                  className="overflow-hidden transition-[max-height,opacity] duration-300"
+                  className="overflow-hidden transition-[max-height,opacity] duration-500 ease-in-out"
                   style={{
-                    maxHeight: dateVisible ? 140 : 0,
+                    maxHeight: dateVisible ? 200 : 0,
                     opacity: dateVisible ? 1 : 0,
                   }}
                 >
                   {dateMounted && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="pt-4">
                       <label className="block">
-                        <span className="text-sm font-medium text-foreground">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
                           Tour date
+                          <span className="text-destructive text-xs">*</span>
                         </span>
                         <Select
                           value={tourDate || null}
                           onChange={setTourDate}
                           options={tourDateOptions}
-                          placeholder="Select a date"
+                          placeholder={
+                            tourDateOptions.length === 0
+                              ? "No dates available for this tour"
+                              : "Select a date"
+                          }
                           ariaLabel="Tour Date"
                           className="mt-1"
                           disabled={!tourPackage || paymentConfirmed}
                         />
                         {/* error text here */}
                         {errors?.tourDate && (
-                          <p className="mt-1 text-xs text-destructive">
+                          <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
                             {errors.tourDate}
                           </p>
+                        )}
+                        {/* Info message when no dates available */}
+                        {tourPackage && tourDateOptions.length === 0 && !errors?.tourDate && (
+                          <div className="mt-2 p-3 rounded-lg bg-amber-50/10 border border-amber-500/30">
+                            <p className="text-xs text-amber-600 flex items-start gap-2">
+                              <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                              <span>This tour currently has no available dates. Please check back soon or contact us for more information.</span>
+                            </p>
+                          </div>
                         )}
                       </label>
                     </div>
@@ -1238,14 +1488,24 @@ const Page = () => {
 
           {/* STEP 2 - PAYMENT */}
           {step === 2 && (
-            <div className="rounded-md bg-card/60 p-4 border border-border space-y-4">
-              <h3 className="text-lg font-medium text-foreground">
-                Pay reservation fee
-              </h3>
+            <div className="rounded-lg bg-card/80 backdrop-blur-md p-4 sm:p-6 border border-border shadow-xl space-y-6">
+              <div className="flex items-center gap-3 pb-3 border-b-2 border-border/50">
+                <div className="p-2 rounded-lg bg-green-500/10">
+                  <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">
+                    Pay reservation fee
+                  </h3>
+                  <p className="text-xs text-muted-foreground">Secure your spot with a deposit</p>
+                </div>
+              </div>
 
               {!tourPackage ? (
                 <p className="text-sm text-destructive">
-                  Please go back and choose a tour package before proceeding to
+                  Please go back and choose a tour name before proceeding to
                   payment.
                 </p>
               ) : paymentConfirmed ? (
@@ -1318,20 +1578,20 @@ const Page = () => {
                     </div>
                   </div>
 
-                  <div className="bg-muted/10 border border-border rounded-md p-4 mb-4">
+                  <div className="bg-muted/10 border-2 border-border rounded-lg p-5 mb-4 shadow-sm">
                     <div className="flex justify-between items-center text-sm mt-2">
-                      <span className="text-muted-foreground">
+                      <span className="text-foreground/70 font-semibold">
                         Tour package:
                       </span>
-                      <span className="font-medium">
+                      <span className="font-bold text-foreground">
                         {tourPackages.find((p) => p.id === tourPackage)?.name}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center text-sm mt-2">
-                      <span className="text-muted-foreground">
+                    <div className="flex justify-between items-center text-sm mt-3 pt-3 border-t border-border/50">
+                      <span className="text-foreground/70 font-semibold">
                         Reservation fee:
                       </span>
-                      <span className="font-medium text-lg">
+                      <span className="font-bold text-lg text-crimson-red">
                         £{depositAmount.toFixed(2)}
                       </span>
                     </div>
@@ -1473,6 +1733,13 @@ const Page = () => {
                         // We'll clear this when the user moves to the next step or starts a new booking.
 
                         setPaymentConfirmed(true);
+                        // Mark steps 1 and 2 as completed
+                        if (!completedSteps.includes(1)) {
+                          setCompletedSteps((prev) => [...prev, 1]);
+                        }
+                        if (!completedSteps.includes(2)) {
+                          setCompletedSteps((prev) => [...prev, 2]);
+                        }
                       } catch (error) {
                         console.error(
                           "❌ Error saving booking information:",
@@ -1481,6 +1748,13 @@ const Page = () => {
                         console.error("Error details:", error);
                         // Still proceed with payment confirmation even if saving fails
                         setPaymentConfirmed(true);
+                        // Mark steps as completed even on error
+                        if (!completedSteps.includes(1)) {
+                          setCompletedSteps((prev) => [...prev, 1]);
+                        }
+                        if (!completedSteps.includes(2)) {
+                          setCompletedSteps((prev) => [...prev, 2]);
+                        }
                       }
                     }}
                   />
@@ -1491,12 +1765,12 @@ const Page = () => {
 
           {/* STEP 3 - PAYMENT PLAN */}
           {step === 3 && (
-            <div className="rounded-md bg-card/60 p-4 border border-border space-y-4">
-              <div className="bg-spring-green/10 border border-spring-green/30 p-4 rounded-md mb-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-spring-green text-white">
+            <div className="rounded-lg bg-card/80 backdrop-blur-md p-4 sm:p-6 border border-border shadow-xl space-y-6">
+              <div className="bg-gradient-to-r from-spring-green/10 to-green-500/10 border-2 border-spring-green/40 p-5 rounded-xl shadow-lg">
+                <div className="flex items-start gap-4">
+                  <div className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-spring-green to-green-500 text-white shadow-lg animate-bounce">
                     <svg
-                      className="h-5 w-5"
+                      className="h-6 w-6"
                       viewBox="0 0 24 24"
                       fill="none"
                       aria-hidden
@@ -1504,19 +1778,19 @@ const Page = () => {
                       <path
                         d="M20 6L9 17l-5-5"
                         stroke="currentColor"
-                        strokeWidth="2"
+                        strokeWidth="2.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
                     </svg>
                   </div>
                   <div>
-                    <div className="font-medium text-foreground">
-                      Reservation confirmed!
+                    <div className="font-bold text-lg text-foreground">
+                      🎉 Reservation confirmed!
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      Booking ID:{" "}
-                      <span className="font-mono font-medium text-foreground">
+                    <div className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+                      <span>Booking ID:</span>
+                      <span className="font-mono font-semibold text-foreground bg-background/50 px-2 py-0.5 rounded">
                         {bookingId}
                       </span>
                     </div>
@@ -1530,49 +1804,49 @@ const Page = () => {
 
               {/* Tour Details Summary */}
               {selectedPackage && (
-                <div className="bg-muted/10 border border-border rounded-md p-4">
-                  <div className="text-sm space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
+                <div className="bg-muted/10 border-2 border-border rounded-lg p-5 shadow-sm">
+                  <div className="text-sm space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-foreground/70 font-semibold">
                         Tour package:
                       </span>
-                      <span className="font-medium">
+                      <span className="font-bold text-foreground">
                         {selectedPackage.name}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tour date:</span>
-                      <span className="font-medium">{tourDate}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-foreground/70 font-semibold">Tour date:</span>
+                      <span className="font-bold text-foreground">{tourDate}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
+                    <div className="flex justify-between items-center">
+                      <span className="text-foreground/70 font-semibold">
                         Days until tour:
                       </span>
-                      <span className="font-medium">
+                      <span className="font-bold text-foreground">
                         {calculateDaysBetween(tourDate)} days
                       </span>
                     </div>
-                    <div className="border-t border-border my-2"></div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tour cost:</span>
-                      <span className="font-medium">
+                    <div className="border-t-2 border-border/50 my-3"></div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-foreground/70 font-semibold">Tour cost:</span>
+                      <span className="font-bold text-foreground text-base">
                         £{selectedPackage.price.toFixed(2)}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
+                    <div className="flex justify-between items-center">
+                      <span className="text-foreground/70 font-semibold">
                         Reservation fee paid:
                       </span>
-                      <span className="font-medium text-spring-green">
+                      <span className="font-bold text-spring-green text-base">
                         -£{depositAmount.toFixed(2)}
                       </span>
                     </div>
-                    <div className="border-t border-border my-2"></div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
+                    <div className="border-t-2 border-border/50 my-3"></div>
+                    <div className="flex justify-between items-center pt-1">
+                      <span className="text-foreground font-bold">
                         Remaining balance:
                       </span>
-                      <span className="font-bold text-lg">
+                      <span className="font-bold text-xl text-crimson-red">
                         £{(selectedPackage.price - depositAmount).toFixed(2)}
                       </span>
                     </div>
@@ -1714,15 +1988,15 @@ const Page = () => {
 
           {/* Step footer actions */}
           <div className="flex items-center justify-between mt-2">
-            {step > 1 && step < 3 ? (
+            {step > 1 && !bookingConfirmed ? (
               <button
                 type="button"
                 onClick={() =>
                   setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s))
                 }
-                className="text-sm text-muted-foreground hover:text-foreground"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
-                Back
+                ← Back
               </button>
             ) : step === 1 && !paymentConfirmed ? (
               <button
@@ -1765,11 +2039,17 @@ const Page = () => {
                 type="button"
                 onClick={() => {
                   if (!validate()) return;
+                  if (!completedSteps.includes(1)) {
+                    setCompletedSteps([...completedSteps, 1]);
+                  }
                   setStep(2);
                 }}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-md shadow-md hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-ring transition"
+                className="group inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary to-crimson-red text-primary-foreground rounded-lg shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200 font-semibold"
               >
-                Next
+                Continue to Payment
+                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
               </button>
             )}
 
@@ -1778,6 +2058,10 @@ const Page = () => {
                 type="button"
                 disabled={!paymentConfirmed}
                 onClick={() => {
+                  // Mark step 2 as completed
+                  if (!completedSteps.includes(2)) {
+                    setCompletedSteps([...completedSteps, 2]);
+                  }
                   // Clear the payment session when proceeding to next step to allow new bookings later
                   try {
                     const sessionKey = `stripe_payment_${email}_${tourPackage}`;
@@ -1785,14 +2069,18 @@ const Page = () => {
                   } catch {}
                   setStep(3);
                 }}
-                className={`inline-flex items-center gap-2 px-6 py-3 rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-ring transition
-                              ${
-                                paymentConfirmed
-                                  ? "bg-primary text-primary-foreground hover:brightness-95"
-                                  : "bg-muted text-muted-foreground cursor-not-allowed"
-                              }`}
+                className={`group inline-flex items-center gap-2 px-8 py-3.5 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 font-semibold ${
+                  paymentConfirmed
+                    ? "bg-gradient-to-r from-primary to-crimson-red text-primary-foreground hover:shadow-xl hover:scale-105 focus:ring-primary"
+                    : "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
+                }`}
               >
-                Continue
+                Continue to Payment Plan
+                {paymentConfirmed && (
+                  <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                )}
               </button>
             )}
 
@@ -1800,9 +2088,9 @@ const Page = () => {
               <button
                 type="button"
                 onClick={handleConfirmBooking}
-                className={`inline-flex items-center gap-2 px-6 py-3 rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-ring transition ${
+                className={`group inline-flex items-center gap-2 px-8 py-3.5 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 font-semibold ${
                   availablePaymentTerm.isLastMinute || selectedPaymentPlan
-                    ? "bg-primary text-primary-foreground hover:brightness-95"
+                    ? "bg-gradient-to-r from-spring-green to-green-500 text-white hover:shadow-xl hover:scale-105 focus:ring-spring-green"
                     : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                 }`}
                 disabled={
@@ -1832,7 +2120,12 @@ const Page = () => {
                     Confirming...
                   </>
                 ) : (
-                  "Confirm Booking"
+                  <>
+                    Confirm Booking
+                    <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </>
                 )}
               </button>
             )}
@@ -1911,6 +2204,7 @@ const Page = () => {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

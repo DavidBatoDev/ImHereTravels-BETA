@@ -122,7 +122,7 @@ export const DEFAULT_PAYMENT_TERMS: Omit<
   {
     name: "Full Payment Required Within 2 Days",
     description:
-      "Capture last-minute bookings while ensuring immediate payment. Tour date is 2-30 days away with no eligible instalment dates available.",
+      "Capture last-minute bookings while ensuring immediate payment. Tour date is 2-30 days away with no eligible installment dates available.",
     paymentPlanType: "full_payment_48hrs",
     paymentType: "full_payment",
     daysRequired: 2, // Changed from 48 hours to 2 days for consistency
@@ -133,9 +133,9 @@ export const DEFAULT_PAYMENT_TERMS: Omit<
     color: "#f59e0b", // amber
   },
   {
-    name: "P1 - Single Instalment",
+    name: "P1 - Single Installment",
     description:
-      "Simplified payment for shorter lead times. Only 1 eligible payment date available, tour date 30-60 days away.",
+      "Ready to pay in full? Pick me.",
     paymentPlanType: "p1_single_installment",
     paymentType: "monthly_scheduled",
     daysRequired: undefined,
@@ -148,9 +148,9 @@ export const DEFAULT_PAYMENT_TERMS: Omit<
     color: "#3b82f6", // blue
   },
   {
-    name: "P2 - Two Instalments",
+    name: "P2 - Two Installments",
     description:
-      "Balance affordability with business cash flow needs. 2 eligible payment dates available, tour date 60-90 days away.",
+      "Want to split it into two payments? This is it!",
     paymentPlanType: "p2_two_installments",
     paymentType: "monthly_scheduled",
     daysRequired: undefined,
@@ -163,9 +163,9 @@ export const DEFAULT_PAYMENT_TERMS: Omit<
     color: "#8b5cf6", // violet
   },
   {
-    name: "P3 - Three Instalments",
+    name: "P3 - Three Installments",
     description:
-      "Make longer-term bookings more affordable. 3 eligible payment dates available, tour date 90-120 days away.",
+      "If you like, you can make three equal payments, too!",
     paymentPlanType: "p3_three_installments",
     paymentType: "monthly_scheduled",
     daysRequired: undefined,
@@ -178,9 +178,9 @@ export const DEFAULT_PAYMENT_TERMS: Omit<
     color: "#10b981", // emerald
   },
   {
-    name: "P4 - Four Instalments",
+    name: "P4 - Four Installments",
     description:
-      "Maximum flexibility for early planners. 4+ eligible payment dates available, tour date 120+ days away.",
+      "Since you're booking early, take advantage of 4 easy payments. No extra charges!",
     paymentPlanType: "p4_four_installments",
     paymentType: "monthly_scheduled",
     daysRequired: undefined,
@@ -201,10 +201,10 @@ export const DEFAULT_PAYMENT_TERMS: Omit<
 export const PAYMENT_PLAN_TYPE_LABELS: Record<PaymentPlanType, string> = {
   invalid_booking: "Invalid Booking",
   full_payment_48hrs: "Full Payment (2 Days)", // Updated from 48hrs to 2 Days
-  p1_single_installment: "P1 - Single Instalment",
-  p2_two_installments: "P2 - Two Instalments",
-  p3_three_installments: "P3 - Three Instalments",
-  p4_four_installments: "P4 - Four Instalments",
+  p1_single_installment: "P1 - Single Installment",
+  p2_two_installments: "P2 - Two Installments",
+  p3_three_installments: "P3 - Three Installments",
+  p4_four_installments: "P4 - Four Installments",
   custom: "Custom Plan",
 };
 

@@ -8,6 +8,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import { useTheme } from "next-themes";
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -122,7 +123,13 @@ function PaymentForm({ clientSecret, paymentDocId, onSuccess, onError }: Payment
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <PaymentElement />
+      <PaymentElement 
+        onLoadError={(error) => {
+          console.error("Payment Element load error:", error);
+          setMessage("Unable to load payment form. Please refresh the page and try again.");
+          onError("Payment form failed to load");
+        }}
+      />
       
       {message && (
         <div
@@ -187,6 +194,12 @@ export default function StripePayment({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const initializePayment = () => {
     setLoading(true);
@@ -316,17 +329,22 @@ export default function StripePayment({
     );
   }
 
+  // Determine if dark mode is active
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+
   const options = {
     clientSecret,
     appearance: {
-      theme: "stripe" as const,
+      theme: (isDark ? "night" : "stripe") as const,
       variables: {
         colorPrimary: "#FF385C",
-        colorBackground: "#ffffff",
-        colorText: "#1a1a1a",
+        colorBackground: isDark ? "#2a2a2a" : "#ffffff",
+        colorText: isDark ? "#f5f5f5" : "#1a1a1a",
         colorDanger: "#df1b41",
         fontFamily: "system-ui, sans-serif",
         borderRadius: "6px",
+        colorTextSecondary: isDark ? "#b3b3b3" : "#6b7280",
+        colorTextPlaceholder: isDark ? "#737373" : "#9ca3af",
       },
     },
   };

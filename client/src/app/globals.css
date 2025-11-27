@@ -155,11 +155,11 @@
 @layer base {
   :root {
     --background: 30 11% 94%; /* #F2F0EE - light-grey */
-    --foreground: 0 0% 0%;
+    --foreground: 0 0% 13%; /* Darker for better contrast */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
+    --card-foreground: 0 0% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
+    --popover-foreground: 0 0% 13%;
 
     /* Primary Brand Colors */
     --primary: 0 75% 53%; /* Crimson Red #EF3340 */
@@ -187,18 +187,44 @@
     --light-yellow: #fbe687;
 
     /* System Colors */
-    --muted: 210 19% 90%;
-    --muted-foreground: 0 0% 59%;
+    --muted: 210 19% 88%;
+    --muted-foreground: 0 0% 40%; /* Darker for better contrast */
     --accent: 210 19% 90%;
-    --accent-foreground: 0 0% 0%;
+    --accent-foreground: 0 0% 13%;
     --destructive: 0 75% 53%;
     --destructive-foreground: 0 0% 100%;
-    --border: 210 19% 90%;
-    --input: 210 19% 90%;
+    --border: 210 19% 85%;
+    --input: 210 19% 96%;
     --ring: 0 75% 53%;
     --radius: 0.5rem;
     --card-surface: 0 0% 100%; /* White for light mode */
+  }
 
+
+
+  /* Smooth theme transitions */
+  .theme-transition,
+  .theme-transition * {
+    transition: background-color 0.3s ease, 
+                border-color 0.3s ease, 
+                color 0.3s ease,
+                box-shadow 0.3s ease !important;
+  }
+
+  /* Preserve other transitions */
+  .theme-transition *[class*="transition-all"],
+  .theme-transition *[class*="transition-transform"],
+  .theme-transition *[class*="transition-opacity"] {
+    transition: background-color 0.3s ease, 
+                border-color 0.3s ease, 
+                color 0.3s ease,
+                transform 0.2s ease,
+                opacity 0.2s ease,
+                box-shadow 0.3s ease !important;
+  }
+
+  /* Legacy dark class support */
+  .dark {
     /* Sidebar Colors - Light Mode */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 0 0% 0%;
@@ -211,20 +237,20 @@
   }
 
   .dark {
-    --background: 220 25% 10%; /* Creative Midnight #1C1F2A */
-    --foreground: 0 0% 100%;
-    --card: 220 25% 12%; /* Slightly lighter than background */
-    --card-foreground: 0 0% 100%;
-    --popover: 220 25% 12%;
-    --popover-foreground: 0 0% 100%;
+    --background: 0 0% 10%; /* #1a1a1a - Very dark for better contrast */
+    --foreground: 0 0% 95%; /* #f5f5f5 - Light gray for readability */
+    --card: 0 0% 16%; /* #2a2a2a - Slightly lighter for depth */
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 16%;
+    --popover-foreground: 0 0% 95%;
 
     /* Primary Brand Colors - Dark Mode */
-    --primary: 0 78% 67%; /* Light Red for better contrast */
-    --primary-foreground: 220 25% 10%;
-    --secondary: 220 25% 10%; /* Creative Midnight as secondary */
+    --primary: 0 75% 58%; /* Slightly brighter crimson for dark bg */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 263 50% 45%; /* Adjusted creative midnight */
     --secondary-foreground: 0 0% 100%;
 
-    /* Brand Colors - Dark Mode (Creative Midnight as primary dark color) */
+    /* Brand Colors - Dark Mode */
     --crimson-red: #ff585d;
     --light-red: #ef3340;
     --creative-midnight: #1c1f2a; /* Keep original Creative Midnight */
@@ -244,14 +270,14 @@
     --light-yellow: #fbe687;
 
     /* System Colors - Dark Mode */
-    --muted: 220 25% 15%; /* Slightly lighter than Creative Midnight */
-    --muted-foreground: 0 0% 70%;
-    --accent: 220 25% 15%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 78% 67%;
-    --destructive-foreground: 220 25% 10%;
-    --border: 220 25% 20%;
-    --input: 220 25% 15%;
+    --muted: 0 0% 16%; /* Muted backgrounds */
+    --muted-foreground: 0 0% 70%; /* Higher contrast for descriptions */
+    --accent: 0 0% 20%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 75% 58%; /* Slightly brighter red */
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 25%; /* Lighter borders for visibility */
+    --input: 0 0% 20%; /* Slightly lighter input backgrounds */
     --ring: 0 78% 67%;
     --card-surface: 220 25% 10%; /* Creative Midnight for dark mode */
 
@@ -851,6 +877,55 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Theme-specific Form Enhancements */
+@layer components {
+  /* Dark mode form adjustments */
+  [data-theme="dark"] input,
+  [data-theme="dark"] select,
+  [data-theme="dark"] textarea {
+    color-scheme: dark;
+  }
+
+  [data-theme="dark"] .bg-input {
+    background-color: hsl(var(--input));
+    color: hsl(var(--foreground));
+  }
+
+  /* Improve gradient progress bar visibility in dark mode */
+  [data-theme="dark"] .bg-gradient-to-r {
+    filter: brightness(1.1);
+  }
+
+  /* Ensure checkmarks are visible in dark mode */
+  [data-theme="dark"] .text-green-500 {
+    color: #4ade80 !important;
+  }
+
+  /* Adjust card shadows for dark mode */
+  [data-theme="dark"] .shadow-xl {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  [data-theme="dark"] .shadow-lg {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  /* Improve border visibility in dark mode */
+  [data-theme="dark"] .border-border {
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Better focus rings for dark mode */
+  [data-theme="dark"] .focus\:ring-primary\/20:focus {
+    --tw-ring-color: hsl(var(--primary) / 0.3) !important;
+  }
+
+  /* Animated background adjustments for dark mode */
+  [data-theme="dark"] .bg-gradient-to-br {
+    opacity: 0.4;
+  }
+}
+
 .gmail-attachment-card .attachment-overlay {
   backdrop-filter: blur(2px);
   transition: all 0.2s ease-in-out;
@@ -901,4 +976,9 @@
 
 .animate-slide-down {
   animation: slide-down 0.3s ease-out;
+}
+
+/* Fade in animation for step descriptions */
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
 }
