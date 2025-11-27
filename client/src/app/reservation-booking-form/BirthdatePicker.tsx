@@ -78,7 +78,8 @@ export default function BirthdatePickerModal({
   while (cells.length % 7 !== 0) cells.push({ d: cells.length - (startWeekday + thisDays) + 1, inMonth: false });
 
   const pick = (rowIndex: number, inMonth: boolean, d: number) => {
-    let y = viewYear, m = viewMonth, day = d;
+    let y = viewYear, m = viewMonth;
+    const day = d;
     if (!inMonth) {
       if (rowIndex === 0) { m = viewMonth === 0 ? 11 : viewMonth - 1; y = viewMonth === 0 ? viewYear - 1 : viewYear; }
       else                { m = viewMonth === 11 ? 0  : viewMonth + 1; y = viewMonth === 11 ? viewYear + 1 : viewYear; }
@@ -268,7 +269,8 @@ export default function BirthdatePickerModal({
             <div className="grid grid-cols-7 gap-1.5 p-5 pt-2">
               {cells.map((c, idx) => {
                 const row = Math.floor(idx / 7);
-                let y = viewYear, m = viewMonth, d = c.d;
+                let y = viewYear, m = viewMonth;
+                const d = c.d;
                 if (!c.inMonth) {
                   if (row === 0) { m = viewMonth === 0 ? 11 : viewMonth - 1; y = viewMonth === 0 ? viewYear - 1 : viewYear; }
                   else           { m = viewMonth === 11 ? 0  : viewMonth + 1; y = viewMonth === 11 ? viewYear + 1 : viewYear; }
