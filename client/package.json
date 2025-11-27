@@ -62,6 +62,7 @@
     "log-ts-files": "tsx src/scripts/log-ts-files.ts",
     "log-ts-folders": "tsx src/scripts/log-ts-folders.ts",
     "export:prod": "node scripts/export-prod-collections.js",
+    "sync:collection": "node scripts/sync-collection.js",
     "import:dev": "node scripts/import-to-dev.js"
   },
   "dependencies": {
