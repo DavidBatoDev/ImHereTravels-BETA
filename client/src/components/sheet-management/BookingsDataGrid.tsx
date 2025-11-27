@@ -129,6 +129,11 @@ import { bookingService } from "@/services/booking-service";
 import { isImporting } from "@/services/import-state";
 import { useRouter } from "next/navigation";
 import { ScheduledEmailService } from "@/services/scheduled-email-service";
+import {
+  retryComputation,
+  createColumnComputationRetryConfig,
+  isRetryableError,
+} from "@/utils/retry-computation";
 // Simple deep equality check
 const isEqual = (a: any, b: any): boolean => {
   if (a === b) return true;
@@ -249,6 +254,11 @@ export default function BookingsDataGrid({
     new Map()
   );
 
+  // Dynamic options for select columns (loaded via column.loadOptions)
+  const [dynamicOptions, setDynamicOptions] = useState<
+    Record<string, string[]>
+  >({});
+
   // Loading state for email generation and sending
   const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
   const [emailGenerationProgress, setEmailGenerationProgress] = useState<{
@@ -355,6 +365,36 @@ export default function BookingsDataGrid({
   // Set columns in batched writer for version history data type detection
   useEffect(() => {
     batchedWriter.setColumns(columns);
+  }, [columns]);
+
+  // Load dynamic options for select columns that provide a `loadOptions` function
+  useEffect(() => {
+    let mounted = true;
+
+    const loadDynamicOptions = async () => {
+      const map: Record<string, string[]> = {};
+      for (const col of columns) {
+        if (col.dataType === "select" && col.loadOptions) {
+          try {
+            const opts = await col.loadOptions();
+            map[col.id] = opts || [];
+          } catch (error) {
+            console.error(
+              `Failed to load options for ${col.columnName}:`,
+              error
+            );
+            map[col.id] = col.options || [];
+          }
+        }
+      }
+      if (mounted) setDynamicOptions(map);
+    };
+
+    loadDynamicOptions();
+
+    return () => {
+      mounted = false;
+    };
   }, [columns]);
 
   // Set up monitoring for aria-selected changes
@@ -819,104 +859,130 @@ export default function BookingsDataGrid({
         functionArgsCacheRef.current.set(cacheKey, [...args]);
 
         // Use injected compiled function if available, otherwise fall back to service
-        let result: any;
-        if (funcCol.compiledFunction) {
-          // Direct function execution (fastest path)
-          console.log(
-            `⚡ [DIRECT EXEC] Calling ${funcCol.function} with args:`,
-            args
-          );
 
-          // Check if this is an email generation or sending function
-          const isEmailGenerationFunction =
-            funcCol.function === "generateGmailDraftFunction" ||
-            funcCol.function === "generateCancellationGmailDraftFunction";
+        // Wrap function execution with retry logic
+        const retryConfig = createColumnComputationRetryConfig(
+          funcCol.columnName
+        );
 
-          const isEmailSendingFunction =
-            funcCol.function === "sendEmailDraftOnceFunction" ||
-            funcCol.function === "sendCancellationEmailDraftOnceFunction";
+        const retryResult = await retryComputation(async () => {
+          if (funcCol.compiledFunction) {
+            // Direct function execution (fastest path)
+            console.log(
+              `⚡ [DIRECT EXEC] Calling ${funcCol.function} with args:`,
+              args
+            );
 
-          const isEmailFunction =
-            isEmailGenerationFunction || isEmailSendingFunction;
+            // Check if this is an email generation or sending function
+            const isEmailGenerationFunction =
+              funcCol.function === "generateGmailDraftFunction" ||
+              funcCol.function === "generateCancellationGmailDraftFunction";
 
-          if (isEmailFunction) {
-            // Show loading modal for email generation or sending
-            setIsGeneratingEmail(true);
+            const isEmailSendingFunction =
+              funcCol.function === "sendEmailDraftOnceFunction" ||
+              funcCol.function === "sendCancellationEmailDraftOnceFunction";
 
-            let emailType: "reservation" | "cancellation" = "reservation";
-            if (
-              funcCol.function === "generateCancellationGmailDraftFunction" ||
-              funcCol.function === "sendCancellationEmailDraftOnceFunction"
-            ) {
-              emailType = "cancellation";
-            }
+            const isEmailFunction =
+              isEmailGenerationFunction || isEmailSendingFunction;
 
-            // Determine if we're toggling off (deleting draft)
-            let action: "generating" | "sending" | "deleting" = "generating";
-            if (isEmailSendingFunction) {
-              action = "sending";
-            } else if (isEmailGenerationFunction) {
-              // Check if toggling off by looking at the generate flag argument (usually index 3)
-              const generateFlagIndex = 3; // generateEmailDraft or generateCancellationDraft is typically the 4th argument
-              const isTogglingOff = args[generateFlagIndex] === false;
-              action = isTogglingOff ? "deleting" : "generating";
-            }
-
-            setEmailGenerationProgress({
-              type: emailType,
-              bookingId: args[0] || null, // First argument is typically bookingId or draftUrl
-              action: action,
-            });
-          }
-
-          try {
-            result = funcCol.compiledFunction(...args);
-
-            // Handle async functions
-            if (result && typeof result.then === "function") {
-              result = await result;
-            }
-          } finally {
             if (isEmailFunction) {
-              // Hide loading modal after function completes
-              setIsGeneratingEmail(false);
+              // Show loading modal for email generation or sending
+              setIsGeneratingEmail(true);
+
+              let emailType: "reservation" | "cancellation" = "reservation";
+              if (
+                funcCol.function === "generateCancellationGmailDraftFunction" ||
+                funcCol.function === "sendCancellationEmailDraftOnceFunction"
+              ) {
+                emailType = "cancellation";
+              }
+
+              // Determine if we're toggling off (deleting draft)
+              let action: "generating" | "sending" | "deleting" = "generating";
+              if (isEmailSendingFunction) {
+                action = "sending";
+              } else if (isEmailGenerationFunction) {
+                // Check if toggling off by looking at the generate flag argument (usually index 3)
+                const generateFlagIndex = 3; // generateEmailDraft or generateCancellationDraft is typically the 4th argument
+                const isTogglingOff = args[generateFlagIndex] === false;
+                action = isTogglingOff ? "deleting" : "generating";
+              }
+
               setEmailGenerationProgress({
-                type: null,
-                bookingId: null,
-                action: null,
+                type: emailType,
+                bookingId: args[0] || null, // First argument is typically bookingId or draftUrl
+                action: action,
               });
             }
-          }
-        } else {
-          // Fallback to function execution service (legacy path)
-          const timeout = skipInitialCheck ? 30000 : 10000;
-          const executionResult =
-            await functionExecutionService.executeFunction(
-              funcCol.function!,
-              args,
-              timeout,
-              row.id, // Pass rowId for dependency-aware caching
-              funcCol.id // Pass columnId for dependency-aware caching
-            );
 
-          if (!executionResult.success) {
-            attemptErrorCountRef.current =
-              (attemptErrorCountRef.current || 0) + 1;
-            if (isRecomputingAllRef.current) {
-              setRecomputeProgress((prev) => ({
-                ...prev,
-                errorDetected: true,
-                errorCount: (prev.errorCount || 0) + 1,
-              }));
+            try {
+              let fnResult = funcCol.compiledFunction(...args);
+
+              // Handle async functions
+              if (fnResult && typeof fnResult.then === "function") {
+                fnResult = await fnResult;
+              }
+
+              return fnResult;
+            } finally {
+              if (isEmailFunction) {
+                // Hide loading modal after function completes
+                setIsGeneratingEmail(false);
+                setEmailGenerationProgress({
+                  type: null,
+                  bookingId: null,
+                  action: null,
+                });
+              }
             }
-            logFunctionError(
-              `Function execution failed for ${funcCol.function}:`,
-              executionResult.error
-            );
-            return row[funcCol.id]; // Return existing value on error
-          }
+          } else {
+            // Fallback to function execution service (legacy path)
+            const timeout = skipInitialCheck ? 30000 : 10000;
+            const executionResult =
+              await functionExecutionService.executeFunction(
+                funcCol.function!,
+                args,
+                timeout,
+                row.id, // Pass rowId for dependency-aware caching
+                funcCol.id // Pass columnId for dependency-aware caching
+              );
 
-          result = executionResult.result;
+            if (!executionResult.success) {
+              throw (
+                executionResult.error || new Error("Function execution failed")
+              );
+            }
+
+            return executionResult.result;
+          }
+        }, retryConfig);
+
+        if (!retryResult.success) {
+          attemptErrorCountRef.current =
+            (attemptErrorCountRef.current || 0) + 1;
+          if (isRecomputingAllRef.current) {
+            setRecomputeProgress((prev) => ({
+              ...prev,
+              errorDetected: true,
+              errorCount: (prev.errorCount || 0) + 1,
+            }));
+          }
+          logFunctionError(
+            `Function execution failed for ${funcCol.function} after ${retryResult.attempts} attempts:`,
+            retryResult.error
+          );
+          return row[funcCol.id]; // Return existing value on error
+        }
+
+        const result: any = retryResult.result;
+
+        // Log retry statistics if retries were needed
+        if (retryResult.attempts > 1) {
+          console.log(
+            `✅ [RETRY SUCCESS] ${funcCol.function} succeeded after ${
+              retryResult.attempts
+            } attempts (${retryResult.totalTime.toFixed(2)}ms)`
+          );
         }
 
         if (!isEqual(row[funcCol.id], result)) {
@@ -1668,6 +1734,117 @@ export default function BookingsDataGrid({
     [columns, localData, data]
   );
 
+  // Recompute selected column with retry logic
+  const recomputeSelectedColumn = useCallback(async () => {
+    if (!selectedColumnId || isImporting() || isRecomputingAll) return;
+
+    const selectedCol = columns.find((c) => c.id === selectedColumnId);
+    if (!selectedCol || selectedCol.dataType !== "function") {
+      toast({
+        title: "Cannot recompute",
+        description: "Selected column is not a function column",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsRecomputingAll(true);
+      setRecomputeProgress({
+        completed: 0,
+        total: 1,
+        phase: "init",
+        attempt: 1,
+        maxAttempts: MAX_RECOMPUTE_ATTEMPTS,
+        errorDetected: false,
+        errorCount: 0,
+      });
+
+      const rows = getCurrentRows();
+      console.log(
+        `🔄 [COLUMN RECOMPUTE] Starting recomputation for column "${selectedCol.columnName}" (${rows.length} rows)`
+      );
+
+      // Clear cache for this column
+      rows.forEach((row) => {
+        const cacheKey = `${row.id}:${selectedCol.id}:${selectedCol.function}`;
+        functionArgsCacheRef.current.delete(cacheKey);
+      });
+
+      setRecomputeProgress((prev) => ({
+        ...prev,
+        total: rows.length,
+        phase: "acyclic",
+      }));
+
+      let errorCount = 0;
+
+      // Process rows in batches
+      const BATCH_SIZE = 10;
+      const totalBatches = Math.ceil(rows.length / BATCH_SIZE);
+
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        const batchStart = batchIndex * BATCH_SIZE;
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, rows.length);
+        const batchRows = rows.slice(batchStart, batchEnd);
+
+        const batchPromises = batchRows.map(async (row) => {
+          try {
+            await computeFunctionForRow(row, selectedCol, true);
+          } catch (error) {
+            errorCount++;
+            logFunctionError(
+              `❌ [COLUMN RECOMPUTE] Error for row ${row.id}:`,
+              error
+            );
+          }
+        });
+
+        await Promise.all(batchPromises);
+
+        setRecomputeProgress((prev) => ({
+          ...prev,
+          completed: batchEnd,
+          errorCount,
+          errorDetected: errorCount > 0,
+        }));
+      }
+
+      // Flush changes
+      setRecomputeProgress((prev) => ({ ...prev, phase: "flushing" }));
+      batchedWriter.flush();
+
+      setRecomputeProgress((prev) => ({
+        ...prev,
+        completed: rows.length,
+        phase: "done",
+      }));
+
+      toast({
+        title: "Recomputation complete",
+        description: `Column "${selectedCol.columnName}" recomputed for ${
+          rows.length
+        } rows${errorCount > 0 ? ` (${errorCount} errors)` : ""}`,
+      });
+
+      console.log(
+        `✅ [COLUMN RECOMPUTE] Completed for "${selectedCol.columnName}"${
+          errorCount > 0 ? ` with ${errorCount} errors` : ""
+        }`
+      );
+
+      setTimeout(() => setIsRecomputingAll(false), 400);
+    } catch (error) {
+      console.error(`❌ [COLUMN RECOMPUTE] Critical error:`, error);
+      toast({
+        title: "Recomputation failed",
+        description: "An error occurred during recomputation",
+        variant: "destructive",
+      });
+      setIsRecomputingAll(false);
+    }
+  }, [selectedColumnId, columns, toast, isRecomputingAll]);
+
   // Recompute all function columns for all rows (used after CSV import)
   // This function is RECURSIVE - it calls itself on errors with progressive backoff
   // Maximum attempts: MAX_RECOMPUTE_ATTEMPTS (30)
@@ -2394,7 +2571,16 @@ export default function BookingsDataGrid({
   };
 
   // Create data with empty rows for layout
-  const dataWithEmptyRows = useMemo(() => {
+  type EmptyRow = {
+    id: string;
+    _isDataRow: boolean;
+    _isEmptyRow: boolean;
+    _isFirstEmptyRow: boolean;
+    _displayIndex: number;
+    _shouldShowAddButton: boolean;
+  };
+
+  const dataWithEmptyRows = useMemo<(SheetData | EmptyRow)[]>(() => {
     const dataRows = currentPageData.map((row, index) => ({
       ...row,
       _isDataRow: true,
@@ -2402,25 +2588,13 @@ export default function BookingsDataGrid({
     }));
 
     // Add empty rows to reach minimum
-    const emptyRows = [];
+    const emptyRows: EmptyRow[] = [];
     const hasActiveFilters = getActiveFiltersCount() > 0;
 
     for (let i = currentPageData.length; i < rowsToShow; i++) {
       const isFirstEmptyRow = i === currentPageData.length;
       const actualRowNumber = startIndex + i;
       const shouldShowAddButton = isFirstEmptyRow && !hasActiveFilters;
-
-      // Debug logging for first empty row
-      // if (isFirstEmptyRow) {
-      //   console.log("🔍 [EMPTY ROW DEBUG]", {
-      //     currentPageDataLength: currentPageData.length,
-      //     rowsToShow,
-      //     hasActiveFilters,
-      //     activeFiltersCount: getActiveFiltersCount(),
-      //     shouldShowAddButton,
-      //     isFirstEmptyRow,
-      //   });
-      // }
 
       emptyRows.push({
         id: `empty-${i}`,
@@ -2444,9 +2618,9 @@ export default function BookingsDataGrid({
   // Custom select editor with dropdown functionality
   const selectEditor = useCallback(
     ({ row, column, onRowChange, onClose }: RenderEditCellProps<SheetData>) => {
-      // Get column definition to access options
+      // Get column definition to access options and columnName
       const columnDef = columns.find((col) => col.id === column.key);
-      const options = columnDef?.options || [];
+      const options = dynamicOptions[column.key] || columnDef?.options || [];
 
       const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newValue = e.target.value;
@@ -2479,6 +2653,20 @@ export default function BookingsDataGrid({
       const cellValue = row[column.key as keyof SheetData];
       const displayValue = cellValue?.toString() || "";
 
+      // Build final options list similar to EditBookingModal: ensure current value present and placeholder
+      const currentValue = String(displayValue || "");
+      const hasCurrentValue = currentValue && currentValue !== "";
+      const currentValueInOptions = options.includes(currentValue);
+      const hasEmptyOption = options.includes("");
+
+      const finalOptions = [...options];
+      if (hasCurrentValue && !currentValueInOptions) {
+        finalOptions.unshift(currentValue);
+      }
+      if (!hasCurrentValue && !hasEmptyOption) {
+        finalOptions.unshift("");
+      }
+
       return (
         <select
           value={displayValue}
@@ -2488,16 +2676,18 @@ export default function BookingsDataGrid({
           autoFocus
           className="h-8 w-full px-2 text-xs border-none outline-none bg-white cursor-pointer"
         >
-          <option value=""></option>
-          {options.map((option: string) => (
-            <option key={option} value={option}>
-              {option}
+          {finalOptions.map((option: string, index: number) => (
+            <option
+              key={option || `placeholder-${column.key}-${index}`}
+              value={option}
+            >
+              {option || `Select ${columnDef?.columnName || column.key}`}
             </option>
           ))}
         </select>
       );
     },
-    [columns, recomputeDirectDependentsForRow]
+    [columns, dynamicOptions, recomputeDirectDependentsForRow]
   );
 
   function FunctionEditor({
@@ -3304,8 +3494,22 @@ export default function BookingsDataGrid({
           }
 
           const cellValue = row[column.key as keyof SheetData];
-          const options = col.options || [];
+          const options = dynamicOptions[col.id] || col.options || [];
           const hasColor = col.color && col.color !== "none";
+
+          // Ensure current value is present and add placeholder if necessary (match EditBookingModal)
+          const currentValue = String(cellValue || "");
+          const hasCurrentValue = currentValue && currentValue !== "";
+          const currentValueInOptions = options.includes(currentValue);
+          const hasEmptyOption = options.includes("");
+
+          const finalOptions = [...options];
+          if (hasCurrentValue && !currentValueInOptions) {
+            finalOptions.unshift(currentValue);
+          }
+          if (!hasCurrentValue && !hasEmptyOption) {
+            finalOptions.unshift("");
+          }
 
           return (
             <select
@@ -3328,10 +3532,12 @@ export default function BookingsDataGrid({
               }`}
               style={{ backgroundColor: "transparent" }}
             >
-              <option value=""></option>
-              {options.map((option: string) => (
-                <option key={option} value={option}>
-                  {option}
+              {finalOptions.map((option: string, index: number) => (
+                <option
+                  key={option || `placeholder-${col.id}-${index}`}
+                  value={option}
+                >
+                  {option || `Select ${col.columnName}`}
                 </option>
               ))}
             </select>
@@ -4207,6 +4413,83 @@ export default function BookingsDataGrid({
                     </Tooltip>
                   </div>
                 </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2"
+                        onClick={() => recomputeAllFunctionColumns()}
+                        disabled={isRecomputingAll}
+                        title="Retry computation for all function columns"
+                      >
+                        {isRecomputingAll ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4" />
+                        )}
+                        Recompute All
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-sm">
+                        Retry computation for all function columns across all
+                        rows.
+                        <br />
+                        <br />
+                        <strong>Features:</strong>
+                        <ul className="list-disc pl-4 mt-1">
+                          <li>Automatic retry with exponential backoff</li>
+                          <li>Smart error detection and recovery</li>
+                          <li>Progress tracking with statistics</li>
+                          <li>Handles timing and dependency issues</li>
+                        </ul>
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {selectedColumnId &&
+                  columns.find(
+                    (c) =>
+                      c.id === selectedColumnId && c.dataType === "function"
+                  ) && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="flex items-center gap-2"
+                            onClick={() => recomputeSelectedColumn()}
+                            disabled={isRecomputingAll}
+                            title="Retry computation for selected column only"
+                          >
+                            {isRecomputingAll ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4" />
+                            )}
+                            Recompute Column
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="text-sm">
+                            Retry computation for the selected column only.
+                            <br />
+                            <br />
+                            <strong>Currently selected:</strong>{" "}
+                            {
+                              columns.find((c) => c.id === selectedColumnId)
+                                ?.columnName
+                            }
+                            <br />
+                            <br />
+                            Processes all rows for this column with automatic
+                            retry logic.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 <Button
                   variant="outline"
                   className="flex items-center gap-2"
@@ -4277,7 +4560,7 @@ export default function BookingsDataGrid({
               // Find the column definition for debugging
               const columnDef = column
                 ? columns.find((col) => col.id === column.key)
-                : null;
+                : undefined;
 
               // Helper function to convert value based on column type
               const convertValueByType = (
@@ -4843,7 +5126,7 @@ export default function BookingsDataGrid({
 
       {/* Version History Modal */}
       <BookingVersionHistoryModal
-        bookingId={versionHistoryBookingId}
+        bookingId={versionHistoryBookingId ?? undefined}
         isOpen={isVersionHistoryOpen}
         onClose={() => setIsVersionHistoryOpen(false)}
         onRestore={handleVersionRestore}

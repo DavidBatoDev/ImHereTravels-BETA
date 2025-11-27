@@ -148,7 +148,10 @@ export default function eligibleSecondsCountFunction(
 
   const generateMonthSeconds = (start: Date, count: number): Date[] => {
     const list: Date[] = [];
-    for (let i = 0; i < count; i++) {
+    // Excel's formula uses: DATE(YEAR(resDate), MONTH(resDate) + SEQUENCE(monthCount), 2)
+    // SEQUENCE(monthCount) generates 1..monthCount, so it starts from the next month.
+    // To match that behaviour, start at i = 1 and go through <= count.
+    for (let i = 1; i <= count; i++) {
       list.push(new Date(start.getFullYear(), start.getMonth() + i, 2));
     }
     return list;

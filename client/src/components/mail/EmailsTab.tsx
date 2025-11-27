@@ -929,58 +929,61 @@ export default function EmailsTab() {
   };
 
   // Toggle star status
-  const toggleStar = async (emailId: string, isStarred: boolean) => {
-    try {
-      const response = await fetch("/api/gmail/star", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messageId: emailId,
-          isStarred,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        // Update the email in the emails array
-        setEmails((prevEmails) =>
-          prevEmails.map((email) =>
-            email.id === emailId
-              ? { ...email, isStarred: result.isStarred }
-              : email
-          )
-        );
-
-        // Update category cache
-        setCategoryEmails((prev) => {
-          const newMap = new Map(prev);
-          const categoryEmails = newMap.get(activeCategory) || [];
-          const updatedEmails = categoryEmails.map((email) =>
-            email.id === emailId
-              ? { ...email, isStarred: result.isStarred }
-              : email
-          );
-          newMap.set(activeCategory, updatedEmails);
-          return newMap;
+    const toggleStar = async (emailId: string, isStarred?: boolean) => {
+      try {
+        // Coerce undefined to a boolean to satisfy the API
+        const starState = !!isStarred;
+  
+        const response = await fetch("/api/gmail/star", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messageId: emailId,
+            isStarred: starState,
+          }),
         });
-
-        // Trigger background refresh after a delay to get updated data
-        setTimeout(() => {
-          handleManualRefresh();
-        }, 500);
+  
+        const result = await response.json();
+  
+        if (result.success) {
+          // Update the email in the emails array
+          setEmails((prevEmails) =>
+            prevEmails.map((email) =>
+              email.id === emailId
+                ? { ...email, isStarred: result.isStarred }
+                : email
+            )
+          );
+  
+          // Update category cache
+          setCategoryEmails((prev) => {
+            const newMap = new Map(prev);
+            const categoryEmails = newMap.get(activeCategory) || [];
+            const updatedEmails = categoryEmails.map((email) =>
+              email.id === emailId
+                ? { ...email, isStarred: result.isStarred }
+                : email
+            );
+            newMap.set(activeCategory, updatedEmails);
+            return newMap;
+          });
+  
+          // Trigger background refresh after a delay to get updated data
+          setTimeout(() => {
+            handleManualRefresh();
+          }, 500);
+        }
+      } catch (error) {
+        console.error("Error toggling star:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update star status",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
-      console.error("Error toggling star:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update star status",
-        variant: "destructive",
-      });
-    }
-  };
+    };
 
   // Archive email
   const handleArchiveEmail = async (email: GmailEmail) => {

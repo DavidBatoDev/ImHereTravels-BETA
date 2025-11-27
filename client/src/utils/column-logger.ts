@@ -162,7 +162,7 @@ export class ColumnLogger {
         id: col.id,
         parentTab: col.parentTab || "General",
         dataType: col.dataType,
-        width: col.width,
+        width: col.width ?? 0,
         includeInForms: col.includeInForms,
         color: col.color,
         options: col.options,

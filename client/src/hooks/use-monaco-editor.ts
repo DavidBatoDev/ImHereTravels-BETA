@@ -11,7 +11,7 @@ interface UseMonacoEditorOptions {
 
 interface UseMonacoEditorReturn {
   editorRef: React.RefObject<any>;
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   isEditorReady: boolean;
   isLoading: boolean;
   setValue: (value: string) => void;

@@ -60,26 +60,8 @@ export default function getBaseMondayFromP4DueDateFunction(
     if (val instanceof Date && !isNaN(val.getTime())) return val;
 
     if (typeof val === "string" && val.trim() !== "") {
-      // Split by comma to handle P4 format: "Feb 2, 2025, May 2, 2025, Aug 2, 2025, Nov 2, 2025"
-      const parts = val.split(",").map((p) => p.trim());
-
-      // For P4, we need the 4th date
-      // Pattern: "Month Day, Year, Month Day, Year, Month Day, Year, Month Day, Year"
-      // After split: ["Month Day", "Year", "Month Day", "Year", "Month Day", "Year", "Month Day", "Year"]
-      // 4th date is at parts[6] + ", " + parts[7]
-
-      if (parts.length >= 8) {
-        // Reconstruct the 4th date from parts[6] and parts[7]
-        const fourthDate = `${parts[6]}, ${parts[7]}`;
-        const parsed = new Date(fourthDate);
-        if (!isNaN(parsed.getTime())) return parsed;
-      }
-
-      // Fallback: try parsing all parts
-      for (const part of parts) {
-        const parsed = new Date(part);
-        if (!isNaN(parsed.getTime())) return parsed;
-      }
+      const parsed = new Date(val);
+      return isNaN(parsed.getTime()) ? null : parsed;
     }
 
     return null;

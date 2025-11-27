@@ -60,26 +60,8 @@ export default function getBaseMondayFromP3DueDateFunction(
     if (val instanceof Date && !isNaN(val.getTime())) return val;
 
     if (typeof val === "string" && val.trim() !== "") {
-      // Split by comma to handle P3/P4 format: "Feb 2, 2025, May 2, 2025, Aug 2, 2025"
-      const parts = val.split(",").map((p) => p.trim());
-
-      // For P3, we need the 3rd date
-      // Pattern: "Month Day, Year, Month Day, Year, Month Day, Year"
-      // After split: ["Month Day", "Year", "Month Day", "Year", "Month Day", "Year"]
-      // 3rd date is at parts[4] + ", " + parts[5]
-
-      if (parts.length >= 6) {
-        // Reconstruct the 3rd date from parts[4] and parts[5]
-        const thirdDate = `${parts[4]}, ${parts[5]}`;
-        const parsed = new Date(thirdDate);
-        if (!isNaN(parsed.getTime())) return parsed;
-      }
-
-      // Fallback: try parsing all parts
-      for (const part of parts) {
-        const parsed = new Date(part);
-        if (!isNaN(parsed.getTime())) return parsed;
-      }
+      const parsed = new Date(val);
+      return isNaN(parsed.getTime()) ? null : parsed;
     }
 
     return null;

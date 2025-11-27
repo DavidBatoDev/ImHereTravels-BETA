@@ -176,7 +176,7 @@ export type TourDuration = "1-3 days" | "4-7 days" | "8-14 days" | "15+ days";
 export type TourCode =
   | "SIA" // Siargao Island Adventure
   | "PHS" // Philippine Sunrise
-  | "PSS" // Philippines Sunset
+  | "PSS" // Philippine Sunset
   | "MLB" // Maldives Bucketlist
   | "SLW" // Sri Lanka Wander Tour
   | "ARW" // Argentina's Wonders

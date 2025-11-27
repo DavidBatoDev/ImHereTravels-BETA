@@ -1,179 +1,179 @@
-import { BookingSheetColumn } from '@/types/booking-sheet-column';
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
 export const remainingBalanceColumn: BookingSheetColumn = {
-  id: 'remainingBalance',
+  id: "remainingBalance",
   data: {
-    id: 'remainingBalance',
-    columnName: 'Remaining Balance',
-    dataType: 'function',
-    function: 'getRemainingBalanceFunction',
-    parentTab: 'Payment Setting',
+    id: "remainingBalance",
+    columnName: "Remaining Balance",
+    dataType: "function",
+    function: "getRemainingBalanceFunction",
+    parentTab: "Payment Setting",
     order: 37,
     includeInForms: false,
-    color: 'yellow',
+    color: "yellow",
     width: 191.33331298828125,
     arguments: [
       {
-        name: 'tourPackageName',
-        type: 'string',
-        columnReference: 'Tour Package Name',
+        name: "tourPackageName",
+        type: "string",
+        columnReference: "Tour Package Name",
         isOptional: false,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'useDiscountedCost',
-        type: 'boolean',
-        columnReference: 'Use Discounted Tour Cost?',
+        name: "useDiscountedCost",
+        type: "boolean",
+        columnReference: "Use Discounted Tour Cost?",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'discountedTourCost',
-        type: 'number',
-        columnReference: 'Discounted Tour Cost',
+        name: "discountedTourCost",
+        type: "number",
+        columnReference: "Discounted Tour Cost",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'originalTourCost',
-        type: 'number',
-        columnReference: 'Original Tour Cost',
+        name: "originalTourCost",
+        type: "number",
+        columnReference: "Original Tour Cost",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'reservationFee',
-        type: 'number',
-        columnReference: 'Reservation Fee',
+        name: "reservationFee",
+        type: "number",
+        columnReference: "Reservation Fee",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'creditFrom',
-        type: 'string',
-        columnReference: 'Credit From',
+        name: "creditFrom",
+        type: "string",
+        columnReference: "Credit From",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'creditAmount',
-        type: 'number',
-        columnReference: 'Manual Credit',
+        name: "creditAmount",
+        type: "number",
+        columnReference: "Manual Credit",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'paymentPlan',
-        type: 'string',
-        columnReference: 'Payment Plan',
+        name: "paymentPlan",
+        type: "string",
+        columnReference: "Payment Plan",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'fullPaymentDate',
-        type: 'string',
-        columnReference: 'Full Payment Date Paid',
+        name: "fullPaymentDate",
+        type: "string",
+        columnReference: "Full Payment Date Paid",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'fullPaymentAmount',
-        type: 'number',
-        columnReference: 'Full Payment Amount',
+        name: "fullPaymentAmount",
+        type: "number",
+        columnReference: "Full Payment Amount",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p1DatePaid',
-        type: 'string',
-        columnReference: 'P1 Date Paid',
+        name: "p1DatePaid",
+        type: "string",
+        columnReference: "P1 Date Paid",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p1Amount',
-        type: 'number',
-        columnReference: 'P1 Amount',
+        name: "p1Amount",
+        type: "number",
+        columnReference: "P1 Amount",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p2DatePaid',
-        type: 'string',
-        columnReference: 'P2 Date Paid',
+        name: "p2DatePaid",
+        type: "string",
+        columnReference: "P2 Date Paid",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p2Amount',
-        type: 'number',
-        columnReference: 'P2 Amount',
+        name: "p2Amount",
+        type: "number",
+        columnReference: "P2 Amount",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p3DatePaid',
-        type: 'string',
-        columnReference: 'P3 Date Paid',
+        name: "p3DatePaid",
+        type: "string",
+        columnReference: "P3 Date Paid",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p3Amount',
-        type: 'number',
-        columnReference: 'P3 Amount',
+        name: "p3Amount",
+        type: "number",
+        columnReference: "P3 Amount",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p4DatePaid',
-        type: 'string',
-        columnReference: 'P4 Date Paid',
+        name: "p4DatePaid",
+        type: "string",
+        columnReference: "P4 Date Paid",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
       {
-        name: 'p4Amount',
-        type: 'number',
-        columnReference: 'P4 Amount',
+        name: "p4Amount",
+        type: "number",
+        columnReference: "P4 Amount",
         isOptional: true,
         hasDefault: false,
         isRest: false,
-        value: '',
+        value: "",
       },
     ],
   },
@@ -230,20 +230,25 @@ export default function getRemainingBalanceFunction(
 ): number | "" {
   if (!tourPackageName) return "";
 
+  // Normalize numeric inputs to avoid undefined values
+  const origCost = originalTourCost ?? 0;
+  const discCost = discountedTourCost ?? 0;
+  const resFee = reservationFee ?? 0;
+  const credit = creditAmount ?? 0;
+
   // Determine which total cost to use (discounted or original)
-  const baseCost = useDiscountedCost ? originalTourCost - discountedTourCost : originalTourCost;
+  const baseCost = useDiscountedCost ? origCost - discCost : origCost;
 
   // Subtract reservation fee and any credit from reservation
-  const total =
-    baseCost - reservationFee - (creditFrom === "Reservation" ? creditAmount : 0);
+  const total = baseCost - resFee - (creditFrom === "Reservation" ? credit : 0);
 
-  // Total paid amount so far
+  // Total paid amount so far (treat missing amounts as 0)
   const paid =
-    (fullPaymentDate ? fullPaymentAmount : 0) +
-    (p1DatePaid ? p1Amount : 0) +
-    (p2DatePaid ? p2Amount : 0) +
-    (p3DatePaid ? p3Amount : 0) +
-    (p4DatePaid ? p4Amount : 0);
+    (fullPaymentDate ? fullPaymentAmount ?? 0 : 0) +
+    (p1DatePaid ? p1Amount ?? 0 : 0) +
+    (p2DatePaid ? p2Amount ?? 0 : 0) +
+    (p3DatePaid ? p3Amount ?? 0 : 0) +
+    (p4DatePaid ? p4Amount ?? 0 : 0);
 
   // Remaining balance
   const remaining = total - paid;

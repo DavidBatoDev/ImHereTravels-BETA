@@ -17,6 +17,8 @@ export { onSendReservationEmailChanged } from "./send-reservation-email"; // Tri
 export { onGenerateCancellationDraftChanged } from "./generate-cancellation-email"; // Trigger for generating cancellation email draft
 export { onSendCancellationEmailChanged } from "./send-cancellation-email"; // Trigger for sending cancellation email
 export { EmailTemplateLoader } from "./email-template-loader";
+export { onPaymentComplete } from "./on-payment-complete"; // Trigger for payment completion (confirmed bookings)
+export { sendBookingConfirmationEmail } from "./send-booking-confirmation-email"; // Callable function to send confirmation email
 // export { getDraftSubject } from "./get-draft-subject";
 // export { getEmailDetails } from "./get-email-details";
 // export { deleteGmailDraft } from "./delete-gmail-draft";

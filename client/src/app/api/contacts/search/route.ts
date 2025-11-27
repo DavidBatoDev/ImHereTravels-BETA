@@ -32,12 +32,13 @@ export async function GET(request: NextRequest) {
     });
 
     const allContacts = (response.data.results || []).map((result) => {
-      const person = result.person;
-      const email = person.emailAddresses?.[0]?.value || "";
-      const displayName = person.names?.[0]?.displayName;
+      // `result.person` can be undefined according to the People API types,
+      // so use optional chaining everywhere we access it.
+      const email = result.person?.emailAddresses?.[0]?.value || "";
+      const displayName = result.person?.names?.[0]?.displayName;
       // Use email as name if no display name or if it's "Unknown"
       const name = displayName && displayName !== "Unknown" ? displayName : email;
-      const photo = person.photos?.[0];
+      const photo = result.person?.photos?.[0];
 
       return {
         name,

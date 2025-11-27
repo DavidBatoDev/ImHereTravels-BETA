@@ -436,10 +436,8 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
 
       // Use availablePaymentTerms directly from booking (e.g., "P1", "P1, P2", "P1, P2, P3", "P1, P2, P3, P4")
       const paymentPlan = booking.availablePaymentTerms || "";
-      // PaymentMethod might be stored in paymentCondition or a separate field
-      // Extract actual payment method (e.g., "Standard Booking" from "Standard Booking, P4")
-      const paymentConditionRaw = booking.paymentCondition || "Other";
-      const paymentMethod = paymentConditionRaw.split(",")[0].trim();
+      // Use the paymentMethod field from booking data
+      const paymentMethod = booking.paymentMethod || "Other";
 
       logger.info("Booking details:", {
         paymentPlan,

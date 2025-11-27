@@ -1,0 +1,13 @@
+[
+  {
+    "id": "pre-departure",
+    "lastUpdated": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1764019884,
+      "nanoseconds": 166000000
+    },
+    "automaticSends": false,
+    "description": "Configuration for pre-departure pack email automation. When automaticSends is true, confirmation emails with pre-departure packs are sent automatically when bookings reach 100% payment. When false, emails must be sent manually from the Confirmed Bookings tab.",
+    "updatedBy": "system-migration"
+  }
+]

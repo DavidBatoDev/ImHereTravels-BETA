@@ -419,9 +419,9 @@ export default function BookingsSection() {
 
   // Handle query parameters for opening modals
   useEffect(() => {
-    const bookingId = searchParams.get("bookingId");
-    const action = searchParams.get("action");
-    const mode = searchParams.get("mode");
+    const bookingId = searchParams?.get("bookingId");
+    const action = searchParams?.get("action");
+    const mode = searchParams?.get("mode");
 
     if (bookingId && bookings.length > 0) {
       const booking = bookings.find((b) => b.id === bookingId);
@@ -757,7 +757,7 @@ export default function BookingsSection() {
     setIsDetailModalOpen(true);
 
     // Add booking ID to URL
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString?.() ?? "");
     params.set("bookingId", booking.id);
     router.push(`/bookings?${params.toString()}`, { scroll: false });
   };
@@ -768,7 +768,7 @@ export default function BookingsSection() {
     setSelectedBooking(null);
 
     // Remove booking ID from URL
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString?.() ?? "");
     params.delete("bookingId");
     params.delete("action");
     params.delete("mode");
@@ -1298,7 +1298,7 @@ export default function BookingsSection() {
                 await bookingService.updateBooking(newBookingId, bookingData);
 
                 // Navigate with bookingId to open detail modal
-                const params = new URLSearchParams(searchParams.toString());
+                const params = new URLSearchParams(searchParams?.toString?.() ?? "");
                 params.set("bookingId", newBookingId);
                 params.delete("action");
                 router.push(`/bookings?${params.toString()}`, {
@@ -2872,7 +2872,7 @@ export default function BookingsSection() {
                 await bookingService.updateBooking(newBookingId, bookingData);
 
                 // Navigate with bookingId to open detail modal
-                const params = new URLSearchParams(searchParams.toString());
+                const params = new URLSearchParams(searchParams?.toString?.() ?? "");
                 params.set("bookingId", newBookingId);
                 params.delete("action");
                 router.push(`/bookings?${params.toString()}`, {
@@ -3207,7 +3207,7 @@ export default function BookingsSection() {
 
                         // Navigate with bookingId to open detail modal
                         const params = new URLSearchParams(
-                          searchParams.toString()
+                          searchParams?.toString?.() ?? ""
                         );
                         params.set("bookingId", newBookingId);
                         params.delete("action");
@@ -3300,17 +3300,16 @@ export default function BookingsSection() {
         </Card>
       )}
 
-      {/* Booking Detail Modal */}
-      <BookingDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={handleModalClose}
-        booking={selectedBooking}
-        onBookingUpdate={handleBookingUpdate}
-        router={router}
-        searchParams={searchParams}
-      />
-
-      {/* Booking Version History Modal */}
+      {selectedBooking && (
+        <BookingDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={handleModalClose}
+          booking={selectedBooking}
+          onBookingUpdate={handleBookingUpdate}
+          router={router}
+          searchParams={searchParams}
+        />
+      )}
       <BookingVersionHistoryModal
         isOpen={isVersionHistoryOpen}
         onClose={() => setIsVersionHistoryOpen(false)}

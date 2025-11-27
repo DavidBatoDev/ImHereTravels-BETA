@@ -516,9 +516,9 @@ export default function MailCenter() {
       return "test";
     }
 
-    // Extract tabId from URL path like /mail/u/0
-    const match = pathname.match(/\/mail\/u\/(\d+)/);
-    if (match) {
+    // Extract tabId from URL path like /mail/u/0 (guard pathname which may be null)
+        const match = pathname ? pathname.match(/\/mail\/u\/(\d+)/) : null;
+        if (match) {
       const index = parseInt(match[1], 10);
       return indexToTab[index] || "drafts";
     }
@@ -538,9 +538,9 @@ export default function MailCenter() {
       return "test";
     }
 
-    // Initialize from URL - this is only called once
-    const match = pathname.match(/\/mail\/u\/(\d+)/);
-    if (match) {
+    // Initialize from URL - this is only called once (guard pathname which may be null)
+        const match = pathname ? pathname.match(/\/mail\/u\/(\d+)/) : null;
+        if (match) {
       const index = parseInt(match[1], 10);
       return indexToTab[index] || "drafts";
     }

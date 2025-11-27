@@ -1907,14 +1907,16 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
             );
 
             if (targetIndex >= 0 && currentIndex >= 0) {
+              // Compute a stable baseline index (avoid referencing latestRestoreBaseline
+              // inside the findIndex callback which may run later and cause narrowing issues)
+              const baselineVersionId =
+                latestRestoreBaseline?.version?.id ?? null;
+              const baselineIndex = baselineVersionId
+                ? allVersionsArray.findIndex((v) => v.id === baselineVersionId)
+                : -1;
+
               // Include only if this version comes after restore but up to target version
-              if (
-                currentIndex >
-                  allVersionsArray.findIndex(
-                    (v) => v.id === latestRestoreBaseline.version.id
-                  ) &&
-                currentIndex <= targetIndex
-              ) {
+              if (currentIndex > baselineIndex && currentIndex <= targetIndex) {
                 versionsAfterRestore.push({
                   ...versionData,
                   id: doc.id,
@@ -2300,14 +2302,20 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
 
           if (aTime && typeof aTime === "object" && "seconds" in aTime) {
             aMs = (aTime as any).seconds * 1000;
-          } else if (aTime instanceof Date) {
-            aMs = aTime.getTime();
+          } else if (aTime && typeof (aTime as any).getTime === "function") {
+            // Handles Date or Timestamp-like objects with getTime()
+            aMs = (aTime as any).getTime();
+          } else if (typeof aTime === "number") {
+            aMs = aTime;
           }
 
           if (bTime && typeof bTime === "object" && "seconds" in bTime) {
             bMs = (bTime as any).seconds * 1000;
-          } else if (bTime instanceof Date) {
-            bMs = bTime.getTime();
+          } else if (bTime && typeof (bTime as any).getTime === "function") {
+            // Handles Date or Timestamp-like objects with getTime()
+            bMs = (bTime as any).getTime();
+          } else if (typeof bTime === "number") {
+            bMs = bTime;
           }
 
           return bMs - aMs; // Descending (newest first)
@@ -2327,8 +2335,10 @@ class BookingVersionHistoryServiceImpl implements BookingVersionHistoryService {
           if (vTime && typeof vTime === "object" && "seconds" in vTime) {
             const vMs = (vTime as any).seconds * 1000;
             shouldDelete = vMs < cutoffDate.getTime();
-          } else if (vTime instanceof Date) {
-            shouldDelete = vTime.getTime() < cutoffDate.getTime();
+          } else if (vTime && typeof (vTime as any).getTime === "function") {
+            shouldDelete = (vTime as any).getTime() < cutoffDate.getTime();
+          } else if (typeof vTime === "number") {
+            shouldDelete = vTime < cutoffDate.getTime();
           }
 
           if (shouldDelete && !version.metadata.isRestorePoint) {

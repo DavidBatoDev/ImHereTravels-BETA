@@ -222,8 +222,8 @@ export default function DashboardOverview() {
   }
 
   // Monthly booking trends (last 6 months)
-  const getMonthlyTrends = () => {
-    const trends = [];
+  const getMonthlyTrends = (): { month: string; bookings: number; revenue: number }[] => {
+    const trends: { month: string; bookings: number; revenue: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);

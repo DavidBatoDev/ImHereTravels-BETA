@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import {
+  ReadonlyURLSearchParams,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Fuse from "fuse.js";
@@ -110,6 +114,23 @@ export default function ToursList() {
     });
   }, [allTours]);
 
+  // Map of booking counts keyed by tour name (computed from bookings collection)
+  const tourBookingCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    bookings.forEach((booking) => {
+      const tourName =
+        booking.tourPackageName ||
+        booking.tourPackage ||
+        booking.tourName ||
+        booking.tour ||
+        booking.package;
+      if (tourName && typeof tourName === "string" && tourName.trim() !== "") {
+        map[tourName] = (map[tourName] || 0) + 1;
+      }
+    });
+    return map;
+  }, [bookings]);
+
   // Filter tours based on search and filters
   const filteredTours = useMemo(() => {
     let results = allTours;
@@ -214,9 +235,9 @@ export default function ToursList() {
 
   // Handle query parameters for opening modals
   useEffect(() => {
-    const tourId = searchParams.get("tourId");
-    const action = searchParams.get("action");
-    const mode = searchParams.get("mode");
+    const tourId = searchParams?.get("tourId");
+    const action = searchParams?.get("action");
+    const mode = searchParams?.get("mode");
 
     if (tourId && allTours.length > 0) {
       const tour = allTours.find((t) => t.id === tourId);
@@ -252,7 +273,7 @@ export default function ToursList() {
       setSelectedTour(null);
 
       // Clear URL parameters after create
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
       params.delete("action");
       params.delete("mode");
       router.push(`/tours?${params.toString()}`, { scroll: false });
@@ -289,7 +310,7 @@ export default function ToursList() {
       setSelectedTour(null);
 
       // Clear URL parameters after update
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
       params.delete("tourId");
       params.delete("action");
       params.delete("mode");
@@ -320,7 +341,7 @@ export default function ToursList() {
       setIsDetailsOpen(false);
 
       // Clear URL parameters after archive
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
       params.delete("tourId");
       params.delete("action");
       params.delete("mode");
@@ -353,7 +374,7 @@ export default function ToursList() {
       setIsDetailsOpen(false);
 
       // Clear URL parameters after delete
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
       params.delete("tourId");
       params.delete("action");
       params.delete("mode");
@@ -383,7 +404,7 @@ export default function ToursList() {
     setIsFormOpen(true);
 
     // Add action to URL
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.set("action", "new");
     router.push(`/tours?${params.toString()}`, { scroll: false });
   };
@@ -394,7 +415,7 @@ export default function ToursList() {
     setIsFormOpen(true);
 
     // Add tourId and mode to URL
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.set("tourId", tour.id);
     params.set("mode", "edit");
     router.push(`/tours?${params.toString()}`, { scroll: false });
@@ -406,7 +427,7 @@ export default function ToursList() {
     setIsDetailsOpen(true);
 
     // Add tourId to URL
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.set("tourId", tour.id);
     router.push(`/tours?${params.toString()}`, { scroll: false });
   };
@@ -551,26 +572,11 @@ export default function ToursList() {
                   Most Selected Tour
                 </p>
                 {(() => {
-                  // Calculate actual booking counts from bookings collection
-                  const tourBookingCounts: { [tourName: string]: number } = {};
-                  bookings.forEach((booking) => {
-                    const tourName =
-                      booking.tourPackageName ||
-                      booking.tourPackage ||
-                      booking.tourName ||
-                      booking.tour ||
-                      booking.package;
-                    if (tourName && tourName.trim() !== "") {
-                      tourBookingCounts[tourName] =
-                        (tourBookingCounts[tourName] || 0) + 1;
-                    }
-                  });
-
-                  // Sort tours by actual booking count and get top 3
+                  // Use memoized booking counts map to determine top tours
                   const sortedTours = [...allTours]
-                    .map((tour) => ({
-                      ...tour,
-                      actualBookingsCount: tourBookingCounts[tour.name] || 0,
+                    .map((t) => ({
+                      ...t,
+                      actualBookingsCount: tourBookingCounts[t.name] || 0,
                     }))
                     .sort(
                       (a, b) => b.actualBookingsCount - a.actualBookingsCount
@@ -810,7 +816,7 @@ export default function ToursList() {
                       <div className="flex items-center">
                         <Users className="h-4 w-4 mr-1 text-royal-purple" />
                         <span className="text-foreground">
-                          {tour.metadata.bookingsCount}
+                          {tourBookingCounts[tour.name] || 0}
                         </span>
                       </div>
                     </div>
@@ -944,7 +950,7 @@ export default function ToursList() {
           setSelectedTour(null);
 
           // Remove URL parameters
-          const params = new URLSearchParams(searchParams.toString());
+          const params = new URLSearchParams(searchParams?.toString() ?? "");
           params.delete("tourId");
           params.delete("action");
           params.delete("mode");
@@ -964,7 +970,7 @@ export default function ToursList() {
           setSelectedTour(null);
 
           // Remove URL parameters
-          const params = new URLSearchParams(searchParams.toString());
+          const params = new URLSearchParams(searchParams?.toString() ?? "");
           params.delete("tourId");
           params.delete("action");
           params.delete("mode");
@@ -977,7 +983,10 @@ export default function ToursList() {
         onArchive={handleArchiveTour}
         onDelete={confirmDelete}
         router={router}
-        searchParams={searchParams}
+        searchParams={
+          searchParams ??
+          (new URLSearchParams() as unknown as ReadonlyURLSearchParams)
+        }
       />
 
       {/* Delete Confirmation Dialog */}

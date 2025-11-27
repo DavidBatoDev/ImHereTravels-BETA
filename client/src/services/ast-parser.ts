@@ -211,7 +211,7 @@ export class ASTParser {
       hasTypeAnnotations: this.hasTypeAnnotations(),
       complexity: "simple",
       exportType: "none",
-      functionName: null,
+      functionName: undefined,
       parameterCount: 0,
       hasGenerics: false,
       hasUnionTypes: false,
@@ -235,7 +235,7 @@ export class ASTParser {
     } else if (ts.isFunctionDeclaration(exportDefault)) {
       // export default function name(params) {}
       analysis.exportType = "function";
-      analysis.functionName = exportDefault.name?.text || null;
+      analysis.functionName = exportDefault.name?.text;
       this.analyzeFunction(exportDefault, analysis);
     } else if (ts.isVariableDeclaration(exportDefault)) {
       // export default const/let/var name = function
@@ -253,7 +253,7 @@ export class ASTParser {
       this.analyzeFunction(exportDefault, analysis);
     } else if (ts.isClassDeclaration(exportDefault)) {
       analysis.exportType = "class";
-      analysis.functionName = exportDefault.name?.text || null;
+      analysis.functionName = exportDefault.name?.text;
     } else if (ts.isObjectLiteralExpression(exportDefault)) {
       analysis.exportType = "object";
     } else {
@@ -730,7 +730,7 @@ export class ASTParser {
       hasTypeAnnotations: false,
       complexity: "simple",
       exportType: "none",
-      functionName: null,
+      functionName: undefined,
       parameterCount: 0,
       hasGenerics: false,
       hasUnionTypes: false,

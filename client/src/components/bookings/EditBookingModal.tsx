@@ -1802,8 +1802,31 @@ export default function EditBookingModal({
                     finalOptions: options,
                   });
                 }
-                return options.map((option) => (
-                  <option key={option || "empty"} value={option}>
+
+                // Ensure current value is in the options list
+                const currentValue = String(value || "");
+                const hasCurrentValue = currentValue && currentValue !== "";
+                const currentValueInOptions = options.includes(currentValue);
+                const hasEmptyOption = options.includes("");
+
+                // Build final options list
+                const finalOptions = [...options];
+
+                // Add current value if it's not in options and not empty
+                if (hasCurrentValue && !currentValueInOptions) {
+                  finalOptions.unshift(currentValue);
+                }
+
+                // Add placeholder option if no value selected AND no empty option exists
+                if (!hasCurrentValue && !hasEmptyOption) {
+                  finalOptions.unshift("");
+                }
+
+                return finalOptions.map((option, index) => (
+                  <option
+                    key={option || `placeholder-${column.id}-${index}`}
+                    value={option}
+                  >
                     {option || `Select ${column.columnName}`}
                   </option>
                 ));

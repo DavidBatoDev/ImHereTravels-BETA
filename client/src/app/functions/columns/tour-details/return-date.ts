@@ -123,6 +123,7 @@ export default function tourEndDateFromStartAndDurationFunction(
 
   if (!days || isNaN(days)) return "";
 
-  const end = addDays(toStartOfDay(start), days);
+  // Subtract 1 day to get correct return date (days - 1)
+  const end = addDays(toStartOfDay(start), days - 1);
   return formatYYYYMMDD(end);
 }
