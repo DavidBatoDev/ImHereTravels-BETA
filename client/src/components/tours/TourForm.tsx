@@ -98,6 +98,10 @@ const tourFormSchema = z.object({
   tourCode: z.string().min(2, "Tour code must be at least 2 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   location: z.string().min(2, "Location is required"),
+  locationOther: z
+    .string()
+    .optional()
+    .or(z.literal("") as any),
   duration: z.string().min(1, "Duration is required"),
   travelDates: z
     .array(
@@ -178,6 +182,24 @@ export default function TourForm({
     { id: "itinerary", title: "Itinerary", icon: Plane },
     { id: "requirements", title: "Requirements", icon: AlertCircle },
     { id: "gallery", title: "Gallery Images", icon: FolderOpen },
+  ];
+
+  const presetLocations = [
+    "Philippines",
+    "Maldives",
+    "Sri Lanka",
+    "Argentina",
+    "Brazil",
+    "Vietnam",
+    "India",
+    "Tanzania",
+    "New Zealand",
+    "Ecuador",
+    "Galapagos",
+    "Amazon",
+    "Andes",
+    "Coast",
+    "Other",
   ];
 
   // Scroll to a specific section
@@ -368,6 +390,7 @@ export default function TourForm({
       tourCode: "",
       description: "",
       location: "",
+      locationOther: "",
       duration: "1 days",
       travelDates: [
         {
@@ -478,7 +501,16 @@ export default function TourForm({
         url: handleNullValue(tour.url),
         tourCode: handleNullValue(tour.tourCode),
         description: tour.description || "",
-        location: tour.location || "",
+        location:
+          tour.location && presetLocations.includes(tour.location)
+            ? tour.location
+            : tour.location
+            ? "Other"
+            : "",
+        locationOther:
+          tour.location && !presetLocations.includes(tour.location)
+            ? tour.location
+            : "",
         duration: tour.duration || "1 days",
         travelDates: travelDates,
         pricing: tour.pricing
@@ -542,6 +574,7 @@ export default function TourForm({
         tourCode: "",
         description: "",
         location: "",
+        locationOther: "",
         duration: "1 days",
         travelDates: [
           {
@@ -1054,9 +1087,17 @@ export default function TourForm({
     try {
       setIsSubmitting(true);
 
+      // Determine final location: if user selected 'Other', prefer `locationOther`
+      const { locationOther, ...restData } = data as any;
+      const finalLocation =
+        (data as any).location === "Other" && locationOther
+          ? locationOther
+          : (data as any).location;
+
       // Filter out empty strings from arrays
       const cleanedData: TourFormDataWithStringDates = {
-        ...data,
+        ...restData,
+        location: finalLocation,
         details: {
           highlights: data.details.highlights.filter((h) => h.trim() !== ""),
           itinerary: data.details.itinerary,
@@ -1507,41 +1548,45 @@ export default function TourForm({
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="Philippines">
-                                  Philippines
-                                </SelectItem>
-                                <SelectItem value="Maldives">
-                                  Maldives
-                                </SelectItem>
-                                <SelectItem value="Sri Lanka">
-                                  Sri Lanka
-                                </SelectItem>
-                                <SelectItem value="Argentina">
-                                  Argentina
-                                </SelectItem>
-                                <SelectItem value="Brazil">Brazil</SelectItem>
-                                <SelectItem value="Vietnam">Vietnam</SelectItem>
-                                <SelectItem value="India">India</SelectItem>
-                                <SelectItem value="Tanzania">
-                                  Tanzania
-                                </SelectItem>
-                                <SelectItem value="New Zealand">
-                                  New Zealand
-                                </SelectItem>
-                                <SelectItem value="Ecuador">Ecuador</SelectItem>
-                                <SelectItem value="Galapagos">
-                                  Galapagos
-                                </SelectItem>
-                                <SelectItem value="Amazon">Amazon</SelectItem>
-                                <SelectItem value="Andes">Andes</SelectItem>
-                                <SelectItem value="Coast">Coast</SelectItem>
-                                <SelectItem value="Other">Other</SelectItem>
+                                {presetLocations.map((loc) => (
+                                  <SelectItem key={loc} value={loc}>
+                                    {loc}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
+                            <FormDescription className="text-muted-foreground">
+                              Choose a preset location or select "Other" to
+                              enter a custom location.
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+
+                      {form.watch("location") === "Other" && (
+                        <div className="col-span-3">
+                          <FormField
+                            control={form.control}
+                            name="locationOther"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-foreground font-medium">
+                                  Specify location
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="Enter city, country or region"
+                                    {...field}
+                                    className="border-2 border-border focus:border-royal-purple"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      )}
 
                       <FormField
                         control={form.control}
