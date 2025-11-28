@@ -45,6 +45,7 @@ const Page = () => {
   >([]);
   const [tourDates, setTourDates] = useState<string[]>([]);
   const [isLoadingPackages, setIsLoadingPackages] = useState(true);
+  const [sessionLoading, setSessionLoading] = useState(true);
 
   // Payment terms from Firestore
   const [paymentTerms, setPaymentTerms] = useState<
@@ -442,7 +443,10 @@ const Page = () => {
   });
 
   // Payment success handler
-  const handlePaymentSuccess = async (paymentIntentId?: string, paymentDocId?: string) => {
+  const handlePaymentSuccess = async (
+    paymentIntentId?: string,
+    paymentDocId?: string
+  ) => {
     try {
       console.log("🎉 Payment success! Intent ID:", paymentIntentId);
       console.log("📄 Payment Document ID:", paymentDocId);
@@ -454,10 +458,7 @@ const Page = () => {
 
       // Extract group code for duo/group bookings
       let groupCode: string | null = null;
-      if (
-        bookingType === "Duo Booking" ||
-        bookingType === "Group Booking"
-      ) {
+      if (bookingType === "Duo Booking" || bookingType === "Group Booking") {
         const parts = newBookingId.split("-");
         if (parts.length >= 5) {
           groupCode = parts[4];
@@ -490,8 +491,7 @@ const Page = () => {
             ? 2
             : 1,
         additionalGuests:
-          bookingType === "Duo Booking" ||
-          bookingType === "Group Booking"
+          bookingType === "Duo Booking" || bookingType === "Group Booking"
             ? additionalGuests
             : [],
         tourPackageId: tourPackage,
@@ -511,50 +511,28 @@ const Page = () => {
 
       // Update the existing placeholder doc if we have it, otherwise fallback to query by stripeIntentId
       if (paymentDocId) {
-        console.log(
-          "📝 Updating payment document by ID:",
-          paymentDocId
-        );
-        await updateDoc(
-          doc(db, "stripePayments", paymentDocId),
-          updateData
-        );
-        console.log(
-          "✅ Booking information saved successfully!"
-        );
+        console.log("📝 Updating payment document by ID:", paymentDocId);
+        await updateDoc(doc(db, "stripePayments", paymentDocId), updateData);
+        console.log("✅ Booking information saved successfully!");
       } else {
         console.warn(
           "⚠️ No payment document ID provided, falling back to query by stripeIntentId"
         );
 
-        const paymentsRef = collection(
-          db,
-          "stripePayments"
-        );
+        const paymentsRef = collection(db, "stripePayments");
         const q = query(
           paymentsRef,
           where("stripeIntentId", "==", paymentIntentId)
         );
         const querySnapshot = await getDocs(q);
 
-        console.log(
-          "🔍 Found documents by query:",
-          querySnapshot.size
-        );
+        console.log("🔍 Found documents by query:", querySnapshot.size);
 
         if (!querySnapshot.empty) {
           const paymentDoc = querySnapshot.docs[0];
-          console.log(
-            "📝 Updating payment document:",
-            paymentDoc.id
-          );
-          await updateDoc(
-            doc(db, "stripePayments", paymentDoc.id),
-            updateData
-          );
-          console.log(
-            "✅ Booking information saved successfully via query!"
-          );
+          console.log("📝 Updating payment document:", paymentDoc.id);
+          await updateDoc(doc(db, "stripePayments", paymentDoc.id), updateData);
+          console.log("✅ Booking information saved successfully via query!");
         } else {
           console.error(
             "❌ Payment document not found for paymentIntentId:",
@@ -566,9 +544,9 @@ const Page = () => {
       // Clean up session storage after successful payment
       try {
         const sessionKey = `stripe_payment_${email}_${tourPackage}`;
+        // remove only the ephemeral client secret entry but keep the
+        // payment document id so we can continue to payment-plan step
         sessionStorage.removeItem(sessionKey);
-        const docSessionKey = `stripe_payment_doc_${email}_${tourPackage}`;
-        sessionStorage.removeItem(docSessionKey);
       } catch (e) {
         console.warn("Failed to clean up session storage:", e);
       }
@@ -713,23 +691,55 @@ const Page = () => {
       if (!paymentDocId && email && tourPackage) {
         const key = `stripe_payment_doc_${email}_${tourPackage}`;
         const id = sessionStorage.getItem(key);
-        if (id) setPaymentDocId(id);
+        if (id) {
+          (async () => {
+            try {
+              const { doc, getDoc } = await import("firebase/firestore");
+              const snap = await getDoc(doc(db, "stripePayments", id));
+              if (snap.exists()) {
+                setPaymentDocId(id);
+              } else {
+                // document no longer exists — remove the stale session key
+                try {
+                  sessionStorage.removeItem(key);
+                } catch {}
+              }
+            } catch (err) {
+              // if firestore check fails, fall back to setting the id conservatively
+              console.warn(
+                "Failed to validate payment doc, preserving session id:",
+                err
+              );
+              setPaymentDocId(id);
+            }
+          })();
+        }
       }
     } catch {}
-    
+
     // Clean up any old session storage entries on component mount
     const cleanupOldSessions = () => {
       const keysToRemove: string[] = [];
       for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);
-        if (key && key.startsWith('stripe_payment_') && !key.includes(email) && !key.includes(tourPackage)) {
+        if (
+          key &&
+          key.startsWith("stripe_payment_") &&
+          !key.includes(email) &&
+          !key.includes(tourPackage)
+        ) {
           keysToRemove.push(key);
         }
       }
-      keysToRemove.forEach(key => sessionStorage.removeItem(key));
+      keysToRemove.forEach((key) => sessionStorage.removeItem(key));
     };
-    
+
     cleanupOldSessions();
+
+    // If packages are still loading, don't attempt to validate/clear the selected package.
+    // This prevents the session restore from being immediately clobbered while the
+    // live `tourPackages` snapshot hasn't arrived yet.
+    if (isLoadingPackages) return;
 
     if (!tourPackage) return;
     const pkg = tourPackages.find((p) => p.id === tourPackage);
@@ -737,10 +747,107 @@ const Page = () => {
       setTourPackage("");
       setTourDates([]);
       setTourDate("");
+      return;
     }
+
     setTourDates(pkg?.travelDates ?? []);
-    setTourDate(""); // reset previously picked date when package changes
-  }, [tourPackage, tourPackages, email]);
+    // If the previously selected tourDate is not valid for this package, clear it.
+    if (tourDate && !pkg.travelDates.includes(tourDate)) {
+      setTourDate("");
+    }
+  }, [
+    tourPackage,
+    tourPackages,
+    email,
+    isLoadingPackages,
+    paymentDocId,
+    tourDate,
+  ]);
+
+  // On mount: if there's a stored stripe payment doc id, preload the form
+  useEffect(() => {
+    let mounted = true;
+
+    setSessionLoading(true);
+
+    const loadFromSession = async () => {
+      try {
+        // look for any key that starts with stripe_payment_doc_
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (!key) continue;
+          if (key.startsWith("stripe_payment_doc_")) {
+            const docId = sessionStorage.getItem(key);
+            if (!docId) continue;
+
+            // fetch the stripePayments document
+            try {
+              const { doc, getDoc } = await import("firebase/firestore");
+              const snap = await getDoc(doc(db, "stripePayments", docId));
+              if (!snap.exists()) {
+                // remove stale session key for missing document
+                try {
+                  sessionStorage.removeItem(key);
+                } catch {}
+                continue;
+              }
+              const data = snap.data() as any;
+
+              if (!mounted) return;
+
+              // Populate form fields from stored doc
+              if (data.email) setEmail(data.email);
+              if (data.firstName) setFirstName(data.firstName);
+              if (data.lastName) setLastName(data.lastName);
+              if (data.birthdate) setBirthdate(data.birthdate);
+              if (data.nationality) setNationality(data.nationality);
+              if (data.bookingType) setBookingType(data.bookingType);
+              if (typeof data.groupSize === "number")
+                setGroupSize(data.groupSize);
+              if (Array.isArray(data.additionalGuests))
+                setAdditionalGuests(data.additionalGuests);
+              if (data.tourPackageId) setTourPackage(data.tourPackageId);
+              if (data.tourDate) setTourDate(data.tourDate);
+
+              setPaymentDocId(docId);
+
+              // Advance to the appropriate step based on status
+              if (data.status === "reserve_pending") {
+                // mark step 1 completed and go to payment step
+                setStep(2);
+                setCompletedSteps((prev) => Array.from(new Set([...prev, 1])));
+              } else if (data.status === "reserve_paid") {
+                // payment completed — go to payment plan
+                setPaymentConfirmed(true);
+                setStep(3);
+                // if bookingId present, set it so Confirm Booking can find the record
+                if (data.bookingId) setBookingId(data.bookingId);
+                setCompletedSteps((prev) =>
+                  Array.from(new Set([...prev, 1, 2]))
+                );
+              }
+
+              // stop after first matching key
+              return;
+            } catch (err) {
+              console.warn("Failed to load stripe payment doc:", err);
+              continue;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Error while restoring session payment doc:", e);
+      }
+    };
+
+    loadFromSession().finally(() => {
+      if (mounted) setSessionLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Show/Hide Tour Date when a Tour Package is selected
   useEffect(() => {
@@ -971,6 +1078,19 @@ const Page = () => {
         await updateDoc(doc(db, "stripePayments", paymentDoc.id), updateData);
 
         console.log("✅ Booking confirmed successfully!");
+        // Clean up session storage now that the booking is fully confirmed
+        try {
+          const docSessionKey = `stripe_payment_doc_${email}_${tourPackage}`;
+          sessionStorage.removeItem(docSessionKey);
+          const sessionKey = `stripe_payment_${email}_${tourPackage}`;
+          sessionStorage.removeItem(sessionKey);
+        } catch (e) {
+          console.warn(
+            "Failed to remove session storage after confirmation:",
+            e
+          );
+        }
+
         setBookingConfirmed(true);
       } else {
         console.error(
@@ -1005,6 +1125,14 @@ const Page = () => {
         className="relative z-10 w-full min-h-screen text-card-foreground px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10"
         aria-labelledby="reservation-form-title"
       >
+        {sessionLoading && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto"></div>
+              {/* <p className="mt-3 text-sm text-foreground/90">Restoring your reservation…</p> */}
+            </div>
+          </div>
+        )}
         {/* assistive live region to announce tour date visibility changes */}
         <div aria-live="polite" className="sr-only">
           {dateVisible ? "Tour date shown" : "Tour date hidden"}
