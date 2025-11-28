@@ -1,3 +1,4 @@
+// client/src/app/reservation-booking-form/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -69,7 +70,7 @@ const Page = () => {
   const guestsContentRef = React.useRef<HTMLDivElement | null>(null);
   const [guestsMounted, setGuestsMounted] = useState(false);
   const [guestsHeight, setGuestsHeight] = useState("0px");
-  // clear all “Personal & Booking” inputs together with one animation
+  // clear all "Personal & Booking" inputs together with one animation
   const [clearing, setClearing] = useState(false);
   // animation timing (ms) used for transitions so entrance/exit durations match
   const ANIM_DURATION = 300;
@@ -117,10 +118,6 @@ const Page = () => {
   };
 
   // Generate booking ID after payment
-  // Format: <PREFIX>-<ABBREV>-YYYYMMDD-<INITIALS>-<CODE>
-  // PREFIX: SB (Single Booking), DB (Duo Booking), GB (Group Booking)
-  // For Single: CODE = Count (e.g., 001)
-  // For Duo/Group: CODE = Random4Digits (e.g., 8472, same random code for all guests in group)
   const generateBookingId = async () => {
     // Use tour date instead of reservation date
     const tourDateObj = new Date(tourDate);
@@ -138,10 +135,8 @@ const Page = () => {
     }
 
     // Get tour package abbreviation from name
-    // Extract first letter of each word (e.g., "Japan Adventure" -> "JA")
-    // Remove any text in parentheses first (e.g., "Japan Adventure (Standard)" -> "Japan Adventure")
     const packageName = selectedPackage?.name || "";
-    const cleanName = packageName.replace(/\([^)]*\)/g, "").trim(); // Remove text in parentheses
+    const cleanName = packageName.replace(/\([^)]*\)/g, "").trim();
     const words = cleanName.split(" ").filter((w) => w.length > 0);
     const packageAbbrev =
       words
@@ -166,7 +161,7 @@ const Page = () => {
         const bookingsRef = collection(db, "bookings");
         const q = query(bookingsRef, where("tourPackageId", "==", tourPackage));
         const querySnapshot = await getDocs(q);
-        const bookingCount = querySnapshot.size + 1; // Current count + 1 for this new booking
+        const bookingCount = querySnapshot.size + 1;
         codeSuffix = String(bookingCount).padStart(3, "0");
       } catch (error) {
         console.error("Error counting bookings:", error);
@@ -176,8 +171,7 @@ const Page = () => {
       }
     } else {
       // For duo/group bookings: use random 4-digit code (same for all guests in the group)
-      // This code will be shared by all members of the duo/group
-      const randomCode = Math.floor(Math.random() * 9000) + 1000; // 4-digit random (1000-9999)
+      const randomCode = Math.floor(Math.random() * 9000) + 1000;
       codeSuffix = String(randomCode);
     }
 
@@ -185,7 +179,7 @@ const Page = () => {
   };
 
   // computed helpers
-  const canEditStep1 = !paymentConfirmed; // lock step 1 after payment
+  const canEditStep1 = !paymentConfirmed;
   const progressWidth = step === 1 ? "w-1/3" : step === 2 ? "w-2/3" : "w-full";
 
   // Get deposit amount from selected package
@@ -204,8 +198,6 @@ const Page = () => {
   };
 
   // Determine available payment term based on days between
-  // This calculates how many monthly payment dates (2nd of month) are available
-  // between reservation date and tour date
   const getAvailablePaymentTerm = (): {
     term: string;
     isLastMinute: boolean;
@@ -218,23 +210,17 @@ const Page = () => {
     if (daysBetween < 2) {
       return { term: "invalid", isLastMinute: false, isInvalid: true };
     } else if (daysBetween >= 2 && daysBetween < 30) {
-      // Less than 30 days: Last minute booking
       return { term: "last_minute", isLastMinute: true, isInvalid: false };
     } else {
-      // Calculate how many 2nd-of-month dates are available
-      // Based on spreadsheet formula: counts months from reservation to (tour date - 30 days)
-      // This ensures last payment is at least 30 days before tour
       const today = new Date();
       const tourDateObj = new Date(tourDate);
       const fullPaymentDue = new Date(tourDateObj);
-      fullPaymentDue.setDate(fullPaymentDue.getDate() - 30); // 30 days before tour
+      fullPaymentDue.setDate(fullPaymentDue.getDate() - 30);
 
-      // Calculate full months between today and full payment due date
       const yearDiff = fullPaymentDue.getFullYear() - today.getFullYear();
       const monthDiff = fullPaymentDue.getMonth() - today.getMonth();
       const monthCount = Math.max(0, yearDiff * 12 + monthDiff);
 
-      // Determine the payment term based on available months
       if (monthCount >= 4) {
         return { term: "P4", isLastMinute: false, isInvalid: false };
       } else if (monthCount === 3) {
@@ -244,7 +230,6 @@ const Page = () => {
       } else if (monthCount === 1) {
         return { term: "P1", isLastMinute: false, isInvalid: false };
       } else {
-        // Less than 1 month available but >= 30 days
         return { term: "last_minute", isLastMinute: true, isInvalid: false };
       }
     }
@@ -263,12 +248,10 @@ const Page = () => {
     const monthlyAmount = remainingBalance / monthsRequired;
     const schedule: Array<{ date: string; amount: number }> = [];
 
-    // Start from next month, always on the 2nd day (using UTC to avoid timezone issues)
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
 
-    // Calculate next month (handle year rollover)
     let nextMonth = currentMonth + 1;
     let nextYear = currentYear;
     if (nextMonth > 11) {
@@ -277,17 +260,14 @@ const Page = () => {
     }
 
     for (let i = 0; i < monthsRequired; i++) {
-      // Calculate payment month/year
       let paymentMonth = nextMonth + i;
       let paymentYear = nextYear;
 
-      // Handle year rollover
       while (paymentMonth > 11) {
         paymentMonth -= 12;
         paymentYear++;
       }
 
-      // Create date string in YYYY-MM-DD format (always 2nd of month)
       const dateStr = `${paymentYear}-${String(paymentMonth + 1).padStart(
         2,
         "0"
@@ -297,7 +277,7 @@ const Page = () => {
         date: dateStr,
         amount:
           i === monthsRequired - 1
-            ? remainingBalance - monthlyAmount * (monthsRequired - 1) // Last payment gets the remainder
+            ? remainingBalance - monthlyAmount * (monthsRequired - 1)
             : monthlyAmount,
       });
     }
@@ -341,7 +321,6 @@ const Page = () => {
         },
       ];
 
-    // Get all plans up to the available term
     const termMap: { [key: string]: number } = { P1: 1, P2: 2, P3: 3, P4: 4 };
     const maxMonths = termMap[availablePaymentTerm.term] || 0;
 
@@ -372,7 +351,6 @@ const Page = () => {
       }
 
       try {
-        // ensure starting height is applied
         wrap.style.height = `${from}px`;
         const anim = wrap.animate(
           [{ height: `${from}px` }, { height: `${to}px` }],
@@ -463,6 +441,158 @@ const Page = () => {
     };
   });
 
+  // Payment success handler
+  const handlePaymentSuccess = async (paymentIntentId?: string, paymentDocId?: string) => {
+    try {
+      console.log("🎉 Payment success! Intent ID:", paymentIntentId);
+      console.log("📄 Payment Document ID:", paymentDocId);
+
+      // Generate booking ID after successful payment
+      const newBookingId = await generateBookingId();
+      console.log("✅ Generated booking ID:", newBookingId);
+      setBookingId(newBookingId);
+
+      // Extract group code for duo/group bookings
+      let groupCode: string | null = null;
+      if (
+        bookingType === "Duo Booking" ||
+        bookingType === "Group Booking"
+      ) {
+        const parts = newBookingId.split("-");
+        if (parts.length >= 5) {
+          groupCode = parts[4];
+        }
+      }
+
+      // Update Firestore with selected payment plan and status progression
+      const {
+        doc,
+        updateDoc,
+        serverTimestamp,
+        collection,
+        query,
+        where,
+        getDocs,
+      } = await import("firebase/firestore");
+
+      const updateData: any = {
+        bookingId: newBookingId,
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        birthdate: birthdate,
+        nationality: nationality,
+        bookingType: bookingType,
+        groupSize:
+          bookingType === "Group Booking"
+            ? groupSize
+            : bookingType === "Duo Booking"
+            ? 2
+            : 1,
+        additionalGuests:
+          bookingType === "Duo Booking" ||
+          bookingType === "Group Booking"
+            ? additionalGuests
+            : [],
+        tourPackageId: tourPackage,
+        tourPackageName: selectedPackage?.name || "",
+        tourDate: tourDate,
+        status: "reserve_paid",
+        stripeIntentId: paymentIntentId,
+        updatedAt: serverTimestamp(),
+      };
+
+      // Add group code for duo/group bookings
+      if (groupCode) {
+        updateData.groupCode = groupCode;
+      }
+
+      console.log("📤 Update data:", updateData);
+
+      // Update the existing placeholder doc if we have it, otherwise fallback to query by stripeIntentId
+      if (paymentDocId) {
+        console.log(
+          "📝 Updating payment document by ID:",
+          paymentDocId
+        );
+        await updateDoc(
+          doc(db, "stripePayments", paymentDocId),
+          updateData
+        );
+        console.log(
+          "✅ Booking information saved successfully!"
+        );
+      } else {
+        console.warn(
+          "⚠️ No payment document ID provided, falling back to query by stripeIntentId"
+        );
+
+        const paymentsRef = collection(
+          db,
+          "stripePayments"
+        );
+        const q = query(
+          paymentsRef,
+          where("stripeIntentId", "==", paymentIntentId)
+        );
+        const querySnapshot = await getDocs(q);
+
+        console.log(
+          "🔍 Found documents by query:",
+          querySnapshot.size
+        );
+
+        if (!querySnapshot.empty) {
+          const paymentDoc = querySnapshot.docs[0];
+          console.log(
+            "📝 Updating payment document:",
+            paymentDoc.id
+          );
+          await updateDoc(
+            doc(db, "stripePayments", paymentDoc.id),
+            updateData
+          );
+          console.log(
+            "✅ Booking information saved successfully via query!"
+          );
+        } else {
+          console.error(
+            "❌ Payment document not found for paymentIntentId:",
+            paymentIntentId
+          );
+        }
+      }
+
+      // Clean up session storage after successful payment
+      try {
+        const sessionKey = `stripe_payment_${email}_${tourPackage}`;
+        sessionStorage.removeItem(sessionKey);
+        const docSessionKey = `stripe_payment_doc_${email}_${tourPackage}`;
+        sessionStorage.removeItem(docSessionKey);
+      } catch (e) {
+        console.warn("Failed to clean up session storage:", e);
+      }
+
+      setPaymentConfirmed(true);
+      if (!completedSteps.includes(1)) {
+        setCompletedSteps((prev) => [...prev, 1]);
+      }
+      if (!completedSteps.includes(2)) {
+        setCompletedSteps((prev) => [...prev, 2]);
+      }
+    } catch (error) {
+      console.error("❌ Error in payment success handler:", error);
+      // Still proceed with payment confirmation even if saving fails
+      setPaymentConfirmed(true);
+      if (!completedSteps.includes(1)) {
+        setCompletedSteps((prev) => [...prev, 1]);
+      }
+      if (!completedSteps.includes(2)) {
+        setCompletedSteps((prev) => [...prev, 2]);
+      }
+    }
+  };
+
   // Fetch tour packages live from Firestore
   useEffect(() => {
     const q = collection(db, "tourPackages");
@@ -472,13 +602,12 @@ const Page = () => {
         const pkgList = snap.docs.map((doc) => {
           const payload = doc.data() as any;
 
-          // Normalize travelDates to yyyy-mm-dd (defensive: guard invalid dates)
+          // Normalize travelDates to yyyy-mm-dd
           const dates = (payload.travelDates ?? [])
             .map((t: any) => {
               const sd = t?.startDate;
               if (!sd) return null;
 
-              // Resolve various possible timestamp shapes (Firestore Timestamp, object with toDate, ISO string)
               let dateObj: Date | null = null;
               if (
                 sd &&
@@ -501,21 +630,17 @@ const Page = () => {
                 dateObj = new Date(sd);
               }
 
-              // If date is invalid, skip it rather than throwing in toISOString
               if (!dateObj || isNaN(dateObj.getTime())) return null;
 
               return dateObj.toISOString().slice(0, 10);
             })
             .filter(Boolean) as string[];
 
-          // Warn if tour has no valid dates
           if (dates.length === 0) {
             console.warn(
               `Tour package "${
                 payload.name ?? payload.title ?? doc.id
-              }" has no valid travel dates. ` +
-                `This tour will show "No results" when selected. ` +
-                `Please add dates to the travelDates array in Firestore.`
+              }" has no valid travel dates.`
             );
           }
 
@@ -525,12 +650,12 @@ const Page = () => {
             travelDates: dates,
             stripePaymentLink: payload.stripePaymentLink,
             status: payload.status === "inactive" ? "inactive" : "active",
-            deposit: payload.pricing?.deposit ?? 250, // default to £250 if not found
-            price: payload.pricing?.original ?? 2050, // use 'original' field from pricing map
+            deposit: payload.pricing?.deposit ?? 250,
+            price: payload.pricing?.original ?? 2050,
           };
         });
 
-        setTourPackages(pkgList as any); // 'as any' ensures TS doesn't complain about the extra status field
+        setTourPackages(pkgList as any);
         setIsLoadingPackages(false);
       },
       (err) => {
@@ -562,7 +687,6 @@ const Page = () => {
             };
           })
           .sort((a, b) => {
-            // Sort by payment plan type order
             const order = [
               "p1_single_installment",
               "p2_two_installments",
@@ -592,6 +716,20 @@ const Page = () => {
         if (id) setPaymentDocId(id);
       }
     } catch {}
+    
+    // Clean up any old session storage entries on component mount
+    const cleanupOldSessions = () => {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('stripe_payment_') && !key.includes(email) && !key.includes(tourPackage)) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => sessionStorage.removeItem(key));
+    };
+    
+    cleanupOldSessions();
 
     if (!tourPackage) return;
     const pkg = tourPackages.find((p) => p.id === tourPackage);
@@ -602,18 +740,18 @@ const Page = () => {
     }
     setTourDates(pkg?.travelDates ?? []);
     setTourDate(""); // reset previously picked date when package changes
-  }, [tourPackage, tourPackages]);
+  }, [tourPackage, tourPackages, email]);
 
   // Show/Hide Tour Date when a Tour Package is selected
   useEffect(() => {
     if (tourPackage) {
-      setDateMounted(true); // mount content
-      requestAnimationFrame(() => setDateVisible(true)); // then fade/expand in
+      setDateMounted(true);
+      requestAnimationFrame(() => setDateVisible(true));
     } else {
-      setDateVisible(false); // start collapse
-      const t = setTimeout(() => setDateMounted(false), 220); // unmount after anim
-      setTourDate(""); // clear previous date
-      setErrors((e) => ({ ...e, tourDate: "" })); // drop error if hidden (use empty string to match error type)
+      setDateVisible(false);
+      const t = setTimeout(() => setDateMounted(false), 220);
+      setTourDate("");
+      setErrors((e) => ({ ...e, tourDate: "" }));
       return () => clearTimeout(t);
     }
   }, [tourPackage]);
@@ -639,10 +777,9 @@ const Page = () => {
     // Duo booking only allows one additional guest
     if (bookingType === "Duo Booking") {
       if (additionalGuests.length >= 1) return;
-      setAdditionalGuests([...additionalGuests.slice(0, 1), ""]); // ensure single slot
+      setAdditionalGuests([...additionalGuests.slice(0, 1), ""]);
       return;
     }
-    // fallback: do not add
     return;
   };
 
@@ -651,7 +788,7 @@ const Page = () => {
       const wasMounted = guestsMounted;
       if (!wasMounted) {
         setGuestsMounted(true);
-        setGuestsHeight("1px"); // allow initial paint
+        setGuestsHeight("1px");
       }
 
       const startH = guestsWrapRef.current?.getBoundingClientRect().height ?? 0;
@@ -710,7 +847,7 @@ const Page = () => {
   };
 
   const handleGroupSizeChange = async (val: number) => {
-    if (bookingType !== "Group Booking") return; // only matters in Group mode
+    if (bookingType !== "Group Booking") return;
     const clamped = Math.max(3, Math.min(20, val || 3));
 
     await animateGuestsContentChange(() => {
@@ -771,7 +908,6 @@ const Page = () => {
     }
 
     if (!validate()) return;
-    // For now, just log values. Replace with API call as needed.
     console.log({ email, firstName, lastName });
     setSubmitted(true);
   };
@@ -921,7 +1057,6 @@ const Page = () => {
               <button
                 type="button"
                 onClick={() => {
-                  // Always allow going back to step 1
                   setStep(1);
                 }}
                 className="flex items-center gap-1.5 sm:gap-2 transition-all duration-200 hover:opacity-80 cursor-pointer group"
@@ -969,7 +1104,6 @@ const Page = () => {
               <button
                 type="button"
                 onClick={() => {
-                  // Allow backward navigation from step 3, or forward from step 1 if valid
                   if (completedSteps.includes(2) || step === 2) {
                     setStep(2);
                   } else if (step === 1 && tourPackage && tourDate) {
@@ -1024,7 +1158,6 @@ const Page = () => {
               <button
                 type="button"
                 onClick={() => {
-                  // Allow going to step 3 if payment is confirmed (step 2 completed)
                   if (paymentConfirmed) setStep(3);
                 }}
                 disabled={!paymentConfirmed}
@@ -1256,7 +1389,6 @@ const Page = () => {
                         maxYear={new Date().getFullYear()}
                         disabled={paymentConfirmed}
                       />
-                      {/* optional error text below if you have validation */}
                       {errors?.birthdate && (
                         <p className="mt-1 text-xs text-destructive">
                           {errors.birthdate}
@@ -1402,7 +1534,6 @@ const Page = () => {
                             </div>
                           )}
                       </div>
-                      {/* error text here */}
                       {errors.lastName && (
                         <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
                           <svg
@@ -1438,7 +1569,6 @@ const Page = () => {
                         className="mt-1"
                         disabled={paymentConfirmed}
                       />
-                      {/* error text here */}
                       {errors.nationality && (
                         <p className="mt-1 text-xs text-destructive">
                           {errors.nationality}
@@ -1460,7 +1590,6 @@ const Page = () => {
                         className="mt-1"
                         disabled={paymentConfirmed}
                       />
-                      {/* error text here */}
                       {errors.bookingType && (
                         <p className="mt-1 text-xs text-destructive">
                           {errors.bookingType}
@@ -1507,7 +1636,6 @@ const Page = () => {
                                 −
                               </button>
 
-                              {/* 👇 allow typing 3..20 */}
                               <input
                                 type="number"
                                 min={3}
@@ -1638,7 +1766,6 @@ const Page = () => {
                           }
                         />
                       )}
-                      {/* error text here */}
                       {errors.tourPackage && (
                         <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
                           <svg
@@ -1698,7 +1825,6 @@ const Page = () => {
                             className="mt-1"
                             disabled={!tourPackage || paymentConfirmed}
                           />
-                          {/* error text here */}
                           {errors?.tourDate && (
                             <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
                               <svg
@@ -1715,7 +1841,6 @@ const Page = () => {
                               {errors.tourDate}
                             </p>
                           )}
-                          {/* Info message when no dates available */}
                           {tourPackage &&
                             tourDateOptions.length === 0 &&
                             !errors?.tourDate && (
@@ -1878,163 +2003,7 @@ const Page = () => {
                       amountGBP={depositAmount}
                       bookingId={bookingId || "PENDING"}
                       paymentDocId={paymentDocId}
-                      onSuccess={async (paymentIntentId, paymentDocId) => {
-                        try {
-                          console.log(
-                            "🎉 Payment success! Intent ID:",
-                            paymentIntentId
-                          );
-                          console.log("📄 Payment Document ID:", paymentDocId);
-
-                          // Generate booking ID after successful payment
-                          const newBookingId = await generateBookingId();
-                          console.log("✅ Generated booking ID:", newBookingId);
-                          setBookingId(newBookingId);
-
-                          // Extract group code for duo/group bookings (suffix after initials)
-                          // New Format: DB-JA-20260314-JG-8472 -> groupCode = "8472"
-                          let groupCode: string | null = null;
-                          if (
-                            bookingType === "Duo Booking" ||
-                            bookingType === "Group Booking"
-                          ) {
-                            const parts = newBookingId.split("-");
-                            if (parts.length >= 5) {
-                              groupCode = parts[4]; // e.g., "8472"
-                            }
-                          }
-
-                          // Save personal & booking information to the existing Firestore stripePayments document
-                          const {
-                            doc,
-                            updateDoc,
-                            serverTimestamp,
-                            collection,
-                            query,
-                            where,
-                            getDocs,
-                          } = await import("firebase/firestore");
-
-                          const updateData: any = {
-                            bookingId: newBookingId,
-                            // Personal information
-                            email: email,
-                            firstName: firstName,
-                            lastName: lastName,
-                            birthdate: birthdate,
-                            nationality: nationality,
-                            // Booking details
-                            bookingType: bookingType,
-                            groupSize:
-                              bookingType === "Group Booking"
-                                ? groupSize
-                                : bookingType === "Duo Booking"
-                                ? 2
-                                : 1,
-                            additionalGuests:
-                              bookingType === "Duo Booking" ||
-                              bookingType === "Group Booking"
-                                ? additionalGuests
-                                : [],
-                            // Tour information
-                            tourPackageId: tourPackage,
-                            tourPackageName: selectedPackage?.name || "",
-                            tourDate: tourDate,
-                            // Update status and timestamp
-                            status: "reserve_paid",
-                            stripeIntentId: paymentIntentId,
-                            updatedAt: serverTimestamp(),
-                          };
-
-                          // Add group code for duo/group bookings
-                          if (groupCode) {
-                            updateData.groupCode = groupCode;
-                          }
-
-                          console.log("📤 Update data:", updateData);
-
-                          // Update the existing placeholder doc if we have it, otherwise fallback to query by stripeIntentId
-                          if (paymentDocId) {
-                            console.log(
-                              "📝 Updating payment document by ID:",
-                              paymentDocId
-                            );
-                            await updateDoc(
-                              doc(db, "stripePayments", paymentDocId),
-                              updateData
-                            );
-                            console.log(
-                              "✅ Booking information saved successfully!"
-                            );
-                          } else {
-                            console.warn(
-                              "⚠️ No payment document ID provided, falling back to query by stripeIntentId"
-                            );
-
-                            const paymentsRef = collection(
-                              db,
-                              "stripePayments"
-                            );
-                            const q = query(
-                              paymentsRef,
-                              where("stripeIntentId", "==", paymentIntentId)
-                            );
-                            const querySnapshot = await getDocs(q);
-
-                            console.log(
-                              "🔍 Found documents by query:",
-                              querySnapshot.size
-                            );
-
-                            if (!querySnapshot.empty) {
-                              const paymentDoc = querySnapshot.docs[0];
-                              console.log(
-                                "📝 Updating payment document:",
-                                paymentDoc.id
-                              );
-                              await updateDoc(
-                                doc(db, "stripePayments", paymentDoc.id),
-                                updateData
-                              );
-                              console.log(
-                                "✅ Booking information saved successfully via query!"
-                              );
-                            } else {
-                              console.error(
-                                "❌ Payment document not found for paymentIntentId:",
-                                paymentIntentId
-                              );
-                            }
-                          }
-
-                          // Keep session storage until user proceeds, to prevent re-initializing a new PaymentIntent on re-render
-                          // We'll clear this when the user moves to the next step or starts a new booking.
-
-                          setPaymentConfirmed(true);
-                          // Mark steps 1 and 2 as completed
-                          if (!completedSteps.includes(1)) {
-                            setCompletedSteps((prev) => [...prev, 1]);
-                          }
-                          if (!completedSteps.includes(2)) {
-                            setCompletedSteps((prev) => [...prev, 2]);
-                          }
-                        } catch (error) {
-                          console.error(
-                            "❌ Error saving booking information:",
-                            error
-                          );
-                          console.error("Error details:", error);
-                          // Still proceed with payment confirmation even if saving fails
-                          setPaymentConfirmed(true);
-                          // Mark steps as completed even on error
-                          if (!completedSteps.includes(1)) {
-                            setCompletedSteps((prev) => [...prev, 1]);
-                          }
-                          if (!completedSteps.includes(2)) {
-                            setCompletedSteps((prev) => [...prev, 2]);
-                          }
-                        }
-                      }}
+                      onSuccess={handlePaymentSuccess}
                     />
                   </>
                 )}
@@ -2286,7 +2255,6 @@ const Page = () => {
                 <button
                   type="button"
                   onClick={async () => {
-                    // same reset you had
                     setClearing(true);
                     const startH =
                       guestsWrapRef.current?.getBoundingClientRect().height ??
@@ -2331,7 +2299,6 @@ const Page = () => {
                         try {
                           const paymentsRef = collection(db, "stripePayments");
                           const newDoc = await addDoc(paymentsRef, {
-                            // placeholder fields
                             status: "reserve_pending",
                             email,
                             firstName,

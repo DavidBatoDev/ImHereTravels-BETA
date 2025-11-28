@@ -1,3 +1,4 @@
+// StripePayment.tsx - Updated version
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -51,7 +52,6 @@ function PaymentForm({
             setMessage("Payment succeeded!");
             onSuccess(paymentIntent.id, paymentDocId || undefined);
           } else {
-            // succeeded but no recorded amount - show a neutral message
             console.warn(
               "PaymentIntent succeeded but amount_received is 0",
               paymentIntent
@@ -80,7 +80,7 @@ function PaymentForm({
         console.warn("retrievePaymentIntent error:", err);
       }
     })();
-  }, [stripe, clientSecret, onSuccess]);
+  }, [stripe, clientSecret, onSuccess, paymentDocId]);
 
   const getErrorMessage = (error: any) => {
     const code = error.decline_code || error.code;
@@ -155,6 +155,9 @@ function PaymentForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <PaymentElement
+        options={{
+          layout: "tabs" as const,
+        }}
         onLoadError={(error) => {
           console.error("Payment Element load error:", error);
           setMessage(
@@ -258,26 +261,38 @@ export default function StripePayment({
     if (paymentDocIdProp) setPaymentDocId(paymentDocIdProp);
   }, [paymentDocIdProp]);
 
+  // Generate a consistent session key
+  const getSessionKey = () => {
+    if (paymentDocId) {
+      return `stripe_payment_${email}_${tourPackageId}_${paymentDocId}`;
+    }
+    return `stripe_payment_${email}_${tourPackageId}`;
+  };
+
   const initializePayment = () => {
     setLoading(true);
     setError(null);
 
-    // Generate a unique session key based on email and tour package (not bookingId which is still PENDING)
-    const sessionKey = paymentDocId
-      ? `stripe_payment_${email}_${tourPackageId}_${paymentDocId}`
-      : `stripe_payment_${email}_${tourPackageId}`;
+    const sessionKey = getSessionKey();
 
-    // Check if we already have a payment session for this booking
+    // Check if we already have a valid payment session
     const existingSession = sessionStorage.getItem(sessionKey);
     if (existingSession) {
       try {
         const { clientSecret: savedSecret, paymentDocId: savedDocId } =
           JSON.parse(existingSession);
-        console.log("♻️ Reusing existing payment session for", email);
-        setClientSecret(savedSecret);
-        setPaymentDocId(savedDocId);
-        setLoading(false);
-        return;
+        
+        // Verify the client secret is still valid
+        if (savedSecret && savedSecret.startsWith('pi_')) {
+          console.log("♻️ Reusing existing payment session for", email);
+          setClientSecret(savedSecret);
+          setPaymentDocId(savedDocId);
+          setLoading(false);
+          return;
+        } else {
+          console.warn("Invalid client secret in session storage");
+          sessionStorage.removeItem(sessionKey);
+        }
       } catch (e) {
         console.warn("Failed to parse existing session, creating new one");
         sessionStorage.removeItem(sessionKey);
@@ -294,25 +309,29 @@ export default function StripePayment({
         tourPackageName,
         amountGBP,
         paymentDocId,
-        // Deliberately omit bookingId; it may change after payment and should not re-init
         meta: {
           source: "reservation-form",
           retryAttempt: retryCount,
         },
       }),
     })
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
         if (data.error) {
-          setError(data.error);
-          setLoading(false);
+          throw new Error(data.error);
         } else {
           setClientSecret(data.clientSecret);
-          setPaymentDocId(data.paymentDocId); // Store the Firestore document ID
+          setPaymentDocId(data.paymentDocId);
 
-          // Save to session storage to prevent duplicate payments on refresh
+          // Save to session storage with consistent key
           sessionStorage.setItem(
-            sessionKey,
+            getSessionKey(),
             JSON.stringify({
               clientSecret: data.clientSecret,
               paymentDocId: data.paymentDocId,
@@ -324,6 +343,7 @@ export default function StripePayment({
         }
       })
       .catch((err) => {
+        console.error("Payment initialization error:", err);
         setError(err.message);
         setLoading(false);
       });
@@ -339,13 +359,36 @@ export default function StripePayment({
       return;
     }
 
+    // Only initialize if we have required data
+    if (!email || !tourPackageId || amountGBP <= 0) {
+      setError("Missing required payment information");
+      setLoading(false);
+      return;
+    }
+
     initializePayment();
   }, [tourPackageId, email, amountGBP, paymentDocId]);
+
+  // Clean up session storage on unmount if payment is completed
+  useEffect(() => {
+    return () => {
+      // Only clean up if we're moving away from payment step
+      if (clientSecret) {
+        const sessionKey = getSessionKey();
+        try {
+          sessionStorage.removeItem(sessionKey);
+        } catch (e) {
+          console.warn("Failed to clean up session storage:", e);
+        }
+      }
+    };
+  }, [clientSecret]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-3 text-sm text-muted-foreground">Loading payment form...</span>
       </div>
     );
   }
