@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   collection,
   onSnapshot,
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 
 const Page = () => {
+  const DEBUG = true;
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -49,6 +51,7 @@ const Page = () => {
   const [tourPackages, setTourPackages] = useState<
     Array<{
       id: string;
+      slug?: string;
       name: string;
       travelDates: string[];
       status?: "active" | "inactive";
@@ -103,6 +106,45 @@ const Page = () => {
   const [foundStripePayments, setFoundStripePayments] = useState<Array<any>>(
     []
   );
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Helper to reliably set the `?paymentid=` query param.
+  // Uses Next.js router.replace then immediately forces a synchronous
+  // fallback via history.replaceState to avoid races where effects
+  // running later (e.g. tour-sync) clobber the URL before router.replace
+  // takes effect.
+  const replaceWithPaymentId = (docId: string | null) => {
+    if (!docId) return;
+    try {
+      const newUrl = `${window.location.pathname}?paymentid=${docId}`;
+      try {
+        router.replace(newUrl);
+      } catch (e) {
+        if (DEBUG)
+          console.debug("replaceWithPaymentId: router.replace failed", "", e);
+      }
+
+      // synchronous fallback to ensure the URL reflects the active payment id
+      try {
+        const state = window.history.state || null;
+        window.history.replaceState(state, "", newUrl);
+      } catch (e) {
+        if (DEBUG)
+          console.debug(
+            "replaceWithPaymentId: history.replaceState failed",
+            "",
+            e
+          );
+      }
+
+      if (DEBUG)
+        console.debug("replaceWithPaymentId: applied", { docId, newUrl });
+    } catch (err) {
+      if (DEBUG) console.debug("replaceWithPaymentId error", err);
+    }
+  };
 
   // Dynamic step descriptions
   const getStepDescription = () => {
@@ -199,6 +241,11 @@ const Page = () => {
         setCompletedSteps([...completedSteps, 1]);
       }
       setStep(2);
+      try {
+        replaceWithPaymentId(paymentDocId);
+      } catch (err) {
+        console.debug("Failed to set paymentid query param:", err);
+      }
       return;
     }
 
@@ -219,6 +266,14 @@ const Page = () => {
         if (!completedSteps.includes(1)) {
           setCompletedSteps([...completedSteps, 1]);
         }
+        // update URL to reference this payment doc and remove any `tour` param
+        if (id) {
+          try {
+            replaceWithPaymentId(id);
+          } catch (err) {
+            console.debug("Failed to set paymentid query param:", err);
+          }
+        }
         setStep(2);
       } else {
         // show modal with options
@@ -228,9 +283,16 @@ const Page = () => {
     } catch (err) {
       console.error("Error checking existing payments:", err);
       // fall back to creating a placeholder
-      await createPlaceholder();
+      const fallbackId = await createPlaceholder();
       if (!completedSteps.includes(1)) {
         setCompletedSteps([...completedSteps, 1]);
+      }
+      if (fallbackId) {
+        try {
+          replaceWithPaymentId(fallbackId);
+        } catch (e) {
+          console.debug("Failed to set paymentid query param (fallback):", e);
+        }
       }
       setStep(2);
     } finally {
@@ -248,6 +310,14 @@ const Page = () => {
       );
     } catch {}
     // navigate to appropriate step based on status
+    try {
+      replaceWithPaymentId(rec.id);
+    } catch (err) {
+      console.debug(
+        "Failed to set paymentid query param for reused record:",
+        err
+      );
+    }
     if (rec.status === "reserve_paid" || rec.status === "terms_selected") {
       setPaymentConfirmed(true);
       setStep(3);
@@ -358,6 +428,91 @@ const Page = () => {
   // Get deposit amount from selected package
   const selectedPackage = tourPackages.find((p) => p.id === tourPackage);
   const depositAmount = selectedPackage?.deposit ?? 250;
+
+  // Set `tour` query param when entering Payment (step 2)
+  useEffect(() => {
+    try {
+      if (step === 2 && selectedPackage?.slug) {
+        const params = new URLSearchParams(window.location.search);
+        params.set("tour", String(selectedPackage.slug));
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        router.replace(newUrl);
+      }
+    } catch (err) {
+      console.debug("Failed to set tour query param:", err);
+    }
+  }, [step, selectedPackage?.slug, router]);
+
+  // When packages finish loading, preselect a package if `tour` query param exists
+  useEffect(() => {
+    try {
+      if (!isLoadingPackages) {
+        // prefer the Next.js searchParams API, but fall back to window.location
+        let tourSlug = searchParams?.get("tour");
+        if (!tourSlug) {
+          try {
+            const raw = new URLSearchParams(window.location.search).get("tour");
+            if (raw) tourSlug = raw;
+          } catch {}
+        }
+
+        if (tourSlug && !tourPackage) {
+          const normalized = String(tourSlug).toLowerCase();
+          const match = tourPackages.find((p) => {
+            const s = p.slug ? String(p.slug).toLowerCase() : "";
+            return s === normalized;
+          });
+          if (match) {
+            setTourPackage(match.id);
+          }
+        }
+      }
+    } catch (err) {
+      console.debug("Failed to read tour query param:", err);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoadingPackages, tourPackages]);
+
+  // Sync `tour` query param when the selected tour (tourPackage) changes
+  useEffect(() => {
+    try {
+      // don't sync while packages are still loading — avoid removing incoming query param
+      if (isLoadingPackages) return;
+      // if a payment doc is active, prefer the paymentid URL and do not set tour
+      if (paymentDocId) return;
+
+      if (DEBUG) {
+        try {
+          const curParams = new URLSearchParams(window.location.search);
+          console.debug(
+            "tour-sync effect: current params",
+            Object.fromEntries(curParams.entries())
+          );
+        } catch {}
+      }
+
+      // if URL already contains a paymentid param, don't touch it
+      try {
+        const curParams = new URLSearchParams(window.location.search);
+        if (curParams.has("paymentid")) return;
+      } catch {}
+
+      // find the slug for the selected package
+      const slug = tourPackages.find((p) => p.id === tourPackage)?.slug;
+      const params = new URLSearchParams(window.location.search);
+      if (slug) {
+        params.set("tour", String(slug));
+      } else {
+        params.delete("tour");
+      }
+      const newUrl = params.toString()
+        ? `${window.location.pathname}?${params.toString()}`
+        : window.location.pathname;
+      router.replace(newUrl);
+    } catch (err) {
+      console.debug("Failed to sync tour query param on selection:", err);
+    }
+  }, [tourPackage, tourPackages, router, isLoadingPackages, paymentDocId]);
 
   // Calculate days between reservation date (today) and tour date
   const calculateDaysBetween = (tourDateStr: string): number => {
@@ -794,9 +949,19 @@ const Page = () => {
             );
           }
 
+          const name = payload.name ?? payload.title ?? "";
+          const slugFromPayload = payload.slug || payload.slugified || null;
+          const slugify = (s: string) =>
+            s
+              .toLowerCase()
+              .replace(/[^a-z0-9\s-]/g, "")
+              .trim()
+              .replace(/\s+/g, "-");
+
           return {
             id: doc.id,
-            name: payload.name ?? payload.title ?? "",
+            name,
+            slug: slugFromPayload || (name ? slugify(name) : doc.id),
             travelDates: dates,
             stripePaymentLink: payload.stripePaymentLink,
             status: payload.status === "inactive" ? "inactive" : "active",
@@ -870,6 +1035,9 @@ const Page = () => {
               const snap = await getDoc(doc(db, "stripePayments", id));
               if (snap.exists()) {
                 setPaymentDocId(id);
+                try {
+                  replaceWithPaymentId(id);
+                } catch {}
               } else {
                 // document no longer exists — remove the stale session key
                 try {
@@ -950,6 +1118,8 @@ const Page = () => {
           if (!key) continue;
           if (key.startsWith("stripe_payment_doc_")) {
             const docId = sessionStorage.getItem(key);
+            if (DEBUG)
+              console.debug("session restore: found key", { key, docId });
             if (!docId) continue;
 
             // fetch the stripePayments document
@@ -961,11 +1131,31 @@ const Page = () => {
                 try {
                   sessionStorage.removeItem(key);
                 } catch {}
+                if (DEBUG)
+                  console.debug("session restore: doc missing, removed key", {
+                    key,
+                    docId,
+                  });
                 continue;
               }
               const data = snap.data() as any;
+              if (DEBUG)
+                console.debug("session restore: loaded doc", { docId, data });
 
               if (!mounted) return;
+
+              // Set paymentDocId early to avoid race with tour query param sync
+              setPaymentDocId(docId);
+              if (DEBUG)
+                console.debug("session restore: setPaymentDocId", docId);
+              try {
+                replaceWithPaymentId(docId);
+              } catch (err) {
+                console.debug(
+                  "Failed to set paymentid query param on session restore:",
+                  err
+                );
+              }
 
               // Populate form fields from stored doc
               if (data.email) setEmail(data.email);
@@ -981,16 +1171,51 @@ const Page = () => {
               if (data.tourPackageId) setTourPackage(data.tourPackageId);
               if (data.tourDate) setTourDate(data.tourDate);
 
-              setPaymentDocId(docId);
-
               // Advance to the appropriate step based on status
               if (data.status === "reserve_pending") {
                 // mark step 1 completed and go to payment step
+                // update URL to reference this payment doc and remove any `tour` param
+                try {
+                  if (DEBUG)
+                    console.debug(
+                      "session restore: replacing URL with paymentid",
+                      docId
+                    );
+                  replaceWithPaymentId(docId);
+                  if (DEBUG)
+                    console.debug(
+                      "session restore: replaceWithPaymentId called for",
+                      docId
+                    );
+                } catch (err) {
+                  console.debug(
+                    "Failed to set paymentid query param on session restore:",
+                    err
+                  );
+                }
                 setStep(2);
                 setCompletedSteps((prev) => Array.from(new Set([...prev, 1])));
               } else if (data.status === "reserve_paid") {
                 // payment completed — go to payment plan
                 setPaymentConfirmed(true);
+                try {
+                  if (DEBUG)
+                    console.debug(
+                      "session restore (paid): replacing URL with paymentid",
+                      docId
+                    );
+                  replaceWithPaymentId(docId);
+                  if (DEBUG)
+                    console.debug(
+                      "session restore (paid): replaceWithPaymentId called for",
+                      docId
+                    );
+                } catch (err) {
+                  console.debug(
+                    "Failed to set paymentid query param on session restore:",
+                    err
+                  );
+                }
                 setStep(3);
                 // if bookingId present, set it so Confirm Booking can find the record
                 if (data.bookingId) setBookingId(data.bookingId);
