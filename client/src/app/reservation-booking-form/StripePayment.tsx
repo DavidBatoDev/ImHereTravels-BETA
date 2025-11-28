@@ -10,7 +10,7 @@ import {
 } from "@stripe/react-stripe-js";
 import { useTheme } from "next-themes";
 
-const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
   : null;
 
@@ -21,7 +21,12 @@ interface PaymentFormProps {
   onError: (error: string) => void;
 }
 
-function PaymentForm({ clientSecret, paymentDocId, onSuccess, onError }: PaymentFormProps) {
+function PaymentForm({
+  clientSecret,
+  paymentDocId,
+  onSuccess,
+  onError,
+}: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -47,7 +52,9 @@ function PaymentForm({ clientSecret, paymentDocId, onSuccess, onError }: Payment
             // Payment was attempted but failed - allow retry
             if (paymentIntent.last_payment_error) {
               setPaymentFailed(true);
-              setDeclineCode(paymentIntent.last_payment_error.decline_code || null);
+              setDeclineCode(
+                paymentIntent.last_payment_error.decline_code || null
+              );
             }
             break;
           default:
@@ -59,7 +66,7 @@ function PaymentForm({ clientSecret, paymentDocId, onSuccess, onError }: Payment
 
   const getErrorMessage = (error: any) => {
     const code = error.decline_code || error.code;
-    
+
     switch (code) {
       case "card_declined":
       case "generic_decline":
@@ -80,7 +87,10 @@ function PaymentForm({ clientSecret, paymentDocId, onSuccess, onError }: Payment
       case "incorrect_number":
         return "Incorrect card number. Please check and try again.";
       default:
-        return error.message ?? "Payment failed. Please try again with a different payment method.";
+        return (
+          error.message ??
+          "Payment failed. Please try again with a different payment method."
+        );
     }
   };
 
@@ -113,7 +123,10 @@ function PaymentForm({ clientSecret, paymentDocId, onSuccess, onError }: Payment
       setPaymentFailed(false);
       onSuccess(paymentIntent.id, paymentDocId || undefined);
       setIsProcessing(false);
-    } else if (paymentIntent && paymentIntent.status === "requires_payment_method") {
+    } else if (
+      paymentIntent &&
+      paymentIntent.status === "requires_payment_method"
+    ) {
       const errorMsg = "Payment failed. Please try a different payment method.";
       setMessage(errorMsg);
       setPaymentFailed(true);
@@ -123,14 +136,16 @@ function PaymentForm({ clientSecret, paymentDocId, onSuccess, onError }: Payment
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <PaymentElement 
+      <PaymentElement
         onLoadError={(error) => {
           console.error("Payment Element load error:", error);
-          setMessage("Unable to load payment form. Please refresh the page and try again.");
+          setMessage(
+            "Unable to load payment form. Please refresh the page and try again."
+          );
           onError("Payment form failed to load");
         }}
       />
-      
+
       {message && (
         <div
           className={`text-sm p-3 rounded ${
@@ -141,15 +156,27 @@ function PaymentForm({ clientSecret, paymentDocId, onSuccess, onError }: Payment
         >
           <div className="flex items-start gap-2">
             {!message.includes("succeeded") && (
-              <svg className="h-5 w-5 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
-                <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <svg
+                className="h-5 w-5 flex-shrink-0 mt-0.5"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <path
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             )}
             <div className="flex-1">
               <p className="font-medium">{message}</p>
               {paymentFailed && declineCode === "fraudulent" && (
                 <p className="text-xs mt-1 opacity-90">
-                  For your security, this transaction has been blocked. Please contact your bank for more information or use a different payment method.
+                  For your security, this transaction has been blocked. Please
+                  contact your bank for more information or use a different
+                  payment method.
                 </p>
               )}
             </div>
@@ -166,7 +193,11 @@ function PaymentForm({ clientSecret, paymentDocId, onSuccess, onError }: Payment
             : "bg-crimson-red text-white hover:brightness-95"
         }`}
       >
-        {isProcessing ? "Processing..." : paymentFailed ? "Try again" : "Pay now"}
+        {isProcessing
+          ? "Processing..."
+          : paymentFailed
+          ? "Try again"
+          : "Pay now"}
       </button>
     </form>
   );
@@ -178,6 +209,7 @@ interface StripePaymentProps {
   email: string;
   amountGBP: number;
   bookingId: string;
+  paymentDocId?: string | null;
   onSuccess: (paymentIntentId?: string, paymentDocId?: string) => void;
 }
 
@@ -187,10 +219,13 @@ export default function StripePayment({
   email,
   amountGBP,
   bookingId,
+  paymentDocId: paymentDocIdProp,
   onSuccess,
 }: StripePaymentProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentDocId, setPaymentDocId] = useState<string | null>(null);
+  const [paymentDocId, setPaymentDocId] = useState<string | null>(
+    paymentDocIdProp ?? null
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
@@ -201,30 +236,37 @@ export default function StripePayment({
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (paymentDocIdProp) setPaymentDocId(paymentDocIdProp);
+  }, [paymentDocIdProp]);
+
   const initializePayment = () => {
     setLoading(true);
     setError(null);
 
     // Generate a unique session key based on email and tour package (not bookingId which is still PENDING)
-    const sessionKey = `stripe_payment_${email}_${tourPackageId}`;
-    
+    const sessionKey = paymentDocId
+      ? `stripe_payment_${email}_${tourPackageId}_${paymentDocId}`
+      : `stripe_payment_${email}_${tourPackageId}`;
+
     // Check if we already have a payment session for this booking
     const existingSession = sessionStorage.getItem(sessionKey);
     if (existingSession) {
       try {
-        const { clientSecret: savedSecret, paymentDocId: savedDocId } = JSON.parse(existingSession);
-        console.log('♻️ Reusing existing payment session for', email);
+        const { clientSecret: savedSecret, paymentDocId: savedDocId } =
+          JSON.parse(existingSession);
+        console.log("♻️ Reusing existing payment session for", email);
         setClientSecret(savedSecret);
         setPaymentDocId(savedDocId);
         setLoading(false);
         return;
       } catch (e) {
-        console.warn('Failed to parse existing session, creating new one');
+        console.warn("Failed to parse existing session, creating new one");
         sessionStorage.removeItem(sessionKey);
       }
     }
 
-    console.log('🆕 Creating new payment session for', email);
+    console.log("🆕 Creating new payment session for", email);
     fetch("/api/stripe-payments/init-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -233,6 +275,7 @@ export default function StripePayment({
         tourPackage: tourPackageId,
         tourPackageName,
         amountGBP,
+        paymentDocId,
         // Deliberately omit bookingId; it may change after payment and should not re-init
         meta: {
           source: "reservation-form",
@@ -248,13 +291,16 @@ export default function StripePayment({
         } else {
           setClientSecret(data.clientSecret);
           setPaymentDocId(data.paymentDocId); // Store the Firestore document ID
-          
+
           // Save to session storage to prevent duplicate payments on refresh
-          sessionStorage.setItem(sessionKey, JSON.stringify({
-            clientSecret: data.clientSecret,
-            paymentDocId: data.paymentDocId
-          }));
-          
+          sessionStorage.setItem(
+            sessionKey,
+            JSON.stringify({
+              clientSecret: data.clientSecret,
+              paymentDocId: data.paymentDocId,
+            })
+          );
+
           setError(null);
           setLoading(false);
         }
@@ -268,13 +314,15 @@ export default function StripePayment({
   useEffect(() => {
     // Check if Stripe is configured
     if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
-      setError("Stripe is not configured. Please add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to your .env.local file.");
+      setError(
+        "Stripe is not configured. Please add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to your .env.local file."
+      );
       setLoading(false);
       return;
     }
 
     initializePayment();
-  }, [tourPackageId, email, amountGBP]);
+  }, [tourPackageId, email, amountGBP, paymentDocId]);
 
   if (loading) {
     return (
@@ -289,8 +337,18 @@ export default function StripePayment({
       <div className="space-y-3">
         <div className="bg-destructive/10 text-destructive border border-destructive/30 p-4 rounded-md">
           <div className="flex items-start gap-2">
-            <svg className="h-5 w-5 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
-              <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              className="h-5 w-5 flex-shrink-0 mt-0.5"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <path
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
             <div>
               <p className="font-medium">Payment initialization failed</p>
@@ -335,7 +393,7 @@ export default function StripePayment({
   const options = {
     clientSecret,
     appearance: {
-      theme: (isDark ? "night" : "stripe") as const,
+      theme: (isDark ? "night" : "stripe") as "night" | "stripe",
       variables: {
         colorPrimary: "#FF385C",
         colorBackground: isDark ? "#2a2a2a" : "#ffffff",
