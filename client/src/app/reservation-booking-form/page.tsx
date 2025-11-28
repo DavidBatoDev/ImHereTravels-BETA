@@ -9,12 +9,26 @@ import {
   serverTimestamp,
   setDoc,
   doc,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  limit,
+  deleteDoc,
 } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import StripePayment from "./StripePayment";
 import BirthdatePicker from "./BirthdatePicker";
 import Select from "./Select";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const Page = () => {
   const [email, setEmail] = useState("");
@@ -84,6 +98,11 @@ const Page = () => {
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [confirmingBooking, setConfirmingBooking] = useState(false);
   const [paymentDocId, setPaymentDocId] = useState<string | null>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [foundStripePayments, setFoundStripePayments] = useState<Array<any>>(
+    []
+  );
 
   // Dynamic step descriptions
   const getStepDescription = () => {
@@ -115,6 +134,159 @@ const Page = () => {
         }
       default:
         return "";
+    }
+  };
+
+  // Create a new placeholder stripePayments doc and set session state
+  const createPlaceholder = async () => {
+    try {
+      const paymentsRef = collection(db, "stripePayments");
+      const newDoc = await addDoc(paymentsRef, {
+        status: "reserve_pending",
+        email,
+        firstName,
+        lastName,
+        birthdate,
+        nationality,
+        bookingType,
+        groupSize:
+          bookingType === "Group Booking"
+            ? groupSize
+            : bookingType === "Duo Booking"
+            ? 2
+            : 1,
+        additionalGuests:
+          bookingType === "Duo Booking" || bookingType === "Group Booking"
+            ? additionalGuests
+            : [],
+        tourPackageId: tourPackage,
+        tourPackageName: selectedPackage?.name || "",
+        tourDate,
+        amountGBP: depositAmount,
+        currency: "GBP",
+        type: "reservationFee",
+        createdAt: serverTimestamp(),
+      });
+
+      // write the id into the document for convenience
+      await setDoc(
+        doc(db, "stripePayments", newDoc.id),
+        { id: newDoc.id },
+        { merge: true }
+      );
+      setPaymentDocId(newDoc.id);
+      try {
+        sessionStorage.setItem(
+          `stripe_payment_doc_${email}_${tourPackage}`,
+          newDoc.id
+        );
+      } catch {}
+      return newDoc.id;
+    } catch (err) {
+      console.error("Error creating payment placeholder:", err);
+      alert("Unable to create payment record. Please try again.");
+      return null;
+    }
+  };
+
+  // Query existing stripePayments for this email and show modal if any
+  const checkExistingPaymentsAndMaybeProceed = async () => {
+    if (!validate()) return;
+
+    // If we already have a paymentDocId, just proceed
+    if (paymentDocId) {
+      if (!completedSteps.includes(1)) {
+        setCompletedSteps([...completedSteps, 1]);
+      }
+      setStep(2);
+      return;
+    }
+
+    setModalLoading(true);
+    try {
+      const paymentsRef = collection(db, "stripePayments");
+      const q = query(
+        paymentsRef,
+        where("email", "==", email),
+        orderBy("createdAt", "desc"),
+        limit(5)
+      );
+      const snap = await getDocs(q);
+      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      if (!docs || docs.length === 0) {
+        // no existing records — create a new placeholder
+        const id = await createPlaceholder();
+        if (!completedSteps.includes(1)) {
+          setCompletedSteps([...completedSteps, 1]);
+        }
+        setStep(2);
+      } else {
+        // show modal with options
+        setFoundStripePayments(docs);
+        setShowEmailModal(true);
+      }
+    } catch (err) {
+      console.error("Error checking existing payments:", err);
+      // fall back to creating a placeholder
+      await createPlaceholder();
+      if (!completedSteps.includes(1)) {
+        setCompletedSteps([...completedSteps, 1]);
+      }
+      setStep(2);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleReuseExisting = async (rec: any) => {
+    setShowEmailModal(false);
+    setPaymentDocId(rec.id);
+    try {
+      sessionStorage.setItem(
+        `stripe_payment_doc_${email}_${tourPackage}`,
+        rec.id
+      );
+    } catch {}
+    // navigate to appropriate step based on status
+    if (rec.status === "reserve_paid" || rec.status === "terms_selected") {
+      setPaymentConfirmed(true);
+      setStep(3);
+      if (rec.bookingId) setBookingId(rec.bookingId);
+      // mark step1 completed
+      if (!completedSteps.includes(1)) {
+        setCompletedSteps([...completedSteps, 1]);
+      }
+    } else {
+      // pending
+      if (!completedSteps.includes(1)) {
+        setCompletedSteps([...completedSteps, 1]);
+      }
+      setStep(2);
+    }
+  };
+
+  const handleDiscardExisting = async (recId: string, status?: string) => {
+    // Prevent discarding paid or confirmed reservations
+    if (status === "reserve_paid" || status === "terms_selected") {
+      alert(
+        "Cannot discard a reservation that is already paid or confirmed. If you need help, contact support."
+      );
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, "stripePayments", recId));
+      setFoundStripePayments((prev) => prev.filter((d) => d.id !== recId));
+      // after discard, create a fresh placeholder
+      const id = await createPlaceholder();
+      if (!completedSteps.includes(1)) {
+        setCompletedSteps([...completedSteps, 1]);
+      }
+      setShowEmailModal(false);
+      setStep(2);
+    } catch (err) {
+      console.error("Failed to discard existing stripePayment:", err);
+      alert("Unable to discard reservation. Please try again.");
     }
   };
 
@@ -1120,6 +1292,85 @@ const Page = () => {
       <div className="fixed top-6 right-6 z-50">
         <ThemeToggle />
       </div>
+
+      {/* Email-check modal shown when existing stripePayments are found for this email */}
+      <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Existing reservation(s) for this email</DialogTitle>
+            <DialogDescription>
+              {foundStripePayments &&
+              foundStripePayments.some((r) => r.status === "reserve_paid")
+                ? "We found a paid reservation for this email — you can reuse it to continue selecting a payment plan or view its details."
+                : "We found previous reservation attempts using this email. You can reuse one of them or discard it and create a new reservation."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-3">
+            {modalLoading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+            ) : (
+              foundStripePayments.map((rec) => (
+                <div
+                  key={rec.id}
+                  className="flex items-center justify-between p-3 bg-muted/30 rounded"
+                >
+                  <div className="text-sm">
+                    <div className="font-semibold">
+                      {rec.tourPackageName || rec.tourPackageId || "-"}
+                    </div>
+                    <div className="text-xs text-foreground/70 flex items-center gap-2">
+                      {rec.tourDate ? <span>{rec.tourDate} ·</span> : null}
+                      <span>
+                        {/* compact status tag */}
+                        {rec.status === "reserve_paid" ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800 font-semibold">
+                            Paid
+                          </span>
+                        ) : rec.status === "reserve_pending" ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-800 font-semibold">
+                            Pending
+                          </span>
+                        ) : rec.status === "terms_selected" ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800 font-semibold">
+                            Terms
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted/30 text-foreground font-semibold">
+                            Unknown
+                          </span>
+                        )}
+                      </span>
+                      <span>· £{rec.amountGBP || "0.00"}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleReuseExisting(rec)}
+                      className="px-3 py-1 rounded bg-primary text-primary-foreground text-sm font-medium"
+                    >
+                      Use this
+                    </button>
+                    {!(
+                      rec.status === "reserve_paid" ||
+                      rec.status === "terms_selected"
+                    ) && (
+                      <button
+                        onClick={() => handleDiscardExisting(rec.id)}
+                        className="px-3 py-1 rounded bg-red-600 text-white text-sm font-medium"
+                      >
+                        Discard
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div
         className="relative z-10 w-full min-h-screen text-card-foreground px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10"
@@ -2419,71 +2670,7 @@ const Page = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    (async () => {
-                      if (!validate()) return;
-
-                      // If we already created a payment placeholder, reuse it
-                      if (!paymentDocId) {
-                        try {
-                          const paymentsRef = collection(db, "stripePayments");
-                          const newDoc = await addDoc(paymentsRef, {
-                            status: "reserve_pending",
-                            email,
-                            firstName,
-                            lastName,
-                            birthdate,
-                            nationality,
-                            bookingType,
-                            groupSize:
-                              bookingType === "Group Booking"
-                                ? groupSize
-                                : bookingType === "Duo Booking"
-                                ? 2
-                                : 1,
-                            additionalGuests:
-                              bookingType === "Duo Booking" ||
-                              bookingType === "Group Booking"
-                                ? additionalGuests
-                                : [],
-                            tourPackageId: tourPackage,
-                            tourPackageName: selectedPackage?.name || "",
-                            tourDate,
-                            amountGBP: depositAmount,
-                            currency: "GBP",
-                            type: "reservationFee",
-                            createdAt: serverTimestamp(),
-                          });
-
-                          // write the id into the document for convenience
-                          await setDoc(
-                            doc(db, "stripePayments", newDoc.id),
-                            { id: newDoc.id },
-                            { merge: true }
-                          );
-                          setPaymentDocId(newDoc.id);
-                          try {
-                            sessionStorage.setItem(
-                              `stripe_payment_doc_${email}_${tourPackage}`,
-                              newDoc.id
-                            );
-                          } catch {}
-                        } catch (err) {
-                          console.error(
-                            "Error creating payment placeholder:",
-                            err
-                          );
-                          alert(
-                            "Unable to create payment record. Please try again."
-                          );
-                          return;
-                        }
-                      }
-
-                      if (!completedSteps.includes(1)) {
-                        setCompletedSteps([...completedSteps, 1]);
-                      }
-                      setStep(2);
-                    })();
+                    checkExistingPaymentsAndMaybeProceed();
                   }}
                   className="group inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary to-crimson-red text-primary-foreground rounded-lg shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200 font-semibold"
                 >
