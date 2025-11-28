@@ -38,30 +38,48 @@ function PaymentForm({
     if (!stripe || !clientSecret) return;
 
     // Check payment status on mount (in case of page refresh)
-    stripe.retrievePaymentIntent(clientSecret).then(({ paymentIntent }) => {
-      if (paymentIntent) {
-        switch (paymentIntent.status) {
-          case "succeeded":
+    (async () => {
+      try {
+        const result = await stripe.retrievePaymentIntent(clientSecret);
+        const { paymentIntent } = result as any;
+        console.debug("Stripe retrievePaymentIntent:", paymentIntent);
+        if (!paymentIntent) return;
+
+        if (paymentIntent.status === "succeeded") {
+          const amountReceived = (paymentIntent as any).amount_received ?? 0;
+          if (amountReceived > 0) {
             setMessage("Payment succeeded!");
             onSuccess(paymentIntent.id, paymentDocId || undefined);
-            break;
-          case "processing":
-            setMessage("Your payment is processing.");
-            break;
-          case "requires_payment_method":
-            // Payment was attempted but failed - allow retry
-            if (paymentIntent.last_payment_error) {
-              setPaymentFailed(true);
-              setDeclineCode(
-                paymentIntent.last_payment_error.decline_code || null
-              );
-            }
-            break;
-          default:
-            break;
+          } else {
+            // succeeded but no recorded amount - show a neutral message
+            console.warn(
+              "PaymentIntent succeeded but amount_received is 0",
+              paymentIntent
+            );
+            setMessage(
+              "Payment completed (pending verification). Please wait..."
+            );
+          }
+          return;
         }
+
+        if (paymentIntent.status === "processing") {
+          setMessage("Your payment is processing.");
+          return;
+        }
+
+        if (paymentIntent.status === "requires_payment_method") {
+          if (paymentIntent.last_payment_error) {
+            setPaymentFailed(true);
+            setDeclineCode(
+              paymentIntent.last_payment_error.decline_code || null
+            );
+          }
+        }
+      } catch (err) {
+        console.warn("retrievePaymentIntent error:", err);
       }
-    });
+    })();
   }, [stripe, clientSecret, onSuccess]);
 
   const getErrorMessage = (error: any) => {
