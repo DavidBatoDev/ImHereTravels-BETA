@@ -22,7 +22,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <Button variant="outline" size="sm" className="h-9 w-9 p-0">
+      <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-full">
         <Sun className="h-4 w-4" />
         <span className="sr-only">Toggle theme</span>
       </Button>
@@ -47,7 +47,7 @@ export function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 w-9 p-0">
+        <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-full">
           {getIcon()}
           <span className="sr-only">Toggle theme</span>
         </Button>
@@ -91,7 +91,7 @@ export function ThemeToggleSimple() {
 
   if (!mounted) {
     return (
-      <Button variant="outline" size="sm" className="h-9 w-9 p-0">
+      <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-full">
         <Sun className="h-4 w-4" />
         <span className="sr-only">Toggle theme</span>
       </Button>
@@ -104,9 +104,9 @@ export function ThemeToggleSimple() {
 
   return (
     <Button
-      variant="outline"
+      variant="ghost"
       size="sm"
-      className="h-9 w-9 p-0"
+      className="h-9 w-9 p-0 rounded-full"
       onClick={toggleTheme}
     >
       {resolvedTheme === "dark" ? (

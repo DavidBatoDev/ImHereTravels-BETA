@@ -2,7 +2,27 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import {
+  Menu,
+  X,
+  Search,
+  Mail,
+  User,
+  Lock,
+  AlertTriangle,
+  Bell,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useAuthStore } from "@/store/auth-store";
+import { Input } from "@/components/ui/input";
 import AuthGuard from "@/components/auth/AuthGuard";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -14,11 +34,64 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { sidebarCollapsed, setSidebarCollapsed } = useSidebar();
+  const { userProfile, signOut, isLoading } = useAuthStore();
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: "New booking #123",
+      body: "John Doe booked 'City Highlights'",
+      time: "2h ago",
+      read: false,
+    },
+    {
+      id: 2,
+      title: "Payment received",
+      body: "Payment for booking #119 processed",
+      time: "1d ago",
+      read: false,
+    },
+    {
+      id: 3,
+      title: "Reminder sent",
+      body: "Payment reminder sent to jane@example.com",
+      time: "3d ago",
+      read: true,
+    },
+  ]);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      window.location.href = "/auth/admin/login";
+    } catch (error) {
+      console.error("Sign out failed:", error);
+    }
+  };
+
+  const handleLock = () => {
+    // Placeholder for lock action — implement actual lock logic later
+    console.log("Lock action triggered");
+  };
 
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background">
+        <style>{`
+          @keyframes bellRing {
+            0% { transform: rotate(0deg); }
+            10% { transform: rotate(20deg); }
+            30% { transform: rotate(-15deg); }
+            50% { transform: rotate(10deg); }
+            70% { transform: rotate(-6deg); }
+            100% { transform: rotate(0deg); }
+          }
+          .bell-ring { transform-origin: 50% 10%; animation: bellRing 1s cubic-bezier(.2,.9,.2,1) infinite; }
+        `}</style>
         {/* Sidebar */}
         <DashboardSidebar
           sidebarOpen={sidebarOpen}
@@ -49,6 +122,222 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
 
+          {/* Desktop navbar: left search, right theme toggle */}
+          <div
+            className={`${
+              sidebarCollapsed ? "lg:px-4 lg:pl-10" : "lg:px-4"
+            } hidden lg:flex sticky top-0 z-40 h-16 items-center    border-b border-border shadow-sm`}
+            style={{ backgroundColor: "hsl(var(--card-surface))" }}
+          >
+            <div className="flex flex-1 items-center">
+              <div className="relative w-full max-w-xl">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                </span>
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search bookings, customers..."
+                  className="bg-muted pl-10 pr-10 md:pl-10 md:pr-10"
+                />
+
+                {searchQuery && (
+                  <button
+                    aria-label="Clear search"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted"
+                    title="Clear"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-x-2">
+              <a
+                href="https://mail.google.com/mail/u/0/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open Gmail"
+                aria-label="Open Gmail"
+              >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-3 rounded-md"
+                >
+                  <Mail className="h-4 w-4" />
+                  <span className="ml-2 text-sm font-medium">Open Gmail</span>
+                </Button>
+              </a>
+
+              {/* Notifications dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                    <div className="relative flex items-center justify-center h-9 w-9">
+                      <Bell
+                        className={cn(
+                          "h-4 w-4",
+                          unreadCount > 0 ? "bell-ring" : ""
+                        )}
+                      />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] leading-none px-1.5 py-0.5">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="w-80">
+                  <div className="px-3 py-2 border-b border-border">
+                    <div className="text-sm font-semibold">Notifications</div>
+                    <div className="text-xs text-muted-foreground">
+                      Recent activity
+                    </div>
+                  </div>
+
+                  <div className="max-h-60 overflow-y-auto">
+                    {notifications.map((n) => (
+                      <DropdownMenuItem
+                        key={n.id}
+                        onClick={() =>
+                          setNotifications((prev) =>
+                            prev.map((p) =>
+                              p.id === n.id ? { ...p, read: true } : p
+                            )
+                          )
+                        }
+                        className="flex flex-col items-start gap-1 py-2"
+                      >
+                        <div
+                          className={cn(
+                            "w-full text-sm font-medium",
+                            n.read ? "text-muted-foreground" : "text-foreground"
+                          )}
+                        >
+                          {n.title}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {n.body}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {n.time}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() =>
+                      setNotifications((prev) =>
+                        prev.map((p) => ({ ...p, read: true }))
+                      )
+                    }
+                    className="text-sm"
+                  >
+                    Mark all as read
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <ThemeToggle />
+
+              {/* Avatar dropdown (right-most) */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 w-9 p-0 ml-2"
+                  >
+                    <Avatar>
+                      {userProfile?.profile?.avatar ? (
+                        <AvatarImage
+                          src={userProfile.profile.avatar}
+                          alt="Profile"
+                        />
+                      ) : (
+                        <AvatarFallback>
+                          <User className="h-4 w-4 text-foreground" />
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="px-4 py-3">
+                    <div className="text-sm font-semibold text-foreground">
+                      {userProfile?.profile?.firstName || "User"}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {userProfile?.email}
+                    </div>
+                  </div>
+
+                  <DropdownMenuItem
+                    disabled
+                    className="flex items-center gap-2"
+                  >
+                    <Lock className="h-4 w-4" />
+                    <span>Edit Preferences</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setShowLogoutModal(true)}
+                    className="text-destructive"
+                  >
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          {/* Logout Confirmation Modal (same style as sidebar) */}
+          {showLogoutModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="bg-background rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-border">
+                <div className="flex items-center space-x-4 mb-6">
+                  <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center">
+                    <AlertTriangle className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground font-hk-grotesk">
+                      Confirm Logout
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Are you sure you want to sign out?
+                    </p>
+                  </div>
+                </div>
+                <div className="flex space-x-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-border text-primary hover:bg-primary/10 rounded-xl transition-all duration-200"
+                    onClick={() => setShowLogoutModal(false)}
+                    disabled={isLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-xl transition-all duration-200 shadow-lg shadow-primary/25"
+                    onClick={handleSignOut}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Signing out..." : "Sign out"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Page content */}
           <main className="py-6">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -72,10 +361,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         )}
 
-        {/* Fixed floating theme toggle */}
-        <div className="fixed top-4 right-4 z-50">
-          <ThemeToggle />
-        </div>
+        {/* Theme toggle moved into the desktop navbar */}
       </div>
     </AuthGuard>
   );
