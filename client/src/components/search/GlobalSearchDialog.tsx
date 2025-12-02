@@ -246,7 +246,7 @@ export default function GlobalSearchDialog({
         value={searchQuery}
         onValueChange={setSearchQuery}
       />
-      <CommandList>
+      <CommandList className="min-h-[300px]">
         {/* Empty State - No search query and no history */}
         {showEmptyState && (
           <div className="py-12 text-center">
@@ -330,8 +330,17 @@ export default function GlobalSearchDialog({
 
         {/* Loading State */}
         {isLoading && debouncedQuery.trim() && (
-          <div className="py-6 text-center">
-            <p className="text-sm text-muted-foreground">Searching...</p>
+          <div className="py-12 text-center">
+            <div className="mx-auto w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground mb-2">
+              Searching...
+            </h3>
+            <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+              Finding results for "
+              <span className="font-medium">{debouncedQuery}</span>"
+            </p>
           </div>
         )}
 
