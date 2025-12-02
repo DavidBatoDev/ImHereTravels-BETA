@@ -423,7 +423,9 @@ export class FirebaseStorageService {
       url: fileObject.downloadURL,
       size: this.formatFileSize(fileObject.size),
       type: fileObject.contentType,
-      uploadedAt: uploadedAt ? uploadedAt.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      uploadedAt: uploadedAt
+        ? uploadedAt.toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0],
       tags: fileObject.tags || [],
       metadata: fileObject.metadata || {
         description: "",

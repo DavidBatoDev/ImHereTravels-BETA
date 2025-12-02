@@ -74,8 +74,12 @@ export const searchCategories: CategoryConfig[] = [
     threshold: 0.4,
     formatResult: (booking: any): SearchResult => ({
       id: booking.id,
-      title: `${booking.bookingCode || booking.id} - ${booking.fullName || "Unknown"}`,
-      subtitle: `${booking.tourPackageName || "No tour"} • ${formatDate(booking.tourDate)}`,
+      title: `${booking.bookingCode || booking.id} - ${
+        booking.fullName || "Unknown"
+      }`,
+      subtitle: `${booking.tourPackageName || "No tour"} • ${formatDate(
+        booking.tourDate
+      )}`,
       category: "bookings",
       icon: Calendar,
       url: `/bookings?bookingId=${booking.id}`,
@@ -109,7 +113,9 @@ export const searchCategories: CategoryConfig[] = [
     formatResult: (tour: any): SearchResult => ({
       id: tour.id,
       title: `${tour.tourCode} - ${tour.name}`,
-      subtitle: `${tour.location} • ${tour.pricing?.currency || "EUR"} ${tour.pricing?.original || 0}`,
+      subtitle: `${tour.location} • ${tour.pricing?.currency || "EUR"} ${
+        tour.pricing?.original || 0
+      }`,
       category: "tours",
       icon: MapPin,
       url: `/tours?tab=packages&tourId=${tour.id}`,
@@ -139,7 +145,9 @@ export const searchCategories: CategoryConfig[] = [
     formatResult: (event: any): SearchResult => ({
       id: event.id,
       title: event.name,
-      subtitle: `${event.items?.length || 0} tour packages • ${event.active ? "Active" : "Inactive"}`,
+      subtitle: `${event.items?.length || 0} tour packages • ${
+        event.active ? "Active" : "Inactive"
+      }`,
       category: "discount-events",
       icon: Tag,
       url: `/tours?tab=discounted`,
@@ -170,7 +178,9 @@ export const searchCategories: CategoryConfig[] = [
     formatResult: (term: any): SearchResult => ({
       id: term.id,
       title: term.name,
-      subtitle: `${term.paymentPlanType} • ${term.description || "No description"}`,
+      subtitle: `${term.paymentPlanType} • ${
+        term.description || "No description"
+      }`,
       category: "payment-terms",
       icon: CreditCard,
       url: `/payment-terms?termId=${term.id}&mode=edit`,
@@ -304,7 +314,9 @@ export const searchCategories: CategoryConfig[] = [
     formatResult: (file: any): SearchResult => ({
       id: file.id,
       title: file.name,
-      subtitle: `${file.contentType || "Unknown type"} • ${file.size ? `${(file.size / 1024).toFixed(2)} KB` : "Unknown size"}`,
+      subtitle: `${file.contentType || "Unknown type"} • ${
+        file.size ? `${(file.size / 1024).toFixed(2)} KB` : "Unknown size"
+      }`,
       category: "storage",
       icon: HardDrive,
       url: `/storage`,

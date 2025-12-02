@@ -10,7 +10,8 @@ interface SearchResultItemProps {
 
 const badgeColorMap: Record<string, string> = {
   "spring-green": "bg-spring-green/20 text-spring-green border-spring-green/30",
-  "sunglow-yellow": "bg-sunglow-yellow/20 text-vivid-orange border-sunglow-yellow/30",
+  "sunglow-yellow":
+    "bg-sunglow-yellow/20 text-vivid-orange border-sunglow-yellow/30",
   "crimson-red": "bg-crimson-red/20 text-crimson-red border-crimson-red/30",
   "royal-purple": "bg-royal-purple/20 text-royal-purple border-royal-purple/30",
   grey: "bg-grey/20 text-grey border-grey/30",
@@ -22,8 +23,7 @@ export default function SearchResultItem({
 }: SearchResultItemProps) {
   const Icon = result.icon;
   const badgeColorClass =
-    badgeColorMap[result.metadata?.badgeColor || "grey"] ||
-    badgeColorMap.grey;
+    badgeColorMap[result.metadata?.badgeColor || "grey"] || badgeColorMap.grey;
 
   return (
     <CommandItem

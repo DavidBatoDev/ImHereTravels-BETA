@@ -15,7 +15,14 @@ import {
 import SearchResultItem from "./SearchResultItem";
 import { SearchResult, RecentSearch, SearchCategory } from "@/types/search";
 import { searchCategories } from "@/lib/search/searchConfig";
-import { X, Clock, ArrowUp, ArrowDown, CornerDownLeft, Loader2 } from "lucide-react";
+import {
+  X,
+  Clock,
+  ArrowUp,
+  ArrowDown,
+  CornerDownLeft,
+  Loader2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface GlobalSearchDialogProps {
@@ -214,12 +221,9 @@ export default function GlobalSearchDialog({
   );
 
   // Handle recent search click
-  const handleRecentSearchClick = useCallback(
-    (query: string) => {
-      setSearchQuery(query);
-    },
-    []
-  );
+  const handleRecentSearchClick = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
 
   // Reset state when dialog closes
   useEffect(() => {
@@ -253,7 +257,8 @@ export default function GlobalSearchDialog({
               Start searching
             </h3>
             <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-              Search across bookings, tours, payment terms, email templates, and more
+              Search across bookings, tours, payment terms, email templates, and
+              more
             </p>
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
               <kbd className="px-2 py-1 bg-muted border border-border rounded">
@@ -316,7 +321,9 @@ export default function GlobalSearchDialog({
               No results found
             </h3>
             <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-              No matches found for "<span className="font-medium">{debouncedQuery}</span>". Try searching with different keywords.
+              No matches found for "
+              <span className="font-medium">{debouncedQuery}</span>". Try
+              searching with different keywords.
             </p>
           </div>
         )}
