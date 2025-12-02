@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Menu,
@@ -23,10 +23,12 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth-store";
 import { Input } from "@/components/ui/input";
+import SearchBar from "@/components/dashboard/SearchBar";
 import AuthGuard from "@/components/auth/AuthGuard";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useSidebar } from "@/contexts/SidebarContext";
+import GlobalSearchDialog from "@/components/search/GlobalSearchDialog";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -35,6 +37,7 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const { sidebarCollapsed, setSidebarCollapsed } = useSidebar();
   const { userProfile, signOut, isLoading } = useAuthStore();
   const [notifications, setNotifications] = useState([
@@ -78,6 +81,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     console.log("Lock action triggered");
   };
 
+  // Global search keyboard shortcut (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setSearchDialogOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background">
@@ -120,6 +136,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 Dashboard
               </h1>
             </div>
+            {/* Mobile search button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSearchDialogOpen(true)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
           </div>
 
           {/* Desktop navbar: left search, right theme toggle */}
@@ -130,27 +155,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             style={{ backgroundColor: "hsl(var(--card-surface))" }}
           >
             <div className="flex flex-1 items-center">
-              <div className="relative w-full max-w-xl">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                </span>
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search bookings, customers..."
-                  className="bg-muted pl-10 pr-10 md:pl-10 md:pr-10"
-                />
-
-                {searchQuery && (
-                  <button
-                    aria-label="Clear search"
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted"
-                    title="Clear"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
+              {/* Click to open global search */}
+              <div
+                onClick={() => setSearchDialogOpen(true)}
+                className="relative w-full max-w-xl cursor-pointer"
+              >
+                <div className="flex items-center bg-muted pl-10 pr-24 py-2 rounded-full border border-transparent hover:border-border transition-colors">
+                  <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    Search bookings, tours, payment terms...
+                  </span>
+                  <kbd className="absolute right-3 pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded border border-border bg-background px-2 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                    <span className="text-xs">⌘</span>K
+                  </kbd>
+                </div>
               </div>
             </div>
 
@@ -175,7 +193,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               {/* Notifications dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 w-9 p-0 rounded-full data-[state=open]:bg-muted focus-visible:ring-0 focus:outline-none"
+                  >
                     <div className="relative flex items-center justify-center h-9 w-9">
                       <Bell
                         className={cn(
@@ -362,6 +384,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         )}
 
         {/* Theme toggle moved into the desktop navbar */}
+
+        {/* Global Search Dialog */}
+        <GlobalSearchDialog
+          open={searchDialogOpen}
+          onOpenChange={setSearchDialogOpen}
+        />
       </div>
     </AuthGuard>
   );

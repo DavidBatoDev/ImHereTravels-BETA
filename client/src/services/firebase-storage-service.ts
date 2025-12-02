@@ -423,14 +423,18 @@ export class FirebaseStorageService {
       url: fileObject.downloadURL,
       size: this.formatFileSize(fileObject.size),
       type: fileObject.contentType,
-      uploadedAt: uploadedAt.toISOString().split("T")[0],
-      tags: fileObject.tags,
-      metadata: fileObject.metadata,
+      uploadedAt: uploadedAt ? uploadedAt.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      tags: fileObject.tags || [],
+      metadata: fileObject.metadata || {
+        description: "",
+        location: "",
+        category: "uncategorized",
+      },
       firebaseStoragePath: fileObject.storagePath,
       firestoreId: fileObject.id,
       downloadURL: fileObject.downloadURL,
       contentType: fileObject.contentType,
-      lastModified: lastModified,
+      lastModified: lastModified || new Date(),
       uploadedBy: fileObject.uploadedBy,
     };
   }
@@ -476,16 +480,44 @@ export class FirebaseStorageService {
   /**
    * Convert Firestore Timestamp to Date
    */
-  private convertTimestamp(timestamp: Date | any): Date {
+  private convertTimestamp(timestamp: Date | any): Date | null {
+    // Handle null or undefined
+    if (!timestamp) {
+      return null;
+    }
+    // Already a Date object
     if (timestamp instanceof Date) {
+      // Validate the date is not invalid
+      if (isNaN(timestamp.getTime())) {
+        return null;
+      }
       return timestamp;
     }
     // Handle Firestore Timestamp
     if (timestamp && typeof timestamp.toDate === "function") {
-      return timestamp.toDate();
+      try {
+        const date = timestamp.toDate();
+        // Validate the converted date
+        if (isNaN(date.getTime())) {
+          return null;
+        }
+        return date;
+      } catch (error) {
+        console.warn("Failed to convert Firestore timestamp:", error);
+        return null;
+      }
     }
-    // Fallback: try to create Date from value
-    return new Date(timestamp);
+    // Try to parse as string or number
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) {
+        return null;
+      }
+      return date;
+    } catch (error) {
+      console.warn("Failed to parse timestamp:", timestamp, error);
+      return null;
+    }
   }
 
   /**
