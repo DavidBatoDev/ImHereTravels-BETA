@@ -2607,6 +2607,7 @@ export default function BookingsSection() {
             .filter((booking) => booking.id && booking.id.trim() !== "") // Filter out bookings with empty IDs
             .map((booking) => {
               const isInvalid = isBookingInvalid(booking);
+              const hasAutoTag = booking.tags?.includes("auto");
               return (
                 <Card
                   key={booking.id}
@@ -2614,7 +2615,11 @@ export default function BookingsSection() {
                   className={`group border transition-all duration-300 cursor-pointer overflow-hidden relative ${
                     isInvalid
                       ? "border-crimson-red bg-crimson-red/5 hover:border-crimson-red hover:bg-crimson-red/10"
-                      : "border-border hover:border-crimson-red/50"
+                      : "border-border "
+                  } ${
+                    hasAutoTag
+                      ? "border-t-4 border-t-green-500 hover:border-green-500/50"
+                      : "border-t-4 border-t-red-500 hover:border-crimson-red/50"
                   }`}
                 >
                   {/* Row Number - Upper Left */}
@@ -2669,16 +2674,6 @@ export default function BookingsSection() {
                               title={booking.bookingType}
                             >
                               {booking.bookingType}
-                            </Badge>
-                          )}
-                          {booking.tags?.includes("auto") && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs font-medium border-0 text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0 rounded-full flex items-center gap-0.5"
-                              title="Auto-created from reservation form"
-                            >
-                              <Zap className="h-2.5 w-2.5" />
-                              Auto
                             </Badge>
                           )}
                         </div>
@@ -3015,6 +3010,7 @@ export default function BookingsSection() {
                     .filter((booking) => booking.id && booking.id.trim() !== "") // Filter out bookings with empty IDs
                     .map((booking) => {
                       const isInvalid = isBookingInvalid(booking);
+                      const hasAutoTag = booking.tags?.includes("auto");
                       return (
                         <tr
                           key={booking.id}
@@ -3023,6 +3019,10 @@ export default function BookingsSection() {
                             isInvalid
                               ? "border-crimson-red bg-crimson-red/10 hover:bg-crimson-red/20"
                               : "border-border hover:bg-crimson-red/5"
+                          } ${
+                            hasAutoTag
+                              ? "border-l-4 border-l-green-400"
+                              : "border-l-4 border-l-red-400"
                           }`}
                         >
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">
@@ -3031,20 +3031,9 @@ export default function BookingsSection() {
                             </span>
                           </td>
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">
-                            <div className="flex items-center gap-1">
-                              <span className="font-mono text-[7px] md:text-[10px] font-semibold text-crimson-red truncate">
-                                {booking.bookingId || "Invalid Booking"}
-                              </span>
-                              {booking.tags?.includes("auto") && (
-                                <span
-                                  className="inline-flex items-center text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-1 py-0 rounded text-[6px] md:text-[8px] font-medium"
-                                  title="Auto-created from reservation form"
-                                >
-                                  <Zap className="h-2 w-2 mr-0.5" />
-                                  Auto
-                                </span>
-                              )}
-                            </div>
+                            <span className="font-mono text-[7px] md:text-[10px] font-semibold text-crimson-red truncate">
+                              {booking.bookingId || "Invalid Booking"}
+                            </span>
                           </td>
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             <div className="flex items-center gap-0.5 md:gap-1">
