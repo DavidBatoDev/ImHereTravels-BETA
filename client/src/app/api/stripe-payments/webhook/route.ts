@@ -2,13 +2,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  doc,
+  addDoc,
+  getDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import {
+  createBookingData,
+  generateGroupId,
+  type BookingCreationInput,
+} from "@/lib/booking-calculations";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: null as any,
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+
+/**
+ * Fetch tour package data by ID
+ */
+async function getTourPackageData(tourPackageId: string) {
+  try {
+    const tourPackageDoc = await getDoc(doc(db, "tourPackages", tourPackageId));
+    if (tourPackageDoc.exists()) {
+      return { id: tourPackageDoc.id, ...tourPackageDoc.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching tour package:", error);
+    return null;
+  }
+}
+
+/**
+ * Get count of existing bookings for the same tour package
+ */
+async function getExistingBookingsCount(
+  tourPackageName: string
+): Promise<number> {
+  try {
+    const bookingsRef = collection(db, "bookings");
+    const q = query(
+      bookingsRef,
+      where("tourPackageName", "==", tourPackageName)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.size;
+  } catch (error) {
+    console.error("Error counting existing bookings:", error);
+    return 0;
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,21 +82,110 @@ export async function POST(req: NextRequest) {
     // Handle the event
     if (event.type === "payment_intent.succeeded") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      
+
       console.log("✅ PaymentIntent succeeded:", paymentIntent.id);
 
       // Update Firestore payment record
       const paymentsRef = collection(db, "stripePayments");
-      const q = query(paymentsRef, where("stripeIntentId", "==", paymentIntent.id));
+      const q = query(
+        paymentsRef,
+        where("stripeIntentId", "==", paymentIntent.id)
+      );
       const snapshot = await getDocs(q);
 
       if (!snapshot.empty) {
         const paymentDoc = snapshot.docs[0];
-        await updateDoc(doc(db, "stripePayments", paymentDoc.id), {
-          status: "succeeded",
-          paidAt: new Date().toISOString(),
-        });
-        console.log("✅ Firestore payment record updated to succeeded");
+        const paymentData = paymentDoc.data();
+
+        // Check if this is a reservation fee payment (Step 2)
+        if (
+          paymentData.type === "reservationFee" &&
+          paymentData.status !== "reserve_paid"
+        ) {
+          console.log(
+            "🎯 Processing reservation fee payment - creating booking"
+          );
+
+          // Fetch tour package data
+          const tourPackage = await getTourPackageData(
+            paymentData.tourPackageId
+          );
+          const tourCode = (tourPackage as any)?.tourCode || "XXX";
+          const originalTourCost = (tourPackage as any)?.pricing?.original || 0;
+          const discountedTourCost =
+            (tourPackage as any)?.pricing?.discounted || null;
+          const tourDuration = (tourPackage as any)?.duration || null;
+
+          // Get existing bookings count for unique counter
+          const existingCount = await getExistingBookingsCount(
+            paymentData.tourPackageName || (tourPackage as any)?.name || ""
+          );
+
+          // Determine if this is a group booking and generate group ID
+          const isGroupBooking =
+            paymentData.bookingType === "Duo Booking" ||
+            paymentData.bookingType === "Group Booking";
+          const groupId = isGroupBooking
+            ? paymentData.groupCode || generateGroupId()
+            : "";
+
+          // Create booking input
+          const bookingInput: BookingCreationInput = {
+            email: paymentData.email || "",
+            firstName: paymentData.firstName || "",
+            lastName: paymentData.lastName || "",
+            bookingType: paymentData.bookingType || "Single Booking",
+            tourPackageName:
+              paymentData.tourPackageName || (tourPackage as any)?.name || "",
+            tourCode,
+            tourDate: paymentData.tourDate || "",
+            returnDate: paymentData.returnDate || "",
+            tourDuration,
+            reservationFee: paymentData.amountGBP || 250,
+            paidAmount: paymentData.amountGBP || 250,
+            originalTourCost,
+            discountedTourCost,
+            paymentMethod: "stripe",
+            groupId,
+            isMainBooking: true,
+            existingBookingsCount: existingCount,
+          };
+
+          // Create the booking data
+          const bookingData = await createBookingData(bookingInput);
+
+          console.log("📝 Creating booking with ID:", bookingData.bookingId);
+
+          // Add to bookings collection
+          const bookingsRef = collection(db, "bookings");
+          const newBookingRef = await addDoc(bookingsRef, {
+            ...bookingData,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+
+          console.log("✅ Booking created with document ID:", newBookingRef.id);
+
+          // Update stripePayments document with booking reference and status
+          await updateDoc(doc(db, "stripePayments", paymentDoc.id), {
+            status: "reserve_paid",
+            bookingDocumentId: newBookingRef.id,
+            bookingId: bookingData.bookingId,
+            paidAt: new Date().toISOString(),
+            updatedAt: serverTimestamp(),
+          });
+
+          console.log(
+            "✅ Stripe payment record updated with booking reference"
+          );
+        } else {
+          // For other payment types or already processed, just update status
+          await updateDoc(doc(db, "stripePayments", paymentDoc.id), {
+            status: "succeeded",
+            paidAt: new Date().toISOString(),
+          });
+          console.log("✅ Firestore payment record updated to succeeded");
+        }
       }
     }
 
@@ -54,7 +194,10 @@ export async function POST(req: NextRequest) {
       console.log("❌ PaymentIntent failed:", paymentIntent.id);
 
       const paymentsRef = collection(db, "stripePayments");
-      const q = query(paymentsRef, where("stripeIntentId", "==", paymentIntent.id));
+      const q = query(
+        paymentsRef,
+        where("stripeIntentId", "==", paymentIntent.id)
+      );
       const snapshot = await getDocs(q);
 
       if (!snapshot.empty) {

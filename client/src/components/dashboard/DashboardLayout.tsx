@@ -2,16 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Menu,
-  X,
-  Search,
-  Mail,
-  User,
-  Lock,
-  AlertTriangle,
-  Bell,
-} from "lucide-react";
+import { Menu, X, Search, Mail, User, Lock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -29,6 +20,7 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useSidebar } from "@/contexts/SidebarContext";
 import GlobalSearchDialog from "@/components/search/GlobalSearchDialog";
+import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -40,31 +32,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const { sidebarCollapsed, setSidebarCollapsed } = useSidebar();
   const { userProfile, signOut, isLoading } = useAuthStore();
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: "New booking #123",
-      body: "John Doe booked 'City Highlights'",
-      time: "2h ago",
-      read: false,
-    },
-    {
-      id: 2,
-      title: "Payment received",
-      body: "Payment for booking #119 processed",
-      time: "1d ago",
-      read: false,
-    },
-    {
-      id: 3,
-      title: "Reminder sent",
-      body: "Payment reminder sent to jane@example.com",
-      time: "3d ago",
-      read: true,
-    },
-  ]);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleSignOut = async () => {
@@ -191,81 +158,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </a>
 
               {/* Notifications dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 w-9 p-0 rounded-full data-[state=open]:bg-muted focus-visible:ring-0 focus:outline-none"
-                  >
-                    <div className="relative flex items-center justify-center h-9 w-9">
-                      <Bell
-                        className={cn(
-                          "h-4 w-4",
-                          unreadCount > 0 ? "bell-ring" : ""
-                        )}
-                      />
-                      {unreadCount > 0 && (
-                        <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] leading-none px-1.5 py-0.5">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </div>
-                  </Button>
-                </DropdownMenuTrigger>
-
-                <DropdownMenuContent align="end" className="w-80">
-                  <div className="px-3 py-2 border-b border-border">
-                    <div className="text-sm font-semibold">Notifications</div>
-                    <div className="text-xs text-muted-foreground">
-                      Recent activity
-                    </div>
-                  </div>
-
-                  <div className="max-h-60 overflow-y-auto">
-                    {notifications.map((n) => (
-                      <DropdownMenuItem
-                        key={n.id}
-                        onClick={() =>
-                          setNotifications((prev) =>
-                            prev.map((p) =>
-                              p.id === n.id ? { ...p, read: true } : p
-                            )
-                          )
-                        }
-                        className="flex flex-col items-start gap-1 py-2"
-                      >
-                        <div
-                          className={cn(
-                            "w-full text-sm font-medium",
-                            n.read ? "text-muted-foreground" : "text-foreground"
-                          )}
-                        >
-                          {n.title}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {n.body}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {n.time}
-                        </div>
-                      </DropdownMenuItem>
-                    ))}
-                  </div>
-
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() =>
-                      setNotifications((prev) =>
-                        prev.map((p) => ({ ...p, read: true }))
-                      )
-                    }
-                    className="text-sm"
-                  >
-                    Mark all as read
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <NotificationDropdown />
 
               <ThemeToggle />
 

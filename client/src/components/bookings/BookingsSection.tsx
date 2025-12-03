@@ -51,6 +51,7 @@ import {
   Download,
   RefreshCw,
   Upload,
+  Zap,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -1298,7 +1299,9 @@ export default function BookingsSection() {
                 await bookingService.updateBooking(newBookingId, bookingData);
 
                 // Navigate with bookingId to open detail modal
-                const params = new URLSearchParams(searchParams?.toString?.() ?? "");
+                const params = new URLSearchParams(
+                  searchParams?.toString?.() ?? ""
+                );
                 params.set("bookingId", newBookingId);
                 params.delete("action");
                 router.push(`/bookings?${params.toString()}`, {
@@ -2668,6 +2671,16 @@ export default function BookingsSection() {
                               {booking.bookingType}
                             </Badge>
                           )}
+                          {booking.tags?.includes("auto") && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs font-medium border-0 text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0 rounded-full flex items-center gap-0.5"
+                              title="Auto-created from reservation form"
+                            >
+                              <Zap className="h-2.5 w-2.5" />
+                              Auto
+                            </Badge>
+                          )}
                         </div>
                         <h3 className="font-bold text-lg text-foreground group-hover:text-crimson-red transition-colors truncate font-mono">
                           {booking.bookingId || "Invalid Booking"}
@@ -2872,7 +2885,9 @@ export default function BookingsSection() {
                 await bookingService.updateBooking(newBookingId, bookingData);
 
                 // Navigate with bookingId to open detail modal
-                const params = new URLSearchParams(searchParams?.toString?.() ?? "");
+                const params = new URLSearchParams(
+                  searchParams?.toString?.() ?? ""
+                );
                 params.set("bookingId", newBookingId);
                 params.delete("action");
                 router.push(`/bookings?${params.toString()}`, {
@@ -3016,9 +3031,20 @@ export default function BookingsSection() {
                             </span>
                           </td>
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">
-                            <span className="font-mono text-[7px] md:text-[10px] font-semibold text-crimson-red truncate">
-                              {booking.bookingId || "Invalid Booking"}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className="font-mono text-[7px] md:text-[10px] font-semibold text-crimson-red truncate">
+                                {booking.bookingId || "Invalid Booking"}
+                              </span>
+                              {booking.tags?.includes("auto") && (
+                                <span
+                                  className="inline-flex items-center text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-1 py-0 rounded text-[6px] md:text-[8px] font-medium"
+                                  title="Auto-created from reservation form"
+                                >
+                                  <Zap className="h-2 w-2 mr-0.5" />
+                                  Auto
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             <div className="flex items-center gap-0.5 md:gap-1">

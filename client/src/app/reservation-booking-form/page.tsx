@@ -778,21 +778,7 @@ const Page = () => {
       console.log("🎉 Payment success! Intent ID:", paymentIntentId);
       console.log("📄 Payment Document ID:", paymentDocId);
 
-      // Generate booking ID after successful payment
-      const newBookingId = await generateBookingId();
-      console.log("✅ Generated booking ID:", newBookingId);
-      setBookingId(newBookingId);
-
-      // Extract group code for duo/group bookings
-      let groupCode: string | null = null;
-      if (bookingType === "Duo Booking" || bookingType === "Group Booking") {
-        const parts = newBookingId.split("-");
-        if (parts.length >= 5) {
-          groupCode = parts[4];
-        }
-      }
-
-      // Update Firestore with selected payment plan and status progression
+      // Update Firestore with booking details
       const {
         doc,
         updateDoc,
@@ -803,8 +789,8 @@ const Page = () => {
         getDocs,
       } = await import("firebase/firestore");
 
+      // First, update the stripePayments document with customer details
       const updateData: any = {
-        bookingId: newBookingId,
         email: email,
         firstName: firstName,
         lastName: lastName,
@@ -829,18 +815,14 @@ const Page = () => {
         updatedAt: serverTimestamp(),
       };
 
-      // Add group code for duo/group bookings
-      if (groupCode) {
-        updateData.groupCode = groupCode;
-      }
-
       console.log("📤 Update data:", updateData);
 
-      // Update the existing placeholder doc if we have it, otherwise fallback to query by stripeIntentId
+      // Update the stripePayments document
+      let actualPaymentDocId = paymentDocId;
       if (paymentDocId) {
         console.log("📝 Updating payment document by ID:", paymentDocId);
         await updateDoc(doc(db, "stripePayments", paymentDocId), updateData);
-        console.log("✅ Booking information saved successfully!");
+        console.log("✅ Payment document updated!");
       } else {
         console.warn(
           "⚠️ No payment document ID provided, falling back to query by stripeIntentId"
@@ -857,14 +839,39 @@ const Page = () => {
 
         if (!querySnapshot.empty) {
           const paymentDoc = querySnapshot.docs[0];
+          actualPaymentDocId = paymentDoc.id;
           console.log("📝 Updating payment document:", paymentDoc.id);
           await updateDoc(doc(db, "stripePayments", paymentDoc.id), updateData);
-          console.log("✅ Booking information saved successfully via query!");
+          console.log("✅ Payment document updated via query!");
         } else {
           console.error(
             "❌ Payment document not found for paymentIntentId:",
             paymentIntentId
           );
+        }
+      }
+
+      // Now call the create-booking API to create the actual booking document
+      if (actualPaymentDocId) {
+        console.log("📤 Creating booking via API...");
+        const response = await fetch("/api/stripe-payments/create-booking", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            paymentDocId: actualPaymentDocId,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          console.log("✅ Booking created successfully:", result);
+          setBookingId(result.bookingId);
+        } else {
+          console.error("❌ Failed to create booking:", result.error);
+          // Still proceed - booking might be created by webhook later
         }
       }
 
@@ -1438,43 +1445,47 @@ const Page = () => {
           plan.id === selectedPaymentPlan || plan.type === selectedPaymentPlan
       );
 
-      // Update Firestore with selected payment plan and status progression
-      const {
-        doc,
-        updateDoc,
-        serverTimestamp,
-        collection,
-        query,
-        where,
-        getDocs,
-      } = await import("firebase/firestore");
-
       // Find the payment document by bookingId
+      const { collection, query, where, getDocs } = await import(
+        "firebase/firestore"
+      );
+
       const paymentsRef = collection(db, "stripePayments");
       const q = query(paymentsRef, where("bookingId", "==", bookingId));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
         const paymentDoc = querySnapshot.docs[0];
-        console.log("📝 Updating booking with payment plan:", paymentDoc.id);
+        const paymentDocId = paymentDoc.id;
+        console.log(
+          "📝 Updating booking with payment plan via API:",
+          paymentDocId
+        );
 
-        const updateData: any = {
-          status: "terms_selected",
-          selectedPaymentPlan: selectedPaymentPlan,
-          confirmedAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        };
+        // Call the select-plan API to update both stripePayments and bookings
+        const response = await fetch("/api/stripe-payments/select-plan", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            paymentDocId: paymentDocId,
+            selectedPaymentPlan: selectedPaymentPlan,
+            paymentPlanDetails: selectedPlan || null,
+          }),
+        });
 
-        // Add payment plan details if available
-        if (selectedPlan) {
-          updateData.paymentPlanDetails = selectedPlan;
+        const result = await response.json();
+
+        if (!response.ok) {
+          console.error("❌ Select plan API error:", result.error);
+          alert(
+            result.error || "Error confirming your booking. Please try again."
+          );
+          return;
         }
 
-        console.log("📤 Confirmation update data:", updateData);
-
-        await updateDoc(doc(db, "stripePayments", paymentDoc.id), updateData);
-
-        console.log("✅ Booking confirmed successfully!");
+        console.log("✅ Booking confirmed successfully!", result);
         // Clean up session storage now that the booking is fully confirmed
         try {
           const docSessionKey = `stripe_payment_doc_${email}_${tourPackage}`;
