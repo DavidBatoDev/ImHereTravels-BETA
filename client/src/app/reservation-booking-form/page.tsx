@@ -58,11 +58,17 @@ const Page = () => {
       stripePaymentLink?: string;
       deposit?: number; // reservation fee from pricing.deposit
       price: number; // total tour price
+      coverImage?: string; // tour cover image URL
+      duration?: string; // e.g., "5 days, 4 nights"
+      highlights?: string[]; // tour highlights
+      destinations?: string[]; // list of destinations
     }>
   >([]);
   const [tourDates, setTourDates] = useState<string[]>([]);
   const [isLoadingPackages, setIsLoadingPackages] = useState(true);
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [tourImageLoading, setTourImageLoading] = useState(false);
+  const [tourImageError, setTourImageError] = useState(false);
 
   // Payment terms from Firestore
   const [paymentTerms, setPaymentTerms] = useState<
@@ -443,6 +449,19 @@ const Page = () => {
     }
   }, [step, selectedPackage?.slug, router]);
 
+  // Reset image loading state when tour package changes
+  useEffect(() => {
+    if (selectedPackage) {
+      setTourImageLoading(true);
+      setTourImageError(false);
+      console.log('Selected Package:', {
+        name: selectedPackage.name,
+        coverImage: selectedPackage.coverImage,
+        hasImage: !!selectedPackage.coverImage
+      });
+    }
+  }, [selectedPackage?.id]);
+
   // When packages finish loading, preselect a package if `tour` query param exists
   useEffect(() => {
     try {
@@ -745,15 +764,24 @@ const Page = () => {
     { label: "Duo Booking", value: "Duo Booking" },
     { label: "Group Booking", value: "Group Booking" },
   ];
-  const tourPackageOptions = tourPackages.map((p) => ({
-    label: p.name,
-    value: p.id,
-    disabled: p.status === "inactive",
-    description:
-      p.status === "inactive"
-        ? "Tour currently not available — please check back soon."
+  const tourPackageOptions = tourPackages.map((p) => {
+    // Check if all dates are too soon (less than 2 days from today)
+    const allDatesTooSoon = p.travelDates.length > 0 && 
+      p.travelDates.every(date => calculateDaysBetween(date) < 2);
+    
+    const isDisabled = p.status === "inactive" || allDatesTooSoon;
+    
+    return {
+      label: p.name,
+      value: p.id,
+      disabled: isDisabled,
+      description: isDisabled
+        ? (p.status === "inactive"
+            ? "Tour currently not available — please check back soon."
+            : "All dates for this tour are too soon — please check back later.")
         : undefined,
-  }));
+    };
+  });
 
   const tourDateOptions = (tourDates ?? []).map((d: string) => {
     const daysBetween = calculateDaysBetween(d);
@@ -974,6 +1002,10 @@ const Page = () => {
             status: payload.status === "inactive" ? "inactive" : "active",
             deposit: payload.pricing?.deposit ?? 250,
             price: payload.pricing?.original ?? 2050,
+            coverImage: payload.coverImage || payload.image || null,
+            duration: payload.duration || null,
+            highlights: payload.highlights || [],
+            destinations: payload.destinations || [],
           };
         });
 
@@ -1638,7 +1670,7 @@ const Page = () => {
                   Reserve your tour spot
                 </h2>
                 <p className="text-sm sm:text-base text-foreground/80 mb-1 leading-relaxed font-medium">
-                  Choose your tour package and date, pay the down payment, then
+                  Choose your tour name and date, pay the down payment, then
                   complete your payment plan to secure your spot.
                 </p>
                 <p className="text-xs text-foreground/70 flex items-center gap-1.5 font-medium">
@@ -2329,7 +2361,7 @@ const Page = () => {
                       </div>
                     ) : null}
                   </div>
-                  {/* Tour package */}
+                  {/* Tour name */}
                   <div className="pt-6 border-t-2 border-border/30">
                     <div className="flex items-center gap-2 mb-4">
                       <svg
@@ -2349,6 +2381,7 @@ const Page = () => {
                         Tour Selection
                       </h4>
                     </div>
+
                     <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Tour name
@@ -2359,7 +2392,7 @@ const Page = () => {
                           <div className="flex items-center gap-3">
                             <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent"></div>
                             <span className="text-muted-foreground">
-                              Loading tour packages...
+                              Loading tour names...
                             </span>
                           </div>
                         </div>
@@ -2373,7 +2406,7 @@ const Page = () => {
                               ? "Select a package"
                               : "No packages available"
                           }
-                          ariaLabel="Tour Package"
+                          ariaLabel="Tour Name"
                           className="mt-1"
                           searchable
                           disabled={
@@ -2484,6 +2517,109 @@ const Page = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Dynamic Tour Preview Card - Shown when tour is selected */}
+                  {selectedPackage && (
+                    <div className="mt-6 animate-slideUpFadeIn">
+                      <div className="tour-preview-card rounded-xl overflow-hidden bg-card shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+                        {/* Image Container */}
+                        <div className="relative w-full h-[400px] overflow-hidden group">
+                          {tourImageLoading ? (
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-purple-600/20">
+                              <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent"></div>
+                              </div>
+                            </div>
+                          ) : tourImageError || !selectedPackage.coverImage ? (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-purple-500/80 to-pink-500/80">
+                              <svg className="w-20 h-20 text-white/40 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <p className="text-white/70 text-sm">Image couldn't be loaded</p>
+                              <span className="text-white font-semibold mt-2">{selectedPackage.name}</span>
+                            </div>
+                          ) : (
+                            <img
+                              src={selectedPackage.coverImage}
+                              alt={`${selectedPackage.name} tour cover`}
+                              className="w-full h-full object-cover object-center transition-all duration-500 group-hover:scale-105"
+                              onLoad={() => {
+                                console.log('Image loaded successfully:', selectedPackage.coverImage);
+                                setTourImageLoading(false);
+                                setTourImageError(false);
+                              }}
+                              onError={(e) => {
+                                console.error('Image failed to load:', selectedPackage.coverImage, e);
+                                setTourImageLoading(false);
+                                setTourImageError(true);
+                              }}
+                              style={{
+                                opacity: tourImageLoading ? 0 : 1,
+                                transition: 'opacity 0.5s ease-in-out'
+                              }}
+                            />
+                          )}
+                          
+                          {/* Gradient Overlay */}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-6 sm:p-8">
+                            <h3 className="text-white text-3xl sm:text-4xl font-bold mb-2 drop-shadow-2xl animate-slideInLeft">
+                              {selectedPackage.name}
+                            </h3>
+                            {selectedPackage.duration && (
+                              <div className="flex items-center gap-2 text-white/95 text-base animate-slideInLeft" style={{ animationDelay: '0.1s' }}>
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>{selectedPackage.duration}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Tour Details Panel */}
+                        {((selectedPackage.destinations?.length ?? 0) > 0 || (selectedPackage.highlights?.length ?? 0) > 0) && (
+                          <div className="p-6 space-y-4 bg-card border-t-2 border-border/50">
+                            {selectedPackage.destinations && selectedPackage.destinations.length > 0 && (
+                              <div className="animate-slideInLeft" style={{ animationDelay: '0.1s' }}>
+                                <div className="flex items-start gap-3 text-foreground/80">
+                                  <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  <div>
+                                    <span className="font-semibold text-foreground">Destinations:</span>
+                                    <span className="ml-2">{selectedPackage.destinations.join(' → ')}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {selectedPackage.highlights && selectedPackage.highlights.length > 0 && (
+                              <div className="animate-slideInLeft" style={{ animationDelay: '0.2s' }}>
+                                <div className="flex items-start gap-3">
+                                  <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                  </svg>
+                                  <div className="flex-1">
+                                    <p className="font-semibold text-foreground mb-3">Highlights</p>
+                                    <ul className="space-y-2">
+                                      {selectedPackage.highlights.slice(0, 3).map((highlight, idx) => (
+                                        <li key={idx} className="flex items-start gap-2 text-foreground/70">
+                                          <span className="text-crimson-red font-bold mt-1">•</span>
+                                          <span className="flex-1">{highlight}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -2595,7 +2731,7 @@ const Page = () => {
                     <div className="bg-muted/10 border-2 border-border rounded-lg p-5 mb-4 shadow-sm">
                       <div className="flex justify-between items-center text-sm mt-2">
                         <span className="text-foreground/70 font-semibold">
-                          Tour package:
+                          Tour name:
                         </span>
                         <span className="font-bold text-foreground">
                           {tourPackages.find((p) => p.id === tourPackage)?.name}
@@ -2670,7 +2806,7 @@ const Page = () => {
                     <div className="text-sm space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-foreground/70 font-semibold">
-                          Tour package:
+                          Tour name:
                         </span>
                         <span className="font-bold text-foreground">
                           {selectedPackage.name}
