@@ -60,8 +60,16 @@ const Page = () => {
       price: number; // total tour price
       coverImage?: string; // tour cover image URL
       duration?: string; // e.g., "5 days, 4 nights"
-      highlights?: string[]; // tour highlights
+      highlights?: (string | { text: string; image?: string })[]; // tour highlights (string or object with optional image)
       destinations?: string[]; // list of destinations
+      media?: {
+        coverImage?: string;
+        gallery?: string[];
+      };
+      description?: string;
+      region?: string;
+      country?: string;
+      rating?: number;
     }>
   >([]);
   const [tourDates, setTourDates] = useState<string[]>([]);
@@ -69,6 +77,15 @@ const Page = () => {
   const [sessionLoading, setSessionLoading] = useState(true);
   const [tourImageLoading, setTourImageLoading] = useState(false);
   const [tourImageError, setTourImageError] = useState(false);
+
+  // Tour selection modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
+  const [filteredTours, setFilteredTours] = useState<typeof tourPackages>([]);
+  const [popularityData, setPopularityData] = useState<Record<string, number>>({});
+  const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
 
   // Payment terms from Firestore
   const [paymentTerms, setPaymentTerms] = useState<
@@ -993,21 +1010,41 @@ const Page = () => {
               .trim()
               .replace(/\s+/g, "-");
 
+          // Get cover image from media.coverImage first, then fallback
+          const coverImage = payload.media?.coverImage || payload.coverImage || payload.image || null;
+          
+          // Get highlights from details.highlights (new structure) or root highlights (old structure)
+          const highlights = payload.details?.highlights || payload.highlights || [];
+          
+          if (DEBUG && highlights.length > 0) {
+            console.log('Tour highlights for', name, ':', highlights);
+          }
+          
           return {
             id: doc.id,
             name,
             slug: slugFromPayload || (name ? slugify(name) : doc.id),
             travelDates: dates,
             stripePaymentLink: payload.stripePaymentLink,
-            status: payload.status === "inactive" ? "inactive" : "active",
+            status: payload.status || "active",
             deposit: payload.pricing?.deposit ?? 250,
             price: payload.pricing?.original ?? 2050,
-            coverImage: payload.coverImage || payload.image || null,
+            coverImage: coverImage,
             duration: payload.duration || null,
-            highlights: payload.highlights || [],
-            destinations: payload.destinations || [],
+            highlights: highlights,
+            destinations: payload.destinations || payload.details?.destinations || [],
+            description: payload.description || payload.summary || '',
+            region: payload.region || payload.country || '',
+            country: payload.country || '',
+            rating: payload.rating || 4.8,
+            media: payload.media,
           };
         });
+
+        if (DEBUG) {
+          console.log('📦 Loaded tour packages:', pkgList.length);
+          console.log('Sample cover image:', pkgList[0]?.coverImage);
+        }
 
         setTourPackages(pkgList as any);
         setIsLoadingPackages(false);
@@ -1299,6 +1336,169 @@ const Page = () => {
     }
   }, [tourPackage]);
 
+  // Helper function to check if tour is available
+  const isTourAvailable = (tour: typeof tourPackages[0]) => {
+    // Check if tour status is Active
+    if (tour.status !== "active") {
+      return false;
+    }
+    
+    // Check if all tour dates are too soon (within 2 days)
+    if (tour.travelDates && tour.travelDates.length > 0) {
+      const today = new Date();
+      const twoDaysFromNow = new Date();
+      twoDaysFromNow.setDate(today.getDate() + 2);
+      
+      const availableDates = tour.travelDates.filter(dateStr => {
+        const tourDate = new Date(dateStr);
+        return tourDate > twoDaysFromNow;
+      });
+      
+      // If no dates are available (all too soon)
+      if (availableDates.length === 0) {
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
+  // Get availability message
+  const getAvailabilityMessage = (tour: typeof tourPackages[0]) => {
+    if (tour.status !== "active") {
+      return "Currently Unavailable";
+    }
+    
+    if (tour.travelDates && tour.travelDates.length > 0) {
+      const today = new Date();
+      const twoDaysFromNow = new Date();
+      twoDaysFromNow.setDate(today.getDate() + 2);
+      
+      const availableDates = tour.travelDates.filter(dateStr => {
+        const tourDate = new Date(dateStr);
+        return tourDate > twoDaysFromNow;
+      });
+      
+      if (availableDates.length === 0) {
+        return "All dates too soon - check back later";
+      }
+    }
+    
+    return null;
+  };
+
+  // Calculate tour popularity from bookings
+  useEffect(() => {
+    const calculatePopularity = async () => {
+      try {
+        const { collection, getDocs } = await import("firebase/firestore");
+        const bookingsRef = collection(db, "bookings");
+        const bookingsSnapshot = await getDocs(bookingsRef);
+        
+        const tourBookingCounts: Record<string, number> = {};
+        
+        bookingsSnapshot.docs.forEach(doc => {
+          const booking = doc.data();
+          const tourName = booking.tourPackageName || booking.tourName || booking.tourPackage || booking.tour;
+          
+          if (tourName) {
+            tourBookingCounts[tourName] = (tourBookingCounts[tourName] || 0) + 1;
+          }
+        });
+        
+        if (DEBUG) {
+          console.log('📊 Tour popularity data:', tourBookingCounts);
+        }
+        
+        setPopularityData(tourBookingCounts);
+      } catch (error) {
+        console.error("Error calculating popularity:", error);
+      }
+    };
+    
+    if (!isLoadingPackages) {
+      calculatePopularity();
+    }
+  }, [isLoadingPackages]);
+
+  // Filter tours based on search and filters
+  useEffect(() => {
+    let filtered = tourPackages;
+    
+    // Apply search
+    if (searchQuery) {
+      filtered = filtered.filter(tour =>
+        tour.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tour.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tour.destinations?.some(d => d.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
+    
+    // Apply category filter
+    if (activeFilter === 'popular') {
+      // Sort by booking count (most popular first)
+      filtered = [...filtered].sort((a, b) => {
+        const aCount = popularityData[a.name] || 0;
+        const bCount = popularityData[b.name] || 0;
+        return bCount - aCount; // Descending order
+      });
+    } else if (activeFilter === 'active') {
+      // Filter only active tours
+      filtered = filtered.filter(tour => tour.status === 'active');
+    } else if (activeFilter !== 'all') {
+      // Apply region/country filter
+      filtered = filtered.filter(tour => 
+        tour.region?.toLowerCase() === activeFilter ||
+        tour.country?.toLowerCase() === activeFilter
+      );
+    }
+    
+    // Sort alphabetically by default (except when showing popular)
+    if (activeFilter !== 'popular') {
+      filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    
+    setFilteredTours(filtered);
+  }, [searchQuery, activeFilter, tourPackages, popularityData]);
+
+  // Initialize selectedTourId when modal opens with pre-selected tour
+  useEffect(() => {
+    if (modalOpen && tourPackage) {
+      setSelectedTourId(tourPackage);
+    } else if (!modalOpen) {
+      // Reset selected tour when modal closes if it wasn't confirmed
+      if (selectedTourId !== tourPackage) {
+        setSelectedTourId(null);
+      }
+    }
+  }, [modalOpen, tourPackage]);
+
+  // Rotate highlights in the tour preview card every 3 seconds
+  useEffect(() => {
+    if (selectedPackage && selectedPackage.highlights && selectedPackage.highlights.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentHighlightIndex((prev) => 
+          (prev + 1) % (selectedPackage.highlights?.length || 1)
+        );
+      }, 3000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [selectedPackage]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (modalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [modalOpen]);
+
   // animate additional guests area when bookingType changes (measured height)
   useEffect(() => {
     if (bookingType === "Duo Booking" || bookingType === "Group Booking") {
@@ -1453,6 +1653,25 @@ const Page = () => {
     if (!validate()) return;
     console.log({ email, firstName, lastName });
     setSubmitted(true);
+  };
+
+  // Handle tour selection confirmation from modal
+  const handleConfirmTourSelection = () => {
+    const tour = tourPackages.find(t => t.id === selectedTourId);
+    if (tour) {
+      setTourPackage(tour.id);
+      setModalOpen(false);
+      setSearchQuery("");
+      setActiveFilter("all");
+      
+      // Scroll to tour date or next section after selection
+      setTimeout(() => {
+        const tourDateSection = document.querySelector('[aria-label="Tour Date"]');
+        if (tourDateSection) {
+          tourDateSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+    }
   };
 
   const handleConfirmBooking = async () => {
@@ -1817,10 +2036,10 @@ const Page = () => {
                 <div
                   className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-200 ${
                     step === 3
-                      ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
+                      ? "bg-gradient-to-br from-[#EF3340] to-[#FF8200] text-white shadow-lg scale-110 ring-2 ring-[#EF3340]/30"
                       : !paymentConfirmed
-                      ? "bg-muted/50 text-muted-foreground"
-                      : "bg-muted text-foreground group-hover:scale-105"
+                      ? "bg-[#1C1F2A]/10 dark:bg-muted/50 text-[#1C1F2A]/40 dark:text-muted-foreground"
+                      : "bg-[#1C1F2A]/15 dark:bg-muted text-[#1C1F2A] dark:text-foreground group-hover:scale-105"
                   }`}
                 >
                   3
@@ -1849,12 +2068,12 @@ const Page = () => {
               </p>
             </div>
 
-            {/* Helpful Info Card */}
-            <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-blue-50/10 to-purple-50/10 border-2 border-blue-200/20 backdrop-blur-sm">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-blue-500/10 flex-shrink-0">
+            {/* How it works Card */}
+            <div className="mt-6 p-6 rounded-2xl bg-white dark:bg-gradient-to-br dark:from-[#6B5BC7]/20 dark:to-[#EF3340]/10 border border-[#1C1F2A]/8 dark:border-[#6B5BC7]/30 shadow-md dark:shadow-xl">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-xl bg-[#FED141] dark:bg-[#6B5BC7]/30 flex-shrink-0">
                   <svg
-                    className="w-5 h-5 text-blue-600"
+                    className="w-5 h-5 text-[#1C1F2A] dark:text-[#FED141]"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -1866,25 +2085,25 @@ const Page = () => {
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-foreground mb-2">
+                  <h4 className="font-bold text-[#1C1F2A] dark:text-white mb-3 text-lg">
                     How it works
                   </h4>
-                  <ul className="text-sm text-foreground/80 space-y-1.5 font-medium">
-                    <li className="flex items-start gap-2">
-                      <span className="text-crimson-red font-bold">1.</span>
-                      <span>
+                  <ul className="text-sm text-[#1C1F2A] dark:text-white/80 space-y-2.5">
+                    <li className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#EF3340] text-white text-xs font-bold flex items-center justify-center">1</span>
+                      <span className="text-[#1C1F2A] dark:text-white/90">
                         Fill in your personal details and select your tour name
                       </span>
                     </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-crimson-red font-bold">2.</span>
-                      <span>
+                    <li className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#EF3340] text-white text-xs font-bold flex items-center justify-center">2</span>
+                      <span className="text-[#1C1F2A] dark:text-white/90">
                         Pay a small reservation fee to secure your spot
                       </span>
                     </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-crimson-red font-bold">3.</span>
-                      <span>
+                    <li className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#EF3340] text-white text-xs font-bold flex items-center justify-center">3</span>
+                      <span className="text-[#1C1F2A] dark:text-white/90">
                         Pick a payment plan from a list of available options for
                         your tour date
                       </span>
@@ -1898,7 +2117,7 @@ const Page = () => {
           <div className="space-y-6">
             {/* STEP 1 - Personal & Booking Details */}
             {step === 1 && (
-              <div className="rounded-lg bg-card/80 backdrop-blur-md p-4 sm:p-6 border border-border shadow-xl">
+              <div className="rounded-2xl bg-white dark:bg-card/80 dark:backdrop-blur-md p-6 sm:p-8 border-2 border-[#1C1F2A]/10 dark:border-border shadow-lg dark:shadow-xl">
                 {/* Show locked message if payment confirmed */}
                 {paymentConfirmed && (
                   <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-md mb-4">
@@ -2397,22 +2616,62 @@ const Page = () => {
                           </div>
                         </div>
                       ) : (
-                        <Select
-                          value={tourPackage || null}
-                          onChange={(v) => setTourPackage(v)}
-                          options={tourPackageOptions}
-                          placeholder={
-                            tourPackageOptions.length
-                              ? "Select a package"
-                              : "No packages available"
-                          }
-                          ariaLabel="Tour Name"
-                          className="mt-1"
-                          searchable
-                          disabled={
-                            tourPackageOptions.length === 0 || paymentConfirmed
-                          }
-                        />
+                        <div className="tour-selector-trigger mt-1">
+                          {selectedPackage ? (
+                            <div className="selected-tour-mini-card flex items-center gap-4 p-3 border-2 border-border rounded-xl bg-card hover:border-primary/50 transition-all duration-300 cursor-pointer animate-slideInScale" onClick={() => !paymentConfirmed && setModalOpen(true)}>
+                              <div className="mini-card-image w-20 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                                {selectedPackage.coverImage ? (
+                                  <img 
+                                    src={selectedPackage.coverImage} 
+                                    alt={selectedPackage.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center">
+                                    <svg className="w-8 h-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="mini-card-content flex-1 min-w-0">
+                                <h4 className="text-base font-semibold text-foreground truncate">{selectedPackage.name}</h4>
+                                {selectedPackage.duration && (
+                                  <span className="mini-card-meta flex items-center gap-1.5 text-sm text-muted-foreground mt-1">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    {selectedPackage.duration}
+                                  </span>
+                                )}
+                              </div>
+                              {!paymentConfirmed && (
+                                <button 
+                                  type="button"
+                                  className="change-tour-btn px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-95 transition-all flex-shrink-0 hover:-translate-y-0.5"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setModalOpen(true);
+                                  }}
+                                >
+                                  Change
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <button 
+                              type="button"
+                              className="select-package-btn w-full p-4 border-2 border-dashed border-border rounded-xl bg-transparent text-muted-foreground font-medium flex items-center justify-center gap-2 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all duration-300"
+                              onClick={() => setModalOpen(true)}
+                              disabled={paymentConfirmed}
+                            >
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              Select a package
+                            </button>
+                          )}
+                        </div>
                       )}
                       {errors.tourPackage && (
                         <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
@@ -2518,103 +2777,163 @@ const Page = () => {
                     )}
                   </div>
 
-                  {/* Dynamic Tour Preview Card - Shown when tour is selected */}
+                  {/* Tour Highlights Carousel - Shown when tour is selected */}
                   {selectedPackage && (
-                    <div className="mt-6 animate-slideUpFadeIn">
-                      <div className="tour-preview-card rounded-xl overflow-hidden bg-card shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                        {/* Image Container */}
-                        <div className="relative w-full h-[400px] overflow-hidden group">
-                          {tourImageLoading ? (
-                            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-purple-600/20">
-                              <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent"></div>
-                              </div>
-                            </div>
-                          ) : tourImageError || !selectedPackage.coverImage ? (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-purple-500/80 to-pink-500/80">
-                              <svg className="w-20 h-20 text-white/40 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <div className="mt-8 animate-slideUpFadeIn">
+                      {/* Tour Highlights Card */}
+                      <div className="tour-highlights-card rounded-2xl overflow-hidden bg-white dark:bg-card border border-[#1C1F2A]/8 dark:border-border/50 shadow-md dark:shadow-2xl">
+                        {/* Highlights Header */}
+                        <div className="p-6 pb-4 border-b border-[#1C1F2A]/8 dark:border-border/50">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2.5 rounded-xl bg-[#26D07C] flex-shrink-0">
+                              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                               </svg>
-                              <p className="text-white/70 text-sm">Image couldn't be loaded</p>
-                              <span className="text-white font-semibold mt-2">{selectedPackage.name}</span>
                             </div>
-                          ) : (
-                            <img
-                              src={selectedPackage.coverImage}
-                              alt={`${selectedPackage.name} tour cover`}
-                              className="w-full h-full object-cover object-center transition-all duration-500 group-hover:scale-105"
-                              onLoad={() => {
-                                console.log('Image loaded successfully:', selectedPackage.coverImage);
-                                setTourImageLoading(false);
-                                setTourImageError(false);
-                              }}
-                              onError={(e) => {
-                                console.error('Image failed to load:', selectedPackage.coverImage, e);
-                                setTourImageLoading(false);
-                                setTourImageError(true);
-                              }}
-                              style={{
-                                opacity: tourImageLoading ? 0 : 1,
-                                transition: 'opacity 0.5s ease-in-out'
-                              }}
-                            />
-                          )}
-                          
-                          {/* Gradient Overlay */}
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-6 sm:p-8">
-                            <h3 className="text-white text-3xl sm:text-4xl font-bold mb-2 drop-shadow-2xl animate-slideInLeft">
-                              {selectedPackage.name}
-                            </h3>
-                            {selectedPackage.duration && (
-                              <div className="flex items-center gap-2 text-white/95 text-base animate-slideInLeft" style={{ animationDelay: '0.1s' }}>
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <span>{selectedPackage.duration}</span>
-                              </div>
-                            )}
+                            <h3 className="text-xl font-bold text-[#1C1F2A] dark:text-white">Tour Highlights</h3>
                           </div>
                         </div>
-
-                        {/* Tour Details Panel */}
-                        {((selectedPackage.destinations?.length ?? 0) > 0 || (selectedPackage.highlights?.length ?? 0) > 0) && (
-                          <div className="p-6 space-y-4 bg-card border-t-2 border-border/50">
-                            {selectedPackage.destinations && selectedPackage.destinations.length > 0 && (
-                              <div className="animate-slideInLeft" style={{ animationDelay: '0.1s' }}>
-                                <div className="flex items-start gap-3 text-foreground/80">
-                                  <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  </svg>
-                                  <div>
-                                    <span className="font-semibold text-foreground">Destinations:</span>
-                                    <span className="ml-2">{selectedPackage.destinations.join(' → ')}</span>
+                        
+                        {/* Highlights Carousel */}
+                        {selectedPackage.highlights && selectedPackage.highlights.length > 0 ? (
+                          <div className="relative">
+                            {/* Carousel Container */}
+                            <div className="relative w-full h-[320px] overflow-hidden group">
+                              {/* Carousel Slides */}
+                              {selectedPackage.highlights.map((highlight, idx) => {
+                                const highlightText = typeof highlight === 'string' ? highlight : highlight.text;
+                                const highlightImage = typeof highlight === 'object' && highlight.image ? highlight.image : null;
+                                
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={`absolute inset-0 transition-all duration-700 ease-in-out ${
+                                      idx === currentHighlightIndex 
+                                        ? 'opacity-100 translate-x-0 z-10' 
+                                        : idx < currentHighlightIndex
+                                        ? 'opacity-0 -translate-x-full'
+                                        : 'opacity-0 translate-x-full'
+                                    }`}
+                                  >
+                                    {/* Highlight Image */}
+                                    {highlightImage ? (
+                                      <div className="relative w-full h-full">
+                                        <img
+                                          src={highlightImage}
+                                          alt={highlightText}
+                                          className="w-full h-full object-cover"
+                                          loading="lazy"
+                                        />
+                                        {/* Gradient Overlay for text readability */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-[#1C1F2A]/90 via-[#1C1F2A]/30 to-transparent"></div>
+                                        
+                                        {/* Highlight Info Overlay */}
+                                        <div className="absolute bottom-0 left-0 right-0 p-6">
+                                          <div className="flex items-center gap-3 mb-2">
+                                            <div className="p-1.5 bg-[#26D07C] rounded-lg">
+                                              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                              </svg>
+                                            </div>
+                                            <h4 className="text-lg sm:text-xl font-bold text-white">{highlightText}</h4>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#6B5BC7]/10 to-[#EF3340]/10 dark:from-[#6B5BC7]/20 dark:to-[#EF3340]/20">
+                                        <div className="text-center px-6">
+                                          <div className="inline-flex p-3 bg-[#26D07C]/20 rounded-2xl mb-4">
+                                            <svg className="w-8 h-8 text-[#26D07C]" fill="currentColor" viewBox="0 0 20 20">
+                                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                            </svg>
+                                          </div>
+                                          <p className="text-lg font-semibold text-[#1C1F2A] dark:text-white">{highlightText}</p>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                </div>
-                              </div>
-                            )}
+                                );
+                              })}
+                              
+                              {/* Previous Button */}
+                              <button
+                                onClick={() => setCurrentHighlightIndex((prev) => (prev === 0 ? selectedPackage.highlights!.length - 1 : prev - 1))}
+                                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/90 dark:bg-[#1C1F2A]/90 backdrop-blur-sm border border-[#1C1F2A]/10 dark:border-white/20 shadow-lg hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+                                aria-label="Previous highlight"
+                              >
+                                <svg className="w-5 h-5 text-[#1C1F2A] dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                                </svg>
+                              </button>
+                              
+                              {/* Next Button */}
+                              <button
+                                onClick={() => setCurrentHighlightIndex((prev) => (prev === selectedPackage.highlights!.length - 1 ? 0 : prev + 1))}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/90 dark:bg-[#1C1F2A]/90 backdrop-blur-sm border border-[#1C1F2A]/10 dark:border-white/20 shadow-lg hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+                                aria-label="Next highlight"
+                              >
+                                <svg className="w-5 h-5 text-[#1C1F2A] dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                              </button>
+                            </div>
                             
-                            {selectedPackage.highlights && selectedPackage.highlights.length > 0 && (
-                              <div className="animate-slideInLeft" style={{ animationDelay: '0.2s' }}>
-                                <div className="flex items-start gap-3">
-                                  <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                  </svg>
-                                  <div className="flex-1">
-                                    <p className="font-semibold text-foreground mb-3">Highlights</p>
-                                    <ul className="space-y-2">
-                                      {selectedPackage.highlights.slice(0, 3).map((highlight, idx) => (
-                                        <li key={idx} className="flex items-start gap-2 text-foreground/70">
-                                          <span className="text-crimson-red font-bold mt-1">•</span>
-                                          <span className="flex-1">{highlight}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
+                            {/* Carousel Indicators */}
+                            <div className="flex justify-center gap-2.5 py-4 bg-white/50 dark:bg-card/50">
+                              {selectedPackage.highlights.map((_, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => setCurrentHighlightIndex(idx)}
+                                  className={`h-2 rounded-full transition-all duration-300 ${
+                                    idx === currentHighlightIndex 
+                                      ? 'w-8 bg-[#26D07C]' 
+                                      : 'w-2 bg-[#1C1F2A]/30 dark:bg-white/30 hover:w-4'
+                                  }`}
+                                  aria-label={`Go to highlight ${idx + 1}`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-12 text-center">
+                            <div className="inline-flex p-4 bg-[#1C1F2A]/5 dark:bg-white/5 rounded-2xl mb-4">
+                              <svg className="w-12 h-12 text-[#1C1F2A]/40 dark:text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                              </svg>
+                            </div>
+                            <p className="text-[#1C1F2A]/60 dark:text-white/60 font-medium">No highlights available for this tour</p>
+                          </div>
+                        )}
+                        
+                        {/* Destinations Section */}
+                        {(selectedPackage.destinations?.length ?? 0) > 0 && (
+                          <div className="p-6 pt-4 border-t border-[#1C1F2A]/8 dark:border-border/50">
+
+                            <div className="flex items-start gap-4">
+                              <div className="p-2.5 rounded-xl bg-[#EF3340]/10 dark:bg-[#26D07C]/20 flex-shrink-0">
+                                <svg className="w-5 h-5 text-[#EF3340] dark:text-[#26D07C]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-bold text-[#1C1F2A] dark:text-white text-lg mb-3">Destinations</h4>
+                                <div className="flex flex-wrap items-center gap-2.5">
+                                  {selectedPackage.destinations?.map((dest, idx) => (
+                                    <React.Fragment key={idx}>
+                                      <span className="px-4 py-2 bg-white dark:bg-[#1C1F2A] border-2 border-[#26D07C] rounded-xl text-[#1C1F2A] dark:text-white font-semibold text-sm shadow-md hover:shadow-lg hover:scale-105 transition-all">
+                                        {dest}
+                                      </span>
+                                      {idx < (selectedPackage.destinations?.length ?? 0) - 1 && (
+                                        <svg className="w-5 h-5 text-[#26D07C] dark:text-[#FED141]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                        </svg>
+                                      )}
+                                    </React.Fragment>
+                                  ))}
                                 </div>
                               </div>
-                            )}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -3234,6 +3553,231 @@ const Page = () => {
           )}
         </div>
       </div>
+
+      {/* Tour Selection Modal */}
+      {modalOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] animate-fadeIn"
+            onClick={() => setModalOpen(false)}
+          />
+          
+          {/* Modal */}
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-7xl max-h-[90vh] bg-card rounded-3xl shadow-2xl z-[9999] flex flex-col overflow-hidden animate-modalSlideIn">
+            {/* Header */}
+            <div className="p-6 sm:p-8 border-b border-border">
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+                Select Your Tour Package
+              </h2>
+              <p className="text-foreground/70">Choose from our curated collection of adventures</p>
+              <button 
+                className="absolute top-6 right-6 w-10 h-10 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-all hover:rotate-90"
+                onClick={() => setModalOpen(false)}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Search & Filter */}
+            <div className="p-4 sm:p-6 border-b border-border space-y-4">
+              <div className="relative">
+                <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input 
+                  type="text"
+                  placeholder="Search tours..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border-2 border-border rounded-xl bg-input text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
+              
+              <div className="flex gap-2 flex-wrap">
+                <button 
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${activeFilter === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}
+                  onClick={() => setActiveFilter('all')}
+                >
+                  All Tours
+                </button>
+                <button 
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${activeFilter === 'active' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}
+                  onClick={() => setActiveFilter('active')}
+                >
+                  Active
+                </button>
+                <button 
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${activeFilter === 'popular' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}
+                  onClick={() => setActiveFilter('popular')}
+                >
+                  Most Popular
+                </button>
+              </div>
+            </div>
+            
+            {/* Tour Cards Grid */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              {tourPackages.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+                  <p className="text-muted-foreground">Loading tours...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredTours.map((tour, index) => {
+                    const available = isTourAvailable(tour);
+                    const popularity = popularityData[tour.name] || 0;
+                    const showPopularity = activeFilter === 'popular' && popularity > 0;
+                    
+                    return (
+                      <div
+                        key={tour.id}
+                        className={`tour-card relative border-2 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl ${
+                          available ? 'cursor-pointer hover:-translate-y-1' : 'opacity-60'
+                        } ${
+                          selectedTourId === tour.id ? 'border-primary border-[3px] shadow-lg ring-4 ring-primary/20' : 'border-border'
+                        }`}
+                        style={{ animationDelay: `${index * 50}ms` }}
+                        onClick={() => available && setSelectedTourId(tour.id)}
+                      >
+                        {/* Status/Popularity Badges */}
+                        <div className="absolute top-3 right-3 z-10 flex gap-2">
+                          {showPopularity && (
+                            <span className="px-3 py-1 bg-orange-500 text-white text-xs font-semibold rounded-full flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                              {popularity} {popularity === 1 ? 'booking' : 'bookings'}
+                            </span>
+                          )}
+                          {tour.status === 'active' && available && (
+                            <span className="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Tour Image */}
+                        <div className="relative h-48 overflow-hidden">
+                          {tour.coverImage ? (
+                            <img 
+                              src={tour.coverImage} 
+                              alt={tour.name}
+                              className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                              loading="lazy"
+                              onError={(e) => {
+                                console.error('Failed to load image:', tour.coverImage);
+                                e.currentTarget.style.display = 'none';
+                                if (e.currentTarget.nextElementSibling) {
+                                  (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+                                }
+                              }}
+                            />
+                          ) : null}
+                          <div 
+                            className="w-full h-full bg-gradient-to-br from-primary/20 to-purple-500/20 items-center justify-center"
+                            style={{ display: tour.coverImage ? 'none' : 'flex' }}
+                          >
+                            <svg className="w-16 h-16 text-muted-foreground/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          
+                          {/* Unavailable Overlay */}
+                          {!available && (
+                            <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white text-center px-4">
+                              <svg className="w-12 h-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              </svg>
+                              <div className="text-sm font-semibold">{getAvailabilityMessage(tour)}</div>
+                            </div>
+                          )}
+                          
+                          {/* Selection Checkmark */}
+                          {selectedTourId === tour.id && available && (
+                            <div className="absolute inset-0 bg-primary/90 flex items-center justify-center animate-fadeIn">
+                              <svg className="w-16 h-16 text-white animate-checkmarkPop" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Tour Info */}
+                        <div className="p-4">
+                          {tour.destinations && tour.destinations.length > 0 && (
+                            <div className="flex items-center gap-1.5 text-muted-foreground text-sm mb-2">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              <span className="truncate">{tour.destinations[0]}</span>
+                            </div>
+                          )}
+                          
+                          <h3 className="text-lg font-bold text-foreground mb-2 line-clamp-2">{tour.name}</h3>
+                          
+                          <div className="flex items-center gap-4 mb-3 pb-3 border-b border-border">
+                            {tour.duration && (
+                              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {tour.duration}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <div className="text-xs text-muted-foreground">From</div>
+                              <div className="text-2xl font-bold text-primary">
+                                £{tour.price}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              
+              {tourPackages.length > 0 && filteredTours.length === 0 && (
+                <div className="text-center py-12">
+                  <svg className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-muted-foreground">No tours found matching your search</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Footer */}
+            <div className="p-4 sm:p-6 border-t border-border flex justify-end gap-3">
+              <button 
+                className="px-6 py-3 border-2 border-border rounded-xl font-semibold hover:bg-muted transition-all"
+                onClick={() => setModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="px-8 py-3 bg-primary text-primary-foreground rounded-xl font-semibold flex items-center gap-2 hover:brightness-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:-translate-y-0.5"
+                disabled={!selectedTourId}
+                onClick={handleConfirmTourSelection}
+              >
+                Confirm Selection
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

@@ -56,8 +56,13 @@ export interface PricingHistoryEntry {
   changedBy: string;
 }
 
+export interface Highlight {
+  text: string;
+  image?: string;
+}
+
 export interface TourDetails {
-  highlights: string[];
+  highlights: (string | Highlight)[];
   itinerary: TourItinerary[];
   requirements: string[];
 }
