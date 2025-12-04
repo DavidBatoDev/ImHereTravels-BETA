@@ -867,16 +867,21 @@ export default function ToursList() {
                       {tour.details.highlights
                         .slice(0, 3)
                         .map((highlight, index) => {
-                          const text = typeof highlight === 'string' ? highlight : highlight.text;
+                          // Handle both string and object formats
+                          const highlightText =
+                            typeof highlight === "string"
+                              ? highlight
+                              : (highlight as any)?.text || String(highlight);
+
                           return (
                             <Badge
                               key={index}
                               variant="outline"
                               className="text-xs border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10"
                             >
-                              {text.length > 15
-                                ? `${text.slice(0, 15)}...`
-                                : text}
+                              {highlightText.length > 15
+                                ? `${highlightText.slice(0, 15)}...`
+                                : highlightText}
                             </Badge>
                           );
                         })}

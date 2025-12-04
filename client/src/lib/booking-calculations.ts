@@ -690,8 +690,11 @@ export interface BookingCreationInput {
   groupId?: string;
   isMainBooking?: boolean;
 
-  // Counter for unique ID generation
+  // Counter for unique ID generation (bookings with same tour package name)
   existingBookingsCount: number;
+
+  // Total bookings count (for global row number)
+  totalBookingsCount: number;
 }
 
 export interface CreatedBookingData {
@@ -913,8 +916,8 @@ export async function createBookingData(
     isMainBooking: input.isMainBooking ?? true,
     groupId: input.groupId || "",
 
-    // Row number (will be set by caller based on existing bookings count)
-    row: input.existingBookingsCount + 1,
+    // Row number (global across all bookings)
+    row: input.totalBookingsCount + 1,
 
     // Metadata
     tags: ["auto"],

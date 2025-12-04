@@ -129,9 +129,9 @@ async function getTourPackageData(tourPackageId: string) {
 }
 
 /**
- * Get count of existing bookings for the same tour package
+ * Get count of existing bookings for the same tour package (for unique counter)
  */
-async function getExistingBookingsCount(
+async function getExistingBookingsCountForTourPackage(
   tourPackageName: string
 ): Promise<number> {
   try {
@@ -143,7 +143,21 @@ async function getExistingBookingsCount(
     const snapshot = await getDocs(q);
     return snapshot.size;
   } catch (error) {
-    console.error("Error counting bookings:", error);
+    console.error("Error counting bookings for tour package:", error);
+    return 0;
+  }
+}
+
+/**
+ * Get total count of all bookings (for global row number)
+ */
+async function getTotalBookingsCount(): Promise<number> {
+  try {
+    const bookingsRef = collection(db, "bookings");
+    const snapshot = await getDocs(bookingsRef);
+    return snapshot.size;
+  } catch (error) {
+    console.error("Error counting total bookings:", error);
     return 0;
   }
 }
@@ -217,10 +231,14 @@ export async function POST(req: NextRequest) {
       (tourPackage as any)?.pricing?.discounted || null;
     const tourDuration = (tourPackage as any)?.duration || null;
 
-    // Get existing bookings count for unique counter
-    const existingCount = await getExistingBookingsCount(
-      paymentData.tourPackageName || (tourPackage as any)?.name || ""
-    );
+    // Get existing bookings count for unique counter (per tour package)
+    const existingCountForTourPackage =
+      await getExistingBookingsCountForTourPackage(
+        paymentData.tourPackageName || (tourPackage as any)?.name || ""
+      );
+
+    // Get total bookings count for global row number
+    const totalBookingsCount = await getTotalBookingsCount();
 
     // Determine if this is a group booking and generate group ID
     const isGroupBooking =
@@ -261,7 +279,8 @@ export async function POST(req: NextRequest) {
       paymentMethod: "Stripe",
       groupId,
       isMainBooking: true,
-      existingBookingsCount: existingCount,
+      existingBookingsCount: existingCountForTourPackage,
+      totalBookingsCount: totalBookingsCount,
     };
 
     // Create the booking data
