@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { SidebarProvider } from "@/contexts/SidebarContext";
+import ScrollbarHider from "@/components/ScrollbarHider";
 
 // Configure DM Sans for body text and CTAs
 const dmSans = DM_Sans({
@@ -56,6 +57,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <ScrollbarHider />
           <SidebarProvider>
             {children}
             <Toaster />

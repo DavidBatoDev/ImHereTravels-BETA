@@ -507,14 +507,16 @@ const Page = () => {
           });
           if (match) {
             setTourPackage(match.id);
-            
+
             // Auto-scroll to tour date section when tour is loaded from URL
             setTimeout(() => {
-              const tourDateSection = document.querySelector('[aria-label="Tour Date"]');
+              const tourDateSection = document.querySelector(
+                '[aria-label="Tour Date"]'
+              );
               if (tourDateSection) {
-                tourDateSection.scrollIntoView({ 
-                  behavior: 'smooth', 
-                  block: 'center',
+                tourDateSection.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
                 });
               }
             }, 800);
@@ -1519,14 +1521,14 @@ const Page = () => {
           (prev) => (prev + 1) % (selectedPackage.highlights?.length || 1)
         );
       }, 5000);
-      
+
       return () => clearInterval(interval);
     }
   }, [selectedPackage]);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
-    if (modalOpen) {
+    if (modalOpen || showTourModal) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -1535,7 +1537,7 @@ const Page = () => {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [modalOpen]);
+  }, [modalOpen, showTourModal]);
 
   // animate additional guests area when bookingType changes (measured height)
   useEffect(() => {
@@ -1701,16 +1703,16 @@ const Page = () => {
       setModalOpen(false);
       setSearchQuery("");
       setActiveFilter("all");
-      
+
       // Scroll to tour date or next section after selection with smoother animation
       setTimeout(() => {
         const tourDateSection = document.querySelector(
           '[aria-label="Tour Date"]'
         );
         if (tourDateSection) {
-          tourDateSection.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center',
+          tourDateSection.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
           });
         }
       }, 400);
@@ -2016,8 +2018,8 @@ const Page = () => {
                   if (completedSteps.includes(2) || step === 2) {
                     setStep(2);
                   } else if (
-                    step === 1 && 
-                    email && 
+                    step === 1 &&
+                    email &&
                     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
                     birthdate &&
                     firstName &&
@@ -2026,15 +2028,21 @@ const Page = () => {
                     bookingType &&
                     tourPackage &&
                     tourDate &&
-                    !((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
-                      additionalGuests.some((g) => !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)))
+                    !(
+                      (bookingType === "Duo Booking" ||
+                        bookingType === "Group Booking") &&
+                      additionalGuests.some(
+                        (g) =>
+                          !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
+                      )
+                    )
                   ) {
                     checkExistingPaymentsAndMaybeProceed();
                   }
                 }}
                 disabled={
-                  step === 1 && (
-                    !email || 
+                  step === 1 &&
+                  (!email ||
                     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
                     !birthdate ||
                     !firstName ||
@@ -2043,13 +2051,16 @@ const Page = () => {
                     !bookingType ||
                     !tourPackage ||
                     !tourDate ||
-                    ((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
-                      additionalGuests.some((g) => !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)))
-                  )
+                    ((bookingType === "Duo Booking" ||
+                      bookingType === "Group Booking") &&
+                      additionalGuests.some(
+                        (g) =>
+                          !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
+                      )))
                 }
                 className={`flex items-center gap-1.5 sm:gap-2 transition-all duration-200 group ${
-                  step === 1 && (
-                    !email || 
+                  step === 1 &&
+                  (!email ||
                     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
                     !birthdate ||
                     !firstName ||
@@ -2058,9 +2069,12 @@ const Page = () => {
                     !bookingType ||
                     !tourPackage ||
                     !tourDate ||
-                    ((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
-                      additionalGuests.some((g) => !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)))
-                  )
+                    ((bookingType === "Duo Booking" ||
+                      bookingType === "Group Booking") &&
+                      additionalGuests.some(
+                        (g) =>
+                          !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
+                      )))
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:opacity-80 cursor-pointer"
                 }`}
@@ -2071,19 +2085,23 @@ const Page = () => {
                       ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
                       : completedSteps.includes(2)
                       ? "bg-white text-green-600 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
-                      : step === 1 && (
-                        !email || 
-                        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-                        !birthdate ||
-                        !firstName ||
-                        !lastName ||
-                        !nationality ||
-                        !bookingType ||
-                        !tourPackage ||
-                        !tourDate ||
-                        ((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
-                          additionalGuests.some((g) => !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)))
-                      )
+                      : step === 1 &&
+                        (!email ||
+                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+                          !birthdate ||
+                          !firstName ||
+                          !lastName ||
+                          !nationality ||
+                          !bookingType ||
+                          !tourPackage ||
+                          !tourDate ||
+                          ((bookingType === "Duo Booking" ||
+                            bookingType === "Group Booking") &&
+                            additionalGuests.some(
+                              (g) =>
+                                !g.trim() ||
+                                !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
+                            )))
                       ? "bg-muted/50 text-muted-foreground"
                       : "bg-muted text-foreground group-hover:scale-105"
                   }`}
@@ -2152,8 +2170,6 @@ const Page = () => {
               </button>
             </div>
 
-
-
             {/* How it works Card */}
             <div className="mt-6 rounded-2xl bg-white dark:bg-card/80 dark:backdrop-blur-md border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
               <button
@@ -2182,7 +2198,7 @@ const Page = () => {
                       <motion.p
                         key="subtitle"
                         initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
+                        animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.3 }}
                         className="text-sm text-foreground/70 font-medium mt-0.5"
@@ -2200,20 +2216,25 @@ const Page = () => {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                  />
                 </motion.svg>
               </button>
-              
+
               {/* Collapsible content */}
               <AnimatePresence initial={false}>
                 {howItWorksExpanded && (
                   <motion.div
                     key="content"
                     initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
+                    animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-                    style={{ overflow: 'hidden' }}
+                    style={{ overflow: "hidden" }}
                   >
                     <motion.div
                       initial={{ y: -20 }}
@@ -2224,19 +2245,19 @@ const Page = () => {
                     >
                       <ul className="text-sm text-foreground/90 space-y-2.5">
                         {[
-                          'Fill in your personal details and select your tour name',
-                          'Pay a small reservation fee to secure your spot',
-                          'Pick a payment plan from a list of available options for your tour date'
+                          "Fill in your personal details and select your tour name",
+                          "Pay a small reservation fee to secure your spot",
+                          "Pick a payment plan from a list of available options for your tour date",
                         ].map((text, idx) => (
                           <motion.li
                             key={idx}
                             initial={{ x: -20, opacity: 0, scale: 0.95 }}
                             animate={{ x: 0, opacity: 1, scale: 1 }}
                             exit={{ x: -20, opacity: 0, scale: 0.95 }}
-                            transition={{ 
-                              duration: 0.4, 
+                            transition={{
+                              duration: 0.4,
                               delay: idx * 0.1,
-                              ease: [0.4, 0, 0.2, 1]
+                              ease: [0.4, 0, 0.2, 1],
                             }}
                             className="flex items-center gap-3"
                           >
@@ -2244,10 +2265,10 @@ const Page = () => {
                               initial={{ scale: 0, rotate: -180 }}
                               animate={{ scale: 1, rotate: 0 }}
                               exit={{ scale: 0, rotate: -180 }}
-                              transition={{ 
-                                duration: 0.5, 
+                              transition={{
+                                duration: 0.5,
                                 delay: idx * 0.1 + 0.1,
-                                ease: [0.68, -0.55, 0.265, 1.55]
+                                ease: [0.68, -0.55, 0.265, 1.55],
                               }}
                               className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-crimson-red to-crimson-red/90 text-white text-xs font-bold flex items-center justify-center shadow-sm"
                             >
@@ -2348,7 +2369,11 @@ const Page = () => {
                           placeholder="your.email@example.com"
                           className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
                             !!errors.email
-                          )} ${isFieldValid("email", email) ? 'border-green-500' : ''} ${fieldFocus}`}
+                          )} ${
+                            isFieldValid("email", email)
+                              ? "border-green-500"
+                              : ""
+                          } ${fieldFocus}`}
                           aria-invalid={!!errors.email}
                           aria-describedby={
                             errors.email ? "email-error" : undefined
@@ -2446,7 +2471,11 @@ const Page = () => {
                           placeholder="e.g. Alex"
                           className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
                             !!errors.firstName
-                          )} ${isFieldValid("firstName", firstName) ? 'border-green-500' : ''} ${fieldFocus}`}
+                          )} ${
+                            isFieldValid("firstName", firstName)
+                              ? "border-green-500"
+                              : ""
+                          } ${fieldFocus}`}
                           aria-invalid={!!errors.firstName}
                           aria-describedby={
                             errors.firstName ? "firstName-error" : undefined
@@ -2519,7 +2548,11 @@ const Page = () => {
                           placeholder="e.g. Johnson"
                           className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
                             !!errors.lastName
-                          )} ${isFieldValid("lastName", lastName) ? 'border-green-500' : ''} ${fieldFocus}`}
+                          )} ${
+                            isFieldValid("lastName", lastName)
+                              ? "border-green-500"
+                              : ""
+                          } ${fieldFocus}`}
                           aria-invalid={!!errors.lastName}
                           aria-describedby={
                             errors.lastName ? "lastName-error" : undefined
@@ -2693,22 +2726,54 @@ const Page = () => {
                                   }
                                   className={`${fieldBase} ${fieldBorder(
                                     !!errors["guest-0"]
-                                  )} ${additionalGuests[0] && !errors["guest-0"] && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(additionalGuests[0]) ? 'border-green-500' : ''} ${fieldFocus}`}
+                                  )} ${
+                                    additionalGuests[0] &&
+                                    !errors["guest-0"] &&
+                                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+                                      additionalGuests[0]
+                                    )
+                                      ? "border-green-500"
+                                      : ""
+                                  } ${fieldFocus}`}
                                   disabled={paymentConfirmed}
                                 />
-                                {additionalGuests[0] && !errors["guest-0"] && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(additionalGuests[0]) && (
-                                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                    </svg>
-                                  </div>
-                                )}
+                                {additionalGuests[0] &&
+                                  !errors["guest-0"] &&
+                                  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+                                    additionalGuests[0]
+                                  ) && (
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                                      <svg
+                                        className="w-5 h-5"
+                                        fill="currentColor"
+                                        viewBox="0 0 20 20"
+                                      >
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                          clipRule="evenodd"
+                                        />
+                                      </svg>
+                                    </div>
+                                  )}
                               </div>
                               <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
-                                <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                <svg
+                                  className="w-4 h-4 flex-shrink-0 mt-0.5"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                    clipRule="evenodd"
+                                  />
                                 </svg>
-                                <span>An email with a pre-filled reservation form will be sent to the guest after form completion.</span>
+                                <span>
+                                  An email with a pre-filled reservation form
+                                  will be sent to the guest after form
+                                  completion.
+                                </span>
                               </p>
                             </>
                           ) : (
@@ -2728,16 +2793,32 @@ const Page = () => {
                                     }
                                     className={`${fieldBase} ${fieldBorder(
                                       !!errors[`guest-${idx}`]
-                                    )} ${g && !errors[`guest-${idx}`] && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g) ? 'border-green-500' : ''} ${fieldFocus}`}
+                                    )} ${
+                                      g &&
+                                      !errors[`guest-${idx}`] &&
+                                      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
+                                        ? "border-green-500"
+                                        : ""
+                                    } ${fieldFocus}`}
                                     disabled={paymentConfirmed}
                                   />
-                                  {g && !errors[`guest-${idx}`] && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g) && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
-                                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                      </svg>
-                                    </div>
-                                  )}
+                                  {g &&
+                                    !errors[`guest-${idx}`] &&
+                                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g) && (
+                                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                                        <svg
+                                          className="w-5 h-5"
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path
+                                            fillRule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                            clipRule="evenodd"
+                                          />
+                                        </svg>
+                                      </div>
+                                    )}
                                   {errors[`guest-${idx}`] && (
                                     <p className="mt-1 text-xs text-destructive">
                                       {errors[`guest-${idx}`]}
@@ -2746,10 +2827,22 @@ const Page = () => {
                                 </div>
                               ))}
                               <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
-                                <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                <svg
+                                  className="w-4 h-4 flex-shrink-0 mt-0.5"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                    clipRule="evenodd"
+                                  />
                                 </svg>
-                                <span>An email with a pre-filled reservation form will be sent to each guest after form completion.</span>
+                                <span>
+                                  An email with a pre-filled reservation form
+                                  will be sent to each guest after form
+                                  completion.
+                                </span>
                               </p>
                             </>
                           )}
@@ -2868,7 +2961,7 @@ const Page = () => {
                             <button
                               type="button"
                               className="select-package-btn w-full p-4 border-2 border-dashed border-border rounded-xl bg-transparent text-muted-foreground font-medium flex items-center justify-center gap-2 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all duration-300"
-                              onClick={() => setModalOpen(true)}
+                              onClick={() => setShowTourModal(true)}
                               disabled={paymentConfirmed}
                             >
                               <svg
@@ -2994,114 +3087,167 @@ const Page = () => {
                   </div>
 
                   {/* Tour Highlights - Elegant expandable section */}
-                  {selectedPackage && selectedPackage.highlights && selectedPackage.highlights.length > 0 && (
-                    <div className="mt-6">
-                      <button
-                        type="button"
-                        onClick={() => setHighlightsExpanded(!highlightsExpanded)}
-                        className="w-full flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-sunglow-yellow/10 to-crimson-red/10 border-2 border-sunglow-yellow/30 hover:border-sunglow-yellow/50 transition-all duration-200 group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-sunglow-yellow/20 group-hover:bg-sunglow-yellow/30 transition-colors duration-200">
-                            <svg className="w-5 h-5 text-sunglow-yellow" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                          </div>
-                          <div className="text-left">
-                            <h3 className="text-sm font-semibold text-foreground">Tour Highlights</h3>
-                            <p className="text-xs text-muted-foreground">{selectedPackage.highlights.length} amazing experiences</p>
-                          </div>
-                        </div>
-                        <motion.svg
-                          animate={{ rotate: highlightsExpanded ? 180 : 0 }}
-                          transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                          className="w-5 h-5 text-foreground/60 group-hover:text-foreground"
-                          fill="none" 
-                          viewBox="0 0 24 24" 
-                          stroke="currentColor"
+                  {selectedPackage &&
+                    selectedPackage.highlights &&
+                    selectedPackage.highlights.length > 0 && (
+                      <div className="mt-6">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setHighlightsExpanded(!highlightsExpanded)
+                          }
+                          className="w-full flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-sunglow-yellow/10 to-crimson-red/10 border-2 border-sunglow-yellow/30 hover:border-sunglow-yellow/50 transition-all duration-200 group"
                         >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </motion.svg>
-                      </button>
-                      
-                      <AnimatePresence initial={false}>
-                        {highlightsExpanded && (
-                          <motion.div
-                            key="highlights-content"
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-                            style={{ overflow: 'hidden' }}
-                            className="mt-3"
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-sunglow-yellow/20 group-hover:bg-sunglow-yellow/30 transition-colors duration-200">
+                              <svg
+                                className="w-5 h-5 text-sunglow-yellow"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            </div>
+                            <div className="text-left">
+                              <h3 className="text-sm font-semibold text-foreground">
+                                Tour Highlights
+                              </h3>
+                              <p className="text-xs text-muted-foreground">
+                                {selectedPackage.highlights.length} amazing
+                                experiences
+                              </p>
+                            </div>
+                          </div>
+                          <motion.svg
+                            animate={{ rotate: highlightsExpanded ? 180 : 0 }}
+                            transition={{
+                              duration: 0.4,
+                              ease: [0.4, 0, 0.2, 1],
+                            }}
+                            className="w-5 h-5 text-foreground/60 group-hover:text-foreground"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
                           >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </motion.svg>
+                        </button>
+
+                        <AnimatePresence initial={false}>
+                          {highlightsExpanded && (
                             <motion.div
-                              initial={{ y: -20 }}
-                              animate={{ y: 0 }}
-                              exit={{ y: -20 }}
-                              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                              className="space-y-2"
+                              key="highlights-content"
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{
+                                duration: 0.5,
+                                ease: [0.4, 0, 0.2, 1],
+                              }}
+                              style={{ overflow: "hidden" }}
+                              className="mt-3"
                             >
-                              {selectedPackage.highlights.map((highlight, idx) => {
-                                const text = typeof highlight === 'string' ? highlight : highlight.text;
-                                const image = typeof highlight === 'object' ? highlight.image : null;
-                                return (
-                                  <motion.div
-                                    key={idx}
-                                    initial={{ x: -20, opacity: 0, scale: 0.95 }}
-                                    animate={{ x: 0, opacity: 1, scale: 1 }}
-                                    exit={{ x: -20, opacity: 0, scale: 0.95 }}
-                                    transition={{ 
-                                      duration: 0.4,
-                                      delay: idx * 0.08,
-                                      ease: [0.4, 0, 0.2, 1]
-                                    }}
-                                    className="flex items-start gap-3 p-3 rounded-lg bg-card/50 border border-border/50 hover:border-sunglow-yellow/40 hover:bg-card/80 transition-all duration-200"
-                                  >
-                                    {image && (
+                              <motion.div
+                                initial={{ y: -20 }}
+                                animate={{ y: 0 }}
+                                exit={{ y: -20 }}
+                                transition={{
+                                  duration: 0.4,
+                                  ease: [0.4, 0, 0.2, 1],
+                                }}
+                                className="space-y-2"
+                              >
+                                {selectedPackage.highlights.map(
+                                  (highlight, idx) => {
+                                    const text =
+                                      typeof highlight === "string"
+                                        ? highlight
+                                        : highlight.text;
+                                    const image =
+                                      typeof highlight === "object"
+                                        ? highlight.image
+                                        : null;
+                                    return (
                                       <motion.div
-                                        initial={{ scale: 0, rotate: -10 }}
-                                        animate={{ scale: 1, rotate: 0 }}
-                                        exit={{ scale: 0, rotate: -10 }}
-                                        transition={{ 
-                                          duration: 0.5,
-                                          delay: idx * 0.08 + 0.1,
-                                          ease: [0.68, -0.55, 0.265, 1.55]
+                                        key={idx}
+                                        initial={{
+                                          x: -20,
+                                          opacity: 0,
+                                          scale: 0.95,
                                         }}
-                                        className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden shadow-md"
+                                        animate={{ x: 0, opacity: 1, scale: 1 }}
+                                        exit={{
+                                          x: -20,
+                                          opacity: 0,
+                                          scale: 0.95,
+                                        }}
+                                        transition={{
+                                          duration: 0.4,
+                                          delay: idx * 0.08,
+                                          ease: [0.4, 0, 0.2, 1],
+                                        }}
+                                        className="flex items-start gap-3 p-3 rounded-lg bg-card/50 border border-border/50 hover:border-sunglow-yellow/40 hover:bg-card/80 transition-all duration-200"
                                       >
-                                        <img 
-                                          src={image} 
-                                          alt={text}
-                                          className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
-                                        />
+                                        {image && (
+                                          <motion.div
+                                            initial={{ scale: 0, rotate: -10 }}
+                                            animate={{ scale: 1, rotate: 0 }}
+                                            exit={{ scale: 0, rotate: -10 }}
+                                            transition={{
+                                              duration: 0.5,
+                                              delay: idx * 0.08 + 0.1,
+                                              ease: [0.68, -0.55, 0.265, 1.55],
+                                            }}
+                                            className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden shadow-md"
+                                          >
+                                            <img
+                                              src={image}
+                                              alt={text}
+                                              className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                                            />
+                                          </motion.div>
+                                        )}
+                                        <motion.div
+                                          initial={{ scale: 0 }}
+                                          animate={{ scale: 1 }}
+                                          exit={{ scale: 0 }}
+                                          transition={{
+                                            duration: 0.3,
+                                            delay: idx * 0.08 + 0.15,
+                                            ease: [0.68, -0.55, 0.265, 1.55],
+                                          }}
+                                          className="flex-shrink-0 mt-0.5"
+                                        >
+                                          <svg
+                                            className="w-5 h-5 text-green-500"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                          >
+                                            <path
+                                              fillRule="evenodd"
+                                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                              clipRule="evenodd"
+                                            />
+                                          </svg>
+                                        </motion.div>
+                                        <p className="flex-1 text-sm text-foreground/90 leading-relaxed">
+                                          {text}
+                                        </p>
                                       </motion.div>
-                                    )}
-                                    <motion.div
-                                      initial={{ scale: 0 }}
-                                      animate={{ scale: 1 }}
-                                      exit={{ scale: 0 }}
-                                      transition={{ 
-                                        duration: 0.3,
-                                        delay: idx * 0.08 + 0.15,
-                                        ease: [0.68, -0.55, 0.265, 1.55]
-                                      }}
-                                      className="flex-shrink-0 mt-0.5"
-                                    >
-                                      <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                      </svg>
-                                    </motion.div>
-                                    <p className="flex-1 text-sm text-foreground/90 leading-relaxed">{text}</p>
-                                  </motion.div>
-                                );
-                              })}
+                                    );
+                                  }
+                                )}
+                              </motion.div>
                             </motion.div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  )}
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
                 </div>
               </div>
             )}
@@ -3510,12 +3656,12 @@ const Page = () => {
                       setErrors({});
                       setSubmitted(false);
                       setTimeout(() => setClearing(false), 10);
-                      
+
                       // Smooth scroll to top after reset
                       setTimeout(() => {
-                        window.scrollTo({ 
-                          top: 0, 
-                          behavior: 'smooth' 
+                        window.scrollTo({
+                          top: 0,
+                          behavior: "smooth",
                         });
                       }, ANIM_DURATION + 100);
                     }, ANIM_DURATION + 20);
@@ -3535,7 +3681,7 @@ const Page = () => {
                     checkExistingPaymentsAndMaybeProceed();
                   }}
                   disabled={
-                    !email || 
+                    !email ||
                     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
                     !birthdate ||
                     !firstName ||
@@ -3544,8 +3690,12 @@ const Page = () => {
                     !bookingType ||
                     !tourPackage ||
                     !tourDate ||
-                    ((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
-                      additionalGuests.some((g, idx) => !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)))
+                    ((bookingType === "Duo Booking" ||
+                      bookingType === "Group Booking") &&
+                      additionalGuests.some(
+                        (g, idx) =>
+                          !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
+                      ))
                   }
                   className="group inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary to-crimson-red text-primary-foreground rounded-lg shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg"
                 >
