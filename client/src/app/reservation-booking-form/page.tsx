@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   collection,
   onSnapshot,
@@ -86,6 +87,7 @@ const Page = () => {
   const [filteredTours, setFilteredTours] = useState<typeof tourPackages>([]);
   const [popularityData, setPopularityData] = useState<Record<string, number>>({});
   const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
+  const [highlightsExpanded, setHighlightsExpanded] = useState(false);
 
   // Payment terms from Firestore
   const [paymentTerms, setPaymentTerms] = useState<
@@ -113,6 +115,7 @@ const Page = () => {
   const [guestsHeight, setGuestsHeight] = useState("0px");
   // clear all "Personal & Booking" inputs together with one animation
   const [clearing, setClearing] = useState(false);
+  const [howItWorksExpanded, setHowItWorksExpanded] = useState(true);
   // animation timing (ms) used for transitions so entrance/exit durations match
   const ANIM_DURATION = 300;
 
@@ -500,6 +503,17 @@ const Page = () => {
           });
           if (match) {
             setTourPackage(match.id);
+            
+            // Auto-scroll to tour date section when tour is loaded from URL
+            setTimeout(() => {
+              const tourDateSection = document.querySelector('[aria-label="Tour Date"]');
+              if (tourDateSection) {
+                tourDateSection.scrollIntoView({ 
+                  behavior: 'smooth', 
+                  block: 'center',
+                });
+              }
+            }, 800);
           }
         }
       }
@@ -1473,14 +1487,14 @@ const Page = () => {
     }
   }, [modalOpen, tourPackage]);
 
-  // Rotate highlights in the tour preview card every 3 seconds
+  // Rotate highlights in the tour preview card every 5 seconds, reset on interaction
   useEffect(() => {
     if (selectedPackage && selectedPackage.highlights && selectedPackage.highlights.length > 1) {
       const interval = setInterval(() => {
         setCurrentHighlightIndex((prev) => 
           (prev + 1) % (selectedPackage.highlights?.length || 1)
         );
-      }, 3000);
+      }, 5000);
       
       return () => clearInterval(interval);
     }
@@ -1664,13 +1678,16 @@ const Page = () => {
       setSearchQuery("");
       setActiveFilter("all");
       
-      // Scroll to tour date or next section after selection
+      // Scroll to tour date or next section after selection with smoother animation
       setTimeout(() => {
         const tourDateSection = document.querySelector('[aria-label="Tour Date"]');
         if (tourDateSection) {
-          tourDateSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          tourDateSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+          });
         }
-      }, 300);
+      }, 400);
     }
   };
 
@@ -1772,7 +1789,7 @@ const Page = () => {
     <div className="min-h-screen bg-background relative overflow-hidden theme-transition">
       {/* Animated gradient background */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/20 via-creative-midnight/30 to-spring-green/20 animate-gradient-shift bg-[length:200%_200%]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/5 via-sunglow-yellow/5 to-spring-green/5 dark:from-crimson-red/20 dark:via-creative-midnight/30 dark:to-spring-green/20 animate-gradient-shift bg-[length:200%_200%]" />
       </div>
 
       {/* Theme Toggle Button */}
@@ -1972,16 +1989,52 @@ const Page = () => {
                 onClick={() => {
                   if (completedSteps.includes(2) || step === 2) {
                     setStep(2);
-                  } else if (step === 1 && tourPackage && tourDate) {
-                    if (!completedSteps.includes(1)) {
-                      setCompletedSteps([...completedSteps, 1]);
-                    }
-                    setStep(2);
+                  } else if (
+                    step === 1 && 
+                    email && 
+                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
+                    birthdate &&
+                    firstName &&
+                    lastName &&
+                    nationality &&
+                    bookingType &&
+                    tourPackage &&
+                    tourDate &&
+                    !((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
+                      additionalGuests.some((g) => !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)))
+                  ) {
+                    checkExistingPaymentsAndMaybeProceed();
                   }
                 }}
-                disabled={step === 1 && (!tourPackage || !tourDate)}
+                disabled={
+                  step === 1 && (
+                    !email || 
+                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+                    !birthdate ||
+                    !firstName ||
+                    !lastName ||
+                    !nationality ||
+                    !bookingType ||
+                    !tourPackage ||
+                    !tourDate ||
+                    ((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
+                      additionalGuests.some((g) => !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)))
+                  )
+                }
                 className={`flex items-center gap-1.5 sm:gap-2 transition-all duration-200 group ${
-                  step === 1 && (!tourPackage || !tourDate)
+                  step === 1 && (
+                    !email || 
+                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+                    !birthdate ||
+                    !firstName ||
+                    !lastName ||
+                    !nationality ||
+                    !bookingType ||
+                    !tourPackage ||
+                    !tourDate ||
+                    ((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
+                      additionalGuests.some((g) => !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)))
+                  )
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:opacity-80 cursor-pointer"
                 }`}
@@ -1992,7 +2045,19 @@ const Page = () => {
                       ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
                       : completedSteps.includes(2)
                       ? "bg-white text-green-600 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
-                      : step === 1 && (!tourPackage || !tourDate)
+                      : step === 1 && (
+                        !email || 
+                        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+                        !birthdate ||
+                        !firstName ||
+                        !lastName ||
+                        !nationality ||
+                        !bookingType ||
+                        !tourPackage ||
+                        !tourDate ||
+                        ((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
+                          additionalGuests.some((g) => !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)))
+                      )
                       ? "bg-muted/50 text-muted-foreground"
                       : "bg-muted text-foreground group-hover:scale-105"
                   }`}
@@ -2061,19 +2126,17 @@ const Page = () => {
               </button>
             </div>
 
-            {/* Dynamic Step Description */}
-            <div className="mt-4 text-center">
-              <p className="text-sm text-foreground/70 font-medium animate-fade-in">
-                {getStepDescription()}
-              </p>
-            </div>
+
 
             {/* How it works Card */}
-            <div className="mt-6 p-6 rounded-2xl bg-white dark:bg-gradient-to-br dark:from-[#6B5BC7]/20 dark:to-[#EF3340]/10 border border-[#1C1F2A]/8 dark:border-[#6B5BC7]/30 shadow-md dark:shadow-xl">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-xl bg-[#FED141] dark:bg-[#6B5BC7]/30 flex-shrink-0">
+            <div className="mt-6 rounded-2xl bg-white dark:bg-card/80 dark:backdrop-blur-md border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
+              <button
+                onClick={() => setHowItWorksExpanded(!howItWorksExpanded)}
+                className="w-full p-6 flex items-center gap-4 hover:bg-black/2 dark:hover:bg-white/5 transition-colors duration-200"
+              >
+                <div className="p-3 rounded-xl bg-crimson-red/10 flex-shrink-0 shadow-sm">
                   <svg
-                    className="w-5 h-5 text-[#1C1F2A] dark:text-[#FED141]"
+                    className="w-5 h-5 text-crimson-red"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -2084,40 +2147,101 @@ const Page = () => {
                     />
                   </svg>
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-[#1C1F2A] dark:text-white mb-3 text-lg">
+                <div className="flex-1 text-left">
+                  <h4 className="font-bold text-foreground text-lg">
                     How it works
                   </h4>
-                  <ul className="text-sm text-[#1C1F2A] dark:text-white/80 space-y-2.5">
-                    <li className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#EF3340] text-white text-xs font-bold flex items-center justify-center">1</span>
-                      <span className="text-[#1C1F2A] dark:text-white/90">
-                        Fill in your personal details and select your tour name
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#EF3340] text-white text-xs font-bold flex items-center justify-center">2</span>
-                      <span className="text-[#1C1F2A] dark:text-white/90">
-                        Pay a small reservation fee to secure your spot
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#EF3340] text-white text-xs font-bold flex items-center justify-center">3</span>
-                      <span className="text-[#1C1F2A] dark:text-white/90">
-                        Pick a payment plan from a list of available options for
-                        your tour date
-                      </span>
-                    </li>
-                  </ul>
+                  <AnimatePresence mode="wait">
+                    {!howItWorksExpanded && (
+                      <motion.p
+                        key="subtitle"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="text-sm text-foreground/70 font-medium mt-0.5"
+                      >
+                        {getStepDescription()}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </div>
+                <motion.svg
+                  animate={{ rotate: howItWorksExpanded ? 180 : 0 }}
+                  transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                  className="w-5 h-5 text-foreground/70 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </motion.svg>
+              </button>
+              
+              {/* Collapsible content */}
+              <AnimatePresence initial={false}>
+                {howItWorksExpanded && (
+                  <motion.div
+                    key="content"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <motion.div
+                      initial={{ y: -20 }}
+                      animate={{ y: 0 }}
+                      exit={{ y: -20 }}
+                      transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                      className="px-6 pb-6 pt-2"
+                    >
+                      <ul className="text-sm text-foreground/90 space-y-2.5">
+                        {[
+                          'Fill in your personal details and select your tour name',
+                          'Pay a small reservation fee to secure your spot',
+                          'Pick a payment plan from a list of available options for your tour date'
+                        ].map((text, idx) => (
+                          <motion.li
+                            key={idx}
+                            initial={{ x: -20, opacity: 0, scale: 0.95 }}
+                            animate={{ x: 0, opacity: 1, scale: 1 }}
+                            exit={{ x: -20, opacity: 0, scale: 0.95 }}
+                            transition={{ 
+                              duration: 0.4, 
+                              delay: idx * 0.1,
+                              ease: [0.4, 0, 0.2, 1]
+                            }}
+                            className="flex items-center gap-3"
+                          >
+                            <motion.span
+                              initial={{ scale: 0, rotate: -180 }}
+                              animate={{ scale: 1, rotate: 0 }}
+                              exit={{ scale: 0, rotate: -180 }}
+                              transition={{ 
+                                duration: 0.5, 
+                                delay: idx * 0.1 + 0.1,
+                                ease: [0.68, -0.55, 0.265, 1.55]
+                              }}
+                              className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-crimson-red to-crimson-red/90 text-white text-xs font-bold flex items-center justify-center shadow-sm"
+                            >
+                              {idx + 1}
+                            </motion.span>
+                            <span className="text-foreground/90">{text}</span>
+                          </motion.li>
+                        ))}
+                      </ul>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
           <div className="space-y-6">
             {/* STEP 1 - Personal & Booking Details */}
             {step === 1 && (
-              <div className="rounded-2xl bg-white dark:bg-card/80 dark:backdrop-blur-md p-6 sm:p-8 border-2 border-[#1C1F2A]/10 dark:border-border shadow-lg dark:shadow-xl">
+              <div className="rounded-2xl bg-white dark:bg-card/80 dark:backdrop-blur-md p-6 sm:p-8 border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
                 {/* Show locked message if payment confirmed */}
                 {paymentConfirmed && (
                   <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-md mb-4">
@@ -2198,9 +2322,7 @@ const Page = () => {
                           placeholder="your.email@example.com"
                           className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
                             !!errors.email
-                          )} ${
-                            isFieldValid("email", email) ? fieldSuccess : ""
-                          } ${fieldFocus}`}
+                          )} ${isFieldValid("email", email) ? 'border-green-500' : ''} ${fieldFocus}`}
                           aria-invalid={!!errors.email}
                           aria-describedby={
                             errors.email ? "email-error" : undefined
@@ -2244,17 +2366,20 @@ const Page = () => {
                       )}
                     </label>
 
-                    <label className="block">
+                    <label className="block relative group">
                       <span className="text-sm font-medium text-foreground">
                         Birthdate
                       </span>
-                      <BirthdatePicker
-                        value={birthdate}
-                        onChange={(iso) => setBirthdate(iso)}
-                        minYear={1920}
-                        maxYear={new Date().getFullYear()}
-                        disabled={paymentConfirmed}
-                      />
+                      <div className="relative">
+                        <BirthdatePicker
+                          value={birthdate}
+                          onChange={(iso) => setBirthdate(iso)}
+                          minYear={1920}
+                          maxYear={new Date().getFullYear()}
+                          disabled={paymentConfirmed}
+                          isValid={!!birthdate && !errors?.birthdate}
+                        />
+                      </div>
                       {errors?.birthdate && (
                         <p className="mt-1 text-xs text-destructive">
                           {errors.birthdate}
@@ -2295,11 +2420,7 @@ const Page = () => {
                           placeholder="e.g. Alex"
                           className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
                             !!errors.firstName
-                          )} ${
-                            isFieldValid("firstName", firstName)
-                              ? fieldSuccess
-                              : ""
-                          } ${fieldFocus}`}
+                          )} ${isFieldValid("firstName", firstName) ? 'border-green-500' : ''} ${fieldFocus}`}
                           aria-invalid={!!errors.firstName}
                           aria-describedby={
                             errors.firstName ? "firstName-error" : undefined
@@ -2372,11 +2493,7 @@ const Page = () => {
                           placeholder="e.g. Johnson"
                           className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
                             !!errors.lastName
-                          )} ${
-                            isFieldValid("lastName", lastName)
-                              ? fieldSuccess
-                              : ""
-                          } ${fieldFocus}`}
+                          )} ${isFieldValid("lastName", lastName) ? 'border-green-500' : ''} ${fieldFocus}`}
                           aria-invalid={!!errors.lastName}
                           aria-describedby={
                             errors.lastName ? "lastName-error" : undefined
@@ -2434,6 +2551,7 @@ const Page = () => {
                         ariaLabel="Nationality"
                         className="mt-1"
                         disabled={paymentConfirmed}
+                        isValid={!!nationality && !errors.nationality}
                       />
                       {errors.nationality && (
                         <p className="mt-1 text-xs text-destructive">
@@ -2455,6 +2573,7 @@ const Page = () => {
                         ariaLabel="Booking Type"
                         className="mt-1"
                         disabled={paymentConfirmed}
+                        isValid={!!bookingType && !errors.bookingType}
                       />
                       {errors.bookingType && (
                         <p className="mt-1 text-xs text-destructive">
@@ -2535,46 +2654,78 @@ const Page = () => {
 
                         <div className="space-y-2">
                           {bookingType === "Duo Booking" ? (
-                            <input
-                              type="email"
-                              name="guest-email"
-                              autoComplete="email"
-                              placeholder="Guest email address"
-                              value={additionalGuests[0] ?? ""}
-                              onChange={(e) =>
-                                handleGuestChange(0, e.target.value)
-                              }
-                              className={`${fieldBase} ${fieldBorder(
-                                !!errors["guest-0"]
-                              )} ${fieldFocus}`}
-                              disabled={paymentConfirmed}
-                            />
-                          ) : (
-                            additionalGuests.map((g, idx) => (
-                              <div key={idx}>
+                            <>
+                              <div className="relative">
                                 <input
                                   type="email"
-                                  name={`guest-email-${idx}`}
+                                  name="guest-email"
                                   autoComplete="email"
-                                  placeholder={`Guest #${
-                                    idx + 1
-                                  } email address`}
-                                  value={g}
+                                  placeholder="Guest email address"
+                                  value={additionalGuests[0] ?? ""}
                                   onChange={(e) =>
-                                    handleGuestChange(idx, e.target.value)
+                                    handleGuestChange(0, e.target.value)
                                   }
                                   className={`${fieldBase} ${fieldBorder(
-                                    !!errors[`guest-${idx}`]
-                                  )} ${fieldFocus}`}
+                                    !!errors["guest-0"]
+                                  )} ${additionalGuests[0] && !errors["guest-0"] && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(additionalGuests[0]) ? 'border-green-500' : ''} ${fieldFocus}`}
                                   disabled={paymentConfirmed}
                                 />
-                                {errors[`guest-${idx}`] && (
-                                  <p className="mt-1 text-xs text-destructive">
-                                    {errors[`guest-${idx}`]}
-                                  </p>
+                                {additionalGuests[0] && !errors["guest-0"] && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(additionalGuests[0]) && (
+                                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                  </div>
                                 )}
                               </div>
-                            ))
+                              <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
+                                <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                </svg>
+                                <span>An email with a pre-filled reservation form will be sent to the guest after form completion.</span>
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              {additionalGuests.map((g, idx) => (
+                                <div key={idx} className="relative">
+                                  <input
+                                    type="email"
+                                    name={`guest-email-${idx}`}
+                                    autoComplete="email"
+                                    placeholder={`Guest #${
+                                      idx + 1
+                                    } email address`}
+                                    value={g}
+                                    onChange={(e) =>
+                                      handleGuestChange(idx, e.target.value)
+                                    }
+                                    className={`${fieldBase} ${fieldBorder(
+                                      !!errors[`guest-${idx}`]
+                                    )} ${g && !errors[`guest-${idx}`] && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g) ? 'border-green-500' : ''} ${fieldFocus}`}
+                                    disabled={paymentConfirmed}
+                                  />
+                                  {g && !errors[`guest-${idx}`] && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g) && (
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                      </svg>
+                                    </div>
+                                  )}
+                                  {errors[`guest-${idx}`] && (
+                                    <p className="mt-1 text-xs text-destructive">
+                                      {errors[`guest-${idx}`]}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                              <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
+                                <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                </svg>
+                                <span>An email with a pre-filled reservation form will be sent to each guest after form completion.</span>
+                              </p>
+                            </>
                           )}
                         </div>
                       </div>
@@ -2582,23 +2733,25 @@ const Page = () => {
                   </div>
                   {/* Tour name */}
                   <div className="pt-6 border-t-2 border-border/30">
-                    <div className="flex items-center gap-2 mb-4">
-                      <svg
-                        className="w-5 h-5 text-primary"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                        />
-                      </svg>
-                      <h4 className="text-base font-bold text-foreground">
+                    <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border/50">
+                      <div className="p-2 rounded-lg bg-crimson-red/10">
+                        <svg
+                          className="w-5 h-5 text-crimson-red"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                          />
+                        </svg>
+                      </div>
+                      <h3 className="text-xl font-bold text-foreground">
                         Tour Selection
-                      </h4>
+                      </h3>
                     </div>
 
                     <label className="block">
@@ -2777,166 +2930,113 @@ const Page = () => {
                     )}
                   </div>
 
-                  {/* Tour Highlights Carousel - Shown when tour is selected */}
-                  {selectedPackage && (
-                    <div className="mt-8 animate-slideUpFadeIn">
-                      {/* Tour Highlights Card */}
-                      <div className="tour-highlights-card rounded-2xl overflow-hidden bg-white dark:bg-card border border-[#1C1F2A]/8 dark:border-border/50 shadow-md dark:shadow-2xl">
-                        {/* Highlights Header */}
-                        <div className="p-6 pb-4 border-b border-[#1C1F2A]/8 dark:border-border/50">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2.5 rounded-xl bg-[#26D07C] flex-shrink-0">
-                              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                            </div>
-                            <h3 className="text-xl font-bold text-[#1C1F2A] dark:text-white">Tour Highlights</h3>
+                  {/* Tour Highlights - Elegant expandable section */}
+                  {selectedPackage && selectedPackage.highlights && selectedPackage.highlights.length > 0 && (
+                    <div className="mt-6">
+                      <button
+                        type="button"
+                        onClick={() => setHighlightsExpanded(!highlightsExpanded)}
+                        className="w-full flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-sunglow-yellow/10 to-crimson-red/10 border-2 border-sunglow-yellow/30 hover:border-sunglow-yellow/50 transition-all duration-200 group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-sunglow-yellow/20 group-hover:bg-sunglow-yellow/30 transition-colors duration-200">
+                            <svg className="w-5 h-5 text-sunglow-yellow" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          </div>
+                          <div className="text-left">
+                            <h3 className="text-sm font-semibold text-foreground">Tour Highlights</h3>
+                            <p className="text-xs text-muted-foreground">{selectedPackage.highlights.length} amazing experiences</p>
                           </div>
                         </div>
-                        
-                        {/* Highlights Carousel */}
-                        {selectedPackage.highlights && selectedPackage.highlights.length > 0 ? (
-                          <div className="relative">
-                            {/* Carousel Container */}
-                            <div className="relative w-full h-[320px] overflow-hidden group">
-                              {/* Carousel Slides */}
+                        <motion.svg
+                          animate={{ rotate: highlightsExpanded ? 180 : 0 }}
+                          transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                          className="w-5 h-5 text-foreground/60 group-hover:text-foreground"
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </motion.svg>
+                      </button>
+                      
+                      <AnimatePresence initial={false}>
+                        {highlightsExpanded && (
+                          <motion.div
+                            key="highlights-content"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                            style={{ overflow: 'hidden' }}
+                            className="mt-3"
+                          >
+                            <motion.div
+                              initial={{ y: -20 }}
+                              animate={{ y: 0 }}
+                              exit={{ y: -20 }}
+                              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                              className="space-y-2"
+                            >
                               {selectedPackage.highlights.map((highlight, idx) => {
-                                const highlightText = typeof highlight === 'string' ? highlight : highlight.text;
-                                const highlightImage = typeof highlight === 'object' && highlight.image ? highlight.image : null;
-                                
+                                const text = typeof highlight === 'string' ? highlight : highlight.text;
+                                const image = typeof highlight === 'object' ? highlight.image : null;
                                 return (
-                                  <div
+                                  <motion.div
                                     key={idx}
-                                    className={`absolute inset-0 transition-all duration-700 ease-in-out ${
-                                      idx === currentHighlightIndex 
-                                        ? 'opacity-100 translate-x-0 z-10' 
-                                        : idx < currentHighlightIndex
-                                        ? 'opacity-0 -translate-x-full'
-                                        : 'opacity-0 translate-x-full'
-                                    }`}
+                                    initial={{ x: -20, opacity: 0, scale: 0.95 }}
+                                    animate={{ x: 0, opacity: 1, scale: 1 }}
+                                    exit={{ x: -20, opacity: 0, scale: 0.95 }}
+                                    transition={{ 
+                                      duration: 0.4,
+                                      delay: idx * 0.08,
+                                      ease: [0.4, 0, 0.2, 1]
+                                    }}
+                                    className="flex items-start gap-3 p-3 rounded-lg bg-card/50 border border-border/50 hover:border-sunglow-yellow/40 hover:bg-card/80 transition-all duration-200"
                                   >
-                                    {/* Highlight Image */}
-                                    {highlightImage ? (
-                                      <div className="relative w-full h-full">
-                                        <img
-                                          src={highlightImage}
-                                          alt={highlightText}
-                                          className="w-full h-full object-cover"
-                                          loading="lazy"
+                                    {image && (
+                                      <motion.div
+                                        initial={{ scale: 0, rotate: -10 }}
+                                        animate={{ scale: 1, rotate: 0 }}
+                                        exit={{ scale: 0, rotate: -10 }}
+                                        transition={{ 
+                                          duration: 0.5,
+                                          delay: idx * 0.08 + 0.1,
+                                          ease: [0.68, -0.55, 0.265, 1.55]
+                                        }}
+                                        className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden shadow-md"
+                                      >
+                                        <img 
+                                          src={image} 
+                                          alt={text}
+                                          className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
                                         />
-                                        {/* Gradient Overlay for text readability */}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-[#1C1F2A]/90 via-[#1C1F2A]/30 to-transparent"></div>
-                                        
-                                        {/* Highlight Info Overlay */}
-                                        <div className="absolute bottom-0 left-0 right-0 p-6">
-                                          <div className="flex items-center gap-3 mb-2">
-                                            <div className="p-1.5 bg-[#26D07C] rounded-lg">
-                                              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                              </svg>
-                                            </div>
-                                            <h4 className="text-lg sm:text-xl font-bold text-white">{highlightText}</h4>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#6B5BC7]/10 to-[#EF3340]/10 dark:from-[#6B5BC7]/20 dark:to-[#EF3340]/20">
-                                        <div className="text-center px-6">
-                                          <div className="inline-flex p-3 bg-[#26D07C]/20 rounded-2xl mb-4">
-                                            <svg className="w-8 h-8 text-[#26D07C]" fill="currentColor" viewBox="0 0 20 20">
-                                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                            </svg>
-                                          </div>
-                                          <p className="text-lg font-semibold text-[#1C1F2A] dark:text-white">{highlightText}</p>
-                                        </div>
-                                      </div>
+                                      </motion.div>
                                     )}
-                                  </div>
+                                    <motion.div
+                                      initial={{ scale: 0 }}
+                                      animate={{ scale: 1 }}
+                                      exit={{ scale: 0 }}
+                                      transition={{ 
+                                        duration: 0.3,
+                                        delay: idx * 0.08 + 0.15,
+                                        ease: [0.68, -0.55, 0.265, 1.55]
+                                      }}
+                                      className="flex-shrink-0 mt-0.5"
+                                    >
+                                      <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                      </svg>
+                                    </motion.div>
+                                    <p className="flex-1 text-sm text-foreground/90 leading-relaxed">{text}</p>
+                                  </motion.div>
                                 );
                               })}
-                              
-                              {/* Previous Button */}
-                              <button
-                                onClick={() => setCurrentHighlightIndex((prev) => (prev === 0 ? selectedPackage.highlights!.length - 1 : prev - 1))}
-                                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/90 dark:bg-[#1C1F2A]/90 backdrop-blur-sm border border-[#1C1F2A]/10 dark:border-white/20 shadow-lg hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
-                                aria-label="Previous highlight"
-                              >
-                                <svg className="w-5 h-5 text-[#1C1F2A] dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                                </svg>
-                              </button>
-                              
-                              {/* Next Button */}
-                              <button
-                                onClick={() => setCurrentHighlightIndex((prev) => (prev === selectedPackage.highlights!.length - 1 ? 0 : prev + 1))}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/90 dark:bg-[#1C1F2A]/90 backdrop-blur-sm border border-[#1C1F2A]/10 dark:border-white/20 shadow-lg hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
-                                aria-label="Next highlight"
-                              >
-                                <svg className="w-5 h-5 text-[#1C1F2A] dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                                </svg>
-                              </button>
-                            </div>
-                            
-                            {/* Carousel Indicators */}
-                            <div className="flex justify-center gap-2.5 py-4 bg-white/50 dark:bg-card/50">
-                              {selectedPackage.highlights.map((_, idx) => (
-                                <button
-                                  key={idx}
-                                  onClick={() => setCurrentHighlightIndex(idx)}
-                                  className={`h-2 rounded-full transition-all duration-300 ${
-                                    idx === currentHighlightIndex 
-                                      ? 'w-8 bg-[#26D07C]' 
-                                      : 'w-2 bg-[#1C1F2A]/30 dark:bg-white/30 hover:w-4'
-                                  }`}
-                                  aria-label={`Go to highlight ${idx + 1}`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="p-12 text-center">
-                            <div className="inline-flex p-4 bg-[#1C1F2A]/5 dark:bg-white/5 rounded-2xl mb-4">
-                              <svg className="w-12 h-12 text-[#1C1F2A]/40 dark:text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                              </svg>
-                            </div>
-                            <p className="text-[#1C1F2A]/60 dark:text-white/60 font-medium">No highlights available for this tour</p>
-                          </div>
+                            </motion.div>
+                          </motion.div>
                         )}
-                        
-                        {/* Destinations Section */}
-                        {(selectedPackage.destinations?.length ?? 0) > 0 && (
-                          <div className="p-6 pt-4 border-t border-[#1C1F2A]/8 dark:border-border/50">
-
-                            <div className="flex items-start gap-4">
-                              <div className="p-2.5 rounded-xl bg-[#EF3340]/10 dark:bg-[#26D07C]/20 flex-shrink-0">
-                                <svg className="w-5 h-5 text-[#EF3340] dark:text-[#26D07C]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="font-bold text-[#1C1F2A] dark:text-white text-lg mb-3">Destinations</h4>
-                                <div className="flex flex-wrap items-center gap-2.5">
-                                  {selectedPackage.destinations?.map((dest, idx) => (
-                                    <React.Fragment key={idx}>
-                                      <span className="px-4 py-2 bg-white dark:bg-[#1C1F2A] border-2 border-[#26D07C] rounded-xl text-[#1C1F2A] dark:text-white font-semibold text-sm shadow-md hover:shadow-lg hover:scale-105 transition-all">
-                                        {dest}
-                                      </span>
-                                      {idx < (selectedPackage.destinations?.length ?? 0) - 1 && (
-                                        <svg className="w-5 h-5 text-[#26D07C] dark:text-[#FED141]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                                        </svg>
-                                      )}
-                                    </React.Fragment>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      </AnimatePresence>
                     </div>
                   )}
                 </div>
@@ -3347,6 +3447,14 @@ const Page = () => {
                       setErrors({});
                       setSubmitted(false);
                       setTimeout(() => setClearing(false), 10);
+                      
+                      // Smooth scroll to top after reset
+                      setTimeout(() => {
+                        window.scrollTo({ 
+                          top: 0, 
+                          behavior: 'smooth' 
+                        });
+                      }, ANIM_DURATION + 100);
                     }, ANIM_DURATION + 20);
                   }}
                   className="text-sm text-muted-foreground hover:text-foreground"
@@ -3363,7 +3471,20 @@ const Page = () => {
                   onClick={() => {
                     checkExistingPaymentsAndMaybeProceed();
                   }}
-                  className="group inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary to-crimson-red text-primary-foreground rounded-lg shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200 font-semibold"
+                  disabled={
+                    !email || 
+                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+                    !birthdate ||
+                    !firstName ||
+                    !lastName ||
+                    !nationality ||
+                    !bookingType ||
+                    !tourPackage ||
+                    !tourDate ||
+                    ((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
+                      additionalGuests.some((g, idx) => !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)))
+                  }
+                  className="group inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary to-crimson-red text-primary-foreground rounded-lg shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg"
                 >
                   Continue to Payment
                   <svg

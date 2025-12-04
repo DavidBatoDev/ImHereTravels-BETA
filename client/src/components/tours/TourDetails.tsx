@@ -237,12 +237,17 @@ export default function TourDetails({
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {tour.details.highlights.map((highlight, index) => (
-                        <div key={index} className="flex items-start gap-3">
-                          <CheckCircle className="w-5 h-5 text-spring-green mt-0.5 flex-shrink-0" />
-                          <span className="text-foreground">{highlight}</span>
-                        </div>
-                      ))}
+                      {tour.details.highlights.map((highlight, index) => {
+                        const highlightText = typeof highlight === 'string' ? highlight : highlight.text;
+                        const highlightImage = typeof highlight === 'object' && highlight.image ? highlight.image : null;
+                        
+                        return (
+                          <div key={index} className="flex items-start gap-3">
+                            <CheckCircle className="w-5 h-5 text-spring-green mt-0.5 flex-shrink-0" />
+                            <span className="text-foreground">{highlightText}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>

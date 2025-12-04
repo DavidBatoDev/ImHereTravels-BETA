@@ -10,6 +10,7 @@ type Props = {
   minYear?: number;            // default 1920
   maxYear?: number;
   disabled?: boolean;          // disable the picker
+  isValid?: boolean;           // show validation checkmark
 };
 
 function pad(n: number) { return n < 10 ? `0${n}` : `${n}`; }
@@ -32,6 +33,7 @@ export default function BirthdatePickerModal({
   label = "Birthdate",
   minYear = 1920,
   disabled = false,
+  isValid = false,
 }: Props) {
   // Allow any age, but never allow future dates
   const today = new Date();
@@ -110,16 +112,27 @@ export default function BirthdatePickerModal({
 
   return (
     <>
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-label={label}
-        onClick={() => !disabled && setOpen(true)}
-        disabled={disabled}
-        className="mt-1 block w-full px-4 py-3 rounded-md bg-input text-foreground placeholder:opacity-70 border border-border focus:outline-none focus:border-primary text-left disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {selectedISO ? new Date(selectedISO + "T00:00:00").toLocaleDateString() : "mm/dd/yyyy"}
-      </button>
+      <div className="relative">
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-label={label}
+          onClick={() => !disabled && setOpen(true)}
+          disabled={disabled}
+          className={`mt-1 block w-full px-4 py-3 rounded-md bg-input text-foreground placeholder:opacity-70 border-2 focus:outline-none text-left disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-sm ${
+            open ? 'border-crimson-red' : isValid ? 'border-green-500 pr-12 hover:border-green-500' : 'border-border hover:border-primary/50'
+          } focus:border-primary focus:ring-2 focus:ring-primary/20`}
+        >
+          {selectedISO ? new Date(selectedISO + "T00:00:00").toLocaleDateString() : "mm/dd/yyyy"}
+        </button>
+        {isValid && !open && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5 text-green-500">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+          </div>
+        )}
+      </div>
 
       {open && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center animate-[fadeIn_150ms_ease-out]" role="dialog" aria-modal="true" aria-label="Birthdate picker">

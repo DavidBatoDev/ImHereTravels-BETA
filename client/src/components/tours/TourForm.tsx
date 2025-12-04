@@ -2159,7 +2159,7 @@ export default function TourForm({
                                 <img
                                   src={highlightImage}
                                   alt={`Highlight ${index + 1}`}
-                                  className="w-full h-32 object-cover rounded-lg border border-border"
+                                  className="w-full h-32 object-contain rounded-lg border border-border bg-muted/20"
                                 />
                                 <Button
                                   type="button"
