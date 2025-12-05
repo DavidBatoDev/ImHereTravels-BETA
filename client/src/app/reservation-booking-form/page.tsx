@@ -82,7 +82,6 @@ const Page = () => {
 
   // Tour selection modal state
   const [showTourModal, setShowTourModal] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
@@ -505,7 +504,7 @@ const Page = () => {
             const s = p.slug ? String(p.slug).toLowerCase() : "";
             return s === normalized;
           });
-          if (match) {
+          if (match && !isTourAllDatesTooSoon(match)) {
             setTourPackage(match.id);
 
             // Auto-scroll to tour date section when tour is loaded from URL
@@ -579,6 +578,14 @@ const Page = () => {
     const diffTime = tour.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  const isTourAllDatesTooSoon = (pkg?: { travelDates?: string[] }): boolean => {
+    if (!pkg) return false;
+    const validDates = (pkg.travelDates ?? []).filter(Boolean);
+    return (
+      validDates.length > 0 && validDates.every((date) => calculateDaysBetween(date) < 2)
+    );
   };
 
   // Determine available payment term based on days between
@@ -802,11 +809,7 @@ const Page = () => {
     { label: "Group Booking", value: "Group Booking" },
   ];
   const tourPackageOptions = tourPackages.map((p) => {
-    // Check if all dates are too soon (less than 2 days from today)
-    const allDatesTooSoon =
-      p.travelDates.length > 0 &&
-      p.travelDates.every((date) => calculateDaysBetween(date) < 2);
-
+    const allDatesTooSoon = isTourAllDatesTooSoon(p);
     const isDisabled = p.status === "inactive" || allDatesTooSoon;
 
     return {
@@ -1499,15 +1502,15 @@ const Page = () => {
 
   // Initialize selectedTourId when modal opens with pre-selected tour
   useEffect(() => {
-    if (modalOpen && tourPackage) {
+    if (showTourModal && tourPackage) {
       setSelectedTourId(tourPackage);
-    } else if (!modalOpen) {
+    } else if (!showTourModal) {
       // Reset selected tour when modal closes if it wasn't confirmed
       if (selectedTourId !== tourPackage) {
         setSelectedTourId(null);
       }
     }
-  }, [modalOpen, tourPackage]);
+  }, [showTourModal, tourPackage, selectedTourId]);
 
   // Rotate highlights in the tour preview card every 5 seconds, reset on interaction
   useEffect(() => {
@@ -1528,16 +1531,22 @@ const Page = () => {
 
   // Prevent body scroll when modal is open
   useEffect(() => {
-    if (modalOpen || showTourModal) {
-      document.body.style.overflow = "hidden";
+    const html = document.documentElement;
+    const body = document.body;
+
+    if (showTourModal) {
+      html.style.overflow = "hidden";
+      body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = "unset";
+      html.style.overflow = "auto";
+      body.style.overflow = "auto";
     }
 
     return () => {
-      document.body.style.overflow = "unset";
+      html.style.overflow = "auto";
+      body.style.overflow = "auto";
     };
-  }, [modalOpen, showTourModal]);
+  }, [showTourModal]);
 
   // animate additional guests area when bookingType changes (measured height)
   useEffect(() => {
@@ -1698,25 +1707,30 @@ const Page = () => {
   // Handle tour selection confirmation from modal
   const handleConfirmTourSelection = () => {
     const tour = tourPackages.find((t) => t.id === selectedTourId);
-    if (tour) {
-      setTourPackage(tour.id);
-      setModalOpen(false);
-      setSearchQuery("");
-      setActiveFilter("all");
+    if (!tour) return;
 
-      // Scroll to tour date or next section after selection with smoother animation
-      setTimeout(() => {
-        const tourDateSection = document.querySelector(
-          '[aria-label="Tour Date"]'
-        );
-        if (tourDateSection) {
-          tourDateSection.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          });
-        }
-      }, 400);
+    if (isTourAllDatesTooSoon(tour)) {
+      alert("All available dates for this tour are too soon. Please choose another tour.");
+      return;
     }
+
+    setTourPackage(tour.id);
+    setShowTourModal(false);
+    setSearchQuery("");
+    setActiveFilter("all");
+
+    // Scroll to tour date or next section after selection with smoother animation
+    setTimeout(() => {
+      const tourDateSection = document.querySelector(
+        '[aria-label="Tour Date"]'
+      );
+      if (tourDateSection) {
+        tourDateSection.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }, 400);
   };
 
   const handleConfirmBooking = async () => {
@@ -1814,7 +1828,12 @@ const Page = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden theme-transition">
+    <div 
+      className={`min-h-screen bg-background relative theme-transition`}
+      style={{
+        overflow: showTourModal ? "hidden" : "auto"
+      }}
+    >
       {/* Animated gradient background */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/5 via-sunglow-yellow/5 to-spring-green/5 dark:from-crimson-red/20 dark:via-creative-midnight/30 dark:to-spring-green/20 animate-gradient-shift bg-[length:200%_200%]" />
@@ -2418,8 +2437,9 @@ const Page = () => {
                     </label>
 
                     <label className="block relative group">
-                      <span className="text-sm font-medium text-foreground">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Birthdate
+                        <span className="text-destructive text-xs">*</span>
                       </span>
                       <div className="relative">
                         <BirthdatePicker
@@ -2621,8 +2641,9 @@ const Page = () => {
 
                     {/* Booking type */}
                     <label className="block">
-                      <span className="text-sm font-medium text-foreground">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Booking type
+                        <span className="text-destructive text-xs">*</span>
                       </span>
                       <Select
                         value={bookingType}
@@ -2893,7 +2914,7 @@ const Page = () => {
                             <div
                               className="selected-tour-mini-card flex items-center gap-4 p-3 border-2 border-border rounded-xl bg-card hover:border-primary/50 transition-all duration-300 cursor-pointer animate-slideInScale"
                               onClick={() =>
-                                !paymentConfirmed && setModalOpen(true)
+                                !paymentConfirmed && setShowTourModal(true)
                               }
                             >
                               <div className="mini-card-image w-20 h-16 rounded-lg overflow-hidden flex-shrink-0">
@@ -3896,6 +3917,7 @@ const Page = () => {
         isLoadingPackages={isLoadingPackages}
         selectedTourId={tourPackage}
         onSelectTour={setTourPackage}
+        isTourAllDatesTooSoon={isTourAllDatesTooSoon}
       />
     </div>
   );

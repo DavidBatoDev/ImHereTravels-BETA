@@ -33,6 +33,7 @@ interface TourSelectionModalProps {
   isLoadingPackages: boolean;
   selectedTourId: string;
   onSelectTour: (tourId: string) => void;
+  isTourAllDatesTooSoon: (pkg: TourPackage) => boolean;
 }
 
 export default function TourSelectionModal({
@@ -42,6 +43,7 @@ export default function TourSelectionModal({
   isLoadingPackages,
   selectedTourId,
   onSelectTour,
+  isTourAllDatesTooSoon,
 }: TourSelectionModalProps) {
   const [modalImagesLoaded, setModalImagesLoaded] = useState<Set<string>>(
     new Set()
@@ -62,8 +64,9 @@ export default function TourSelectionModal({
     onClose();
   };
 
-  const handleSelectTour = (tourId: string) => {
-    onSelectTour(tourId);
+  const handleSelectTour = (tour: TourPackage) => {
+    if (isTourAllDatesTooSoon(tour)) return;
+    onSelectTour(tour.id);
     handleClose();
   };
 
@@ -231,11 +234,12 @@ export default function TourSelectionModal({
                 </div>
               ) : (
                 /* Tour Grid - Only show when all images loaded */
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
                   {tourPackages
                     .filter((pkg) => pkg.status === "active")
                     .map((pkg) => {
                       const isSelected = selectedTourId === pkg.id;
+                      const isDisabled = isTourAllDatesTooSoon(pkg);
                       const currentPrice = pkg.price || 0;
                       const currency = "GBP";
                       const currencySymbol = "£";
@@ -243,15 +247,21 @@ export default function TourSelectionModal({
                       return (
                         <button
                           key={pkg.id}
-                          onClick={() => handleSelectTour(pkg.id)}
-                          className={`group relative rounded-3xl overflow-hidden bg-card transition-all duration-300 text-left transform hover:scale-[1.02] shadow-md ${
-                            isSelected
+                          onClick={() => handleSelectTour(pkg)}
+                          disabled={isDisabled}
+                          aria-disabled={isDisabled}
+                          className={`group relative h-full flex flex-col rounded-3xl overflow-hidden bg-card transition-all duration-300 text-left shadow-md ${
+                            isDisabled
+                              ? "opacity-60 cursor-not-allowed"
+                              : "transform hover:scale-[1.02] hover:shadow-xl"
+                          } ${
+                            isSelected && !isDisabled
                               ? "ring-4 ring-primary ring-offset-2 ring-offset-background shadow-2xl shadow-primary/20"
-                              : "hover:shadow-xl"
-                          }`}
+                              : ""
+                          } min-h-[480px]`}
                         >
                           {/* Cover Image */}
-                          <div className="relative h-40 overflow-hidden">
+                          <div className="relative h-48 overflow-hidden">
                             {pkg.coverImage ? (
                               <img
                                 src={pkg.coverImage}
@@ -283,7 +293,7 @@ export default function TourSelectionModal({
                           </div>
 
                           {/* Content */}
-                          <div className="p-4 space-y-2">
+                          <div className="p-4 space-y-2 flex-1 flex flex-col">
                             {/* Title */}
                             <h3 className="font-bold text-lg text-foreground line-clamp-1">
                               {pkg.name}
@@ -365,7 +375,7 @@ export default function TourSelectionModal({
 
                             {/* Highlights */}
                             {pkg.highlights && pkg.highlights.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 pt-1">
+                              <div className="flex flex-wrap gap-1.5 pt-1 mt-auto">
                                 {pkg.highlights
                                   .slice(0, 3)
                                   .map((highlight, index) => {
@@ -394,7 +404,13 @@ export default function TourSelectionModal({
                           </div>
 
                           {/* Selected Checkmark Overlay */}
-                          {isSelected && (
+                          {isDisabled && (
+                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center text-sm font-semibold text-destructive">
+                              All dates are too soon
+                            </div>
+                          )}
+
+                          {isSelected && !isDisabled && (
                             <div className="absolute inset-0 bg-primary/5 pointer-events-none">
                               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
                                 <div className="bg-primary text-primary-foreground p-4 rounded-full shadow-2xl animate-in zoom-in-50 duration-300">
