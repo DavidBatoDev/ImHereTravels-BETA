@@ -558,39 +558,40 @@ export function calculateInstallmentAmounts(
   // P1 Amount - only if p1DueDate exists or terms >= 1
   if (p1DueDate || terms >= 1) {
     if (k === 1 && credit_amt > 0) {
-      result.p1Amount = credit_amt; // P1 gets the credit amount
+      result.p1Amount = credit_amt as number; // P1 gets the credit amount
     } else {
-      result.p1Amount = roundedAmount;
+      result.p1Amount = roundedAmount as number;
     }
   }
 
   // P2 Amount - only if terms >= 2 and p2DueDate exists
   if (terms >= 2 && p2DueDate) {
     if (k === 2 && credit_amt > 0) {
-      result.p2Amount = credit_amt;
+      result.p2Amount = credit_amt as number;
     } else {
-      result.p2Amount = roundedAmount;
+      result.p2Amount = roundedAmount as number;
     }
   }
 
   // P3 Amount - only if terms >= 3 and p3DueDate exists
   if (terms >= 3 && p3DueDate) {
     if (k === 3 && credit_amt > 0) {
-      result.p3Amount = credit_amt;
+      result.p3Amount = credit_amt as number;
     } else {
-      result.p3Amount = roundedAmount;
+      result.p3Amount = roundedAmount as number;
     }
   }
 
   // P4 Amount - only if terms >= 4 and p4DueDate exists
   if (terms >= 4 && p4DueDate) {
     if (k === 4 && credit_amt > 0) {
-      result.p4Amount = credit_amt;
+      result.p4Amount = credit_amt as number;
     } else {
       // Last payment gets the remainder to handle rounding
       const previousPayments = roundedAmount * 3;
-      result.p4Amount =
-        Math.round((total - credit_amt - previousPayments) * 100) / 100;
+      result.p4Amount = (Math.round(
+        (total - credit_amt - previousPayments) * 100
+      ) / 100) as number;
     }
   }
 
@@ -752,6 +753,8 @@ export interface CreatedBookingData {
 
   // Group booking
   isMainBooking: boolean;
+  isMainBooker: boolean;
+  groupIdGroupIdGenerator: string;
   groupId: string;
 
   // Row number (for spreadsheet compatibility)
@@ -897,19 +900,21 @@ export async function createBookingData(
 
     // Installment fields (pre-calculated, will be recalculated in Step 3)
     p1DueDate: allDueDates.p1DueDate,
-    p1Amount: allAmounts.p1Amount,
+    p1Amount: allAmounts.p1Amount as number | "",
     p2DueDate: allDueDates.p2DueDate,
-    p2Amount: allAmounts.p2Amount,
+    p2Amount: allAmounts.p2Amount as number | "",
     p3DueDate: allDueDates.p3DueDate,
-    p3Amount: allAmounts.p3Amount,
+    p3Amount: allAmounts.p3Amount as number | "",
     p4DueDate: allDueDates.p4DueDate,
-    p4Amount: allAmounts.p4Amount,
+    p4Amount: allAmounts.p4Amount as number | "",
 
     // Payment method
     paymentMethod: input.paymentMethod,
 
     // Group booking
     isMainBooking: input.isMainBooking ?? true,
+    isMainBooker: false,
+    groupIdGroupIdGenerator: "",
     groupId: input.groupId || "",
 
     // Row number (global across all bookings)

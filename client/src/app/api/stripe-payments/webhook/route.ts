@@ -19,6 +19,51 @@ import {
   type BookingCreationInput,
 } from "@/lib/booking-calculations";
 
+/**
+ * Generate Group/Duo Booking Member ID (standalone version, no allRows needed).
+ *
+ * @param bookingType  "Duo Booking" | "Group Booking"
+ * @param tourName     Tour package name
+ * @param firstName    Traveller's first name
+ * @param lastName     Traveller's last name
+ * @param email        Traveller's email
+ * @param isActive     Equivalent of U column (if false => "")
+ * @returns string ID or ""
+ */
+function generateGroupMemberIdFunction(
+  bookingType: string,
+  tourName: string,
+  firstName: string,
+  lastName: string,
+  email: string,
+  isActive: boolean
+): string {
+  // Only Duo or Group bookings apply
+  if (!(bookingType === "Duo Booking" || bookingType === "Group Booking")) {
+    return "";
+  }
+
+  // Only generate ID if isActive is explicitly true
+  if (isActive !== true) return "";
+
+  const initials =
+    (firstName?.[0] ?? "").toUpperCase() + (lastName?.[0] ?? "").toUpperCase();
+  const idPrefix = bookingType === "Duo Booking" ? "DB" : "GB";
+
+  // Hash based on email + traveller identity
+  const identity = `${bookingType}|${tourName}|${firstName}|${lastName}|${email}`;
+  let hashNum = 0;
+  for (let i = 0; i < identity.length; i++) {
+    hashNum += identity.charCodeAt(i) * (i + 1);
+  }
+  const hashTag = String(Math.abs(hashNum) % 10000).padStart(4, "0");
+
+  // Fake member number: derive from hash as a stable 001–999
+  const memberNumber = String((Math.abs(hashNum) % 999) + 1).padStart(3, "0");
+
+  return `${idPrefix}-${initials}-${hashTag}-${memberNumber}`;
+}
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: null as any,
 });
@@ -163,7 +208,7 @@ export async function POST(req: NextRequest) {
             paidAmount: paymentData.payment?.amount || 250,
             originalTourCost,
             discountedTourCost,
-            paymentMethod: "stripe",
+            paymentMethod: "Stripe",
             groupId,
             isMainBooking: true,
             existingBookingsCount: existingCountForTourPackage,
@@ -173,9 +218,35 @@ export async function POST(req: NextRequest) {
           // Create the booking data
           const bookingData = await createBookingData(bookingInput);
 
-          console.log("📝 Creating booking with ID:", bookingData.bookingId);
+          // Only set isMainBooker and generate group IDs for Duo/Group bookings
+          if (isGroupBooking) {
+            // Set isMainBooker to true (main booker is the one making the reservation)
+            bookingData.isMainBooker = true;
 
-          // Add to bookings collection
+            // Generate groupIdGroupIdGenerator and groupId for Duo/Group bookings
+            const generatedGroupMemberId = generateGroupMemberIdFunction(
+              paymentData.booking?.type || "Single Booking",
+              paymentData.tour?.packageName || (tourPackage as any)?.name || "",
+              paymentData.customer?.firstName || "",
+              paymentData.customer?.lastName || "",
+              paymentData.customer?.email || "",
+              true // isMainBooker is always true at this point
+            );
+
+            // Both fields should have the same value (full member ID)
+            bookingData.groupIdGroupIdGenerator = generatedGroupMemberId;
+            bookingData.groupId = generatedGroupMemberId;
+
+            console.log("📝 Creating booking with ID:", bookingData.bookingId);
+            console.log("📝 isMainBooker:", bookingData.isMainBooker);
+            console.log(
+              "📝 groupIdGroupIdGenerator:",
+              bookingData.groupIdGroupIdGenerator
+            );
+            console.log("📝 groupId:", bookingData.groupId);
+          } else {
+            console.log("📝 Creating booking with ID:", bookingData.bookingId);
+          } // Add to bookings collection
           const bookingsRef = collection(db, "bookings");
           const newBookingRef = await addDoc(bookingsRef, {
             ...bookingData,
