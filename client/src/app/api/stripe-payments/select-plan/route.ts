@@ -121,6 +121,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Convert "full_payment" to "Full Payment" for calculation functions
+    if (paymentPlanString === "full_payment") {
+      paymentPlanString = "Full Payment";
+    }
+
     // Prepare input for payment plan calculation
     const updateInput: PaymentPlanUpdateInput = {
       paymentPlan: paymentPlanString,
@@ -150,11 +155,6 @@ export async function POST(req: NextRequest) {
     // Update the booking document
     await updateDoc(bookingDocRef, {
       ...paymentUpdate,
-      // Set paymentPlan to "Full Payment" if it's full_payment
-      paymentPlan:
-        paymentPlanString === "full_payment"
-          ? "Full Payment"
-          : paymentUpdate.paymentPlan,
       updatedAt: serverTimestamp(),
     });
 

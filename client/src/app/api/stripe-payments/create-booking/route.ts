@@ -149,15 +149,37 @@ async function getExistingBookingsCountForTourPackage(
 }
 
 /**
- * Get total count of all bookings (for global row number)
+ * Get next available row number (fills gaps if they exist)
+ * For example: if rows 1, 3, 4 exist, returns 2 (fills the gap)
+ * If rows 1, 2, 3 exist, returns 4 (next sequential)
  */
 async function getTotalBookingsCount(): Promise<number> {
   try {
     const bookingsRef = collection(db, "bookings");
     const snapshot = await getDocs(bookingsRef);
-    return snapshot.size;
+
+    // Collect all existing row numbers
+    const existingRows = new Set<number>();
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.row && typeof data.row === "number") {
+        existingRows.add(data.row);
+      }
+    });
+
+    // If no bookings exist, start with row 1
+    if (existingRows.size === 0) return 0; // Will become row 1 with +1
+
+    // Find the first gap in the sequence
+    let nextRow = 1;
+    while (existingRows.has(nextRow)) {
+      nextRow++;
+    }
+
+    // Return nextRow - 1 because createBookingData adds +1
+    return nextRow - 1;
   } catch (error) {
-    console.error("Error counting total bookings:", error);
+    console.error("Error getting next row number:", error);
     return 0;
   }
 }
