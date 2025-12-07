@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
       const paymentsRef = collection(db, "stripePayments");
       const q = query(
         paymentsRef,
-        where("stripeIntentId", "==", paymentIntent.id)
+        where("payment.stripeIntentId", "==", paymentIntent.id)
       );
       const snapshot = await getDocs(q);
 
@@ -113,8 +113,8 @@ export async function POST(req: NextRequest) {
 
         // Check if this is a reservation fee payment (Step 2)
         if (
-          paymentData.type === "reservationFee" &&
-          paymentData.status !== "reserve_paid"
+          paymentData.payment?.type === "reservationFee" &&
+          paymentData.payment?.status !== "reserve_paid"
         ) {
           console.log(
             "🎯 Processing reservation fee payment - creating booking"
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
 
           // Fetch tour package data
           const tourPackage = await getTourPackageData(
-            paymentData.tourPackageId
+            paymentData.tour?.packageId
           );
           const tourCode = (tourPackage as any)?.tourCode || "XXX";
           const originalTourCost = (tourPackage as any)?.pricing?.original || 0;
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
           // Get existing bookings count for unique counter (per tour package)
           const existingCountForTourPackage =
             await getExistingBookingsCountForTourPackage(
-              paymentData.tourPackageName || (tourPackage as any)?.name || ""
+              paymentData.tour?.packageName || (tourPackage as any)?.name || ""
             );
 
           // Get total bookings count for global row number
@@ -141,26 +141,26 @@ export async function POST(req: NextRequest) {
 
           // Determine if this is a group booking and generate group ID
           const isGroupBooking =
-            paymentData.bookingType === "Duo Booking" ||
-            paymentData.bookingType === "Group Booking";
+            paymentData.booking?.type === "Duo Booking" ||
+            paymentData.booking?.type === "Group Booking";
           const groupId = isGroupBooking
-            ? paymentData.groupCode || generateGroupId()
+            ? paymentData.booking?.groupCode || generateGroupId()
             : "";
 
           // Create booking input
           const bookingInput: BookingCreationInput = {
-            email: paymentData.email || "",
-            firstName: paymentData.firstName || "",
-            lastName: paymentData.lastName || "",
-            bookingType: paymentData.bookingType || "Single Booking",
+            email: paymentData.customer?.email || "",
+            firstName: paymentData.customer?.firstName || "",
+            lastName: paymentData.customer?.lastName || "",
+            bookingType: paymentData.booking?.type || "Single Booking",
             tourPackageName:
-              paymentData.tourPackageName || (tourPackage as any)?.name || "",
+              paymentData.tour?.packageName || (tourPackage as any)?.name || "",
             tourCode,
-            tourDate: paymentData.tourDate || "",
-            returnDate: paymentData.returnDate || "",
+            tourDate: paymentData.tour?.date || "",
+            returnDate: paymentData.tour?.returnDate || "",
             tourDuration,
-            reservationFee: paymentData.amountGBP || 250,
-            paidAmount: paymentData.amountGBP || 250,
+            reservationFee: paymentData.payment?.amount || 250,
+            paidAmount: paymentData.payment?.amount || 250,
             originalTourCost,
             discountedTourCost,
             paymentMethod: "stripe",
@@ -187,11 +187,11 @@ export async function POST(req: NextRequest) {
 
           // Update stripePayments document with booking reference and status
           await updateDoc(doc(db, "stripePayments", paymentDoc.id), {
-            status: "reserve_paid",
-            bookingDocumentId: newBookingRef.id,
-            bookingId: bookingData.bookingId,
-            paidAt: new Date().toISOString(),
-            updatedAt: serverTimestamp(),
+            "payment.status": "reserve_paid",
+            "booking.documentId": newBookingRef.id,
+            "booking.id": bookingData.bookingId,
+            "timestamps.paidAt": new Date().toISOString(),
+            "timestamps.updatedAt": serverTimestamp(),
           });
 
           console.log(
@@ -200,8 +200,8 @@ export async function POST(req: NextRequest) {
         } else {
           // For other payment types or already processed, just update status
           await updateDoc(doc(db, "stripePayments", paymentDoc.id), {
-            status: "succeeded",
-            paidAt: new Date().toISOString(),
+            "payment.status": "succeeded",
+            "timestamps.paidAt": new Date().toISOString(),
           });
           console.log("✅ Firestore payment record updated to succeeded");
         }
@@ -215,15 +215,15 @@ export async function POST(req: NextRequest) {
       const paymentsRef = collection(db, "stripePayments");
       const q = query(
         paymentsRef,
-        where("stripeIntentId", "==", paymentIntent.id)
+        where("payment.stripeIntentId", "==", paymentIntent.id)
       );
       const snapshot = await getDocs(q);
 
       if (!snapshot.empty) {
         const paymentDoc = snapshot.docs[0];
         await updateDoc(doc(db, "stripePayments", paymentDoc.id), {
-          status: "failed",
-          failedAt: new Date().toISOString(),
+          "payment.status": "failed",
+          "timestamps.failedAt": new Date().toISOString(),
         });
       }
     }

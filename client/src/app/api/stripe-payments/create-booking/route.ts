@@ -188,20 +188,24 @@ export async function POST(req: NextRequest) {
 
     const paymentData = paymentDocSnap.data();
 
-    // Check if booking already exists for this payment
-    if (paymentData.bookingDocumentId) {
-      console.log("✅ Booking already exists:", paymentData.bookingDocumentId);
+    // Check if booking already exists for this payment (check for non-empty documentId)
+    if (
+      paymentData.booking?.documentId &&
+      paymentData.booking.documentId !== "" &&
+      paymentData.booking.documentId !== "PENDING"
+    ) {
+      console.log("✅ Booking already exists:", paymentData.booking.documentId);
       return NextResponse.json({
         success: true,
-        bookingDocumentId: paymentData.bookingDocumentId,
-        bookingId: paymentData.bookingId,
+        bookingDocumentId: paymentData.booking.documentId,
+        bookingId: paymentData.booking.id,
         message: "Booking already exists",
         alreadyExists: true,
       });
     }
 
     // Verify this is a reservation fee payment
-    if (paymentData.type !== "reservationFee") {
+    if (paymentData.payment?.type !== "reservationFee") {
       return NextResponse.json(
         { error: "Invalid payment type. Expected reservationFee." },
         { status: 400 }
@@ -210,12 +214,12 @@ export async function POST(req: NextRequest) {
 
     // Verify payment status
     if (
-      paymentData.status !== "reserve_paid" &&
-      paymentData.status !== "succeeded"
+      paymentData.payment?.status !== "reserve_paid" &&
+      paymentData.payment?.status !== "succeeded"
     ) {
       return NextResponse.json(
         {
-          error: `Payment not confirmed. Current status: ${paymentData.status}`,
+          error: `Payment not confirmed. Current status: ${paymentData.payment?.status}`,
         },
         { status: 400 }
       );
@@ -224,7 +228,7 @@ export async function POST(req: NextRequest) {
     console.log("🎯 Processing reservation fee payment - creating booking");
 
     // Fetch tour package data
-    const tourPackage = await getTourPackageData(paymentData.tourPackageId);
+    const tourPackage = await getTourPackageData(paymentData.tour?.packageId);
     const tourCode = (tourPackage as any)?.tourCode || "XXX";
     const originalTourCost = (tourPackage as any)?.pricing?.original || 0;
     const discountedTourCost =
@@ -234,7 +238,7 @@ export async function POST(req: NextRequest) {
     // Get existing bookings count for unique counter (per tour package)
     const existingCountForTourPackage =
       await getExistingBookingsCountForTourPackage(
-        paymentData.tourPackageName || (tourPackage as any)?.name || ""
+        paymentData.tour?.packageName || (tourPackage as any)?.name || ""
       );
 
     // Get total bookings count for global row number
@@ -242,38 +246,38 @@ export async function POST(req: NextRequest) {
 
     // Determine if this is a group booking and generate group ID
     const isGroupBooking =
-      paymentData.bookingType === "Duo Booking" ||
-      paymentData.bookingType === "Group Booking";
+      paymentData.booking?.type === "Duo Booking" ||
+      paymentData.booking?.type === "Group Booking";
     const groupId = isGroupBooking
-      ? paymentData.groupCode || generateGroupId()
+      ? paymentData.booking?.groupCode || generateGroupId()
       : "";
 
     // Parse tour date properly
-    const tourDateParsed = toDate(paymentData.tourDate);
-    console.log("📅 Tour date from payment data:", paymentData.tourDate);
+    const tourDateParsed = toDate(paymentData.tour?.date);
+    console.log("📅 Tour date from payment data:", paymentData.tour?.date);
     console.log("📅 Parsed tour date:", tourDateParsed);
 
     // Calculate return date using proper function
     const calculatedReturnDate = calculateReturnDate(
-      paymentData.tourDate,
+      paymentData.tour?.date,
       tourDuration
     );
     console.log("📅 Calculated return date:", calculatedReturnDate);
 
     // Create booking input
     const bookingInput: BookingCreationInput = {
-      email: paymentData.email || "",
-      firstName: paymentData.firstName || "",
-      lastName: paymentData.lastName || "",
-      bookingType: paymentData.bookingType || "Single Booking",
+      email: paymentData.customer?.email || "",
+      firstName: paymentData.customer?.firstName || "",
+      lastName: paymentData.customer?.lastName || "",
+      bookingType: paymentData.booking?.type || "Single Booking",
       tourPackageName:
-        paymentData.tourPackageName || (tourPackage as any)?.name || "",
+        paymentData.tour?.packageName || (tourPackage as any)?.name || "",
       tourCode,
-      tourDate: tourDateParsed || paymentData.tourDate || "",
-      returnDate: paymentData.returnDate || calculatedReturnDate || "",
+      tourDate: tourDateParsed || paymentData.tour?.date || "",
+      returnDate: paymentData.tour?.returnDate || calculatedReturnDate || "",
       tourDuration,
-      reservationFee: paymentData.amountGBP || 250,
-      paidAmount: paymentData.amountGBP || 250,
+      reservationFee: paymentData.payment?.amount || 250,
+      paidAmount: paymentData.payment?.amount || 250,
       originalTourCost,
       discountedTourCost,
       paymentMethod: "Stripe",
@@ -308,14 +312,34 @@ export async function POST(req: NextRequest) {
 
     console.log("✅ Booking created with document ID:", newBookingRef.id);
 
-    // Update stripePayments document with booking reference
-    await updateDoc(paymentDocRef, {
-      bookingDocumentId: newBookingRef.id,
-      bookingId: bookingData.bookingId,
-      updatedAt: serverTimestamp(),
-    });
+    // Update stripePayments document with booking reference (nested structure)
+    try {
+      console.log("📝 Updating stripePayments document:", paymentDocId);
+      console.log("📝 Setting booking.documentId to:", newBookingRef.id);
+      console.log("📝 Setting booking.id to:", bookingData.bookingId);
 
-    console.log("✅ Stripe payment record updated with booking reference");
+      await updateDoc(paymentDocRef, {
+        "booking.documentId": newBookingRef.id,
+        "booking.id": bookingData.bookingId,
+        "timestamps.updatedAt": serverTimestamp(),
+      });
+
+      console.log("✅ Stripe payment record updated with booking reference");
+
+      // Verify the update by reading the document
+      const verifyDoc = await getDoc(paymentDocRef);
+      const verifyData = verifyDoc.data();
+      console.log(
+        "✅ Verified booking.documentId:",
+        verifyData?.booking?.documentId
+      );
+      console.log("✅ Verified booking.id:", verifyData?.booking?.id);
+    } catch (updateError: any) {
+      console.error("❌ Error updating stripePayments document:", updateError);
+      throw new Error(
+        `Failed to update payment document: ${updateError.message}`
+      );
+    }
 
     return NextResponse.json({
       success: true,

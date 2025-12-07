@@ -8,12 +8,18 @@ export async function POST(req: NextRequest) {
     const { stripeIntentId } = await req.json();
 
     if (!stripeIntentId) {
-      return NextResponse.json({ error: "Missing stripeIntentId" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing stripeIntentId" },
+        { status: 400 }
+      );
     }
 
-    // Query Firestore for this payment intent
+    // Query Firestore for this payment intent (nested structure)
     const paymentsRef = collection(db, "stripePayments");
-    const q = query(paymentsRef, where("stripeIntentId", "==", stripeIntentId));
+    const q = query(
+      paymentsRef,
+      where("payment.stripeIntentId", "==", stripeIntentId)
+    );
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
@@ -21,12 +27,12 @@ export async function POST(req: NextRequest) {
     }
 
     const paymentData = snapshot.docs[0].data();
-    const isVerified = paymentData.status === "succeeded";
+    const isVerified = paymentData.payment?.status === "succeeded";
 
     return NextResponse.json({
       verified: isVerified,
-      status: paymentData.status,
-      paidAt: paymentData.paidAt || null,
+      status: paymentData.payment?.status,
+      paidAt: paymentData.timestamps?.paidAt || null,
     });
   } catch (err: any) {
     console.error("Verify payment error:", err.message);

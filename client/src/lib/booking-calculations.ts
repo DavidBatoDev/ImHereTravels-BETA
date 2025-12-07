@@ -819,44 +819,40 @@ export async function createBookingData(
 
   // Pre-calculate due dates - at step 2, no paymentPlan is selected yet
   // So we pass empty string to get comma-separated dates based on paymentCondition
-  const allDueDates = generateInstallmentDueDates(
-    now,
-    input.tourDate,
-    "", // Empty paymentPlan at step 2 - shows all available dates comma-separated
-    paymentCondition
-  );
+  // For Last Minute Booking, don't calculate installment dates/amounts since only full payment is available
+  const allDueDates = isLastMinuteBooking
+    ? { p1DueDate: "", p2DueDate: "", p3DueDate: "", p4DueDate: "" }
+    : generateInstallmentDueDates(
+        now,
+        input.tourDate,
+        "", // Empty paymentPlan at step 2 - shows all available dates comma-separated
+        paymentCondition
+      );
 
   // At step 2, calculate pxAmounts with empty paymentPlan (matches EditBookingModal logic)
   // When paymentPlan is empty, terms = 1, so P1 gets all remaining balance
   // The amounts will be recalculated in step 3 when they select a specific plan
-  const allAmounts = calculateInstallmentAmounts(
-    "", // Empty paymentPlan at step 2 - terms will be 1
-    input.originalTourCost,
-    input.discountedTourCost || null,
-    input.reservationFee,
-    input.isMainBooking ?? true,
-    0, // No credit at initial booking
-    "", // No creditFrom
-    allDueDates.p1DueDate,
-    allDueDates.p2DueDate,
-    allDueDates.p3DueDate,
-    allDueDates.p4DueDate
-  );
-
-  // Calculate full payment fields ONLY for Last Minute Booking
-  const fullPaymentDueDate = isLastMinuteBooking
-    ? getFullPaymentDueDate(now, "Full Payment")
-    : "";
-  const fullPaymentAmount = isLastMinuteBooking
-    ? getFullPaymentAmount(
-        "Full Payment",
+  // For Last Minute Booking, don't calculate installment amounts since only full payment is available
+  const allAmounts = isLastMinuteBooking
+    ? { p1Amount: "", p2Amount: "", p3Amount: "", p4Amount: "" }
+    : calculateInstallmentAmounts(
+        "", // Empty paymentPlan at step 2 - terms will be 1
         input.originalTourCost,
         input.discountedTourCost || null,
         input.reservationFee,
         input.isMainBooking ?? true,
-        0
-      )
-    : "";
+        0, // No credit at initial booking
+        "", // No creditFrom
+        allDueDates.p1DueDate,
+        allDueDates.p2DueDate,
+        allDueDates.p3DueDate,
+        allDueDates.p4DueDate
+      );
+
+  // For Last Minute Booking, full payment fields should be empty at creation (Step 2)
+  // They will be calculated when user confirms full_payment plan in Step 3
+  const fullPaymentDueDate = "";
+  const fullPaymentAmount = "";
 
   return {
     // Identifiers

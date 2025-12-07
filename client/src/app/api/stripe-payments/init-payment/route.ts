@@ -6,6 +6,7 @@ import {
   collection,
   addDoc,
   setDoc,
+  updateDoc,
   doc,
   serverTimestamp,
   query,
@@ -14,6 +15,7 @@ import {
   getDoc,
   limit,
 } from "firebase/firestore";
+import { StripePaymentDocument } from "@/types";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -31,16 +33,15 @@ export async function POST(req: NextRequest) {
     // Validate required fields
     if (!email || !tourPackage) {
       return NextResponse.json(
-        { error: "Missing required fields: email and tourPackage are required" },
+        {
+          error: "Missing required fields: email and tourPackage are required",
+        },
         { status: 400 }
       );
     }
 
     if (!amountGBP || amountGBP <= 0) {
-      return NextResponse.json(
-        { error: "Invalid amount" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
     // Convert GBP → pence (Stripe expects smallest currency unit)
@@ -54,16 +55,21 @@ export async function POST(req: NextRequest) {
         );
         if (providedDocSnap.exists()) {
           const data = providedDocSnap.data() as any;
-          if (data?.stripeIntentId) {
+          if (data?.payment?.stripeIntentId) {
             try {
               const existingIntent = await stripe.paymentIntents.retrieve(
-                data.stripeIntentId
+                data.payment.stripeIntentId
               );
               // Only reuse if the intent is still in a reusable state
-              if (existingIntent && 
-                  existingIntent.status !== "succeeded" && 
-                  existingIntent.status !== "canceled") {
-                console.log("♻️ Reusing existing payment intent for document:", paymentDocId);
+              if (
+                existingIntent &&
+                existingIntent.status !== "succeeded" &&
+                existingIntent.status !== "canceled"
+              ) {
+                console.log(
+                  "♻️ Reusing existing payment intent for document:",
+                  paymentDocId
+                );
                 return NextResponse.json({
                   clientSecret: existingIntent.client_secret,
                   paymentDocId,
@@ -71,13 +77,19 @@ export async function POST(req: NextRequest) {
                 });
               }
             } catch (err) {
-              console.warn("Could not retrieve existing intent, creating new one:", err);
+              console.warn(
+                "Could not retrieve existing intent, creating new one:",
+                err
+              );
               // Continue to create new intent
             }
           }
         }
       } catch (err) {
-        console.warn("Could not read provided paymentDocId, creating new intent:", err);
+        console.warn(
+          "Could not read provided paymentDocId, creating new intent:",
+          err
+        );
       }
     }
 
@@ -85,10 +97,10 @@ export async function POST(req: NextRequest) {
     const paymentsRef = collection(db, "stripePayments");
     const existingQ = query(
       paymentsRef,
-      where("email", "==", email),
-      where("tourPackageId", "==", tourPackage),
-      where("type", "==", "reservationFee"),
-      where("status", "in", ["pending", "reserve_pending"]),
+      where("customer.email", "==", email),
+      where("tour.packageId", "==", tourPackage),
+      where("payment.type", "==", "reservationFee"),
+      where("payment.status", "in", ["pending", "reserve_pending"]),
       limit(1)
     );
 
@@ -96,14 +108,16 @@ export async function POST(req: NextRequest) {
     if (!existingSnap.empty) {
       const docSnap = existingSnap.docs[0];
       const data = docSnap.data() as any;
-      if (data?.stripeIntentId) {
+      if (data?.payment?.stripeIntentId) {
         try {
           const existingIntent = await stripe.paymentIntents.retrieve(
-            data.stripeIntentId
+            data.payment.stripeIntentId
           );
-          if (existingIntent && 
-              existingIntent.status !== "succeeded" && 
-              existingIntent.status !== "canceled") {
+          if (
+            existingIntent &&
+            existingIntent.status !== "succeeded" &&
+            existingIntent.status !== "canceled"
+          ) {
             console.log("♻️ Reusing existing payment intent for email:", email);
             return NextResponse.json({
               clientSecret: existingIntent.client_secret,
@@ -112,7 +126,10 @@ export async function POST(req: NextRequest) {
             });
           }
         } catch (err) {
-          console.warn("Could not retrieve existing intent, creating new one:", err);
+          console.warn(
+            "Could not retrieve existing intent, creating new one:",
+            err
+          );
         }
       }
     }
@@ -132,7 +149,7 @@ export async function POST(req: NextRequest) {
       {
         amount: amountPence,
         currency: "gbp",
-        automatic_payment_methods: { 
+        automatic_payment_methods: {
           enabled: true,
         },
         description: `Reservation fee for ${tourPackageName || tourPackage}`,
@@ -154,19 +171,15 @@ export async function POST(req: NextRequest) {
 
     // 4️⃣ Store/attach in Firestore
     if (paymentDocId) {
-      // Attach the intent to the existing placeholder document
+      // Attach the intent to the existing placeholder document using updateDoc with dot notation
       const paymentDocRef = doc(db, "stripePayments", paymentDocId);
-      await setDoc(
-        paymentDocRef,
-        {
-          stripeIntentId: intent.id,
-          clientSecret: intent.client_secret,
-          amountGBP,
-          currency: "GBP",
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      await updateDoc(paymentDocRef, {
+        "payment.stripeIntentId": intent.id,
+        "payment.clientSecret": intent.client_secret,
+        "payment.amount": amountGBP,
+        "payment.currency": "GBP",
+        "timestamps.updatedAt": serverTimestamp(),
+      });
 
       console.log("📝 Updated existing Firestore document:", paymentDocId);
 
@@ -175,26 +188,44 @@ export async function POST(req: NextRequest) {
         paymentDocId,
       });
     } else {
-      // Create a new Firestore document
-      const newDocRef = await addDoc(paymentsRef, {
-        bookingId: "PENDING",
-        email,
-        tourPackageId: tourPackage,
-        tourPackageName: tourPackageName || tourPackage,
-        amountGBP,
-        currency: "GBP",
-        stripeIntentId: intent.id,
-        clientSecret: intent.client_secret,
-        status: "reserve_pending",
-        type: "reservationFee",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      // Create a new Firestore document with nested structure
+      const newPaymentDoc: Partial<StripePaymentDocument> = {
+        booking: {
+          id: "PENDING",
+          documentId: "",
+        },
+        customer: {
+          email,
+        },
+        tour: {
+          packageId: tourPackage,
+          packageName: tourPackageName || tourPackage,
+        },
+        payment: {
+          stripeIntentId: intent.id,
+          clientSecret: intent.client_secret,
+          amount: amountGBP,
+          currency: "GBP",
+          status: "reserve_pending",
+          type: "reservationFee",
+        },
+        timestamps: {
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+      };
+
+      const newDocRef = await addDoc(paymentsRef, newPaymentDoc);
 
       // Write back the id field on the document
       await setDoc(
         doc(db, "stripePayments", newDocRef.id),
-        { id: newDocRef.id },
+        {
+          id: newDocRef.id,
+          booking: {
+            documentId: newDocRef.id,
+          },
+        },
         { merge: true }
       );
 
@@ -208,12 +239,12 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error("❌ Stripe Init Payment Error:", err.message);
     console.error("Error details:", err);
-    
+
     return NextResponse.json(
-      { 
+      {
         error: err.message ?? "Stripe error",
-        details: process.env.NODE_ENV === 'development' ? err.stack : undefined
-      }, 
+        details: process.env.NODE_ENV === "development" ? err.stack : undefined,
+      },
       { status: 400 }
     );
   }
@@ -224,9 +255,9 @@ export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
     },
   });
 }

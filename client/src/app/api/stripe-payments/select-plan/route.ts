@@ -58,9 +58,11 @@ export async function POST(req: NextRequest) {
 
     const paymentData = paymentDocSnap.data();
 
-    // Check if booking document exists
-    const bookingDocumentId = paymentData.bookingDocumentId;
+    // Check if booking document exists (check both nested and flat for backward compatibility)
+    const bookingDocumentId =
+      paymentData.booking?.documentId || paymentData.bookingDocumentId;
     if (!bookingDocumentId) {
+      console.error("❌ Payment data:", JSON.stringify(paymentData, null, 2));
       return NextResponse.json(
         {
           error:
@@ -148,18 +150,23 @@ export async function POST(req: NextRequest) {
     // Update the booking document
     await updateDoc(bookingDocRef, {
       ...paymentUpdate,
+      // Set paymentPlan to "Full Payment" if it's full_payment
+      paymentPlan:
+        paymentPlanString === "full_payment"
+          ? "Full Payment"
+          : paymentUpdate.paymentPlan,
       updatedAt: serverTimestamp(),
     });
 
     console.log("✅ Booking updated with payment plan");
 
-    // Update the stripePayments document
+    // Update the stripePayments document with nested structure
     await updateDoc(paymentDocRef, {
-      status: "terms_selected",
-      selectedPaymentPlan: selectedPaymentPlan,
-      paymentPlanDetails: paymentPlanDetails || null,
-      confirmedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      "payment.status": "terms_selected",
+      "payment.selectedPaymentPlan": selectedPaymentPlan,
+      "payment.paymentPlanDetails": paymentPlanDetails || null,
+      "timestamps.confirmedAt": serverTimestamp(),
+      "timestamps.updatedAt": serverTimestamp(),
     });
 
     console.log("✅ Stripe payment record updated to terms_selected");

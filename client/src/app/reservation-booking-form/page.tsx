@@ -215,36 +215,50 @@ const Page = () => {
     try {
       const paymentsRef = collection(db, "stripePayments");
       const newDoc = await addDoc(paymentsRef, {
-        status: "reserve_pending",
-        email,
-        firstName,
-        lastName,
-        birthdate,
-        nationality,
-        bookingType,
-        groupSize:
-          bookingType === "Group Booking"
-            ? groupSize
-            : bookingType === "Duo Booking"
-            ? 2
-            : 1,
-        additionalGuests:
-          bookingType === "Duo Booking" || bookingType === "Group Booking"
-            ? additionalGuests
-            : [],
-        tourPackageId: tourPackage,
-        tourPackageName: selectedPackage?.name || "",
-        tourDate,
-        amountGBP: depositAmount,
-        currency: "GBP",
-        type: "reservationFee",
-        createdAt: serverTimestamp(),
+        customer: {
+          email,
+          firstName,
+          lastName,
+          birthdate,
+          nationality,
+        },
+        booking: {
+          type: bookingType,
+          groupSize:
+            bookingType === "Group Booking"
+              ? groupSize
+              : bookingType === "Duo Booking"
+              ? 2
+              : 1,
+          additionalGuests:
+            bookingType === "Duo Booking" || bookingType === "Group Booking"
+              ? additionalGuests
+              : [],
+          id: "PENDING",
+          documentId: "",
+        },
+        tour: {
+          packageId: tourPackage,
+          packageName: selectedPackage?.name || "",
+          date: tourDate,
+        },
+        payment: {
+          amount: depositAmount,
+          currency: "GBP",
+          status: "reserve_pending",
+          type: "reservationFee",
+        },
+        timestamps: {
+          createdAt: serverTimestamp(),
+        },
       });
 
       // write the id into the document for convenience
       await setDoc(
         doc(db, "stripePayments", newDoc.id),
-        { id: newDoc.id },
+        {
+          id: newDoc.id,
+        },
         { merge: true }
       );
       setPaymentDocId(newDoc.id);
@@ -285,8 +299,8 @@ const Page = () => {
       const paymentsRef = collection(db, "stripePayments");
       const q = query(
         paymentsRef,
-        where("email", "==", email),
-        orderBy("createdAt", "desc"),
+        where("customer.email", "==", email),
+        orderBy("timestamps.createdAt", "desc"),
         limit(5)
       );
       const snap = await getDocs(q);
@@ -630,7 +644,7 @@ const Page = () => {
     if (daysBetween < 2) {
       return { term: "invalid", isLastMinute: false, isInvalid: true };
     } else if (daysBetween >= 2 && daysBetween < 30) {
-      return { term: "last_minute", isLastMinute: true, isInvalid: false };
+      return { term: "full_payment", isLastMinute: true, isInvalid: false };
     } else {
       const today = new Date();
       const tourDateObj = new Date(tourDate);
@@ -650,7 +664,7 @@ const Page = () => {
       } else if (monthCount === 1) {
         return { term: "P1", isLastMinute: false, isInvalid: false };
       } else {
-        return { term: "last_minute", isLastMinute: true, isInvalid: false };
+        return { term: "full_payment", isLastMinute: true, isInvalid: false };
       }
     }
   };
@@ -889,28 +903,28 @@ const Page = () => {
 
       // First, update the stripePayments document with customer details
       const updateData: any = {
-        email: email,
-        firstName: firstName,
-        lastName: lastName,
-        birthdate: birthdate,
-        nationality: nationality,
-        bookingType: bookingType,
-        groupSize:
+        "customer.email": email,
+        "customer.firstName": firstName,
+        "customer.lastName": lastName,
+        "customer.birthdate": birthdate,
+        "customer.nationality": nationality,
+        "booking.type": bookingType,
+        "booking.groupSize":
           bookingType === "Group Booking"
             ? groupSize
             : bookingType === "Duo Booking"
             ? 2
             : 1,
-        additionalGuests:
+        "booking.additionalGuests":
           bookingType === "Duo Booking" || bookingType === "Group Booking"
             ? additionalGuests
             : [],
-        tourPackageId: tourPackage,
-        tourPackageName: selectedPackage?.name || "",
-        tourDate: tourDate,
-        status: "reserve_paid",
-        stripeIntentId: paymentIntentId,
-        updatedAt: serverTimestamp(),
+        "tour.packageId": tourPackage,
+        "tour.packageName": selectedPackage?.name || "",
+        "tour.date": tourDate,
+        "payment.status": "reserve_paid",
+        "payment.stripeIntentId": paymentIntentId,
+        "timestamps.updatedAt": serverTimestamp(),
       };
 
       console.log("📤 Update data:", updateData);
@@ -929,7 +943,7 @@ const Page = () => {
         const paymentsRef = collection(db, "stripePayments");
         const q = query(
           paymentsRef,
-          where("stripeIntentId", "==", paymentIntentId)
+          where("payment.stripeIntentId", "==", paymentIntentId)
         );
         const querySnapshot = await getDocs(q);
 
@@ -1292,22 +1306,25 @@ const Page = () => {
                 );
               }
 
-              // Populate form fields from stored doc
-              if (data.email) setEmail(data.email);
-              if (data.firstName) setFirstName(data.firstName);
-              if (data.lastName) setLastName(data.lastName);
-              if (data.birthdate) setBirthdate(data.birthdate);
-              if (data.nationality) setNationality(data.nationality);
-              if (data.bookingType) setBookingType(data.bookingType);
-              if (typeof data.groupSize === "number")
-                setGroupSize(data.groupSize);
-              if (Array.isArray(data.additionalGuests))
-                setAdditionalGuests(data.additionalGuests);
-              if (data.tourPackageId) setTourPackage(data.tourPackageId);
-              if (data.tourDate) setTourDate(data.tourDate);
+              // Populate form fields from stored doc (nested structure)
+              if (data.customer?.email) setEmail(data.customer.email);
+              if (data.customer?.firstName)
+                setFirstName(data.customer.firstName);
+              if (data.customer?.lastName) setLastName(data.customer.lastName);
+              if (data.customer?.birthdate)
+                setBirthdate(data.customer.birthdate);
+              if (data.customer?.nationality)
+                setNationality(data.customer.nationality);
+              if (data.booking?.type) setBookingType(data.booking.type);
+              if (typeof data.booking?.groupSize === "number")
+                setGroupSize(data.booking.groupSize);
+              if (Array.isArray(data.booking?.additionalGuests))
+                setAdditionalGuests(data.booking.additionalGuests);
+              if (data.tour?.packageId) setTourPackage(data.tour.packageId);
+              if (data.tour?.date) setTourDate(data.tour.date);
 
               // Advance to the appropriate step based on status
-              if (data.status === "reserve_pending") {
+              if (data.payment?.status === "reserve_pending") {
                 // mark step 1 completed and go to payment step
                 // update URL to reference this payment doc and remove any `tour` param
                 try {
@@ -1330,7 +1347,7 @@ const Page = () => {
                 }
                 setStep(2);
                 setCompletedSteps((prev) => Array.from(new Set([...prev, 1])));
-              } else if (data.status === "reserve_paid") {
+              } else if (data.payment?.status === "reserve_paid") {
                 // payment completed — go to payment plan
                 setPaymentConfirmed(true);
                 try {
@@ -1353,7 +1370,7 @@ const Page = () => {
                 }
                 setStep(3);
                 // if bookingId present, set it so Confirm Booking can find the record
-                if (data.bookingId) setBookingId(data.bookingId);
+                if (data.booking?.id) setBookingId(data.booking.id);
                 setCompletedSteps((prev) =>
                   Array.from(new Set([...prev, 1, 2]))
                 );
@@ -1768,15 +1785,20 @@ const Page = () => {
     try {
       setConfirmingBooking(true);
 
-      // Check if payment plan is selected (not required for last minute bookings)
+      // Check if payment plan is selected (not required for full payment bookings)
       if (!availablePaymentTerm.isLastMinute && !selectedPaymentPlan) {
         alert("Please select a payment plan to continue");
         return;
       }
 
+      // For full payment bookings, use "full_payment" as the payment plan
+      const paymentPlanToSend = availablePaymentTerm.isLastMinute
+        ? "full_payment"
+        : selectedPaymentPlan;
+
       console.log(
         "🎯 Confirming booking with payment plan:",
-        selectedPaymentPlan
+        paymentPlanToSend
       );
 
       // Get the selected payment plan details
@@ -1792,7 +1814,7 @@ const Page = () => {
       );
 
       const paymentsRef = collection(db, "stripePayments");
-      const q = query(paymentsRef, where("bookingId", "==", bookingId));
+      const q = query(paymentsRef, where("booking.id", "==", bookingId));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
@@ -1811,7 +1833,7 @@ const Page = () => {
           },
           body: JSON.stringify({
             paymentDocId: paymentDocId,
-            selectedPaymentPlan: selectedPaymentPlan,
+            selectedPaymentPlan: paymentPlanToSend,
             paymentPlanDetails: selectedPlan || null,
           }),
         });
@@ -2394,7 +2416,11 @@ const Page = () => {
                     {/* Tour Name and Tour Date in same row */}
                     <div className="grid grid-cols-1 md:grid-cols-[70%_30%] gap-4 items-start mb-6">
                       {/* Tour name */}
-                      <label className="block">
+                      <label
+                        className={`block ${
+                          !selectedPackage ? "md:col-span-2" : ""
+                        }`}
+                      >
                         <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                           Tour name
                           <span className="text-destructive text-xs">*</span>
@@ -3718,7 +3744,7 @@ const Page = () => {
                       </div>
                       <div>
                         <div className="font-medium text-foreground">
-                          Last Minute Booking
+                          Full Payment Required
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">
                           Your tour is coming up soon! Full payment of £
