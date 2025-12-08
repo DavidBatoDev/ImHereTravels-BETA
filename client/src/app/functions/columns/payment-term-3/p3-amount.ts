@@ -201,7 +201,7 @@ export default function getP3AmountFunction(
   const credit_amt = creditAmount ?? 0;
 
   // IF(AND($AM1003="", $AN1003=""), ...)
-  if (!paymentPlan && !paymentMethod) {
+  if (!paymentPlan) {
     // When no payment plan is specified, calculate unpaid balance divided by 3
     const paidSum =
       (fullPaymentDatePaid ? fullPaymentAmount ?? 0 : 0) +
