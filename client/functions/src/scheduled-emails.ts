@@ -468,6 +468,42 @@ export const processScheduledEmails = onSchedule(
                   `Updated ${term} Scheduled Email Link for booking ${emailData.bookingId}`
                 );
               }
+
+              // Create notification for sent payment reminder
+              try {
+                const travelerName =
+                  emailData.templateVariables.fullName || "Customer";
+                const tourPackageName =
+                  emailData.templateVariables.tourPackage || "Tour";
+
+                await db.collection("notifications").add({
+                  type: "payment_reminder_sent",
+                  title: `${term} Payment Reminder Sent`,
+                  body: `${term} payment reminder sent to ${travelerName} for ${tourPackageName}`,
+                  data: {
+                    bookingId: emailData.bookingId,
+                    travelerName,
+                    tourPackageName,
+                    paymentTerm: term,
+                    recipientEmail: emailData.to,
+                    emailUrl: emailLink,
+                  },
+                  targetType: "global",
+                  targetUserIds: [],
+                  createdAt: new Date(),
+                  readBy: {},
+                });
+
+                logger.info(
+                  "✅ Notification created for sent payment reminder"
+                );
+              } catch (notificationError) {
+                logger.warn(
+                  "Failed to create notification:",
+                  notificationError
+                );
+                // Fail silently - don't block the email sending process
+              }
             } catch (bookingUpdateError) {
               logger.error(
                 `Error updating booking with email link:`,

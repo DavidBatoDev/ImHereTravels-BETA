@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -13,6 +13,10 @@ import {
   Check,
   Loader2,
   X,
+  Mail,
+  CalendarClock,
+  PackageCheck,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +46,10 @@ const notificationIcons: Record<NotificationType, React.ElementType> = {
   new_booking: CalendarPlus,
   booking_cancelled: CalendarX,
   payment_reminder: Clock,
+  payment_reminder_created: CalendarClock,
+  payment_reminder_sent: Mail,
+  reservation_email: Mail,
+  pre_departure_pack: PackageCheck,
   system: Info,
 };
 
@@ -64,6 +72,22 @@ const notificationColors: Record<
   payment_reminder: {
     icon: "text-orange-600 dark:text-orange-400",
     bg: "bg-orange-100 dark:bg-orange-900/30",
+  },
+  payment_reminder_created: {
+    icon: "text-indigo-600 dark:text-indigo-400",
+    bg: "bg-indigo-100 dark:bg-indigo-900/30",
+  },
+  payment_reminder_sent: {
+    icon: "text-purple-600 dark:text-purple-400",
+    bg: "bg-purple-100 dark:bg-purple-900/30",
+  },
+  reservation_email: {
+    icon: "text-purple-600 dark:text-purple-400",
+    bg: "bg-purple-100 dark:bg-purple-900/30",
+  },
+  pre_departure_pack: {
+    icon: "text-teal-600 dark:text-teal-400",
+    bg: "bg-teal-100 dark:bg-teal-900/30",
   },
   system: {
     icon: "text-gray-600 dark:text-gray-400",
@@ -144,6 +168,9 @@ export default function NotificationDropdown() {
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<
+    NotificationType | "all"
+  >("all");
   const {
     notifications,
     unreadCount,
@@ -154,10 +181,29 @@ export default function NotificationDropdown() {
     markAllAsRead,
   } = useNotifications();
 
+  // Filter notifications based on selected filter
+  const filteredNotifications = useMemo(() => {
+    if (selectedFilter === "all") {
+      return notifications;
+    }
+    return notifications.filter((n) => n.type === selectedFilter);
+  }, [notifications, selectedFilter]);
+
   // Handle notification click - navigate to booking if available
   const handleNotificationSelect = useCallback(
     (notification: NotificationWithReadStatus) => {
-      if (
+      if (notification.type === "payment_reminder_created") {
+        // Navigate to payment reminders page
+        router.push("/mail/payment-reminders");
+      } else if (
+        (notification.type === "payment_reminder_sent" ||
+          notification.type === "reservation_email" ||
+          notification.type === "pre_departure_pack") &&
+        notification.data?.emailUrl
+      ) {
+        // Open Gmail sent email in new tab
+        window.open(notification.data.emailUrl, "_blank");
+      } else if (
         notification.type === "new_booking" &&
         notification.data?.bookingDocumentId
       ) {
@@ -325,26 +371,118 @@ export default function NotificationDropdown() {
                   }`
                 : "All caught up!"}
             </p>
+
+            {/* Filter Badges */}
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button
+                onClick={() => setSelectedFilter("all")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  selectedFilter === "all"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                <Filter className="h-3 w-3" />
+                All
+              </button>
+              <button
+                onClick={() => setSelectedFilter("new_booking")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  selectedFilter === "new_booking"
+                    ? "bg-blue-600 text-white dark:bg-blue-500"
+                    : "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                )}
+              >
+                <CalendarPlus className="h-3 w-3" />
+                New Booking
+              </button>
+              <button
+                onClick={() => setSelectedFilter("payment_reminder_created")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  selectedFilter === "payment_reminder_created"
+                    ? "bg-indigo-600 text-white dark:bg-indigo-500"
+                    : "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/50"
+                )}
+              >
+                <CalendarClock className="h-3 w-3" />
+                Reminder Created
+              </button>
+              <button
+                onClick={() => setSelectedFilter("payment_reminder_sent")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  selectedFilter === "payment_reminder_sent"
+                    ? "bg-purple-600 text-white dark:bg-purple-500"
+                    : "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50"
+                )}
+              >
+                <Mail className="h-3 w-3" />
+                Reminder Sent
+              </button>
+              <button
+                onClick={() => setSelectedFilter("reservation_email")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  selectedFilter === "reservation_email"
+                    ? "bg-purple-600 text-white dark:bg-purple-500"
+                    : "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50"
+                )}
+              >
+                <Mail className="h-3 w-3" />
+                Reservation Email
+              </button>
+              <button
+                onClick={() => setSelectedFilter("pre_departure_pack")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  selectedFilter === "pre_departure_pack"
+                    ? "bg-teal-600 text-white dark:bg-teal-500"
+                    : "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 hover:bg-teal-200 dark:hover:bg-teal-900/50"
+                )}
+              >
+                <PackageCheck className="h-3 w-3" />
+                Pre-Departure Pack
+              </button>
+              <button
+                onClick={() => setSelectedFilter("system")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  selectedFilter === "system"
+                    ? "bg-gray-600 text-white dark:bg-gray-500"
+                    : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                )}
+              >
+                <Info className="h-3 w-3" />
+                System
+              </button>
+            </div>
           </DialogHeader>
 
           <ScrollArea className="h-[60vh] pr-4" onScrollCapture={handleScroll}>
-            {isLoading && notifications.length === 0 ? (
+            {isLoading && filteredNotifications.length === 0 ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : notifications.length === 0 ? (
+            ) : filteredNotifications.length === 0 ? (
               <div className="py-12 text-center">
                 <Bell className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
                 <p className="text-sm text-muted-foreground">
-                  No notifications yet
+                  {selectedFilter === "all"
+                    ? "No notifications yet"
+                    : `No ${selectedFilter.replace(/_/g, " ")} notifications`}
                 </p>
                 <p className="text-xs text-muted-foreground/70 mt-1">
-                  You&apos;ll see payment updates here
+                  {selectedFilter === "all"
+                    ? "You'll see payment updates here"
+                    : "Try selecting a different filter"}
                 </p>
               </div>
             ) : (
               <div className="space-y-2">
-                {notifications.map((notification) => {
+                {filteredNotifications.map((notification) => {
                   const Icon = notificationIcons[notification.type] || Info;
                   const colors =
                     notificationColors[notification.type] ||

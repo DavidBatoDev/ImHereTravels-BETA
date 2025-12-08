@@ -188,7 +188,6 @@ async function sendBookingConfirmationEmail(
       .where("status", "==", "active")
       .limit(1)
       .get();
-      
 
     if (templateQuery.empty) {
       logger.warn("Booking confirmation template not found");
@@ -493,6 +492,38 @@ export const onPaymentComplete = onDocumentUpdated(
           confirmedBookingData.sentAt = Timestamp.now();
 
           logger.info("✅ Email sent successfully:", emailResult.messageId);
+
+          // Create notification for sent pre-departure pack email
+          try {
+            const travelerName = afterData.fullName || "Customer";
+            const tourPackageName = afterData.tourPackageName || "Tour";
+            const recipientEmail = afterData.emailAddress || "customer";
+
+            await db.collection("notifications").add({
+              type: "pre_departure_pack",
+              title: "Pre-Departure Pack Sent",
+              body: `Pre-departure pack sent to ${travelerName} (${recipientEmail}) for ${tourPackageName} - Ref: ${bookingReference}`,
+              data: {
+                bookingId: afterData.bookingId || bookingId,
+                bookingDocumentId: bookingId,
+                bookingReference,
+                travelerName,
+                tourPackageName,
+                recipientEmail,
+                preDeparturePackName: preDeparturePack?.data.fileName || null,
+                emailUrl: confirmedBookingData.sentEmailLink,
+              },
+              targetType: "global",
+              targetUserIds: [],
+              createdAt: new Date(),
+              readBy: {},
+            });
+
+            logger.info("✅ Notification created for sent pre-departure pack");
+          } catch (notificationError) {
+            logger.warn("Failed to create notification:", notificationError);
+            // Fail silently - don't block the email sending process
+          }
         } else {
           logger.error("❌ Email sending failed:", emailResult.error);
           // Still create the confirmed booking with "created" status

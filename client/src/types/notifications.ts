@@ -5,10 +5,11 @@ import { Timestamp } from "firebase/firestore";
 // ============================================================================
 
 export type NotificationType =
-  | "payment_received"
   | "new_booking"
-  | "booking_cancelled"
-  | "payment_reminder"
+  | "payment_reminder_created"
+  | "payment_reminder_sent"
+  | "reservation_email"
+  | "pre_departure_pack"
   | "system";
 
 export type NotificationTargetType = "global" | "specific";
