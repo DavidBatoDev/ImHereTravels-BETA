@@ -266,13 +266,13 @@ export class PaymentTypeUtils {
         "Invalid Booking": "bg-red-100 text-red-800 border-red-200",
         "Full Payment Required Within 48hrs":
           "bg-amber-100 text-amber-800 border-amber-200",
-        "P1 - Single Instalment Plan":
+        "P1 - Single Installment Plan":
           "bg-blue-100 text-blue-800 border-blue-200",
-        "P2 - Two Instalment Plan":
+        "P2 - Two Installment Plan":
           "bg-violet-100 text-violet-800 border-violet-200",
-        "P3 - Three Instalment Plan":
+        "P3 - Three Installment Plan":
           "bg-emerald-100 text-emerald-800 border-emerald-200",
-        "P4 - Four Instalment Plan":
+        "P4 - Four Installment Plan":
           "bg-cyan-100 text-cyan-800 border-cyan-200",
         "Custom Plan": "bg-purple-100 text-purple-800 border-purple-200",
       };

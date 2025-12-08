@@ -19,6 +19,9 @@ export { onSendCancellationEmailChanged } from "./send-cancellation-email"; // T
 export { EmailTemplateLoader } from "./email-template-loader";
 export { onPaymentComplete } from "./on-payment-complete"; // Trigger for payment completion (confirmed bookings)
 export { sendBookingConfirmationEmail } from "./send-booking-confirmation-email"; // Callable function to send confirmation email
+export { sendBookingStatusConfirmation } from "./send-booking-status-confirmation"; // Callable function to send booking status confirmation with QR code
+export { sendGuestInvitationEmails } from "./send-guest-invitations"; // Callable function to send guest invitation emails
+export { onStripePaymentSuccess } from "./on-stripe-payment-success"; // Trigger for Stripe payment success notifications
 // export { getDraftSubject } from "./get-draft-subject";
 // export { getEmailDetails } from "./get-email-details";
 // export { deleteGmailDraft } from "./delete-gmail-draft";

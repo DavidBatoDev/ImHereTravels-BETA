@@ -883,6 +883,38 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
       }
 
       logger.info("✅ Payment reminder setup completed successfully");
+
+      // Create notification for payment reminder setup
+      try {
+        const termsCreated = terms.join(", ");
+
+        await db.collection("notifications").add({
+          type: "payment_reminder_created",
+          title: "Payment Reminders Scheduled",
+          body: `Payment reminders scheduled for ${fullName || "customer"} - ${
+            tourPackage || "Tour"
+          } (${termsCreated})`,
+          data: {
+            bookingId:
+              getColumnValue(booking, "Booking ID", PAYMENT_REMINDER_COLUMNS) ||
+              bookingId,
+            bookingDocumentId: bookingId,
+            travelerName: fullName || "",
+            tourPackageName: tourPackage || "",
+            paymentPlan,
+            termsCount: terms.length,
+          },
+          targetType: "global",
+          targetUserIds: [],
+          createdAt: new Date(),
+          readBy: {},
+        });
+
+        logger.info("✅ Notification created for payment reminder setup");
+      } catch (notificationError) {
+        logger.warn("Failed to create notification:", notificationError);
+        // Fail silently - don't block the reminder setup
+      }
     } catch (error) {
       logger.error("❌ Error in payment reminder trigger:", error);
       throw error;

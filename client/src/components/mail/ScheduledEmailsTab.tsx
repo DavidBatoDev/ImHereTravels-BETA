@@ -933,7 +933,7 @@ export default function ScheduledEmailsTab() {
         <div className="flex items-center gap-2">
           <Button
             onClick={() => setIsCreateDialogOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-red-600 hover:bg-red-700"
           >
             <Plus className="w-4 h-4 mr-2" />
             Schedule Email

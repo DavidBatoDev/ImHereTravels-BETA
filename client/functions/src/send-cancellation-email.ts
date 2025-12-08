@@ -194,6 +194,36 @@ export const onSendCancellationEmailChanged = onDocumentUpdated(
           logger.info(
             `✅ Cancellation email sent successfully and booking updated with sent URL and date`
           );
+
+          // Create notification for sent cancellation email
+          try {
+            const travelerName = bookingData.travelerName || "Customer";
+            const tourPackageName = bookingData.tourPackageName || "Tour";
+            const recipientEmail = bookingData.email || "customer";
+
+            await db.collection("notifications").add({
+              type: "reservation_email",
+              title: "Cancellation Email Sent",
+              body: `Cancellation email sent to ${travelerName} (${recipientEmail}) for ${tourPackageName}`,
+              data: {
+                bookingId: bookingData.bookingId || bookingId,
+                bookingDocumentId: bookingId,
+                travelerName,
+                tourPackageName,
+                recipientEmail,
+                emailUrl: sentUrl,
+              },
+              targetType: "global",
+              targetUserIds: [],
+              createdAt: new Date(),
+              readBy: {},
+            });
+
+            logger.info("✅ Notification created for sent cancellation email");
+          } catch (notificationError) {
+            logger.warn("Failed to create notification:", notificationError);
+            // Fail silently - don't block the email sending process
+          }
         } catch (sendError) {
           logger.error("Error sending cancellation email draft:", sendError);
           // Don't throw error, just log it

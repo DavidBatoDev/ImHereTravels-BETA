@@ -16,32 +16,32 @@ The Payment Terms system in ImHereTravels provides flexible payment options for 
 ### 2. Full Payment Required Within 48hrs
 
 - **Purpose**: Capture last-minute bookings while ensuring immediate payment
-- **Trigger Conditions**: Tour date is 2-30 days away, no eligible instalment dates available
+- **Trigger Conditions**: Tour date is 2-30 days away, no eligible installment dates available
 - **Payment Structure**: 100% payment due within 2 days of booking (no deposit)
 - **Typical Scenario**: Customer books a tour 2 weeks away
 
-### 3. P1 - Single Instalment Plan
+### 3. P1 - Single Installment Plan
 
 - **Purpose**: Simplified payment for shorter lead times
 - **Trigger Conditions**: Only 1 eligible payment date available, tour date 30-60 days away
 - **Payment Structure**: 100% payment in single installment on next 2nd of month (no deposit)
 - **Typical Scenario**: Customer books 45 days in advance
 
-### 4. P2 - Two Instalment Plan
+### 4. P2 - Two Installment Plan
 
 - **Purpose**: Balance affordability with business cash flow needs
 - **Trigger Conditions**: 2 eligible payment dates available, tour date 60-90 days away
 - **Payment Structure**: 50% × 2 payments on two consecutive 2nd-of-month dates (no deposit)
 - **Typical Scenario**: Customer books 75 days in advance
 
-### 5. P3 - Three Instalment Plan
+### 5. P3 - Three Installment Plan
 
 - **Purpose**: Make longer-term bookings more affordable
 - **Trigger Conditions**: 3 eligible payment dates available, tour date 90-120 days away
 - **Payment Structure**: 33.33% × 3 payments on three consecutive 2nd-of-month dates (no deposit)
 - **Typical Scenario**: Customer books 100 days in advance
 
-### 6. P4 - Four Instalment Plan
+### 6. P4 - Four Installment Plan
 
 - **Purpose**: Maximum flexibility for early planners
 - **Trigger Conditions**: 4+ eligible payment dates available, tour date 120+ days away
@@ -99,7 +99,7 @@ export type PaymentPlanType =
 import { PaymentTermsService } from "@/services/payment-terms-service";
 
 const newPaymentPlan = {
-  name: "P5 - Five Instalment Plan",
+  name: "P5 - Five Installment Plan",
   description: "Extended payment flexibility for very early planners",
   paymentPlanType: "p5_five_installments",
   paymentType: "monthly_scheduled",
@@ -134,7 +134,7 @@ const result = PaymentTermsCalculator.evaluatePaymentTerm(
 
 console.log(result);
 // Output: {
-//   applicableTerm: "P4 - Four Instalment Plan",
+//   applicableTerm: "P4 - Four Installment Plan",
 //   daysDifference: 151,
 //   isValid: true,
 //   message: "Maximum flexibility for early planners...",
@@ -148,7 +148,7 @@ console.log(result);
 import { PaymentTypeUtils } from "@/utils/payment-type-utils";
 
 const totalCost = 1000;
-const termName = "P3 - Three Instalment Plan";
+const termName = "P3 - Three Installment Plan";
 
 const breakdown = await PaymentTypeUtils.getMonthlyPaymentBreakdown(
   termName,
@@ -218,7 +218,7 @@ case "p6_six_installments":
 // 3. Add to UI labels
 export const PAYMENT_PLAN_TYPE_LABELS: Record<PaymentPlanType, string> = {
   // ... existing labels
-  p6_six_installments: "P6 - Six Instalments",
+  p6_six_installments: "P6 - Six Installments",
 };
 
 // 4. Add to descriptions

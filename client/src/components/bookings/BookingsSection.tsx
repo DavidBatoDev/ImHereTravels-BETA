@@ -51,6 +51,7 @@ import {
   Download,
   RefreshCw,
   Upload,
+  Zap,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -1298,7 +1299,9 @@ export default function BookingsSection() {
                 await bookingService.updateBooking(newBookingId, bookingData);
 
                 // Navigate with bookingId to open detail modal
-                const params = new URLSearchParams(searchParams?.toString?.() ?? "");
+                const params = new URLSearchParams(
+                  searchParams?.toString?.() ?? ""
+                );
                 params.set("bookingId", newBookingId);
                 params.delete("action");
                 router.push(`/bookings?${params.toString()}`, {
@@ -2604,6 +2607,7 @@ export default function BookingsSection() {
             .filter((booking) => booking.id && booking.id.trim() !== "") // Filter out bookings with empty IDs
             .map((booking) => {
               const isInvalid = isBookingInvalid(booking);
+              const hasAutoTag = booking.tags?.includes("auto");
               return (
                 <Card
                   key={booking.id}
@@ -2611,7 +2615,11 @@ export default function BookingsSection() {
                   className={`group border transition-all duration-300 cursor-pointer overflow-hidden relative ${
                     isInvalid
                       ? "border-crimson-red bg-crimson-red/5 hover:border-crimson-red hover:bg-crimson-red/10"
-                      : "border-border hover:border-crimson-red/50"
+                      : "border-border "
+                  } ${
+                    hasAutoTag
+                      ? "border-t-4 border-t-green-500 hover:border-green-500/50"
+                      : "border-t-4 border-t-red-500 hover:border-crimson-red/50"
                   }`}
                 >
                   {/* Row Number - Upper Left */}
@@ -2872,7 +2880,9 @@ export default function BookingsSection() {
                 await bookingService.updateBooking(newBookingId, bookingData);
 
                 // Navigate with bookingId to open detail modal
-                const params = new URLSearchParams(searchParams?.toString?.() ?? "");
+                const params = new URLSearchParams(
+                  searchParams?.toString?.() ?? ""
+                );
                 params.set("bookingId", newBookingId);
                 params.delete("action");
                 router.push(`/bookings?${params.toString()}`, {
@@ -3000,6 +3010,7 @@ export default function BookingsSection() {
                     .filter((booking) => booking.id && booking.id.trim() !== "") // Filter out bookings with empty IDs
                     .map((booking) => {
                       const isInvalid = isBookingInvalid(booking);
+                      const hasAutoTag = booking.tags?.includes("auto");
                       return (
                         <tr
                           key={booking.id}
@@ -3008,6 +3019,10 @@ export default function BookingsSection() {
                             isInvalid
                               ? "border-crimson-red bg-crimson-red/10 hover:bg-crimson-red/20"
                               : "border-border hover:bg-crimson-red/5"
+                          } ${
+                            hasAutoTag
+                              ? "border-l-4 border-l-green-400"
+                              : "border-l-4 border-l-red-400"
                           }`}
                         >
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">

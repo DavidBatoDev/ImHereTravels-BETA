@@ -866,17 +866,25 @@ export default function ToursList() {
                     <div className="flex flex-wrap gap-1">
                       {tour.details.highlights
                         .slice(0, 3)
-                        .map((highlight, index) => (
-                          <Badge
-                            key={index}
-                            variant="outline"
-                            className="text-xs border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10"
-                          >
-                            {highlight.length > 15
-                              ? `${highlight.slice(0, 15)}...`
-                              : highlight}
-                          </Badge>
-                        ))}
+                        .map((highlight, index) => {
+                          // Handle both string and object formats
+                          const highlightText =
+                            typeof highlight === "string"
+                              ? highlight
+                              : (highlight as any)?.text || String(highlight);
+
+                          return (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="text-xs border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10"
+                            >
+                              {highlightText.length > 15
+                                ? `${highlightText.slice(0, 15)}...`
+                                : highlightText}
+                            </Badge>
+                          );
+                        })}
                       {tour.details.highlights.length > 3 && (
                         <Badge
                           variant="outline"

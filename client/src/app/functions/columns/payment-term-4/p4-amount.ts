@@ -201,7 +201,7 @@ export default function getP4AmountFunction(
   const credit_amt = creditAmount ?? 0;
 
   // IF(AND($AO999="", $AP999=""), ...)
-  if (!paymentPlan && !paymentMethod) {
+  if (!paymentPlan) {
     // When no payment plan is specified, calculate unpaid balance divided by 4
     const paidSum =
       (fullPaymentDatePaid ? fullPaymentAmount ?? 0 : 0) +

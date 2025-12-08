@@ -142,6 +142,7 @@ export class GmailApiService {
       filename: string;
       content: Buffer;
       contentType: string;
+      cid?: string; // Content-ID for inline images
     }>;
   }) {
     try {
@@ -539,6 +540,7 @@ export class GmailApiService {
       filename: string;
       content: Buffer;
       contentType: string;
+      cid?: string; // Content-ID for inline images
     }>;
   }): string {
     const {
@@ -551,6 +553,10 @@ export class GmailApiService {
       replyTo,
       attachments = [],
     } = emailData;
+
+    // Separate inline and regular attachments
+    const inlineAttachments = attachments.filter((att) => att.cid);
+    const regularAttachments = attachments.filter((att) => !att.cid);
 
     // If no attachments, use simple format
     if (attachments.length === 0) {
@@ -583,6 +589,8 @@ export class GmailApiService {
 
     // With attachments, use multipart format
     const boundary = `----=_Part_${Date.now()}`;
+    const relatedBoundary = `----=_Related_${Date.now()}`;
+
     const lines = [
       `To: ${to}`,
       `From: ${from}`,
@@ -605,15 +613,45 @@ export class GmailApiService {
 
     lines.push("");
 
-    // HTML content part
-    lines.push(`--${boundary}`);
-    lines.push("Content-Type: text/html; charset=utf-8");
-    lines.push("");
-    lines.push(htmlContent);
-    lines.push("");
+    // If we have inline attachments, use multipart/related
+    if (inlineAttachments.length > 0) {
+      lines.push(`--${boundary}`);
+      lines.push(
+        "Content-Type: multipart/related; boundary=" + relatedBoundary
+      );
+      lines.push("");
 
-    // Attachment parts
-    for (const attachment of attachments) {
+      // HTML content part
+      lines.push(`--${relatedBoundary}`);
+      lines.push("Content-Type: text/html; charset=utf-8");
+      lines.push("");
+      lines.push(htmlContent);
+      lines.push("");
+
+      // Inline attachment parts
+      for (const attachment of inlineAttachments) {
+        lines.push(`--${relatedBoundary}`);
+        lines.push(`Content-Type: ${attachment.contentType}`);
+        lines.push(`Content-ID: <${attachment.cid}>`);
+        lines.push("Content-Transfer-Encoding: base64");
+        lines.push("");
+        lines.push(attachment.content.toString("base64"));
+        lines.push("");
+      }
+
+      lines.push(`--${relatedBoundary}--`);
+      lines.push("");
+    } else {
+      // HTML content part without inline attachments
+      lines.push(`--${boundary}`);
+      lines.push("Content-Type: text/html; charset=utf-8");
+      lines.push("");
+      lines.push(htmlContent);
+      lines.push("");
+    }
+
+    // Regular attachment parts
+    for (const attachment of regularAttachments) {
       lines.push(`--${boundary}`);
       lines.push(`Content-Type: ${attachment.contentType}`);
       lines.push(

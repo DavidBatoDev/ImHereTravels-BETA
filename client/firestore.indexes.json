@@ -1,0 +1,153 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "Payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "email",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "emailTemplates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "metadata.createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "metadata.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "emailDrafts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "deletedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tourPackageName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tourDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "stripePayments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "customer.email",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamps.createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "stripePayments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "customer.email",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tour.packageId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "payment.type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "payment.status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "emails",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "metadata.createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "metadata.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "file_objects",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tags",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "uploadedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "confirmedBookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tourPackageName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "file_objects",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "uploadedBy",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -121,7 +121,15 @@ const tourFormSchema = z.object({
     currency: z.enum(["USD", "EUR", "GBP"]),
   }),
   details: z.object({
-    highlights: z.array(z.string().min(1, "Highlight cannot be empty")),
+    highlights: z.array(
+      z.union([
+        z.string().min(1, "Highlight cannot be empty"),
+        z.object({
+          text: z.string().min(1, "Highlight text cannot be empty"),
+          image: z.string().optional(),
+        })
+      ])
+    ),
     itinerary: z.array(
       z.object({
         day: z.number(),
@@ -765,6 +773,50 @@ export default function TourForm({
     setGalleryBlobs((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Upload highlight images to storage
+  const uploadHighlightImages = async (
+    highlights: any[],
+    tourId: string
+  ): Promise<any[]> => {
+    const processedHighlights = await Promise.all(
+      highlights.map(async (highlight, index) => {
+        if (typeof highlight === 'string') {
+          return highlight;
+        }
+        
+        // If highlight has an image and it's a blob URL
+        if (highlight.image && highlight.image.startsWith('blob:')) {
+          try {
+            // Fetch the blob from the blob URL
+            const response = await fetch(highlight.image);
+            const blob = await response.blob();
+            const file = new File([blob], `highlight-${index}.jpg`, { type: blob.type });
+            
+            // Upload to storage
+            const uploadResult = await uploadAllBlobsToStorage(
+              file,
+              [],
+              tourId
+            );
+            
+            if (uploadResult.coverResult?.success && uploadResult.coverResult.url) {
+              return {
+                text: highlight.text,
+                image: uploadResult.coverResult.url
+              };
+            }
+          } catch (error) {
+            console.error(`Failed to upload highlight ${index} image:`, error);
+          }
+        }
+        
+        return highlight;
+      })
+    );
+    
+    return processedHighlights;
+  };
+
   // Handle form submission
   const handleFormSubmit = async (data: TourFormDataWithStringDates) => {
     if (tour) {
@@ -779,6 +831,23 @@ export default function TourForm({
     try {
       // First create the tour without images
       const tourId = await onSubmit(data);
+      
+      const tourIdString = typeof tourId === "string" ? tourId : "";
+
+      // Upload highlight images if any
+      if (tourIdString && data.details.highlights.some((h: any) => 
+        typeof h === 'object' && h.image && h.image.startsWith('blob:')
+      )) {
+        const processedHighlights = await uploadHighlightImages(
+          data.details.highlights,
+          tourIdString
+        );
+        
+        // Update tour with processed highlights
+        await updateTourMedia(tourIdString, {
+          highlights: processedHighlights as any
+        } as any);
+      }
 
       // If we have blobs to upload and tour creation was successful
       if ((coverBlob || galleryBlobs.length > 0) && tourId && !useCoverUrl) {
@@ -1099,7 +1168,20 @@ export default function TourForm({
         ...restData,
         location: finalLocation,
         details: {
-          highlights: data.details.highlights.filter((h) => h.trim() !== ""),
+          highlights: data.details.highlights
+            .filter((h: any) => {
+              if (typeof h === 'string') {
+                return h.trim() !== '';
+              }
+              return h.text && h.text.trim() !== '';
+            })
+            .map((h: any) => {
+              // Keep highlights as-is (support both string and object format)
+              if (typeof h === 'string') {
+                return h;
+              }
+              return h;
+            }),
           itinerary: data.details.itinerary,
           requirements: data.details.requirements.filter(
             (r) => r.trim() !== ""
@@ -2025,46 +2107,214 @@ export default function TourForm({
                       Highlights
                     </CardTitle>
                     <CardDescription className="text-muted-foreground">
-                      List the key attractions and experiences of your tour
+                      List the key attractions and experiences of your tour (with optional images)
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="pt-4 space-y-3">
-                    {highlightFields.map((field, index) => (
-                      <FormField
-                        key={field.id}
-                        control={form.control}
-                        name={`details.highlights.${index}`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <div className="flex items-center gap-3 group">
-                                <div className="w-2 h-2 bg-sunglow-yellow rounded-full flex-shrink-0"></div>
-                                <Input
-                                  placeholder={`Highlight ${index + 1}`}
-                                  {...field}
-                                  className="border-none bg-transparent group-hover:bg-background transition-colors duration-200 focus:ring-2 focus:ring-sunglow-yellow focus:ring-opacity-50 rounded px-2"
+                  <CardContent className="pt-4 space-y-4">
+                    {highlightFields.map((field, index) => {
+                      const currentValue = form.watch(`details.highlights.${index}` as any);
+                      const isObject = typeof currentValue === 'object' && currentValue !== null;
+                      const highlightText = isObject ? currentValue.text : currentValue;
+                      const highlightImage = isObject ? currentValue.image : undefined;
+                      
+                      return (
+                        <div key={field.id} className="border border-border rounded-lg p-4 space-y-3 group hover:border-sunglow-yellow transition-colors">
+                          {/* Highlight Text */}
+                          <FormField
+                            control={form.control}
+                            name={`details.highlights.${index}`}
+                            render={({ field: formField }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-2 h-2 bg-sunglow-yellow rounded-full flex-shrink-0"></div>
+                                    <Input
+                                      placeholder={`Highlight ${index + 1}`}
+                                      value={highlightText || ''}
+                                      onChange={(e) => {
+                                        const newValue = e.target.value;
+                                        if (isObject) {
+                                          formField.onChange({
+                                            text: newValue,
+                                            image: currentValue.image
+                                          });
+                                        } else {
+                                          formField.onChange(newValue);
+                                        }
+                                      }}
+                                      className="border-none bg-transparent focus:ring-2 focus:ring-sunglow-yellow focus:ring-opacity-50 rounded px-2"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      onClick={() => removeHighlight(index)}
+                                      disabled={highlightFields.length === 1}
+                                      className="h-8 w-8 p-0 border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white"
+                                    >
+                                      <Minus className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          {/* Image Upload with Toggle */}
+                          <div className="space-y-3">
+                            {/* Toggle and Mode Badge */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 whitespace-nowrap">
+                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium text-foreground">Highlight Image</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 whitespace-nowrap">
+                                  <span className="text-xs text-muted-foreground">Upload File</span>
+                                  <Switch
+                                    checked={highlightImage === ''}
+                                    onCheckedChange={(checked) => {
+                                      const formField = form.getValues(`details.highlights.${index}` as any);
+                                      const text = typeof formField === 'string' ? formField : formField?.text || '';
+                                      form.setValue(`details.highlights.${index}` as any, {
+                                        text: text,
+                                        image: checked ? '' : undefined
+                                      });
+                                    }}
+                                  />
+                                  <span className="text-xs text-muted-foreground">Use URL</span>
+                                </div>
+                                {/* Reserve space for badge to prevent layout shift */}
+                                <div className="w-20 flex justify-end">
+                                  {(highlightImage !== undefined) ? (
+                                    <Badge variant="outline" className="text-xs whitespace-nowrap">
+                                      {highlightImage === '' ? 'URL Mode' : highlightImage ? 'Image Set' : 'Upload Mode'}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-xs opacity-0">placeholder</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Image Preview or Upload Area */}
+                            {highlightImage ? (
+                              <div className="relative group/image">
+                                <img
+                                  src={highlightImage}
+                                  alt={`Highlight ${index + 1}`}
+                                  className="w-full h-32 object-contain rounded-lg border border-border bg-muted/20"
                                 />
                                 <Button
                                   type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => removeHighlight(index)}
-                                  disabled={highlightFields.length === 1}
-                                  className="h-6 w-6 p-0 border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => {
+                                    const formField = form.getValues(`details.highlights.${index}` as any);
+                                    if (typeof formField === 'object') {
+                                      form.setValue(`details.highlights.${index}` as any, {
+                                        text: formField.text,
+                                        image: undefined
+                                      });
+                                    }
+                                  }}
+                                  className="absolute top-2 right-2 opacity-0 group-hover/image:opacity-100 transition-opacity"
                                 >
-                                  <Minus className="h-3 w-3" />
+                                  <X className="h-3 w-3" />
                                 </Button>
                               </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))}
+                            ) : (
+                              <div className="space-y-2">
+                                {highlightImage === '' ? (
+                                  // URL Mode
+                                  <div className="space-y-2">
+                                    <Input
+                                      placeholder="https://example.com/image.jpg"
+                                      value={highlightImage || ''}
+                                      onChange={(e) => {
+                                        const currentFormValue = form.getValues(`details.highlights.${index}` as any);
+                                        const text = typeof currentFormValue === 'string' ? currentFormValue : currentFormValue?.text || '';
+                                        form.setValue(`details.highlights.${index}` as any, {
+                                          text: text,
+                                          image: e.target.value
+                                        });
+                                      }}
+                                      className="border-2 border-border focus:border-sunglow-yellow"
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      Enter a direct link to an image (JPG, PNG, WebP, etc.)
+                                    </p>
+                                  </div>
+                                ) : (
+                                  // Upload Mode
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          const input = document.createElement('input');
+                                          input.type = 'file';
+                                          input.accept = 'image/*';
+                                          input.onchange = async (e: any) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              try {
+                                                const validation = await validateImageFile(file);
+                                                if (!validation.valid) {
+                                                  toast({
+                                                    title: "Invalid image",
+                                                    description: validation.error,
+                                                    variant: "destructive",
+                                                  });
+                                                  return;
+                                                }
+                                                const blobUrl = createBlobUrl(file);
+                                                const currentFormValue = form.getValues(`details.highlights.${index}` as any);
+                                                const text = typeof currentFormValue === 'string' ? currentFormValue : currentFormValue?.text || '';
+                                                form.setValue(`details.highlights.${index}` as any, {
+                                                  text: text,
+                                                  image: blobUrl
+                                                });
+                                                toast({
+                                                  title: "Image uploaded",
+                                                  description: "Image will be saved when you submit the form",
+                                                });
+                                              } catch (error) {
+                                                console.error('Error uploading highlight image:', error);
+                                                toast({
+                                                  title: "Upload failed",
+                                                  description: "Failed to upload image",
+                                                  variant: "destructive",
+                                                });
+                                              }
+                                            }
+                                          };
+                                          input.click();
+                                        }}
+                                        className="border-2 border-dashed border-sunglow-yellow text-sunglow-yellow hover:bg-sunglow-yellow/10"
+                                      >
+                                        <Upload className="h-4 w-4 mr-2" />
+                                        Choose Highlight Image
+                                      </Button>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                      Upload JPEG, PNG, WebP or other image formats
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => (appendHighlight as any)("")}
+                      onClick={() => (appendHighlight as any)({ text: '', image: undefined })}
                       className="w-full border-2 border-crimson-red text-crimson-red hover:bg-crimson-red hover:text-white"
                     >
                       <Plus className="h-4 w-4 mr-2" />

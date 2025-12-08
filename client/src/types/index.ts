@@ -4,6 +4,9 @@ import { Timestamp } from "firebase/firestore";
 // Export booking sheet column types
 export * from "./booking-sheet-column";
 
+// Export stripe payment types
+export * from "./stripe-payment";
+
 // ============================================================================
 // COMMON UTILITY TYPES
 // ============================================================================

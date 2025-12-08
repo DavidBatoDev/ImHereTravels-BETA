@@ -139,12 +139,86 @@ module.exports = {
             opacity: "0",
           },
         },
+        "gradient-shift": {
+          "0%, 100%": {
+            backgroundPosition: "0% 50%",
+          },
+          "50%": {
+            backgroundPosition: "100% 50%",
+          },
+        },
+        "fadeIn": {
+          from: {
+            opacity: "0",
+          },
+          to: {
+            opacity: "1",
+          },
+        },
+        "slideInScale": {
+          from: {
+            opacity: "0",
+            transform: "scale(0.9) translateY(10px)",
+          },
+          to: {
+            opacity: "1",
+            transform: "scale(1) translateY(0)",
+          },
+        },
+        "modalSlideIn": {
+          from: {
+            opacity: "0",
+            transform: "translate(-50%, -50%) scale(0.9) translateY(20px)",
+          },
+          to: {
+            opacity: "1",
+            transform: "translate(-50%, -50%) scale(1) translateY(0)",
+          },
+        },
+        "checkmarkPop": {
+          "0%": {
+            transform: "scale(0)",
+            opacity: "0",
+          },
+          "50%": {
+            transform: "scale(1.2)",
+          },
+          "100%": {
+            transform: "scale(1)",
+            opacity: "1",
+          },
+        },
+        "slideUpFadeIn": {
+          from: {
+            opacity: "0",
+            transform: "translateY(20px)",
+          },
+          to: {
+            opacity: "1",
+            transform: "translateY(0)",
+          },
+        },
+        "shimmer": {
+          "0%": {
+            transform: "translateX(-100%)",
+          },
+          "100%": {
+            transform: "translateX(100%)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "gradient-shift": "gradient-shift 15s ease infinite",
         "collapsible-down": "collapsible-down 0.3s ease-out",
         "collapsible-up": "collapsible-up 0.3s ease-out",
+        "fadeIn": "fadeIn 0.3s ease-out",
+        "slideInScale": "slideInScale 0.4s ease-out",
+        "modalSlideIn": "modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+        "checkmarkPop": "checkmarkPop 0.4s ease-out",
+        "slideUpFadeIn": "slideUpFadeIn 0.4s ease-out",
+        "shimmer": "shimmer 2s infinite",
       },
     },
   },
