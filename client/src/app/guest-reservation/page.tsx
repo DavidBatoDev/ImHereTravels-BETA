@@ -55,8 +55,10 @@ const GuestReservationPage = () => {
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [paymentDocId, setPaymentDocId] = useState<string | null>(null);
   const [isCreatingBooking, setIsCreatingBooking] = useState(false);
-  const [parentPaymentPlanDetails, setParentPaymentPlanDetails] = useState<any>(null);
-  const [parentSelectedPaymentPlan, setParentSelectedPaymentPlan] = useState<string>("");
+  const [parentPaymentPlanDetails, setParentPaymentPlanDetails] =
+    useState<any>(null);
+  const [parentSelectedPaymentPlan, setParentSelectedPaymentPlan] =
+    useState<string>("");
 
   // UI State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -151,7 +153,9 @@ const GuestReservationPage = () => {
             setParentPaymentPlanDetails(paymentData.payment.paymentPlanDetails);
           }
           if (paymentData?.payment?.selectedPaymentPlan) {
-            setParentSelectedPaymentPlan(paymentData.payment.selectedPaymentPlan);
+            setParentSelectedPaymentPlan(
+              paymentData.payment.selectedPaymentPlan
+            );
           }
 
           console.log("📝 Payment document fetched:", {
@@ -385,7 +389,7 @@ const GuestReservationPage = () => {
       } = await import("firebase/firestore");
 
       const paymentsRef = collection(db, "stripePayments");
-      
+
       const paymentData: any = {
         amount: depositAmount || 0,
         currency: "GBP",

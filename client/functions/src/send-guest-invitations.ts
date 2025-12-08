@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import GmailApiService from "./gmail-api-service";
+import EmailTemplateService from "./email-template-service";
 
 const db = getFirestore();
 
@@ -59,9 +60,9 @@ function formatDate(dateValue: any): string {
 }
 
 /**
- * Generate HTML email body for guest invitation
+ * Load and process guest invitation email template
  */
-function generateGuestInvitationEmailHtml(data: {
+async function generateGuestInvitationEmailHtml(data: {
   guestEmail: string;
   mainBookerName: string;
   tourName: string;
@@ -69,140 +70,59 @@ function generateGuestInvitationEmailHtml(data: {
   invitationLink: string;
   expiresAt: string;
   depositAmount: string;
-}): string {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>You're Invited to Join a Group Tour</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 12px 12px 0 0;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">
-                You're Invited! 🎉
-              </h1>
-              <p style="color: #f0f0f0; margin: 10px 0 0 0; font-size: 16px;">
-                Join ${data.mainBookerName} on an amazing adventure
-              </p>
-            </td>
-          </tr>
-          
-          <!-- Main Content -->
-          <tr>
-            <td style="padding: 40px;">
-              <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                Hi there! 👋
-              </p>
-              
-              <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                <strong>${
-                  data.mainBookerName
-                }</strong> has invited you to join their group booking for an exciting tour with <strong>I'm Here Travels</strong>!
-              </p>
-              
-              <!-- Tour Details Card -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-radius: 8px; margin: 30px 0;">
-                <tr>
-                  <td style="padding: 24px;">
-                    <h2 style="color: #667eea; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">
-                      Tour Details
-                    </h2>
-                    
-                    <table width="100%" cellpadding="8" cellspacing="0">
-                      <tr>
-                        <td style="color: #666666; font-size: 14px; padding: 8px 0;">
-                          <strong>Tour:</strong>
-                        </td>
-                        <td style="color: #333333; font-size: 14px; padding: 8px 0; text-align: right;">
-                          ${data.tourName}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="color: #666666; font-size: 14px; padding: 8px 0;">
-                          <strong>Travel Date:</strong>
-                        </td>
-                        <td style="color: #333333; font-size: 14px; padding: 8px 0; text-align: right;">
-                          ${data.tourDate}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="color: #666666; font-size: 14px; padding: 8px 0; border-top: 2px solid #e0e0e0;">
-                          <strong>Initial Deposit:</strong>
-                        </td>
-                        <td style="color: #667eea; font-size: 18px; font-weight: 700; padding: 8px 0; text-align: right; border-top: 2px solid #e0e0e0;">
-                          €${data.depositAmount}
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-              
-              <!-- Important Info -->
-              <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; margin: 30px 0; border-radius: 4px;">
-                <p style="color: #856404; margin: 0; font-size: 14px; line-height: 1.5;">
-                  ⏰ <strong>Important:</strong> This invitation expires on <strong>${
-                    data.expiresAt
-                  }</strong>. Complete your booking before then to secure your spot!
-                </p>
-              </div>
-              
-              <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
-                To complete your reservation, simply click the button below and follow the steps to provide your details and make your initial deposit payment.
-              </p>
-              
-              <!-- CTA Button -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="center" style="padding: 20px 0;">
-                    <a href="${data.invitationLink}" 
-                       style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 48px; border-radius: 8px; font-size: 18px; font-weight: 600; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                      Complete My Booking
-                    </a>
-                  </td>
-                </tr>
-              </table>
-              
-              <p style="color: #666666; font-size: 14px; line-height: 1.6; margin: 30px 0 0 0; text-align: center;">
-                Or copy and paste this link into your browser:<br>
-                <a href="${
-                  data.invitationLink
-                }" style="color: #667eea; word-break: break-all;">
-                  ${data.invitationLink}
-                </a>
-              </p>
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 12px 12px;">
-              <p style="color: #666666; font-size: 14px; margin: 0 0 10px 0;">
-                Questions? We're here to help!
-              </p>
-              <p style="color: #666666; font-size: 14px; margin: 0;">
-                Contact us at <a href="mailto:support@imheretravels.com" style="color: #667eea; text-decoration: none;">support@imheretravels.com</a>
-              </p>
-              <p style="color: #999999; font-size: 12px; margin: 20px 0 0 0;">
-                © ${new Date().getFullYear()} I'm Here Travels. All rights reserved.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `.trim();
+}): Promise<string> {
+  try {
+    // Try to fetch template from Firestore emailTemplates collection
+    // You'll need to create a template document for guest invitations
+    const templateDoc = await db
+      .collection("emailTemplates")
+      .doc("5FZyQvXECyl3a2poPW2g") // You can change this ID
+      .get();
+
+    let templateHtml: string;
+
+    if (templateDoc.exists) {
+      // Use template from Firestore - template is stored in 'content' field
+      templateHtml = templateDoc.data()?.content || "";
+      logger.info("Using guest invitation template from Firestore");
+    } else {
+      // Fallback: load from file system (for local development)
+      logger.warn(
+        "Guest invitation template not found in Firestore, attempting file system fallback"
+      );
+      const fs = await import("fs");
+      const path = await import("path");
+      const templatePath = path.join(
+        __dirname,
+        "../emails/guestInvitation.html"
+      );
+      templateHtml = fs.readFileSync(templatePath, "utf-8");
+    }
+
+    // Process template with variables
+    const currentYear = new Date().getFullYear().toString();
+    const processedHtml = EmailTemplateService.processTemplate(templateHtml, {
+      ...data,
+      currentYear,
+    });
+
+    return processedHtml;
+  } catch (error) {
+    logger.error("Error loading guest invitation template:", error);
+    // Return a basic fallback HTML if template loading fails
+    return `
+      <html>
+        <body style="font-family: Arial, sans-serif; padding: 20px;">
+          <h1>You're Invited!</h1>
+          <p>Hi there! ${data.mainBookerName} has invited you to join their group booking for ${data.tourName}.</p>
+          <p><strong>Tour Date:</strong> ${data.tourDate}</p>
+          <p><strong>Initial Deposit:</strong> €${data.depositAmount}</p>
+          <p><a href="${data.invitationLink}" style="display: inline-block; background-color: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Complete My Booking</a></p>
+          <p><small>This invitation expires on ${data.expiresAt}</small></p>
+        </body>
+      </html>
+    `;
+  }
 }
 
 /**
@@ -303,8 +223,8 @@ export const sendGuestInvitationEmails = onCall(
             guestEmail
           );
 
-          // Generate email HTML
-          const emailHtml = generateGuestInvitationEmailHtml({
+          // Generate email HTML using template
+          const emailHtml = await generateGuestInvitationEmailHtml({
             guestEmail,
             mainBookerName,
             tourName,
@@ -315,7 +235,7 @@ export const sendGuestInvitationEmails = onCall(
           });
 
           // Send email via Gmail API
-          const emailSubject = `🎉 You're Invited to Join ${mainBookerName} on ${tourName}`;
+          const emailSubject = `You're Invited to Join ${mainBookerName} on ${tourName}`;
 
           await gmailService.sendEmail({
             to: guestEmail,

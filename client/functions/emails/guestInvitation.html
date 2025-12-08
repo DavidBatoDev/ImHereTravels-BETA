@@ -1,0 +1,165 @@
+<html>
+  <body>
+    <!-- guestInvitationTemplate.html - Nunjucks Version -->
+    <div
+      style="
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background-color: #f4f4f4;
+        margin: 0;
+      "
+    >
+      <div
+        class="email-header"
+        style="width: 100%; margin: 0 auto; margin-bottom: 10px"
+      >
+        <img
+          src="https://imheretravels.com/wp-content/uploads/2024/05/siargao-header-1.webp"
+          alt="ImHereTravels Banner"
+          style="
+            width: 100%;
+            max-width: 636px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+          "
+        />
+      </div>
+
+      <div
+        class="email-container"
+        style="
+          max-width: 600px;
+          margin: 0 auto;
+          background-color: #ffffff;
+          padding: 20px;
+          border-radius: 8px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        "
+      >
+        <h2 style="color: red; font-size: 24px; margin-top: 0">
+          You're Invited! 🎉
+        </h2>
+
+        <p style="font-size: 16px; color: #333333">Hi there,</p>
+
+        <p style="font-size: 16px; color: #333333">
+          <strong>{{ mainBookerName }}</strong> has invited you to join their
+          group booking for an exciting tour with
+          <strong style="color: red">ImHereTravels</strong>!
+        </p>
+
+        <!-- Tour Details -->
+        <h3 style="color: red; font-size: 20px">Tour Details</h3>
+        <table
+          cellpadding="5"
+          style="
+            border-collapse: collapse;
+            width: 100%;
+            max-width: 600px;
+            color: #333333;
+            margin-bottom: 20px;
+          "
+        >
+          <tr>
+            <td><strong>Tour Name:</strong></td>
+            <td>{{ tourName }}</td>
+          </tr>
+          <tr>
+            <td><strong>Travel Date:</strong></td>
+            <td>{{ tourDate }}</td>
+          </tr>
+          <tr style="border-top: 2px solid #e0e0e0">
+            <td><strong>Initial Deposit:</strong></td>
+            <td><strong style="color: red">€{{ depositAmount }}</strong></td>
+          </tr>
+        </table>
+
+        <!-- Important Notice -->
+        <div
+          style="
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+          "
+        >
+          <p style="font-size: 16px; color: #856404; margin: 0">
+            <strong>⏰ Important:</strong> This invitation expires on
+            <strong style="color: red">{{ expiresAt }}</strong>. Complete your
+            booking before then to secure your spot!
+          </p>
+        </div>
+
+        <p style="font-size: 16px; color: #333333">
+          To complete your reservation, simply click the button below and follow
+          the steps to provide your details and make your initial deposit
+          payment.
+        </p>
+
+        <!-- CTA Button -->
+        <div style="text-align: center; margin: 30px 0">
+          <a
+            href="{{ invitationLink }}"
+            style="
+              display: inline-block;
+              background-color: red;
+              color: #ffffff;
+              text-decoration: none;
+              padding: 15px 40px;
+              border-radius: 5px;
+              font-size: 18px;
+              font-weight: bold;
+            "
+          >
+            Complete My Booking
+          </a>
+        </div>
+
+        <p
+          style="
+            font-size: 14px;
+            color: #666666;
+            text-align: center;
+            margin-top: 20px;
+          "
+        >
+          Or copy and paste this link into your browser:<br />
+          <a
+            href="{{ invitationLink }}"
+            style="color: red; word-break: break-all"
+          >
+            {{ invitationLink }}
+          </a>
+        </p>
+
+        <!-- Footer -->
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0">
+          <div style="text-align: left; margin-bottom: 20px">
+            <img
+              src="https://imheretravels.com/wp-content/uploads/2025/04/ImHereTravels-Logo.png"
+              alt="ImHereTravels Logo"
+              style="width: 120px; height: auto; display: block"
+            />
+          </div>
+
+          <p style="font-size: 14px; color: #666666; margin: 5px 0">
+            <strong>Questions? We're here to help!</strong>
+          </p>
+          <p style="font-size: 14px; color: #666666; margin: 5px 0">
+            Contact us at
+            <a
+              href="mailto:bella@imheretravels.com"
+              style="color: red; text-decoration: none"
+              >bella@imheretravels.com</a
+            >
+          </p>
+          <p style="font-size: 12px; color: #999999; margin-top: 20px">
+            © {{ currentYear }} ImHereTravels. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
