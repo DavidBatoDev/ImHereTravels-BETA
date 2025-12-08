@@ -171,7 +171,7 @@ export default function BookingStatusPage() {
 
   const totalCost = booking.discountedTourCost || booking.originalTourCost;
 
-  const paymentTerms = [];
+  const paymentTerms: any[] = [];
   if (booking.fullPaymentDueDate) {
     paymentTerms.push({
       term: "Full Payment",

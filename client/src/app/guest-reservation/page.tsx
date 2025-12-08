@@ -580,7 +580,8 @@ const GuestReservationPage = () => {
             bookingId: result.bookingId || result.guestBookingId,
             bookingDocumentId: result.bookingDocumentId || "",
             travelerName: `${firstName} ${lastName}`,
-            mainBookerName: parentBooking?.travelerName || "Main Booker",
+            mainBookerName:
+              (parentBooking as any)?.travelerName || "Main Booker",
             tourPackageName: parentBooking?.tourName || "",
             amount: depositAmount || parentBooking?.depositAmount || 0,
             currency: "EUR",

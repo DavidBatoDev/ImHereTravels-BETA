@@ -453,7 +453,9 @@ export async function POST(req: NextRequest) {
       paidAmount: paymentData.payment?.amount || 250,
       originalTourCost,
       discountedTourCost,
-      paymentMethod: parentBookingPaymentMethod, // Inherit from parent
+      paymentMethod: (parentBookingPaymentMethod || "Stripe") as
+        | "Revolut"
+        | "Stripe", // Inherit from parent
       groupId: parentBookingGroupId || parentBooking.groupId, // Use inherited group ID from parent booking
       isMainBooking: false, // Guest is NOT the main booker
       existingBookingsCount: existingCountForTourPackage,
@@ -461,7 +463,7 @@ export async function POST(req: NextRequest) {
     };
 
     // 10. Create the booking data using the standard function
-    const bookingData = await createBookingData(bookingInput);
+    const bookingData = (await createBookingData(bookingInput)) as any;
 
     // Inherit all payment-related fields from parent booking
     if (parentBookingPaymentPlan) {

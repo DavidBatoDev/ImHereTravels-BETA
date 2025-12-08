@@ -524,7 +524,7 @@ const Page = () => {
 
   // Get reservation fee from selected package (not the full deposit)
   const selectedPackage = tourPackages.find((p) => p.id === tourPackage);
-  const depositAmount = selectedPackage?.reservationFee ?? 250;
+  const depositAmount = (selectedPackage as any)?.reservationFee ?? 250;
 
   // Set `tour` query param when entering Payment (step 2)
   useEffect(() => {
@@ -1044,7 +1044,7 @@ const Page = () => {
               bookingDocumentId: result.bookingDocumentId,
               travelerName: `${firstName} ${lastName}`,
               tourPackageName: selectedPackage?.name || "",
-              amount: selectedPackage?.reservationFee || 0,
+              amount: (selectedPackage as any)?.reservationFee || 0,
               currency: "EUR",
             });
           } catch (error) {

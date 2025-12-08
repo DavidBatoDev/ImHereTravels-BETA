@@ -43,9 +43,9 @@ export async function GET(
     const bookingData = {
       id: bookingSnap.id,
       ...bookingSnap.data(),
-    };
+    } as any;
 
-    console.log("Booking found:", bookingData.bookingId);
+    console.log("Booking found:", bookingData.id);
 
     // Email verification for security
     if (email) {
@@ -69,7 +69,7 @@ export async function GET(
     }
 
     // Fetch pre-departure pack if exists
-    let preDeparturePack = null;
+    let preDeparturePack: any = null;
     try {
       const confirmedBookingsQuery = query(
         collection(db, "confirmedBookings"),
