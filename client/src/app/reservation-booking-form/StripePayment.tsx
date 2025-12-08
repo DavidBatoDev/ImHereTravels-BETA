@@ -1,7 +1,7 @@
 // StripePayment.tsx - Updated version
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -18,15 +18,19 @@ const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 interface PaymentFormProps {
   clientSecret: string;
   paymentDocId: string | null;
-  onSuccess: (paymentIntentId?: string, paymentDocId?: string) => void;
+  onSuccess?: (paymentIntentId?: string, paymentDocId?: string) => void;
+  onPaymentSuccess?: (paymentDocId: string) => void;
   onError: (error: string) => void;
+  isGuestBooking?: boolean;
 }
 
 function PaymentForm({
   clientSecret,
   paymentDocId,
   onSuccess,
+  onPaymentSuccess,
   onError,
+  isGuestBooking = false,
 }: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -50,7 +54,11 @@ function PaymentForm({
           const amountReceived = (paymentIntent as any).amount_received ?? 0;
           if (amountReceived > 0) {
             setMessage("Payment succeeded!");
-            onSuccess(paymentIntent.id, paymentDocId || undefined);
+            if (isGuestBooking && onPaymentSuccess && paymentDocId) {
+              onPaymentSuccess(paymentDocId);
+            } else if (onSuccess) {
+              onSuccess(paymentIntent.id, paymentDocId || undefined);
+            }
           } else {
             console.warn(
               "PaymentIntent succeeded but amount_received is 0",
@@ -139,7 +147,11 @@ function PaymentForm({
     } else if (paymentIntent && paymentIntent.status === "succeeded") {
       setMessage("Payment succeeded!");
       setPaymentFailed(false);
-      onSuccess(paymentIntent.id, paymentDocId || undefined);
+      if (isGuestBooking && onPaymentSuccess && paymentDocId) {
+        onPaymentSuccess(paymentDocId);
+      } else if (onSuccess) {
+        onSuccess(paymentIntent.id, paymentDocId || undefined);
+      }
       setIsProcessing(false);
     } else if (
       paymentIntent &&
@@ -225,13 +237,28 @@ function PaymentForm({
 }
 
 interface StripePaymentProps {
-  tourPackageId: string;
-  tourPackageName: string;
-  email: string;
-  amountGBP: number;
-  bookingId: string;
+  tourPackageId?: string;
+  tourPackageName?: string;
+  email?: string;
+  amountGBP?: number;
+  bookingId?: string;
   paymentDocId?: string | null;
-  onSuccess: (paymentIntentId?: string, paymentDocId?: string) => void;
+  onSuccess?: (paymentIntentId?: string, paymentDocId?: string) => void;
+  onPaymentSuccess?: (paymentDocId: string) => void;
+  onBack?: () => void;
+
+  // Guest booking specific props
+  isGuestBooking?: boolean;
+  parentBookingId?: string;
+  guestEmail?: string;
+  guestData?: {
+    firstName: string;
+    lastName: string;
+    birthdate: string;
+    nationality: string;
+    phoneNumber: string;
+    dietaryRestrictions?: string;
+  };
 }
 
 export default function StripePayment({
@@ -242,6 +269,12 @@ export default function StripePayment({
   bookingId,
   paymentDocId: paymentDocIdProp,
   onSuccess,
+  onPaymentSuccess,
+  onBack,
+  isGuestBooking = false,
+  parentBookingId,
+  guestEmail,
+  guestData,
 }: StripePaymentProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentDocId, setPaymentDocId] = useState<string | null>(
@@ -252,6 +285,7 @@ export default function StripePayment({
   const [retryCount, setRetryCount] = useState(0);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const initializingRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
@@ -263,6 +297,9 @@ export default function StripePayment({
 
   // Generate a consistent session key
   const getSessionKey = () => {
+    if (isGuestBooking && parentBookingId && guestEmail) {
+      return `stripe_payment_guest_${parentBookingId}_${guestEmail}`;
+    }
     if (paymentDocId) {
       return `stripe_payment_${email}_${tourPackageId}_${paymentDocId}`;
     }
@@ -270,6 +307,13 @@ export default function StripePayment({
   };
 
   const initializePayment = () => {
+    // Prevent concurrent initialization (React Strict Mode runs effects twice)
+    if (initializingRef.current) {
+      console.log("⏭️ Payment initialization already in progress, skipping...");
+      return;
+    }
+
+    initializingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -281,13 +325,14 @@ export default function StripePayment({
       try {
         const { clientSecret: savedSecret, paymentDocId: savedDocId } =
           JSON.parse(existingSession);
-        
+
         // Verify the client secret is still valid
-        if (savedSecret && savedSecret.startsWith('pi_')) {
+        if (savedSecret && savedSecret.startsWith("pi_")) {
           console.log("♻️ Reusing existing payment session for", email);
           setClientSecret(savedSecret);
           setPaymentDocId(savedDocId);
           setLoading(false);
+          initializingRef.current = false;
           return;
         } else {
           console.warn("Invalid client secret in session storage");
@@ -299,26 +344,50 @@ export default function StripePayment({
       }
     }
 
-    console.log("🆕 Creating new payment session for", email);
+    console.log(
+      "🆕 Creating new payment session for",
+      isGuestBooking ? guestEmail : email
+    );
+
+    // Prepare request body based on booking type
+    const requestBody = isGuestBooking
+      ? {
+          email: guestEmail,
+          tourPackage: tourPackageId,
+          tourPackageName,
+          amountGBP,
+          paymentDocId,
+          isGuestBooking: true,
+          parentBookingId,
+          guestData,
+          meta: {
+            source: "guest-reservation-form",
+            retryAttempt: retryCount,
+          },
+        }
+      : {
+          email,
+          tourPackage: tourPackageId,
+          tourPackageName,
+          amountGBP,
+          paymentDocId,
+          meta: {
+            source: "reservation-form",
+            retryAttempt: retryCount,
+          },
+        };
+
     fetch("/api/stripe-payments/init-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        tourPackage: tourPackageId,
-        tourPackageName,
-        amountGBP,
-        paymentDocId,
-        meta: {
-          source: "reservation-form",
-          retryAttempt: retryCount,
-        },
-      }),
+      body: JSON.stringify(requestBody),
     })
       .then(async (res) => {
         if (!res.ok) {
           const errorData = await res.json();
-          throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
+          throw new Error(
+            errorData.error || `HTTP error! status: ${res.status}`
+          );
         }
         return res.json();
       })
@@ -340,12 +409,14 @@ export default function StripePayment({
 
           setError(null);
           setLoading(false);
+          initializingRef.current = false;
         }
       })
       .catch((err) => {
         console.error("Payment initialization error:", err);
         setError(err.message);
         setLoading(false);
+        initializingRef.current = false;
       });
   };
 
@@ -360,7 +431,12 @@ export default function StripePayment({
     }
 
     // Only initialize if we have required data
-    if (!email || !tourPackageId || amountGBP <= 0) {
+    if (!email || !tourPackageId || !amountGBP || amountGBP <= 0) {
+      console.warn("Payment initialization validation failed:", {
+        email: email || "MISSING",
+        tourPackageId: tourPackageId || "MISSING",
+        amountGBP: amountGBP || "MISSING",
+      });
       setError("Missing required payment information");
       setLoading(false);
       return;
@@ -388,7 +464,9 @@ export default function StripePayment({
     return (
       <div className="flex items-center justify-center py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-3 text-sm text-muted-foreground">Loading payment form...</span>
+        <span className="ml-3 text-sm text-muted-foreground">
+          Loading payment form...
+        </span>
       </div>
     );
   }
@@ -474,7 +552,9 @@ export default function StripePayment({
         clientSecret={clientSecret}
         paymentDocId={paymentDocId}
         onSuccess={onSuccess}
+        onPaymentSuccess={onPaymentSuccess}
         onError={(err) => setError(err)}
+        isGuestBooking={isGuestBooking}
       />
     </Elements>
   );

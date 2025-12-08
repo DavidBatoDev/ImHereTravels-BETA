@@ -28,6 +28,9 @@ export async function POST(req: NextRequest) {
       amountGBP,
       paymentDocId,
       meta,
+      isGuestBooking,
+      parentBookingId,
+      guestData,
     } = await req.json();
 
     // Validate required fields
@@ -188,32 +191,69 @@ export async function POST(req: NextRequest) {
         paymentDocId,
       });
     } else {
+      // For guest bookings, fetch the main booker's booking type and groupSize
+      let bookingType = "Single Booking";
+      let bookingGroupSize = 1;
+
+      if (isGuestBooking && parentBookingId) {
+        try {
+          const parentPaymentRef = doc(db, "stripePayments", parentBookingId);
+          const parentPaymentSnap = await getDoc(parentPaymentRef);
+
+          if (parentPaymentSnap.exists()) {
+            const parentData = parentPaymentSnap.data();
+            bookingType = parentData?.booking?.type || "Single Booking";
+            bookingGroupSize = parentData?.booking?.groupSize || 1;
+            console.log(
+              "📋 Inherited booking type from main booker:",
+              bookingType
+            );
+            console.log(
+              "📋 Inherited group size from main booker:",
+              bookingGroupSize
+            );
+          }
+        } catch (error) {
+          console.warn(
+            "Could not fetch parent booking type, using default:",
+            error
+          );
+        }
+      }
+
       // Create a new Firestore document with nested structure
       const newPaymentDoc: Partial<StripePaymentDocument> = {
         booking: {
-          id: "PENDING",
-          documentId: "",
+          type: bookingType,
+          groupSize: bookingGroupSize,
+          additionalGuests: [],
+          isGuest: isGuestBooking || false,
         },
         customer: {
           email,
+          firstName: "",
+          lastName: "",
+          nationality: "",
+          birthdate: "",
         },
         tour: {
           packageId: tourPackage,
           packageName: tourPackageName || tourPackage,
+          date: "",
         },
         payment: {
-          stripeIntentId: intent.id,
-          clientSecret: intent.client_secret,
+          clientSecret: intent.client_secret || "",
           amount: amountGBP,
           currency: "GBP",
-          status: "reserve_pending",
           type: "reservationFee",
+          status: "reserve_pending",
         },
+        stripeIntentId: intent.id,
         timestamps: {
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp() as any,
+          updatedAt: serverTimestamp() as any,
         },
-      };
+      } as any;
 
       const newDocRef = await addDoc(paymentsRef, newPaymentDoc);
 
@@ -222,9 +262,6 @@ export async function POST(req: NextRequest) {
         doc(db, "stripePayments", newDocRef.id),
         {
           id: newDocRef.id,
-          booking: {
-            documentId: newDocRef.id,
-          },
         },
         { merge: true }
       );

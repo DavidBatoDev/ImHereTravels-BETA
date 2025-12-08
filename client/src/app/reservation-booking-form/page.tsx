@@ -1,6 +1,8 @@
-// client/src/app/reservation-booking-form/page.tsx
 "use client";
 
+export const dynamic = "force-dynamic";
+
+import { Suspense } from "react";
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -515,9 +517,9 @@ const Page = () => {
   const canEditStep1 = !paymentConfirmed;
   const progressWidth = step === 1 ? "w-1/3" : step === 2 ? "w-2/3" : "w-full";
 
-  // Get deposit amount from selected package
+  // Get reservation fee from selected package (not the full deposit)
   const selectedPackage = tourPackages.find((p) => p.id === tourPackage);
-  const depositAmount = selectedPackage?.deposit ?? 250;
+  const depositAmount = selectedPackage?.reservationFee ?? 250;
 
   // Set `tour` query param when entering Payment (step 2)
   useEffect(() => {
@@ -1026,6 +1028,40 @@ const Page = () => {
         if (response.ok) {
           console.log("✅ Booking created successfully:", result);
           setBookingId(result.bookingId);
+
+          // Send guest invitations if this is a Duo/Group booking
+          if (
+            (bookingType === "Duo Booking" ||
+              bookingType === "Group Booking") &&
+            additionalGuests.length > 0 &&
+            actualPaymentDocId
+          ) {
+            console.log("📧 Sending guest invitations...");
+            try {
+              // Import Firebase Functions
+              const { getFunctions, httpsCallable } = await import(
+                "firebase/functions"
+              );
+              const { functions } = await import("@/lib/firebase");
+
+              // Call the Cloud Function to send invitations
+              const sendGuestInvitations = httpsCallable(
+                functions,
+                "sendGuestInvitationEmails"
+              );
+              const invitationResult = await sendGuestInvitations({
+                paymentDocId: actualPaymentDocId,
+              });
+
+              console.log("✅ Guest invitations sent:", invitationResult.data);
+            } catch (inviteError) {
+              console.error(
+                "❌ Failed to send guest invitations:",
+                inviteError
+              );
+              // Don't block the flow - admin can resend later
+            }
+          }
         } else {
           console.error("❌ Failed to create booking:", result.error);
           // Still proceed - booking might be created by webhook later
@@ -4183,4 +4219,16 @@ const Page = () => {
   );
 };
 
-export default Page;
+export default function ReservationBookingFormPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      }
+    >
+      <Page />
+    </Suspense>
+  );
+}
