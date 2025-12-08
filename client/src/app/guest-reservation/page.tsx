@@ -535,6 +535,42 @@ const GuestReservationPage = () => {
         console.log("✅ Guest booking created:", result);
         setBookingConfirmed(true);
 
+        // Send booking status confirmation email with QR code
+        try {
+          console.log("📧 Sending booking status confirmation email...");
+          const emailResponse = await fetch(
+            "/api/send-booking-status-confirmation",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                bookingDocumentId: result.bookingDocumentId || "",
+                email: guestEmail,
+              }),
+            }
+          );
+
+          const emailResult = await emailResponse.json();
+
+          if (emailResponse.ok) {
+            console.log(
+              "✅ Booking status confirmation email sent!",
+              emailResult
+            );
+          } else {
+            console.warn(
+              "⚠️ Failed to send booking status email:",
+              emailResult.error
+            );
+            // Don't block the user flow if email fails
+          }
+        } catch (emailError) {
+          console.warn("⚠️ Error sending booking status email:", emailError);
+          // Don't block the user flow if email fails
+        }
+
         // Create notification for guest payment
         try {
           const { createGuestReservationPaymentNotification } = await import(
