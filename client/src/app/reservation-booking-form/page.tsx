@@ -1342,7 +1342,67 @@ const Page = () => {
 
     const loadFromSession = async () => {
       try {
-        // look for any key that starts with stripe_payment_doc_
+        // First, check if there's a paymentid in the URL query params
+        const urlPaymentId = searchParams?.get("paymentid");
+
+        if (urlPaymentId) {
+          // When we have a URL paymentid, check if it's a terms_selected status
+          // If so, load it directly without requiring sessionStorage
+          try {
+            const { doc, getDoc } = await import("firebase/firestore");
+            const snap = await getDoc(doc(db, "stripePayments", urlPaymentId));
+
+            if (snap.exists()) {
+              const data = snap.data() as any;
+
+              // Only auto-load from URL if status is terms_selected (booking completed)
+              if (data.payment?.status === "terms_selected") {
+                if (DEBUG)
+                  console.debug("URL restore (terms_selected): loading doc", {
+                    urlPaymentId,
+                    data,
+                  });
+
+                if (!mounted) return;
+
+                setPaymentDocId(urlPaymentId);
+
+                // Populate form fields from stored doc
+                if (data.customer?.email) setEmail(data.customer.email);
+                if (data.customer?.firstName)
+                  setFirstName(data.customer.firstName);
+                if (data.customer?.lastName)
+                  setLastName(data.customer.lastName);
+                if (data.customer?.birthdate)
+                  setBirthdate(data.customer.birthdate);
+                if (data.customer?.nationality)
+                  setNationality(data.customer.nationality);
+                if (data.booking?.type) setBookingType(data.booking.type);
+                if (typeof data.booking?.groupSize === "number")
+                  setGroupSize(data.booking.groupSize);
+                if (Array.isArray(data.booking?.additionalGuests))
+                  setAdditionalGuests(data.booking.additionalGuests);
+                if (data.tour?.packageId) setTourPackage(data.tour.packageId);
+                if (data.tour?.date) setTourDate(data.tour.date);
+
+                // Show booking confirmation
+                setPaymentConfirmed(true);
+                setBookingConfirmed(true);
+                if (data.booking?.id) setBookingId(data.booking.id);
+                if (data.payment?.selectedPaymentPlan)
+                  setSelectedPaymentPlan(data.payment.selectedPaymentPlan);
+                setStep(3);
+                setCompletedSteps([1, 2, 3]);
+
+                return; // Exit early, we're done
+              }
+            }
+          } catch (err) {
+            console.warn("Failed to load payment from URL:", err);
+          }
+        }
+
+        // Otherwise, look for sessionStorage keys (existing behavior)
         for (let i = 0; i < sessionStorage.length; i++) {
           const key = sessionStorage.key(i);
           if (!key) continue;
@@ -2077,7 +2137,7 @@ const Page = () => {
         {/* Max-width container for better readability on larger screens */}
         <div className="max-w-4xl mx-auto">
           {/* Progress tracker placeholder for Steps 1-3 (static; wire later) */}
-          <div className="mb-6">
+          <div className="mb-2">
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <h2
@@ -4129,38 +4189,174 @@ const Page = () => {
               )}
 
               {step === 3 && bookingConfirmed && (
-                <div className="bg-spring-green/10 text-spring-green border border-spring-green/30 p-6 rounded-md">
-                  <div className="flex items-start gap-3">
-                    <svg
-                      className="h-6 w-6 flex-shrink-0 mt-0.5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <path
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg mb-2">
-                        Booking Confirmed! 🎉
-                      </h3>
-                      <p className="mb-2">
-                        Your booking ID is:{" "}
-                        <span className="font-mono font-bold">{bookingId}</span>
-                      </p>
-                      <p className="text-sm opacity-90">
-                        A confirmation email with your booking details and
-                        payment schedule will be sent to{" "}
-                        <span className="font-semibold">{email}</span> shortly.
-                      </p>
-                      <p className="text-sm opacity-90 mt-2">
-                        Thank you for choosing I'm Here Travels! We look forward
-                        to making your journey unforgettable.
-                      </p>
+                <div className="fixed inset-0 z-50 bg-background">
+                  {/* Animated gradient background */}
+                  <div className="absolute inset-0 z-0">
+                    <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/5 via-sunglow-yellow/5 to-spring-green/5 dark:from-crimson-red/20 dark:via-creative-midnight/30 dark:to-spring-green/20 animate-gradient-shift bg-[length:200%_200%]" />
+                  </div>
+
+                  <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+                    <div className="max-w-2xl w-full bg-card rounded-2xl shadow-xl p-8 border border-border">
+                      <div className="bg-spring-green/10 border border-spring-green/30 p-6 rounded-lg mb-6">
+                        <div className="flex items-start gap-3">
+                          <svg
+                            className="h-8 w-8 text-spring-green flex-shrink-0 mt-0.5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <path
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                          <div className="flex-1">
+                            <h2 className="text-2xl font-bold text-foreground mb-2">
+                              Booking Confirmed!
+                            </h2>
+                            <p className="text-muted-foreground">
+                              You're all set for {selectedPackage?.name}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Booking Details */}
+                      <div className="bg-muted/30 rounded-lg p-6 mb-6">
+                        <h3 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wide">
+                          Booking Details
+                        </h3>
+                        <div className="space-y-3">
+                          <div className="flex justify-between py-2 border-b border-border">
+                            <span className="text-sm text-muted-foreground">
+                              Booking ID
+                            </span>
+                            <span className="text-sm font-mono font-semibold text-foreground">
+                              {bookingId}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2 border-b border-border">
+                            <span className="text-sm text-muted-foreground">
+                              Tour
+                            </span>
+                            <span className="text-sm font-medium text-foreground">
+                              {selectedPackage?.name}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2 border-b border-border">
+                            <span className="text-sm text-muted-foreground">
+                              Travel Date
+                            </span>
+                            <span className="text-sm font-medium text-foreground">
+                              {tourDate}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2 border-b border-border">
+                            <span className="text-sm text-muted-foreground">
+                              Email
+                            </span>
+                            <span className="text-sm font-medium text-foreground">
+                              {email}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span className="text-sm text-muted-foreground">
+                              Payment Plan
+                            </span>
+                            <span className="text-sm font-medium text-foreground">
+                              {paymentTerms.find(
+                                (p) => p.id === selectedPaymentPlan
+                              )?.name || "Selected"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* What's Next */}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-foreground mb-4">
+                          What's Next?
+                        </h3>
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-spring-green text-white flex-shrink-0 mt-0.5">
+                              <svg
+                                className="h-4 w-4"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <path
+                                  d="M20 6L9 17l-5-5"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </div>
+                            <p className="text-sm text-muted-foreground flex-1">
+                              Check your email at{" "}
+                              <span className="font-semibold text-foreground">
+                                {email}
+                              </span>{" "}
+                              for a confirmation message with your complete
+                              booking details and payment schedule.
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-spring-green text-white flex-shrink-0 mt-0.5">
+                              <svg
+                                className="h-4 w-4"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <path
+                                  d="M20 6L9 17l-5-5"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </div>
+                            <p className="text-sm text-muted-foreground flex-1">
+                              Follow the payment schedule outlined in your email
+                              to complete your payments on time.
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-spring-green text-white flex-shrink-0 mt-0.5">
+                              <svg
+                                className="h-4 w-4"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <path
+                                  d="M20 6L9 17l-5-5"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </div>
+                            <p className="text-sm text-muted-foreground flex-1">
+                              Get ready for an unforgettable adventure with I'm
+                              Here Travels!
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <button
+                        onClick={() => window.print()}
+                        className="w-full px-6 py-3 border-2 border-border bg-card text-foreground font-medium rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        Print Confirmation
+                      </button>
                     </div>
                   </div>
                 </div>

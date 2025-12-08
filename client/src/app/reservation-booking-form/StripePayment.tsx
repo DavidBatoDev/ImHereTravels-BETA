@@ -245,6 +245,7 @@ interface StripePaymentProps {
   paymentDocId?: string | null;
   onSuccess?: (paymentIntentId?: string, paymentDocId?: string) => void;
   onPaymentSuccess?: (paymentDocId: string) => void;
+  onPaymentDocIdCreated?: (paymentDocId: string) => void;
   onBack?: () => void;
 
   // Guest booking specific props
@@ -270,6 +271,7 @@ export default function StripePayment({
   paymentDocId: paymentDocIdProp,
   onSuccess,
   onPaymentSuccess,
+  onPaymentDocIdCreated,
   onBack,
   isGuestBooking = false,
   parentBookingId,
@@ -397,6 +399,11 @@ export default function StripePayment({
         } else {
           setClientSecret(data.clientSecret);
           setPaymentDocId(data.paymentDocId);
+
+          // Notify parent component of the created payment doc ID
+          if (onPaymentDocIdCreated && data.paymentDocId) {
+            onPaymentDocIdCreated(data.paymentDocId);
+          }
 
           // Save to session storage with consistent key
           sessionStorage.setItem(

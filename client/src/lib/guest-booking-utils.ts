@@ -36,6 +36,7 @@ export interface ParentBookingData {
   tourPackageId: string;
   tourName: string;
   tourDate: Timestamp | string;
+  tourImage?: string;
   groupSize: number;
   groupId: string;
   paymentPlan: string;
