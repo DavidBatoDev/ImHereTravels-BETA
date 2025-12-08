@@ -219,9 +219,15 @@ function PaymentForm({
 
       <button
         type="submit"
-        disabled={!stripe || isProcessing}
+        disabled={
+          !stripe ||
+          isProcessing ||
+          message === "Payment completed (pending verification). Please wait..."
+        }
         className={`w-full px-6 py-3 rounded-md font-medium transition ${
-          !stripe || isProcessing
+          !stripe ||
+          isProcessing ||
+          message === "Payment completed (pending verification). Please wait..."
             ? "bg-muted text-muted-foreground cursor-not-allowed"
             : "bg-crimson-red text-white hover:brightness-95"
         }`}

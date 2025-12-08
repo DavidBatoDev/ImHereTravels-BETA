@@ -306,6 +306,8 @@ const GuestReservationPage = () => {
   // ============================================================================
 
   const handleProceedToPayment = async () => {
+    if (isSubmitting) return; // Prevent double-clicks
+
     setSubmitted(true);
     if (!validateStep1()) {
       return;
@@ -532,6 +534,25 @@ const GuestReservationPage = () => {
       if (response.ok) {
         console.log("✅ Guest booking created:", result);
         setBookingConfirmed(true);
+
+        // Create notification for guest payment
+        try {
+          const { createGuestReservationPaymentNotification } = await import(
+            "@/utils/notification-service"
+          );
+          await createGuestReservationPaymentNotification({
+            bookingId: result.bookingId || result.guestBookingId,
+            bookingDocumentId: result.bookingDocumentId || "",
+            travelerName: `${firstName} ${lastName}`,
+            mainBookerName: parentBooking?.travelerName || "Main Booker",
+            tourPackageName: parentBooking?.tourName || "",
+            amount: depositAmount || parentBooking?.depositAmount || 0,
+            currency: "EUR",
+          });
+        } catch (error) {
+          console.error("Failed to create guest notification:", error);
+          // Continue anyway - don't block user
+        }
       } else {
         console.error("❌ Failed to create guest booking:", result.error);
         alert(`Failed to create booking: ${result.error}`);

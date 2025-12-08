@@ -81,6 +81,7 @@ const Page = () => {
   const [sessionLoading, setSessionLoading] = useState(true);
   const [tourImageLoading, setTourImageLoading] = useState(false);
   const [tourImageError, setTourImageError] = useState(false);
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
 
   // Tour selection modal state
   const [showTourModal, setShowTourModal] = useState(false);
@@ -281,6 +282,8 @@ const Page = () => {
   // Query existing stripePayments for this email and show modal if any
   const checkExistingPaymentsAndMaybeProceed = async () => {
     if (!validate()) return;
+    if (isCreatingPayment) return;
+    setIsCreatingPayment(true);
 
     // If we already have a paymentDocId, update it with current form data before proceeding
     if (paymentDocId) {
@@ -326,9 +329,9 @@ const Page = () => {
       } catch (err) {
         console.error("Error updating payment document:", err);
         alert("Unable to update payment record. Please try again.");
+        setIsCreatingPayment(false);
         return;
       }
-
       if (!completedSteps.includes(1)) {
         setCompletedSteps([...completedSteps, 1]);
       }
@@ -371,6 +374,7 @@ const Page = () => {
         // show modal with options
         setFoundStripePayments(docs);
         setShowEmailModal(true);
+        setIsCreatingPayment(false); // Reset since user needs to choose
       }
     } catch (err) {
       console.error("Error checking existing payments:", err);
@@ -389,6 +393,7 @@ const Page = () => {
       setStep(2);
     } finally {
       setModalLoading(false);
+      setIsCreatingPayment(false);
     }
   };
 
@@ -1028,6 +1033,24 @@ const Page = () => {
         if (response.ok) {
           console.log("✅ Booking created successfully:", result);
           setBookingId(result.bookingId);
+
+          // Create notification for Step 2 payment
+          try {
+            const { createReservationPaymentNotification } = await import(
+              "@/utils/notification-service"
+            );
+            await createReservationPaymentNotification({
+              bookingId: result.bookingId,
+              bookingDocumentId: result.bookingDocumentId,
+              travelerName: `${firstName} ${lastName}`,
+              tourPackageName: selectedPackage?.name || "",
+              amount: selectedPackage?.reservationFee || 0,
+              currency: "EUR",
+            });
+          } catch (error) {
+            console.error("Failed to create notification:", error);
+            // Continue anyway - don't block user
+          }
 
           // Send guest invitations if this is a Duo/Group booking
           if (
@@ -4058,6 +4081,7 @@ const Page = () => {
                     checkExistingPaymentsAndMaybeProceed();
                   }}
                   disabled={
+                    isCreatingPayment ||
                     !email ||
                     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
                     !birthdate ||
