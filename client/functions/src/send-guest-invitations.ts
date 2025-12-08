@@ -17,7 +17,7 @@ function generateGuestInvitationLink(
   const baseUrl =
     process.env.NEXT_PUBLIC_WEBSITE_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    "http://localhost:3000";
+    "https://im-here-travels.vercel.app/";
   const params = new URLSearchParams({
     booking: parentBookingId,
     email: guestEmail,
