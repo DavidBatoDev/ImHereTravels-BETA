@@ -514,8 +514,33 @@ export function calculateInstallmentAmounts(
   const credit_from = creditFrom ?? "";
   const credit_amt = creditAmount ?? 0;
 
+  // When no payment plan is specified, show preview amounts for each plan option
+  // P1 shows total/1, P2 shows total/2, P3 shows total/3, P4 shows total/4
+  if (!paymentPlan) {
+    // P1 Amount - full remaining balance (divide by 1)
+    if (p1DueDate) {
+      result.p1Amount = (Math.round(total * 100) / 100) as number;
+    }
+
+    // P2 Amount - half of remaining balance (divide by 2)
+    if (p2DueDate) {
+      result.p2Amount = (Math.round((total / 2) * 100) / 100) as number;
+    }
+
+    // P3 Amount - third of remaining balance (divide by 3)
+    if (p3DueDate) {
+      result.p3Amount = (Math.round((total / 3) * 100) / 100) as number;
+    }
+
+    // P4 Amount - quarter of remaining balance (divide by 4)
+    if (p4DueDate) {
+      result.p4Amount = (Math.round((total / 4) * 100) / 100) as number;
+    }
+
+    return result;
+  }
+
   // Determine number of terms (P1–P4) - matches termsMap in p1-amount.ts
-  // When paymentPlan is empty, terms = 1
   const termsMap: Record<string, number> = {
     "": 1,
     P1: 1,
@@ -1018,6 +1043,37 @@ export function calculatePaymentPlanUpdate(
   // Calculate scheduled reminder dates
   const reminders = calculateScheduledReminderDates(dueDates, reminderDays);
 
+  // Clear unused payment term fields based on selected plan
+  // If user selects P1, clear P2-P4 fields; if P2, clear P3-P4 fields, etc.
+  const selectedTerms = input.paymentPlan.match(/P(\d)/)
+    ? parseInt(input.paymentPlan.match(/P(\d)/)![1], 10)
+    : 0;
+
+  const finalDueDates = { ...dueDates };
+  const finalAmounts = { ...amounts };
+  const finalReminders = { ...reminders };
+
+  if (selectedTerms > 0) {
+    // Clear P2 fields if plan is P1
+    if (selectedTerms < 2) {
+      finalDueDates.p2DueDate = "";
+      finalAmounts.p2Amount = "";
+      finalReminders.p2ScheduledReminderDate = "";
+    }
+    // Clear P3 fields if plan is P1 or P2
+    if (selectedTerms < 3) {
+      finalDueDates.p3DueDate = "";
+      finalAmounts.p3Amount = "";
+      finalReminders.p3ScheduledReminderDate = "";
+    }
+    // Clear P4 fields if plan is P1, P2, or P3
+    if (selectedTerms < 4) {
+      finalDueDates.p4DueDate = "";
+      finalAmounts.p4Amount = "";
+      finalReminders.p4ScheduledReminderDate = "";
+    }
+  }
+
   // Calculate booking status based on payment plan (matches bookingStatusFunction logic)
   // At step 3, no payments have been made yet, so:
   // - Full Payment → "Waiting for Full Payment"
@@ -1039,9 +1095,9 @@ export function calculatePaymentPlanUpdate(
     fullPaymentDueDate,
     fullPaymentAmount,
 
-    ...dueDates,
-    ...amounts,
-    ...reminders,
+    ...finalDueDates,
+    ...finalAmounts,
+    ...finalReminders,
 
     updatedAt: new Date(),
   };

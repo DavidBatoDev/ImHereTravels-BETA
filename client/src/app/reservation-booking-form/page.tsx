@@ -280,8 +280,53 @@ const Page = () => {
   const checkExistingPaymentsAndMaybeProceed = async () => {
     if (!validate()) return;
 
-    // If we already have a paymentDocId, just proceed
+    // If we already have a paymentDocId, update it with current form data before proceeding
     if (paymentDocId) {
+      try {
+        const { updateDoc, doc } = await import("firebase/firestore");
+        await updateDoc(doc(db, "stripePayments", paymentDocId), {
+          customer: {
+            email,
+            firstName,
+            lastName,
+            birthdate,
+            nationality,
+          },
+          booking: {
+            type: bookingType,
+            groupSize:
+              bookingType === "Group Booking"
+                ? groupSize
+                : bookingType === "Duo Booking"
+                ? 2
+                : 1,
+            additionalGuests:
+              bookingType === "Duo Booking" || bookingType === "Group Booking"
+                ? additionalGuests
+                : [],
+            id: "PENDING",
+            documentId: "",
+          },
+          tour: {
+            packageId: tourPackage,
+            packageName: selectedPackage?.name || "",
+            date: tourDate,
+          },
+          payment: {
+            amount: depositAmount,
+            currency: "GBP",
+            status: "reserve_pending",
+            type: "reservationFee",
+          },
+          "timestamps.updatedAt": serverTimestamp(),
+        });
+        console.log("✅ Updated existing payment document:", paymentDocId);
+      } catch (err) {
+        console.error("Error updating payment document:", err);
+        alert("Unable to update payment record. Please try again.");
+        return;
+      }
+
       if (!completedSteps.includes(1)) {
         setCompletedSteps([...completedSteps, 1]);
       }
