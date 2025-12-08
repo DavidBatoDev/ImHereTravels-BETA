@@ -849,7 +849,7 @@ const GuestReservationPage = () => {
                               ? "4 Installments"
                               : "Standard"
                           }`
-                        : "Standard Payment Plan"}
+                        : "Not selected yet"}
                     </span>
                   </div>
                   <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
@@ -862,14 +862,24 @@ const GuestReservationPage = () => {
                   </div>
                 </div>
 
-                {parentBooking?.paymentPlan &&
+                {!parentBooking?.paymentPlan ? (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mt-4">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      <span className="inline-block mr-1">ℹ️</span>
+                      The main booker hasn't selected a payment plan yet. You'll
+                      follow the same payment plan once they complete their
+                      booking.
+                    </p>
+                  </div>
+                ) : (
                   parentBooking.paymentPlan !== "P1" && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                       <span className="inline-block mr-1">ℹ️</span>
                       You'll follow the same payment plan as the main booker.
                       Remaining payments will be due on the same schedule.
                     </p>
-                  )}
+                  )
+                )}
               </div>
 
               {/* Stripe Payment Component */}

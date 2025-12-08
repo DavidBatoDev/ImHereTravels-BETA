@@ -334,6 +334,8 @@ export async function POST(req: NextRequest) {
     let parentBookingP3DueDate = "";
     let parentBookingP4Amount: any = "";
     let parentBookingP4DueDate = "";
+    let parentBookingFullPaymentAmount: any = "";
+    let parentBookingFullPaymentDueDate = "";
 
     try {
       const parentPaymentRef = doc(db, "stripePayments", parentBookingId);
@@ -377,6 +379,10 @@ export async function POST(req: NextRequest) {
             parentBookingP3DueDate = parentBookingData?.p3DueDate || "";
             parentBookingP4Amount = parentBookingData?.p4Amount || "";
             parentBookingP4DueDate = parentBookingData?.p4DueDate || "";
+            parentBookingFullPaymentAmount =
+              parentBookingData?.fullPaymentAmount || "";
+            parentBookingFullPaymentDueDate =
+              parentBookingData?.fullPaymentDueDate || "";
 
             console.log("📋 Inherited from parent booking:", {
               paymentPlan: parentBookingPaymentPlan,
@@ -480,6 +486,8 @@ export async function POST(req: NextRequest) {
     bookingData.p3DueDate = parentBookingP3DueDate;
     bookingData.p4Amount = parentBookingP4Amount;
     bookingData.p4DueDate = parentBookingP4DueDate;
+    bookingData.fullPaymentAmount = parentBookingFullPaymentAmount;
+    bookingData.fullPaymentDueDate = parentBookingFullPaymentDueDate;
 
     console.log("📋 Applied inherited fields to guest booking:", {
       paymentPlan: bookingData.paymentPlan,
@@ -511,13 +519,35 @@ export async function POST(req: NextRequest) {
       console.log("📝 Creating guest booking with ID:", bookingData.bookingId);
     }
 
-    // 12. Convert dates to Firestore Timestamps for storage
+    // 12. Calculate bookingStatus and paymentProgress
+    // Guest has just paid the reservation fee (not P1 yet)
+    let bookingStatus = "";
+    let paymentProgress = "0%";
+
+    if (parentBookingPaymentPlan) {
+      // Guest just paid reservation fee, no installments paid yet
+      const plan = parentBookingPaymentPlan.toUpperCase();
+
+      if (plan === "FULL PAYMENT") {
+        bookingStatus = "Waiting for Full Payment";
+      } else if (plan === "P1") {
+        bookingStatus = "Installment 0/1";
+      } else if (plan === "P2") {
+        bookingStatus = "Installment 0/2";
+      } else if (plan === "P3") {
+        bookingStatus = "Installment 0/3";
+      } else if (plan === "P4") {
+        bookingStatus = "Installment 0/4";
+      }
+    }
+
+    // 13. Convert dates to Firestore Timestamps for storage
     const tourDateTimestamp = tourDateParsed
       ? Timestamp.fromDate(tourDateParsed)
       : null;
     const reservationDateTimestamp = Timestamp.now();
 
-    // 13. Add to bookings collection with proper Timestamps
+    // 14. Add to bookings collection with proper Timestamps
     const bookingsRef = collection(db, "bookings");
     const newBookingRef = await addDoc(bookingsRef, {
       ...bookingData,
@@ -530,13 +560,19 @@ export async function POST(req: NextRequest) {
       birthdate: guestData.birthdate,
       phoneNumber: guestData.phoneNumber,
       dietaryRestrictions: guestData.dietaryRestrictions,
+      // Calculated fields
+      bookingStatus: bookingStatus,
+      paymentProgress: paymentProgress,
+      // Note: p1DatePaid is not set yet, only reservation fee has been paid
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
 
     console.log("✅ Guest booking created with ID:", newBookingRef.id);
+    console.log("📊 Booking Status:", bookingStatus);
+    console.log("📊 Payment Progress:", paymentProgress);
 
-    // 14. Update guest's payment document with booking reference
+    // 15. Update guest's payment document with booking reference
     await updateDoc(paymentDocRef, {
       "booking.documentId": newBookingRef.id,
       "booking.id": bookingData.bookingId,
@@ -545,7 +581,7 @@ export async function POST(req: NextRequest) {
 
     console.log("✅ Guest payment document updated");
 
-    // 15. Update parent booking's invitation status to "accepted"
+    // 16. Update parent booking's invitation status to "accepted"
     const parentPaymentRef = doc(db, "stripePayments", parentBookingId);
     const parentPaymentSnap = await getDoc(parentPaymentRef);
 
