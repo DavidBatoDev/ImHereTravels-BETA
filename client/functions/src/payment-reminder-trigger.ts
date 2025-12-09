@@ -398,6 +398,18 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
         return;
       }
 
+      // Check if we should skip triggers (during CSV import or Sheets sync)
+      const configDoc = await db.collection("config").doc("import-sync").get();
+      const skipTriggers =
+        configDoc.exists && configDoc.data()?.skipTriggers === true;
+      if (skipTriggers) {
+        logger.info("⏭️ Skipping trigger - import/sync operation in progress", {
+          operation: configDoc.data()?.operation,
+          startedAt: configDoc.data()?.startedAt,
+        });
+        return;
+      }
+
       logger.info("✅ Payment reminder newly enabled!");
 
       // Get booking data with column mappings

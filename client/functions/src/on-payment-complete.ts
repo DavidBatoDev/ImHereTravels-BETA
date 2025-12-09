@@ -404,6 +404,21 @@ export const onPaymentComplete = onDocumentUpdated(
         return;
       }
 
+      // Check if we should skip triggers (during CSV import or Sheets sync)
+      const importSyncDoc = await db
+        .collection("config")
+        .doc("import-sync")
+        .get();
+      const skipTriggers =
+        importSyncDoc.exists && importSyncDoc.data()?.skipTriggers === true;
+      if (skipTriggers) {
+        logger.info("⏭️ Skipping trigger - import/sync operation in progress", {
+          operation: importSyncDoc.data()?.operation,
+          startedAt: importSyncDoc.data()?.startedAt,
+        });
+        return;
+      }
+
       logger.info("✅ Payment completed - processing confirmed booking");
 
       // Check if confirmed booking already exists
