@@ -699,9 +699,25 @@ class CSVImportService {
    * Complete import process: parse file, map data, and replace bookings
    */
   async importCSV(file: File): Promise<CSVImportResult> {
+    // Import at top of method
+    const { db } = await import("@/lib/firebase");
+    const { doc, setDoc, Timestamp } = await import("firebase/firestore");
+
     try {
       // Mark importing to prevent function executions elsewhere
       setImporting(true);
+
+      // Set config flag to skip Cloud Function triggers
+      await setDoc(
+        doc(db, "config", "import-sync"),
+        {
+          skipTriggers: true,
+          operation: "csv-import",
+          startedAt: Timestamp.now(),
+        },
+        { merge: true }
+      );
+      console.log("🚫 [CSV IMPORT] Set skip flag for triggers");
       // Step 1: Parse file
       const parseResult = await this.parseFile(file);
       if (!parseResult.success || !parseResult.data) {
@@ -737,6 +753,24 @@ class CSVImportService {
     } finally {
       // Clear importing flag
       setImporting(false);
+
+      // Clear config flag to re-enable triggers
+      try {
+        const { db } = await import("@/lib/firebase");
+        const { doc, setDoc, Timestamp } = await import("firebase/firestore");
+        await setDoc(
+          doc(db, "config", "import-sync"),
+          {
+            skipTriggers: false,
+            operation: null,
+            completedAt: Timestamp.now(),
+          },
+          { merge: true }
+        );
+        console.log("✅ [CSV IMPORT] Cleared skip flag for triggers");
+      } catch (flagError) {
+        console.error("❌ [CSV IMPORT] Failed to clear skip flag:", flagError);
+      }
     }
   }
 

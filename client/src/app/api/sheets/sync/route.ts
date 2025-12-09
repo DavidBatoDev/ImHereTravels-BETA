@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { googleSheetsServerService } from "@/lib/google-sheets/google-sheets-server-service";
 import Papa from "papaparse";
-import { Timestamp } from "firebase/firestore";
+import { Timestamp, doc, setDoc } from "firebase/firestore";
 import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
 import { bookingService } from "@/services/booking-service";
 import { bookingVersionHistoryService } from "@/services/booking-version-history-service";
 import { useAuthStore } from "@/store/auth-store";
 import { setImporting } from "@/services/import-state";
+import { db } from "@/lib/firebase";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +23,17 @@ export async function POST(request: NextRequest) {
 
     // Mark as importing to prevent function executions
     setImporting(true);
+
+    // Set config flag to skip Cloud Function triggers
+    await setDoc(
+      doc(db, "config", "import-sync"),
+      {
+        skipTriggers: true,
+        operation: "sheets-sync",
+        startedAt: Timestamp.now(),
+      },
+      { merge: true }
+    );
 
     try {
       // Step 1: Download CSV content from Google Sheets
@@ -314,6 +326,23 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
+  } finally {
+    setImporting(false);
+
+    // Clear config flag to re-enable triggers
+    try {
+      await setDoc(
+        doc(db, "config", "import-sync"),
+        {
+          skipTriggers: false,
+          operation: null,
+          completedAt: Timestamp.now(),
+        },
+        { merge: true }
+      );
+    } catch (flagError) {
+      console.error("[SHEETS SYNC] Failed to clear skip flag:", flagError);
+    }
   }
 }
 
