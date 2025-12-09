@@ -22,6 +22,7 @@ export { sendBookingConfirmationEmail } from "./send-booking-confirmation-email"
 export { sendBookingStatusConfirmation } from "./send-booking-status-confirmation"; // Callable function to send booking status confirmation with QR code
 export { sendGuestInvitationEmails } from "./send-guest-invitations"; // Callable function to send guest invitation emails
 export { onStripePaymentSuccess } from "./on-stripe-payment-success"; // Trigger for Stripe payment success notifications
+export { generateReceipt } from "./generate-receipt"; // Callable function to generate receipt HTML/PDF
 // export { getDraftSubject } from "./get-draft-subject";
 // export { getEmailDetails } from "./get-email-details";
 // export { deleteGmailDraft } from "./delete-gmail-draft";

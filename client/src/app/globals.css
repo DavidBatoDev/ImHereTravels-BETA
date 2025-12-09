@@ -1028,3 +1028,217 @@
   background-size: 200% 100%;
   animation: shimmer 2s infinite linear;
 }
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(var(--float-distance, -6px));
+  }
+}
+
+/* Print styles for receipt */
+@media print {
+  @page {
+    margin: 0.5in;
+    size: A4;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  * {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    background: white !important;
+    color: #000 !important;
+  }
+
+  /* Hide everything except the fixed modal */
+  body > div > * {
+    display: none !important;
+  }
+
+  /* Show only the fixed confirmation modal */
+  .fixed.inset-0.z-50 {
+    display: flex !important;
+    position: relative !important;
+    inset: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    overflow: visible !important;
+  }
+
+  .fixed.inset-0.z-50 > .absolute.inset-0.z-0 {
+    display: none !important;
+  }
+
+  .fixed.inset-0.z-50 > .relative.z-10 {
+    margin: 0 !important;
+    padding: 0 !important;
+    position: relative !important;
+    width: 100% !important;
+    justify-content: center !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  /* Style the card for print */
+  .max-w-2xl.w-full.bg-card {
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Override dark mode colors for print */
+  .dark,
+  [data-theme="dark"] {
+    background: white !important;
+  }
+
+  /* Light backgrounds for print */
+  .bg-card {
+    background: white !important;
+  }
+
+  .bg-background {
+    background: white !important;
+  }
+
+  .bg-muted {
+    background: #f5f5f5 !important;
+  }
+
+  .bg-muted\/30 {
+    background: #f9f9f9 !important;
+  }
+
+  .text-foreground {
+    color: #000 !important;
+  }
+
+  .text-muted-foreground {
+    color: #666 !important;
+  }
+
+  .border-border {
+    border-color: #d1d5db !important;
+  }
+
+  /* Print-only Booking Confirmed section styling */
+  .hidden.print\:block {
+    display: block !important;
+    background: #f0fdf4 !important;
+    border: 2px solid #86efac !important;
+    color: #166534 !important;
+    padding: 24px !important;
+    border-radius: 8px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .hidden.print\:block .text-green-600 {
+    color: #16a34a !important;
+  }
+
+  .hidden.print\:block .text-black {
+    color: #000 !important;
+  }
+
+  .hidden.print\:block .text-gray-600 {
+    color: #4b5563 !important;
+  }
+
+  /* Ensure receipt header stays red */
+  .receipt-header {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+    color: white !important;
+    border-radius: 0 !important;
+  }
+
+  /* Receipt container styling */
+  .receipt-container {
+    page-break-inside: avoid;
+    margin-top: 24px !important;
+    padding-top: 20px !important;
+    border-top: 2px solid #d1d5db !important;
+  }
+
+  /* Booking details background in print */
+  .bg-muted\/30.rounded-lg.p-6.mb-6.print\:hidden {
+    display: none !important;
+  }
+
+  /* Hide screen-only elements */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Show print-only elements */
+  .print\:block {
+    display: block !important;
+  }
+
+  .print\:text-black {
+    color: #000 !important;
+  }
+
+  .print\:text-gray-600 {
+    color: #4b5563 !important;
+  }
+
+  .print\:text-gray-900 {
+    color: #000 !important;
+  }
+
+  .print\:bg-gray-100 {
+    background: #f9f9f9 !important;
+  }
+
+  .print\:border-gray-300 {
+    border-color: #d1d5db !important;
+  }
+
+  /* Text styling for print */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: #000 !important;
+  }
+
+  p {
+    color: #333 !important;
+  }
+
+  /* Preserve red for receipt header */
+  .from-crimson-red {
+    background-image: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+    color: white !important;
+  }
+
+  .text-red-100 {
+    color: rgba(255, 255, 255, 0.9) !important;
+  }
+}

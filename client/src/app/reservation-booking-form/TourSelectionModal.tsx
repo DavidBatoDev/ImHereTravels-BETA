@@ -267,9 +267,7 @@ export default function TourSelectionModal({
                                 src={pkg.coverImage}
                                 alt={pkg.name}
                                 className={`block w-full h-full object-cover object-center transition-all duration-500 ${
-                                  isSelected
-                                    ? "scale-105"
-                                    : "group-hover:scale-110"
+                                  isSelected ? "scale-105" : "group-hover:scale-110"
                                 }`}
                                 loading="eager"
                               />

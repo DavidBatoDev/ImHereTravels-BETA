@@ -34,6 +34,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import Receipt from "./Receipt";
 
 const Page = () => {
   const DEBUG = true;
@@ -45,6 +46,7 @@ const Page = () => {
   // Section 1 specific state
   const [birthdate, setBirthdate] = useState<string>("");
   const [nationality, setNationality] = useState("");
+  const [whatsAppNumber, setWhatsAppNumber] = useState("");
   const [bookingType, setBookingType] = useState("Single Booking");
   const [groupSize, setGroupSize] = useState<number>(3);
   const [tourPackage, setTourPackage] = useState(""); // will store package id
@@ -224,6 +226,7 @@ const Page = () => {
           lastName,
           birthdate,
           nationality,
+          whatsAppNumber,
         },
         booking: {
           type: bookingType,
@@ -296,6 +299,7 @@ const Page = () => {
             lastName,
             birthdate,
             nationality,
+            whatsAppNumber,
           },
           booking: {
             type: bookingType,
@@ -873,6 +877,10 @@ const Page = () => {
   const fieldSuccess = "border-green-500/50 bg-green-50/5";
   const fieldWithIcon = "pl-11";
 
+  const phoneRegex = /^[+]?[\d\s().-]{7,20}$/;
+  const isWhatsAppValid = (value: string) =>
+    value.trim().length > 0 && phoneRegex.test(value.trim());
+
   // Helper to check if field is valid
   const isFieldValid = (field: string, value: string) => {
     if (field === "email")
@@ -881,6 +889,7 @@ const Page = () => {
       return value.trim().length > 0;
     if (field === "birthdate") return value.length > 0;
     if (field === "nationality") return value.length > 0;
+    if (field === "whatsAppNumber") return isWhatsAppValid(value);
     return false;
   };
 
@@ -960,6 +969,7 @@ const Page = () => {
         "customer.lastName": lastName,
         "customer.birthdate": birthdate,
         "customer.nationality": nationality,
+        "customer.whatsAppNumber": whatsAppNumber,
         "booking.type": bookingType,
         "booking.groupSize":
           bookingType === "Group Booking"
@@ -1400,6 +1410,8 @@ const Page = () => {
                   setBirthdate(data.customer.birthdate);
                 if (data.customer?.nationality)
                   setNationality(data.customer.nationality);
+                if (data.customer?.whatsAppNumber)
+                  setWhatsAppNumber(data.customer.whatsAppNumber);
                 if (data.booking?.type) setBookingType(data.booking.type);
                 if (typeof data.booking?.groupSize === "number")
                   setGroupSize(data.booking.groupSize);
@@ -1479,6 +1491,8 @@ const Page = () => {
                 setBirthdate(data.customer.birthdate);
               if (data.customer?.nationality)
                 setNationality(data.customer.nationality);
+              if (data.customer?.whatsAppNumber)
+                setWhatsAppNumber(data.customer.whatsAppNumber);
               if (data.booking?.type) setBookingType(data.booking.type);
               if (typeof data.booking?.groupSize === "number")
                 setGroupSize(data.booking.groupSize);
@@ -1880,6 +1894,10 @@ const Page = () => {
     if (!firstName) e.firstName = "First name is required";
     if (!lastName) e.lastName = "Last name is required";
     if (!nationality) e.nationality = "Nationality is required";
+    if (!whatsAppNumber.trim())
+      e.whatsAppNumber = "WhatsApp number is required";
+    else if (!isWhatsAppValid(whatsAppNumber))
+      e.whatsAppNumber = "Enter a valid WhatsApp number";
     if (!bookingType) e.bookingType = "Booking type is required";
     if (!tourPackage) e.tourPackage = "Tour name is required";
     if (tourPackage && !tourDate) e.tourDate = "Tour date is required";
@@ -2298,6 +2316,8 @@ const Page = () => {
                     firstName &&
                     lastName &&
                     nationality &&
+                    whatsAppNumber &&
+                    isWhatsAppValid(whatsAppNumber) &&
                     bookingType &&
                     tourPackage &&
                     tourDate &&
@@ -2321,6 +2341,8 @@ const Page = () => {
                     !firstName ||
                     !lastName ||
                     !nationality ||
+                    !whatsAppNumber ||
+                    !isWhatsAppValid(whatsAppNumber) ||
                     !bookingType ||
                     !tourPackage ||
                     !tourDate ||
@@ -2339,6 +2361,8 @@ const Page = () => {
                     !firstName ||
                     !lastName ||
                     !nationality ||
+                    !whatsAppNumber ||
+                    !isWhatsAppValid(whatsAppNumber) ||
                     !bookingType ||
                     !tourPackage ||
                     !tourDate ||
@@ -2718,8 +2742,11 @@ const Page = () => {
                                           !highlightsExpanded
                                         );
                                       }}
-                                      className="absolute -top-2 -right-2 p-2 rounded-full bg-sunglow-yellow text-white shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 z-10"
+                                      className="absolute -top-2 -right-2 p-2 rounded-full bg-sunglow-yellow text-white shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 z-10 motion-safe:animate-[float_3s_ease-in-out_infinite] motion-safe:hover:animate-none"
                                       title="View tour highlights"
+                                      style={{
+                                        "--float-distance": "-4px",
+                                      } as React.CSSProperties}
                                     >
                                       <svg
                                         className="w-5 h-5"
@@ -3430,7 +3457,7 @@ const Page = () => {
                   </div>
 
                   {/* Nationality & Booking Type */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Nationality
@@ -3449,6 +3476,86 @@ const Page = () => {
                       {errors.nationality && (
                         <p className="mt-1 text-xs text-destructive">
                           {errors.nationality}
+                        </p>
+                      )}
+                    </label>
+
+                    <label className="block relative group">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        WhatsApp number
+                        <span className="text-destructive text-xs">*</span>
+                      </span>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l.894 2.683A1 1 0 0011.053 7h4.892a1 1 0 01.986 1.164l-.637 3.5a2 2 0 01-1.966 1.636H9.118a2 2 0 01-1.966-1.636L6.16 7H5a2 2 0 01-2-2zM7 16a2 2 0 100 4h8a2 2 0 100-4H7z"
+                            />
+                          </svg>
+                        </div>
+                        <input
+                          type="tel"
+                          name="whatsapp"
+                          autoComplete="tel"
+                          value={whatsAppNumber}
+                          onChange={(e) => setWhatsAppNumber(e.target.value)}
+                          placeholder="e.g. +44 7123 456789"
+                          className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
+                            !!errors.whatsAppNumber
+                          )} ${
+                            isFieldValid("whatsAppNumber", whatsAppNumber)
+                              ? "border-green-500"
+                              : ""
+                          } ${fieldFocus}`}
+                          aria-invalid={!!errors.whatsAppNumber}
+                          aria-describedby={
+                            errors.whatsAppNumber ? "whatsapp-error" : undefined
+                          }
+                          disabled={paymentConfirmed}
+                          inputMode="tel"
+                        />
+                        {isFieldValid("whatsAppNumber", whatsAppNumber) &&
+                          !errors.whatsAppNumber && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                              <svg
+                                className="w-5 h-5"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </div>
+                          )}
+                      </div>
+                      {errors.whatsAppNumber && (
+                        <p
+                          id="whatsapp-error"
+                          className="mt-1 text-xs text-destructive flex items-center gap-1"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          {errors.whatsAppNumber}
                         </p>
                       )}
                     </label>
@@ -4085,6 +4192,7 @@ const Page = () => {
                       setLastName("");
                       setBirthdate("");
                       setNationality("");
+                      setWhatsAppNumber("");
                       setBookingType("Single Booking");
                       setTourPackage("");
                       setTourDate("");
@@ -4125,6 +4233,8 @@ const Page = () => {
                     !firstName ||
                     !lastName ||
                     !nationality ||
+                    !whatsAppNumber ||
+                    !isWhatsAppValid(whatsAppNumber) ||
                     !bookingType ||
                     !tourPackage ||
                     !tourDate ||
@@ -4250,15 +4360,15 @@ const Page = () => {
               )}
 
               {step === 3 && bookingConfirmed && (
-                <div className="fixed inset-0 z-50 bg-background">
+                <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
                   {/* Animated gradient background */}
-                  <div className="absolute inset-0 z-0">
+                  <div className="absolute inset-0 z-0 print:hidden">
                     <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/5 via-sunglow-yellow/5 to-spring-green/5 dark:from-crimson-red/20 dark:via-creative-midnight/30 dark:to-spring-green/20 animate-gradient-shift bg-[length:200%_200%]" />
                   </div>
 
-                  <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-                    <div className="max-w-2xl w-full bg-card rounded-2xl shadow-xl p-8 border border-border">
-                      <div className="bg-spring-green/10 border border-spring-green/30 p-6 rounded-lg mb-6">
+                  <div className="relative z-10 flex justify-center py-8 px-4">
+                    <div className="max-w-2xl w-full bg-card rounded-2xl shadow-xl p-8 border border-border print:shadow-none print:border-0 print:rounded-none print:bg-white print:p-0">
+                      <div className="bg-spring-green/10 border border-spring-green/30 p-6 rounded-lg mb-6 print:hidden print:mb-0 print:border-spring-green/10 print:bg-green-50">
                         <div className="flex items-start gap-3">
                           <svg
                             className="h-8 w-8 text-spring-green flex-shrink-0 mt-0.5"
@@ -4274,10 +4384,37 @@ const Page = () => {
                             />
                           </svg>
                           <div className="flex-1">
-                            <h2 className="text-2xl font-bold text-foreground mb-2">
+                            <h2 className="text-2xl font-bold text-foreground print:text-black mb-2">
                               Booking Confirmed!
                             </h2>
-                            <p className="text-muted-foreground">
+                            <p className="text-muted-foreground print:text-gray-600">
+                              You're all set for {selectedPackage?.name}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Print-only Booking Confirmed section for light mode */}
+                      <div className="hidden print:block bg-green-50 border-2 border-green-400 p-6 rounded-lg mb-6">
+                        <div className="flex items-start gap-3">
+                          <svg
+                            className="h-8 w-8 text-green-600 flex-shrink-0 mt-0.5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <path
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                          <div className="flex-1">
+                            <h2 className="text-2xl font-bold text-black mb-2">
+                              Booking Confirmed!
+                            </h2>
+                            <p className="text-gray-600">
                               You're all set for {selectedPackage?.name}
                             </p>
                           </div>
@@ -4285,7 +4422,7 @@ const Page = () => {
                       </div>
 
                       {/* Booking Details */}
-                      <div className="bg-muted/30 rounded-lg p-6 mb-6">
+                      <div className="bg-muted/30 rounded-lg p-6 mb-6 print:hidden">
                         <h3 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wide">
                           Booking Details
                         </h3>
@@ -4335,8 +4472,29 @@ const Page = () => {
                         </div>
                       </div>
 
-                      {/* What's Next */}
+                      {/* Divider - hidden on print, replaced with light mode version */}
+                      <div className="my-8 border-t-2 border-border print:hidden"></div>
+                      <div className="hidden print:block my-6 border-t-2 border-gray-300"></div>
+
+                      {/* Receipt - shown on screen and in print */}
                       <div className="mb-6">
+                        <Receipt
+                          bookingId={bookingId}
+                          tourName={selectedPackage?.name || "Tour"}
+                          reservationFee={depositAmount}
+                          currency="GBP"
+                          email={email}
+                          travelDate={tourDate}
+                          paymentDate={new Date().toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        />
+                      </div>
+
+                      {/* What's Next */}
+                      <div className="mb-6 print:hidden">
                         <h3 className="text-lg font-semibold text-foreground mb-4">
                           What's Next?
                         </h3>
@@ -4414,7 +4572,7 @@ const Page = () => {
                       {/* Action Button */}
                       <button
                         onClick={() => window.print()}
-                        className="w-full px-6 py-3 border-2 border-border bg-card text-foreground font-medium rounded-lg hover:bg-muted/50 transition-colors"
+                        className="w-full px-6 py-3 border-2 border-border bg-card text-foreground font-medium rounded-lg hover:bg-muted/50 transition-colors print:hidden"
                       >
                         Print Confirmation
                       </button>
