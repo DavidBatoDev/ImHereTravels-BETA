@@ -35,6 +35,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import BookingConfirmationDocument from "./BookingConfirmationDocument";
+import Receipt from "./Receipt";
+import jsPDF from "jspdf";
+import { generateBookingConfirmationPDF } from './generatePdf';
 
 const Page = () => {
   const DEBUG = true;
@@ -46,6 +49,7 @@ const Page = () => {
   // Section 1 specific state
   const [birthdate, setBirthdate] = useState<string>("");
   const [nationality, setNationality] = useState("");
+  const [whatsAppNumber, setWhatsAppNumber] = useState("");
   const [bookingType, setBookingType] = useState("Single Booking");
   const [groupSize, setGroupSize] = useState<number>(3);
   const [tourPackage, setTourPackage] = useState(""); // will store package id
@@ -356,7 +360,7 @@ const Page = () => {
         limit(5)
       );
       const snap = await getDocs(q);
-      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
       // Try to reuse an existing payment intent for the same tour (avoid creating new intents)
       const matching = docs.find(
         (d) => d?.tour?.packageName === (selectedPackage?.name || "")
@@ -366,6 +370,8 @@ const Page = () => {
         // If already paid/confirmed, take user to confirmation
         if (paymentStatus === "reserve_paid" || paymentStatus === "terms_selected") {
           setPaymentDocId(matching.id);
+           if (matching.bookingId) setBookingId(matching.bookingId);
+           if (matching.booking?.id && matching.booking.id !== "PENDING") setBookingId(matching.booking.id);
           setPaymentConfirmed(true);
           setStep(3);
           if (!completedSteps.includes(1)) {
@@ -2059,21 +2065,36 @@ const Page = () => {
           plan.id === selectedPaymentPlan || plan.type === selectedPaymentPlan
       );
 
-      // Find the payment document by bookingId
+      // Find the payment document by bookingId or paymentDocId
       const { collection, query, where, getDocs } = await import(
         "firebase/firestore"
       );
 
       const paymentsRef = collection(db, "stripePayments");
-      const q = query(paymentsRef, where("booking.id", "==", bookingId));
-      const querySnapshot = await getDocs(q);
+      let q: any;
+      
+      // If bookingId exists, use it; otherwise try paymentDocId
+      if (bookingId) {
+        q = query(paymentsRef, where("booking.id", "==", bookingId));
+      } else if (paymentDocId) {
+        // If paymentDocId exists, we can use it directly below
+        console.log("📝 Using paymentDocId directly:", paymentDocId);
+      } else {
+        throw new Error("No booking or payment document found. Please complete payment first.");
+      }
+      
+      const querySnapshot = bookingId ? await getDocs(q) : { empty: false, docs: [] };
 
-      if (!querySnapshot.empty) {
-        const paymentDoc = querySnapshot.docs[0];
-        const paymentDocId = paymentDoc.id;
+      if (!querySnapshot.empty || paymentDocId) {
+        const paymentDocIdToUse = paymentDocId || (querySnapshot.docs.length > 0 ? querySnapshot.docs[0].id : null);
+        
+        if (!paymentDocIdToUse) {
+          throw new Error("Payment document ID not found");
+        }
+        
         console.log(
           "📝 Updating booking with payment plan via API:",
-          paymentDocId
+          paymentDocIdToUse
         );
 
         // Call the select-plan API to update both stripePayments and bookings
@@ -2083,7 +2104,7 @@ const Page = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            paymentDocId: paymentDocId,
+            paymentDocId: paymentDocIdToUse,
             selectedPaymentPlan: paymentPlanToSend,
             paymentPlanDetails: selectedPlan || null,
           }),
@@ -2152,11 +2173,7 @@ const Page = () => {
 
         setBookingConfirmed(true);
       } else {
-        console.error(
-          "❌ Payment document not found for bookingId:",
-          bookingId
-        );
-        alert("Error: Could not find your booking. Please contact support.");
+        throw new Error("Payment document not found. Please complete payment first.");
       }
     } catch (error) {
       console.error("❌ Error confirming booking:", error);
@@ -4338,14 +4355,25 @@ const Page = () => {
               )}
 
               {step === 3 && bookingConfirmed && (
-                <div className="fixed inset-0 z-50 bg-background">
+                <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
                   {/* Animated gradient background */}
                   <div className="absolute inset-0 z-0">
                     <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/5 via-sunglow-yellow/5 to-spring-green/5 dark:from-crimson-red/20 dark:via-creative-midnight/30 dark:to-spring-green/20 animate-gradient-shift bg-[length:200%_200%]" />
                   </div>
 
-                  {/* Print-only: Professional Document */}
-                  <div className="hidden print:block">
+                  {/* Offscreen: Document for PDF generation (must be renderable, not display:none) */}
+                  <div
+                    id="booking-confirmation-doc"
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: "-99999px",
+                      opacity: 0,
+                      pointerEvents: "none",
+                      width: "100%",
+                    }}
+                  >
                     <BookingConfirmationDocument
                       bookingId={bookingId}
                       tourName={selectedPackage?.name || "Tour"}
@@ -4596,10 +4624,32 @@ const Page = () => {
 
                       {/* Action Button */}
                       <button
-                        onClick={() => window.print()}
-                        className="w-full px-6 py-3 border-2 border-border bg-card text-foreground font-medium rounded-lg hover:bg-muted/50 transition-colors"
+                        onClick={async () => {
+                          const confirmationId = bookingId ?? paymentDocId ?? 'pending-booking';
+                          try {
+                            const pdf = generateBookingConfirmationPDF(
+                              confirmationId,
+                              selectedPackage?.name || 'Tour',
+                              tourDate,
+                              email,
+                              firstName,
+                              lastName,
+                              paymentTerms.find((p) => p.id === selectedPaymentPlan)?.name || 'Selected Plan',
+                              depositAmount,
+                              selectedPackage?.price || 0,
+                              (selectedPackage?.price || 0) - depositAmount,
+                              new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                              'GBP'
+                            );
+                            pdf.save(`booking-confirmation-${confirmationId}.pdf`);
+                          } catch (error) {
+                            console.error('Error generating PDF:', error);
+                            alert('Failed to generate PDF. Please try again.');
+                          }
+                        }}
+                        className="mt-4 w-full px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition"
                       >
-                        Print Confirmation
+                        Download Receipt
                       </button>
                     </div>
                   </div>
@@ -4672,3 +4722,4 @@ export default function ReservationBookingFormPage() {
     </Suspense>
   );
 }
+

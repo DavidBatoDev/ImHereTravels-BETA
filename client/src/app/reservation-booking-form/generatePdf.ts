@@ -1,0 +1,315 @@
+import jsPDF from "jspdf";
+
+export function generateBookingConfirmationPDF(
+  bookingId: string,
+  tourName: string,
+  tourDate: string,
+  email: string,
+  firstName: string,
+  lastName: string,
+  paymentPlan: string,
+  reservationFee: number,
+  totalAmount: number,
+  remainingBalance: number,
+  paymentDate: string,
+  currency: string = "GBP"
+) {
+  const currencySymbol = currency === "GBP" ? "£" : currency === "EUR" ? "€" : "$";
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  let yPosition = 15;
+
+  // Set font
+  pdf.setFont("helvetica", "normal");
+
+  // PAGE 1: BOOKING CONFIRMATION
+  // Header
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(18);
+  pdf.setTextColor(239, 51, 64); // Crimson red
+  pdf.text("❤️ I'm Here Travels", 15, yPosition);
+
+  // Right-aligned header info
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  pdf.setTextColor(100, 100, 100);
+  pdf.text("BOOKING CONFIRMATION", pageWidth - 15, yPosition, { align: "right" });
+
+  yPosition += 5;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(11);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(bookingId, pageWidth - 15, yPosition, { align: "right" });
+
+  yPosition += 5;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text(paymentDate, pageWidth - 15, yPosition, { align: "right" });
+
+  // Divider line
+  yPosition += 8;
+  pdf.setDrawColor(229, 231, 235);
+  pdf.line(15, yPosition, pageWidth - 15, yPosition);
+
+  // Confirmation Message
+  yPosition += 10;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(16);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text("✅ Booking Confirmed!", 15, yPosition);
+
+  yPosition += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(11);
+  pdf.setTextColor(51, 51, 51);
+  pdf.text(`You're all set for ${tourName}`, 15, yPosition);
+
+  // Customer Information Section
+  yPosition += 12;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text("CUSTOMER INFORMATION", 15, yPosition);
+
+  yPosition += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text("Name:", 15, yPosition);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(`${firstName} ${lastName}`, 50, yPosition);
+
+  yPosition += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(102, 102, 102);
+  pdf.text("Email:", 15, yPosition);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(email, 50, yPosition);
+
+  // Booking Details Section
+  yPosition += 12;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text("BOOKING DETAILS", 15, yPosition);
+
+  yPosition += 6;
+  const details = [
+    { label: "Booking ID", value: bookingId },
+    { label: "Tour", value: tourName },
+    { label: "Travel Date", value: tourDate },
+    { label: "Payment Plan", value: paymentPlan },
+  ];
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  details.forEach((item) => {
+    pdf.setTextColor(102, 102, 102);
+    pdf.text(item.label + ":", 15, yPosition);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(item.value, 70, yPosition);
+    yPosition += 6;
+  });
+
+  // Payment Summary Section
+  yPosition += 6;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text("PAYMENT SUMMARY", 15, yPosition);
+
+  yPosition += 6;
+  const summary = [
+    { label: "Tour Cost", value: `${currencySymbol}${totalAmount.toFixed(2)}` },
+    {
+      label: "Reservation Fee Paid",
+      value: `-${currencySymbol}${reservationFee.toFixed(2)}`,
+    },
+  ];
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  summary.forEach((item) => {
+    pdf.setTextColor(102, 102, 102);
+    pdf.text(item.label + ":", 15, yPosition);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(item.value, 70, yPosition);
+    yPosition += 6;
+  });
+
+  yPosition += 3;
+  pdf.setDrawColor(209, 213, 219);
+  pdf.line(15, yPosition, pageWidth - 15, yPosition);
+
+  yPosition += 6;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(11);
+  pdf.setTextColor(239, 51, 64);
+  pdf.text("Remaining Balance:", 15, yPosition);
+  pdf.text(`${currencySymbol}${remainingBalance.toFixed(2)}`, pageWidth - 15, yPosition, {
+    align: "right",
+  });
+
+  // Footer
+  yPosition = pageHeight - 20;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text(
+    "Thank you for choosing I'm Here Travels for your adventure!",
+    pageWidth / 2,
+    yPosition,
+    { align: "center" }
+  );
+
+  yPosition += 5;
+  pdf.text(
+    "Questions? Contact us at support@imheretravels.com",
+    pageWidth / 2,
+    yPosition,
+    { align: "center" }
+  );
+
+  // PAGE 2: RECEIPT
+  pdf.addPage();
+  yPosition = 15;
+
+  // Header
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(18);
+  pdf.setTextColor(239, 51, 64);
+  pdf.text("❤️ I'm Here Travels", 15, yPosition);
+
+  // Right-aligned header info
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  pdf.setTextColor(100, 100, 100);
+  pdf.text("PAYMENT RECEIPT", pageWidth - 15, yPosition, { align: "right" });
+
+  yPosition += 5;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(11);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(bookingId, pageWidth - 15, yPosition, { align: "right" });
+
+  yPosition += 5;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text(paymentDate, pageWidth - 15, yPosition, { align: "right" });
+
+  // Divider line
+  yPosition += 8;
+  pdf.setDrawColor(229, 231, 235);
+  pdf.line(15, yPosition, pageWidth - 15, yPosition);
+
+  // Receipt Banner
+  yPosition += 10;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(16);
+  pdf.setTextColor(239, 51, 64);
+  pdf.text("RECEIPT", 15, yPosition);
+
+  yPosition += 5;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  pdf.setTextColor(100, 100, 100);
+  pdf.text("from I'm Here Travels", 15, yPosition);
+
+  yPosition += 8;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text("Receipt #: " + bookingId, pageWidth - 15, yPosition - 5, { align: "right" });
+
+  // Amount Paid Section
+  yPosition += 12;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text("AMOUNT PAID", 15, yPosition);
+
+  yPosition += 8;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(24);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(
+    `${currencySymbol}${reservationFee.toFixed(2)}`,
+    15,
+    yPosition
+  );
+
+  yPosition += 10;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text("Date Paid:", 15, yPosition);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(paymentDate, 70, yPosition);
+
+  // Summary Section
+  yPosition += 12;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text("SUMMARY", 15, yPosition);
+
+  yPosition += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text("Pay Balance Instalment:", 15, yPosition);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(`${currencySymbol}${reservationFee.toFixed(2)}`, 70, yPosition);
+
+  // Booking Details Section
+  yPosition += 12;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text("BOOKING DETAILS", 15, yPosition);
+
+  yPosition += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  details.forEach((item) => {
+    pdf.setTextColor(102, 102, 102);
+    pdf.text(item.label + ":", 15, yPosition);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(item.value, 70, yPosition);
+    yPosition += 6;
+  });
+
+  // Footer
+  yPosition = pageHeight - 20;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
+  pdf.setTextColor(102, 102, 102);
+  pdf.text(
+    "This receipt confirms your payment for the reservation fee.",
+    pageWidth / 2,
+    yPosition,
+    { align: "center" }
+  );
+
+  yPosition += 4;
+  pdf.text("Please keep this for your records.", pageWidth / 2, yPosition, {
+    align: "center",
+  });
+
+  yPosition += 4;
+  pdf.text("Questions? Contact us at support@imheretravels.com", pageWidth / 2, yPosition, {
+    align: "center",
+  });
+
+  return pdf;
+}
