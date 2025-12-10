@@ -80,6 +80,11 @@ const PAYMENT_REMINDER_COLUMNS: SheetColumn[] = [
     dataType: "DATE",
   },
   {
+    id: "p1ScheduledReminderLink",
+    columnName: "P1 Scheduled Reminder Link",
+    dataType: "TEXT",
+  },
+  {
     id: "p1ScheduledEmailLink",
     columnName: "P1 Scheduled Email Link",
     dataType: "TEXT",
@@ -101,6 +106,11 @@ const PAYMENT_REMINDER_COLUMNS: SheetColumn[] = [
     id: "p2ScheduledReminderDate",
     columnName: "P2 Scheduled Reminder Date",
     dataType: "DATE",
+  },
+  {
+    id: "p2ScheduledReminderLink",
+    columnName: "P2 Scheduled Reminder Link",
+    dataType: "TEXT",
   },
   {
     id: "p2ScheduledEmailLink",
@@ -126,6 +136,11 @@ const PAYMENT_REMINDER_COLUMNS: SheetColumn[] = [
     dataType: "DATE",
   },
   {
+    id: "p3ScheduledReminderLink",
+    columnName: "P3 Scheduled Reminder Link",
+    dataType: "TEXT",
+  },
+  {
     id: "p3ScheduledEmailLink",
     columnName: "P3 Scheduled Email Link",
     dataType: "TEXT",
@@ -147,6 +162,11 @@ const PAYMENT_REMINDER_COLUMNS: SheetColumn[] = [
     id: "p4ScheduledReminderDate",
     columnName: "P4 Scheduled Reminder Date",
     dataType: "DATE",
+  },
+  {
+    id: "p4ScheduledReminderLink",
+    columnName: "P4 Scheduled Reminder Link",
+    dataType: "TEXT",
   },
   {
     id: "p4ScheduledEmailLink",
@@ -500,12 +520,21 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
               `${term} Calendar Event ID`,
               PAYMENT_REMINDER_COLUMNS
             );
+            const calendarEventLink = getColumnValue(
+              booking,
+              `${term} Calendar Event Link`,
+              PAYMENT_REMINDER_COLUMNS
+            );
 
             // Skip if calendar event already exists or no due date
-            if (!dueDateRaw || calendarEventId) {
+            if (!dueDateRaw || calendarEventId || calendarEventLink) {
               logger.info(
                 `Skipping calendar event for ${term} - ${
-                  calendarEventId ? "already exists" : "no due date"
+                  calendarEventId
+                    ? "already exists"
+                    : calendarEventLink
+                    ? "link already provided"
+                    : "no due date"
                 }`
               );
               continue;
@@ -654,8 +683,36 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
       const terms = getApplicableTerms(paymentPlan);
       logger.info(`Terms to process: ${terms.join(", ")}`);
 
+      const scheduledEmailCreatedTerms: string[] = [];
+
       for (const term of terms) {
         try {
+          const scheduledEmailLink =
+            getColumnValue(
+              booking,
+              `${term} Scheduled Email Link`,
+              PAYMENT_REMINDER_COLUMNS
+            ) || booking?.[`${term.toLowerCase()}ScheduledEmailLink`];
+
+          const scheduledReminderLink =
+            getColumnValue(
+              booking,
+              `${term} Scheduled Reminder Link`,
+              PAYMENT_REMINDER_COLUMNS
+            ) || booking?.[`${term.toLowerCase()}ScheduledReminderLink`];
+
+          if (scheduledEmailLink || scheduledReminderLink) {
+            logger.info(
+              `Scheduled email already exists for ${term}, skipping`,
+              {
+                reason: scheduledEmailLink
+                  ? "scheduledEmailLink present"
+                  : "scheduledReminderLink present",
+              }
+            );
+            continue;
+          }
+
           // Check if scheduled reminder date exists
           const scheduledReminderDate = getColumnValue(
             booking,
@@ -665,18 +722,6 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
 
           if (!scheduledReminderDate) {
             logger.info(`No scheduled reminder date for ${term}, skipping`);
-            continue;
-          }
-
-          // Check if scheduled email already exists
-          const scheduledEmailLink = getColumnValue(
-            booking,
-            `${term} Scheduled Email Link`,
-            PAYMENT_REMINDER_COLUMNS
-          );
-
-          if (scheduledEmailLink) {
-            logger.info(`Scheduled email already exists for ${term}, skipping`);
             continue;
           }
 
@@ -876,6 +921,8 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             `✅ Created scheduled email for ${term}: ${scheduledEmailDoc.id}`
           );
 
+          scheduledEmailCreatedTerms.push(term);
+
           // Update booking with scheduled email document ID
           const scheduledEmailLinkCol = PAYMENT_REMINDER_COLUMNS.find(
             (col) => col.columnName === `${term} Scheduled Email Link`
@@ -897,35 +944,51 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
       logger.info("✅ Payment reminder setup completed successfully");
 
       // Create notification for payment reminder setup
-      try {
-        const termsCreated = terms.join(", ");
+      const allScheduledCreated =
+        scheduledEmailCreatedTerms.length === terms.length;
 
-        await db.collection("notifications").add({
-          type: "payment_reminder_created",
-          title: "Payment Reminders Scheduled",
-          body: `Payment reminders scheduled for ${fullName || "customer"} - ${
-            tourPackage || "Tour"
-          } (${termsCreated})`,
-          data: {
-            bookingId:
-              getColumnValue(booking, "Booking ID", PAYMENT_REMINDER_COLUMNS) ||
-              bookingId,
-            bookingDocumentId: bookingId,
-            travelerName: fullName || "",
-            tourPackageName: tourPackage || "",
-            paymentPlan,
-            termsCount: terms.length,
-          },
-          targetType: "global",
-          targetUserIds: [],
-          createdAt: new Date(),
-          readBy: {},
-        });
+      if (!allScheduledCreated) {
+        logger.info(
+          "Skipping notification - not all scheduled reminders were created",
+          {
+            created: scheduledEmailCreatedTerms,
+            expected: terms,
+          }
+        );
+      } else {
+        try {
+          const termsCreated = terms.join(", ");
 
-        logger.info("✅ Notification created for payment reminder setup");
-      } catch (notificationError) {
-        logger.warn("Failed to create notification:", notificationError);
-        // Fail silently - don't block the reminder setup
+          await db.collection("notifications").add({
+            type: "payment_reminder_created",
+            title: "Payment Reminders Scheduled",
+            body: `Payment reminders scheduled for ${
+              fullName || "customer"
+            } - ${tourPackage || "Tour"} (${termsCreated})`,
+            data: {
+              bookingId:
+                getColumnValue(
+                  booking,
+                  "Booking ID",
+                  PAYMENT_REMINDER_COLUMNS
+                ) || bookingId,
+              bookingDocumentId: bookingId,
+              travelerName: fullName || "",
+              tourPackageName: tourPackage || "",
+              paymentPlan,
+              termsCount: terms.length,
+            },
+            targetType: "global",
+            targetUserIds: [],
+            createdAt: new Date(),
+            readBy: {},
+          });
+
+          logger.info("✅ Notification created for payment reminder setup");
+        } catch (notificationError) {
+          logger.warn("Failed to create notification:", notificationError);
+          // Fail silently - don't block the reminder setup
+        }
       }
     } catch (error) {
       logger.error("❌ Error in payment reminder trigger:", error);
