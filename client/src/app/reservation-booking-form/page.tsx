@@ -34,6 +34,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import BookingConfirmationDocument from "./BookingConfirmationDocument";
 
 const Page = () => {
   const DEBUG = true;
@@ -341,6 +342,7 @@ const Page = () => {
       } catch (err) {
         console.debug("Failed to set paymentid query param:", err);
       }
+      setIsCreatingPayment(false);
       return;
     }
 
@@ -355,6 +357,91 @@ const Page = () => {
       );
       const snap = await getDocs(q);
       const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      // Try to reuse an existing payment intent for the same tour (avoid creating new intents)
+      const matching = docs.find(
+        (d) => d?.tour?.packageName === (selectedPackage?.name || "")
+      );
+      if (matching) {
+        const paymentStatus = matching?.payment?.status || matching?.status;
+        // If already paid/confirmed, take user to confirmation
+        if (paymentStatus === "reserve_paid" || paymentStatus === "terms_selected") {
+          setPaymentDocId(matching.id);
+          setPaymentConfirmed(true);
+          setStep(3);
+          if (!completedSteps.includes(1)) {
+            setCompletedSteps([...completedSteps, 1]);
+          }
+          try {
+            replaceWithPaymentId(matching.id);
+          } catch (err) {
+            console.debug("Failed to set paymentid query param for reused record:", err);
+          }
+          return;
+        }
+
+        // Reuse the pending intent: update with current form data then proceed to step 2
+        try {
+          const { updateDoc, doc } = await import("firebase/firestore");
+          await updateDoc(doc(db, "stripePayments", matching.id), {
+            customer: {
+              email,
+              firstName,
+              lastName,
+              birthdate,
+              nationality,
+              whatsAppNumber,
+            },
+            booking: {
+              type: bookingType,
+              groupSize:
+                bookingType === "Group Booking"
+                  ? groupSize
+                  : bookingType === "Duo Booking"
+                  ? 2
+                  : 1,
+              additionalGuests:
+                bookingType === "Duo Booking" || bookingType === "Group Booking"
+                  ? additionalGuests
+                  : [],
+              id: "PENDING",
+              documentId: "",
+            },
+            tour: {
+              packageId: tourPackage,
+              packageName: selectedPackage?.name || "",
+              date: tourDate,
+            },
+            payment: {
+              amount: depositAmount,
+              currency: "GBP",
+              status: "reserve_pending",
+              type: "reservationFee",
+            },
+            "timestamps.updatedAt": serverTimestamp(),
+          });
+          setPaymentDocId(matching.id);
+          sessionStorage.setItem(
+            `stripe_payment_doc_${email}_${tourPackage}`,
+            matching.id
+          );
+          try {
+            replaceWithPaymentId(matching.id);
+          } catch (err) {
+            console.debug("Failed to set paymentid query param for reused record:", err);
+          }
+          if (!completedSteps.includes(1)) {
+            setCompletedSteps([...completedSteps, 1]);
+          }
+          setStep(2);
+          setIsCreatingPayment(false);
+          setModalLoading(false);
+          return;
+        } catch (err) {
+          console.error("Failed to reuse existing payment:", err);
+          // fall through to new placeholder creation
+        }
+      }
+
       if (!docs || docs.length === 0) {
         // no existing records — create a new placeholder
         const id = await createPlaceholder();
@@ -2242,6 +2329,7 @@ const Page = () => {
                 type="button"
                 onClick={() => {
                   setStep(1);
+                  setPaymentConfirmed(false);
                 }}
                 className="flex items-center gap-1.5 sm:gap-2 transition-all duration-200 hover:opacity-80 cursor-pointer group"
               >
@@ -2288,10 +2376,7 @@ const Page = () => {
               <button
                 type="button"
                 onClick={() => {
-                  if (completedSteps.includes(2) || step === 2) {
-                    setStep(2);
-                  } else if (
-                    step === 1 &&
+                  if (
                     email &&
                     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
                     birthdate &&
@@ -2310,7 +2395,10 @@ const Page = () => {
                       )
                     )
                   ) {
-                    checkExistingPaymentsAndMaybeProceed();
+                    if (!completedSteps.includes(2)) {
+                      setCompletedSteps([...completedSteps, 2]);
+                    }
+                    setStep(2);
                   }
                 }}
                 disabled={
@@ -4256,9 +4344,33 @@ const Page = () => {
                     <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/5 via-sunglow-yellow/5 to-spring-green/5 dark:from-crimson-red/20 dark:via-creative-midnight/30 dark:to-spring-green/20 animate-gradient-shift bg-[length:200%_200%]" />
                   </div>
 
-                  <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+                  {/* Print-only: Professional Document */}
+                  <div className="hidden print:block">
+                    <BookingConfirmationDocument
+                      bookingId={bookingId}
+                      tourName={selectedPackage?.name || "Tour"}
+                      tourDate={tourDate}
+                      email={email}
+                      firstName={firstName}
+                      lastName={lastName}
+                      paymentPlan={
+                        paymentTerms.find((p) => p.id === selectedPaymentPlan)?.name || "Selected"
+                      }
+                      reservationFee={depositAmount}
+                      totalAmount={selectedPackage?.price || 0}
+                      remainingBalance={(selectedPackage?.price || 0) - depositAmount}
+                      paymentDate={new Date().toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                      currency="GBP"
+                    />
+                  </div>
+
+                  <div className="relative z-10 flex justify-center py-8 px-4 print:hidden">
                     <div className="max-w-2xl w-full bg-card rounded-2xl shadow-xl p-8 border border-border">
-                      <div className="bg-spring-green/10 border border-spring-green/30 p-6 rounded-lg mb-6">
+                      <div className="bg-spring-green/10 border border-spring-green/30 p-6 rounded-lg mb-6 print:hidden print:mb-0 print:border-spring-green/10 print:bg-green-50">
                         <div className="flex items-start gap-3">
                           <svg
                             className="h-8 w-8 text-spring-green flex-shrink-0 mt-0.5"
@@ -4284,8 +4396,59 @@ const Page = () => {
                         </div>
                       </div>
 
-                      {/* Booking Details */}
-                      <div className="bg-muted/30 rounded-lg p-6 mb-6">
+                      {/* Print-only Booking Details section */}
+                      <div className="hidden print:block bg-gray-50 rounded-lg p-6 mb-6">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wide">
+                          Booking Details
+                        </h3>
+                        <div className="space-y-3">
+                          <div className="flex justify-between py-2 border-b border-gray-300">
+                            <span className="text-sm text-gray-600">
+                              Booking ID
+                            </span>
+                            <span className="text-sm font-mono font-semibold text-gray-900">
+                              {bookingId}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2 border-b border-gray-300">
+                            <span className="text-sm text-gray-600">
+                              Tour
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {selectedPackage?.name}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2 border-b border-gray-300">
+                            <span className="text-sm text-gray-600">
+                              Travel Date
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {tourDate}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2 border-b border-gray-300">
+                            <span className="text-sm text-gray-600">
+                              Email
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {email}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span className="text-sm text-gray-600">
+                              Payment Plan
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {paymentTerms.find(
+                                (p) => p.id === selectedPaymentPlan
+                              )?.name || "Selected"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Booking Details - Screen only */}
+                      <div className="bg-muted/30 rounded-lg p-6 mb-6 print:hidden">
                         <h3 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wide">
                           Booking Details
                         </h3>
@@ -4333,6 +4496,26 @@ const Page = () => {
                             </span>
                           </div>
                         </div>
+                      </div>
+
+                      {/* Divider - hidden on print, replaced with light mode version */}
+                      <div className="my-8 border-t-2 border-border print:hidden"></div>
+
+                      {/* Receipt - shown on screen and in print */}
+                      <div className="mb-6 print:page-break-before">
+                        <Receipt
+                          bookingId={bookingId}
+                          tourName={selectedPackage?.name || "Tour"}
+                          reservationFee={depositAmount}
+                          currency="GBP"
+                          email={email}
+                          travelDate={tourDate}
+                          paymentDate={new Date().toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        />
                       </div>
 
                       {/* What's Next */}
