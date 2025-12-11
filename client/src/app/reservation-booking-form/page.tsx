@@ -38,6 +38,9 @@ import BookingConfirmationDocument from "./BookingConfirmationDocument";
 import Receipt from "./Receipt";
 import jsPDF from "jspdf";
 import { generateBookingConfirmationPDF } from './generatePdf';
+import 'react-phone-number-input/style.css';
+import PhoneInput, { isValidPhoneNumber, getCountries, getCountryCallingCode } from 'react-phone-number-input';
+import en from 'react-phone-number-input/locale/en';
 
 const Page = () => {
   const DEBUG = true;
@@ -50,6 +53,7 @@ const Page = () => {
   const [birthdate, setBirthdate] = useState<string>("");
   const [nationality, setNationality] = useState("");
   const [whatsAppNumber, setWhatsAppNumber] = useState("");
+  const [whatsAppCountry, setWhatsAppCountry] = useState("GB");
   const [bookingType, setBookingType] = useState("Single Booking");
   const [groupSize, setGroupSize] = useState<number>(3);
   const [tourPackage, setTourPackage] = useState(""); // will store package id
@@ -3277,7 +3281,7 @@ const Page = () => {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <label className="block relative group">
+                    <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Email address
                         <span className="text-destructive text-xs">*</span>
@@ -3355,7 +3359,7 @@ const Page = () => {
                       )}
                     </label>
 
-                    <label className="block relative group">
+                    <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Birthdate
                         <span className="text-destructive text-xs">*</span>
@@ -3485,43 +3489,28 @@ const Page = () => {
                           value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
                           placeholder="e.g. Johnson"
-                          className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
-                            !!errors.lastName
-                          )} ${
-                            isFieldValid("lastName", lastName)
-                              ? "border-green-500"
-                              : ""
+                          className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(!!errors.lastName)} ${
+                            isFieldValid("lastName", lastName) ? "border-green-500" : ""
                           } ${fieldFocus}`}
                           aria-invalid={!!errors.lastName}
-                          aria-describedby={
-                            errors.lastName ? "lastName-error" : undefined
-                          }
+                          aria-describedby={errors.lastName ? "lastName-error" : undefined}
                           disabled={paymentConfirmed}
                         />
-                        {isFieldValid("lastName", lastName) &&
-                          !errors.lastName && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
-                              <svg
-                                className="w-5 h-5"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </div>
-                          )}
+                        {isFieldValid("lastName", lastName) && !errors.lastName && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </div>
+                        )}
                       </div>
                       {errors.lastName && (
-                        <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
+                        <p id="lastName-error" className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                             <path
                               fillRule="evenodd"
                               d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
@@ -3534,7 +3523,7 @@ const Page = () => {
                     </label>
                   </div>
 
-                  {/* Nationality & Booking Type */}
+                  {/* Nationality & WhatsApp number */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -3558,7 +3547,110 @@ const Page = () => {
                       )}
                     </label>
 
-                    {/* Booking type */}
+                    <label className="block relative group">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        WhatsApp number
+                        <span className="text-destructive text-xs">*</span>
+                      </span>
+                      <div className="grid grid-cols-[140px_1fr] gap-2 mt-1">
+                        <Select
+                          value={whatsAppCountry}
+                          onChange={(code) => {
+                            setWhatsAppCountry(code);
+                            // Update phone number with new country code if there's a number
+                            if (whatsAppNumber) {
+                              const numberWithoutCode = whatsAppNumber.replace(/^\+\d+\s*/, '');
+                              const newCode = getCountryCallingCode(code as any);
+                              setWhatsAppNumber(`+${newCode}${numberWithoutCode}`);
+                            }
+                          }}
+                          options={getCountries().map(country => ({
+                            label: `${en[country]} (+${getCountryCallingCode(country as any)})`,
+                            value: country
+                          }))}
+                          placeholder="Country"
+                          ariaLabel="Country Code"
+                          disabled={paymentConfirmed}
+                          searchable
+                        />
+                        <div className={`w-full px-4 py-3 rounded-md bg-input border-2 transition-all duration-200 hover:shadow-sm ${
+                          errors.whatsAppNumber 
+                            ? 'border-destructive' 
+                            : whatsAppNumber && isValidPhoneNumber(whatsAppNumber)
+                            ? 'border-green-500 pr-12 hover:border-green-500'
+                            : 'border-border hover:border-primary/50'
+                        } focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20`}>
+                          <input
+                            type="tel"
+                            value={whatsAppNumber?.replace(/^\+\d+\s*/, '') || ''}
+                            onChange={(e) => {
+                              const number = e.target.value.replace(/[^0-9]/g, '');
+                              const countryCode = getCountryCallingCode(whatsAppCountry as any);
+                              const fullNumber = number ? `+${countryCode}${number}` : '';
+                              setWhatsAppNumber(fullNumber);
+                              setErrors((prev) => {
+                                const clone = { ...prev } as any;
+                                if (!fullNumber) {
+                                  clone.whatsAppNumber = "WhatsApp number is required";
+                                } else if (!isValidPhoneNumber(fullNumber)) {
+                                  clone.whatsAppNumber = "Enter a valid phone number";
+                                } else {
+                                  delete clone.whatsAppNumber;
+                                }
+                                return clone;
+                              });
+                            }}
+                            onBlur={() => {
+                              setErrors((prev) => {
+                                const clone = { ...prev } as any;
+                                if (!whatsAppNumber) {
+                                  clone.whatsAppNumber = "WhatsApp number is required";
+                                } else if (!isValidPhoneNumber(whatsAppNumber)) {
+                                  clone.whatsAppNumber = "Enter a valid phone number";
+                                } else {
+                                  delete clone.whatsAppNumber;
+                                }
+                                return clone;
+                              });
+                            }}
+                            disabled={paymentConfirmed}
+                            placeholder="e.g. 7123 456789"
+                            className="w-full bg-transparent border-none outline-none text-foreground"
+                          />
+                        </div>
+                      </div>
+                        {whatsAppNumber && isValidPhoneNumber(whatsAppNumber) && !errors.whatsAppNumber && (
+                          <div className="absolute right-3 top-[2.75rem] -translate-y-1/2 text-green-500 pointer-events-none">
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      {!!errors.whatsAppNumber && (
+                        <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          {errors.whatsAppNumber}
+                        </p>
+                      )}
+                    </label>
+                  </div>
+
+                  {/* Booking type */}
+                  <div className="grid grid-cols-1 gap-6">
                     <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Booking type
@@ -4229,6 +4321,8 @@ const Page = () => {
                     !birthdate ||
                     !firstName ||
                     !lastName ||
+                    !whatsAppNumber ||
+                    (whatsAppNumber && !isValidPhoneNumber(whatsAppNumber)) ||
                     !nationality ||
                     !bookingType ||
                     !tourPackage ||
