@@ -7,7 +7,8 @@ export type Option = {
   label: string;
   value: string;
   disabled?: boolean;
-  description?: string; // small helper text under label
+  description?: string;
+  searchValue?: string; // custom search text for robust matching
 };
 
 type Props = {
@@ -40,7 +41,10 @@ export default function Select({
 
   const selected = options.find(o => o.value === value) ?? null;
   const filtered = searchable
-    ? options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
+    ? options.filter(o => {
+        const searchText = o.searchValue || o.label;
+        return searchText.toLowerCase().includes(query.toLowerCase());
+      })
     : options;
 
   const [placement, setPlacement] = React.useState<"down" | "up">("down");

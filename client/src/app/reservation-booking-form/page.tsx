@@ -41,6 +41,76 @@ import { generateBookingConfirmationPDF } from './generatePdf';
 import 'react-phone-number-input/style.css';
 import PhoneInput, { isValidPhoneNumber, getCountries, getCountryCallingCode } from 'react-phone-number-input';
 import en from 'react-phone-number-input/locale/en';
+import type { Country } from 'react-phone-number-input';
+
+// Country data with Alpha-3 codes and phone number max lengths
+const countryData: Record<string, { alpha3: string; flag: string; maxLength: number }> = {
+  'US': { alpha3: 'USA', flag: '\uD83C\uDDFA\uD83C\uDDF8', maxLength: 10 },
+  'GB': { alpha3: 'GBR', flag: '\uD83C\uDDEC\uD83C\uDDE7', maxLength: 10 },
+  'PH': { alpha3: 'PHL', flag: '\uD83C\uDDF5\uD83C\uDDED', maxLength: 10 },
+  'JP': { alpha3: 'JPN', flag: '\uD83C\uDDEF\uD83C\uDDF5', maxLength: 10 },
+  'CN': { alpha3: 'CHN', flag: '\uD83C\uDDE8\uD83C\uDDF3', maxLength: 11 },
+  'IN': { alpha3: 'IND', flag: '\uD83C\uDDEE\uD83C\uDDF3', maxLength: 10 },
+  'AU': { alpha3: 'AUS', flag: '\uD83C\uDDE6\uD83C\uDDFA', maxLength: 9 },
+  'CA': { alpha3: 'CAN', flag: '\uD83C\uDDE8\uD83C\uDDE6', maxLength: 10 },
+  'DE': { alpha3: 'DEU', flag: '\uD83C\uDDE9\uD83C\uDDEA', maxLength: 11 },
+  'FR': { alpha3: 'FRA', flag: '\uD83C\uDDEB\uD83C\uDDF7', maxLength: 9 },
+  'IT': { alpha3: 'ITA', flag: '\uD83C\uDDEE\uD83C\uDDF9', maxLength: 10 },
+  'ES': { alpha3: 'ESP', flag: '\uD83C\uDDEA\uD83C\uDDF8', maxLength: 9 },
+  'BR': { alpha3: 'BRA', flag: '\uD83C\uDDE7\uD83C\uDDF7', maxLength: 11 },
+  'MX': { alpha3: 'MEX', flag: '\uD83C\uDDF2\uD83C\uDDFD', maxLength: 10 },
+  'KR': { alpha3: 'KOR', flag: '\uD83C\uDDF0\uD83C\uDDF7', maxLength: 10 },
+  'SG': { alpha3: 'SGP', flag: '\uD83C\uDDF8\uD83C\uDDEC', maxLength: 8 },
+  'MY': { alpha3: 'MYS', flag: '\uD83C\uDDF2\uD83C\uDDFE', maxLength: 10 },
+  'TH': { alpha3: 'THA', flag: '\uD83C\uDDF9\uD83C\uDDED', maxLength: 9 },
+  'VN': { alpha3: 'VNM', flag: '\uD83C\uDDFB\uD83C\uDDF3', maxLength: 10 },
+  'ID': { alpha3: 'IDN', flag: '\uD83C\uDDEE\uD83C\uDDE9', maxLength: 11 },
+  'NZ': { alpha3: 'NZL', flag: '\uD83C\uDDF3\uD83C\uDDFF', maxLength: 9 },
+  'AE': { alpha3: 'ARE', flag: '\uD83C\uDDE6\uD83C\uDDEA', maxLength: 9 },
+  'SA': { alpha3: 'SAU', flag: '\uD83C\uDDF8\uD83C\uDDE6', maxLength: 9 },
+  'ZA': { alpha3: 'ZAF', flag: '\uD83C\uDDFF\uD83C\uDDE6', maxLength: 9 },
+  'RU': { alpha3: 'RUS', flag: '\uD83C\uDDF7\uD83C\uDDFA', maxLength: 10 },
+  'TR': { alpha3: 'TUR', flag: '\uD83C\uDDF9\uD83C\uDDF7', maxLength: 10 },
+  'NL': { alpha3: 'NLD', flag: '\uD83C\uDDF3\uD83C\uDDF1', maxLength: 9 },
+  'SE': { alpha3: 'SWE', flag: '\uD83C\uDDF8\uD83C\uDDEA', maxLength: 9 },
+  'CH': { alpha3: 'CHE', flag: '\uD83C\uDDE8\uD83C\uDDED', maxLength: 9 },
+  'PL': { alpha3: 'POL', flag: '\uD83C\uDDF5\uD83C\uDDF1', maxLength: 9 },
+  'BE': { alpha3: 'BEL', flag: '\uD83C\uDDE7\uD83C\uDDEA', maxLength: 9 },
+  'AT': { alpha3: 'AUT', flag: '\uD83C\uDDE6\uD83C\uDDF9', maxLength: 10 },
+  'NO': { alpha3: 'NOR', flag: '\uD83C\uDDF3\uD83C\uDDF4', maxLength: 8 },
+  'DK': { alpha3: 'DNK', flag: '\uD83C\uDDE9\uD83C\uDDF0', maxLength: 8 },
+  'FI': { alpha3: 'FIN', flag: '\uD83C\uDDEB\uD83C\uDDEE', maxLength: 9 },
+  'IE': { alpha3: 'IRL', flag: '\uD83C\uDDEE\uD83C\uDDEA', maxLength: 9 },
+  'PT': { alpha3: 'PRT', flag: '\uD83C\uDDF5\uD83C\uDDF9', maxLength: 9 },
+  'GR': { alpha3: 'GRC', flag: '\uD83C\uDDEC\uD83C\uDDF7', maxLength: 10 },
+  'CZ': { alpha3: 'CZE', flag: '\uD83C\uDDE8\uD83C\uDDFF', maxLength: 9 },
+  'HU': { alpha3: 'HUN', flag: '\uD83C\uDDED\uD83C\uDDFA', maxLength: 9 },
+  'RO': { alpha3: 'ROU', flag: '\uD83C\uDDF7\uD83C\uDDF4', maxLength: 9 },
+  'IL': { alpha3: 'ISR', flag: '\uD83C\uDDEE\uD83C\uDDF1', maxLength: 9 },
+  'EG': { alpha3: 'EGY', flag: '\uD83C\uDDEA\uD83C\uDDEC', maxLength: 10 },
+  'AR': { alpha3: 'ARG', flag: '\uD83C\uDDE6\uD83C\uDDF7', maxLength: 10 },
+  'CL': { alpha3: 'CHL', flag: '\uD83C\uDDE8\uD83C\uDDF1', maxLength: 9 },
+  'CO': { alpha3: 'COL', flag: '\uD83C\uDDE8\uD83C\uDDF4', maxLength: 10 },
+  'PE': { alpha3: 'PER', flag: '\uD83C\uDDF5\uD83C\uDDEA', maxLength: 9 },
+  'HK': { alpha3: 'HKG', flag: '\uD83C\uDDED\uD83C\uDDF0', maxLength: 8 },
+  'TW': { alpha3: 'TWN', flag: '\uD83C\uDDF9\uD83C\uDDFC', maxLength: 9 },
+  'PK': { alpha3: 'PAK', flag: '\uD83C\uDDF5\uD83C\uDDF0', maxLength: 10 },
+  'BD': { alpha3: 'BGD', flag: '\uD83C\uDDE7\uD83C\uDDE9', maxLength: 10 },
+  'NG': { alpha3: 'NGA', flag: '\uD83C\uDDF3\uD83C\uDDEC', maxLength: 10 },
+  'KE': { alpha3: 'KEN', flag: '\uD83C\uDDF0\uD83C\uDDEA', maxLength: 9 },
+  'UA': { alpha3: 'UKR', flag: '\uD83C\uDDFA\uD83C\uDDE6', maxLength: 9 },
+};
+
+// Helper to get country data
+const getCountryData = (countryCode: string) => {
+  return countryData[countryCode] || { 
+    alpha3: countryCode.toUpperCase(), 
+    flag: countryCode.toUpperCase().split('').map(char => 
+      String.fromCodePoint(127397 + char.charCodeAt(0))
+    ).join(''),
+    maxLength: 15 // default max length
+  };
+};
 
 const Page = () => {
   const DEBUG = true;
@@ -233,6 +303,7 @@ const Page = () => {
           lastName,
           birthdate,
           nationality,
+          whatsAppNumber: whatsAppNumber ? `+${getCountryCallingCode(whatsAppCountry as Country)}${whatsAppNumber}` : '',
         },
         booking: {
           type: bookingType,
@@ -305,6 +376,7 @@ const Page = () => {
             lastName,
             birthdate,
             nationality,
+            whatsAppNumber: whatsAppNumber ? `+${getCountryCallingCode(whatsAppCountry as Country)}${whatsAppNumber}` : '',
           },
           booking: {
             type: bookingType,
@@ -365,6 +437,39 @@ const Page = () => {
       );
       const snap = await getDocs(q);
       const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
+      // Detect any recently confirmed payment for this email (within last 48 hours)
+      const nowMs = Date.now();
+      const fortyEightHoursMs = 48 * 60 * 60 * 1000;
+      const recentConfirmed = docs.find((d) => {
+        const status = d?.payment?.status || d?.status;
+        const confirmedTs = d?.timestamps?.confirmedAt;
+        let confirmedMs = 0;
+        if (confirmedTs && typeof confirmedTs.toMillis === "function") {
+          confirmedMs = confirmedTs.toMillis();
+        }
+        const isConfirmedStatus = status === "reserve_paid" || status === "terms_selected" || status === "confirmed";
+        const isRecent = confirmedMs > 0 ? (nowMs - confirmedMs) <= fortyEightHoursMs : false;
+        return isConfirmedStatus && (isRecent || !confirmedMs);
+      });
+
+      if (recentConfirmed) {
+        // Reuse the confirmed record and advance to confirmation step
+        setPaymentDocId(recentConfirmed.id);
+        if (recentConfirmed.bookingId) setBookingId(recentConfirmed.bookingId);
+        if (recentConfirmed.booking?.id && recentConfirmed.booking.id !== "PENDING") setBookingId(recentConfirmed.booking.id);
+        setPaymentConfirmed(true);
+        setStep(3);
+        if (!completedSteps.includes(1)) {
+          setCompletedSteps([...completedSteps, 1]);
+        }
+        try {
+          replaceWithPaymentId(recentConfirmed.id);
+        } catch (err) {
+          console.debug("Failed to set paymentid query param for confirmed record:", err);
+        }
+        return;
+      }
+
       // Try to reuse an existing payment intent for the same tour (avoid creating new intents)
       const matching = docs.find(
         (d) => d?.tour?.packageName === (selectedPackage?.name || "")
@@ -372,7 +477,7 @@ const Page = () => {
       if (matching) {
         const paymentStatus = matching?.payment?.status || matching?.status;
         // If already paid/confirmed, take user to confirmation
-        if (paymentStatus === "reserve_paid" || paymentStatus === "terms_selected") {
+        if (paymentStatus === "reserve_paid" || paymentStatus === "terms_selected" || paymentStatus === "confirmed") {
           setPaymentDocId(matching.id);
            if (matching.bookingId) setBookingId(matching.bookingId);
            if (matching.booking?.id && matching.booking.id !== "PENDING") setBookingId(matching.booking.id);
@@ -399,7 +504,7 @@ const Page = () => {
               lastName,
               birthdate,
               nationality,
-              whatsAppNumber,
+              whatsAppNumber: whatsAppNumber ? `+${getCountryCallingCode(whatsAppCountry as Country)}${whatsAppNumber}` : '',
             },
             booking: {
               type: bookingType,
@@ -3547,89 +3652,102 @@ const Page = () => {
                       )}
                     </label>
 
-                    <label className="block relative group">
+                    <label className="block relative">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         WhatsApp number
                         <span className="text-destructive text-xs">*</span>
                       </span>
-                      <div className="grid grid-cols-[140px_1fr] gap-2 mt-1">
-                        <Select
-                          value={whatsAppCountry}
-                          onChange={(code) => {
-                            setWhatsAppCountry(code);
-                            // Update phone number with new country code if there's a number
-                            if (whatsAppNumber) {
-                              const numberWithoutCode = whatsAppNumber.replace(/^\+\d+\s*/, '');
-                              const newCode = getCountryCallingCode(code as any);
-                              setWhatsAppNumber(`+${newCode}${numberWithoutCode}`);
-                            }
-                          }}
-                          options={getCountries().map(country => ({
-                            label: `${en[country]} (+${getCountryCallingCode(country as any)})`,
-                            value: country
-                          }))}
-                          placeholder="Country"
-                          ariaLabel="Country Code"
-                          disabled={paymentConfirmed}
-                          searchable
-                        />
-                        <div className={`w-full px-4 py-3 rounded-md bg-input border-2 transition-all duration-200 hover:shadow-sm ${
-                          errors.whatsAppNumber 
-                            ? 'border-destructive' 
-                            : whatsAppNumber && isValidPhoneNumber(whatsAppNumber)
-                            ? 'border-green-500 pr-12 hover:border-green-500'
-                            : 'border-border hover:border-primary/50'
-                        } focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20`}>
-                          <input
-                            type="tel"
-                            value={whatsAppNumber?.replace(/^\+\d+\s*/, '') || ''}
-                            onChange={(e) => {
-                              const number = e.target.value.replace(/[^0-9]/g, '');
-                              const countryCode = getCountryCallingCode(whatsAppCountry as any);
-                              const fullNumber = number ? `+${countryCode}${number}` : '';
-                              setWhatsAppNumber(fullNumber);
-                              setErrors((prev) => {
-                                const clone = { ...prev } as any;
-                                if (!fullNumber) {
-                                  clone.whatsAppNumber = "WhatsApp number is required";
-                                } else if (!isValidPhoneNumber(fullNumber)) {
-                                  clone.whatsAppNumber = "Enter a valid phone number";
-                                } else {
-                                  delete clone.whatsAppNumber;
-                                }
-                                return clone;
-                              });
+                      <div className="relative mt-1">
+                        <div className="flex items-stretch gap-2">
+                          <Select
+                            value={whatsAppCountry}
+                            onChange={(code) => {
+                              setWhatsAppCountry(code);
+                              // Clear the number when country changes to avoid confusion
+                              setWhatsAppNumber('');
                             }}
-                            onBlur={() => {
-                              setErrors((prev) => {
-                                const clone = { ...prev } as any;
-                                if (!whatsAppNumber) {
-                                  clone.whatsAppNumber = "WhatsApp number is required";
-                                } else if (!isValidPhoneNumber(whatsAppNumber)) {
-                                  clone.whatsAppNumber = "Enter a valid phone number";
-                                } else {
-                                  delete clone.whatsAppNumber;
-                                }
-                                return clone;
-                              });
-                            }}
+                            options={getCountries().map(country => {
+                              const data = getCountryData(country);
+                              const callingCode = getCountryCallingCode(country as Country);
+                              const countryName = en[country] || country;
+                              return {
+                                label: `${data.flag} ${data.alpha3} (+${callingCode})`,
+                                value: country,
+                                searchValue: `${data.flag} ${data.alpha3} ${countryName} ${country} ${callingCode}`.toLowerCase()
+                              };
+                            })}
+                            placeholder="Country"
+                            ariaLabel="Country Code"
                             disabled={paymentConfirmed}
-                            placeholder="e.g. 7123 456789"
-                            className="w-full bg-transparent border-none outline-none text-foreground"
+                            searchable
+                            className="w-[160px] flex-shrink-0"
                           />
+                          <div className="flex-1 relative">
+                            <div className={`flex items-center w-full px-4 py-3 rounded-lg bg-input transition-all duration-200 shadow-sm border-2 ${
+                              errors.whatsAppNumber
+                                ? 'border-destructive'
+                                : whatsAppNumber && isValidPhoneNumber(`+${getCountryCallingCode(whatsAppCountry as Country)}${whatsAppNumber}`)
+                                ? 'border-green-500 bg-green-50/5'
+                                : 'border-border'
+                            } focus-within:outline-none focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-md hover:border-primary/50`}>
+                              <span className="text-muted-foreground mr-2 select-none">+{getCountryCallingCode(whatsAppCountry as Country)}</span>
+                              <input
+                                type="tel"
+                                value={whatsAppNumber}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(/[^0-9]/g, '');
+                                  const maxLen = getCountryData(whatsAppCountry).maxLength;
+                                  const limitedValue = value.slice(0, maxLen);
+                                  setWhatsAppNumber(limitedValue);
+                                  
+                                  // Real-time validation
+                                  const fullNumber = `+${getCountryCallingCode(whatsAppCountry as Country)}${limitedValue}`;
+                                  setErrors((prev) => {
+                                    const clone = { ...prev } as any;
+                                    if (!limitedValue.trim()) {
+                                      clone.whatsAppNumber = "WhatsApp number is required";
+                                    } else if (limitedValue.length > 2 && !isValidPhoneNumber(fullNumber)) {
+                                      clone.whatsAppNumber = "Enter a valid phone number";
+                                    } else if (isValidPhoneNumber(fullNumber)) {
+                                      delete clone.whatsAppNumber;
+                                    }
+                                    return clone;
+                                  });
+                                }}
+                                onBlur={() => {
+                                  const fullNumber = whatsAppNumber ? `+${getCountryCallingCode(whatsAppCountry as Country)}${whatsAppNumber}` : '';
+                                  setErrors((prev) => {
+                                    const clone = { ...prev } as any;
+                                    if (!whatsAppNumber) {
+                                      clone.whatsAppNumber = "WhatsApp number is required";
+                                    } else if (!isValidPhoneNumber(fullNumber)) {
+                                      clone.whatsAppNumber = "Enter a valid phone number";
+                                    } else {
+                                      delete clone.whatsAppNumber;
+                                    }
+                                    return clone;
+                                  });
+                                }}
+                                disabled={paymentConfirmed}
+                                placeholder="123 456 7890"
+                                maxLength={getCountryData(whatsAppCountry).maxLength}
+                                className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60"
+                              />
+                            </div>
+                            {whatsAppNumber && isValidPhoneNumber(`+${getCountryCallingCode(whatsAppCountry as Country)}${whatsAppNumber}`) && !errors.whatsAppNumber && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                        {whatsAppNumber && isValidPhoneNumber(whatsAppNumber) && !errors.whatsAppNumber && (
-                          <div className="absolute right-3 top-[2.75rem] -translate-y-1/2 text-green-500 pointer-events-none">
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </div>
-                        )}
                       {!!errors.whatsAppNumber && (
                         <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
                           <svg
@@ -4322,7 +4440,7 @@ const Page = () => {
                     !firstName ||
                     !lastName ||
                     !whatsAppNumber ||
-                    (whatsAppNumber && !isValidPhoneNumber(whatsAppNumber)) ||
+                    (whatsAppNumber && !isValidPhoneNumber(`+${getCountryCallingCode(whatsAppCountry as Country)}${whatsAppNumber}`)) ||
                     !nationality ||
                     !bookingType ||
                     !tourPackage ||
