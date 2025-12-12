@@ -36,7 +36,6 @@ import {
 } from "@/components/ui/dialog";
 import BookingConfirmationDocument from "./BookingConfirmationDocument";
 import Receipt from "./Receipt";
-import jsPDF from "jspdf";
 import { generateBookingConfirmationPDF } from './generatePdf';
 import 'react-phone-number-input/style.css';
 import PhoneInput, { isValidPhoneNumber, getCountries, getCountryCallingCode } from 'react-phone-number-input';
