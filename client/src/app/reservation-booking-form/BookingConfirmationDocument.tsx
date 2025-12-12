@@ -110,7 +110,7 @@ export default function BookingConfirmationDocument({
                   margin: "0 0 8px 0",
                 }}
               >
-                Booking Confirmed!
+                Reservation Confirmed!
               </h1>
               <p style={{ fontSize: "16px", color: "#333", margin: "0" }}>
                 You&apos;re all set for {tourName}
@@ -161,7 +161,7 @@ export default function BookingConfirmationDocument({
           </div>
         </div>
 
-        {/* Booking Details */}
+        {/* Reservation Details */}
         <div style={{ marginBottom: "32px" }}>
           <h2
             style={{
@@ -175,7 +175,7 @@ export default function BookingConfirmationDocument({
               margin: "0 0 16px 0",
             }}
           >
-            Booking Details
+            Reservation Details
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
@@ -186,7 +186,7 @@ export default function BookingConfirmationDocument({
                 borderBottom: "1px solid #e5e7eb",
               }}
             >
-              <span style={{ fontSize: "12px", color: "#666" }}>Booking ID</span>
+              <span style={{ fontSize: "12px", color: "#666" }}>Reservation ID</span>
               <span
                 style={{
                   fontSize: "12px",
@@ -438,7 +438,7 @@ export default function BookingConfirmationDocument({
           </div>
         </div>
 
-        {/* Booking Details on Receipt */}
+        {/* Reservation Details on Receipt */}
         <div style={{ marginBottom: "32px" }}>
           <h3
             style={{
@@ -452,7 +452,7 @@ export default function BookingConfirmationDocument({
               textTransform: "uppercase",
             }}
           >
-            Booking Details
+            Reservation Details
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
@@ -463,7 +463,7 @@ export default function BookingConfirmationDocument({
                 borderBottom: "1px solid #e5e7eb",
               }}
             >
-              <span style={{ fontSize: "12px", color: "#666" }}>Booking ID</span>
+              <span style={{ fontSize: "12px", color: "#666" }}>Reservation ID</span>
               <span
                 style={{
                   fontSize: "12px",

@@ -78,7 +78,7 @@ export function generateBookingConfirmationPDF(
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(16);
   pdf.setTextColor(239, 51, 64);
-  pdf.text("Booking Confirmed!", 15, yPosition);
+  pdf.text("Reservation Confirmed!", 15, yPosition);
 
   yPosition += 6;
   pdf.setFont("helvetica", "normal");
@@ -111,16 +111,16 @@ export function generateBookingConfirmationPDF(
   pdf.setTextColor(0, 0, 0);
   pdf.text(email, 50, yPosition);
 
-  // Booking Details Section
+  // Reservation Details Section
   yPosition += 12;
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(10);
   pdf.setTextColor(139, 139, 139);
-  pdf.text("Booking Details", 15, yPosition);
+  pdf.text("Reservation Details", 15, yPosition);
 
   yPosition += 6;
   const details = [
-    { label: "Booking ID", value: bookingId },
+    { label: "Reservation ID", value: bookingId },
     { label: "Tour", value: tourName },
     { label: "Travel Date", value: tourDate },
     { label: "Payment Plan", value: paymentPlan },
@@ -288,12 +288,12 @@ export function generateBookingConfirmationPDF(
   pdf.setTextColor(0, 0, 0);
   pdf.text(`${currencySymbol}${reservationFee.toFixed(2)}`, 70, yPosition);
 
-  // Booking Details Section
+  // Reservation Details Section
   yPosition += 12;
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(10);
-  pdf.setTextColor(102, 102, 102);
-  pdf.text("BOOKING DETAILS", 15, yPosition);
+  pdf.setTextColor(139, 139, 139);
+  pdf.text("Reservation Details", 15, yPosition);
 
   yPosition += 6;
   pdf.setFont("helvetica", "normal");

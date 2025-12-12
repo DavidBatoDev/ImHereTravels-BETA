@@ -37,7 +37,7 @@ export default function Receipt({
         </div>
       </div>
 
-      {/* Receipt Details - same styling as Booking Details */}
+      {/* Receipt Details - same styling as Reservation Details */}
       <div className="bg-muted/30 rounded-lg p-6 print:bg-gray-50 print:rounded-lg">
         {/* Amount Paid Section */}
         <div className="border-b border-border print:border-gray-300 pb-4 mb-4">
@@ -70,14 +70,14 @@ export default function Receipt({
           </div>
         </div>
 
-        {/* Booking Details */}
+        {/* Reservation Details */}
         <div>
           <h3 className="text-xs font-semibold text-muted-foreground print:text-gray-600 mb-3 uppercase tracking-wide">
-            Booking Details
+            Reservation Details
           </h3>
           <div className="space-y-3">
             <div className="flex justify-between py-2 border-b border-border print:border-gray-300">
-              <span className="text-sm text-muted-foreground print:text-gray-600">Booking ID</span>
+              <span className="text-sm text-muted-foreground print:text-gray-600">Reservation ID</span>
               <span className="text-sm font-mono font-semibold text-foreground print:text-gray-900">
                 {bookingId}
               </span>

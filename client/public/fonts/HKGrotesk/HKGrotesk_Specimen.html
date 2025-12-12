@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="refresh"
+        content="1; url='https://www.behance.net/gallery/28749913/HK-Grotesk-Open-Source-Typeface'" />
+    <style>
+        .meter {
+            height: 40px;
+            position: relative;
+            background: #f3efe6;
+            overflow: hidden;
+        }
+
+        .meter span {
+            display: block;
+            height: 100%;
+        }
+
+        .progress {
+            background-color: #68d3f3;
+            animation: progressBar 1s ease-in-out;
+            animation-fill-mode: both;
+        }
+
+        @keyframes progressBar {
+            0% {
+                width: 0;
+            }
+
+            100% {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body style="font-family: Arial, Helvetica, sans-serif;">
+    <div class="meter">
+        <span style="width:100%;"><span class="progress"></span></span>
+    </div>
+</body>
+
+</html>

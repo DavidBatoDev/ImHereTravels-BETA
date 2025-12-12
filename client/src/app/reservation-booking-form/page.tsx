@@ -2773,7 +2773,7 @@ const Page = () => {
           </div>
 
           <div className="space-y-6">
-            {/* STEP 1 - Personal & Booking Details */}
+            {/* STEP 1 - Personal & Reservation Details */}
             {step === 1 && (
               <div className="rounded-2xl bg-white dark:bg-card/80 dark:backdrop-blur-md p-6 sm:p-8 border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
                 {/* Show locked message if payment confirmed */}
@@ -3361,7 +3361,7 @@ const Page = () => {
                     </div>
                   </div>
 
-                  {/* Personal & Booking Details Section */}
+                  {/* Personal & Reservation Details Section */}
                   <div className="pt-6 border-t-2 border-border/30">
                     <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border/50">
                       <div className="p-4 bg-primary rounded-full rounded-br-none">
@@ -3380,7 +3380,7 @@ const Page = () => {
                         </svg>
                       </div>
                       <h3 className="text-xl font-bold text-foreground">
-                        Personal & Booking details
+                        Personal & Reservation details
                       </h3>
                     </div>
                   </div>
@@ -4100,7 +4100,7 @@ const Page = () => {
                           </div>
                           <div className="text-sm text-muted-foreground mt-1">
                             Once payment is complete, you won't be able to
-                            change your booking details. If you need to make
+                            change your reservation details. If you need to make
                             changes after payment, you can request a refund
                             through the reservation confirmation email.
                           </div>
@@ -4167,7 +4167,7 @@ const Page = () => {
                         🎉 Reservation confirmed!
                       </div>
                       <div className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-                        <span>Booking ID:</span>
+                        <span>Reservation ID:</span>
                         <span className="font-mono font-semibold text-foreground bg-background/50 px-2 py-0.5 rounded">
                           {bookingId}
                         </span>
@@ -4627,7 +4627,7 @@ const Page = () => {
                           </svg>
                           <div className="flex-1">
                             <h2 className="text-2xl font-bold text-foreground mb-2">
-                              Booking Confirmed!
+                              Reservation Confirmed!
                             </h2>
                             <p className="text-muted-foreground">
                               You're all set for {selectedPackage?.name}
@@ -4636,15 +4636,15 @@ const Page = () => {
                         </div>
                       </div>
 
-                      {/* Print-only Booking Details section */}
+                      {/* Print-only Reservation Details section */}
                       <div className="hidden print:block bg-gray-50 rounded-lg p-6 mb-6">
                         <h3 className="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wide">
-                          Booking Details
+                          Reservation Details
                         </h3>
                         <div className="space-y-3">
                           <div className="flex justify-between py-2 border-b border-gray-300">
                             <span className="text-sm text-gray-600">
-                              Booking ID
+                              Reservation ID
                             </span>
                             <span className="text-sm font-mono font-semibold text-gray-900">
                               {bookingId}
@@ -4687,15 +4687,15 @@ const Page = () => {
                         </div>
                       </div>
 
-                      {/* Booking Details - Screen only */}
+                      {/* Reservation Details - Screen only */}
                       <div className="bg-muted/30 rounded-lg p-6 mb-6 print:hidden">
                         <h3 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wide">
-                          Booking Details
+                          Reservation Details
                         </h3>
                         <div className="space-y-3">
                           <div className="flex justify-between py-2 border-b border-border">
                             <span className="text-sm text-muted-foreground">
-                              Booking ID
+                              Reservation ID
                             </span>
                             <span className="text-sm font-mono font-semibold text-foreground">
                               {bookingId}
@@ -4786,7 +4786,7 @@ const Page = () => {
                                 {email}
                               </span>{" "}
                               for a confirmation message with your complete
-                              booking details and payment schedule.
+                              reservation details and payment schedule.
                             </p>
                           </div>
                           <div className="flex items-start gap-3">
