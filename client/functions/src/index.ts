@@ -30,6 +30,8 @@ export { onStripePaymentSuccess } from "./on-stripe-payment-success"; // Trigger
 export { processScheduledEmails } from "./scheduled-emails";
 // Export payment reminder trigger
 export { onPaymentReminderEnabled } from "./payment-reminder-trigger";
+// Export cleanup function for abandoned payments (runs daily at 2 AM UTC)
+export { cleanupAbandonedPayments } from "./scheduled-cleanup-abandoned-payments";
 
 // export { telegramBot } from "./telegram-bot";
 // export {
