@@ -23,127 +23,116 @@ export function generateBookingConfirmationPDF(
 
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  let yPosition = 15;
+  let yPosition = 20;
 
   // Set font
   pdf.setFont("helvetica", "normal");
 
-  // PAGE 1: BOOKING CONFIRMATION
-  // Header: brand logo on the right, title on the left
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(18);
-  pdf.setTextColor(0, 0, 0);
-  pdf.text("Booking Confirmation", 15, yPosition);
-
-  // Try to render brand logo (Digital_Horizontal_Red.svg) top-right
+  // PAGE 1: RESERVATION CONFIRMATION
+  // Header: Logo at top-right only
   try {
-    // public assets are served under "/" in Next.js
-    const logoWidth = 40; // mm
-    const logoHeight = 10; // mm (approx for horizontal logo)
-    pdf.addImage("/logos/Digital_Horizontal_Red.svg", "SVG", pageWidth - 15 - logoWidth, yPosition - 7, logoWidth, logoHeight);
+    const logoWidth = 45;
+    const logoHeight = 11;
+    pdf.addImage("/logos/Digital_Horizontal_Red.svg", "SVG", pageWidth - 15 - logoWidth, yPosition - 5, logoWidth, logoHeight);
+    yPosition += 8;
   } catch {
     // Fallback: brand wordmark in crimson red
     pdf.setTextColor(239, 51, 64);
-    pdf.setFontSize(14);
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica", "bold");
     pdf.text("I'm Here Travels", pageWidth - 15, yPosition, { align: "right" });
-    pdf.setTextColor(0, 0, 0);
-    pdf.setFontSize(18);
+    yPosition += 8;
   }
 
-  // Right-aligned meta
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(10);
-  pdf.setTextColor(100, 100, 100);
-  pdf.text("BOOKING CONFIRMATION", pageWidth - 15, yPosition + 8, { align: "right" });
-
-  yPosition += 5;
+  // Reservation ID and date - right aligned
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(11);
+  pdf.setFontSize(10);
   pdf.setTextColor(0, 0, 0);
   pdf.text(bookingId, pageWidth - 15, yPosition, { align: "right" });
 
   yPosition += 5;
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(9);
-  pdf.setTextColor(102, 102, 102);
+  pdf.setFontSize(8);
+  pdf.setTextColor(120, 120, 120);
   pdf.text(paymentDate, pageWidth - 15, yPosition, { align: "right" });
 
   // Divider line
-  yPosition += 8;
+  yPosition += 10;
   pdf.setDrawColor(229, 231, 235);
   pdf.line(15, yPosition, pageWidth - 15, yPosition);
 
-  // Confirmation Message
-  yPosition += 10;
+  // Confirmation Message - using brand typography (Heading style)
+  yPosition += 15;
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(16);
+  pdf.setFontSize(32);
   pdf.setTextColor(239, 51, 64);
   pdf.text("Reservation Confirmed!", 15, yPosition);
 
-  yPosition += 6;
+  yPosition += 12;
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(11);
-  pdf.setTextColor(51, 51, 51);
+  pdf.setFontSize(14);
   pdf.setTextColor(51, 51, 51);
   pdf.text(`You're all set for ${tourName}`, 15, yPosition);
 
-  // Customer Information Section
-  yPosition += 12;
+  // Customer Information Section - using brand typography
+  yPosition += 18;
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(10);
-  pdf.setTextColor(139, 139, 139);
-  pdf.text("Customer Information", 15, yPosition);
-
-  yPosition += 6;
-  pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
-  pdf.setTextColor(139, 139, 139);
+  pdf.setTextColor(120, 120, 120);
+  pdf.text("CUSTOMER INFORMATION", 15, yPosition);
+
+  yPosition += 8;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(11);
+  pdf.setTextColor(80, 80, 80);
   pdf.text("Name:", 15, yPosition);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
-  pdf.text(`${firstName} ${lastName}`, 50, yPosition);
+  pdf.text(`${firstName} ${lastName}`, 60, yPosition);
 
-  yPosition += 6;
+  yPosition += 7;
   pdf.setFont("helvetica", "normal");
-  pdf.setTextColor(139, 139, 139);
+  pdf.setTextColor(80, 80, 80);
   pdf.text("Email:", 15, yPosition);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
-  pdf.text(email, 50, yPosition);
+  pdf.text(email, 60, yPosition);
 
   // Reservation Details Section
-  yPosition += 12;
+  yPosition += 18;
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(10);
-  pdf.setTextColor(139, 139, 139);
-  pdf.text("Reservation Details", 15, yPosition);
+  pdf.setFontSize(9);
+  pdf.setTextColor(120, 120, 120);
+  pdf.text("RESERVATION DETAILS", 15, yPosition);
 
-  yPosition += 6;
+  yPosition += 8;
   const details = [
     { label: "Reservation ID", value: bookingId },
-    { label: "Tour", value: tourName },
-    { label: "Travel Date", value: tourDate },
+    { label: "Tour Name", value: tourName },
+    { label: "Tour Date", value: tourDate },
     { label: "Payment Plan", value: paymentPlan },
   ];
 
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(9);
+  pdf.setFontSize(11);
   details.forEach((item) => {
-    pdf.setTextColor(139, 139, 139);
+    pdf.setTextColor(80, 80, 80);
     pdf.text(item.label + ":", 15, yPosition);
     pdf.setTextColor(0, 0, 0);
+    pdf.setFont("helvetica", "bold");
     pdf.text(item.value, 70, yPosition);
-    yPosition += 6;
+    pdf.setFont("helvetica", "normal");
+    yPosition += 7;
   });
 
   // Payment Summary Section
-  yPosition += 6;
+  yPosition += 12;
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(10);
-  pdf.setTextColor(139, 139, 139);
-  pdf.text("Payment Summary", 15, yPosition);
+  pdf.setFontSize(9);
+  pdf.setTextColor(120, 120, 120);
+  pdf.text("PAYMENT SUMMARY", 15, yPosition);
 
-  yPosition += 6;
+  yPosition += 8;
   const summary = [
     { label: "Tour Cost", value: `${currencySymbol}${totalAmount.toFixed(2)}` },
     {
@@ -153,22 +142,24 @@ export function generateBookingConfirmationPDF(
   ];
 
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(9);
+  pdf.setFontSize(11);
   summary.forEach((item) => {
-    pdf.setTextColor(139, 139, 139);
+    pdf.setTextColor(80, 80, 80);
     pdf.text(item.label + ":", 15, yPosition);
     pdf.setTextColor(0, 0, 0);
+    pdf.setFont("helvetica", "bold");
     pdf.text(item.value, 70, yPosition);
-    yPosition += 6;
+    pdf.setFont("helvetica", "normal");
+    yPosition += 7;
   });
 
-  yPosition += 3;
+  yPosition += 5;
   pdf.setDrawColor(209, 213, 219);
   pdf.line(15, yPosition, pageWidth - 15, yPosition);
 
-  yPosition += 6;
+  yPosition += 10;
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(11);
+  pdf.setFontSize(14);
   pdf.setTextColor(239, 51, 64);
   pdf.text("Remaining Balance:", 15, yPosition);
   pdf.text(`${currencySymbol}${remainingBalance.toFixed(2)}`, pageWidth - 15, yPosition, {
@@ -179,7 +170,7 @@ export function generateBookingConfirmationPDF(
   yPosition = pageHeight - 20;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);
-  pdf.setTextColor(102, 102, 102);
+  pdf.setTextColor(120, 120, 120);
   pdf.text("Thank you for choosing I'm Here Travels!", pageWidth / 2, yPosition, { align: "center" });
 
   yPosition += 5;
@@ -187,77 +178,56 @@ export function generateBookingConfirmationPDF(
 
   // PAGE 2: RECEIPT
   pdf.addPage();
-  yPosition = 15;
+  yPosition = 20;
 
-  // Header: brand logo on the right, title on the left
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(18);
-  pdf.setTextColor(0, 0, 0);
-  pdf.text("Payment Receipt", 15, yPosition);
+  // Header: Logo at top-right only
   try {
-    const logoWidth2 = 40;
-    const logoHeight2 = 10;
-    pdf.addImage("/logos/Digital_Horizontal_Red.svg", "SVG", pageWidth - 15 - logoWidth2, yPosition - 7, logoWidth2, logoHeight2);
+    const logoWidth = 45;
+    const logoHeight = 11;
+    pdf.addImage("/logos/Digital_Horizontal_Red.svg", "SVG", pageWidth - 15 - logoWidth, yPosition - 5, logoWidth, logoHeight);
+    yPosition += 8;
   } catch {
     pdf.setTextColor(239, 51, 64);
-    pdf.setFontSize(14);
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica", "bold");
     pdf.text("I'm Here Travels", pageWidth - 15, yPosition, { align: "right" });
-    pdf.setTextColor(0, 0, 0);
-    pdf.setFontSize(18);
+    yPosition += 8;
   }
 
-  // Right-aligned header info
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(10);
-  pdf.setTextColor(100, 100, 100);
-  pdf.text("RECEIPT", pageWidth - 15, yPosition + 8, { align: "right" });
-
-  yPosition += 5;
+  // Reservation ID and date - right aligned
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(11);
+  pdf.setFontSize(10);
   pdf.setTextColor(0, 0, 0);
   pdf.text(bookingId, pageWidth - 15, yPosition, { align: "right" });
 
   yPosition += 5;
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(9);
-  pdf.setTextColor(102, 102, 102);
+  pdf.setFontSize(8);
+  pdf.setTextColor(120, 120, 120);
   pdf.text(paymentDate, pageWidth - 15, yPosition, { align: "right" });
 
   // Divider line
-  yPosition += 8;
+  yPosition += 10;
   pdf.setDrawColor(229, 231, 235);
   pdf.line(15, yPosition, pageWidth - 15, yPosition);
 
-  // Receipt Banner
-  yPosition += 10;
+  // Receipt Banner - using brand typography (Subhead style)
+  yPosition += 15;
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(16);
+  pdf.setFontSize(28);
   pdf.setTextColor(239, 51, 64);
-  pdf.text("Receipt", 15, yPosition);
-
-  yPosition += 5;
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(10);
-  pdf.setTextColor(100, 100, 100);
-  pdf.text("from I'm Here Travels", 15, yPosition);
-
-  yPosition += 8;
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(9);
-  pdf.setTextColor(102, 102, 102);
-  pdf.text("Receipt #: " + bookingId, pageWidth - 15, yPosition - 5, { align: "right" });
+  pdf.text("Payment Receipt", 15, yPosition);
 
   // Amount Paid Section
-  yPosition += 12;
+  yPosition += 20;
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(10);
-  pdf.setTextColor(102, 102, 102);
+  pdf.setFontSize(9);
+  pdf.setTextColor(120, 120, 120);
   pdf.text("AMOUNT PAID", 15, yPosition);
 
-  yPosition += 8;
+  yPosition += 10;
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(24);
+  pdf.setFontSize(28);
   pdf.setTextColor(0, 0, 0);
   pdf.text(
     `${currencySymbol}${reservationFee.toFixed(2)}`,
@@ -265,52 +235,56 @@ export function generateBookingConfirmationPDF(
     yPosition
   );
 
-  yPosition += 10;
+  yPosition += 12;
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(9);
-  pdf.setTextColor(102, 102, 102);
+  pdf.setFontSize(11);
+  pdf.setTextColor(80, 80, 80);
   pdf.text("Date Paid:", 15, yPosition);
+  pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(paymentDate, 70, yPosition);
 
   // Summary Section
-  yPosition += 12;
+  yPosition += 18;
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(10);
-  pdf.setTextColor(102, 102, 102);
+  pdf.setFontSize(9);
+  pdf.setTextColor(120, 120, 120);
   pdf.text("SUMMARY", 15, yPosition);
 
-  yPosition += 6;
+  yPosition += 8;
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(9);
-  pdf.setTextColor(102, 102, 102);
-  pdf.text("Pay Balance Instalment:", 15, yPosition);
+  pdf.setFontSize(11);
+  pdf.setTextColor(80, 80, 80);
+  pdf.text("Reservation Fee:", 15, yPosition);
+  pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(`${currencySymbol}${reservationFee.toFixed(2)}`, 70, yPosition);
 
   // Reservation Details Section
-  yPosition += 12;
+  yPosition += 18;
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(10);
-  pdf.setTextColor(139, 139, 139);
-  pdf.text("Reservation Details", 15, yPosition);
-
-  yPosition += 6;
-  pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
+  pdf.setTextColor(120, 120, 120);
+  pdf.text("RESERVATION DETAILS", 15, yPosition);
+
+  yPosition += 8;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(11);
   details.forEach((item) => {
-    pdf.setTextColor(102, 102, 102);
+    pdf.setTextColor(80, 80, 80);
     pdf.text(item.label + ":", 15, yPosition);
+    pdf.setFont("helvetica", "bold");
     pdf.setTextColor(0, 0, 0);
     pdf.text(item.value, 70, yPosition);
-    yPosition += 6;
+    pdf.setFont("helvetica", "normal");
+    yPosition += 7;
   });
 
   // Footer
   yPosition = pageHeight - 20;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);
-  pdf.setTextColor(102, 102, 102);
+  pdf.setTextColor(120, 120, 120);
   pdf.text(
     "This receipt confirms your payment for the reservation fee.",
     pageWidth / 2,

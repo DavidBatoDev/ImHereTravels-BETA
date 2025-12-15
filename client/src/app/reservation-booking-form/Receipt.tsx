@@ -83,13 +83,13 @@ export default function Receipt({
               </span>
             </div>
             <div className="flex justify-between py-2 border-b border-border print:border-gray-300">
-              <span className="text-sm text-muted-foreground print:text-gray-600">Tour</span>
+              <span className="text-sm text-muted-foreground print:text-gray-600">Tour Name</span>
               <span className="text-sm font-medium text-foreground print:text-gray-900">
                 {tourName}
               </span>
             </div>
             <div className="flex justify-between py-2 border-b border-border print:border-gray-300">
-              <span className="text-sm text-muted-foreground print:text-gray-600">Travel Date</span>
+              <span className="text-sm text-muted-foreground print:text-gray-600">Tour Date</span>
               <span className="text-sm font-medium text-foreground print:text-gray-900">
                 {travelDate}
               </span>

@@ -206,7 +206,7 @@ export default function BookingConfirmationDocument({
                 borderBottom: "1px solid #e5e7eb",
               }}
             >
-              <span style={{ fontSize: "12px", color: "#666" }}>Tour</span>
+              <span style={{ fontSize: "12px", color: "#666" }}>Tour Name</span>
               <span style={{ fontSize: "12px", fontWeight: "500", color: "#000" }}>
                 {tourName}
               </span>
@@ -219,7 +219,7 @@ export default function BookingConfirmationDocument({
                 borderBottom: "1px solid #e5e7eb",
               }}
             >
-              <span style={{ fontSize: "12px", color: "#666" }}>Travel Date</span>
+              <span style={{ fontSize: "12px", color: "#666" }}>Tour Date</span>
               <span style={{ fontSize: "12px", fontWeight: "500", color: "#000" }}>
                 {tourDate}
               </span>
@@ -483,7 +483,7 @@ export default function BookingConfirmationDocument({
                 borderBottom: "1px solid #e5e7eb",
               }}
             >
-              <span style={{ fontSize: "12px", color: "#666" }}>Tour</span>
+              <span style={{ fontSize: "12px", color: "#666" }}>Tour Name</span>
               <span style={{ fontSize: "12px", fontWeight: "500", color: "#000" }}>
                 {tourName}
               </span>
@@ -496,7 +496,7 @@ export default function BookingConfirmationDocument({
                 borderBottom: "1px solid #e5e7eb",
               }}
             >
-              <span style={{ fontSize: "12px", color: "#666" }}>Travel Date</span>
+              <span style={{ fontSize: "12px", color: "#666" }}>Tour Date</span>
               <span style={{ fontSize: "12px", fontWeight: "500", color: "#000" }}>
                 {tourDate}
               </span>
