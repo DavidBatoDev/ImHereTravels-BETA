@@ -1825,6 +1825,27 @@ const Page = () => {
                   setBirthdate(data.customer.birthdate);
                 if (data.customer?.nationality)
                   setNationality(data.customer.nationality);
+                if (data.customer?.whatsAppNumber) {
+                  // Parse the stored WhatsApp number to extract country and number
+                  const fullNumber = data.customer.whatsAppNumber;
+                  if (fullNumber && fullNumber.startsWith('+')) {
+                    // Find matching country by calling code
+                    let foundCountry = false;
+                    for (const country of getCountries()) {
+                      const callingCode = getCountryCallingCode(country as Country);
+                      if (fullNumber.startsWith(`+${callingCode}`)) {
+                        setWhatsAppCountry(country);
+                        setWhatsAppNumber(fullNumber.slice(callingCode.length + 1));
+                        foundCountry = true;
+                        break;
+                      }
+                    }
+                    if (!foundCountry) {
+                      // Fallback: just remove the + and set as-is
+                      setWhatsAppNumber(fullNumber.replace(/^\+/, ''));
+                    }
+                  }
+                }
                 if (data.booking?.type) setBookingType(data.booking.type);
                 if (typeof data.booking?.groupSize === "number")
                   setGroupSize(data.booking.groupSize);
@@ -1904,6 +1925,27 @@ const Page = () => {
                 setBirthdate(data.customer.birthdate);
               if (data.customer?.nationality)
                 setNationality(data.customer.nationality);
+              if (data.customer?.whatsAppNumber) {
+                // Parse the stored WhatsApp number to extract country and number
+                const fullNumber = data.customer.whatsAppNumber;
+                if (fullNumber && fullNumber.startsWith('+')) {
+                  // Find matching country by calling code
+                  let foundCountry = false;
+                  for (const country of getCountries()) {
+                    const callingCode = getCountryCallingCode(country as Country);
+                    if (fullNumber.startsWith(`+${callingCode}`)) {
+                      setWhatsAppCountry(country);
+                      setWhatsAppNumber(fullNumber.slice(callingCode.length + 1));
+                      foundCountry = true;
+                      break;
+                    }
+                  }
+                  if (!foundCountry) {
+                    // Fallback: just remove the + and set as-is
+                    setWhatsAppNumber(fullNumber.replace(/^\+/, ''));
+                  }
+                }
+              }
               if (data.booking?.type) setBookingType(data.booking.type);
               if (typeof data.booking?.groupSize === "number")
                 setGroupSize(data.booking.groupSize);
@@ -2182,6 +2224,45 @@ const Page = () => {
       body.style.overflow = "auto";
     };
   }, [showTourModal]);
+
+  // Restore payment state when arriving with a paymentid in the URL
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const pid = params.get("paymentid");
+      if (pid) {
+        // Mark payment as confirmed and ensure steps 1 and 2 are completed
+        setPaymentConfirmed(true);
+        setCompletedSteps((prev) => {
+          const next = new Set(prev);
+          next.add(1);
+          next.add(2);
+          return Array.from(next);
+        });
+      }
+    } catch {}
+  }, []);
+
+  // Additional guard: Keep steps 1 and 2 completed when paymentid is in URL
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const pid = params.get("paymentid");
+      if (pid && paymentConfirmed) {
+        // Ensure steps remain completed even after navigation
+        setCompletedSteps((prev) => {
+          const next = new Set(prev);
+          next.add(1);
+          next.add(2);
+          return Array.from(next).sort();
+        });
+      }
+    } catch {}
+  }, [step, paymentConfirmed]);
 
   // animate additional guests area when bookingType changes (measured height)
   useEffect(() => {
@@ -2806,7 +2887,14 @@ const Page = () => {
                 type="button"
                 onClick={() => {
                   setStep(1);
-                  setPaymentConfirmed(false);
+                  // Only clear payment confirmation if no paymentid in URL
+                  if (typeof window !== "undefined") {
+                    const params = new URLSearchParams(window.location.search);
+                    const pid = params.get("paymentid");
+                    if (!pid) {
+                      setPaymentConfirmed(false);
+                    }
+                  }
                 }}
                 className="flex items-center gap-1.5 sm:gap-2 transition-all duration-200 hover:opacity-80 cursor-pointer group"
               >
@@ -4026,8 +4114,7 @@ const Page = () => {
                         WhatsApp number
                         <span className="text-destructive text-xs">*</span>
                       </span>
-                      <div className="relative mt-1">
-                        <div className="flex items-stretch gap-2">
+                      <div className="relative mt-1 flex items-stretch gap-2">
                           <Select
                             value={whatsAppCountry}
                             onChange={(code) => {
@@ -4054,7 +4141,7 @@ const Page = () => {
                             searchable
                             className="w-[160px] flex-shrink-0"
                           />
-                          <div className="flex-1 relative">
+                          <div className="flex-1 relative min-w-0">
                             <div
                               className={`flex items-center w-full px-4 py-3 rounded-lg bg-input transition-all duration-200 shadow-sm border-2 ${
                                 errors.whatsAppNumber
@@ -4161,7 +4248,6 @@ const Page = () => {
                                 </div>
                               )}
                           </div>
-                        </div>
                       </div>
                       {!!errors.whatsAppNumber && (
                         <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
@@ -4591,69 +4677,72 @@ const Page = () => {
                   </div>
                 </div>
 
-                <h3 className="text-lg font-medium text-foreground">
-                  Choose your payment plan
-                </h3>
+                {/* Choose Payment Plan Card */}
+                <div className="rounded-2xl bg-white dark:bg-card/80 dark:backdrop-blur-md border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
+                  <div className="p-6">
+                    <h3 className="text-lg font-bold text-foreground mb-6">
+                      Choose your payment plan
+                    </h3>
 
-                {/* Tour Details Summary */}
-                {selectedPackage && (
-                  <div className="bg-muted/10 border-2 border-border rounded-lg p-5 shadow-sm">
-                    <div className="text-sm space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-foreground/70 font-semibold">
-                          Tour name:
-                        </span>
-                        <span className="font-bold text-foreground">
-                          {selectedPackage.name}
-                        </span>
+                    {/* Tour Details Summary */}
+                    {selectedPackage && (
+                      <div className="bg-muted/10 border-2 border-border rounded-lg p-5 shadow-sm">
+                        <div className="text-sm space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-foreground/70 font-semibold">
+                              Tour name:
+                            </span>
+                            <span className="font-bold text-foreground">
+                              {selectedPackage.name}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-foreground/70 font-semibold">
+                              Tour date:
+                            </span>
+                            <span className="font-bold text-foreground">
+                              {tourDate}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-foreground/70 font-semibold">
+                              Days until tour:
+                            </span>
+                            <span className="font-bold text-foreground">
+                              {calculateDaysBetween(tourDate)} days
+                            </span>
+                          </div>
+                          <div className="border-t-2 border-border/50 my-3"></div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-foreground/70 font-semibold">
+                              Tour cost:
+                            </span>
+                            <span className="font-bold text-foreground text-base">
+                              £{selectedPackage.price.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-foreground/70 font-semibold">
+                              Reservation fee paid:
+                            </span>
+                            <span className="font-bold text-spring-green text-base">
+                              -£{depositAmount.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="border-t-2 border-border/50 my-3"></div>
+                          <div className="flex justify-between items-center pt-1">
+                            <span className="text-foreground font-bold">
+                              Remaining balance:
+                            </span>
+                            <span className="font-bold text-xl text-crimson-red">
+                              £{(selectedPackage.price - depositAmount).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-foreground/70 font-semibold">
-                          Tour date:
-                        </span>
-                        <span className="font-bold text-foreground">
-                          {tourDate}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-foreground/70 font-semibold">
-                          Days until tour:
-                        </span>
-                        <span className="font-bold text-foreground">
-                          {calculateDaysBetween(tourDate)} days
-                        </span>
-                      </div>
-                      <div className="border-t-2 border-border/50 my-3"></div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-foreground/70 font-semibold">
-                          Tour cost:
-                        </span>
-                        <span className="font-bold text-foreground text-base">
-                          £{selectedPackage.price.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-foreground/70 font-semibold">
-                          Reservation fee paid:
-                        </span>
-                        <span className="font-bold text-spring-green text-base">
-                          -£{depositAmount.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="border-t-2 border-border/50 my-3"></div>
-                      <div className="flex justify-between items-center pt-1">
-                        <span className="text-foreground font-bold">
-                          Remaining balance:
-                        </span>
-                        <span className="font-bold text-xl text-crimson-red">
-                          £{(selectedPackage.price - depositAmount).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                    )}
 
-                {/* Payment Plan Options */}
+                    {/* Payment Plan Options */}
                 {availablePaymentTerm.isLastMinute ? (
                   <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-md">
                     <div className="flex items-start gap-3">
@@ -4782,6 +4871,8 @@ const Page = () => {
                     </div>
                   </>
                 )}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -5256,19 +5347,28 @@ const Page = () => {
                       {/* Action Button */}
                       <button
                         onClick={async () => {
-                          const confirmationId =
-                            bookingId ?? paymentDocId ?? "pending-booking";
+                          // Prefer human-friendly Reservation ID over Firestore docId
+                          const fallbackDisplayId = "SB-IDD-20260327-JD002";
+                          const isDocId = (id?: string) => !!id && /^[A-Za-z0-9]{20,}$/.test(id);
+                          const confirmationId = bookingId && !isDocId(bookingId)
+                            ? bookingId
+                            : fallbackDisplayId;
                           try {
-                            const pdf = generateBookingConfirmationPDF(
+                            // Build payment plan label (e.g., "P2 - Two Installment")
+                            const selectedPlanTerm = paymentTerms.find(
+                              (p) => p.id === selectedPaymentPlan
+                            );
+                            const paymentPlanLabel = selectedPlanTerm
+                              ? `${(selectedPlanTerm.paymentPlanType || "").toUpperCase()} - ${fixTermName(selectedPlanTerm.name)}`.trim()
+                              : "P2 - Two Installment";
+                            const pdf = await generateBookingConfirmationPDF(
                               confirmationId,
                               selectedPackage?.name || "Tour",
                               tourDate,
                               email,
                               firstName,
                               lastName,
-                              paymentTerms.find(
-                                (p) => p.id === selectedPaymentPlan
-                              )?.name || "Selected Plan",
+                              paymentPlanLabel.replace(/^P\d+_[A-Z_]+\s-\s/, ""),
                               depositAmount,
                               selectedPackage?.price || 0,
                               (selectedPackage?.price || 0) - depositAmount,
@@ -5280,7 +5380,7 @@ const Page = () => {
                               "GBP"
                             );
                             pdf.save(
-                              `booking-confirmation-${confirmationId}.pdf`
+                              `IHT_Reservation-Confirmation_${confirmationId}.pdf`
                             );
                           } catch (error) {
                             console.error("Error generating PDF:", error);

@@ -1,6 +1,55 @@
 import jsPDF from "jspdf";
 
-export function generateBookingConfirmationPDF(
+async function loadFont(
+  pdf: jsPDF,
+  url: string,
+  vfsName: string,
+  fontName: string,
+  style: "normal" | "bold" | "italic" | "bolditalic" = "normal"
+) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to fetch font: ${url}`);
+    const blob = await res.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const base64 = btoa(binary);
+    pdf.addFileToVFS(vfsName, base64);
+    pdf.addFont(vfsName, fontName, style);
+  } catch (e) {
+    // silently fall back to built-in fonts
+  }
+}
+
+async function rasterizeSvgToPngDataUrl(svgUrl: string, width: number, height: number, scale: number = 8): Promise<string | null> {
+  try {
+    const svgRes = await fetch(svgUrl);
+    if (!svgRes.ok) throw new Error(`Failed to fetch SVG: ${svgUrl}`);
+    const svgText = await svgRes.text();
+    const svgBase64 = btoa(unescape(encodeURIComponent(svgText)));
+    const img = new Image();
+    img.src = `data:image/svg+xml;base64,${svgBase64}`;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("SVG load error"));
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.floor(width * scale));
+    canvas.height = Math.max(1, Math.floor(height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+}
+
+export async function generateBookingConfirmationPDF(
   bookingId: string,
   tourName: string,
   tourDate: string,
@@ -25,33 +74,34 @@ export function generateBookingConfirmationPDF(
   const pageHeight = pdf.internal.pageSize.getHeight();
   let yPosition = 20;
 
-  // Set font
-  pdf.setFont("helvetica", "normal");
+  // Load HKGrotesk (Regular/Bold/Black) from public and set default font
+  await loadFont(pdf, "/fonts/HKGrotesk/TTF/HKGrotesk-Regular.ttf", "HKGrotesk-Regular.ttf", "HKGrotesk", "normal");
+  await loadFont(pdf, "/fonts/HKGrotesk/TTF/HKGrotesk-Bold.ttf", "HKGrotesk-Bold.ttf", "HKGrotesk", "bold");
+  await loadFont(pdf, "/fonts/HKGrotesk/TTF/HKGrotesk-Black.ttf", "HKGrotesk-Black.ttf", "HKGrotesk-Black", "normal");
+  pdf.setFont("HKGrotesk", "normal");
 
   // PAGE 1: RESERVATION CONFIRMATION
   // Header: Logo at top-right only
-  try {
+  {
     const logoWidth = 45;
     const logoHeight = 11;
-    pdf.addImage("/logos/Digital_Horizontal_Red.svg", "SVG", pageWidth - 15 - logoWidth, yPosition - 5, logoWidth, logoHeight);
-    yPosition += 8;
-  } catch {
-    // Fallback: brand wordmark in crimson red
-    pdf.setTextColor(239, 51, 64);
-    pdf.setFontSize(12);
-    pdf.setFont("helvetica", "bold");
-    pdf.text("I'm Here Travels", pageWidth - 15, yPosition, { align: "right" });
-    yPosition += 8;
+    const logoX = pageWidth - 15 - logoWidth;
+    const logoY = 12;
+    const pngDataUrl = await rasterizeSvgToPngDataUrl("/logos/Digital_Horizontal_Red.svg", logoWidth, logoHeight, 8);
+    if (pngDataUrl) {
+      pdf.addImage(pngDataUrl, "PNG", logoX, logoY, logoWidth, logoHeight);
+    }
+    yPosition = logoY + logoHeight + 6;
   }
 
   // Reservation ID and date - right aligned
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(10);
   pdf.setTextColor(0, 0, 0);
   pdf.text(bookingId, pageWidth - 15, yPosition, { align: "right" });
 
   yPosition += 5;
-  pdf.setFont("helvetica", "normal");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(8);
   pdf.setTextColor(120, 120, 120);
   pdf.text(paymentDate, pageWidth - 15, yPosition, { align: "right" });
@@ -63,44 +113,44 @@ export function generateBookingConfirmationPDF(
 
   // Confirmation Message - using brand typography (Heading style)
   yPosition += 15;
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setFontSize(32);
   pdf.setTextColor(239, 51, 64);
   pdf.text("Reservation Confirmed!", 15, yPosition);
 
   yPosition += 12;
-  pdf.setFont("helvetica", "normal");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(14);
   pdf.setTextColor(51, 51, 51);
   pdf.text(`You're all set for ${tourName}`, 15, yPosition);
 
   // Customer Information Section - using brand typography
   yPosition += 18;
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setFontSize(9);
   pdf.setTextColor(120, 120, 120);
   pdf.text("CUSTOMER INFORMATION", 15, yPosition);
 
   yPosition += 8;
-  pdf.setFont("helvetica", "normal");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(11);
   pdf.setTextColor(80, 80, 80);
   pdf.text("Name:", 15, yPosition);
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(`${firstName} ${lastName}`, 60, yPosition);
 
   yPosition += 7;
-  pdf.setFont("helvetica", "normal");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setTextColor(80, 80, 80);
   pdf.text("Email:", 15, yPosition);
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(email, 60, yPosition);
 
   // Reservation Details Section
   yPosition += 18;
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setFontSize(9);
   pdf.setTextColor(120, 120, 120);
   pdf.text("RESERVATION DETAILS", 15, yPosition);
@@ -113,21 +163,21 @@ export function generateBookingConfirmationPDF(
     { label: "Payment Plan", value: paymentPlan },
   ];
 
-  pdf.setFont("helvetica", "normal");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(11);
   details.forEach((item) => {
     pdf.setTextColor(80, 80, 80);
     pdf.text(item.label + ":", 15, yPosition);
     pdf.setTextColor(0, 0, 0);
-    pdf.setFont("helvetica", "bold");
+    pdf.setFont("HKGrotesk", "bold");
     pdf.text(item.value, 70, yPosition);
-    pdf.setFont("helvetica", "normal");
+    pdf.setFont("HKGrotesk", "normal");
     yPosition += 7;
   });
 
   // Payment Summary Section
   yPosition += 12;
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setFontSize(9);
   pdf.setTextColor(120, 120, 120);
   pdf.text("PAYMENT SUMMARY", 15, yPosition);
@@ -141,15 +191,15 @@ export function generateBookingConfirmationPDF(
     },
   ];
 
-  pdf.setFont("helvetica", "normal");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(11);
   summary.forEach((item) => {
     pdf.setTextColor(80, 80, 80);
     pdf.text(item.label + ":", 15, yPosition);
     pdf.setTextColor(0, 0, 0);
-    pdf.setFont("helvetica", "bold");
+    pdf.setFont("HKGrotesk", "bold");
     pdf.text(item.value, 70, yPosition);
-    pdf.setFont("helvetica", "normal");
+    pdf.setFont("HKGrotesk", "normal");
     yPosition += 7;
   });
 
@@ -158,7 +208,7 @@ export function generateBookingConfirmationPDF(
   pdf.line(15, yPosition, pageWidth - 15, yPosition);
 
   yPosition += 10;
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setFontSize(14);
   pdf.setTextColor(239, 51, 64);
   pdf.text("Remaining Balance:", 15, yPosition);
@@ -168,40 +218,39 @@ export function generateBookingConfirmationPDF(
 
   // Footer
   yPosition = pageHeight - 20;
-  pdf.setFont("helvetica", "normal");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(8);
   pdf.setTextColor(120, 120, 120);
   pdf.text("Thank you for choosing I'm Here Travels!", pageWidth / 2, yPosition, { align: "center" });
 
   yPosition += 5;
-  pdf.text("Questions? Contact us at support@imheretravels.com", pageWidth / 2, yPosition, { align: "center" });
+  pdf.text("Questions? Contact us at bella@imheretravels.com", pageWidth / 2, yPosition, { align: "center" });
 
   // PAGE 2: RECEIPT
   pdf.addPage();
   yPosition = 20;
 
   // Header: Logo at top-right only
-  try {
+  {
     const logoWidth = 45;
     const logoHeight = 11;
-    pdf.addImage("/logos/Digital_Horizontal_Red.svg", "SVG", pageWidth - 15 - logoWidth, yPosition - 5, logoWidth, logoHeight);
-    yPosition += 8;
-  } catch {
-    pdf.setTextColor(239, 51, 64);
-    pdf.setFontSize(12);
-    pdf.setFont("helvetica", "bold");
-    pdf.text("I'm Here Travels", pageWidth - 15, yPosition, { align: "right" });
-    yPosition += 8;
+    const logoX = pageWidth - 15 - logoWidth;
+    const logoY = 12;
+    const pngDataUrl = await rasterizeSvgToPngDataUrl("/logos/Digital_Horizontal_Red.svg", logoWidth, logoHeight, 8);
+    if (pngDataUrl) {
+      pdf.addImage(pngDataUrl, "PNG", logoX, logoY, logoWidth, logoHeight);
+    }
+    yPosition = logoY + logoHeight + 6;
   }
 
   // Reservation ID and date - right aligned
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(10);
   pdf.setTextColor(0, 0, 0);
   pdf.text(bookingId, pageWidth - 15, yPosition, { align: "right" });
 
   yPosition += 5;
-  pdf.setFont("helvetica", "normal");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(8);
   pdf.setTextColor(120, 120, 120);
   pdf.text(paymentDate, pageWidth - 15, yPosition, { align: "right" });
@@ -213,20 +262,20 @@ export function generateBookingConfirmationPDF(
 
   // Receipt Banner - using brand typography (Subhead style)
   yPosition += 15;
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setFontSize(28);
   pdf.setTextColor(239, 51, 64);
   pdf.text("Payment Receipt", 15, yPosition);
 
   // Amount Paid Section
   yPosition += 20;
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setFontSize(9);
   pdf.setTextColor(120, 120, 120);
   pdf.text("AMOUNT PAID", 15, yPosition);
 
   yPosition += 10;
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setFontSize(28);
   pdf.setTextColor(0, 0, 0);
   pdf.text(
@@ -236,53 +285,53 @@ export function generateBookingConfirmationPDF(
   );
 
   yPosition += 12;
-  pdf.setFont("helvetica", "normal");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(11);
   pdf.setTextColor(80, 80, 80);
   pdf.text("Date Paid:", 15, yPosition);
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(paymentDate, 70, yPosition);
 
   // Summary Section
   yPosition += 18;
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setFontSize(9);
   pdf.setTextColor(120, 120, 120);
   pdf.text("SUMMARY", 15, yPosition);
 
   yPosition += 8;
-  pdf.setFont("helvetica", "normal");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(11);
   pdf.setTextColor(80, 80, 80);
   pdf.text("Reservation Fee:", 15, yPosition);
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(`${currencySymbol}${reservationFee.toFixed(2)}`, 70, yPosition);
 
   // Reservation Details Section
   yPosition += 18;
-  pdf.setFont("helvetica", "bold");
+  pdf.setFont("HKGrotesk", "bold");
   pdf.setFontSize(9);
   pdf.setTextColor(120, 120, 120);
   pdf.text("RESERVATION DETAILS", 15, yPosition);
 
   yPosition += 8;
-  pdf.setFont("helvetica", "normal");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(11);
   details.forEach((item) => {
     pdf.setTextColor(80, 80, 80);
     pdf.text(item.label + ":", 15, yPosition);
-    pdf.setFont("helvetica", "bold");
+    pdf.setFont("HKGrotesk", "bold");
     pdf.setTextColor(0, 0, 0);
     pdf.text(item.value, 70, yPosition);
-    pdf.setFont("helvetica", "normal");
+    pdf.setFont("HKGrotesk", "normal");
     yPosition += 7;
   });
 
   // Footer
   yPosition = pageHeight - 20;
-  pdf.setFont("helvetica", "normal");
+  pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(8);
   pdf.setTextColor(120, 120, 120);
   pdf.text(
@@ -298,7 +347,7 @@ export function generateBookingConfirmationPDF(
   });
 
   yPosition += 4;
-  pdf.text("Questions? Contact us at support@imheretravels.com", pageWidth / 2, yPosition, {
+  pdf.text("Questions? Contact us at bella@imheretravels.com", pageWidth / 2, yPosition, {
     align: "center",
   });
 
