@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -110,6 +110,7 @@ const statusIcons = {
 
 export default function ScheduledEmailsTab() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [scheduledEmails, setScheduledEmails] = useState<ScheduledEmail[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -214,6 +215,18 @@ export default function ScheduledEmailsTab() {
     // Cleanup subscription on unmount
     return () => unsubscribe();
   }, [statusFilter]);
+
+  // Handle emailId URL parameter to auto-open email view
+  useEffect(() => {
+    const emailId = searchParams?.get("emailId");
+
+    if (emailId && scheduledEmails.length > 0 && !isViewEmailDialogOpen) {
+      const email = scheduledEmails.find((e) => e.id === emailId);
+      if (email && (!selectedEmail || selectedEmail.id !== emailId)) {
+        handleViewEmail(email);
+      }
+    }
+  }, [searchParams, scheduledEmails]);
 
   // Create new scheduled email
   const handleCreateScheduledEmail = async () => {
@@ -466,6 +479,13 @@ export default function ScheduledEmailsTab() {
   // Handle view email
   const handleViewEmail = async (email: ScheduledEmail) => {
     setSelectedEmail(email);
+
+    // Add emailId to URL
+    const params = new URLSearchParams(searchParams?.toString?.() ?? "");
+    params.set("emailId", email.id);
+    router.push(`/mail/payment-reminders?${params.toString()}`, {
+      scroll: false,
+    });
 
     let htmlContent = email.htmlContent;
     let subject = email.subject;
@@ -830,6 +850,7 @@ export default function ScheduledEmailsTab() {
       });
 
       setIsViewEmailDialogOpen(false);
+      handleCloseViewDialog();
     } catch (error) {
       console.error("Error updating email:", error);
       toast({
@@ -838,6 +859,20 @@ export default function ScheduledEmailsTab() {
         variant: "destructive",
       });
     }
+  };
+
+  // Handle closing view dialog and clearing URL parameter
+  const handleCloseViewDialog = () => {
+    setIsViewEmailDialogOpen(false);
+    setSelectedEmail(null);
+    setViewEmailData(null);
+
+    // Clear emailId from URL
+    const params = new URLSearchParams(searchParams?.toString?.() ?? "");
+    params.delete("emailId");
+    router.push(`/mail/payment-reminders?${params.toString()}`, {
+      scroll: false,
+    });
   };
 
   // Format date for display
@@ -1725,7 +1760,11 @@ export default function ScheduledEmailsTab() {
       {/* View Email Dialog */}
       <Dialog
         open={isViewEmailDialogOpen}
-        onOpenChange={setIsViewEmailDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseViewDialog();
+          }
+        }}
       >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
@@ -1875,10 +1914,7 @@ export default function ScheduledEmailsTab() {
           )}
 
           <DialogFooter className="mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsViewEmailDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={handleCloseViewDialog}>
               Close
             </Button>
           </DialogFooter>
