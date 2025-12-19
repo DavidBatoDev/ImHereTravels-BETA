@@ -115,6 +115,8 @@ export default function ScheduledEmailsTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
@@ -909,6 +911,13 @@ export default function ScheduledEmailsTab() {
       searchTerm === "" ||
       email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
       email.to.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (email.cc &&
+        email.cc.join(", ").toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (email.bcc &&
+        email.bcc
+          .join(", ")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())) ||
       (email.emailType &&
         email.emailType.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (email.bookingId &&
@@ -917,7 +926,23 @@ export default function ScheduledEmailsTab() {
     const matchesStatus =
       statusFilter === "all" || email.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    // Date filter logic
+    let matchesDate = true;
+    if (dateFrom || dateTo) {
+      const emailDate = new Date(email.scheduledFor);
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        fromDate.setHours(0, 0, 0, 0);
+        if (emailDate < fromDate) matchesDate = false;
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        if (emailDate > toDate) matchesDate = false;
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   // Group emails by bookingId
@@ -1021,29 +1046,66 @@ export default function ScheduledEmailsTab() {
       {/* Search and Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex gap-4 items-center">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search by recipient, subject, or type..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+          <div className="space-y-3">
+            <div className="flex gap-4 items-center">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search by booking ID, recipient, subject, or type..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="skipped">Skipped</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="sent">Sent</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-                <SelectItem value="skipped">Skipped</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-4 items-center">
+              <Label className="text-sm text-muted-foreground whitespace-nowrap">
+                Date Range:
+              </Label>
+              <div className="flex-1 flex gap-2 items-center">
+                <Input
+                  type="date"
+                  placeholder="From"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-40"
+                />
+                <span className="text-muted-foreground">to</span>
+                <Input
+                  type="date"
+                  placeholder="To"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-40"
+                />
+                {(dateFrom || dateTo) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDateFrom("");
+                      setDateTo("");
+                    }}
+                    className="text-xs"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

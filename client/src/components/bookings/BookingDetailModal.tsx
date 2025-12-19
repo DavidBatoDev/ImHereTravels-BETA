@@ -648,6 +648,28 @@ export default function BookingDetailModal({
   // Memoized column value component for better performance
   const MemoizedColumnValue = memo(({ column }: { column: SheetColumn }) => {
     const value = getColumnValue(column);
+
+    const isLikelyLink = (text: string) => {
+      const trimmed = text.trim();
+      return /^https?:\/\//i.test(trimmed) || /^www\./i.test(trimmed);
+    };
+
+    if (typeof value === "string" && isLikelyLink(value)) {
+      const href = value.startsWith("http") ? value : `https://${value}`;
+
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 underline break-all"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {value}
+        </a>
+      );
+    }
+
     return <span>{value || "N/A"}</span>;
   });
   MemoizedColumnValue.displayName = "MemoizedColumnValue";
@@ -1113,11 +1135,11 @@ export default function BookingDetailModal({
                                         <p className="text-[10px] text-muted-foreground font-medium mb-0.5 uppercase tracking-wide">
                                           {column.columnName}
                                         </p>
-                                        <p className="text-xs font-semibold text-foreground break-words">
+                                        <div className="text-xs font-semibold text-foreground break-words break-all whitespace-pre-wrap">
                                           <MemoizedColumnValue
                                             column={column}
                                           />
-                                        </p>
+                                        </div>
                                       </div>
                                     </div>
                                   );
@@ -1192,11 +1214,11 @@ export default function BookingDetailModal({
                                         </p>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-sm font-semibold text-foreground">
+                                        <div className="text-sm font-semibold text-foreground break-words break-all whitespace-pre-wrap inline-block max-w-full text-right">
                                           <MemoizedColumnValue
                                             column={column}
                                           />
-                                        </p>
+                                        </div>
                                       </div>
                                     </div>
                                   );
