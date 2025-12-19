@@ -172,6 +172,21 @@ export default function DiscountedToursTab() {
     setViewDialogOpen(true);
   }
 
+  function resolveEventActive(evt: DiscountEvent) {
+    const mode = evt.activationMode || "manual";
+    if (mode === "scheduled") {
+      const now = new Date();
+      const startsOk = evt.scheduledStart
+        ? now >= new Date(evt.scheduledStart)
+        : true;
+      const endsOk = evt.scheduledEnd
+        ? now <= new Date(evt.scheduledEnd)
+        : true;
+      return startsOk && endsOk;
+    }
+    return evt.active;
+  }
+
   return (
     <div className="space-y-8">
       <Card>
@@ -228,7 +243,7 @@ export default function DiscountedToursTab() {
                         <span className="font-semibold text-lg">
                           {evt.name}
                         </span>
-                        {evt.active ? (
+                        {resolveEventActive(evt) ? (
                           <Badge variant="default" className="px-2.5 py-0.5">
                             Active
                           </Badge>
@@ -237,28 +252,59 @@ export default function DiscountedToursTab() {
                             Inactive
                           </Badge>
                         )}
+                        {evt.activationMode === "scheduled" && (
+                          <Badge variant="outline" className="px-2.5 py-0.5">
+                            Scheduled
+                          </Badge>
+                        )}
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {evt.items.length} tour package
-                        {evt.items.length !== 1 ? "s" : ""} •{" "}
-                        {evt.items.reduce(
-                          (acc, it) => acc + (it.dateDiscounts?.length || 0),
-                          0
-                        )}{" "}
-                        date
-                        {evt.items.reduce(
-                          (acc, it) => acc + (it.dateDiscounts?.length || 0),
-                          0
-                        ) !== 1
-                          ? "s"
-                          : ""}
+                      <div className="text-sm text-muted-foreground flex flex-wrap gap-1">
+                        <span>
+                          {evt.items.length} tour package
+                          {evt.items.length !== 1 ? "s" : ""} •{" "}
+                          {evt.items.reduce(
+                            (acc, it) => acc + (it.dateDiscounts?.length || 0),
+                            0
+                          )}{" "}
+                          date
+                          {evt.items.reduce(
+                            (acc, it) => acc + (it.dateDiscounts?.length || 0),
+                            0
+                          ) !== 1
+                            ? "s"
+                            : ""}
+                        </span>
+                        {evt.activationMode === "scheduled" && (
+                          <span>
+                            • {evt.scheduledStart
+                              ? new Date(evt.scheduledStart).toLocaleString()
+                              : "No start"}
+                            {" to "}
+                            {evt.scheduledEnd
+                              ? new Date(evt.scheduledEnd).toLocaleString()
+                              : "No end"}
+                          </span>
+                        )}
                       </div>
 
                       {/* Show tour packages */}
                       <div className="flex flex-wrap gap-2 pt-1">
                         {evt.items.map((item, idx) => {
-                          const avgDiscount =
-                            item.dateDiscounts && item.dateDiscounts.length > 0
+                          let displayValue;
+                          if (evt.discountType === "amount") {
+                            // Calculate actual flat amount for each date, then average
+                            const avgAmount = item.dateDiscounts && item.dateDiscounts.length > 0
+                              ? Math.round(
+                                  item.dateDiscounts.reduce(
+                                    (sum, dd) => sum + Math.round((item.originalCost * dd.discountRate) / 100),
+                                    0
+                                  ) / item.dateDiscounts.length
+                                )
+                              : 0;
+                            displayValue = `£${avgAmount}`;
+                          } else {
+                            // Calculate average percentage
+                            const avgDiscount = item.dateDiscounts && item.dateDiscounts.length > 0
                               ? Math.round(
                                   item.dateDiscounts.reduce(
                                     (sum, dd) => sum + dd.discountRate,
@@ -266,6 +312,8 @@ export default function DiscountedToursTab() {
                                   ) / item.dateDiscounts.length
                                 )
                               : 0;
+                            displayValue = `${avgDiscount}%`;
+                          }
                           return (
                             <Badge
                               key={idx}
@@ -274,7 +322,7 @@ export default function DiscountedToursTab() {
                             >
                               {item.tourPackageName} -{" "}
                               {item.dateDiscounts?.length || 0} dates (avg{" "}
-                              {avgDiscount}% off)
+                              {displayValue} off)
                             </Badge>
                           );
                         })}
@@ -284,11 +332,13 @@ export default function DiscountedToursTab() {
                     <div className="flex items-center gap-3 ml-4">
                       <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-background">
                         <Switch
-                          checked={evt.active}
+                          checked={resolveEventActive(evt)}
+                          disabled={evt.activationMode === "scheduled"}
                           onCheckedChange={(v) => toggleEventActive(evt.id, v)}
                         />
                         <span className="text-sm font-medium whitespace-nowrap">
-                          {evt.active ? "Active" : "Inactive"}
+                          {resolveEventActive(evt) ? "Active" : "Inactive"}
+                          {evt.activationMode === "scheduled" ? " (by schedule)" : ""}
                         </span>
                       </div>
 
@@ -354,15 +404,30 @@ export default function DiscountedToursTab() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-2xl flex items-center gap-3">
               {viewingEvent?.name}
-              {viewingEvent?.active ? (
+              {viewingEvent && resolveEventActive(viewingEvent) ? (
                 <Badge variant="default">Active</Badge>
               ) : (
                 <Badge variant="secondary">Inactive</Badge>
+              )}
+              {viewingEvent?.activationMode === "scheduled" && (
+                <Badge variant="outline">Scheduled</Badge>
               )}
             </AlertDialogTitle>
             <AlertDialogDescription>
               Detailed view of all tour packages and discounted dates in this
               event
+              {viewingEvent?.activationMode === "scheduled" && (
+                <>
+                  <br />
+                  Active window: {viewingEvent.scheduledStart
+                    ? new Date(viewingEvent.scheduledStart).toLocaleString()
+                    : "No start"}
+                  {" to "}
+                  {viewingEvent.scheduledEnd
+                    ? new Date(viewingEvent.scheduledEnd).toLocaleString()
+                    : "No end"}
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -385,13 +450,20 @@ export default function DiscountedToursTab() {
                       {item.dateDiscounts && item.dateDiscounts.length > 0 && (
                         <Badge variant="outline" className="ml-2">
                           Avg{" "}
-                          {Math.round(
-                            item.dateDiscounts.reduce(
-                              (sum, dd) => sum + dd.discountRate,
-                              0
-                            ) / item.dateDiscounts.length
-                          )}
-                          % off
+                          {viewingEvent.discountType === "amount" 
+                            ? `£${Math.round(
+                                item.dateDiscounts.reduce(
+                                  (sum, dd) => sum + Math.round((item.originalCost * dd.discountRate) / 100),
+                                  0
+                                ) / item.dateDiscounts.length
+                              )}`
+                            : `${Math.round(
+                                item.dateDiscounts.reduce(
+                                  (sum, dd) => sum + dd.discountRate,
+                                  0
+                                ) / item.dateDiscounts.length
+                              )}%`}{" "}
+                          off
                         </Badge>
                       )}
                     </div>

@@ -28,6 +28,10 @@ export interface DiscountEvent {
   active: boolean;
   items: DiscountEventItem[];
   bannerCover?: string; // URL to banner cover image
+  activationMode?: "manual" | "scheduled"; // manual toggle or scheduled window
+  scheduledStart?: string; // ISO datetime when event becomes active
+  scheduledEnd?: string; // ISO datetime when event stops being active
+  discountType?: "percent" | "amount"; // whether discounts are percentage or flat amount
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -50,13 +54,22 @@ export const DiscountEventsService = {
     active: boolean;
     items: DiscountEventItem[];
     bannerCover?: string;
+    activationMode?: "manual" | "scheduled";
+    scheduledStart?: string;
+    scheduledEnd?: string;
+    discountType?: "percent" | "amount";
   }): Promise<string> {
     const now = Timestamp.now();
+    const activationMode = input.activationMode || "manual";
     const ref = await addDoc(collection(db, COLLECTION), {
       name: input.name,
-      active: input.active,
+      active: activationMode === "scheduled" ? true : input.active,
       items: input.items,
       bannerCover: input.bannerCover || "",
+      activationMode,
+      scheduledStart: input.scheduledStart || "",
+      scheduledEnd: input.scheduledEnd || "",
+      discountType: input.discountType || "percent",
       createdAt: now,
       updatedAt: now,
     });

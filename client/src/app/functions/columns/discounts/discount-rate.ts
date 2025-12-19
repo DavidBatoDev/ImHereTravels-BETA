@@ -103,6 +103,24 @@ export default async function getDiscountRateFunction(
 
     // Get the first matching discount event
     const eventData = eventSnapshot.docs[0].data();
+    const activationMode = eventData.activationMode || "manual";
+    const scheduledStart = eventData.scheduledStart
+      ? new Date(eventData.scheduledStart)
+      : null;
+    const scheduledEnd = eventData.scheduledEnd
+      ? new Date(eventData.scheduledEnd)
+      : null;
+
+    // Honor scheduled activation windows
+    if (activationMode === "scheduled") {
+      const now = new Date();
+      const startsOk = scheduledStart ? now >= scheduledStart : true;
+      const endsOk = scheduledEnd ? now <= scheduledEnd : true;
+      if (!(startsOk && endsOk)) {
+        return "";
+      }
+    }
+
     const items = eventData.items || [];
 
     // Find the matching tour package in items array

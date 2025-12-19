@@ -61,6 +61,7 @@ import {
   createBlobUrl,
   revokeBlobUrl,
 } from "@/utils/blob-image";
+import DateTimePicker from "@/components/DateTimePicker";
 
 interface EditDiscountEventModalProps {
   isOpen: boolean;
@@ -93,6 +94,9 @@ export default function EditDiscountEventModal({
   // Draft event state
   const [eventName, setEventName] = useState("");
   const [eventActive, setEventActive] = useState(true);
+  const [activationMode, setActivationMode] = useState<"manual" | "scheduled">("manual");
+  const [scheduledStart, setScheduledStart] = useState("");
+  const [scheduledEnd, setScheduledEnd] = useState("");
   const [draftItems, setDraftItems] = useState<DiscountEventItem[]>([]);
 
   // Banner cover state
@@ -116,6 +120,11 @@ export default function EditDiscountEventModal({
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Global apply state
+  const [globalDiscountValue, setGlobalDiscountValue] = useState<string>("300");
+  const [globalDiscountType, setGlobalDiscountType] = useState<"percent" | "amount">("amount");
+  const [globalDiscountYear, setGlobalDiscountYear] = useState<string>("2026");
 
   // Tour package deletion confirmation
   const [deleteTourDialogOpen, setDeleteTourDialogOpen] = useState(false);
@@ -161,6 +170,10 @@ export default function EditDiscountEventModal({
     if (event && isOpen) {
       setEventName(event.name);
       setEventActive(event.active);
+      setActivationMode(event.activationMode || "manual");
+      setScheduledStart(event.scheduledStart || "");
+      setScheduledEnd(event.scheduledEnd || "");
+      setGlobalDiscountType(event.discountType || "percent");
       setDraftItems(
         event.items.map((item) => ({
           ...item,
@@ -169,9 +182,10 @@ export default function EditDiscountEventModal({
       );
 
       // Load banner cover if exists
-      setUploadedBanner(event.bannerCover || null);
+      const existingBanner = event.bannerCover || "";
+      setUploadedBanner(existingBanner || null);
       setUseBannerUrl(false);
-      setBannerImageUrl("");
+      setBannerImageUrl(existingBanner || "");
       setBannerBlob(null);
 
       // Rebuild dateDiscountRates from existing data
@@ -327,6 +341,19 @@ export default function EditDiscountEventModal({
     return Math.max(0, Math.round(v * 100) / 100);
   }
 
+  function calcDiscountedByType(
+    original: number,
+    value: number,
+    type: "percent" | "amount"
+  ) {
+    const n = Number.isFinite(original) ? original : 0;
+    const v = Number.isFinite(value) ? value : 0;
+    if (type === "amount") {
+      return Math.max(0, Math.round((n - v) * 100) / 100);
+    }
+    return calcDiscounted(n, v);
+  }
+
   function updateDateDiscountRate(
     itemIndex: number,
     dateStr: string,
@@ -367,6 +394,100 @@ export default function EditDiscountEventModal({
   function getAvailableDatesForTour(tourId: string): string[] {
     const tour = tourOptions.find((t) => t.id === tourId);
     return tour?.dates || [];
+  }
+
+  function applyGlobalDiscountToAllTours() {
+    const valueNum = Number(globalDiscountValue) || 0;
+    if (valueNum <= 0) {
+      toast({
+        title: "Enter a discount",
+        description: "Value must be greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const targetYear = Number(globalDiscountYear) || new Date().getFullYear();
+    const workingItems = [...draftItems];
+
+    tourOptions.forEach((tour) => {
+      const yearDates = (tour.dates || []).filter((d) => {
+        const yr = new Date(d).getFullYear();
+        return yr === targetYear;
+      });
+      if (yearDates.length === 0) return;
+
+      let idx = workingItems.findIndex((it) => it.tourPackageId === tour.id);
+      if (idx === -1) {
+        idx = workingItems.length;
+        workingItems.push({
+          tourPackageId: tour.id,
+          tourPackageName: tour.name,
+          originalCost: tour.originalCost,
+          dateDiscounts: [],
+        });
+      }
+
+      const rate =
+        globalDiscountType === "amount"
+          ? Math.min(
+              100,
+              Math.round(((valueNum / Math.max(tour.originalCost || 1, 1)) * 100 + Number.EPSILON) * 100) /
+                100
+            )
+          : valueNum;
+
+      const discountedCost =
+        globalDiscountType === "amount"
+          ? calcDiscountedByType(tour.originalCost, valueNum, "amount")
+          : calcDiscounted(tour.originalCost, rate);
+
+      const preservedOtherYears = (workingItems[idx].dateDiscounts || []).filter(
+        (dd) => new Date(dd.date).getFullYear() !== targetYear
+      );
+
+      const newDiscounts = [
+        ...preservedOtherYears,
+        ...yearDates.map((dateStr) => ({
+          date: dateStr,
+          discountRate: rate,
+          discountedCost,
+        })),
+      ];
+
+      workingItems[idx] = {
+        ...workingItems[idx],
+        tourPackageId: tour.id,
+        tourPackageName: tour.name,
+        originalCost: tour.originalCost,
+        dateDiscounts: newDiscounts,
+      };
+    });
+
+    const rebuiltRates = new Map<number, Map<string, number>>();
+    const rebuiltChecked = new Map<number, Set<string>>();
+
+    workingItems.forEach((item, idx) => {
+      const rates = new Map<string, number>();
+      const checked = new Set<string>();
+      (item.dateDiscounts || []).forEach((dd) => {
+        rates.set(dd.date, dd.discountRate);
+        checked.add(dd.date);
+      });
+      rebuiltRates.set(idx, rates);
+      rebuiltChecked.set(idx, checked);
+    });
+
+    setDraftItems(workingItems);
+    setDateDiscountRates(rebuiltRates);
+    setApplyDiscountChecked(rebuiltChecked);
+
+    toast({
+      title: "Discount applied",
+      description: `Applied ${
+        globalDiscountType === "amount" ? `£${valueNum}` : `${valueNum}%`
+      } to ${targetYear} dates for available tours`,
+    });
   }
 
   function confirmRemoveTourPackage(index: number) {
@@ -507,6 +628,25 @@ export default function EditDiscountEventModal({
         }
       }
 
+      if (activationMode === "scheduled") {
+        if (!scheduledStart) {
+          toast({
+            title: "Start time required",
+            description: "Provide when the event should start",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (scheduledEnd && new Date(scheduledEnd) < new Date(scheduledStart)) {
+          toast({
+            title: "Invalid window",
+            description: "End must be after start",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       setLoading(true);
 
       // First update the event with the current data
@@ -521,9 +661,13 @@ export default function EditDiscountEventModal({
 
       await DiscountEventsService.update(event.id, {
         name: eventName.trim(),
-        active: eventActive,
+        active: activationMode === "scheduled" ? true : eventActive,
         items: draftItems,
         bannerCover,
+        activationMode,
+        scheduledStart,
+        scheduledEnd,
+        discountType: globalDiscountType,
       });
 
       // If we have a blob to upload (new image selected)
@@ -766,27 +910,75 @@ export default function EditDiscountEventModal({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="eventName">Event Name</Label>
-                        <Input
-                          id="eventName"
-                          placeholder="e.g. Black Friday 2025"
-                          value={eventName}
-                          onChange={(e) => setEventName(e.target.value)}
-                          className="h-11"
-                        />
+                    <div className="space-y-2">
+                      <Label htmlFor="eventName">Event Name</Label>
+                      <Input
+                        id="eventName"
+                        placeholder="e.g. Black Friday 2025"
+                        value={eventName}
+                        onChange={(e) => setEventName(e.target.value)}
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      <Label>Activation</Label>
+                      <div className="flex flex-col md:flex-row gap-3">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id="edit-activation-manual"
+                            checked={activationMode === "manual"}
+                            onChange={() => setActivationMode("manual")}
+                          />
+                          <Label htmlFor="edit-activation-manual" className="font-medium">
+                            Manual toggle
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id="edit-activation-scheduled"
+                            checked={activationMode === "scheduled"}
+                            onChange={() => setActivationMode("scheduled")}
+                          />
+                          <Label htmlFor="edit-activation-scheduled" className="font-medium">
+                            Scheduled window
+                          </Label>
+                        </div>
                       </div>
-                      <div className="flex items-end gap-3 pb-1">
-                        <Switch
-                          id="eventActive"
-                          checked={eventActive}
-                          onCheckedChange={setEventActive}
-                        />
-                        <Label htmlFor="eventActive" className="text-base">
-                          Active
-                        </Label>
-                      </div>
+                      {activationMode === "manual" ? (
+                        <div className="flex items-center gap-3">
+                          <Switch
+                            checked={eventActive}
+                            onCheckedChange={setEventActive}
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            Toggle to activate immediately
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label>Start</Label>
+                            <DateTimePicker
+                              value={scheduledStart}
+                              onChange={setScheduledStart}
+                              label="Start date & time"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>End</Label>
+                            <DateTimePicker
+                              value={scheduledEnd}
+                              onChange={setScheduledEnd}
+                              label="End date & time"
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground md:col-span-2">
+                            Scheduled events auto-activate during the window; manual toggles are disabled.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -808,6 +1000,58 @@ export default function EditDiscountEventModal({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4">
+                    <div className="mb-6 border rounded-md p-4 bg-muted/30 space-y-3">
+                      <div className="flex flex-col md:flex-row md:items-end gap-3">
+                        <div className="flex-1 space-y-2">
+                          <Label>Discount type</Label>
+                          <Select
+                            value={globalDiscountType}
+                            onValueChange={(v) =>
+                              setGlobalDiscountType(v as "percent" | "amount")
+                            }
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="amount">Flat amount</SelectItem>
+                              <SelectItem value="percent">Percent (%)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <Label>Discount value</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={globalDiscountValue}
+                            onChange={(e) => setGlobalDiscountValue(e.target.value)}
+                            placeholder="e.g. 300"
+                            className="h-10"
+                          />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <Label>Year (filter dates)</Label>
+                          <Input
+                            type="number"
+                            value={globalDiscountYear}
+                            onChange={(e) => setGlobalDiscountYear(e.target.value)}
+                            className="h-10"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={applyGlobalDiscountToAllTours}
+                          className="h-10"
+                        >
+                          Apply to all tours
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Quickly add/update all tours that have dates in the selected year. Flat amount is converted per tour so the discounted cost reflects the amount off.
+                      </p>
+                    </div>
                     {/* Tour Items */}
                     {draftItems.length > 0 && (
                       <div className="space-y-4">
@@ -1168,10 +1412,16 @@ export default function EditDiscountEventModal({
                                                   .get(idx)
                                                   ?.get(dateStr) || 0;
                                               const discountedCost =
-                                                calcDiscounted(
-                                                  item.originalCost,
-                                                  currentRate
-                                                );
+                                                globalDiscountType === "amount"
+                                                  ? calcDiscountedByType(
+                                                      item.originalCost,
+                                                      Math.round((item.originalCost * currentRate) / 100),
+                                                      "amount"
+                                                    )
+                                                  : calcDiscounted(
+                                                      item.originalCost,
+                                                      currentRate
+                                                    );
                                               const isCheckedForBulk =
                                                 applyDiscountChecked
                                                   .get(idx)
@@ -1186,44 +1436,6 @@ export default function EditDiscountEventModal({
                                                       : "bg-muted/30 opacity-60"
                                                   }`}
                                                 >
-                                                  {/* Checkbox for bulk apply - left side */}
-                                                  <input
-                                                    type="checkbox"
-                                                    checked={isCheckedForBulk}
-                                                    disabled={!isSelected}
-                                                    onChange={(e) => {
-                                                      setApplyDiscountChecked(
-                                                        (prev) => {
-                                                          const next = new Map(
-                                                            prev
-                                                          );
-                                                          const itemChecked =
-                                                            new Set<string>(
-                                                              next.get(idx) ??
-                                                                []
-                                                            );
-                                                          if (
-                                                            e.target.checked
-                                                          ) {
-                                                            itemChecked.add(
-                                                              dateStr
-                                                            );
-                                                          } else {
-                                                            itemChecked.delete(
-                                                              dateStr
-                                                            );
-                                                          }
-                                                          next.set(
-                                                            idx,
-                                                            itemChecked
-                                                          );
-                                                          return next;
-                                                        }
-                                                      );
-                                                    }}
-                                                    className="h-4 w-4 rounded border-gray-300 flex-shrink-0 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                                                  />
-
                                                   {/* Active/Inactive toggle with check icon */}
                                                   <button
                                                     type="button"
@@ -1276,54 +1488,101 @@ export default function EditDiscountEventModal({
                                                   </div>
                                                   {isSelected && (
                                                     <div className="flex items-center gap-2 flex-shrink-0">
-                                                      <Input
-                                                        type="number"
-                                                        min={0}
-                                                        max={100}
-                                                        step={1}
-                                                        value={
-                                                          currentRate || ""
-                                                        }
-                                                        placeholder="0"
-                                                        onChange={(e) => {
-                                                          updateDateDiscountRate(
-                                                            idx,
-                                                            dateStr,
-                                                            e.target.value
-                                                          );
-                                                          const newDiscounts = (
-                                                            item.dateDiscounts ||
-                                                            []
-                                                          ).map((dd) =>
-                                                            dd.date === dateStr
-                                                              ? {
-                                                                  ...dd,
-                                                                  discountRate:
-                                                                    Number(
-                                                                      e.target
-                                                                        .value
-                                                                    ) || 0,
-                                                                  discountedCost:
-                                                                    calcDiscounted(
-                                                                      item.originalCost,
-                                                                      Number(
-                                                                        e.target
-                                                                          .value
-                                                                      ) || 0
-                                                                    ),
-                                                                }
-                                                              : dd
-                                                          );
-                                                          updateDraftItem(idx, {
-                                                            dateDiscounts:
-                                                              newDiscounts,
-                                                          });
-                                                        }}
-                                                        className="h-9 w-20 text-sm"
-                                                      />
-                                                      <span className="text-sm text-muted-foreground">
-                                                        %
-                                                      </span>
+                                                      {globalDiscountType === "amount" ? (
+                                                        <>
+                                                          <span className="text-sm text-muted-foreground">£</span>
+                                                          <Input
+                                                            type="number"
+                                                            min={0}
+                                                            step={1}
+                                                            value={
+                                                              Math.round((item.originalCost * currentRate) / 100) || ""
+                                                            }
+                                                            placeholder="0"
+                                                            onChange={(e) => {
+                                                              const flatAmount = Number(e.target.value) || 0;
+                                                              const percentEquivalent = item.originalCost > 0 ? (flatAmount / item.originalCost) * 100 : 0;
+                                                              updateDateDiscountRate(
+                                                                idx,
+                                                                dateStr,
+                                                                percentEquivalent.toString()
+                                                              );
+                                                              const newDiscounts = (
+                                                                item.dateDiscounts ||
+                                                                []
+                                                              ).map((dd) =>
+                                                                dd.date === dateStr
+                                                                  ? {
+                                                                      ...dd,
+                                                                      discountRate: percentEquivalent,
+                                                                      discountedCost:
+                                                                        calcDiscounted(
+                                                                          item.originalCost,
+                                                                          percentEquivalent
+                                                                        ),
+                                                                    }
+                                                                  : dd
+                                                              );
+                                                              updateDraftItem(idx, {
+                                                                dateDiscounts:
+                                                                  newDiscounts,
+                                                              });
+                                                            }}
+                                                            className="h-9 w-20 text-sm"
+                                                          />
+                                                        </>
+                                                      ) : (
+                                                        <>
+                                                          <Input
+                                                            type="number"
+                                                            min={0}
+                                                            max={100}
+                                                            step={1}
+                                                            value={
+                                                              currentRate || ""
+                                                            }
+                                                            placeholder="0"
+                                                            onChange={(e) => {
+                                                              updateDateDiscountRate(
+                                                                idx,
+                                                                dateStr,
+                                                                e.target.value
+                                                              );
+                                                              const newDiscounts = (
+                                                                item.dateDiscounts ||
+                                                                []
+                                                              ).map((dd) =>
+                                                                dd.date === dateStr
+                                                                  ? {
+                                                                      ...dd,
+                                                                      discountRate:
+                                                                        Number(
+                                                                          e.target
+                                                                            .value
+                                                                        ) || 0,
+                                                                      discountedCost:
+                                                                        calcDiscounted(
+                                                                          item.originalCost,
+                                                                          Number(
+                                                                            e.target
+                                                                              .value
+                                                                          ) || 0
+                                                                        ),
+                                                                    }
+                                                                  : dd
+                                                              );
+                                                              updateDraftItem(idx, {
+                                                                dateDiscounts:
+                                                                  newDiscounts,
+                                                              });
+                                                            }}
+                                                            className="h-9 w-20 text-sm"
+                                                          />
+                                                          <span className="text-sm text-muted-foreground">
+                                                            %
+                                                          </span>
+                                                        </>
+                                                      )}
                                                     </div>
                                                   )}
                                                 </div>
