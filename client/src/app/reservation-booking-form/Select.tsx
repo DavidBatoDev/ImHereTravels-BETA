@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 export type Option = {
-  label: string;
+  label: React.ReactNode;
   value: string;
   disabled?: boolean;
   description?: string;
@@ -42,7 +42,7 @@ export default function Select({
   const selected = options.find(o => o.value === value) ?? null;
   const filtered = searchable
     ? options.filter(o => {
-        const searchText = o.searchValue || o.label;
+        const searchText = o.searchValue ?? (typeof o.label === "string" ? o.label : "");
         return searchText.toLowerCase().includes(query.toLowerCase());
       })
     : options;

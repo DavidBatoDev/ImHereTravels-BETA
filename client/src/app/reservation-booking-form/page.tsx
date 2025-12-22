@@ -25,6 +25,7 @@ import StripePayment from "./StripePayment";
 import BirthdatePicker from "./BirthdatePicker";
 import Select from "./Select";
 import TourSelectionModal from "./TourSelectionModal";
+import ReactCountryFlag from "react-country-flag";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Dialog,
@@ -172,6 +173,9 @@ const Page = () => {
   const [tourImageLoading, setTourImageLoading] = useState(false);
   const [tourImageError, setTourImageError] = useState(false);
   const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [step2Processing, setStep2Processing] = useState(false);
+  const [step2StatusMsg, setStep2StatusMsg] = useState<string | null>(null);
+  const [step2StatusType, setStep2StatusType] = useState<"success" | "error" | null>(null);
 
   // Tour selection modal state
   const [showTourModal, setShowTourModal] = useState(false);
@@ -1593,7 +1597,7 @@ const Page = () => {
             console.warn(
               `Tour package "${
                 payload.name ?? payload.title ?? doc.id
-              }" has no valid travel dates.`
+              }" has no valid tour dates.`
             );
           }
 
@@ -4129,7 +4133,23 @@ const Page = () => {
                               );
                               const countryName = en[country] || country;
                               return {
-                                label: `${data.flag} ${data.alpha3} (+${callingCode})`,
+                                label: (
+                                  <span className="inline-flex items-center gap-2">
+                                    <ReactCountryFlag
+                                      countryCode={country}
+                                      svg
+                                      aria-label={countryName}
+                                      style={{ 
+                                        width: "1rem", 
+                                        height: "0.5rem",
+                                        flexShrink: 1
+                                      }}
+                                    />
+                                    <span>
+                                      {`${data.alpha3} (+${callingCode})`}
+                                    </span>
+                                  </span>
+                                ),
                                 value: country,
                                 searchValue:
                                   `${data.flag} ${data.alpha3} ${countryName} ${country} ${callingCode}`.toLowerCase(),
@@ -4635,8 +4655,34 @@ const Page = () => {
                       amountGBP={depositAmount}
                       bookingId={bookingId || "PENDING"}
                       paymentDocId={paymentDocId}
-                      onSuccess={handlePaymentSuccess}
+                      onSuccess={(pid, docId) => {
+                        setStep2StatusType("success");
+                        setStep2StatusMsg("Payment succeeded! Securing your reservation...");
+                        handlePaymentSuccess(pid, docId);
+                      }}
+                      onError={(msg) => {
+                        setStep2StatusType("error");
+                        setStep2StatusMsg(msg || "Payment failed. Please try again.");
+                      }}
+                      onProcessingChange={(p) => setStep2Processing(p)}
                     />
+
+                    {/* Step 2 status + processing prompt */}
+                    {step2Processing && (
+                      <div className="mt-4 flex items-center gap-3 p-3 rounded-md border border-border bg-muted/30">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                        <span className="text-sm text-muted-foreground">Processing payment…</span>
+                      </div>
+                    )}
+                    {step2StatusMsg && !step2Processing && (
+                      <div className={`mt-4 p-3 rounded-md border text-sm ${
+                        step2StatusType === "success"
+                          ? "bg-spring-green/10 text-spring-green border-spring-green/30"
+                          : "bg-destructive/10 text-destructive border-destructive/30"
+                      }`}>
+                        {step2StatusMsg}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -4744,7 +4790,7 @@ const Page = () => {
 
                     {/* Payment Plan Options */}
                 {availablePaymentTerm.isLastMinute ? (
-                  <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-md">
+                  <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-md mt-4">
                     <div className="flex items-start gap-3">
                       <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
                         <svg
@@ -4778,7 +4824,7 @@ const Page = () => {
                   </div>
                 ) : (
                   <>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground mt-6 mb-4">
                       Great news! You have up to{" "}
                       <span className="font-medium text-foreground">
                         {availablePaymentTerm.term}
@@ -4786,7 +4832,7 @@ const Page = () => {
                       flexible payment options. Pick what works best for you:
                     </p>
 
-                    <div className="space-y-3">
+                    <div className="space-y-3 mt-4">
                       {getAvailablePaymentPlans().map((plan) => (
                         <button
                           key={plan.id}
@@ -5105,8 +5151,13 @@ const Page = () => {
                       firstName={firstName}
                       lastName={lastName}
                       paymentPlan={
-                        paymentTerms.find((p) => p.id === selectedPaymentPlan)
-                          ?.name || "Selected"
+                        availablePaymentTerm.isLastMinute ||
+                        selectedPaymentPlan === "full_payment"
+                          ? "Full Payment"
+                          : fixTermName(
+                              paymentTerms.find((p) => p.id === selectedPaymentPlan)?.name ||
+                                "Selected"
+                            )
                       }
                       reservationFee={depositAmount}
                       totalAmount={selectedPackage?.price || 0}
@@ -5172,7 +5223,7 @@ const Page = () => {
                           </div>
                           <div className="flex justify-between py-2 border-b border-gray-300">
                             <span className="text-sm text-gray-600">
-                              Travel Date
+                              Tour Date
                             </span>
                             <span className="text-sm font-medium text-gray-900">
                               {tourDate}
@@ -5189,9 +5240,11 @@ const Page = () => {
                               Payment Plan
                             </span>
                             <span className="text-sm font-medium text-gray-900">
-                              {paymentTerms.find(
-                                (p) => p.id === selectedPaymentPlan
-                              )?.name || "Selected"}
+                              {selectedPaymentPlan === "full_payment"
+                                ? "Full Payment"
+                                : paymentTerms.find(
+                                    (p) => p.id === selectedPaymentPlan
+                                  )?.name || "Selected"}
                             </span>
                           </div>
                         </div>
@@ -5221,7 +5274,7 @@ const Page = () => {
                           </div>
                           <div className="flex justify-between py-2 border-b border-border">
                             <span className="text-sm text-muted-foreground">
-                              Travel Date
+                              Tour Date
                             </span>
                             <span className="text-sm font-medium text-foreground">
                               {tourDate}
@@ -5240,9 +5293,11 @@ const Page = () => {
                               Payment Plan
                             </span>
                             <span className="text-sm font-medium text-foreground">
-                              {paymentTerms.find(
-                                (p) => p.id === selectedPaymentPlan
-                              )?.name || "Selected"}
+                              {selectedPaymentPlan === "full_payment"
+                                ? "Full Payment"
+                                : paymentTerms.find(
+                                    (p) => p.id === selectedPaymentPlan
+                                  )?.name || "Selected"}
                             </span>
                           </div>
                         </div>
@@ -5358,9 +5413,13 @@ const Page = () => {
                             const selectedPlanTerm = paymentTerms.find(
                               (p) => p.id === selectedPaymentPlan
                             );
-                            const paymentPlanLabel = selectedPlanTerm
-                              ? `${(selectedPlanTerm.paymentPlanType || "").toUpperCase()} - ${fixTermName(selectedPlanTerm.name)}`.trim()
-                              : "P2 - Two Installment";
+                            const paymentPlanLabel =
+                              availablePaymentTerm.isLastMinute ||
+                              selectedPaymentPlan === "full_payment"
+                                ? "Full Payment"
+                                : selectedPlanTerm
+                                ? fixTermName(selectedPlanTerm.name)
+                                : "Selected";
                             const pdf = await generateBookingConfirmationPDF(
                               confirmationId,
                               selectedPackage?.name || "Tour",

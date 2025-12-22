@@ -21,6 +21,7 @@ interface PaymentFormProps {
   onSuccess?: (paymentIntentId?: string, paymentDocId?: string) => void;
   onPaymentSuccess?: (paymentDocId: string) => void;
   onError: (error: string) => void;
+  onProcessingChange?: (processing: boolean) => void;
   isGuestBooking?: boolean;
 }
 
@@ -30,6 +31,7 @@ function PaymentForm({
   onSuccess,
   onPaymentSuccess,
   onError,
+  onProcessingChange,
   isGuestBooking = false,
 }: PaymentFormProps) {
   const stripe = useStripe();
@@ -38,11 +40,16 @@ function PaymentForm({
   const [message, setMessage] = useState<string | null>(null);
   const [paymentFailed, setPaymentFailed] = useState(false);
   const [declineCode, setDeclineCode] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalStatus, setModalStatus] = useState<'processing' | 'success' | 'error' | '3ds' | 'verifying'>('processing');
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalDetail, setModalDetail] = useState('');
 
   useEffect(() => {
     if (!stripe || !clientSecret) return;
 
     // Check payment status on mount (in case of page refresh)
+    // NOTE: We only check status for display purposes, not to trigger callbacks
     (async () => {
       try {
         const result = await stripe.retrievePaymentIntent(clientSecret);
@@ -50,24 +57,9 @@ function PaymentForm({
         console.debug("Stripe retrievePaymentIntent:", paymentIntent);
         if (!paymentIntent) return;
 
+        // Only show status messages, don't trigger success callbacks on refresh
         if (paymentIntent.status === "succeeded") {
-          const amountReceived = (paymentIntent as any).amount_received ?? 0;
-          if (amountReceived > 0) {
-            setMessage("Payment succeeded!");
-            if (isGuestBooking && onPaymentSuccess && paymentDocId) {
-              onPaymentSuccess(paymentDocId);
-            } else if (onSuccess) {
-              onSuccess(paymentIntent.id, paymentDocId || undefined);
-            }
-          } else {
-            console.warn(
-              "PaymentIntent succeeded but amount_received is 0",
-              paymentIntent
-            );
-            setMessage(
-              "Payment completed (pending verification). Please wait..."
-            );
-          }
+          // Payment already completed - don't show anything, form should be hidden by parent
           return;
         }
 
@@ -84,11 +76,16 @@ function PaymentForm({
             );
           }
         }
+
+        // For any other status, clear stale UI state
+        setMessage(null);
+        setPaymentFailed(false);
+        setDeclineCode(null);
       } catch (err) {
         console.warn("retrievePaymentIntent error:", err);
       }
     })();
-  }, [stripe, clientSecret, onSuccess, paymentDocId]);
+  }, [stripe, clientSecret]);
 
   const getErrorMessage = (error: any) => {
     const code = error.decline_code || error.code;
@@ -128,9 +125,16 @@ function PaymentForm({
     }
 
     setIsProcessing(true);
+    onProcessingChange?.(true);
     setMessage(null);
     setPaymentFailed(false);
     setDeclineCode(null);
+    
+    // Show modal with processing state
+    setShowModal(true);
+    setModalStatus('processing');
+    setModalMessage('Processing your payment...');
+    setModalDetail('Please wait while we securely process your transaction.');
 
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
@@ -142,30 +146,228 @@ function PaymentForm({
       setMessage(errorMsg);
       setPaymentFailed(true);
       setDeclineCode(error.decline_code || error.code || null);
-      onError(errorMsg);
+      
+      // Update modal with error state
+      setModalStatus('error');
+      setModalMessage('Payment failed');
+      setModalDetail(errorMsg);
+      
+      // Auto-close modal after 4 seconds for errors
+      setTimeout(() => {
+        setShowModal(false);
+        onError(errorMsg);
+      }, 4000);
+      
       setIsProcessing(false);
-    } else if (paymentIntent && paymentIntent.status === "succeeded") {
-      setMessage("Payment succeeded!");
-      setPaymentFailed(false);
-      if (isGuestBooking && onPaymentSuccess && paymentDocId) {
-        onPaymentSuccess(paymentDocId);
-      } else if (onSuccess) {
-        onSuccess(paymentIntent.id, paymentDocId || undefined);
+      onProcessingChange?.(false);
+    } else if (paymentIntent) {
+      // Handle all possible payment intent statuses
+      switch (paymentIntent.status) {
+        case "succeeded":
+          setMessage("Payment succeeded!");
+          setPaymentFailed(false);
+          
+          // Update modal with success state
+          setModalStatus('success');
+          setModalMessage('Payment successful!');
+          setModalDetail('Your reservation fee has been processed. Securing your spot...');
+          
+          // Keep modal open briefly before calling success
+          setTimeout(() => {
+            if (isGuestBooking && onPaymentSuccess && paymentDocId) {
+              onPaymentSuccess(paymentDocId);
+            } else if (onSuccess) {
+              onSuccess(paymentIntent.id, paymentDocId || undefined);
+            }
+            setIsProcessing(false);
+            onProcessingChange?.(false);
+            setShowModal(false);
+          }, 2000);
+          break;
+
+        case "processing":
+          // Payment is being processed asynchronously - keep user waiting
+          const processingMsg = "Your payment is being processed. This may take a few moments...";
+          setMessage(processingMsg);
+          setPaymentFailed(false);
+          
+          // Update modal with verifying state
+          setModalStatus('verifying');
+          setModalMessage('Payment received');
+          setModalDetail('We\'re verifying your payment with your bank. This may take a few moments...');
+          
+          // Don't call onError for processing state - it's not an error
+          // Keep processing indicator active
+          break;
+
+        case "requires_payment_method":
+          const requiresPaymentMsg = "Payment failed. Please try a different payment method.";
+          setMessage(requiresPaymentMsg);
+          setPaymentFailed(true);
+          
+          // Update modal with error state
+          setModalStatus('error');
+          setModalMessage('Payment declined');
+          setModalDetail(requiresPaymentMsg);
+          
+          // Auto-close modal after 4 seconds
+          setTimeout(() => {
+            setShowModal(false);
+            setMessage(null);
+            onError(requiresPaymentMsg);
+          }, 4000);
+          
+          setIsProcessing(false);
+          onProcessingChange?.(false);
+          break;
+
+        case "requires_action":
+          // Additional authentication needed (e.g., 3D Secure)
+          const requiresActionMsg = "Additional verification required. Please complete the authentication.";
+          setMessage(requiresActionMsg);
+          setPaymentFailed(false);
+          
+          // Update modal with 3DS state
+          setModalStatus('3ds');
+          setModalMessage('Additional verification needed');
+          setModalDetail('Please complete the authentication in the popup window to proceed.');
+          
+          // Don't call onError - this is a pending state that needs user action
+          setIsProcessing(false);
+          onProcessingChange?.(false);
+          break;
+
+        case "requires_confirmation":
+        case "requires_capture":
+        case "canceled":
+        case "incomplete":
+        default:
+          const defaultMsg = `Payment incomplete (status: ${paymentIntent.status}). Please try again.`;
+          setMessage(defaultMsg);
+          setPaymentFailed(true);
+          
+          // Update modal with error state
+          setModalStatus('error');
+          setModalMessage('Payment incomplete');
+          setModalDetail(defaultMsg);
+          
+          // Auto-close modal after 4 seconds
+          setTimeout(() => {
+            setShowModal(false);
+            setMessage(null);
+            onError(defaultMsg);
+          }, 4000);
+          
+          setIsProcessing(false);
+          onProcessingChange?.(false);
+          break;
       }
-      setIsProcessing(false);
-    } else if (
-      paymentIntent &&
-      paymentIntent.status === "requires_payment_method"
-    ) {
-      const errorMsg = "Payment failed. Please try a different payment method.";
-      setMessage(errorMsg);
+    } else {
+      // No error and no paymentIntent - something went wrong
+      const unknownMsg = "Payment status unknown. Please verify your payment before continuing.";
+      setMessage(unknownMsg);
       setPaymentFailed(true);
+      
+      // Update modal with error state
+      setModalStatus('error');
+      setModalMessage('Unknown error');
+      setModalDetail(unknownMsg);
+      
+      // Auto-close modal after 4 seconds
+      setTimeout(() => {
+        setShowModal(false);
+        setMessage(null);
+        onError(unknownMsg);
+      }, 4000);
+      
       setIsProcessing(false);
+      onProcessingChange?.(false);
+    }
+  };
+
+  // Modal icon and color based on status
+  const getModalIcon = () => {
+    switch (modalStatus) {
+      case 'success':
+        return (
+          <div className="flex items-center justify-center h-16 w-16 rounded-full bg-green-500 mx-auto mb-4 animate-scale-in">
+            <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+        );
+      case 'error':
+        return (
+          <div className="flex items-center justify-center h-16 w-16 rounded-full bg-red-500 mx-auto mb-4 animate-shake">
+            <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+        );
+      case '3ds':
+        return (
+          <div className="flex items-center justify-center h-16 w-16 rounded-full bg-blue-500 mx-auto mb-4">
+            <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+        );
+      case 'verifying':
+        return (
+          <div className="flex items-center justify-center h-16 w-16 rounded-full bg-yellow-500 mx-auto mb-4">
+            <svg className="h-8 w-8 text-white animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        );
+      case 'processing':
+      default:
+        return (
+          <div className="flex items-center justify-center h-16 w-16 rounded-full bg-primary mx-auto mb-4">
+            <svg className="h-8 w-8 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+        );
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <>
+      {/* Payment Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 animate-fade-in">
+          <div className="bg-card rounded-2xl shadow-2xl max-w-md w-full p-8 border border-border animate-slide-up">
+            {getModalIcon()}
+            <h3 className="text-2xl font-bold text-center text-foreground mb-2">
+              {modalMessage}
+            </h3>
+            <p className="text-center text-muted-foreground mb-6">
+              {modalDetail}
+            </p>
+            
+            {modalStatus === 'processing' && (
+              <div className="flex items-center justify-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '500ms' }}></div>
+              </div>
+            )}
+            
+            {(modalStatus === 'error' || modalStatus === '3ds') && (
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-full mt-4 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
       <PaymentElement
         options={{
           layout: "tabs" as const,
@@ -179,7 +381,7 @@ function PaymentForm({
         }}
       />
 
-      {message && (
+      {message && !showModal && (!paymentFailed || modalStatus === "success") && (
         <div
           className={`text-sm p-3 rounded ${
             message.includes("succeeded")
@@ -239,6 +441,7 @@ function PaymentForm({
           : "Pay now"}
       </button>
     </form>
+    </>
   );
 }
 
@@ -253,6 +456,7 @@ interface StripePaymentProps {
   onPaymentSuccess?: (paymentDocId: string) => void;
   onPaymentDocIdCreated?: (paymentDocId: string) => void;
   onBack?: () => void;
+  onProcessingChange?: (processing: boolean) => void;
 
   // Guest booking specific props
   isGuestBooking?: boolean;
@@ -277,8 +481,10 @@ export default function StripePayment({
   paymentDocId: paymentDocIdProp,
   onSuccess,
   onPaymentSuccess,
+  onError,
   onPaymentDocIdCreated,
   onBack,
+  onProcessingChange,
   isGuestBooking = false,
   parentBookingId,
   guestEmail,
@@ -560,15 +766,48 @@ export default function StripePayment({
   };
 
   return (
-    <Elements stripe={stripePromise} options={options}>
-      <PaymentForm
+    <>
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes slide-up {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes scale-in {
+          from { transform: scale(0); }
+          to { transform: scale(1); }
+        }
+        
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+          20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        .animate-fade-in { animation: fade-in 0.3s ease-out; }
+        .animate-slide-up { animation: slide-up 0.4s ease-out; }
+        .animate-scale-in { animation: scale-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .animate-shake { animation: shake 0.5s ease-in-out; }
+      `}} />
+      <Elements stripe={stripePromise} options={options}>
+        <PaymentForm
         clientSecret={clientSecret}
         paymentDocId={paymentDocId}
         onSuccess={onSuccess}
         onPaymentSuccess={onPaymentSuccess}
-        onError={(err) => setError(err)}
+        onError={(err) => {
+          setError(err);
+          onError?.(err);
+        }}
+        onProcessingChange={onProcessingChange}
         isGuestBooking={isGuestBooking}
       />
-    </Elements>
+      </Elements>
+    </>
   );
 }

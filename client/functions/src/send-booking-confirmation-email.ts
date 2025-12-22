@@ -288,7 +288,7 @@ export const sendBookingConfirmationEmail = onCall(
         templateVariables
       );
 
-      const subject = `Booking Confirmed for ${bookingData.tourPackageName}: ${confirmedBooking.bookingReference}`;
+      const subject = `Reservation Confirmed for ${bookingData.tourPackageName}: ${confirmedBooking.bookingReference}`;
 
       // Get BCC list
       const bccList = await getBCCList();
