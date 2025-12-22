@@ -175,7 +175,9 @@ const Page = () => {
   const [isCreatingPayment, setIsCreatingPayment] = useState(false);
   const [step2Processing, setStep2Processing] = useState(false);
   const [step2StatusMsg, setStep2StatusMsg] = useState<string | null>(null);
-  const [step2StatusType, setStep2StatusType] = useState<"success" | "error" | null>(null);
+  const [step2StatusType, setStep2StatusType] = useState<
+    "success" | "error" | null
+  >(null);
 
   // Tour selection modal state
   const [showTourModal, setShowTourModal] = useState(false);
@@ -224,7 +226,15 @@ const Page = () => {
   // ---- multi-step flow state ----
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmedState] = useState(false);
+
+  // Wrapper to log when paymentConfirmed changes
+  const setPaymentConfirmed = (value: boolean) => {
+    console.log("🔍 DEBUG: setPaymentConfirmed called with:", value);
+    console.trace("🔍 DEBUG: Call stack:");
+    setPaymentConfirmedState(value);
+  };
+
   const [bookingId, setBookingId] = useState<string>("");
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [confirmingBooking, setConfirmingBooking] = useState(false);
@@ -554,8 +564,40 @@ const Page = () => {
     setShowEmailModal(false);
     const status = rec?.payment?.status || rec?.status;
 
-    // For reserve_paid: check if payment plan already selected
+    // For reserve_paid: verify payment with Stripe before proceeding
     if (status === "reserve_paid") {
+      const stripeIntentId = rec?.payment?.stripeIntentId;
+
+      // Verify payment status with Stripe if we have a payment intent ID
+      if (stripeIntentId) {
+        try {
+          console.log("🔍 Verifying payment status with Stripe...");
+          const response = await fetch(
+            `/api/stripe-payments/verify-payment?paymentIntentId=${stripeIntentId}`
+          );
+          const result = await response.json();
+
+          if (!response.ok || result.status !== "succeeded") {
+            console.error("❌ Payment verification failed:", result);
+            // Payment didn't actually succeed - update status and treat as pending
+            const { doc, updateDoc } = await import("firebase/firestore");
+            await updateDoc(doc(db, "stripePayments", rec.id), {
+              "payment.status": "reserve_pending",
+            });
+            alert(
+              "Payment verification failed. The payment was not completed successfully. Please try again."
+            );
+            // Treat as pending and reload
+            window.location.reload();
+            return;
+          }
+          console.log("✅ Payment verified successfully");
+        } catch (err) {
+          console.error("Error verifying payment:", err);
+          // If verification fails, proceed cautiously but log the issue
+        }
+      }
+
       // Check if booking exists and has a payment plan
       const bookingDocId = rec.booking?.documentId || rec.booking?.id;
       let hasPaymentPlan = false;
@@ -1539,14 +1581,10 @@ const Page = () => {
       }
     } catch (error) {
       console.error("❌ Error in payment success handler:", error);
-      // Still proceed with payment confirmation even if saving fails
-      setPaymentConfirmed(true);
-      if (!completedSteps.includes(1)) {
-        setCompletedSteps((prev) => [...prev, 1]);
-      }
-      if (!completedSteps.includes(2)) {
-        setCompletedSteps((prev) => [...prev, 2]);
-      }
+      // Do NOT set paymentConfirmed if there was an error - the payment status update failed
+      alert(
+        "Payment processing encountered an error. Please refresh the page and verify your payment status."
+      );
     }
   };
 
@@ -1832,21 +1870,25 @@ const Page = () => {
                 if (data.customer?.whatsAppNumber) {
                   // Parse the stored WhatsApp number to extract country and number
                   const fullNumber = data.customer.whatsAppNumber;
-                  if (fullNumber && fullNumber.startsWith('+')) {
+                  if (fullNumber && fullNumber.startsWith("+")) {
                     // Find matching country by calling code
                     let foundCountry = false;
                     for (const country of getCountries()) {
-                      const callingCode = getCountryCallingCode(country as Country);
+                      const callingCode = getCountryCallingCode(
+                        country as Country
+                      );
                       if (fullNumber.startsWith(`+${callingCode}`)) {
                         setWhatsAppCountry(country);
-                        setWhatsAppNumber(fullNumber.slice(callingCode.length + 1));
+                        setWhatsAppNumber(
+                          fullNumber.slice(callingCode.length + 1)
+                        );
                         foundCountry = true;
                         break;
                       }
                     }
                     if (!foundCountry) {
                       // Fallback: just remove the + and set as-is
-                      setWhatsAppNumber(fullNumber.replace(/^\+/, ''));
+                      setWhatsAppNumber(fullNumber.replace(/^\+/, ""));
                     }
                   }
                 }
@@ -1932,21 +1974,25 @@ const Page = () => {
               if (data.customer?.whatsAppNumber) {
                 // Parse the stored WhatsApp number to extract country and number
                 const fullNumber = data.customer.whatsAppNumber;
-                if (fullNumber && fullNumber.startsWith('+')) {
+                if (fullNumber && fullNumber.startsWith("+")) {
                   // Find matching country by calling code
                   let foundCountry = false;
                   for (const country of getCountries()) {
-                    const callingCode = getCountryCallingCode(country as Country);
+                    const callingCode = getCountryCallingCode(
+                      country as Country
+                    );
                     if (fullNumber.startsWith(`+${callingCode}`)) {
                       setWhatsAppCountry(country);
-                      setWhatsAppNumber(fullNumber.slice(callingCode.length + 1));
+                      setWhatsAppNumber(
+                        fullNumber.slice(callingCode.length + 1)
+                      );
                       foundCountry = true;
                       break;
                     }
                   }
                   if (!foundCountry) {
                     // Fallback: just remove the + and set as-is
-                    setWhatsAppNumber(fullNumber.replace(/^\+/, ''));
+                    setWhatsAppNumber(fullNumber.replace(/^\+/, ""));
                   }
                 }
               }
@@ -1959,7 +2005,20 @@ const Page = () => {
               if (data.tour?.date) setTourDate(data.tour.date);
 
               // Advance to the appropriate step based on status
+              console.log(
+                "🔍 DEBUG: Session restore - Payment status:",
+                data.payment?.status
+              );
+              console.log(
+                "🔍 DEBUG: Session restore - Payment intent ID:",
+                data.payment?.stripeIntentId
+              );
+              console.log("🔍 DEBUG: Session restore - Document ID:", docId);
+
               if (data.payment?.status === "reserve_pending") {
+                console.log(
+                  "✅ DEBUG: Status is reserve_pending, staying on step 2"
+                );
                 // mark step 1 completed and go to payment step
                 // update URL to reference this payment doc and remove any `tour` param
                 try {
@@ -1982,8 +2041,85 @@ const Page = () => {
                 }
                 setStep(2);
                 setCompletedSteps((prev) => Array.from(new Set([...prev, 1])));
+                console.log(
+                  "✅ DEBUG: Set step to 2, paymentConfirmed should be false"
+                );
               } else if (data.payment?.status === "reserve_paid") {
-                // payment completed — go to payment plan
+                console.log(
+                  "⚠️ DEBUG: Status is reserve_paid, verifying payment..."
+                );
+                // Verify payment with Stripe before showing as confirmed
+                const stripeIntentId = data.payment?.stripeIntentId;
+
+                if (stripeIntentId) {
+                  try {
+                    console.log("🔍 Verifying payment on page load...");
+                    const verifyResponse = await fetch(
+                      `/api/stripe-payments/verify-payment?paymentIntentId=${stripeIntentId}`
+                    );
+                    const verifyResult = await verifyResponse.json();
+
+                    if (
+                      !verifyResponse.ok ||
+                      verifyResult.status !== "succeeded"
+                    ) {
+                      console.error(
+                        "❌ Payment verification failed on load:",
+                        verifyResult
+                      );
+                      // Payment didn't actually succeed - update status to pending
+                      const { doc: firestoreDoc, updateDoc } = await import(
+                        "firebase/firestore"
+                      );
+                      await updateDoc(
+                        firestoreDoc(db, "stripePayments", docId),
+                        {
+                          "payment.status": "reserve_pending",
+                        }
+                      );
+
+                      // Go to payment step instead
+                      try {
+                        replaceWithPaymentId(docId);
+                      } catch (err) {
+                        console.debug(
+                          "Failed to set paymentid query param:",
+                          err
+                        );
+                      }
+                      setStep(2);
+                      setCompletedSteps((prev) =>
+                        Array.from(new Set([...prev, 1]))
+                      );
+                      alert(
+                        "Payment verification failed. The payment was not completed. Please try again."
+                      );
+                      return; // Exit early
+                    }
+                    console.log("✅ Payment verified successfully on load");
+                  } catch (err) {
+                    console.error("Error verifying payment on load:", err);
+                    // If verification fails, proceed cautiously to payment step
+                    try {
+                      replaceWithPaymentId(docId);
+                    } catch (err2) {
+                      console.debug(
+                        "Failed to set paymentid query param:",
+                        err2
+                      );
+                    }
+                    setStep(2);
+                    setCompletedSteps((prev) =>
+                      Array.from(new Set([...prev, 1]))
+                    );
+                    return;
+                  }
+                }
+
+                // payment completed and verified — go to payment plan
+                console.log(
+                  "✅ DEBUG: Payment verified, setting paymentConfirmed to TRUE"
+                );
                 setPaymentConfirmed(true);
                 try {
                   if (DEBUG)
@@ -2009,6 +2145,14 @@ const Page = () => {
                 setCompletedSteps((prev) =>
                   Array.from(new Set([...prev, 1, 2]))
                 );
+              } else {
+                console.log(
+                  "⚠️ DEBUG: Unknown payment status:",
+                  data.payment?.status,
+                  "- going to step 2"
+                );
+                setStep(2);
+                setCompletedSteps((prev) => Array.from(new Set([...prev, 1])));
               }
 
               // stop after first matching key
@@ -2232,27 +2376,69 @@ const Page = () => {
   // Restore payment state when arriving with a paymentid in the URL
   useEffect(() => {
     if (typeof window === "undefined") return;
-    
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const pid = params.get("paymentid");
-      if (pid) {
-        // Mark payment as confirmed and ensure steps 1 and 2 are completed
-        setPaymentConfirmed(true);
-        setCompletedSteps((prev) => {
-          const next = new Set(prev);
-          next.add(1);
-          next.add(2);
-          return Array.from(next);
-        });
-      }
-    } catch {}
+
+    const verifyPaymentFromURL = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const pid = params.get("paymentid");
+        if (pid) {
+          console.log(
+            "🔍 DEBUG: Found paymentid in URL, verifying payment status:",
+            pid
+          );
+
+          // Verify payment with Stripe before setting as confirmed
+          try {
+            const verifyRes = await fetch(
+              `/api/stripe-payments/verify-payment?paymentIntentId=${pid}`,
+              { method: "GET" }
+            );
+
+            if (verifyRes.ok) {
+              const verifyData = await verifyRes.json();
+              console.log(
+                "🔍 DEBUG: Stripe verification result for URL paymentid:",
+                verifyData.status
+              );
+
+              if (verifyData.status === "succeeded") {
+                console.log(
+                  "✅ DEBUG: Payment verified from URL, setting paymentConfirmed to true"
+                );
+                // Mark payment as confirmed and ensure steps 1 and 2 are completed
+                setPaymentConfirmed(true);
+                setCompletedSteps((prev) => {
+                  const next = new Set(prev);
+                  next.add(1);
+                  next.add(2);
+                  return Array.from(next);
+                });
+              } else {
+                console.log(
+                  "❌ DEBUG: Payment not succeeded, status:",
+                  verifyData.status
+                );
+              }
+            } else {
+              console.log("❌ DEBUG: Failed to verify payment from URL");
+            }
+          } catch (verifyErr) {
+            console.error(
+              "❌ DEBUG: Error verifying payment from URL:",
+              verifyErr
+            );
+          }
+        }
+      } catch {}
+    };
+
+    verifyPaymentFromURL();
   }, []);
 
   // Additional guard: Keep steps 1 and 2 completed when paymentid is in URL
   useEffect(() => {
     if (typeof window === "undefined") return;
-    
+
     try {
       const params = new URLSearchParams(window.location.search);
       const pid = params.get("paymentid");
@@ -4119,155 +4305,153 @@ const Page = () => {
                         <span className="text-destructive text-xs">*</span>
                       </span>
                       <div className="relative mt-1 flex items-stretch gap-2">
-                          <Select
-                            value={whatsAppCountry}
-                            onChange={(code) => {
-                              setWhatsAppCountry(code);
-                              // Clear the number when country changes to avoid confusion
-                              setWhatsAppNumber("");
-                            }}
-                            options={getCountries().map((country) => {
-                              const data = getCountryData(country);
-                              const callingCode = getCountryCallingCode(
-                                country as Country
-                              );
-                              const countryName = en[country] || country;
-                              return {
-                                label: (
-                                  <span className="inline-flex items-center gap-2">
-                                    <ReactCountryFlag
-                                      countryCode={country}
-                                      svg
-                                      aria-label={countryName}
-                                      style={{ 
-                                        width: "1rem", 
-                                        height: "0.5rem",
-                                        flexShrink: 1
-                                      }}
-                                    />
-                                    <span>
-                                      {`${data.alpha3} (+${callingCode})`}
-                                    </span>
+                        <Select
+                          value={whatsAppCountry}
+                          onChange={(code) => {
+                            setWhatsAppCountry(code);
+                            // Clear the number when country changes to avoid confusion
+                            setWhatsAppNumber("");
+                          }}
+                          options={getCountries().map((country) => {
+                            const data = getCountryData(country);
+                            const callingCode = getCountryCallingCode(
+                              country as Country
+                            );
+                            const countryName = en[country] || country;
+                            return {
+                              label: (
+                                <span className="inline-flex items-center gap-2">
+                                  <ReactCountryFlag
+                                    countryCode={country}
+                                    svg
+                                    aria-label={countryName}
+                                    style={{
+                                      width: "1rem",
+                                      height: "0.5rem",
+                                      flexShrink: 1,
+                                    }}
+                                  />
+                                  <span>
+                                    {`${data.alpha3} (+${callingCode})`}
                                   </span>
-                                ),
-                                value: country,
-                                searchValue:
-                                  `${data.flag} ${data.alpha3} ${countryName} ${country} ${callingCode}`.toLowerCase(),
-                              };
-                            })}
-                            placeholder="Country"
-                            ariaLabel="Country Code"
-                            disabled={paymentConfirmed}
-                            searchable
-                            className="w-[160px] flex-shrink-0"
-                          />
-                          <div className="flex-1 relative min-w-0">
-                            <div
-                              className={`flex items-center w-full px-4 py-3 rounded-lg bg-input transition-all duration-200 shadow-sm border-2 ${
-                                errors.whatsAppNumber
-                                  ? "border-destructive"
-                                  : whatsAppNumber &&
-                                    isValidPhoneNumber(
-                                      `+${getCountryCallingCode(
-                                        whatsAppCountry as Country
-                                      )}${whatsAppNumber}`
-                                    )
-                                  ? "border-green-500 bg-green-50/5"
-                                  : "border-border"
-                              } focus-within:outline-none focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-md hover:border-primary/50`}
-                            >
-                              <span className="text-muted-foreground mr-2 select-none">
-                                +
-                                {getCountryCallingCode(
-                                  whatsAppCountry as Country
-                                )}
-                              </span>
-                              <input
-                                type="tel"
-                                value={whatsAppNumber}
-                                onChange={(e) => {
-                                  const value = e.target.value.replace(
-                                    /[^0-9]/g,
-                                    ""
-                                  );
-                                  const maxLen =
-                                    getCountryData(whatsAppCountry).maxLength;
-                                  const limitedValue = value.slice(0, maxLen);
-                                  setWhatsAppNumber(limitedValue);
-
-                                  // Real-time validation
-                                  const fullNumber = `+${getCountryCallingCode(
-                                    whatsAppCountry as Country
-                                  )}${limitedValue}`;
-                                  setErrors((prev) => {
-                                    const clone = { ...prev } as any;
-                                    if (!limitedValue.trim()) {
-                                      clone.whatsAppNumber =
-                                        "WhatsApp number is required";
-                                    } else if (
-                                      limitedValue.length > 2 &&
-                                      !isValidPhoneNumber(fullNumber)
-                                    ) {
-                                      clone.whatsAppNumber =
-                                        "Enter a valid phone number";
-                                    } else if (isValidPhoneNumber(fullNumber)) {
-                                      delete clone.whatsAppNumber;
-                                    }
-                                    return clone;
-                                  });
-                                }}
-                                onBlur={() => {
-                                  const fullNumber = whatsAppNumber
-                                    ? `+${getCountryCallingCode(
-                                        whatsAppCountry as Country
-                                      )}${whatsAppNumber}`
-                                    : "";
-                                  setErrors((prev) => {
-                                    const clone = { ...prev } as any;
-                                    if (!whatsAppNumber) {
-                                      clone.whatsAppNumber =
-                                        "WhatsApp number is required";
-                                    } else if (
-                                      !isValidPhoneNumber(fullNumber)
-                                    ) {
-                                      clone.whatsAppNumber =
-                                        "Enter a valid phone number";
-                                    } else {
-                                      delete clone.whatsAppNumber;
-                                    }
-                                    return clone;
-                                  });
-                                }}
-                                disabled={paymentConfirmed}
-                                placeholder="123 456 7890"
-                                maxLength={
-                                  getCountryData(whatsAppCountry).maxLength
-                                }
-                                className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60"
-                              />
-                            </div>
-                            {whatsAppNumber &&
-                              isValidPhoneNumber(
-                                `+${getCountryCallingCode(
-                                  whatsAppCountry as Country
-                                )}${whatsAppNumber}`
-                              ) &&
-                              !errors.whatsAppNumber && (
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none">
-                                  <svg
-                                    className="w-5 h-5"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                </div>
+                                </span>
+                              ),
+                              value: country,
+                              searchValue:
+                                `${data.flag} ${data.alpha3} ${countryName} ${country} ${callingCode}`.toLowerCase(),
+                            };
+                          })}
+                          placeholder="Country"
+                          ariaLabel="Country Code"
+                          disabled={paymentConfirmed}
+                          searchable
+                          className="w-[160px] flex-shrink-0"
+                        />
+                        <div className="flex-1 relative min-w-0">
+                          <div
+                            className={`flex items-center w-full px-4 py-3 rounded-lg bg-input transition-all duration-200 shadow-sm border-2 ${
+                              errors.whatsAppNumber
+                                ? "border-destructive"
+                                : whatsAppNumber &&
+                                  isValidPhoneNumber(
+                                    `+${getCountryCallingCode(
+                                      whatsAppCountry as Country
+                                    )}${whatsAppNumber}`
+                                  )
+                                ? "border-green-500 bg-green-50/5"
+                                : "border-border"
+                            } focus-within:outline-none focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-md hover:border-primary/50`}
+                          >
+                            <span className="text-muted-foreground mr-2 select-none">
+                              +
+                              {getCountryCallingCode(
+                                whatsAppCountry as Country
                               )}
+                            </span>
+                            <input
+                              type="tel"
+                              value={whatsAppNumber}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(
+                                  /[^0-9]/g,
+                                  ""
+                                );
+                                const maxLen =
+                                  getCountryData(whatsAppCountry).maxLength;
+                                const limitedValue = value.slice(0, maxLen);
+                                setWhatsAppNumber(limitedValue);
+
+                                // Real-time validation
+                                const fullNumber = `+${getCountryCallingCode(
+                                  whatsAppCountry as Country
+                                )}${limitedValue}`;
+                                setErrors((prev) => {
+                                  const clone = { ...prev } as any;
+                                  if (!limitedValue.trim()) {
+                                    clone.whatsAppNumber =
+                                      "WhatsApp number is required";
+                                  } else if (
+                                    limitedValue.length > 2 &&
+                                    !isValidPhoneNumber(fullNumber)
+                                  ) {
+                                    clone.whatsAppNumber =
+                                      "Enter a valid phone number";
+                                  } else if (isValidPhoneNumber(fullNumber)) {
+                                    delete clone.whatsAppNumber;
+                                  }
+                                  return clone;
+                                });
+                              }}
+                              onBlur={() => {
+                                const fullNumber = whatsAppNumber
+                                  ? `+${getCountryCallingCode(
+                                      whatsAppCountry as Country
+                                    )}${whatsAppNumber}`
+                                  : "";
+                                setErrors((prev) => {
+                                  const clone = { ...prev } as any;
+                                  if (!whatsAppNumber) {
+                                    clone.whatsAppNumber =
+                                      "WhatsApp number is required";
+                                  } else if (!isValidPhoneNumber(fullNumber)) {
+                                    clone.whatsAppNumber =
+                                      "Enter a valid phone number";
+                                  } else {
+                                    delete clone.whatsAppNumber;
+                                  }
+                                  return clone;
+                                });
+                              }}
+                              disabled={paymentConfirmed}
+                              placeholder="123 456 7890"
+                              maxLength={
+                                getCountryData(whatsAppCountry).maxLength
+                              }
+                              className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60"
+                            />
                           </div>
+                          {whatsAppNumber &&
+                            isValidPhoneNumber(
+                              `+${getCountryCallingCode(
+                                whatsAppCountry as Country
+                              )}${whatsAppNumber}`
+                            ) &&
+                            !errors.whatsAppNumber && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none">
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </div>
+                            )}
+                        </div>
                       </div>
                       {!!errors.whatsAppNumber && (
                         <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
@@ -4657,12 +4841,16 @@ const Page = () => {
                       paymentDocId={paymentDocId}
                       onSuccess={(pid, docId) => {
                         setStep2StatusType("success");
-                        setStep2StatusMsg("Payment succeeded! Securing your reservation...");
+                        setStep2StatusMsg(
+                          "Payment succeeded! Securing your reservation..."
+                        );
                         handlePaymentSuccess(pid, docId);
                       }}
                       onError={(msg) => {
                         setStep2StatusType("error");
-                        setStep2StatusMsg(msg || "Payment failed. Please try again.");
+                        setStep2StatusMsg(
+                          msg || "Payment failed. Please try again."
+                        );
                       }}
                       onProcessingChange={(p) => setStep2Processing(p)}
                     />
@@ -4671,15 +4859,19 @@ const Page = () => {
                     {step2Processing && (
                       <div className="mt-4 flex items-center gap-3 p-3 rounded-md border border-border bg-muted/30">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                        <span className="text-sm text-muted-foreground">Processing payment…</span>
+                        <span className="text-sm text-muted-foreground">
+                          Processing payment…
+                        </span>
                       </div>
                     )}
                     {step2StatusMsg && !step2Processing && (
-                      <div className={`mt-4 p-3 rounded-md border text-sm ${
-                        step2StatusType === "success"
-                          ? "bg-spring-green/10 text-spring-green border-spring-green/30"
-                          : "bg-destructive/10 text-destructive border-destructive/30"
-                      }`}>
+                      <div
+                        className={`mt-4 p-3 rounded-md border text-sm ${
+                          step2StatusType === "success"
+                            ? "bg-spring-green/10 text-spring-green border-spring-green/30"
+                            : "bg-destructive/10 text-destructive border-destructive/30"
+                        }`}
+                      >
                         {step2StatusMsg}
                       </div>
                     )}
@@ -4781,7 +4973,10 @@ const Page = () => {
                               Remaining balance:
                             </span>
                             <span className="font-bold text-xl text-crimson-red">
-                              £{(selectedPackage.price - depositAmount).toFixed(2)}
+                              £
+                              {(selectedPackage.price - depositAmount).toFixed(
+                                2
+                              )}
                             </span>
                           </div>
                         </div>
@@ -4789,134 +4984,137 @@ const Page = () => {
                     )}
 
                     {/* Payment Plan Options */}
-                {availablePaymentTerm.isLastMinute ? (
-                  <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-md mt-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
-                        <svg
-                          className="h-5 w-5"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          aria-hidden
-                        >
-                          <path
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="font-medium text-foreground">
-                          Full Payment Required
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          Your tour is coming up soon! Full payment of £
-                          {selectedPackage
-                            ? (selectedPackage.price - depositAmount).toFixed(2)
-                            : "0.00"}{" "}
-                          is required within 48 hours to confirm your spot.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-sm text-muted-foreground mt-6 mb-4">
-                      Great news! You have up to{" "}
-                      <span className="font-medium text-foreground">
-                        {availablePaymentTerm.term}
-                      </span>{" "}
-                      flexible payment options. Pick what works best for you:
-                    </p>
-
-                    <div className="space-y-3 mt-4">
-                      {getAvailablePaymentPlans().map((plan) => (
-                        <button
-                          key={plan.id}
-                          type="button"
-                          onClick={() => setSelectedPaymentPlan(plan.id)}
-                          className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                            selectedPaymentPlan === plan.id
-                              ? "border-primary bg-primary/5 shadow-md"
-                              : "border-border bg-card hover:border-primary/50 hover:bg-muted/50"
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div
-                              className="flex items-center justify-center h-10 w-10 rounded-full text-white font-semibold flex-shrink-0"
-                              style={{ backgroundColor: plan.color }}
+                    {availablePaymentTerm.isLastMinute ? (
+                      <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-md mt-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
+                            <svg
+                              className="h-5 w-5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              aria-hidden
                             >
-                              P{plan.monthsRequired}
+                              <path
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
+                          <div>
+                            <div className="font-medium text-foreground">
+                              Full Payment Required
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <div className="font-medium text-foreground">
-                                  {plan.label}
-                                </div>
-                                {selectedPaymentPlan === plan.id && (
-                                  <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary text-primary-foreground flex-shrink-0">
-                                    <svg
-                                      className="h-4 w-4"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      aria-hidden
-                                    >
-                                      <path
-                                        d="M20 6L9 17l-5-5"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                      />
-                                    </svg>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="text-xs text-muted-foreground mb-3">
-                                {plan.description}
-                              </div>
-
-                              {/* Payment Schedule */}
-                              <div className="space-y-2 bg-muted/30 rounded-md p-3">
-                                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                                  Payment Schedule
-                                </div>
-                                {plan.schedule.map((payment, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center justify-between text-sm"
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <div className="h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-xs font-medium">
-                                        {idx + 1}
-                                      </div>
-                                      <span className="text-foreground">
-                                        {new Date(
-                                          payment.date + "T00:00:00Z"
-                                        ).toLocaleDateString("en-US", {
-                                          month: "short",
-                                          day: "numeric",
-                                          year: "numeric",
-                                          timeZone: "UTC",
-                                        })}
-                                      </span>
-                                    </div>
-                                    <span className="font-medium text-foreground">
-                                      £{payment.amount.toFixed(2)}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              Your tour is coming up soon! Full payment of £
+                              {selectedPackage
+                                ? (
+                                    selectedPackage.price - depositAmount
+                                  ).toFixed(2)
+                                : "0.00"}{" "}
+                              is required within 48 hours to confirm your spot.
                             </div>
                           </div>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted-foreground mt-6 mb-4">
+                          Great news! You have up to{" "}
+                          <span className="font-medium text-foreground">
+                            {availablePaymentTerm.term}
+                          </span>{" "}
+                          flexible payment options. Pick what works best for
+                          you:
+                        </p>
+
+                        <div className="space-y-3 mt-4">
+                          {getAvailablePaymentPlans().map((plan) => (
+                            <button
+                              key={plan.id}
+                              type="button"
+                              onClick={() => setSelectedPaymentPlan(plan.id)}
+                              className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                                selectedPaymentPlan === plan.id
+                                  ? "border-primary bg-primary/5 shadow-md"
+                                  : "border-border bg-card hover:border-primary/50 hover:bg-muted/50"
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div
+                                  className="flex items-center justify-center h-10 w-10 rounded-full text-white font-semibold flex-shrink-0"
+                                  style={{ backgroundColor: plan.color }}
+                                >
+                                  P{plan.monthsRequired}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-2 mb-1">
+                                    <div className="font-medium text-foreground">
+                                      {plan.label}
+                                    </div>
+                                    {selectedPaymentPlan === plan.id && (
+                                      <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary text-primary-foreground flex-shrink-0">
+                                        <svg
+                                          className="h-4 w-4"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          aria-hidden
+                                        >
+                                          <path
+                                            d="M20 6L9 17l-5-5"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                          />
+                                        </svg>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mb-3">
+                                    {plan.description}
+                                  </div>
+
+                                  {/* Payment Schedule */}
+                                  <div className="space-y-2 bg-muted/30 rounded-md p-3">
+                                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                                      Payment Schedule
+                                    </div>
+                                    {plan.schedule.map((payment, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center justify-between text-sm"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <div className="h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-xs font-medium">
+                                            {idx + 1}
+                                          </div>
+                                          <span className="text-foreground">
+                                            {new Date(
+                                              payment.date + "T00:00:00Z"
+                                            ).toLocaleDateString("en-US", {
+                                              month: "short",
+                                              day: "numeric",
+                                              year: "numeric",
+                                              timeZone: "UTC",
+                                            })}
+                                          </span>
+                                        </div>
+                                        <span className="font-medium text-foreground">
+                                          £{payment.amount.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -5155,8 +5353,9 @@ const Page = () => {
                         selectedPaymentPlan === "full_payment"
                           ? "Full Payment"
                           : fixTermName(
-                              paymentTerms.find((p) => p.id === selectedPaymentPlan)?.name ||
-                                "Selected"
+                              paymentTerms.find(
+                                (p) => p.id === selectedPaymentPlan
+                              )?.name || "Selected"
                             )
                       }
                       reservationFee={depositAmount}
@@ -5404,10 +5603,12 @@ const Page = () => {
                         onClick={async () => {
                           // Prefer human-friendly Reservation ID over Firestore docId
                           const fallbackDisplayId = "SB-IDD-20260327-JD002";
-                          const isDocId = (id?: string) => !!id && /^[A-Za-z0-9]{20,}$/.test(id);
-                          const confirmationId = bookingId && !isDocId(bookingId)
-                            ? bookingId
-                            : fallbackDisplayId;
+                          const isDocId = (id?: string) =>
+                            !!id && /^[A-Za-z0-9]{20,}$/.test(id);
+                          const confirmationId =
+                            bookingId && !isDocId(bookingId)
+                              ? bookingId
+                              : fallbackDisplayId;
                           try {
                             // Build payment plan label (e.g., "P2 - Two Installment")
                             const selectedPlanTerm = paymentTerms.find(
@@ -5427,7 +5628,10 @@ const Page = () => {
                               email,
                               firstName,
                               lastName,
-                              paymentPlanLabel.replace(/^P\d+_[A-Z_]+\s-\s/, ""),
+                              paymentPlanLabel.replace(
+                                /^P\d+_[A-Z_]+\s-\s/,
+                                ""
+                              ),
                               depositAmount,
                               selectedPackage?.price || 0,
                               (selectedPackage?.price || 0) - depositAmount,
