@@ -2233,7 +2233,7 @@ const Page = () => {
               <div
                 className={`h-full bg-gradient-to-r from-primary via-crimson-red to-spring-green rounded-full transition-all duration-500 ease-out shadow-lg relative ${progressWidth}`}
               >
-                <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full"></div>
+                <div className="absolute inset-0 bg-white/10 dark:bg-white/5 animate-pulse rounded-full"></div>
               </div>
             </div>
 
@@ -2250,7 +2250,7 @@ const Page = () => {
                     step === 1
                       ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
                       : completedSteps.includes(1)
-                      ? "bg-white text-green-600 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
+                      ? "bg-green-500/20 text-green-600 dark:text-green-400 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
                       : "bg-muted text-foreground group-hover:scale-105"
                   }`}
                 >
@@ -2357,7 +2357,7 @@ const Page = () => {
                     step === 2
                       ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
                       : completedSteps.includes(2)
-                      ? "bg-white text-green-600 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
+                      ? "bg-green-500/20 text-green-600 dark:text-green-400 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
                       : step === 1 &&
                         (!email ||
                           !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
@@ -2444,10 +2444,10 @@ const Page = () => {
             </div>
 
             {/* How it works Card */}
-            <div className="mt-6 rounded-2xl bg-white dark:bg-card/80 dark:backdrop-blur-md border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
+            <div className="mt-6 rounded-2xl bg-background dark:bg-card/80 dark:backdrop-blur-md border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
               <button
                 onClick={() => setHowItWorksExpanded(!howItWorksExpanded)}
-                className="w-full p-6 flex items-center gap-4 hover:bg-black/2 dark:hover:bg-white/5 transition-colors duration-200"
+                className="w-full p-6 flex items-center gap-4 hover:bg-muted/50 dark:hover:bg-white/5 transition-colors duration-200"
               >
                 <div className="p-3 rounded-xl bg-crimson-red/10 flex-shrink-0 shadow-sm">
                   <svg
@@ -2561,7 +2561,7 @@ const Page = () => {
           <div className="space-y-6">
             {/* STEP 1 - Personal & Booking Details */}
             {step === 1 && (
-              <div className="rounded-2xl bg-white dark:bg-card/80 dark:backdrop-blur-md p-6 sm:p-8 border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
+              <div className="rounded-2xl bg-background dark:bg-card/80 dark:backdrop-blur-md p-6 sm:p-8 border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
                 {/* Show locked message if payment confirmed */}
                 {paymentConfirmed && (
                   <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-md mb-4">
@@ -2929,8 +2929,8 @@ const Page = () => {
                                                             className={`w-1.5 h-1.5 rounded-full transition-all ${
                                                               idx ===
                                                               carouselIndex
-                                                                ? "bg-white w-4"
-                                                                : "bg-white/50 hover:bg-white/75"
+                                                                ? "bg-foreground w-4"
+                                                                : "bg-muted-foreground/50 hover:bg-muted-foreground/75"
                                                             }`}
                                                           />
                                                         )

@@ -94,7 +94,9 @@ export default function EditDiscountEventModal({
   // Draft event state
   const [eventName, setEventName] = useState("");
   const [eventActive, setEventActive] = useState(true);
-  const [activationMode, setActivationMode] = useState<"manual" | "scheduled">("manual");
+  const [activationMode, setActivationMode] = useState<"manual" | "scheduled">(
+    "manual"
+  );
   const [scheduledStart, setScheduledStart] = useState("");
   const [scheduledEnd, setScheduledEnd] = useState("");
   const [draftItems, setDraftItems] = useState<DiscountEventItem[]>([]);
@@ -123,7 +125,9 @@ export default function EditDiscountEventModal({
 
   // Global apply state
   const [globalDiscountValue, setGlobalDiscountValue] = useState<string>("300");
-  const [globalDiscountType, setGlobalDiscountType] = useState<"percent" | "amount">("amount");
+  const [globalDiscountType, setGlobalDiscountType] = useState<
+    "percent" | "amount"
+  >("amount");
   const [globalDiscountYear, setGlobalDiscountYear] = useState<string>("2026");
 
   // Tour package deletion confirmation
@@ -432,8 +436,11 @@ export default function EditDiscountEventModal({
         globalDiscountType === "amount"
           ? Math.min(
               100,
-              Math.round(((valueNum / Math.max(tour.originalCost || 1, 1)) * 100 + Number.EPSILON) * 100) /
-                100
+              Math.round(
+                ((valueNum / Math.max(tour.originalCost || 1, 1)) * 100 +
+                  Number.EPSILON) *
+                  100
+              ) / 100
             )
           : valueNum;
 
@@ -442,9 +449,9 @@ export default function EditDiscountEventModal({
           ? calcDiscountedByType(tour.originalCost, valueNum, "amount")
           : calcDiscounted(tour.originalCost, rate);
 
-      const preservedOtherYears = (workingItems[idx].dateDiscounts || []).filter(
-        (dd) => new Date(dd.date).getFullYear() !== targetYear
-      );
+      const preservedOtherYears = (
+        workingItems[idx].dateDiscounts || []
+      ).filter((dd) => new Date(dd.date).getFullYear() !== targetYear);
 
       const newDiscounts = [
         ...preservedOtherYears,
@@ -778,10 +785,10 @@ export default function EditDiscountEventModal({
                   id="section-banner-cover"
                   className="bg-background border border-border shadow-md scroll-mt-4"
                 >
-                  <CardHeader className="pb-2 bg-gray-300 border-b border-border py-2 overflow-hidden rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-xl font-bold">
-                      <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <ImageIcon className="h-3 w-3 text-crimson-red" />
+                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
+                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                        <ImageIcon className="h-4 w-4 text-crimson-red" />
                       </div>
                       Banner Cover Image
                     </CardTitle>
@@ -898,10 +905,10 @@ export default function EditDiscountEventModal({
                   id="section-event-details"
                   className="bg-background border border-border shadow-md scroll-mt-4"
                 >
-                  <CardHeader className="pb-2 bg-gray-300 border-b border-border py-2 overflow-hidden rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-xl font-bold">
-                      <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <FileText className="h-3 w-3 text-crimson-red" />
+                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
+                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                        <FileText className="h-4 w-4 text-crimson-red" />
                       </div>
                       Event Details
                     </CardTitle>
@@ -930,7 +937,10 @@ export default function EditDiscountEventModal({
                             checked={activationMode === "manual"}
                             onChange={() => setActivationMode("manual")}
                           />
-                          <Label htmlFor="edit-activation-manual" className="font-medium">
+                          <Label
+                            htmlFor="edit-activation-manual"
+                            className="font-medium"
+                          >
                             Manual toggle
                           </Label>
                         </div>
@@ -941,7 +951,10 @@ export default function EditDiscountEventModal({
                             checked={activationMode === "scheduled"}
                             onChange={() => setActivationMode("scheduled")}
                           />
-                          <Label htmlFor="edit-activation-scheduled" className="font-medium">
+                          <Label
+                            htmlFor="edit-activation-scheduled"
+                            className="font-medium"
+                          >
                             Scheduled window
                           </Label>
                         </div>
@@ -975,7 +988,8 @@ export default function EditDiscountEventModal({
                             />
                           </div>
                           <p className="text-xs text-muted-foreground md:col-span-2">
-                            Scheduled events auto-activate during the window; manual toggles are disabled.
+                            Scheduled events auto-activate during the window;
+                            manual toggles are disabled.
                           </p>
                         </div>
                       )}
@@ -988,10 +1002,10 @@ export default function EditDiscountEventModal({
                   id="section-tour-packages"
                   className="bg-background border border-border shadow-md scroll-mt-4"
                 >
-                  <CardHeader className="pb-2 bg-gray-300 border-b border-border py-2 overflow-hidden rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-xl font-bold">
-                      <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <Package className="h-3 w-3 text-crimson-red" />
+                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
+                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                        <Package className="h-4 w-4 text-crimson-red" />
                       </div>
                       Tour Packages
                     </CardTitle>
@@ -1014,8 +1028,12 @@ export default function EditDiscountEventModal({
                               <SelectValue placeholder="Select type" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="amount">Flat amount</SelectItem>
-                              <SelectItem value="percent">Percent (%)</SelectItem>
+                              <SelectItem value="amount">
+                                Flat amount
+                              </SelectItem>
+                              <SelectItem value="percent">
+                                Percent (%)
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1026,7 +1044,9 @@ export default function EditDiscountEventModal({
                             min={0}
                             step={1}
                             value={globalDiscountValue}
-                            onChange={(e) => setGlobalDiscountValue(e.target.value)}
+                            onChange={(e) =>
+                              setGlobalDiscountValue(e.target.value)
+                            }
                             placeholder="e.g. 300"
                             className="h-10"
                           />
@@ -1036,7 +1056,9 @@ export default function EditDiscountEventModal({
                           <Input
                             type="number"
                             value={globalDiscountYear}
-                            onChange={(e) => setGlobalDiscountYear(e.target.value)}
+                            onChange={(e) =>
+                              setGlobalDiscountYear(e.target.value)
+                            }
                             className="h-10"
                           />
                         </div>
@@ -1049,7 +1071,9 @@ export default function EditDiscountEventModal({
                         </Button>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Quickly add/update all tours that have dates in the selected year. Flat amount is converted per tour so the discounted cost reflects the amount off.
+                        Quickly add/update all tours that have dates in the
+                        selected year. Flat amount is converted per tour so the
+                        discounted cost reflects the amount off.
                       </p>
                     </div>
                     {/* Tour Items */}
@@ -1415,7 +1439,11 @@ export default function EditDiscountEventModal({
                                                 globalDiscountType === "amount"
                                                   ? calcDiscountedByType(
                                                       item.originalCost,
-                                                      Math.round((item.originalCost * currentRate) / 100),
+                                                      Math.round(
+                                                        (item.originalCost *
+                                                          currentRate) /
+                                                          100
+                                                      ),
                                                       "amount"
                                                     )
                                                   : calcDiscounted(
@@ -1488,45 +1516,67 @@ export default function EditDiscountEventModal({
                                                   </div>
                                                   {isSelected && (
                                                     <div className="flex items-center gap-2 flex-shrink-0">
-                                                      {globalDiscountType === "amount" ? (
+                                                      {globalDiscountType ===
+                                                      "amount" ? (
                                                         <>
-                                                          <span className="text-sm text-muted-foreground">£</span>
+                                                          <span className="text-sm text-muted-foreground">
+                                                            £
+                                                          </span>
                                                           <Input
                                                             type="number"
                                                             min={0}
                                                             step={1}
                                                             value={
-                                                              Math.round((item.originalCost * currentRate) / 100) || ""
+                                                              Math.round(
+                                                                (item.originalCost *
+                                                                  currentRate) /
+                                                                  100
+                                                              ) || ""
                                                             }
                                                             placeholder="0"
                                                             onChange={(e) => {
-                                                              const flatAmount = Number(e.target.value) || 0;
-                                                              const percentEquivalent = item.originalCost > 0 ? (flatAmount / item.originalCost) * 100 : 0;
+                                                              const flatAmount =
+                                                                Number(
+                                                                  e.target.value
+                                                                ) || 0;
+                                                              const percentEquivalent =
+                                                                item.originalCost >
+                                                                0
+                                                                  ? (flatAmount /
+                                                                      item.originalCost) *
+                                                                    100
+                                                                  : 0;
                                                               updateDateDiscountRate(
                                                                 idx,
                                                                 dateStr,
                                                                 percentEquivalent.toString()
                                                               );
-                                                              const newDiscounts = (
-                                                                item.dateDiscounts ||
-                                                                []
-                                                              ).map((dd) =>
-                                                                dd.date === dateStr
-                                                                  ? {
-                                                                      ...dd,
-                                                                      discountRate: percentEquivalent,
-                                                                      discountedCost:
-                                                                        calcDiscounted(
-                                                                          item.originalCost,
-                                                                          percentEquivalent
-                                                                        ),
-                                                                    }
-                                                                  : dd
+                                                              const newDiscounts =
+                                                                (
+                                                                  item.dateDiscounts ||
+                                                                  []
+                                                                ).map((dd) =>
+                                                                  dd.date ===
+                                                                  dateStr
+                                                                    ? {
+                                                                        ...dd,
+                                                                        discountRate:
+                                                                          percentEquivalent,
+                                                                        discountedCost:
+                                                                          calcDiscounted(
+                                                                            item.originalCost,
+                                                                            percentEquivalent
+                                                                          ),
+                                                                      }
+                                                                    : dd
+                                                                );
+                                                              updateDraftItem(
+                                                                idx,
+                                                                {
+                                                                  dateDiscounts:
+                                                                    newDiscounts,
+                                                                }
                                                               );
-                                                              updateDraftItem(idx, {
-                                                                dateDiscounts:
-                                                                  newDiscounts,
-                                                              });
                                                             }}
                                                             className="h-9 w-20 text-sm"
                                                           />
@@ -1548,33 +1598,42 @@ export default function EditDiscountEventModal({
                                                                 dateStr,
                                                                 e.target.value
                                                               );
-                                                              const newDiscounts = (
-                                                                item.dateDiscounts ||
-                                                                []
-                                                              ).map((dd) =>
-                                                                dd.date === dateStr
-                                                                  ? {
-                                                                      ...dd,
-                                                                      discountRate:
-                                                                        Number(
-                                                                          e.target
-                                                                            .value
-                                                                        ) || 0,
-                                                                      discountedCost:
-                                                                        calcDiscounted(
-                                                                          item.originalCost,
+                                                              const newDiscounts =
+                                                                (
+                                                                  item.dateDiscounts ||
+                                                                  []
+                                                                ).map((dd) =>
+                                                                  dd.date ===
+                                                                  dateStr
+                                                                    ? {
+                                                                        ...dd,
+                                                                        discountRate:
                                                                           Number(
-                                                                            e.target
+                                                                            e
+                                                                              .target
                                                                               .value
-                                                                          ) || 0
-                                                                        ),
-                                                                    }
-                                                                  : dd
+                                                                          ) ||
+                                                                          0,
+                                                                        discountedCost:
+                                                                          calcDiscounted(
+                                                                            item.originalCost,
+                                                                            Number(
+                                                                              e
+                                                                                .target
+                                                                                .value
+                                                                            ) ||
+                                                                              0
+                                                                          ),
+                                                                      }
+                                                                    : dd
+                                                                );
+                                                              updateDraftItem(
+                                                                idx,
+                                                                {
+                                                                  dateDiscounts:
+                                                                    newDiscounts,
+                                                                }
                                                               );
-                                                              updateDraftItem(idx, {
-                                                                dateDiscounts:
-                                                                  newDiscounts,
-                                                              });
                                                             }}
                                                             className="h-9 w-20 text-sm"
                                                           />

@@ -164,10 +164,13 @@ function MonacoEditor({
 
   const initializeEditor = () => {
     if (containerRef.current && window.monaco) {
+      // Detect dark mode
+      const isDarkMode = document.documentElement.classList.contains("dark");
+
       editorRef.current = window.monaco.editor.create(containerRef.current, {
         value: value,
         language: language,
-        theme: "vs",
+        theme: isDarkMode ? "vs-dark" : "vs",
         automaticLayout: true,
         fontSize: Math.round(14 * zoomLevel),
         lineHeight: Math.round(20 * zoomLevel),
@@ -225,10 +228,10 @@ function MonacoEditor({
       }}
     >
       {isLoading && (
-        <div className="absolute inset-0 bg-white flex items-center justify-center z-10">
+        <div className="absolute inset-0 bg-background flex items-center justify-center z-10">
           <div className="flex items-center space-x-2">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="text-gray-600">Loading editor...</span>
+            <span className="text-muted-foreground">Loading editor...</span>
           </div>
         </div>
       )}
@@ -288,18 +291,22 @@ function VariableDefinitionItem({
   );
 
   const typeColors = {
-    string: "bg-blue-50 text-blue-700 border-blue-200",
-    number: "bg-green-50 text-green-700 border-green-200",
-    boolean: "bg-purple-50 text-purple-700 border-purple-200",
-    array: "bg-orange-50 text-orange-700 border-orange-200",
-    map: "bg-red-50 text-red-700 border-red-200",
+    string:
+      "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    number:
+      "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20",
+    boolean:
+      "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    array:
+      "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
+    map: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
   };
 
   return (
-    <div className="border rounded-lg p-2 space-y-2 bg-white">
+    <div className="border border-field-border rounded-lg p-2 space-y-2 bg-background">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2 flex-1">
-          <span className="text-xs font-medium text-gray-500 min-w-[1rem]">
+          <span className="text-xs font-medium text-muted-foreground min-w-[1rem]">
             {index + 1}.
           </span>
           <Input
@@ -350,9 +357,9 @@ function VariableDefinitionItem({
 
       {/* Array Configuration */}
       {variable.type === "array" && (
-        <div className="ml-4 pl-2 border-l-2 border-gray-200 space-y-2">
+        <div className="ml-4 pl-2 border-l-2 border-field-border space-y-2">
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500">Element type:</span>
+            <span className="text-xs text-muted-foreground">Element type:</span>
             <Select
               value={variable.arrayElementType || "string"}
               onValueChange={(value: VariableType) =>
@@ -370,7 +377,7 @@ function VariableDefinitionItem({
               </SelectContent>
             </Select>
           </div>
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-muted-foreground/70">
             Access with: {`{{ ${variable.name}[0] }}`},{" "}
             {`{{ ${variable.name}.length }}`}
           </div>
@@ -379,9 +386,9 @@ function VariableDefinitionItem({
 
       {/* Map Configuration */}
       {variable.type === "map" && (
-        <div className="ml-4 pl-2 border-l-2 border-gray-200 space-y-2">
+        <div className="ml-4 pl-2 border-l-2 border-field-border space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500">Fields:</span>
+            <span className="text-xs text-muted-foreground">Fields:</span>
             <Button
               variant="outline"
               size="sm"
@@ -408,7 +415,7 @@ function VariableDefinitionItem({
                   placeholder="field name"
                   className="h-5 text-xs flex-1"
                 />
-                <span className="text-xs text-gray-400">:</span>
+                <span className="text-xs text-muted-foreground/70">:</span>
                 <Select
                   value={field.type}
                   onValueChange={(value: VariableType) => {
@@ -443,7 +450,7 @@ function VariableDefinitionItem({
             ))}
 
           {variable.mapFields && Object.keys(variable.mapFields).length > 0 && (
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-muted-foreground/70">
               Access with:{" "}
               {`{{ ${variable.name}.${
                 Object.keys(variable.mapFields)[0] || "field"
@@ -1531,7 +1538,7 @@ export default function TemplateDialog({
                     ? "Edit Email Template"
                     : "Create New Email Template"}
                 </DialogTitle>
-                <DialogDescription className="text-sm text-gray-600 mt-1">
+                <DialogDescription className="text-sm text-muted-foreground mt-1">
                   Design your email template with our advanced editor. Use
                   variables to personalize content and conditional rendering for
                   dynamic content.
@@ -1558,7 +1565,7 @@ export default function TemplateDialog({
           {(validationErrors.length > 0 || validationWarnings.length > 0) && (
             <div className="mb-4">
               <div
-                className="flex items-center justify-between cursor-pointer bg-gray-50 hover:bg-gray-100 p-3 rounded-lg"
+                className="flex items-center justify-between cursor-pointer bg-muted/20 hover:bg-muted/30 p-3 rounded-lg"
                 onClick={() => setWarningsExpanded(!warningsExpanded)}
               >
                 <div className="flex items-center space-x-2">
@@ -1645,7 +1652,7 @@ export default function TemplateDialog({
               {/* Left Side - Editor (70%) */}
               <div className="col-span-7 space-y-3">
                 {/* Editor Controls */}
-                <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                <div className="flex items-center justify-between bg-muted/20 p-3 rounded-lg">
                   <div className="flex items-center space-x-2">
                     <Button
                       variant={editorView === "split" ? "default" : "outline"}
@@ -1655,15 +1662,6 @@ export default function TemplateDialog({
                     >
                       <Code className="mr-2 h-3 w-3" />
                       Split
-                    </Button>
-                    <Button
-                      variant={editorView === "code" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setEditorView("code")}
-                      className="h-8 px-3"
-                    >
-                      <Code className="mr-2 h-3 w-3" />
-                      Code
                     </Button>
                     <Button
                       variant={editorView === "preview" ? "default" : "outline"}
@@ -1686,44 +1684,18 @@ export default function TemplateDialog({
                       <Palette className="mr-2 h-4 w-4" />
                       Format
                     </Button>
-
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const imageUrl = URL.createObjectURL(file);
-                          const imageTag = `<img src="${imageUrl}" alt="${file.name}" style="max-width: 100%; height: auto;">`;
-                          setHtmlContent((prev) => prev + "\n" + imageTag);
-                        }
-                      }}
-                      className="hidden"
-                      id="image-upload"
-                    />
-                    <Label htmlFor="image-upload" className="cursor-pointer">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isUploadingImage}
-                        className="h-8 px-3"
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Image
-                      </Button>
-                    </Label>
                   </div>
                 </div>
 
                 {/* Editor */}
                 <div
-                  className="border rounded-lg overflow-hidden bg-white flex-1"
+                  className="border border-field-border rounded-lg overflow-hidden bg-background flex-1"
                   style={{ minHeight: 0 }}
                 >
                   {editorView === "split" && (
                     <div className="grid grid-cols-2 divide-x h-[500px] min-h-0">
                       <div className="flex flex-col h-full min-h-0">
-                        <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b flex-shrink-0">
+                        <div className="bg-muted/30 px-3 py-2 text-xs font-medium border-b border-field-border flex-shrink-0">
                           <div className="flex items-center justify-between">
                             <span>HTML Code</span>
                             <div className="flex items-center space-x-1">
@@ -1785,7 +1757,7 @@ export default function TemplateDialog({
                         </div>
                       </div>
                       <div className="flex flex-col h-full min-h-0">
-                        <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b flex-shrink-0">
+                        <div className="bg-muted/30 px-3 py-2 text-xs font-medium border-b border-field-border flex-shrink-0">
                           <div className="flex items-center justify-between">
                             <span>
                               Live Preview
@@ -1841,7 +1813,7 @@ export default function TemplateDialog({
                             </div>
                           </div>
                         </div>
-                        <div className="flex-1 p-4 overflow-auto bg-gray-50 min-h-0">
+                        <div className="flex-1 p-4 overflow-auto bg-muted/10 dark:bg-muted/5 min-h-0">
                           <div
                             className="w-full max-w-2xl mx-auto"
                             data-preview-container
@@ -1945,7 +1917,7 @@ export default function TemplateDialog({
 
                   {editorView === "code" && (
                     <div className="flex flex-col h-[500px] min-h-0">
-                      <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b flex-shrink-0">
+                      <div className="bg-muted/30 px-3 py-2 text-xs font-medium border-b border-field-border flex-shrink-0">
                         <div className="flex items-center justify-between">
                           <span>HTML Code Editor</span>
                           <div className="flex items-center space-x-1">
@@ -2009,8 +1981,8 @@ export default function TemplateDialog({
                   )}
 
                   {editorView === "preview" && (
-                    <div className="flex flex-col h-[500px]">
-                      <div className="bg-gray-100 px-3 py-2 text-xs font-medium border-b flex-shrink-0">
+                    <div className="flex flex-col h-[500px] min-h-0">
+                      <div className="bg-muted/30 px-3 py-2 text-xs font-medium border-b border-field-border flex-shrink-0">
                         <div className="flex items-center justify-between">
                           <span>
                             Live Preview
@@ -2066,17 +2038,17 @@ export default function TemplateDialog({
                           </div>
                         </div>
                       </div>
-                      <div className="flex-1 p-4 overflow-auto bg-gray-50 min-h-0">
+                      <div className="flex-1 p-4 overflow-auto bg-muted/10 dark:bg-muted/5 min-h-0">
                         <div
                           className="w-full max-w-2xl mx-auto"
                           data-preview-container
                         >
                           <div
-                            className="rounded shadow-sm overflow-hidden"
+                            className="rounded shadow-sm"
                             style={{
                               transform: `scale(calc(var(--preview-scale, 1) * ${previewZoom}))`,
                               transformOrigin:
-                                previewZoom < 1 ? "top center" : "top left",
+                                previewZoom < 1 ? "top left" : "top left",
                               width: "600px",
                               height: "750px",
                               maxWidth: "100%",
@@ -2193,7 +2165,7 @@ export default function TemplateDialog({
                                             ? "Add this variable to your test data or define it in the Variables tab."
                                             : "Check the Variables tab to ensure all variables are properly defined with correct types."}
                                         </p>
-                                        <div className="mt-3 p-2 bg-white rounded border border-amber-300">
+                                        <div className="mt-3 p-2 bg-background rounded border border-amber-300">
                                           <p className="text-xs text-amber-700">
                                             <strong>Note:</strong> This warning
                                             won't prevent you from saving the
@@ -2247,7 +2219,7 @@ export default function TemplateDialog({
                     className={`px-2 py-2 text-xs font-medium border-b-2 transition-colors ${
                       rightSidebarTab === "info"
                         ? "border-blue-500 text-blue-600"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     Info
@@ -2257,7 +2229,7 @@ export default function TemplateDialog({
                     className={`px-2 py-2 text-xs font-medium border-b-2 transition-colors ${
                       rightSidebarTab === "variables"
                         ? "border-blue-500 text-blue-600"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     Variables
@@ -2267,7 +2239,7 @@ export default function TemplateDialog({
                     className={`px-2 py-2 text-xs font-medium border-b-2 transition-colors ${
                       rightSidebarTab === "tools"
                         ? "border-blue-500 text-blue-600"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     Test Data
@@ -2279,14 +2251,14 @@ export default function TemplateDialog({
                   <div className="space-y-3">
                     {/* Basic Info */}
                     <div className="space-y-2">
-                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
+                      <h3 className="text-sm font-medium text-foreground border-b border-field-border pb-2">
                         Template Information
                       </h3>
 
                       {/* Real-time Validation Summary */}
-                      <div className="bg-gray-50 p-2 rounded-lg text-xs">
+                      <div className="bg-muted/20 p-2 rounded-lg text-xs">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium text-gray-700">
+                          <span className="font-medium text-foreground">
                             Form Status:
                           </span>
                           <div className="flex items-center space-x-2">
@@ -2313,7 +2285,7 @@ export default function TemplateDialog({
                               )}
                           </div>
                         </div>
-                        <div className="text-gray-600">
+                        <div className="text-muted-foreground">
                           {formData.name
                             ? `${formData.name.length}/100`
                             : "0/100"}{" "}
@@ -2354,7 +2326,7 @@ export default function TemplateDialog({
                         />
                         {formData.name && (
                           <div className="flex items-center justify-between mt-1">
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               {formData.name.length}/100 characters
                             </span>
                             {formData.name.length > 80 && (
@@ -2433,7 +2405,7 @@ export default function TemplateDialog({
                         />
                         {formData.subject && (
                           <div className="flex items-center justify-between mt-1">
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               {formData.subject.length}/200 characters
                             </span>
                             {formData.subject.length > 150 && (
@@ -2448,10 +2420,10 @@ export default function TemplateDialog({
 
                     {/* Template Variables */}
                     <div className="space-y-2">
-                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
+                      <h3 className="text-sm font-medium text-foreground border-b border-field-border pb-2">
                         Template Variables
                       </h3>
-                      <div className="bg-gray-50 p-2 rounded-lg">
+                      <div className="bg-muted/20 p-2 rounded-lg">
                         <Label className="text-xs font-medium mb-2 block">
                           Variables Found in Code
                         </Label>
@@ -2478,7 +2450,7 @@ export default function TemplateDialog({
                     {/* Variable Definition Header */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-medium text-gray-700">
+                        <h3 className="text-sm font-medium text-foreground">
                           Define Variables
                         </h3>
                         <div className="flex gap-1">
@@ -2508,7 +2480,7 @@ export default function TemplateDialog({
                           </Button>
                         </div>
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         Define your template variables with types, similar to
                         Firestore collections
                       </div>
@@ -2516,9 +2488,9 @@ export default function TemplateDialog({
 
                     {/* Variable Usage Summary */}
                     {variableDefinitions.length > 0 && (
-                      <div className="bg-gray-50 p-2 rounded-lg text-xs">
+                      <div className="bg-muted/20 p-2 rounded-lg text-xs">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium text-gray-700">
+                          <span className="font-medium text-foreground">
                             Usage Status:
                           </span>
                           <div className="flex space-x-2">
@@ -2527,12 +2499,12 @@ export default function TemplateDialog({
                               Used
                             </span>
                             <span className="flex items-center">
-                              <span className="w-2 h-2 bg-gray-400 rounded-full mr-1"></span>
+                              <span className="w-2 h-2 bg-muted-foreground/50 rounded-full mr-1"></span>
                               Unused
                             </span>
                           </div>
                         </div>
-                        <div className="text-gray-600">
+                        <div className="text-muted-foreground">
                           {extractVariableReferences(htmlContent).length}{" "}
                           variables referenced in template
                         </div>
@@ -2542,7 +2514,7 @@ export default function TemplateDialog({
                     {/* Variable Definitions List */}
                     <div className="space-y-2 max-h-80 overflow-y-auto">
                       {variableDefinitions.length === 0 ? (
-                        <div className="text-center py-8 text-gray-400 text-xs">
+                        <div className="text-center py-8 text-muted-foreground/70 text-xs">
                           No variables defined yet.
                           <br />
                           Click above to add your first variable.
@@ -2557,7 +2529,9 @@ export default function TemplateDialog({
                               {/* Usage indicator */}
                               <div
                                 className={`absolute -left-1 top-1/2 transform -translate-y-1/2 w-2 h-2 rounded-full ${
-                                  isUsed ? "bg-green-500" : "bg-gray-400"
+                                  isUsed
+                                    ? "bg-green-500"
+                                    : "bg-muted-foreground/30"
                                 }`}
                               ></div>
                               <div className="pl-2">
@@ -2597,10 +2571,10 @@ export default function TemplateDialog({
                   <div className="space-y-3">
                     {/* Test Data Header */}
                     <div className="space-y-2">
-                      <h3 className="text-sm font-medium text-gray-700 border-b pb-2">
+                      <h3 className="text-sm font-medium text-foreground border-b border-field-border pb-2">
                         Test Your Template
                       </h3>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         Enter sample values to preview how your template will
                         render
                       </div>
@@ -2617,7 +2591,7 @@ export default function TemplateDialog({
                             {variableDefinitions.map((variable) => (
                               <div key={variable.id} className="space-y-1">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-xs font-medium text-gray-700">
+                                  <span className="text-xs font-medium text-foreground">
                                     {variable.name}
                                   </span>
                                   <span
@@ -2763,9 +2737,8 @@ export default function TemplateDialog({
                                         }
                                       }}
                                     />
-                                    <div className="text-xs text-gray-500">
-                                      Use Python syntax: start with [ and end
-                                      with ]
+                                    <div className="text-xs text-muted-foreground">
+                                      Use Python list syntax: ['item1', 'item2']
                                     </div>
                                   </div>
                                 )}
@@ -2871,7 +2844,7 @@ export default function TemplateDialog({
                                         }
                                       }}
                                     />
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-muted-foreground">
                                       Use Python syntax: start with {"{"} and
                                       end with {"}"}
                                     </div>
@@ -2883,8 +2856,8 @@ export default function TemplateDialog({
                         </div>
 
                         {/* Quick Test Data */}
-                        <div className="bg-gray-50 p-2 rounded-lg">
-                          <Label className="text-xs font-medium mb-2 block text-gray-700">
+                        <div className="bg-muted/20 p-2 rounded-lg">
+                          <Label className="text-xs font-medium mb-2 block text-foreground">
                             Quick Test Sets
                           </Label>
                           <div className="space-y-1">
@@ -3060,7 +3033,7 @@ export default function TemplateDialog({
                                     "Quick test data has been loaded into input fields",
                                 });
                               }}
-                              className="w-full h-6 px-1 text-xs bg-white hover:bg-gray-100 justify-start"
+                              className="w-full h-6 px-1 text-xs bg-background hover:bg-muted/30 justify-start"
                             >
                               Load Sample Data
                             </Button>
@@ -3087,7 +3060,7 @@ export default function TemplateDialog({
                                     "All test data has been cleared from input fields",
                                 });
                               }}
-                              className="w-full h-6 px-1 text-xs bg-white hover:bg-gray-100 justify-start mt-1"
+                              className="w-full h-6 px-1 text-xs bg-background hover:bg-muted/30 justify-start mt-1"
                             >
                               Clear Test Data
                             </Button>
@@ -3095,7 +3068,7 @@ export default function TemplateDialog({
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-gray-400 text-xs">
+                      <div className="text-center py-8 text-muted-foreground/70 text-xs">
                         No variables defined yet.
                         <br />
                         Define variables in the Variables tab first.
@@ -3114,16 +3087,6 @@ export default function TemplateDialog({
               className="h-9"
             >
               Cancel
-            </Button>
-            <Button
-              onClick={handleSaveTemplate}
-              disabled={
-                isLoading || !formData.name || validationErrors.length > 0
-              }
-              className="h-9"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {isLoading ? "Saving..." : "Save Template"}
             </Button>
           </DialogFooter>
         </DialogContent>

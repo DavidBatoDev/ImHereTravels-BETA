@@ -96,6 +96,7 @@ module.exports = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        "field-border": "hsl(var(--field-border))",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -147,7 +148,7 @@ module.exports = {
             backgroundPosition: "100% 50%",
           },
         },
-        "fadeIn": {
+        fadeIn: {
           from: {
             opacity: "0",
           },
@@ -155,7 +156,7 @@ module.exports = {
             opacity: "1",
           },
         },
-        "slideInScale": {
+        slideInScale: {
           from: {
             opacity: "0",
             transform: "scale(0.9) translateY(10px)",
@@ -165,7 +166,7 @@ module.exports = {
             transform: "scale(1) translateY(0)",
           },
         },
-        "modalSlideIn": {
+        modalSlideIn: {
           from: {
             opacity: "0",
             transform: "translate(-50%, -50%) scale(0.9) translateY(20px)",
@@ -175,7 +176,7 @@ module.exports = {
             transform: "translate(-50%, -50%) scale(1) translateY(0)",
           },
         },
-        "checkmarkPop": {
+        checkmarkPop: {
           "0%": {
             transform: "scale(0)",
             opacity: "0",
@@ -188,7 +189,7 @@ module.exports = {
             opacity: "1",
           },
         },
-        "slideUpFadeIn": {
+        slideUpFadeIn: {
           from: {
             opacity: "0",
             transform: "translateY(20px)",
@@ -198,7 +199,7 @@ module.exports = {
             transform: "translateY(0)",
           },
         },
-        "shimmer": {
+        shimmer: {
           "0%": {
             transform: "translateX(-100%)",
           },
@@ -213,12 +214,12 @@ module.exports = {
         "gradient-shift": "gradient-shift 15s ease infinite",
         "collapsible-down": "collapsible-down 0.3s ease-out",
         "collapsible-up": "collapsible-up 0.3s ease-out",
-        "fadeIn": "fadeIn 0.3s ease-out",
-        "slideInScale": "slideInScale 0.4s ease-out",
-        "modalSlideIn": "modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-        "checkmarkPop": "checkmarkPop 0.4s ease-out",
-        "slideUpFadeIn": "slideUpFadeIn 0.4s ease-out",
-        "shimmer": "shimmer 2s infinite",
+        fadeIn: "fadeIn 0.3s ease-out",
+        slideInScale: "slideInScale 0.4s ease-out",
+        modalSlideIn: "modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+        checkmarkPop: "checkmarkPop 0.4s ease-out",
+        slideUpFadeIn: "slideUpFadeIn 0.4s ease-out",
+        shimmer: "shimmer 2s infinite",
       },
     },
   },

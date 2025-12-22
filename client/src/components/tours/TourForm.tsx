@@ -127,7 +127,7 @@ const tourFormSchema = z.object({
         z.object({
           text: z.string().min(1, "Highlight text cannot be empty"),
           image: z.string().optional(),
-        })
+        }),
       ])
     ),
     itinerary: z.array(
@@ -780,40 +780,45 @@ export default function TourForm({
   ): Promise<any[]> => {
     const processedHighlights = await Promise.all(
       highlights.map(async (highlight, index) => {
-        if (typeof highlight === 'string') {
+        if (typeof highlight === "string") {
           return highlight;
         }
-        
+
         // If highlight has an image and it's a blob URL
-        if (highlight.image && highlight.image.startsWith('blob:')) {
+        if (highlight.image && highlight.image.startsWith("blob:")) {
           try {
             // Fetch the blob from the blob URL
             const response = await fetch(highlight.image);
             const blob = await response.blob();
-            const file = new File([blob], `highlight-${index}.jpg`, { type: blob.type });
-            
+            const file = new File([blob], `highlight-${index}.jpg`, {
+              type: blob.type,
+            });
+
             // Upload to storage
             const uploadResult = await uploadAllBlobsToStorage(
               file,
               [],
               tourId
             );
-            
-            if (uploadResult.coverResult?.success && uploadResult.coverResult.url) {
+
+            if (
+              uploadResult.coverResult?.success &&
+              uploadResult.coverResult.url
+            ) {
               return {
                 text: highlight.text,
-                image: uploadResult.coverResult.url
+                image: uploadResult.coverResult.url,
               };
             }
           } catch (error) {
             console.error(`Failed to upload highlight ${index} image:`, error);
           }
         }
-        
+
         return highlight;
       })
     );
-    
+
     return processedHighlights;
   };
 
@@ -831,21 +836,25 @@ export default function TourForm({
     try {
       // First create the tour without images
       const tourId = await onSubmit(data);
-      
+
       const tourIdString = typeof tourId === "string" ? tourId : "";
 
       // Upload highlight images if any
-      if (tourIdString && data.details.highlights.some((h: any) => 
-        typeof h === 'object' && h.image && h.image.startsWith('blob:')
-      )) {
+      if (
+        tourIdString &&
+        data.details.highlights.some(
+          (h: any) =>
+            typeof h === "object" && h.image && h.image.startsWith("blob:")
+        )
+      ) {
         const processedHighlights = await uploadHighlightImages(
           data.details.highlights,
           tourIdString
         );
-        
+
         // Update tour with processed highlights
         await updateTourMedia(tourIdString, {
-          highlights: processedHighlights as any
+          highlights: processedHighlights as any,
         } as any);
       }
 
@@ -1170,14 +1179,14 @@ export default function TourForm({
         details: {
           highlights: data.details.highlights
             .filter((h: any) => {
-              if (typeof h === 'string') {
-                return h.trim() !== '';
+              if (typeof h === "string") {
+                return h.trim() !== "";
               }
-              return h.text && h.text.trim() !== '';
+              return h.text && h.text.trim() !== "";
             })
             .map((h: any) => {
               // Keep highlights as-is (support both string and object format)
-              if (typeof h === 'string') {
+              if (typeof h === "string") {
                 return h;
               }
               return h;
@@ -1339,10 +1348,10 @@ export default function TourForm({
                   id="section-cover-image"
                   className="bg-background border border-border scroll-mt-4 shadow-md"
                 >
-                  <CardHeader className="pb-2 bg-gray-300 border-b border-border py-2 overflow-hidden rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-xl font-bold">
-                      <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <ImageIcon className="h-3 w-3 text-crimson-red" />
+                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
+                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                        <ImageIcon className="h-4 w-4 text-crimson-red" />
                       </div>
                       Cover Image
                     </CardTitle>
@@ -1483,10 +1492,10 @@ export default function TourForm({
                   id="section-basic-info"
                   className="bg-background border border-border scroll-mt-4 shadow-md"
                 >
-                  <CardHeader className="pb-2 bg-gray-300 border-b border-border py-2 overflow-hidden rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-xl font-bold">
-                      <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <FileText className="h-3 w-3 text-crimson-red" />
+                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
+                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                        <FileText className="h-4 w-4 text-crimson-red" />
                       </div>
                       Basic Information
                     </CardTitle>
@@ -1735,10 +1744,10 @@ export default function TourForm({
                   id="section-travel-dates"
                   className="bg-background border border-border scroll-mt-4 shadow-md"
                 >
-                  <CardHeader className="pb-2 bg-gray-300 border-b border-border py-2 overflow-hidden rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-xl font-bold">
-                      <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <Calendar className="h-3 w-3 text-crimson-red" />
+                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
+                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                        <Calendar className="h-4 w-4 text-crimson-red" />
                       </div>
                       Travel Dates
                     </CardTitle>
@@ -1877,10 +1886,10 @@ export default function TourForm({
                   id="section-pricing"
                   className="bg-background border border-border scroll-mt-4 shadow-md"
                 >
-                  <CardHeader className="pb-2 bg-gray-300 border-b border-border py-2 overflow-hidden rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-xl font-bold">
-                      <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <Banknote className="h-3 w-3 text-crimson-red" />
+                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
+                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                        <Banknote className="h-4 w-4 text-crimson-red" />
                       </div>
                       Pricing
                     </CardTitle>
@@ -2010,10 +2019,10 @@ export default function TourForm({
                   id="section-external-links"
                   className="bg-background border border-border scroll-mt-4 shadow-md"
                 >
-                  <CardHeader className="pb-2 bg-gray-300 border-b border-border py-2 overflow-hidden rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-xl font-bold">
-                      <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <FolderOpen className="h-3 w-3 text-crimson-red" />
+                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
+                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                        <FolderOpen className="h-4 w-4 text-crimson-red" />
                       </div>
                       External Links
                     </CardTitle>
@@ -2099,26 +2108,38 @@ export default function TourForm({
                   id="section-highlights"
                   className="bg-background border border-border scroll-mt-4 shadow-md"
                 >
-                  <CardHeader className="pb-2 bg-gray-300 border-b border-border py-2 overflow-hidden rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-xl font-bold">
-                      <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <Star className="h-3 w-3 text-crimson-red" />
+                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
+                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                        <Star className="h-4 w-4 text-crimson-red" />
                       </div>
                       Highlights
                     </CardTitle>
                     <CardDescription className="text-muted-foreground">
-                      List the key attractions and experiences of your tour (with optional images)
+                      List the key attractions and experiences of your tour
+                      (with optional images)
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4 space-y-4">
                     {highlightFields.map((field, index) => {
-                      const currentValue = form.watch(`details.highlights.${index}` as any);
-                      const isObject = typeof currentValue === 'object' && currentValue !== null;
-                      const highlightText = isObject ? currentValue.text : currentValue;
-                      const highlightImage = isObject ? currentValue.image : undefined;
-                      
+                      const currentValue = form.watch(
+                        `details.highlights.${index}` as any
+                      );
+                      const isObject =
+                        typeof currentValue === "object" &&
+                        currentValue !== null;
+                      const highlightText = isObject
+                        ? currentValue.text
+                        : currentValue;
+                      const highlightImage = isObject
+                        ? currentValue.image
+                        : undefined;
+
                       return (
-                        <div key={field.id} className="border border-border rounded-lg p-4 space-y-3 group hover:border-sunglow-yellow transition-colors">
+                        <div
+                          key={field.id}
+                          className="border border-border rounded-lg p-4 space-y-3 group hover:border-sunglow-yellow transition-colors"
+                        >
                           {/* Highlight Text */}
                           <FormField
                             control={form.control}
@@ -2130,13 +2151,13 @@ export default function TourForm({
                                     <div className="w-2 h-2 bg-sunglow-yellow rounded-full flex-shrink-0"></div>
                                     <Input
                                       placeholder={`Highlight ${index + 1}`}
-                                      value={highlightText || ''}
+                                      value={highlightText || ""}
                                       onChange={(e) => {
                                         const newValue = e.target.value;
                                         if (isObject) {
                                           formField.onChange({
                                             text: newValue,
-                                            image: currentValue.image
+                                            image: currentValue.image,
                                           });
                                         } else {
                                           formField.onChange(newValue);
@@ -2160,39 +2181,62 @@ export default function TourForm({
                               </FormItem>
                             )}
                           />
-                          
+
                           {/* Image Upload with Toggle */}
                           <div className="space-y-3">
                             {/* Toggle and Mode Badge */}
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2 whitespace-nowrap">
                                 <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm font-medium text-foreground">Highlight Image</span>
+                                <span className="text-sm font-medium text-foreground">
+                                  Highlight Image
+                                </span>
                               </div>
                               <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-2 whitespace-nowrap">
-                                  <span className="text-xs text-muted-foreground">Upload File</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Upload File
+                                  </span>
                                   <Switch
-                                    checked={highlightImage === ''}
+                                    checked={highlightImage === ""}
                                     onCheckedChange={(checked) => {
-                                      const formField = form.getValues(`details.highlights.${index}` as any);
-                                      const text = typeof formField === 'string' ? formField : formField?.text || '';
-                                      form.setValue(`details.highlights.${index}` as any, {
-                                        text: text,
-                                        image: checked ? '' : undefined
-                                      });
+                                      const formField = form.getValues(
+                                        `details.highlights.${index}` as any
+                                      );
+                                      const text =
+                                        typeof formField === "string"
+                                          ? formField
+                                          : formField?.text || "";
+                                      form.setValue(
+                                        `details.highlights.${index}` as any,
+                                        {
+                                          text: text,
+                                          image: checked ? "" : undefined,
+                                        }
+                                      );
                                     }}
                                   />
-                                  <span className="text-xs text-muted-foreground">Use URL</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Use URL
+                                  </span>
                                 </div>
                                 {/* Reserve space for badge to prevent layout shift */}
                                 <div className="w-20 flex justify-end">
-                                  {(highlightImage !== undefined) ? (
-                                    <Badge variant="outline" className="text-xs whitespace-nowrap">
-                                      {highlightImage === '' ? 'URL Mode' : highlightImage ? 'Image Set' : 'Upload Mode'}
+                                  {highlightImage !== undefined ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs whitespace-nowrap"
+                                    >
+                                      {highlightImage === ""
+                                        ? "URL Mode"
+                                        : highlightImage
+                                        ? "Image Set"
+                                        : "Upload Mode"}
                                     </Badge>
                                   ) : (
-                                    <span className="text-xs opacity-0">placeholder</span>
+                                    <span className="text-xs opacity-0">
+                                      placeholder
+                                    </span>
                                   )}
                                 </div>
                               </div>
@@ -2211,12 +2255,17 @@ export default function TourForm({
                                   variant="destructive"
                                   size="sm"
                                   onClick={() => {
-                                    const formField = form.getValues(`details.highlights.${index}` as any);
-                                    if (typeof formField === 'object') {
-                                      form.setValue(`details.highlights.${index}` as any, {
-                                        text: formField.text,
-                                        image: undefined
-                                      });
+                                    const formField = form.getValues(
+                                      `details.highlights.${index}` as any
+                                    );
+                                    if (typeof formField === "object") {
+                                      form.setValue(
+                                        `details.highlights.${index}` as any,
+                                        {
+                                          text: formField.text,
+                                          image: undefined,
+                                        }
+                                      );
                                     }
                                   }}
                                   className="absolute top-2 right-2 opacity-0 group-hover/image:opacity-100 transition-opacity"
@@ -2226,24 +2275,33 @@ export default function TourForm({
                               </div>
                             ) : (
                               <div className="space-y-2">
-                                {highlightImage === '' ? (
+                                {highlightImage === "" ? (
                                   // URL Mode
                                   <div className="space-y-2">
                                     <Input
                                       placeholder="https://example.com/image.jpg"
-                                      value={highlightImage || ''}
+                                      value={highlightImage || ""}
                                       onChange={(e) => {
-                                        const currentFormValue = form.getValues(`details.highlights.${index}` as any);
-                                        const text = typeof currentFormValue === 'string' ? currentFormValue : currentFormValue?.text || '';
-                                        form.setValue(`details.highlights.${index}` as any, {
-                                          text: text,
-                                          image: e.target.value
-                                        });
+                                        const currentFormValue = form.getValues(
+                                          `details.highlights.${index}` as any
+                                        );
+                                        const text =
+                                          typeof currentFormValue === "string"
+                                            ? currentFormValue
+                                            : currentFormValue?.text || "";
+                                        form.setValue(
+                                          `details.highlights.${index}` as any,
+                                          {
+                                            text: text,
+                                            image: e.target.value,
+                                          }
+                                        );
                                       }}
                                       className="border-2 border-border focus:border-sunglow-yellow"
                                     />
                                     <p className="text-xs text-muted-foreground">
-                                      Enter a direct link to an image (JPG, PNG, WebP, etc.)
+                                      Enter a direct link to an image (JPG, PNG,
+                                      WebP, etc.)
                                     </p>
                                   </div>
                                 ) : (
@@ -2255,38 +2313,58 @@ export default function TourForm({
                                         variant="outline"
                                         size="sm"
                                         onClick={() => {
-                                          const input = document.createElement('input');
-                                          input.type = 'file';
-                                          input.accept = 'image/*';
+                                          const input =
+                                            document.createElement("input");
+                                          input.type = "file";
+                                          input.accept = "image/*";
                                           input.onchange = async (e: any) => {
                                             const file = e.target.files?.[0];
                                             if (file) {
                                               try {
-                                                const validation = await validateImageFile(file);
+                                                const validation =
+                                                  await validateImageFile(file);
                                                 if (!validation.valid) {
                                                   toast({
                                                     title: "Invalid image",
-                                                    description: validation.error,
+                                                    description:
+                                                      validation.error,
                                                     variant: "destructive",
                                                   });
                                                   return;
                                                 }
-                                                const blobUrl = createBlobUrl(file);
-                                                const currentFormValue = form.getValues(`details.highlights.${index}` as any);
-                                                const text = typeof currentFormValue === 'string' ? currentFormValue : currentFormValue?.text || '';
-                                                form.setValue(`details.highlights.${index}` as any, {
-                                                  text: text,
-                                                  image: blobUrl
-                                                });
+                                                const blobUrl =
+                                                  createBlobUrl(file);
+                                                const currentFormValue =
+                                                  form.getValues(
+                                                    `details.highlights.${index}` as any
+                                                  );
+                                                const text =
+                                                  typeof currentFormValue ===
+                                                  "string"
+                                                    ? currentFormValue
+                                                    : currentFormValue?.text ||
+                                                      "";
+                                                form.setValue(
+                                                  `details.highlights.${index}` as any,
+                                                  {
+                                                    text: text,
+                                                    image: blobUrl,
+                                                  }
+                                                );
                                                 toast({
                                                   title: "Image uploaded",
-                                                  description: "Image will be saved when you submit the form",
+                                                  description:
+                                                    "Image will be saved when you submit the form",
                                                 });
                                               } catch (error) {
-                                                console.error('Error uploading highlight image:', error);
+                                                console.error(
+                                                  "Error uploading highlight image:",
+                                                  error
+                                                );
                                                 toast({
                                                   title: "Upload failed",
-                                                  description: "Failed to upload image",
+                                                  description:
+                                                    "Failed to upload image",
                                                   variant: "destructive",
                                                 });
                                               }
@@ -2301,7 +2379,8 @@ export default function TourForm({
                                       </Button>
                                     </div>
                                     <p className="text-xs text-muted-foreground">
-                                      Upload JPEG, PNG, WebP or other image formats
+                                      Upload JPEG, PNG, WebP or other image
+                                      formats
                                     </p>
                                   </div>
                                 )}
@@ -2314,7 +2393,9 @@ export default function TourForm({
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => (appendHighlight as any)({ text: '', image: undefined })}
+                      onClick={() =>
+                        (appendHighlight as any)({ text: "", image: undefined })
+                      }
                       className="w-full border-2 border-crimson-red text-crimson-red hover:bg-crimson-red hover:text-white"
                     >
                       <Plus className="h-4 w-4 mr-2" />
@@ -2328,10 +2409,10 @@ export default function TourForm({
                   id="section-itinerary"
                   className="bg-background border border-border scroll-mt-4 shadow-md"
                 >
-                  <CardHeader className="pb-2 bg-gray-300 border-b border-border py-2 overflow-hidden rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-xl font-bold">
-                      <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <Plane className="h-3 w-3 text-crimson-red" />
+                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
+                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                        <Plane className="h-4 w-4 text-crimson-red" />
                       </div>
                       Itinerary
                     </CardTitle>
@@ -2463,10 +2544,10 @@ export default function TourForm({
                   id="section-requirements"
                   className="bg-background border border-border scroll-mt-4 shadow-md"
                 >
-                  <CardHeader className="pb-2 bg-gray-300 border-b border-border py-2 overflow-hidden rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-xl font-bold">
-                      <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <AlertCircle className="h-3 w-3 text-crimson-red" />
+                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
+                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                        <AlertCircle className="h-4 w-4 text-crimson-red" />
                       </div>
                       Requirements
                     </CardTitle>
@@ -2524,10 +2605,10 @@ export default function TourForm({
                   id="section-gallery"
                   className="bg-background border border-border scroll-mt-4 shadow-md"
                 >
-                  <CardHeader className="pb-2 bg-gray-300 border-b border-border py-2 overflow-hidden rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-xl font-bold">
-                      <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <FolderOpen className="h-3 w-3 text-crimson-red" />
+                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
+                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                        <FolderOpen className="h-4 w-4 text-crimson-red" />
                       </div>
                       Gallery Images
                     </CardTitle>

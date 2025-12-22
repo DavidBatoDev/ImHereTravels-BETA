@@ -2236,22 +2236,22 @@ export default function EditBookingModal({
                         <Card
                           key={parentTab}
                           id={`edit-tab-${parentTab}`}
-                          className="bg-background shadow-sm border border-border/50 scroll-mt-4"
+                          className="bg-background shadow-sm border border-border/50 dark:border-border/20 scroll-mt-4"
                           tabIndex={-1}
                         >
                           <CardHeader
-                            className="pb-1 bg-crimson-red/10 border-2 border-crimson-red/20 border-red-500 py-1"
+                            className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20 dark:border-b dark:border-border/20"
                             tabIndex={-1}
                           >
-                            <CardTitle className="text-xs font-bold text-foreground flex items-center gap-2">
-                              <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                                <IconComponent className="h-3 w-3 text-crimson-red" />
+                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+                              <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
+                                <IconComponent className="h-4 w-4 text-crimson-red" />
                               </div>
                               {parentTab}
                             </CardTitle>
                           </CardHeader>
                           <CardContent className="p-0" tabIndex={-1}>
-                            <div className="border border-purple-300">
+                            <div className="border border-field-border">
                               {filteredColumns.map((column) => {
                                 const error = fieldErrors[column.id];
                                 const isFunction =
@@ -2261,14 +2261,14 @@ export default function EditBookingModal({
                                   <div
                                     key={column.id}
                                     className={cn(
-                                      "flex items-center justify-between border border-purple-300 transition-colors",
+                                      "flex items-center justify-between border border-field-border transition-colors",
                                       error && "bg-red-50/50",
                                       isFunction
-                                        ? "bg-sunglow-yellow/20 hover:bg-sunglow-yellow/30 border-sunglow-yellow/30"
+                                        ? "bg-sunglow-yellow/20 hover:bg-sunglow-yellow/30 border-sunglow-yellow/30 dark:border-sunglow-yellow/40"
                                         : "hover:bg-muted/10"
                                     )}
                                   >
-                                    <div className="flex items-center gap-2 min-w-0 w-[40%] px-3 py-2 border-r border-purple-300">
+                                    <div className="flex items-center gap-2 min-w-0 w-[40%] px-3 py-2 border-r border-field-border">
                                       <Label
                                         htmlFor={`field-${column.id}`}
                                         className="text-xs font-medium"

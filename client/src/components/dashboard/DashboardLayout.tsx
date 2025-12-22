@@ -63,7 +63,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background dark:bg-sidebar data-[theme=dark]:bg-sidebar">
         <style>{`
           @keyframes bellRing {
             0% { transform: rotate(0deg); }
@@ -90,7 +90,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           }`}
         >
           {/* Mobile header - only for sidebar toggle */}
-          <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm lg:hidden">
+          <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background dark:bg-sidebar data-[theme=dark]:bg-sidebar px-4 shadow-sm lg:hidden">
             <Button
               variant="ghost"
               size="sm"

@@ -1053,9 +1053,9 @@ export default function BookingDetailModal({
                         <Card
                           key={parentTab}
                           id={`tab-${parentTab}`}
-                          className="bg-background shadow-sm border border-border/50 scroll-mt-4"
+                          className="bg-background shadow-sm border border-field-border scroll-mt-4"
                         >
-                          <CardHeader className="pb-2 bg-crimson-red/10 border-b border-crimson-red/20 py-2">
+                          <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
                             <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
                               <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
                                 <IconComponent className="h-4 w-4 text-crimson-red" />
@@ -1080,7 +1080,7 @@ export default function BookingDetailModal({
                                           ? "bg-muted/10 border-sunglow-yellow/50 opacity-50"
                                           : column.dataType === "function"
                                           ? "bg-sunglow-yellow/20 border-sunglow-yellow/30"
-                                          : "bg-muted/20 border-border hover:shadow-sm hover:border-foreground/10"
+                                          : "bg-muted/20 border-field-border hover:shadow-sm hover:border-foreground/10"
                                       }`}
                                     >
                                       <div className="flex-shrink-0 mt-0.5">
@@ -1146,7 +1146,7 @@ export default function BookingDetailModal({
                                 })}
                               </div>
                             ) : (
-                              <div className="divide-y divide-border/50">
+                              <div className="divide-y divide-field-border">
                                 {filteredColumns.map((column) => {
                                   const isEmpty = isColumnEmpty(column);
                                   return (

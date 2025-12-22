@@ -985,8 +985,10 @@ export default function ScheduledEmailsTab() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Scheduled Emails</h2>
-          <p className="text-gray-600">
+          <h2 className="text-2xl font-bold text-foreground">
+            Scheduled Emails
+          </h2>
+          <p className="text-muted-foreground">
             Manage and schedule emails to be sent at specific times
           </p>
         </div>
@@ -1242,7 +1244,7 @@ export default function ScheduledEmailsTab() {
                     {emails.map((email) => (
                       <div
                         key={email.id}
-                        className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                        className="border border-field-border rounded-lg p-4 bg-muted/20 hover:bg-muted/30 transition-colors"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
@@ -1258,16 +1260,16 @@ export default function ScheduledEmailsTab() {
                                   {email.emailType}
                                 </Badge>
                               )}
-                              <span className="text-sm text-gray-500">
+                              <span className="text-sm text-muted-foreground">
                                 Attempt {email.attempts}/{email.maxAttempts}
                               </span>
                             </div>
 
-                            <h4 className="font-medium text-gray-900 mb-1 truncate">
+                            <h4 className="font-medium text-foreground mb-1 truncate">
                               {email.subject}
                             </h4>
 
-                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
                               <span className="flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
                                 Scheduled: {formatDate(email.scheduledFor)}
@@ -1369,7 +1371,7 @@ export default function ScheduledEmailsTab() {
         {/* Ungrouped Emails (no bookingId) */}
         {ungroupedEmails.length > 0 && (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-700">
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
               Other Scheduled Emails
             </h3>
             {ungroupedEmails.map((email) => (
@@ -1390,16 +1392,16 @@ export default function ScheduledEmailsTab() {
                         {email.emailType && (
                           <Badge variant="outline">{email.emailType}</Badge>
                         )}
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-muted-foreground">
                           Attempt {email.attempts}/{email.maxAttempts}
                         </span>
                       </div>
 
-                      <h3 className="font-medium text-gray-900 mb-1 truncate">
+                      <h3 className="font-medium text-foreground mb-1 truncate">
                         {email.subject}
                       </h3>
 
-                      <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
                         <span className="flex items-center gap-1">
                           <Mail className="w-4 h-4" />
                           To: {email.to}
@@ -1839,19 +1841,21 @@ export default function ScheduledEmailsTab() {
           {viewEmailData && (
             <div className="flex-1 overflow-y-auto space-y-4 pr-2">
               {/* Email Recipients - Compact View */}
-              <div className="border rounded-lg p-3 bg-gray-50 space-y-2 text-sm">
+              <div className="border border-field-border rounded-lg p-3 bg-muted/20 space-y-2 text-sm">
                 <div className="flex items-start gap-2">
                   <span className="text-muted-foreground font-medium min-w-[60px]">
                     To:
                   </span>
-                  <span className="flex-1 break-words">{viewEmailData.to}</span>
+                  <span className="flex-1 break-words text-foreground">
+                    {viewEmailData.to}
+                  </span>
                 </div>
                 {viewEmailData.cc && (
                   <div className="flex items-start gap-2">
                     <span className="text-muted-foreground font-medium min-w-[60px]">
                       CC:
                     </span>
-                    <span className="flex-1 break-words">
+                    <span className="flex-1 break-words text-foreground">
                       {viewEmailData.cc}
                     </span>
                   </div>
@@ -1861,16 +1865,16 @@ export default function ScheduledEmailsTab() {
                     <span className="text-muted-foreground font-medium min-w-[60px]">
                       BCC:
                     </span>
-                    <span className="flex-1 break-words">
+                    <span className="flex-1 break-words text-foreground">
                       {viewEmailData.bcc}
                     </span>
                   </div>
                 )}
-                <div className="flex items-start gap-2 pt-1 border-t">
+                <div className="flex items-start gap-2 pt-1 border-t border-field-border">
                   <span className="text-muted-foreground font-medium min-w-[60px]">
                     Subject:
                   </span>
-                  <span className="flex-1 break-words font-medium">
+                  <span className="flex-1 break-words font-medium text-foreground">
                     {viewEmailData.subject}
                   </span>
                 </div>
@@ -1883,7 +1887,7 @@ export default function ScheduledEmailsTab() {
                 {/* Email Preview */}
                 <div
                   key={selectedEmail?.id}
-                  className="border rounded-md p-4 bg-white min-h-[300px] max-h-[500px] overflow-y-auto"
+                  className="border border-field-border rounded-md p-4 bg-background dark:bg-muted/10 min-h-[300px] max-h-[500px] overflow-y-auto"
                   style={{
                     fontFamily: "sans-serif",
                     fontSize: "14px",
@@ -1909,7 +1913,7 @@ export default function ScheduledEmailsTab() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Type:</span>
-                      <span className="ml-2">
+                      <span className="ml-2 text-foreground">
                         {selectedEmail.emailType || "N/A"}
                       </span>
                     </div>
@@ -1917,13 +1921,13 @@ export default function ScheduledEmailsTab() {
                       <span className="text-muted-foreground">
                         Scheduled For:
                       </span>
-                      <span className="ml-2">
+                      <span className="ml-2 text-foreground">
                         {formatDate(selectedEmail.scheduledFor)}
                       </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Attempts:</span>
-                      <span className="ml-2">
+                      <span className="ml-2 text-foreground">
                         {selectedEmail.attempts}/{selectedEmail.maxAttempts}
                       </span>
                     </div>
@@ -1932,7 +1936,7 @@ export default function ScheduledEmailsTab() {
                         <span className="text-muted-foreground">
                           Booking ID:
                         </span>
-                        <span className="ml-2 font-mono text-xs">
+                        <span className="ml-2 font-mono text-xs text-foreground">
                           {viewEmailData?.actualBookingId ||
                             selectedEmail.bookingId}
                         </span>
@@ -1955,7 +1959,7 @@ export default function ScheduledEmailsTab() {
                           href={`https://mail.google.com/mail/u/0/#sent/${selectedEmail.messageId}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="ml-2 text-blue-600 hover:underline"
+                          className="ml-2 text-blue-600 dark:text-blue-400 hover:underline"
                         >
                           View in Gmail
                         </a>

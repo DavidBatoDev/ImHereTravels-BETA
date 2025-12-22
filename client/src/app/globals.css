@@ -198,29 +198,23 @@
     --ring: 0 75% 53%;
     --radius: 0.5rem;
     --card-surface: 0 0% 100%; /* White for light mode */
+    --field-border: 263 50% 80%; /* Light purple for field borders */
   }
-
-
 
   /* Smooth theme transitions */
   .theme-transition,
   .theme-transition * {
-    transition: background-color 0.3s ease, 
-                border-color 0.3s ease, 
-                color 0.3s ease,
-                box-shadow 0.3s ease !important;
+    transition: background-color 0.3s ease, border-color 0.3s ease,
+      color 0.3s ease, box-shadow 0.3s ease !important;
   }
 
   /* Preserve other transitions */
   .theme-transition *[class*="transition-all"],
   .theme-transition *[class*="transition-transform"],
   .theme-transition *[class*="transition-opacity"] {
-    transition: background-color 0.3s ease, 
-                border-color 0.3s ease, 
-                color 0.3s ease,
-                transform 0.2s ease,
-                opacity 0.2s ease,
-                box-shadow 0.3s ease !important;
+    transition: background-color 0.3s ease, border-color 0.3s ease,
+      color 0.3s ease, transform 0.2s ease, opacity 0.2s ease,
+      box-shadow 0.3s ease !important;
   }
 
   /* Legacy dark class support */
@@ -280,6 +274,7 @@
     --input: 0 0% 20%; /* Slightly lighter input backgrounds */
     --ring: 0 78% 67%;
     --card-surface: 220 25% 10%; /* Creative Midnight for dark mode */
+    --field-border: 0 0% 30%; /* Darker border for dark mode fields */
 
     /* Sidebar Colors - Dark Mode */
     --sidebar-background: 220 25% 10%; /* Creative Midnight */
@@ -903,11 +898,13 @@
 
   /* Adjust card shadows for dark mode */
   [data-theme="dark"] .shadow-xl {
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5),
+      0 10px 10px -5px rgba(0, 0, 0, 0.3) !important;
   }
 
   [data-theme="dark"] .shadow-lg {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4),
+      0 4px 6px -2px rgba(0, 0, 0, 0.3) !important;
   }
 
   /* Improve border visibility in dark mode */
