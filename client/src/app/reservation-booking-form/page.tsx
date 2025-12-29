@@ -1394,8 +1394,16 @@ const Page = () => {
     const daysBetween = calculateDaysBetween(d);
     const isInvalid = daysBetween < 2;
 
+    // Format date as "mmm dd, yyyy" (e.g., "Mar 27, 2026")
+    const dateObj = new Date(d);
+    const formattedDate = dateObj.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
     return {
-      label: d,
+      label: formattedDate,
       value: d,
       disabled: isInvalid,
       description: isInvalid
@@ -4862,17 +4870,6 @@ const Page = () => {
                         <span className="text-sm text-muted-foreground">
                           Processing payment…
                         </span>
-                      </div>
-                    )}
-                    {step2StatusMsg && !step2Processing && (
-                      <div
-                        className={`mt-4 p-3 rounded-md border text-sm ${
-                          step2StatusType === "success"
-                            ? "bg-spring-green/10 text-spring-green border-spring-green/30"
-                            : "bg-destructive/10 text-destructive border-destructive/30"
-                        }`}
-                      >
-                        {step2StatusMsg}
                       </div>
                     )}
                   </>

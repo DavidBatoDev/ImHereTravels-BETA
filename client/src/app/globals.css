@@ -978,6 +978,18 @@
   animation: slide-down 0.3s ease-out;
 }
 
+/* Smooth slide down animation for error message */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Fade in animation for step descriptions */
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out;
@@ -1036,6 +1048,10 @@
   50% {
     transform: translateY(var(--float-distance, -6px));
   }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }
 
 /* Print styles for receipt */

@@ -123,7 +123,7 @@ export default function BirthdatePickerModal({
             open ? 'border-crimson-red' : isValid ? 'border-green-500 pr-12 hover:border-green-500' : 'border-border hover:border-primary/50'
           } focus:border-primary focus:ring-2 focus:ring-primary/20`}
         >
-          {selectedISO ? new Date(selectedISO + "T00:00:00").toLocaleDateString() : "mm/dd/yyyy"}
+          {selectedISO ? new Date(selectedISO + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "mm/dd/yyyy"}
         </button>
         {isValid && !open && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5 text-green-500">

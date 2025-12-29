@@ -48,15 +48,98 @@ function PaymentForm({
   const [modalMessage, setModalMessage] = useState("");
   const [modalDetail, setModalDetail] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [modalMinimized, setModalMinimized] = useState(false);
+  const [errorExpanded, setErrorExpanded] = useState(false);
+  const [selectedPaymentType, setSelectedPaymentType] = useState<string | null>(null);
+  const minimizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const errorMessageRef = useRef<HTMLDivElement | null>(null);
+  const [modalTransform, setModalTransform] = useState<string>("");
+  const popupWindowRef = useRef<Window | null>(null);
+
+  const openRedirectPopup = () => {
+    try {
+      const popup = window.open(
+        "",
+        "paymentVerification",
+        "width=420,height=580,noopener,noreferrer"
+      );
+      if (popup) {
+        popup.document.open();
+        popup.document.write(`<!doctype html><html><head><meta charset="utf-8" />
+          <title>Verifying Payment</title>
+          <style>
+            body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif; margin:0; padding:24px; background:#0b0b0f; color:#e6e6e6; }
+            .card { max-width: 360px; margin: 0 auto; background:#15151c; border:1px solid #2a2a33; border-radius:12px; padding:20px; box-shadow: 0 10px 25px rgba(0,0,0,0.35); }
+            .title { font-weight:600; font-size:18px; margin-bottom:8px; }
+            .desc { font-size:14px; opacity:0.8; }
+            .spinner { width:44px; height:44px; border:4px solid #e6e6e61a; border-top-color:#ff4d4f; border-radius:50%; animation: spin 1s linear infinite; margin:16px auto; }
+            @keyframes spin { to { transform: rotate(360deg); } }
+          </style>
+        </head><body>
+          <div class="card">
+            <div class="title">Revolut Pay verification</div>
+            <div class="desc">A secure verification page has opened. Complete it to continue your payment.<br/><br/>This window will close automatically once you return.</div>
+            <div class="spinner"></div>
+          </div>
+        </body></html>`);
+        popup.document.close();
+      }
+      popupWindowRef.current = popup;
+    } catch (e) {
+      console.warn("Unable to open verification popup:", e);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Countdown timer effect for error modal
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
+  // Clear minimization timeout when modal is reopened
+  useEffect(() => {
+    if (!modalMinimized && minimizeTimeoutRef.current) {
+      clearTimeout(minimizeTimeoutRef.current);
+      minimizeTimeoutRef.current = null;
+      setCountdown(0); // Reset countdown display
+      setModalTransform(""); // Reset transform
+    } else if (modalMinimized && errorMessageRef.current) {
+      // Calculate transform to animate modal into error message position
+      const errorRect = errorMessageRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Center of viewport (where modal is currently)
+      const modalCenterX = viewportWidth / 2;
+      const modalCenterY = viewportHeight / 2;
+      
+      // Center of error message
+      const errorCenterX = errorRect.left + errorRect.width / 2;
+      const errorCenterY = errorRect.top + errorRect.height / 2;
+      
+      // Calculate translation
+      const translateX = errorCenterX - modalCenterX;
+      const translateY = errorCenterY - modalCenterY;
+      
+      // Calculate scale (error message is much smaller than modal)
+      const scaleX = errorRect.width / 384; // 384px is max-w-md (28rem)
+      const scaleY = errorRect.height / 200; // Approximate modal height
+      const scale = Math.min(scaleX, scaleY, 0.15); // Cap scale for smooth animation
+      
+      setModalTransform(`translate(${translateX}px, ${translateY}px) scale(${scale})`);
+    }
+  }, [modalMinimized]);
+
   useEffect(() => {
     if (!stripe || !clientSecret) return;
 
-    // Check payment status on mount (in case of page refresh)
+    // Check payment status on mount (in case of page refresh or redirect return)
     // NOTE: We only check status for display purposes, not to trigger callbacks
     (async () => {
       try {
@@ -67,7 +150,46 @@ function PaymentForm({
 
         // Only show status messages, don't trigger success callbacks on refresh
         if (paymentIntent.status === "succeeded") {
-          // Payment already completed - don't show anything, form should be hidden by parent
+          // Payment already completed - show success modal and trigger callbacks
+          // This handles returns from redirect-based payments (Revolut Pay, 3DS, etc)
+          console.log("✅ Payment succeeded on return from redirect:", {
+            paymentIntentId: paymentIntent.id,
+            isGuestBooking,
+            hasOnPaymentSuccess: !!onPaymentSuccess,
+            hasPaymentDocId: !!paymentDocId,
+            hasOnSuccess: !!onSuccess,
+          });
+
+          setMessage("Payment succeeded!");
+          setPaymentFailed(false);
+
+          // Show success modal
+          setShowModal(true);
+          setModalMinimized(false);
+          setModalStatus("success");
+          setModalMessage("Payment successful!");
+          setModalDetail(
+            "Your reservation fee has been processed. Securing your spot..."
+          );
+
+          // Close helper popup if open
+          try { popupWindowRef.current?.close(); } catch {}
+
+          // Trigger success callback after a brief delay
+          setTimeout(() => {
+            console.log("Invoking success callback...");
+            if (isGuestBooking && onPaymentSuccess && paymentDocId) {
+              console.log("Calling onPaymentSuccess with:", paymentDocId);
+              onPaymentSuccess(paymentDocId);
+            } else if (onSuccess) {
+              console.log("Calling onSuccess with:", paymentIntent.id);
+              onSuccess(paymentIntent.id, paymentDocId || undefined);
+            } else {
+              console.warn("No callback available; neither onPaymentSuccess nor onSuccess defined");
+            }
+            setShowModal(false);
+          }, 2000);
+
           return;
         }
 
@@ -78,11 +200,43 @@ function PaymentForm({
 
         if (paymentIntent.status === "requires_payment_method") {
           if (paymentIntent.last_payment_error) {
+            const errorMsg = getErrorMessage(paymentIntent.last_payment_error);
+            setMessage(errorMsg);
             setPaymentFailed(true);
             setDeclineCode(
               paymentIntent.last_payment_error.decline_code || null
             );
+
+            // Show error modal for redirect-based payment methods (Revolut Pay, etc)
+            setShowModal(true);
+            setModalMinimized(false);
+            setModalStatus("error");
+            setModalMessage("Payment failed");
+            setModalDetail(errorMsg);
+            setCountdown(4);
+
+            // Auto-hide modal after 4 seconds
+            minimizeTimeoutRef.current = setTimeout(() => {
+              setModalMinimized(true);
+            }, 4000);
+            // Close helper popup if open
+            try { popupWindowRef.current?.close(); } catch {}
           }
+          return;
+        }
+
+        if (paymentIntent.status === "requires_action") {
+          // Show 3DS-style modal for redirect payments (e.g., Revolut Pay)
+          setShowModal(true);
+          setModalMinimized(false);
+          setModalStatus("3ds");
+          setModalMessage("Additional verification needed");
+          setModalDetail(
+            "Please complete the verification in the opened page to continue."
+          );
+          // Close helper popup if open (we are already back)
+          try { popupWindowRef.current?.close(); } catch {}
+          return;
         }
 
         // For any other status, clear stale UI state
@@ -103,7 +257,7 @@ function PaymentForm({
       case "generic_decline":
         return "Your card was declined. Please try a different payment method.";
       case "insufficient_funds":
-        return "Insufficient funds. Please try a different card.";
+        return "Insufficient funds. Please try a different payment method.";
       case "fraudulent":
         return "This transaction has been flagged as potentially fraudulent. Please contact your bank or try a different payment method.";
       case "lost_card":
@@ -117,6 +271,10 @@ function PaymentForm({
         return "A processing error occurred. Please try again.";
       case "incorrect_number":
         return "Incorrect card number. Please check and try again.";
+      case "revolut_pay_authentication_failed":
+        return "Revolut Pay authentication failed. Please try again or use another payment method.";
+      case "revolut_pay_not_available":
+        return "Revolut Pay is not available. Please use another payment method.";
       default:
         return (
           error.message ??
@@ -140,16 +298,51 @@ function PaymentForm({
 
     // Show modal with processing state
     setShowModal(true);
+    setModalMinimized(false);
     setModalStatus("processing");
     setModalMessage("Processing your payment...");
     setModalDetail("Please wait while we securely process your transaction.");
 
+    // Get return URL for Revolut Pay and other redirect-based payment methods
+    const returnUrl = `${window.location.origin}${window.location.pathname}`;
+
+    // If Revolut Pay is selected, show a verifying popup before redirect
+    if (selectedPaymentType === "revolut_pay") {
+      setModalStatus("3ds");
+      setModalMessage("Revolut Pay verification");
+      setModalDetail(
+        "Complete the Revolut Pay authentication in the opened page to continue."
+      );
+    }
+    // Note: We do not open a separate popup here; we'll open the Stripe redirect
+    // in a new browser tab after client-side confirmation indicates a redirect is required.
+
+    // Otherwise, use Elements client-side confirmation
+    const redirectBehavior = selectedPaymentType === "revolut_pay" ? "always" : "if_required";
+
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
-      redirect: "if_required",
+      redirect: redirectBehavior as any,
+      confirmParams: {
+        return_url: returnUrl,
+      },
     });
 
+    // With redirect: 'always', Stripe redirects the page so this code may not execute
+    // If we get an empty error object, it typically means:
+    // - For Revolut Pay: redirect is in progress
+    // - For Card: form validation failed (Stripe shows inline errors)
     if (error) {
+      // Try to detect empty error by stringifying
+      const errorString = JSON.stringify(error);
+      if (errorString === '{}' || errorString === '{"type":"validation_error"}') {
+        console.log("Empty/validation error received, letting Stripe handle inline validation...");
+        setIsProcessing(false);
+        onProcessingChange?.(false);
+        return;
+      }
+
+      console.error("confirmPayment error:", error);
       const errorMsg = getErrorMessage(error);
       setMessage(errorMsg);
       setPaymentFailed(true);
@@ -159,16 +352,42 @@ function PaymentForm({
       setModalStatus("error");
       setModalMessage("Payment failed");
       setModalDetail(errorMsg);
+      setCountdown(4);
 
-      // Auto-close modal after 4 seconds for errors
-      setTimeout(() => {
-        setShowModal(false);
-        onError(errorMsg);
+      // Auto-hide modal after 4 seconds (user can click message to re-open)
+      minimizeTimeoutRef.current = setTimeout(() => {
+        setModalMinimized(true);
       }, 4000);
+      // Close helper popup if open
+      try { popupWindowRef.current?.close(); } catch {}
+      
+      onError(errorMsg);
 
       setIsProcessing(false);
       onProcessingChange?.(false);
     } else if (paymentIntent) {
+      // If Revolut Pay and redirect is required, open Stripe page in a new tab
+      if (
+        selectedPaymentType === "revolut_pay" &&
+        paymentIntent.status === "requires_action" &&
+        (paymentIntent as any)?.next_action?.redirect_to_url?.url
+      ) {
+        const url = (paymentIntent as any).next_action.redirect_to_url.url;
+        try {
+          window.open(url, "_blank", "noopener,noreferrer");
+        } catch {
+          // Fallback: navigate current window if tab opening blocked
+          window.location.href = url;
+        }
+
+        // Show local modal while verification runs externally
+        setModalStatus("3ds");
+        setModalMessage("Revolut Pay verification");
+        setModalDetail("Complete the verification in the new tab, then return here.");
+        setIsProcessing(false);
+        onProcessingChange?.(false);
+        return;
+      }
       // Handle all possible payment intent statuses
       switch (paymentIntent.status) {
         case "succeeded":
@@ -189,6 +408,8 @@ function PaymentForm({
             } else if (onSuccess) {
               onSuccess(paymentIntent.id, paymentDocId || undefined);
             }
+            // Close helper popup if open
+            try { popupWindowRef.current?.close(); } catch {}
             setIsProcessing(false);
             onProcessingChange?.(false);
             setShowModal(false);
@@ -223,13 +444,14 @@ function PaymentForm({
           setModalStatus("error");
           setModalMessage("Payment declined");
           setModalDetail(requiresPaymentMsg);
+          setCountdown(4);
 
-          // Auto-close modal after 4 seconds
-          setTimeout(() => {
-            setShowModal(false);
-            setMessage(null);
-            onError(requiresPaymentMsg);
+          // Auto-hide modal after 4 seconds (user can click message to re-open)
+          minimizeTimeoutRef.current = setTimeout(() => {
+            setModalMinimized(true);
           }, 4000);
+          
+          onError(requiresPaymentMsg);
 
           setIsProcessing(false);
           onProcessingChange?.(false);
@@ -255,9 +477,54 @@ function PaymentForm({
           break;
 
         case "requires_confirmation":
+          // Payment requires confirmation - keep processing
+          const confirmationMsg =
+            "Payment requires confirmation. Please complete the next step.";
+          setMessage(confirmationMsg);
+          setPaymentFailed(false);
+          setModalStatus("processing");
+          setModalMessage("Confirming payment");
+          setModalDetail(
+            "We're confirming your payment. This may take a few moments..."
+          );
+          // Don't close modal or call onError - this is a pending state
+          break;
+
         case "requires_capture":
+          // Payment was authorized but not captured - wait for settlement
+          const captureMsg =
+            "Your payment has been authorized and will be captured shortly.";
+          setMessage(captureMsg);
+          setPaymentFailed(false);
+          setModalStatus("verifying");
+          setModalMessage("Payment authorized");
+          setModalDetail(
+            "Your payment is being processed. This may take a few moments..."
+          );
+          setIsProcessing(false);
+          onProcessingChange?.(false);
+          break;
+
         case "canceled":
-        case "incomplete":
+          // User or system canceled the payment
+          const canceledMsg = "Payment was canceled. Please try again.";
+          setMessage(canceledMsg);
+          setPaymentFailed(true);
+          setModalStatus("error");
+          setModalMessage("Payment canceled");
+          setModalDetail(canceledMsg);
+
+          // Auto-close modal after 4 seconds
+          setTimeout(() => {
+            setShowModal(false);
+            setMessage(null);
+            onError(canceledMsg);
+          }, 4000);
+
+          setIsProcessing(false);
+          onProcessingChange?.(false);
+          break;
+
         default:
           const defaultMsg = `Payment incomplete (status: ${paymentIntent.status}). Please try again.`;
           setMessage(defaultMsg);
@@ -267,13 +534,14 @@ function PaymentForm({
           setModalStatus("error");
           setModalMessage("Payment incomplete");
           setModalDetail(defaultMsg);
+          setCountdown(4);
 
-          // Auto-close modal after 4 seconds
+          // Auto-hide modal after 4 seconds (user can click message to re-open)
           setTimeout(() => {
             setShowModal(false);
-            setMessage(null);
-            onError(defaultMsg);
           }, 4000);
+          
+          onError(defaultMsg);
 
           setIsProcessing(false);
           onProcessingChange?.(false);
@@ -290,13 +558,14 @@ function PaymentForm({
       setModalStatus("error");
       setModalMessage("Unknown error");
       setModalDetail(unknownMsg);
+      setCountdown(4);
 
-      // Auto-close modal after 4 seconds
+      // Auto-hide modal after 4 seconds (user can click message to re-open)
       setTimeout(() => {
-        setShowModal(false);
-        setMessage(null);
-        onError(unknownMsg);
+        setModalMinimized(true);
       }, 4000);
+      
+      onError(unknownMsg);
 
       setIsProcessing(false);
       onProcessingChange?.(false);
@@ -412,8 +681,20 @@ function PaymentForm({
       {showModal &&
         mounted &&
         createPortal(
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 animate-fade-in">
-            <div className="bg-card rounded-2xl shadow-2xl max-w-md w-full p-8 border border-border animate-slide-up">
+          <div className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-all duration-700 ${
+            modalMinimized ? "pointer-events-none" : "bg-black/70"
+          } ${modalMinimized ? "animate-fade-out" : "animate-fade-in"}`}>
+            <div 
+              className={`bg-card rounded-2xl shadow-2xl max-w-md w-full p-8 border border-border transition-all duration-700 origin-center ${
+                !modalMinimized 
+                  ? "animate-slide-up" 
+                  : ""
+              }`}
+              style={{
+                opacity: modalMinimized ? 0 : 1,
+                transform: modalMinimized ? modalTransform : "scale(1)",
+              }}
+            >
               {getModalIcon()}
               <h3 className="text-2xl font-bold text-center text-foreground mb-2">
                 {modalMessage}
@@ -440,12 +721,19 @@ function PaymentForm({
               )}
 
               {(modalStatus === "error" || modalStatus === "3ds") && (
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="w-full mt-4 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-colors"
-                >
-                  Close
-                </button>
+                <div className="w-full mt-4 space-y-2">
+                  {countdown > 0 && modalStatus === "error" && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Closing in {countdown}s...
+                    </p>
+                  )}
+                  <button
+                    onClick={() => setModalMinimized(true)}
+                    className="w-full px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
               )}
             </div>
           </div>,
@@ -456,25 +744,89 @@ function PaymentForm({
         <PaymentElement
           options={{
             layout: "tabs" as const,
+            paymentMethodOrder: [
+              "card",
+              "revolut_pay",
+              "apple_pay",
+              "google_pay",
+            ],
+          }}
+          onChange={(event: any) => {
+            try {
+              const type = event?.value?.type ?? null;
+              setSelectedPaymentType(type);
+            } catch {}
           }}
           onLoadError={(error) => {
-            console.error("Payment Element load error:", error);
-            setMessage(
-              "Unable to load payment form. Please refresh the page and try again."
-            );
-            onError("Payment form failed to load");
+            // Ignore empty error objects (can occur on return from redirects like Revolut Pay)
+            if (!error || Object.keys(error).length === 0) {
+              console.warn("Payment Element empty load error (likely redirect return), ignoring");
+              return;
+            }
+
+            // Only show error if payment hasn't already succeeded
+            if (modalStatus !== "success") {
+              console.error("Payment Element load error:", error);
+              setMessage(
+                "Unable to load payment form. Please refresh the page and try again."
+              );
+              onError("Payment form failed to load");
+            }
           }}
         />
 
+        <button
+          type="submit"
+          disabled={
+            !stripe ||
+            isProcessing ||
+            message ===
+              "Payment completed (pending verification). Please wait..."
+          }
+          className={`w-full px-6 py-3 rounded-md font-medium transition ${
+            !stripe ||
+            isProcessing ||
+            message ===
+              "Payment completed (pending verification). Please wait..."
+              ? "bg-muted text-muted-foreground cursor-not-allowed"
+              : "bg-crimson-red text-white hover:brightness-95"
+          }`}
+        >
+          {isProcessing
+            ? "Processing..."
+            : paymentFailed
+            ? "Try again"
+            : "Pay now"}
+        </button>
+
         {message &&
-          !showModal &&
-          (!paymentFailed || modalStatus === "success") && (
+          ((!showModal) || (showModal && modalMinimized)) &&
+          (paymentFailed || modalStatus === "success") && (
             <div
-              className={`text-sm p-3 rounded ${
+              ref={errorMessageRef}
+              onClick={() => {
+                if (paymentFailed) {
+                  setErrorExpanded(!errorExpanded);
+                  setModalMinimized(false);
+                }
+              }}
+              className={`text-sm p-3 rounded transition-all duration-500 ease-out overflow-hidden ${
                 message.includes("succeeded")
                   ? "bg-spring-green/10 text-spring-green border border-spring-green/30"
+                  : paymentFailed
+                  ? "bg-destructive/10 text-destructive border border-destructive/30 cursor-pointer hover:bg-destructive/20 hover:shadow-lg"
                   : "bg-destructive/10 text-destructive border border-destructive/30"
+              } ${
+                modalMinimized && paymentFailed
+                  ? "animate-slide-down opacity-100"
+                  : ""
+              } ${
+                paymentFailed ? "animate-float" : ""
               }`}
+              style={{
+                animation: modalMinimized && paymentFailed ? "slideDown 0.5s ease-out forwards, float 3s ease-in-out infinite" : paymentFailed ? "float 3s ease-in-out infinite" : undefined,
+                maxHeight: errorExpanded ? "500px" : "80px",
+              }}
             >
               <div className="flex items-start gap-2">
                 {!message.includes("succeeded") && (
@@ -501,34 +853,15 @@ function PaymentForm({
                       different payment method.
                     </p>
                   )}
+                  {paymentFailed && (
+                    <p className="text-xs mt-2 opacity-70">
+                      Click to view details and retry
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
           )}
-
-        <button
-          type="submit"
-          disabled={
-            !stripe ||
-            isProcessing ||
-            message ===
-              "Payment completed (pending verification). Please wait..."
-          }
-          className={`w-full px-6 py-3 rounded-md font-medium transition ${
-            !stripe ||
-            isProcessing ||
-            message ===
-              "Payment completed (pending verification). Please wait..."
-              ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-crimson-red text-white hover:brightness-95"
-          }`}
-        >
-          {isProcessing
-            ? "Processing..."
-            : paymentFailed
-            ? "Try again"
-            : "Pay now"}
-        </button>
       </form>
     </>
   );
@@ -655,6 +988,14 @@ export default function StripePayment({
                 verifyData.status === "requires_action"
               ) {
                 console.log("♻️ Reusing existing payment session for", email);
+                setClientSecret(savedSecret);
+                setPaymentDocId(savedDocId);
+                setLoading(false);
+                initializingRef.current = false;
+                return;
+              } else if (verifyData.status === "succeeded") {
+                // Payment already succeeded - reuse the session and let mount check handle success flow
+                console.log("✅ Reusing succeeded payment session for", email);
                 setClientSecret(savedSecret);
                 setPaymentDocId(savedDocId);
                 setLoading(false);
@@ -908,6 +1249,11 @@ export default function StripePayment({
           to { opacity: 1; }
         }
         
+        @keyframes fade-out {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
+        
         @keyframes slide-up {
           from { transform: translateY(20px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
@@ -925,6 +1271,7 @@ export default function StripePayment({
         }
         
         .animate-fade-in { animation: fade-in 0.3s ease-out; }
+        .animate-fade-out { animation: fade-out 0.5s ease-out; }
         .animate-slide-up { animation: slide-up 0.4s ease-out; }
         .animate-scale-in { animation: scale-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .animate-shake { animation: shake 0.5s ease-in-out; }

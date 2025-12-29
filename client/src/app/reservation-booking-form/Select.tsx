@@ -242,8 +242,7 @@ export default function Select({
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ 
-                    duration: 0.2,
-                    delay: idx * 0.03,
+                    duration: 0.15,
                     ease: [0.4, 0, 0.2, 1]
                   }}
                   whileHover={!opt.disabled ? { x: 4 } : {}}
