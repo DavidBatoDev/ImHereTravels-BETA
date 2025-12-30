@@ -561,7 +561,6 @@ const Page = () => {
   };
 
   const handleReuseExisting = async (rec: any) => {
-    setShowEmailModal(false);
     const status = rec?.payment?.status || rec?.status;
 
     // For reserve_paid: verify payment with Stripe before proceeding
@@ -616,6 +615,7 @@ const Page = () => {
                 "✅ reserve_paid has payment plan, treating as confirmed"
               );
               // Treat as terms_selected - show confirmation page
+              setShowEmailModal(false);
               setPaymentDocId(rec.id);
               setBookingId(bookingDocId);
               setPaymentConfirmed(true);
@@ -655,6 +655,7 @@ const Page = () => {
       }
 
       // No payment plan yet - proceed to step 3 to select plan
+      setShowEmailModal(false);
       setPaymentDocId(rec.id);
       try {
         sessionStorage.setItem(
@@ -759,6 +760,7 @@ const Page = () => {
           "✅ Fetched fresh PaymentIntent for existing document:",
           rec.id
         );
+        setShowEmailModal(false);
         setPaymentDocId(rec.id);
         try {
           sessionStorage.setItem(
@@ -787,6 +789,7 @@ const Page = () => {
     // For terms_selected: treat like reserve_paid with payment plan - show confirmation
     if (status === "terms_selected") {
       console.log("✅ terms_selected status, treating as fully confirmed");
+      setShowEmailModal(false);
       setPaymentDocId(rec.id);
 
       // Extract booking info
@@ -840,6 +843,7 @@ const Page = () => {
     }
 
     // For other statuses: fallback behavior
+    setShowEmailModal(false);
     setPaymentDocId(rec.id);
     try {
       sessionStorage.setItem(
@@ -3139,66 +3143,15 @@ const Page = () => {
               <button
                 type="button"
                 onClick={() => {
-                  if (
-                    email &&
-                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
-                    birthdate &&
-                    firstName &&
-                    lastName &&
-                    nationality &&
-                    bookingType &&
-                    tourPackage &&
-                    tourDate &&
-                    !(
-                      (bookingType === "Duo Booking" ||
-                        bookingType === "Group Booking") &&
-                      additionalGuests.some(
-                        (g) =>
-                          !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
-                      )
-                    )
-                  ) {
-                    if (!completedSteps.includes(2)) {
-                      setCompletedSteps([...completedSteps, 2]);
-                    }
+                  // Only allow direct navigation to step 2 if NOT currently on step 1
+                  // When on step 1, users must use "Continue to Payment" button to trigger the existing reservation check
+                  if (step !== 1 && completedSteps.includes(2)) {
                     setStep(2);
                   }
                 }}
-                disabled={
-                  step === 1 &&
-                  (!email ||
-                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-                    !birthdate ||
-                    !firstName ||
-                    !lastName ||
-                    !nationality ||
-                    !bookingType ||
-                    !tourPackage ||
-                    !tourDate ||
-                    ((bookingType === "Duo Booking" ||
-                      bookingType === "Group Booking") &&
-                      additionalGuests.some(
-                        (g) =>
-                          !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
-                      )))
-                }
+                disabled={step === 1}
                 className={`flex items-center gap-1.5 sm:gap-2 transition-all duration-200 group ${
-                  step === 1 &&
-                  (!email ||
-                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-                    !birthdate ||
-                    !firstName ||
-                    !lastName ||
-                    !nationality ||
-                    !bookingType ||
-                    !tourPackage ||
-                    !tourDate ||
-                    ((bookingType === "Duo Booking" ||
-                      bookingType === "Group Booking") &&
-                      additionalGuests.some(
-                        (g) =>
-                          !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
-                      )))
+                  step === 1
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:opacity-80 cursor-pointer"
                 }`}
@@ -3209,23 +3162,7 @@ const Page = () => {
                       ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
                       : completedSteps.includes(2)
                       ? "bg-white text-green-600 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
-                      : step === 1 &&
-                        (!email ||
-                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-                          !birthdate ||
-                          !firstName ||
-                          !lastName ||
-                          !nationality ||
-                          !bookingType ||
-                          !tourPackage ||
-                          !tourDate ||
-                          ((bookingType === "Duo Booking" ||
-                            bookingType === "Group Booking") &&
-                            additionalGuests.some(
-                              (g) =>
-                                !g.trim() ||
-                                !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
-                            )))
+                      : step === 1
                       ? "bg-muted/50 text-muted-foreground"
                       : "bg-muted text-foreground group-hover:scale-105"
                   }`}
