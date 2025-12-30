@@ -1013,7 +1013,7 @@ export default function ScheduledEmailsTab() {
       </div>
 
       {/* Quick Actions */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle className="text-lg">Quick Schedule</CardTitle>
           <CardDescription>Common scheduling shortcuts</CardDescription>
@@ -1043,7 +1043,7 @@ export default function ScheduledEmailsTab() {
             </Button>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Search and Filters */}
       <Card>
@@ -1145,7 +1145,7 @@ export default function ScheduledEmailsTab() {
       )}
 
       {/* Scheduled Emails List */}
-      <div className="space-y-6">
+      <div className="space-y-3">
         {/* Grouped Emails by Booking */}
         {Object.entries(groupedEmails).map(([bookingId, emails]) => {
           const isOpen = openGroups[bookingId] ?? true;
@@ -1162,10 +1162,10 @@ export default function ScheduledEmailsTab() {
               key={bookingId}
               className="border-l-4 border-l-crimson-red hover:shadow-lg transition-shadow"
             >
-              <CardHeader className="pb-3">
+              <CardHeader className="p-4 pb-2">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-1">
                       <CardTitle className="text-lg">
                         Booking: {actualBookingId}
                       </CardTitle>
@@ -1240,15 +1240,15 @@ export default function ScheduledEmailsTab() {
                 onOpenChange={() => toggleGroup(bookingId)}
               >
                 <CollapsibleContent>
-                  <CardContent className="pt-0 space-y-3">
+                  <CardContent className="pt-0 space-y-2">
                     {emails.map((email) => (
                       <div
                         key={email.id}
-                        className="border border-field-border rounded-lg p-4 bg-muted/20 hover:bg-muted/30 transition-colors"
+                        className="border border-field-border rounded-lg p-3 bg-muted/20 hover:bg-muted/30 transition-colors"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-1">
                               <Badge className={statusStyles[email.status]}>
                                 {statusIcons[email.status]}
                                 <span className="ml-1 capitalize">
@@ -1265,11 +1265,11 @@ export default function ScheduledEmailsTab() {
                               </span>
                             </div>
 
-                            <h4 className="font-medium text-foreground mb-1 truncate">
+                            <h4 className="font-medium text-foreground mb-0.5 truncate">
                               {email.subject}
                             </h4>
 
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-1">
                               <span className="flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
                                 Scheduled: {formatDate(email.scheduledFor)}

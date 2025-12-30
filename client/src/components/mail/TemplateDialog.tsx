@@ -32,6 +32,7 @@ import {
   Plus,
   ChevronDown,
   ChevronUp,
+  Columns,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import EmailTemplateService from "@/services/email-template-service";
@@ -1544,20 +1545,6 @@ export default function TemplateDialog({
                   dynamic content.
                 </DialogDescription>
               </div>
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm">
-                  <Save className="mr-2 h-4 w-4" />
-                  Save
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Eye className="mr-2 h-4 w-4" />
-                  Preview
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Code className="mr-2 h-4 w-4" />
-                  View Code
-                </Button>
-              </div>
             </div>
           </DialogHeader>
 
@@ -1660,8 +1647,17 @@ export default function TemplateDialog({
                       onClick={() => setEditorView("split")}
                       className="h-8 px-3"
                     >
-                      <Code className="mr-2 h-3 w-3" />
+                      <Columns className="mr-2 h-3 w-3" />
                       Split
+                    </Button>
+                    <Button
+                      variant={editorView === "code" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setEditorView("code")}
+                      className="h-8 px-3"
+                    >
+                      <Code className="mr-2 h-3 w-3" />
+                      Code
                     </Button>
                     <Button
                       variant={editorView === "preview" ? "default" : "outline"}
@@ -3087,6 +3083,23 @@ export default function TemplateDialog({
               className="h-9"
             >
               Cancel
+            </Button>
+            <Button
+              onClick={handleSaveTemplate}
+              disabled={isLoading}
+              className="h-9"
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Template
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
