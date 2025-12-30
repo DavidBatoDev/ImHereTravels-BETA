@@ -686,63 +686,68 @@ const Page = () => {
       return;
     }
 
-    // For reserve_pending: fetch fresh PaymentIntent
+    // For reserve_pending: load existing booking data and fetch fresh PaymentIntent
     if (status === "reserve_pending" || status === "pending") {
       try {
         setIsCreatingPayment(true);
-        // Update the document with current form data
-        const { updateDoc, doc } = await import("firebase/firestore");
-        await updateDoc(doc(db, "stripePayments", rec.id), {
-          customer: {
-            email,
-            firstName,
-            lastName,
-            birthdate,
-            nationality,
-            whatsAppNumber: whatsAppNumber
-              ? `+${getCountryCallingCode(
-                  whatsAppCountry as Country
-                )}${whatsAppNumber}`
-              : "",
-          },
-          booking: {
-            type: bookingType,
-            groupSize:
-              bookingType === "Group Booking"
-                ? groupSize
-                : bookingType === "Duo Booking"
-                ? 2
-                : 1,
-            additionalGuests:
-              bookingType === "Duo Booking" || bookingType === "Group Booking"
-                ? additionalGuests
-                : [],
-            id: "PENDING",
-            documentId: "",
-          },
-          tour: {
-            packageId: tourPackage,
-            packageName: selectedPackage?.name || "",
-            date: tourDate,
-          },
-          payment: {
-            amount: depositAmount,
-            currency: "GBP",
-            status: "reserve_pending",
-            type: "reservationFee",
-          },
-          "timestamps.updatedAt": serverTimestamp(),
-        });
+        
+        // Load existing booking data into form fields
+        console.log("📋 Loading existing booking data into form:", rec);
+        
+        // Customer data
+        if (rec.customer?.email) setEmail(rec.customer.email);
+        if (rec.customer?.firstName) setFirstName(rec.customer.firstName);
+        if (rec.customer?.lastName) setLastName(rec.customer.lastName);
+        if (rec.customer?.birthdate) setBirthdate(rec.customer.birthdate);
+        if (rec.customer?.nationality) setNationality(rec.customer.nationality);
+        
+        // Parse WhatsApp number
+        if (rec.customer?.whatsAppNumber) {
+          const whatsAppStr = rec.customer.whatsAppNumber;
+          // Try to extract country code and number
+          // Format is typically "+44123456789"
+          if (whatsAppStr.startsWith("+")) {
+            // Find which country code matches
+            const countries = getCountries();
+            let foundCountry: Country | null = null;
+            let foundNumber = "";
+            
+            for (const country of countries) {
+              try {
+                const countryCode = getCountryCallingCode(country);
+                if (whatsAppStr.startsWith(`+${countryCode}`)) {
+                  foundCountry = country;
+                  foundNumber = whatsAppStr.substring(`+${countryCode}`.length);
+                  break;
+                }
+              } catch {}
+            }
+            
+            if (foundCountry) {
+              setWhatsAppCountry(foundCountry);
+              setWhatsAppNumber(foundNumber);
+            }
+          }
+        }
+        
+        // Booking data
+        if (rec.booking?.type) setBookingType(rec.booking.type);
+        if (rec.booking?.groupSize) setGroupSize(rec.booking.groupSize);
+        if (rec.booking?.additionalGuests) setAdditionalGuests(rec.booking.additionalGuests);
+        
+        // Tour data
+        if (rec.tour?.packageId) setTourPackage(rec.tour.packageId);
+        if (rec.tour?.date) setTourDate(rec.tour.date);
 
         // Fetch fresh PaymentIntent via init-payment API
         const response = await fetch("/api/stripe-payments/init-payment", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            email,
-            tourPackage,
-            tourPackageName: selectedPackage?.name || "",
-            amountGBP: depositAmount,
+            email: rec.customer?.email || email,
+            tourPackage: rec.tour?.packageId || tourPackage,
+            tourPackageName: rec.tour?.packageName || selectedPackage?.name || "",
+            amountGBP: rec.payment?.amount || depositAmount,
             paymentDocId: rec.id,
             meta: {
               source: "reservation-form-reuse",
@@ -764,7 +769,7 @@ const Page = () => {
         setPaymentDocId(rec.id);
         try {
           sessionStorage.setItem(
-            `stripe_payment_doc_${email}_${tourPackage}`,
+            `stripe_payment_doc_${rec.customer?.email || email}_${rec.tour?.packageId || tourPackage}`,
             rec.id
           );
         } catch {}
