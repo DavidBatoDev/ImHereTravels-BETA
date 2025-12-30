@@ -181,21 +181,23 @@ async function sendBookingConfirmationEmail(
   try {
     const gmailService = new GmailApiService();
 
-    // Get email template by querying for name "Confirmation Booking"
-    const templateQuery = await db
+    // Get email template by ID
+    const templateDoc = await db
       .collection("emailTemplates")
-      .where("name", "==", "Confirmation Booking")
-      .where("status", "==", "active")
-      .limit(1)
+      .doc("DqdAH8Vez5tl1mJffTMI")
       .get();
 
-    if (templateQuery.empty) {
+    if (!templateDoc.exists) {
       logger.warn("Booking confirmation template not found");
       return { success: false, error: "Email template not found" };
     }
 
-    const templateDoc = templateQuery.docs[0];
     const templateData = templateDoc.data();
+
+    if (!templateData) {
+      logger.warn("Booking confirmation template data is empty");
+      return { success: false, error: "Email template data is empty" };
+    }
 
     // Determine payment plan and build HTML table rows for selected terms
     const paymentPlan = bookingData.paymentPlan || "";

@@ -158,19 +158,20 @@ export const sendBookingConfirmationEmail = onCall(
       // Get email template
       const gmailService = new GmailApiService();
 
-      const templateQuery = await db
+      const templateDoc = await db
         .collection("emailTemplates")
-        .where("name", "==", "Confirmation Booking")
-        .where("status", "==", "active")
-        .limit(1)
+        .doc("DqdAH8Vez5tl1mJffTMI")
         .get();
 
-      if (templateQuery.empty) {
+      if (!templateDoc.exists) {
         throw new HttpsError("not-found", "Email template not found");
       }
 
-      const templateDoc = templateQuery.docs[0];
       const templateData = templateDoc.data();
+
+      if (!templateData) {
+        throw new HttpsError("not-found", "Email template data is empty");
+      }
 
       // Determine payment plan and build HTML table rows for selected terms
       const paymentPlan = bookingData.paymentPlan || "";
