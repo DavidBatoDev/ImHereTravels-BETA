@@ -864,13 +864,23 @@ export default function BookingDetailModal({
                       booking ID is missing.
                     </p>
                   </div>
-                  <Button
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="w-full bg-crimson-red hover:bg-crimson-red/90 text-white"
-                  >
-                    <FaEdit className="h-4 w-4 mr-2" />
-                    Edit Booking
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="flex-1 bg-crimson-red hover:bg-crimson-red/90 text-white"
+                    >
+                      <FaEdit className="h-4 w-4 mr-2" />
+                      Edit Booking
+                    </Button>
+                    <Button
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      variant="destructive"
+                      className="flex-1"
+                    >
+                      <FaTrash className="h-4 w-4 mr-2" />
+                      Delete Booking
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>

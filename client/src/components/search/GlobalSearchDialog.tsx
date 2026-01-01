@@ -246,12 +246,12 @@ export default function GlobalSearchDialog({
         value={searchQuery}
         onValueChange={setSearchQuery}
       />
-      <CommandList className="min-h-[300px]">
+      <CommandList className="min-h-[250px] sm:min-h-[300px] max-h-[50vh] sm:max-h-[400px]">
         {/* Empty State - No search query and no history */}
         {showEmptyState && (
-          <div className="py-12 text-center">
-            <div className="mx-auto w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
-              <ArrowUp className="h-8 w-8 text-muted-foreground rotate-45" />
+          <div className="py-8 sm:py-12 text-center px-4">
+            <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-muted/50 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+              <ArrowUp className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground rotate-45" />
             </div>
             <h3 className="text-sm font-semibold text-foreground mb-2">
               Start searching
@@ -260,7 +260,7 @@ export default function GlobalSearchDialog({
               Search across bookings, tours, payment terms, email templates, and
               more
             </p>
-            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <div className="mt-3 sm:mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
               <kbd className="px-2 py-1 bg-muted border border-border rounded">
                 ⌘K
               </kbd>
@@ -289,11 +289,11 @@ export default function GlobalSearchDialog({
             {recentSearches.map((search, index) => (
               <div
                 key={`${search.query}-${index}`}
-                className="flex items-center gap-2 px-4 py-2 hover:bg-muted/50 cursor-pointer group"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 hover:bg-muted/50 cursor-pointer group"
                 onClick={() => handleRecentSearchClick(search.query)}
               >
                 <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className="flex-1 text-sm text-foreground">
+                <span className="flex-1 text-sm text-foreground truncate">
                   {search.query}
                 </span>
                 <button
@@ -301,7 +301,7 @@ export default function GlobalSearchDialog({
                     e.stopPropagation();
                     deleteRecentSearch(search.query);
                   }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
+                  className="opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
                   aria-label="Delete"
                 >
                   <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
@@ -313,9 +313,9 @@ export default function GlobalSearchDialog({
 
         {/* Search Results - No Results Found */}
         {debouncedQuery.trim() && !hasResults && !isLoading && (
-          <div className="py-12 text-center">
-            <div className="mx-auto w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
-              <X className="h-8 w-8 text-muted-foreground" />
+          <div className="py-8 sm:py-12 text-center px-4">
+            <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-muted/50 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+              <X className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
             </div>
             <h3 className="text-sm font-semibold text-foreground mb-2">
               No results found
@@ -330,9 +330,9 @@ export default function GlobalSearchDialog({
 
         {/* Loading State */}
         {isLoading && debouncedQuery.trim() && (
-          <div className="py-12 text-center">
-            <div className="mx-auto w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
-              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+          <div className="py-8 sm:py-12 text-center px-4">
+            <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-muted/50 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+              <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 text-primary animate-spin" />
             </div>
             <h3 className="text-sm font-semibold text-foreground mb-2">
               Searching...
@@ -378,9 +378,9 @@ export default function GlobalSearchDialog({
       </CommandList>
 
       {/* Footer with keyboard hints */}
-      <div className="border-t border-border px-4 py-3 bg-muted/30">
+      <div className="border-t border-border px-3 sm:px-4 py-2 sm:py-3 bg-muted/30">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <div className="flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-4">
             <div className="flex items-center gap-1">
               <kbd className="px-2 py-1 bg-background border border-border rounded text-xs">
                 <ArrowUp className="h-3 w-3 inline" />
@@ -397,7 +397,7 @@ export default function GlobalSearchDialog({
               <span className="ml-1">to select</span>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 sm:ml-auto">
             <kbd className="px-2 py-1 bg-background border border-border rounded text-xs">
               Esc
             </kbd>

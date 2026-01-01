@@ -348,23 +348,26 @@ export default function NotificationDropdown() {
 
       {/* All Notifications Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogContent className="max-w-2xl max-h-[85vh] w-[95vw] sm:w-full p-4 sm:p-6">
           <DialogHeader>
             <div className="flex items-center justify-between">
-              <DialogTitle>All Notifications</DialogTitle>
+              <DialogTitle className="text-base sm:text-lg">
+                All Notifications
+              </DialogTitle>
               {unreadCount > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 text-xs"
+                  className="h-7 sm:h-8 text-xs"
                   onClick={() => markAllAsRead()}
                 >
                   <Check className="h-3 w-3 mr-1" />
-                  Mark all read
+                  <span className="hidden sm:inline">Mark all read</span>
+                  <span className="sm:hidden">Mark read</span>
                 </Button>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {unreadCount > 0
                 ? `${unreadCount} unread notification${
                     unreadCount > 1 ? "s" : ""
@@ -373,11 +376,11 @@ export default function NotificationDropdown() {
             </p>
 
             {/* Filter Badges */}
-            <div className="flex flex-wrap gap-2 mt-3">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-2 sm:mt-3">
               <button
                 onClick={() => setSelectedFilter("all")}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  "inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium transition-colors",
                   selectedFilter === "all"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -389,43 +392,46 @@ export default function NotificationDropdown() {
               <button
                 onClick={() => setSelectedFilter("new_booking")}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  "inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium transition-colors",
                   selectedFilter === "new_booking"
                     ? "bg-blue-600 text-white dark:bg-blue-500"
                     : "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50"
                 )}
               >
                 <CalendarPlus className="h-3 w-3" />
-                New Booking
+                <span className="hidden sm:inline">New Booking</span>
+                <span className="sm:hidden">Booking</span>
               </button>
               <button
                 onClick={() => setSelectedFilter("payment_reminder_created")}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  "inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium transition-colors",
                   selectedFilter === "payment_reminder_created"
                     ? "bg-indigo-600 text-white dark:bg-indigo-500"
                     : "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/50"
                 )}
               >
                 <CalendarClock className="h-3 w-3" />
-                Reminder Created
+                <span className="hidden sm:inline">Reminder Created</span>
+                <span className="sm:hidden">Created</span>
               </button>
               <button
                 onClick={() => setSelectedFilter("payment_reminder_sent")}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  "inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium transition-colors",
                   selectedFilter === "payment_reminder_sent"
                     ? "bg-purple-600 text-white dark:bg-purple-500"
                     : "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50"
                 )}
               >
                 <Mail className="h-3 w-3" />
-                Reminder Sent
+                <span className="hidden sm:inline">Reminder Sent</span>
+                <span className="sm:hidden">Sent</span>
               </button>
               <button
                 onClick={() => setSelectedFilter("reservation_email")}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  "hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
                   selectedFilter === "reservation_email"
                     ? "bg-purple-600 text-white dark:bg-purple-500"
                     : "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50"
@@ -437,7 +443,7 @@ export default function NotificationDropdown() {
               <button
                 onClick={() => setSelectedFilter("pre_departure_pack")}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  "hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
                   selectedFilter === "pre_departure_pack"
                     ? "bg-teal-600 text-white dark:bg-teal-500"
                     : "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 hover:bg-teal-200 dark:hover:bg-teal-900/50"
@@ -449,7 +455,7 @@ export default function NotificationDropdown() {
               <button
                 onClick={() => setSelectedFilter("system")}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  "hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
                   selectedFilter === "system"
                     ? "bg-gray-600 text-white dark:bg-gray-500"
                     : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -461,7 +467,10 @@ export default function NotificationDropdown() {
             </div>
           </DialogHeader>
 
-          <ScrollArea className="h-[60vh] pr-4" onScrollCapture={handleScroll}>
+          <ScrollArea
+            className="h-[55vh] sm:h-[60vh] pr-2 sm:pr-4"
+            onScrollCapture={handleScroll}
+          >
             {isLoading && filteredNotifications.length === 0 ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -504,18 +513,20 @@ export default function NotificationDropdown() {
                         setIsModalOpen(false);
                       }}
                       className={cn(
-                        "flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50",
+                        "flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50",
                         !notification.isRead && "bg-primary/5 border-primary/20"
                       )}
                     >
                       {/* Icon */}
                       <div
                         className={cn(
-                          "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
+                          "flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center",
                           colors.bg
                         )}
                       >
-                        <Icon className={cn("h-5 w-5", colors.icon)} />
+                        <Icon
+                          className={cn("h-4 w-4 sm:h-5 sm:w-5", colors.icon)}
+                        />
                       </div>
 
                       {/* Content */}
@@ -523,7 +534,7 @@ export default function NotificationDropdown() {
                         <div className="flex items-start justify-between gap-2">
                           <p
                             className={cn(
-                              "text-sm",
+                              "text-xs sm:text-sm",
                               notification.isRead
                                 ? "text-muted-foreground font-medium"
                                 : "text-foreground font-bold"
@@ -532,12 +543,12 @@ export default function NotificationDropdown() {
                             {notification.title}
                           </p>
                           {!notification.isRead && (
-                            <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary mt-1.5" />
+                            <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary mt-1" />
                           )}
                         </div>
                         <p
                           className={cn(
-                            "text-sm mt-1",
+                            "text-xs sm:text-sm mt-1",
                             notification.isRead
                               ? "text-muted-foreground"
                               : "text-foreground font-semibold"
@@ -545,7 +556,7 @@ export default function NotificationDropdown() {
                         >
                           {notification.body}
                         </p>
-                        <p className="text-xs text-muted-foreground/70 mt-2">
+                        <p className="text-[11px] sm:text-xs text-muted-foreground/70 mt-1.5 sm:mt-2">
                           {timeAgo}
                         </p>
                       </div>

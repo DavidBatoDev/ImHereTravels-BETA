@@ -222,7 +222,11 @@ export default function DashboardOverview() {
   }
 
   // Monthly booking trends (last 6 months)
-  const getMonthlyTrends = (): { month: string; bookings: number; revenue: number }[] => {
+  const getMonthlyTrends = (): {
+    month: string;
+    bookings: number;
+    revenue: number;
+  }[] => {
     const trends: { month: string; bookings: number; revenue: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const date = new Date();
@@ -428,19 +432,26 @@ export default function DashboardOverview() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Gmail-style Loading Indicator for Creating Booking */}
+    <div className="space-y-6 text-sm sm:text-base">
+      {/* Creating Booking Modal */}
       {isCreatingBooking && (
-        <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
-          <div className="bg-crimson-red text-white px-4 py-2 rounded-b-lg shadow-lg flex items-center gap-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-            <span className="text-sm font-medium">Creating booking...</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-background rounded-2xl p-8 shadow-2xl border border-border flex flex-col items-center gap-4 max-w-sm mx-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-foreground mb-2">
+                Creating a new booking
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Redirecting to /bookings page...
+              </p>
+            </div>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground font-hk-grotesk">
             Dashboard
@@ -449,7 +460,7 @@ export default function DashboardOverview() {
             Welcome back! Here&apos;s what&apos;s happening today.
           </p>
         </div>
-        <div className="flex space-x-3">
+        <div className="hidden md:flex items-center gap-3">
           <Button
             variant="outline"
             onClick={() => router.push("/bookings")}
@@ -517,19 +528,19 @@ export default function DashboardOverview() {
       </div>
 
       {/* Enhanced Metrics Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4 lg:gap-6">
         {/* Total Bookings */}
-        <Card className="border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
+        <Card className="relative overflow-hidden border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 pr-6">
+                <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                   Total Bookings
                 </p>
-                <p className="text-3xl font-bold text-foreground">
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">
                   {metrics.totalBookings}
                 </p>
-                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                <div className="flex items-center gap-3 mt-2 flex-wrap text-[11px] sm:text-xs">
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-2 rounded-full bg-spring-green"></div>
                     <p className="text-xs text-muted-foreground">
@@ -550,22 +561,25 @@ export default function DashboardOverview() {
                   </div>
                 </div>
               </div>
-              <div className="p-4 bg-gradient-to-br from-crimson-red/20 to-crimson-red/10 rounded-full rounded-br-none">
+              <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-crimson-red/20 to-crimson-red/10 rounded-full rounded-br-none">
                 <FiUsers className="h-6 w-6 text-foreground" />
               </div>
+            </div>
+            <div className="pointer-events-none absolute -bottom-4 -right-4 h-16 w-16 rounded-full bg-gradient-to-br from-crimson-red/20 to-crimson-red/10 p-4 sm:hidden">
+              <FiUsers className="h-full w-full text-foreground opacity-80" />
             </div>
           </CardContent>
         </Card>
 
         {/* Total Revenue */}
-        <Card className="border border-border hover:border-spring-green transition-all duration-300 hover:shadow-md">
+        <Card className="relative overflow-hidden border border-border hover:border-spring-green transition-all duration-300 hover:shadow-md">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 pr-6">
+                <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                   Total Revenue
                 </p>
-                <p className="text-3xl font-bold text-foreground">
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">
                   €{metrics.totalRevenue.toLocaleString()}
                 </p>
                 <div className="flex items-center gap-3 mt-2">
@@ -577,22 +591,25 @@ export default function DashboardOverview() {
                   </div>
                 </div>
               </div>
-              <div className="p-4 bg-gradient-to-br from-spring-green/20 to-spring-green/10 rounded-full rounded-br-none">
+              <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-spring-green/20 to-spring-green/10 rounded-full rounded-br-none">
                 <FiDollarSign className="h-6 w-6 text-foreground" />
               </div>
+            </div>
+            <div className="pointer-events-none absolute -bottom-4 -right-4 h-16 w-16 rounded-full bg-gradient-to-br from-spring-green/20 to-spring-green/10 p-4 sm:hidden">
+              <FiDollarSign className="h-full w-full text-foreground opacity-80" />
             </div>
           </CardContent>
         </Card>
 
         {/* Upcoming Tours */}
-        <Card className="border border-border hover:border-royal-purple transition-all duration-300 hover:shadow-md">
+        <Card className="relative overflow-hidden border border-border hover:border-royal-purple transition-all duration-300 hover:shadow-md">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 pr-6">
+                <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                   Upcoming Tours
                 </p>
-                <p className="text-3xl font-bold text-foreground">
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">
                   {metrics.upcomingTours}
                 </p>
                 <div className="flex items-center gap-3 mt-2">
@@ -604,25 +621,28 @@ export default function DashboardOverview() {
                   </div>
                 </div>
               </div>
-              <div className="p-4 bg-gradient-to-br from-royal-purple/20 to-royal-purple/10 rounded-full rounded-br-none">
+              <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-royal-purple/20 to-royal-purple/10 rounded-full rounded-br-none">
                 <FiClock className="h-6 w-6 text-foreground" />
               </div>
+            </div>
+            <div className="pointer-events-none absolute -bottom-4 -right-4 h-16 w-16 rounded-full bg-gradient-to-br from-royal-purple/20 to-royal-purple/10 p-4 sm:hidden">
+              <FiClock className="h-full w-full text-foreground opacity-80" />
             </div>
           </CardContent>
         </Card>
 
         {/* Payment Reminders */}
-        <Card className="border border-border hover:border-vivid-orange transition-all duration-300 hover:shadow-md">
+        <Card className="relative overflow-hidden border border-border hover:border-vivid-orange transition-all duration-300 hover:shadow-md">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 pr-6">
+                <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                   Payment Reminders
                 </p>
-                <p className="text-3xl font-bold text-foreground">
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">
                   {metrics.pendingReminders}
                 </p>
-                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                <div className="flex items-center gap-3 mt-2 flex-wrap text-[11px] sm:text-xs">
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
                     <p className="text-xs text-muted-foreground">
@@ -652,16 +672,45 @@ export default function DashboardOverview() {
                   </div>
                 </div>
               </div>
-              <div className="p-4 bg-gradient-to-br from-vivid-orange/20 to-vivid-orange/10 rounded-full rounded-br-none">
+              <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-vivid-orange/20 to-vivid-orange/10 rounded-full rounded-br-none">
                 <FiCreditCard className="h-6 w-6 text-foreground" />
               </div>
+            </div>
+            <div className="pointer-events-none absolute -bottom-4 -right-4 h-16 w-16 rounded-full bg-gradient-to-br from-vivid-orange/20 to-vivid-orange/10 p-4 sm:hidden">
+              <FiCreditCard className="h-full w-full text-foreground opacity-80" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="sm:hidden">
+        <div className="grid grid-cols-4 gap-2">
+          {quickActions.map((action) => (
+            <button
+              key={`mobile-${action.title}`}
+              type="button"
+              onClick={action.disabled ? undefined : action.onClick}
+              disabled={action.disabled}
+              aria-disabled={action.disabled}
+              className={
+                action.disabled
+                  ? "flex flex-col items-center justify-center rounded-xl border border-border bg-muted/40 p-3 text-[11px] text-muted-foreground cursor-not-allowed"
+                  : "flex flex-col items-center justify-center rounded-xl border border-border bg-card p-3 text-[11px] text-foreground shadow-sm hover:border-crimson-red/40 hover:shadow-md transition-all duration-200"
+              }
+            >
+              <div
+                className={`${action.color} mb-2 flex h-10 w-10 items-center justify-center rounded-full text-white`}
+              >
+                <action.icon className="h-5 w-5" />
+              </div>
+              <span className="text-center leading-tight">{action.title}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="hidden sm:grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {quickActions.map((action) => (
           <Card
             key={action.title}
@@ -710,7 +759,7 @@ export default function DashboardOverview() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="h-64">
+            <div className="h-[220px] sm:h-64">
               {bookings.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
@@ -768,7 +817,7 @@ export default function DashboardOverview() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="h-64">
+            <div className="h-[220px] sm:h-64">
               {bookings.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
@@ -849,7 +898,7 @@ export default function DashboardOverview() {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="h-80">
+          <div className="h-[260px] sm:h-80">
             {tourPopularity.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
@@ -870,43 +919,50 @@ export default function DashboardOverview() {
                 </div>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={tourPopularity}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="hsl(var(--border))"
-                  />
-                  <XAxis
-                    dataKey="name"
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={11}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                    interval={0}
-                  />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                    }}
-                    formatter={(value: any) => [value, "Bookings"]}
-                  />
-                  <Bar
-                    dataKey="count"
-                    fill="#FF8200"
-                    radius={[4, 4, 0, 0]}
-                    name="Bookings"
-                    minPointSize={5}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-full w-full overflow-x-auto">
+                <div className="h-full min-w-[360px] sm:min-w-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={tourPopularity}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="hsl(var(--border))"
+                      />
+                      <XAxis
+                        dataKey="name"
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={11}
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
+                        interval={0}
+                      />
+                      <YAxis
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                          fontSize: "12px",
+                        }}
+                        formatter={(value: any) => [value, "Bookings"]}
+                      />
+                      <Bar
+                        dataKey="count"
+                        fill="#FF8200"
+                        radius={[4, 4, 0, 0]}
+                        name="Bookings"
+                        minPointSize={5}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             )}
           </div>
         </CardContent>
@@ -914,31 +970,33 @@ export default function DashboardOverview() {
 
       {/* Recent Activity */}
       <Card className="border border-border shadow hover:shadow-lg transition-all duration-300">
-        <CardHeader className="bg-gradient-to-r from-crimson-red/5 to-royal-purple/5 border-b border-border">
-          <CardTitle className="text-foreground font-hk-grotesk">
+        <CardHeader className="bg-gradient-to-r from-crimson-red/5 to-royal-purple/5 border-b border-border p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg text-foreground font-hk-grotesk">
             Recent Activity
           </CardTitle>
-          <CardDescription className="text-muted-foreground">
+          <CardDescription className="text-xs sm:text-sm text-muted-foreground">
             Latest bookings and updates from your system
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-4 sm:p-6">
           {bookings.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="p-3 bg-muted/20 rounded-xl inline-block mb-3">
-                <FiUsers className="h-8 w-8 text-muted-foreground mx-auto" />
+            <div className="text-center py-6 sm:py-8">
+              <div className="p-2 sm:p-3 bg-muted/20 rounded-xl inline-block mb-2 sm:mb-3">
+                <FiUsers className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground mx-auto" />
               </div>
-              <p className="text-muted-foreground">No recent activity</p>
+              <p className="text-sm text-muted-foreground">
+                No recent activity
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {bookings.slice(0, 5).map((booking, index) => (
                 <div
                   key={booking.id}
-                  className="flex items-center space-x-4 p-3 rounded-lg hover:bg-muted/30 transition-colors duration-200 border border-transparent hover:border-border"
+                  className="flex items-center gap-2 sm:gap-4 rounded-lg border border-transparent p-2 sm:p-3 transition-colors duration-200 hover:border-border hover:bg-muted/30"
                 >
                   <div
-                    className={`w-3 h-3 rounded-full shadow-sm ${
+                    className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full shadow-sm flex-shrink-0 ${
                       booking.bookingStatus === "Confirmed"
                         ? "bg-spring-green"
                         : booking.bookingStatus === "Pending"
@@ -948,8 +1006,8 @@ export default function DashboardOverview() {
                         : "bg-crimson-red"
                     }`}
                   ></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] sm:text-sm font-medium text-foreground truncate">
                       {booking.bookingStatus === "Confirmed"
                         ? "Booking Confirmed"
                         : booking.bookingStatus === "Pending"
@@ -958,12 +1016,12 @@ export default function DashboardOverview() {
                         ? "Tour Completed"
                         : "Booking Cancelled"}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                       {booking.fullName} - {booking.tourPackageName}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs text-muted-foreground/80 bg-background px-2 py-1 rounded-full border border-border">
+                  <div className="flex-shrink-0">
+                    <span className="inline-block text-[10px] sm:text-xs text-muted-foreground/80 bg-background px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full border border-border whitespace-nowrap">
                       {booking.remainingBalance > 0
                         ? `€${booking.remainingBalance} due`
                         : `€${booking.paid} paid`}

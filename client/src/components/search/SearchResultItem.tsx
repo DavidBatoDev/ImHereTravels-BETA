@@ -29,16 +29,16 @@ export default function SearchResultItem({
     <CommandItem
       value={`${result.category}-${result.id}-${result.title}`}
       onSelect={onSelect}
-      className="flex items-center gap-3 px-4 py-3 cursor-pointer aria-selected:bg-muted/50 hover:bg-muted/50 transition-colors"
+      className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 cursor-pointer aria-selected:bg-muted/50 hover:bg-muted/50 transition-colors"
     >
       {/* Icon */}
-      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-        <Icon className="h-5 w-5 text-primary" />
+      <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+        <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-1 flex-wrap sm:flex-nowrap">
           <p className="text-sm font-medium text-foreground truncate">
             {result.title}
           </p>
@@ -60,9 +60,9 @@ export default function SearchResultItem({
         )}
       </div>
 
-      {/* Optional date */}
+      {/* Optional date - hide on mobile if too cramped */}
       {result.metadata?.date && (
-        <div className="flex-shrink-0 text-xs text-muted-foreground">
+        <div className="hidden sm:block flex-shrink-0 text-xs text-muted-foreground">
           {result.metadata.date}
         </div>
       )}

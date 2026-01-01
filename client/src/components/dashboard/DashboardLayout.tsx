@@ -89,29 +89,86 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             sidebarCollapsed ? "lg:pl-28" : "lg:pl-72 "
           }`}
         >
-          {/* Mobile header - only for sidebar toggle */}
-          <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background dark:bg-sidebar data-[theme=dark]:bg-sidebar px-4 shadow-sm lg:hidden">
+          {/* Mobile header - Professional design */}
+          <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-3 border-b border-border bg-background dark:bg-sidebar data-[theme=dark]:bg-sidebar px-4 shadow-md lg:hidden">
+            {/* Menu toggle button */}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSidebarOpen(true)}
+              className="h-10 w-10 p-0 hover:bg-muted rounded-xl transition-all duration-200"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-5 w-5 text-foreground" />
             </Button>
-            <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-              <h1 className="text-lg font-semibold text-foreground">
-                Dashboard
-              </h1>
+            
+            {/* Spacer to push actions to right */}
+            <div className="flex-1" />
+
+            {/* Right side actions */}
+            <div className="flex items-center gap-2">
+              {/* Search button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSearchDialogOpen(true)}
+                className="h-10 w-10 p-0 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-all duration-200"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+
+              {/* Notification button */}
+              <NotificationDropdown />
+
+              {/* User avatar */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 w-10 p-0 rounded-xl hover:bg-muted transition-all duration-200"
+                  >
+                    <Avatar className="h-8 w-8">
+                      {userProfile?.profile?.avatar ? (
+                        <AvatarImage
+                          src={userProfile.profile.avatar}
+                          alt="Profile"
+                        />
+                      ) : (
+                        <AvatarFallback className="bg-primary text-white">
+                          <User className="h-4 w-4" />
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="px-4 py-3">
+                    <div className="text-sm font-semibold text-foreground">
+                      {userProfile?.profile?.firstName || "User"}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {userProfile?.email}
+                    </div>
+                  </div>
+
+                  <DropdownMenuItem
+                    disabled
+                    className="flex items-center gap-2"
+                  >
+                    <Lock className="h-4 w-4" />
+                    <span>Edit Preferences</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setShowLogoutModal(true)}
+                    className="text-destructive"
+                  >
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            {/* Mobile search button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSearchDialogOpen(true)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Search className="h-5 w-5" />
-            </Button>
           </div>
 
           {/* Desktop navbar: left search, right theme toggle */}
