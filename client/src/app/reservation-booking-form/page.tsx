@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -25,6 +25,7 @@ import StripePayment from "./StripePayment";
 import BirthdatePicker from "./BirthdatePicker";
 import Select from "./Select";
 import TourSelectionModal from "./TourSelectionModal";
+import { getNationalityOptions, getNationalityCountryCode } from "./nationalities";
 import ReactCountryFlag from "react-country-flag";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
@@ -47,6 +48,16 @@ import PhoneInput, {
 } from "react-phone-number-input";
 import en from "react-phone-number-input/locale/en";
 import type { Country } from "react-phone-number-input";
+
+// Safe wrapper for getCountryCallingCode with fallback
+const safeGetCountryCallingCode = (countryCode: string): string => {
+  try {
+    return getCountryCallingCode(countryCode as Country);
+  } catch (error) {
+    console.warn(`Unknown country code for phone: ${countryCode}`);
+    return "1"; // Default to US/Canada code
+  }
+};
 
 // Country data with Alpha-3 codes and phone number max lengths
 const countryData: Record<
@@ -143,6 +154,16 @@ const Page = () => {
   const [additionalGuests, setAdditionalGuests] = useState<string[]>([]);
 
   // dynamic tour packages and dates loaded from Firestore
+  // Auto-update WhatsApp country code when nationality changes
+  useEffect(() => {
+    if (nationality) {
+      const countryCode = getNationalityCountryCode(nationality);
+      if (countryCode) {
+        setWhatsAppCountry(countryCode);
+      }
+    }
+  }, [nationality]);
+
   const [tourPackages, setTourPackages] = useState<
     Array<{
       id: string;
@@ -222,6 +243,8 @@ const Page = () => {
   const [howItWorksExpanded, setHowItWorksExpanded] = useState(true);
   // animation timing (ms) used for transitions so entrance/exit durations match
   const ANIM_DURATION = 300;
+  // Track if we've restored guests from sessionStorage to prevent race conditions
+  const sessionRestoredRef = useRef(false);
 
   // ---- multi-step flow state ----
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -329,8 +352,8 @@ const Page = () => {
           birthdate,
           nationality,
           whatsAppNumber: whatsAppNumber
-            ? `+${getCountryCallingCode(
-                whatsAppCountry as Country
+            ? `+${safeGetCountryCallingCode(
+                whatsAppCountry
               )}${whatsAppNumber}`
             : "",
         },
@@ -406,8 +429,8 @@ const Page = () => {
             birthdate,
             nationality,
             whatsAppNumber: whatsAppNumber
-              ? `+${getCountryCallingCode(
-                  whatsAppCountry as Country
+              ? `+${safeGetCountryCallingCode(
+                  whatsAppCountry
                 )}${whatsAppNumber}`
               : "",
           },
@@ -714,7 +737,7 @@ const Page = () => {
             
             for (const country of countries) {
               try {
-                const countryCode = getCountryCallingCode(country);
+                const countryCode = safeGetCountryCallingCode(country);
                 if (whatsAppStr.startsWith(`+${countryCode}`)) {
                   foundCountry = country;
                   foundNumber = whatsAppStr.substring(`+${countryCode}`.length);
@@ -730,10 +753,55 @@ const Page = () => {
           }
         }
         
-        // Booking data
-        if (rec.booking?.type) setBookingType(rec.booking.type);
-        if (rec.booking?.groupSize) setGroupSize(rec.booking.groupSize);
-        if (rec.booking?.additionalGuests) setAdditionalGuests(rec.booking.additionalGuests);
+        // Booking data - set booking type and group size first
+        const loadedBookingType = rec.booking?.type || "Single Booking";
+        const loadedGroupSize = rec.booking?.groupSize || 3;
+        
+        if (rec.booking?.type) setBookingType(loadedBookingType);
+        if (rec.booking?.groupSize) setGroupSize(loadedGroupSize);
+        
+        // Set guestsMounted to true for Duo/Group bookings
+        if (loadedBookingType === "Duo Booking" || loadedBookingType === "Group Booking") {
+          setGuestsMounted(true);
+          // Schedule height calculation after state updates
+          setTimeout(() => {
+            const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
+            if (contentHeight > 0) {
+              setGuestsHeight(`${contentHeight}px`);
+            }
+          }, 0);
+        }
+        
+        // Handle additional guests based on booking type
+        if (rec.booking?.additionalGuests && Array.isArray(rec.booking.additionalGuests)) {
+          if (loadedBookingType === "Duo Booking") {
+            // For Duo Booking, keep 1 additional guest (fill with empty if needed)
+            const guest = rec.booking.additionalGuests[0] || "";
+            setAdditionalGuests([guest]);
+          } else if (loadedBookingType === "Group Booking") {
+            // For Group Booking, preserve existing guests up to groupSize - 1
+            const maxGuests = Math.max(0, loadedGroupSize - 1);
+            const existingGuests = rec.booking.additionalGuests.slice(0, maxGuests);
+            // Pad with empty strings if needed to match expected count
+            while (existingGuests.length < maxGuests) {
+              existingGuests.push("");
+            }
+            setAdditionalGuests(existingGuests);
+          } else {
+            // Single Booking - no additional guests
+            setAdditionalGuests([]);
+          }
+        } else if (loadedBookingType === "Duo Booking") {
+          // Initialize with one empty guest for Duo if not present
+          setAdditionalGuests([""]);
+        } else if (loadedBookingType === "Group Booking") {
+          // Initialize with empty guests based on group size
+          const guestCount = Math.max(0, loadedGroupSize - 1);
+          setAdditionalGuests(Array(guestCount).fill(""));
+        } else {
+          // Single Booking
+          setAdditionalGuests([]);
+        }
         
         // Tour data
         if (rec.tour?.packageId) setTourPackage(rec.tour.packageId);
@@ -1345,12 +1413,12 @@ const Page = () => {
 
   // shared field classes with enhanced styling
   const fieldBase =
-    "mt-1 block w-full px-4 py-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground/60 transition-all duration-200 shadow-sm";
+    "mt-1 block w-full px-4 py-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground/60 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:bg-muted/40 disabled:cursor-not-allowed disabled:text-muted-foreground";
   const fieldBorder = (err?: boolean) =>
     `border-2 ${err ? "border-destructive" : "border-border"}`;
   const fieldFocus =
-    "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 focus:shadow-md hover:border-primary/50";
-  const fieldSuccess = "border-green-500/50 bg-green-50/5";
+    "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 focus:shadow-md hover:border-primary/50 disabled:focus:outline-none disabled:focus:ring-0 disabled:hover:border-primary/50 disabled:hover:shadow-sm";
+  const fieldSuccess = "border-green-500 disabled:border-green-500";
   const fieldWithIcon = "pl-11";
 
   // Helper to check if field is valid
@@ -1366,17 +1434,8 @@ const Page = () => {
 
   const guestsVisible = guestsHeight;
 
-  const nationalities = [
-    "Philippines",
-    "United States",
-    "United Kingdom",
-    "Canada",
-    "Australia",
-    "India",
-    "Other",
-  ];
-
-  const nationalityOptions = nationalities.map((n) => ({ label: n, value: n }));
+  // Get all nationalities from world-countries library
+  const nationalityOptions = getNationalityOptions();
 
   const bookingTypeOptions = [
     { label: "Single Booking", value: "Single Booking" },
@@ -1585,6 +1644,10 @@ const Page = () => {
         // remove only the ephemeral client secret entry but keep the
         // payment document id so we can continue to payment-plan step
         sessionStorage.removeItem(sessionKey);
+        
+        // Also clean up additional guests sessionStorage after payment
+        const guestsSessionKey = `additional_guests_${email}_${tourPackage}`;
+        sessionStorage.removeItem(guestsSessionKey);
       } catch (e) {
         console.warn("Failed to clean up session storage:", e);
       }
@@ -1801,7 +1864,8 @@ const Page = () => {
         const key = sessionStorage.key(i);
         if (
           key &&
-          key.startsWith("stripe_payment_") &&
+          (key.startsWith("stripe_payment_") ||
+           key.startsWith("additional_guests_")) &&
           !key.includes(email) &&
           !key.includes(tourPackage)
         ) {
@@ -1891,9 +1955,7 @@ const Page = () => {
                     // Find matching country by calling code
                     let foundCountry = false;
                     for (const country of getCountries()) {
-                      const callingCode = getCountryCallingCode(
-                        country as Country
-                      );
+                      const callingCode = safeGetCountryCallingCode(country);
                       if (fullNumber.startsWith(`+${callingCode}`)) {
                         setWhatsAppCountry(country);
                         setWhatsAppNumber(
@@ -1909,11 +1971,48 @@ const Page = () => {
                     }
                   }
                 }
-                if (data.booking?.type) setBookingType(data.booking.type);
+                const loadedBookingType = data.booking?.type || "Single Booking";
+                const loadedGroupSize = data.booking?.groupSize || 3;
+                
+                if (data.booking?.type) setBookingType(loadedBookingType);
                 if (typeof data.booking?.groupSize === "number")
-                  setGroupSize(data.booking.groupSize);
-                if (Array.isArray(data.booking?.additionalGuests))
-                  setAdditionalGuests(data.booking.additionalGuests);
+                  setGroupSize(loadedGroupSize);
+                
+                // Set guestsMounted to true for Duo/Group bookings
+                if (loadedBookingType === "Duo Booking" || loadedBookingType === "Group Booking") {
+                  setGuestsMounted(true);
+                  // Schedule height calculation after state updates
+                  setTimeout(() => {
+                    const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
+                    if (contentHeight > 0) {
+                      setGuestsHeight(`${contentHeight}px`);
+                    }
+                  }, 0);
+                }
+                
+                // Handle additional guests based on booking type
+                if (Array.isArray(data.booking?.additionalGuests)) {
+                  if (loadedBookingType === "Duo Booking") {
+                    const guest = data.booking.additionalGuests[0] || "";
+                    setAdditionalGuests([guest]);
+                  } else if (loadedBookingType === "Group Booking") {
+                    const maxGuests = Math.max(0, loadedGroupSize - 1);
+                    const existingGuests = data.booking.additionalGuests.slice(0, maxGuests);
+                    while (existingGuests.length < maxGuests) {
+                      existingGuests.push("");
+                    }
+                    setAdditionalGuests(existingGuests);
+                  } else {
+                    setAdditionalGuests([]);
+                  }
+                } else if (loadedBookingType === "Duo Booking") {
+                  setAdditionalGuests([""]);
+                } else if (loadedBookingType === "Group Booking") {
+                  const guestCount = Math.max(0, loadedGroupSize - 1);
+                  setAdditionalGuests(Array(guestCount).fill(""));
+                } else {
+                  setAdditionalGuests([]);
+                }
                 if (data.tour?.packageId) setTourPackage(data.tour.packageId);
                 if (data.tour?.date) setTourDate(data.tour.date);
 
@@ -1995,9 +2094,7 @@ const Page = () => {
                   // Find matching country by calling code
                   let foundCountry = false;
                   for (const country of getCountries()) {
-                    const callingCode = getCountryCallingCode(
-                      country as Country
-                    );
+                    const callingCode = safeGetCountryCallingCode(country);
                     if (fullNumber.startsWith(`+${callingCode}`)) {
                       setWhatsAppCountry(country);
                       setWhatsAppNumber(
@@ -2013,11 +2110,48 @@ const Page = () => {
                   }
                 }
               }
-              if (data.booking?.type) setBookingType(data.booking.type);
+              const loadedBookingType = data.booking?.type || "Single Booking";
+              const loadedGroupSize = data.booking?.groupSize || 3;
+              
+              if (data.booking?.type) setBookingType(loadedBookingType);
               if (typeof data.booking?.groupSize === "number")
-                setGroupSize(data.booking.groupSize);
-              if (Array.isArray(data.booking?.additionalGuests))
-                setAdditionalGuests(data.booking.additionalGuests);
+                setGroupSize(loadedGroupSize);
+              
+              // Set guestsMounted to true for Duo/Group bookings
+              if (loadedBookingType === "Duo Booking" || loadedBookingType === "Group Booking") {
+                setGuestsMounted(true);
+                // Schedule height calculation after state updates
+                setTimeout(() => {
+                  const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
+                  if (contentHeight > 0) {
+                    setGuestsHeight(`${contentHeight}px`);
+                  }
+                }, 0);
+              }
+              
+              // Handle additional guests based on booking type
+              if (Array.isArray(data.booking?.additionalGuests)) {
+                if (loadedBookingType === "Duo Booking") {
+                  const guest = data.booking.additionalGuests[0] || "";
+                  setAdditionalGuests([guest]);
+                } else if (loadedBookingType === "Group Booking") {
+                  const maxGuests = Math.max(0, loadedGroupSize - 1);
+                  const existingGuests = data.booking.additionalGuests.slice(0, maxGuests);
+                  while (existingGuests.length < maxGuests) {
+                    existingGuests.push("");
+                  }
+                  setAdditionalGuests(existingGuests);
+                } else {
+                  setAdditionalGuests([]);
+                }
+              } else if (loadedBookingType === "Duo Booking") {
+                setAdditionalGuests([""]);
+              } else if (loadedBookingType === "Group Booking") {
+                const guestCount = Math.max(0, loadedGroupSize - 1);
+                setAdditionalGuests(Array(guestCount).fill(""));
+              } else {
+                setAdditionalGuests([]);
+              }
               if (data.tour?.packageId) setTourPackage(data.tour.packageId);
               if (data.tour?.date) setTourDate(data.tour.date);
 
@@ -2475,11 +2609,98 @@ const Page = () => {
   useEffect(() => {
     if (bookingType === "Duo Booking" || bookingType === "Group Booking") {
       setGuestsMounted(true);
+      // Set the proper height for the content
+      requestAnimationFrame(() => {
+        const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
+        if (contentHeight > 0) {
+          setGuestsHeight(`${contentHeight}px`);
+        }
+      });
     } else {
       setGuestsHeight("0px");
       setTimeout(() => setGuestsMounted(false), ANIM_DURATION + 20);
     }
   }, [bookingType]);
+
+  // Ensure guests section is visible when loading existing data with guests
+  useEffect(() => {
+    if ((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
+        additionalGuests.length > 0) {
+      
+      if (!guestsMounted) {
+        setGuestsMounted(true);
+      }
+      
+      // Calculate and set the height for the guests section
+      // Use multiple retries to ensure DOM is ready
+      const calculateHeight = () => {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
+            console.log('📏 Calculating guest section height:', contentHeight, 'guestsMounted:', guestsMounted);
+            if (contentHeight > 0) {
+              setGuestsHeight(`${contentHeight}px`);
+              console.log('✅ Guest section height updated to:', contentHeight);
+            } else {
+              // If height is still 0, try one more time after a longer delay
+              setTimeout(() => {
+                const retryHeight = guestsContentRef.current?.scrollHeight ?? 0;
+                console.log('📏 Retry calculating height:', retryHeight);
+                if (retryHeight > 0) {
+                  setGuestsHeight(`${retryHeight}px`);
+                  console.log('✅ Guest section height updated (retry) to:', retryHeight);
+                }
+              }, 150);
+            }
+          }, 100);
+        });
+      };
+      
+      calculateHeight();
+    }
+  }, [bookingType, additionalGuests, guestsMounted]);
+
+  // Save additional guests to sessionStorage whenever they change
+  useEffect(() => {
+    if (
+      (bookingType === "Duo Booking" || bookingType === "Group Booking") &&
+      additionalGuests.length > 0
+    ) {
+      try {
+        const sessionKey = `additional_guests_${email}_${tourPackage}`;
+        sessionStorage.setItem(sessionKey, JSON.stringify(additionalGuests));
+      } catch (err) {
+        console.warn("Failed to save additional guests to sessionStorage:", err);
+      }
+    }
+  }, [additionalGuests, email, tourPackage, bookingType]);
+
+  // Restore additional guests from sessionStorage on mount or when session key changes
+  useEffect(() => {
+    if (!email || !tourPackage) return;
+    if (bookingType !== "Duo Booking" && bookingType !== "Group Booking") return;
+    if (sessionRestoredRef.current) return; // Prevent multiple restorations
+
+    try {
+      const sessionKey = `additional_guests_${email}_${tourPackage}`;
+      const savedGuests = sessionStorage.getItem(sessionKey);
+      
+      if (savedGuests) {
+        const parsedGuests = JSON.parse(savedGuests);
+        if (Array.isArray(parsedGuests) && parsedGuests.length > 0) {
+          console.log('🔄 Restoring additional guests from sessionStorage:', parsedGuests);
+          
+          // Mark that we've restored from session
+          sessionRestoredRef.current = true;
+          
+          // Restore the guest emails - the other useEffect will handle visibility
+          setAdditionalGuests(parsedGuests);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to restore additional guests from sessionStorage:", err);
+    }
+  }, [email, tourPackage, bookingType]);
 
   const handleAddGuest = () => {
     // For group booking, limit guests to groupSize - 1 (booker + others)
@@ -2590,6 +2811,18 @@ const Page = () => {
       e.email = "Enter a valid email";
 
     if (!birthdate) e.birthdate = "Birthdate is required";
+    else {
+      // Validate age is 18 or older
+      const [year, month, day] = birthdate.split("-").map(Number);
+      const birthDate = new Date(year, month - 1, day);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      if (age < 18) e.birthdate = "Must be 18 years or older";
+    }
     if (!firstName) e.firstName = "First name is required";
     if (!lastName) e.lastName = "Last name is required";
     if (!nationality) e.nationality = "Nationality is required";
@@ -3048,6 +3281,15 @@ const Page = () => {
 
         {/* Max-width container for better readability on larger screens */}
         <div className="max-w-4xl mx-auto">
+          {/* ImHereTravels Logo - Top Left */}
+          <div className="mb-8">
+            <img 
+              src="/logos/Digital_Horizontal_Red.svg" 
+              alt="ImHereTravels Logo" 
+              className="h-10 sm:h-12 md:h-14 w-auto object-contain"
+            />
+          </div>
+
           {/* Progress tracker placeholder for Steps 1-3 (static; wire later) */}
           <div className="mb-2">
             <div className="flex items-center gap-4">
@@ -3148,15 +3390,18 @@ const Page = () => {
               <button
                 type="button"
                 onClick={() => {
-                  // Only allow direct navigation to step 2 if NOT currently on step 1
-                  // When on step 1, users must use "Continue to Payment" button to trigger the existing reservation check
-                  if (step !== 1 && completedSteps.includes(2)) {
+                  // If step 1 is complete and we're not already on step 2, allow navigation
+                  if (completedSteps.includes(1) && !completedSteps.includes(2)) {
+                    // New booking - trigger the existing reservation check
+                    checkExistingPaymentsAndMaybeProceed();
+                  } else if (completedSteps.includes(2) && step !== 2) {
+                    // Already have a payment - allow direct navigation
                     setStep(2);
                   }
                 }}
-                disabled={step === 1}
+                disabled={!completedSteps.includes(1)}
                 className={`flex items-center gap-1.5 sm:gap-2 transition-all duration-200 group ${
-                  step === 1
+                  !completedSteps.includes(1)
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:opacity-80 cursor-pointer"
                 }`}
@@ -4241,6 +4486,7 @@ const Page = () => {
                         className="mt-1"
                         disabled={paymentConfirmed}
                         isValid={!!nationality && !errors.nationality}
+                        searchable={true}
                       />
                       {errors.nationality && (
                         <p className="mt-1 text-xs text-destructive">
@@ -4264,9 +4510,7 @@ const Page = () => {
                           }}
                           options={getCountries().map((country) => {
                             const data = getCountryData(country);
-                            const callingCode = getCountryCallingCode(
-                              country as Country
-                            );
+                            const callingCode = safeGetCountryCallingCode(country);
                             const countryName = en[country] || country;
                             return {
                               label: (
@@ -4295,28 +4539,39 @@ const Page = () => {
                           ariaLabel="Country Code"
                           disabled={paymentConfirmed}
                           searchable
-                          className="w-[160px] flex-shrink-0"
+                          className={`w-[160px] flex-shrink-0 ${paymentConfirmed ? "disabled-hover" : ""}`}
                         />
                         <div className="flex-1 relative min-w-0">
                           <div
-                            className={`flex items-center w-full px-4 py-3 rounded-lg bg-input transition-all duration-200 shadow-sm border-2 ${
-                              errors.whatsAppNumber
-                                ? "border-destructive"
-                                : whatsAppNumber &&
+                            className={`flex items-center w-full px-4 py-3 rounded-lg transition-all duration-200 shadow-sm border-2 ${
+                              paymentConfirmed
+                                ? whatsAppNumber &&
                                   isValidPhoneNumber(
-                                    `+${getCountryCallingCode(
-                                      whatsAppCountry as Country
+                                    `+${safeGetCountryCallingCode(
+                                      whatsAppCountry
                                     )}${whatsAppNumber}`
                                   )
-                                ? "border-green-500 bg-green-50/5"
-                                : "border-border"
-                            } focus-within:outline-none focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-md hover:border-primary/50`}
+                                  ? "opacity-50 bg-muted/40 border-green-500 cursor-not-allowed"
+                                  : "opacity-50 bg-muted/40 border-border cursor-not-allowed"
+                                : errors.whatsAppNumber
+                                ? "bg-input border-destructive"
+                                : whatsAppNumber &&
+                                  isValidPhoneNumber(
+                                    `+${safeGetCountryCallingCode(
+                                      whatsAppCountry
+                                    )}${whatsAppNumber}`
+                                  )
+                                ? "bg-input border-green-500"
+                                : "bg-input border-border"
+                            } ${
+                              !paymentConfirmed
+                                ? "focus-within:outline-none focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-md hover:border-primary/50"
+                                : ""
+                            }`}
                           >
-                            <span className="text-muted-foreground mr-2 select-none">
+                            <span className={`text-muted-foreground mr-2 select-none ${paymentConfirmed ? "opacity-50" : ""}`}>
                               +
-                              {getCountryCallingCode(
-                                whatsAppCountry as Country
-                              )}
+                              {safeGetCountryCallingCode(whatsAppCountry)}
                             </span>
                             <input
                               type="tel"
@@ -4332,8 +4587,8 @@ const Page = () => {
                                 setWhatsAppNumber(limitedValue);
 
                                 // Real-time validation
-                                const fullNumber = `+${getCountryCallingCode(
-                                  whatsAppCountry as Country
+                                const fullNumber = `+${safeGetCountryCallingCode(
+                                  whatsAppCountry
                                 )}${limitedValue}`;
                                 setErrors((prev) => {
                                   const clone = { ...prev } as any;
@@ -4354,8 +4609,8 @@ const Page = () => {
                               }}
                               onBlur={() => {
                                 const fullNumber = whatsAppNumber
-                                  ? `+${getCountryCallingCode(
-                                      whatsAppCountry as Country
+                                  ? `+${safeGetCountryCallingCode(
+                                      whatsAppCountry
                                     )}${whatsAppNumber}`
                                   : "";
                                 setErrors((prev) => {
@@ -4377,13 +4632,13 @@ const Page = () => {
                               maxLength={
                                 getCountryData(whatsAppCountry).maxLength
                               }
-                              className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60"
+                              className={`flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60 ${paymentConfirmed ? "opacity-50 text-muted-foreground cursor-not-allowed" : ""}`}
                             />
                           </div>
                           {whatsAppNumber &&
                             isValidPhoneNumber(
-                              `+${getCountryCallingCode(
-                                whatsAppCountry as Country
+                              `+${safeGetCountryCallingCode(
+                                whatsAppCountry
                               )}${whatsAppNumber}`
                             ) &&
                             !errors.whatsAppNumber && (
@@ -5131,8 +5386,8 @@ const Page = () => {
                     !whatsAppNumber ||
                     (whatsAppNumber &&
                       !isValidPhoneNumber(
-                        `+${getCountryCallingCode(
-                          whatsAppCountry as Country
+                        `+${safeGetCountryCallingCode(
+                          whatsAppCountry
                         )}${whatsAppNumber}`
                       )) ||
                     !nationality ||
@@ -5651,16 +5906,30 @@ const Page = () => {
   );
 };
 
+const styles = `
+  .disabled-hover {
+    pointer-events: none;
+  }
+  
+  .disabled-hover:hover {
+    border-color: inherit !important;
+    background-color: inherit !important;
+  }
+`;
+
 export default function ReservationBookingFormPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      }
-    >
-      <Page />
-    </Suspense>
+    <>
+      <style>{styles}</style>
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        }
+      >
+        <Page />
+      </Suspense>
+    </>
   );
 }

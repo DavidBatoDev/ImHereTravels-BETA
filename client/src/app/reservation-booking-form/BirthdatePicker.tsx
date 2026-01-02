@@ -35,12 +35,13 @@ export default function BirthdatePickerModal({
   disabled = false,
   isValid = false,
 }: Props) {
-  // Allow any age, but never allow future dates
+  // Only allow ages 18 and above
   const today = new Date();
-  const maxDate = today;
-  const maxYear = today.getFullYear();
+  const maxDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+  const maxYear = maxDate.getFullYear();
 
   const [open, setOpen] = React.useState(false);
+  const [isClosing, setIsClosing] = React.useState(false);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
 
   // initial view = selected date or today (capped by maxDate)
@@ -53,20 +54,30 @@ export default function BirthdatePickerModal({
   const [showYearGrid,  setShowYearGrid]  = React.useState(false);
   const [yearBase, setYearBase] = React.useState(() => Math.floor(init.getFullYear() / 12) * 12);
 
+  // Handle close with animation
+  const handleClose = React.useCallback(() => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setIsClosing(false);
+    }, 200); // Match animation duration
+  }, []);
+
   // lock scroll when modal open + ESC to close
   React.useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") handleClose(); };
     document.addEventListener("keydown", onKey);
     return () => { document.body.style.overflow = prev; document.removeEventListener("keydown", onKey); };
-  }, [open]);
+  }, [open, handleClose]);
 
   const selectedISO  = value || "";
   const selectedAge  = calcAge(selectedISO);
   const isFuture = (y: number, m: number, d: number) =>
     new Date(y, m, d, 23, 59, 59).getTime() > maxDate.getTime();
+  const isUnder18 = selectedAge !== null && selectedAge < 18;
 
   // build grid
   const firstOfMonth = new Date(viewYear, viewMonth, 1);
@@ -88,9 +99,9 @@ export default function BirthdatePickerModal({
     }
     if (isFuture(y, m, day)) return;
     onChange(toISO(y, m, day));
-    setOpen(false);
     setShowMonthGrid(false); setShowYearGrid(false);
-    setTimeout(() => triggerRef.current?.focus(), 0);
+    handleClose();
+    setTimeout(() => triggerRef.current?.focus(), 250);
   };
 
   const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -135,12 +146,12 @@ export default function BirthdatePickerModal({
       </div>
 
       {open && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center animate-[fadeIn_150ms_ease-out]" role="dialog" aria-modal="true" aria-label="Birthdate picker">
+        <div className={`fixed inset-0 z-[9999] flex items-center justify-center ${isClosing ? 'animate-[fadeOut_150ms_ease-in]' : 'animate-[fadeIn_150ms_ease-out]'}`} role="dialog" aria-modal="true" aria-label="Birthdate picker">
           {/* backdrop */}
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
 
           {/* card */}
-          <div className="relative w-full max-w-md mx-4 rounded-2xl bg-card border border-border shadow-2xl overflow-visible animate-[scaleIn_200ms_ease-out]">
+          <div className={`relative w-full max-w-md mx-4 rounded-2xl bg-card border border-border shadow-2xl overflow-visible ${isClosing ? 'animate-[scaleOut_200ms_ease-in]' : 'animate-[scaleIn_200ms_ease-out]'}`}>
             {/* header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h3 className="text-base font-semibold text-foreground">{label}</h3>
@@ -151,7 +162,7 @@ export default function BirthdatePickerModal({
               </div>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={handleClose}
                 className="h-8 w-8 rounded-md bg-input border border-border flex items-center justify-center hover:bg-muted transition-colors"
                 aria-label="Close"
               >
@@ -235,8 +246,12 @@ export default function BirthdatePickerModal({
                         </div>
                         <button
                           type="button"
-                          onClick={() => setYearBase(y => Math.min(maxYear - 11, y + 12))}
-                          disabled={yearBase + 11 >= maxYear}
+                          onClick={() => setYearBase(y => {
+                            const newBase = y + 12;
+                            // Ensure we don't go beyond a range that would show invalid years
+                            return newBase > maxYear ? y : Math.min(Math.floor(maxYear / 12) * 12, newBase);
+                          })}
+                          disabled={yearBase + 12 > maxYear}
                           className="h-8 w-8 rounded-lg bg-input border border-border hover:bg-muted transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
                           aria-label="Next 12 years"
                         >→</button>
@@ -244,12 +259,10 @@ export default function BirthdatePickerModal({
 
                       <div className="grid grid-cols-3 gap-2">
                         {visibleYears.map((y) => {
-                          const disabled = y > maxYear;
                           return (
                             <button
                               key={y}
                               type="button"
-                              disabled={disabled}
                               onClick={() => {
                                 let m = viewMonth;
                                 if (y === maxYear && m > maxDate.getMonth()) m = maxDate.getMonth();
@@ -257,8 +270,7 @@ export default function BirthdatePickerModal({
                                 setShowYearGrid(false);
                               }}
                               className={[
-                                "h-10 rounded-lg text-sm font-medium border transition-all",
-                                disabled ? "opacity-40 cursor-not-allowed" : "hover:scale-105 active:scale-95",
+                                "h-10 rounded-lg text-sm font-medium border transition-all hover:scale-105 active:scale-95",
                                 y === viewYear ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-input border-border hover:bg-muted"
                               ].join(" ")}
                             >
@@ -324,12 +336,20 @@ export default function BirthdatePickerModal({
               <button
                 type="button"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-                onClick={() => { onChange(""); setOpen(false); }}
+                onClick={() => { onChange(""); handleClose(); }}
               >
                 Clear
               </button>
-              {/* No age validation message anymore */}
-              <div />
+              {isUnder18 && selectedISO ? (
+                <div className="text-xs font-medium text-red-500 flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  Must be 18 or older
+                </div>
+              ) : (
+                <div className="text-xs font-medium text-muted-foreground">Age must be 18+</div>
+              )}
             </div>
           </div>
         </div>,
@@ -338,7 +358,9 @@ export default function BirthdatePickerModal({
 
       <style jsx global>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes scaleOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.95); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </>

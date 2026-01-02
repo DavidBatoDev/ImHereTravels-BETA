@@ -148,6 +148,23 @@ function PaymentForm({
         console.debug("Stripe retrievePaymentIntent:", paymentIntent);
         if (!paymentIntent) return;
 
+        // Only show verifying modal if payment is in an active/completed state
+        // This indicates a redirect return (e.g., Revolut Pay), not initial load
+        const activeStatuses = ["succeeded", "processing", "requires_action", "requires_confirmation", "requires_capture"];
+        const isActivePayment = activeStatuses.includes(paymentIntent.status);
+
+        if (!isActivePayment) {
+          // Initial state, don't show modal - user is just viewing the payment form
+          return;
+        }
+
+        // Show loading modal for active payment states (redirect returns)
+        setShowModal(true);
+        setModalStatus("verifying");
+        setModalMessage("Verifying your payment");
+        setModalDetail("Please wait while we confirm your payment status...");
+        setIsProcessing(true);
+
         // Only show status messages, don't trigger success callbacks on refresh
         if (paymentIntent.status === "succeeded") {
           // Payment already completed - show success modal and trigger callbacks
@@ -195,10 +212,15 @@ function PaymentForm({
 
         if (paymentIntent.status === "processing") {
           setMessage("Your payment is processing.");
+          setModalStatus("verifying");
+          setModalMessage("Payment processing");
+          setModalDetail("Your payment is being processed. Please wait...");
+          setIsProcessing(false);
           return;
         }
 
         if (paymentIntent.status === "requires_payment_method") {
+          setIsProcessing(false);
           if (paymentIntent.last_payment_error) {
             const errorMsg = getErrorMessage(paymentIntent.last_payment_error);
             setMessage(errorMsg);
@@ -221,11 +243,15 @@ function PaymentForm({
             }, 4000);
             // Close helper popup if open
             try { popupWindowRef.current?.close(); } catch {}
+          } else {
+            // No error but requires payment method - hide modal
+            setShowModal(false);
           }
           return;
         }
 
         if (paymentIntent.status === "requires_action") {
+          setIsProcessing(false);
           // Show 3DS-style modal for redirect payments (e.g., Revolut Pay)
           setShowModal(true);
           setModalMinimized(false);
@@ -239,9 +265,11 @@ function PaymentForm({
           return;
         }
 
-        // For any other status, clear stale UI state
+        // For any other status, clear stale UI state and hide modal
         setMessage(null);
         setPaymentFailed(false);
+        setShowModal(false);
+        setIsProcessing(false);
         setDeclineCode(null);
       } catch (err) {
         console.warn("retrievePaymentIntent error:", err);
@@ -250,6 +278,11 @@ function PaymentForm({
   }, [stripe, clientSecret]);
 
   const getErrorMessage = (error: any) => {
+    // Handle empty or null errors
+    if (!error) {
+      return "Payment failed. Please try again with a different payment method.";
+    }
+
     const code = error.decline_code || error.code;
 
     switch (code) {
@@ -277,7 +310,7 @@ function PaymentForm({
         return "Revolut Pay is not available. Please use another payment method.";
       default:
         return (
-          error.message ??
+          error.message ||
           "Payment failed. Please try again with a different payment method."
         );
     }
@@ -332,17 +365,36 @@ function PaymentForm({
     // If we get an empty error object, it typically means:
     // - For Revolut Pay: redirect is in progress
     // - For Card: form validation failed (Stripe shows inline errors)
+    // - For 3DS2: user cancelled or authentication failed (Stripe handles the UI)
     if (error) {
-      // Try to detect empty error by stringifying
-      const errorString = JSON.stringify(error);
-      if (errorString === '{}' || errorString === '{"type":"validation_error"}') {
-        console.log("Empty/validation error received, letting Stripe handle inline validation...");
+      // Check if this is a meaningful error with actual content
+      const hasMessage = error.message && typeof error.message === 'string' && error.message.trim().length > 0;
+      const hasCode = error.code && typeof error.code === 'string' && error.code.trim().length > 0;
+      const hasDeclineCode = error.decline_code && typeof error.decline_code === 'string' && error.decline_code.trim().length > 0;
+      const isValidationError = error.type === "validation_error";
+      
+      // If there's no actual error details, it's likely a validation or 3DS cancellation
+      // that Stripe Elements is already handling in its UI
+      if (!hasMessage && !hasCode && !hasDeclineCode) {
+        console.log("Stripe handling error in UI - no action needed");
         setIsProcessing(false);
         onProcessingChange?.(false);
+        setShowModal(false);
+        return;
+      }
+      
+      // If it's just a validation error with inline messaging, let Stripe handle it
+      if (isValidationError && !hasMessage) {
+        console.log("Stripe validation error - inline validation will handle this");
+        setIsProcessing(false);
+        onProcessingChange?.(false);
+        setShowModal(false);
         return;
       }
 
-      console.error("confirmPayment error:", error);
+      // Log actual errors with meaningful details
+      // console.error("Payment error:", error.message || error.code || "Unknown error");
+      
       const errorMsg = getErrorMessage(error);
       setMessage(errorMsg);
       setPaymentFailed(true);
@@ -595,7 +647,7 @@ function PaymentForm({
         );
       case "error":
         return (
-          <div className="flex items-center justify-center h-16 w-16 rounded-full bg-red-500 mx-auto mb-4 animate-shake">
+          <div className="flex items-center justify-center h-16 w-16 rounded-full bg-red-500 mx-auto mb-4">
             <svg
               className="h-8 w-8 text-white"
               fill="none"
@@ -766,7 +818,7 @@ function PaymentForm({
 
             // Only show error if payment hasn't already succeeded
             if (modalStatus !== "success") {
-              console.error("Payment Element load error:", error);
+              // console.error("Payment Element load error:", error);
               setMessage(
                 "Unable to load payment form. Please refresh the page and try again."
               );
@@ -820,11 +872,9 @@ function PaymentForm({
                 modalMinimized && paymentFailed
                   ? "animate-slide-down opacity-100"
                   : ""
-              } ${
-                paymentFailed ? "animate-float" : ""
               }`}
               style={{
-                animation: modalMinimized && paymentFailed ? "slideDown 0.5s ease-out forwards, float 3s ease-in-out infinite" : paymentFailed ? "float 3s ease-in-out infinite" : undefined,
+                animation: modalMinimized && paymentFailed ? "slideDown 0.5s ease-out forwards" : undefined,
                 maxHeight: errorExpanded ? "500px" : "80px",
               }}
             >
