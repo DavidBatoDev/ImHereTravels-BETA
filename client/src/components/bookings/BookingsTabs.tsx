@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import BookingsSection from "./BookingsSection";
 import BookingsSheet from "../sheet-management/BookingsSheet";
@@ -89,14 +96,14 @@ export default function BookingsTabs() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground font-hk-grotesk">
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground font-hk-grotesk">
             Bookings
           </h1>
-          <p className="text-muted-foreground text-lg">
+          <p className="text-muted-foreground text-sm md:text-lg">
             Manage all bookings and reservations
           </p>
         </div>
@@ -108,7 +115,89 @@ export default function BookingsTabs() {
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-3 bg-muted border border-border">
+        {/* Mobile: Dropdown Select */}
+        <div className="md:hidden">
+          <Select value={activeTab} onValueChange={handleTabChange}>
+            <SelectTrigger className="w-full h-12 bg-card/80 backdrop-blur-sm border-royal-purple/20 dark:border-border rounded-xl shadow-sm hover:shadow-md hover:border-royal-purple/40 transition-all duration-200 font-medium">
+              <SelectValue>
+                {activeTab === "list" && (
+                  <span className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    Bookings
+                  </span>
+                )}
+                {activeTab === "confirmed" && (
+                  <span className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    Confirmed Bookings
+                    {unsentCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="h-5 min-w-5 px-1.5 text-xs shadow-sm"
+                      >
+                        {unsentCount}
+                      </Badge>
+                    )}
+                  </span>
+                )}
+                {activeTab === "sheet" && (
+                  <span className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    Bookings Sheet
+                  </span>
+                )}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl border-royal-purple/20 dark:border-border shadow-lg">
+              <SelectItem
+                value="list"
+                className="rounded-lg hover:bg-royal-purple/10 focus:bg-royal-purple/10 cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  {activeTab === "list" && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  )}
+                  Bookings
+                </span>
+              </SelectItem>
+              <SelectItem
+                value="confirmed"
+                className="rounded-lg hover:bg-royal-purple/10 focus:bg-royal-purple/10 cursor-pointer"
+              >
+                <span className="flex items-center justify-between w-full gap-2">
+                  <span className="flex items-center gap-2">
+                    {activeTab === "confirmed" && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    )}
+                    Confirmed Bookings
+                  </span>
+                  {unsentCount > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="ml-2 h-5 min-w-5 px-1.5 text-xs shadow-sm"
+                    >
+                      {unsentCount}
+                    </Badge>
+                  )}
+                </span>
+              </SelectItem>
+              <SelectItem
+                value="sheet"
+                className="rounded-lg hover:bg-royal-purple/10 focus:bg-royal-purple/10 cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  {activeTab === "sheet" && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  )}
+                  Bookings Sheet
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Desktop: Horizontal Tabs */}
+        <TabsList className="hidden md:grid w-full grid-cols-3 bg-muted border border-border">
           <TabsTrigger
             value="list"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"

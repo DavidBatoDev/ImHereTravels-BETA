@@ -698,7 +698,7 @@ export default function BookingDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] bg-background p-0 rounded-full overflow-hidden">
+      <DialogContent className="w-[calc(100%-1rem)] sm:w-full max-w-5xl  bg-background p-0 rounded-xl overflow-hidden">
         {/* Loading Overlay */}
         {isDeleting && (
           <div className="absolute inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center">
@@ -711,15 +711,17 @@ export default function BookingDetailModal({
           </div>
         )}
 
-        <DialogHeader className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
-                <FaUser className="h-5 w-5 text-white" />
+        <DialogHeader className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-2 sm:pb-3 pt-3 sm:pt-6 px-3 sm:px-6">
+          <div className="flex items-start sm:items-center justify-between gap-2">
+            <DialogTitle className="text-lg sm:text-2xl font-bold text-foreground flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
+                <FaUser className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-white" />
               </div>
               <div>
-                <span className="block text-base">Booking Details</span>
-                <span className="text-2xl font-mono font-semibold text-crimson-red block">
+                <span className="block text-xs sm:text-base">
+                  Booking Details
+                </span>
+                <span className="text-base sm:text-2xl font-mono font-semibold text-crimson-red block">
                   {currentBooking?.bookingId || "Invalid Booking"}
                 </span>
               </div>
@@ -729,18 +731,18 @@ export default function BookingDetailModal({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="ml-4 p-2 rounded-full hover:bg-muted focus:outline-none focus:ring-2 focus:ring-crimson-red"
+              className="p-1.5 sm:p-2 rounded-full hover:bg-muted focus:outline-none focus:ring-2 focus:ring-crimson-red flex-shrink-0"
             >
               {/* Use FaTimes or MdClose if available, fallback to × */}
               {typeof FaTimes !== "undefined" ? (
-                <FaTimes className="h-5 w-5 text-foreground" />
+                <FaTimes className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
               ) : (
-                <span className="text-2xl">×</span>
+                <span className="text-xl sm:text-2xl">×</span>
               )}
             </button>
             {/* Only show controls if booking is valid */}
             {currentBooking?.bookingId && (
-              <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2">
                 {/* View Mode Toggle */}
                 <div className="flex border border-border rounded-md bg-background shadow-sm">
                   <Button
@@ -774,7 +776,7 @@ export default function BookingDetailModal({
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowEmptyFields(!showEmptyFields)}
-                  className="h-8 px-3 hover:bg-muted flex items-center gap-2"
+                  className="h-8 px-2 sm:px-3 hover:bg-muted flex items-center gap-2"
                   title={
                     showEmptyFields ? "Hide empty fields" : "Show empty fields"
                   }
@@ -782,14 +784,14 @@ export default function BookingDetailModal({
                   {showEmptyFields ? (
                     <>
                       <FaEyeSlash className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">
+                      <span className="hidden sm:inline text-xs text-muted-foreground">
                         Hide empty fields
                       </span>
                     </>
                   ) : (
                     <>
                       <FaEye className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">
+                      <span className="hidden sm:inline text-xs text-muted-foreground">
                         Show empty fields
                       </span>
                     </>
@@ -801,21 +803,25 @@ export default function BookingDetailModal({
                   onClick={() => {
                     setIsEditModalOpen(true);
                   }}
-                  className="h-8 px-4 bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25 flex items-center gap-2"
+                  className="h-8 px-2 sm:px-4 bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25 flex items-center gap-2"
                   title="Edit booking"
                 >
                   <FaEdit className="h-4 w-4" />
-                  <span className="text-xs font-medium">Edit</span>
+                  <span className="hidden sm:inline text-xs font-medium">
+                    Edit
+                  </span>
                 </Button>
                 <Button
                   variant="destructive"
                   size="sm"
                   onClick={() => setIsDeleteDialogOpen(true)}
-                  className="h-8 px-4 bg-red-600 hover:bg-red-700 text-white shadow shadow-red-600/25 flex items-center gap-2"
+                  className="h-8 px-2 sm:px-4 bg-red-600 hover:bg-red-700 text-white shadow shadow-red-600/25 flex items-center gap-2"
                   title="Delete booking"
                 >
                   <FaTrash className="h-4 w-4" />
-                  <span className="text-xs font-medium">Delete</span>
+                  <span className="hidden sm:inline text-xs font-medium">
+                    Delete
+                  </span>
                 </Button>
               </div>
             )}
@@ -823,20 +829,20 @@ export default function BookingDetailModal({
 
           {/* Only show email and row info if booking is valid */}
           {currentBooking?.bookingId && (
-            <div className="mt-2 ml-[56px] space-y-1">
+            <div className="mt-1.5 sm:mt-2 ml-10 sm:ml-[56px] space-y-0.5 sm:space-y-1">
               <div className="flex items-center gap-2">
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                   {currentBooking?.emailAddress}
                 </p>
                 <button
                   onClick={copyEmailToClipboard}
-                  className="p-1 hover:bg-muted rounded transition-colors"
+                  className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
                   title="Copy email"
                 >
-                  <FaCopy className="h-3 w-3 text-muted-foreground hover:text-crimson-red" />
+                  <FaCopy className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-muted-foreground hover:text-crimson-red" />
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
                 Row #:{" "}
                 <span className="font-mono font-semibold text-crimson-red">
                   {currentBooking?.row || "N/A"}
@@ -889,39 +895,39 @@ export default function BookingDetailModal({
               {/* Main Content */}
               <div
                 ref={scrollContainerRef}
-                className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
+                className="flex-1 overflow-y-auto h-[95%] pl-3 sm:pl-6 pb-3 sm:pb-6 pr-3 sm:pr-0 scrollbar-hide scroll-optimized"
               >
-                <div className="space-y-3 pt-4">
+                <div className="space-y-2 sm:space-y-3 pt-2 sm:pt-4">
                   {/* Summary Section */}
                   <div
                     id="tab-Summary"
-                    className="scroll-mt-4 pb-4 mb-4 border-b-2 border-border/30"
+                    className="scroll-mt-4 pb-3 sm:pb-4 mb-3 sm:mb-4 border-b-2 border-border/30"
                   >
-                    <h2 className="text-lg font-bold text-foreground flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-crimson-red/20 rounded-full rounded-br-none shadow-sm">
-                        <HiTrendingUp className="h-5 w-5 text-crimson-red" />
+                    <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                      <div className="p-1.5 sm:p-2 bg-crimson-red/20 rounded-full rounded-br-none shadow-sm">
+                        <HiTrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-crimson-red" />
                       </div>
                       <span>Booking Summary</span>
                     </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                       {/* Full Name */}
                       <div>
-                        <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
                           Traveler
                         </p>
-                        <p className="text-base font-bold text-foreground">
+                        <p className="text-sm sm:text-base font-bold text-foreground">
                           {currentBooking?.fullName}
                         </p>
                       </div>
 
                       {/* Booking Type */}
                       <div>
-                        <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
                           Type
                         </p>
                         <Badge
                           variant="outline"
-                          className={`text-sm font-medium border-0 text-foreground px-2.5 py-1 rounded-full rounded-br-none ${getBookingTypeBgColor(
+                          className={`text-xs sm:text-sm font-medium border-0 text-foreground px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full rounded-br-none ${getBookingTypeBgColor(
                             currentBooking?.bookingType
                           )}`}
                         >
@@ -931,10 +937,10 @@ export default function BookingDetailModal({
 
                       {/* Tour Package */}
                       <div>
-                        <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
                           Tour Package
                         </p>
-                        <p className="text-base font-bold text-foreground">
+                        <p className="text-sm sm:text-base font-bold text-foreground">
                           {currentBooking?.tourPackageName}
                         </p>
                       </div>
@@ -942,12 +948,12 @@ export default function BookingDetailModal({
                       {/* Booking Status */}
                       {currentBooking?.bookingStatus && (
                         <div>
-                          <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
+                          <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
                             Status
                           </p>
                           <Badge
                             variant="outline"
-                            className={`text-sm font-medium border-0 text-foreground px-2.5 py-1 rounded-full rounded-br-none ${getStatusBgColor(
+                            className={`text-xs sm:text-sm font-medium border-0 text-foreground px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full rounded-br-none ${getStatusBgColor(
                               currentBooking
                             )}`}
                           >
@@ -960,12 +966,12 @@ export default function BookingDetailModal({
 
                       {/* Dates */}
                       <div>
-                        <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
                           Dates
                         </p>
-                        <div className="text-sm space-y-1">
-                          <div className="flex items-center gap-2">
-                            <BsCalendarEvent className="h-3.5 w-3.5 text-crimson-red" />
+                        <div className="text-xs sm:text-sm space-y-1">
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <BsCalendarEvent className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-crimson-red flex-shrink-0" />
                             <span className="font-bold">
                               {safeDate(
                                 currentBooking?.reservationDate
@@ -976,8 +982,8 @@ export default function BookingDetailModal({
                               })}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <FaPlane className="h-3.5 w-3.5 text-crimson-red" />
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <FaPlane className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-crimson-red flex-shrink-0" />
                             <span className="font-bold">
                               {safeDate(
                                 currentBooking?.tourDate
@@ -993,10 +999,10 @@ export default function BookingDetailModal({
 
                       {/* Payment Plan */}
                       <div>
-                        <p className="text-xs text-muted-foreground font-medium mb-1 uppercase">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
                           Payment Plan
                         </p>
-                        <p className="text-base font-bold text-foreground">
+                        <p className="text-sm sm:text-base font-bold text-foreground">
                           {currentBooking?.paymentPlan ||
                             currentBooking?.availablePaymentTerms ||
                             "N/A"}
@@ -1004,12 +1010,12 @@ export default function BookingDetailModal({
                       </div>
 
                       {/* Payment Progress */}
-                      <div className="col-span-2">
-                        <p className="text-xs text-muted-foreground font-medium mb-2 uppercase">
+                      <div className="col-span-1 sm:col-span-2">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1.5 sm:mb-2 uppercase">
                           Payment Progress
                         </p>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
+                        <div className="space-y-1.5 sm:space-y-2">
+                          <div className="flex justify-between text-xs sm:text-sm">
                             <span className="text-spring-green font-bold">
                               Paid: {formatCurrency(paid)}
                             </span>
@@ -1032,7 +1038,7 @@ export default function BookingDetailModal({
                             }`}
                           />
                           {remaining > 0 && (
-                            <p className="text-sm text-crimson-red font-bold">
+                            <p className="text-xs sm:text-sm text-crimson-red font-bold">
                               Due: {formatCurrency(remaining)}
                             </p>
                           )}
@@ -1065,21 +1071,23 @@ export default function BookingDetailModal({
                           id={`tab-${parentTab}`}
                           className="bg-background shadow-sm border border-field-border scroll-mt-4"
                         >
-                          <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
-                            <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                              <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                                <IconComponent className="h-4 w-4 text-crimson-red" />
+                          <CardHeader className="py-2 sm:py-3 px-3 sm:px-4 bg-crimson-red/10 border-b border-crimson-red/20">
+                            <CardTitle className="text-sm sm:text-base font-bold text-foreground flex items-center gap-1.5 sm:gap-2">
+                              <div className="p-0.5 sm:p-1 bg-crimson-red/10 rounded-full rounded-br-none">
+                                <IconComponent className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-crimson-red" />
                               </div>
                               {parentTab}
                             </CardTitle>
                           </CardHeader>
                           <CardContent
                             className={
-                              viewMode === "card" ? "pt-3 pb-3" : "p-0"
+                              viewMode === "card"
+                                ? "pt-2 sm:pt-3 pb-2 sm:pb-3 px-2 sm:px-3"
+                                : "p-0"
                             }
                           >
                             {viewMode === "card" ? (
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                                 {filteredColumns.map((column) => {
                                   const isEmpty = isColumnEmpty(column);
                                   return (
@@ -1245,7 +1253,7 @@ export default function BookingDetailModal({
 
               {/* Navigation Sidebar */}
               {!isLoadingColumns && sortedParentTabs.length > 0 && (
-                <div className="w-48 border-l border-border/50 p-4 overflow-y-auto scrollbar-hide">
+                <div className="hidden lg:block w-48 border-l border-border/50 p-4 overflow-y-auto scrollbar-hide">
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                     Sections
                   </h3>

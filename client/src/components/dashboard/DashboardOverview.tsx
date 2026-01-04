@@ -532,7 +532,7 @@ export default function DashboardOverview() {
         {/* Total Bookings */}
         <Card className="relative overflow-hidden border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
           <CardContent className="p-5">
-            <div className="flex items-start justify-between">
+            <div className="flex items-center justify-between">
               <div className="flex-1 pr-6">
                 <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                   Total Bookings
@@ -574,7 +574,7 @@ export default function DashboardOverview() {
         {/* Total Revenue */}
         <Card className="relative overflow-hidden border border-border hover:border-spring-green transition-all duration-300 hover:shadow-md">
           <CardContent className="p-5">
-            <div className="flex items-start justify-between">
+            <div className="flex items-center justify-between">
               <div className="flex-1 pr-6">
                 <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                   Total Revenue
@@ -604,7 +604,7 @@ export default function DashboardOverview() {
         {/* Upcoming Tours */}
         <Card className="relative overflow-hidden border border-border hover:border-royal-purple transition-all duration-300 hover:shadow-md">
           <CardContent className="p-5">
-            <div className="flex items-start justify-between">
+            <div className="flex items-center justify-between">
               <div className="flex-1 pr-6">
                 <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                   Upcoming Tours
@@ -634,7 +634,7 @@ export default function DashboardOverview() {
         {/* Payment Reminders */}
         <Card className="relative overflow-hidden border border-border hover:border-vivid-orange transition-all duration-300 hover:shadow-md">
           <CardContent className="p-5">
-            <div className="flex items-start justify-between">
+            <div className="flex items-center justify-between">
               <div className="flex-1 pr-6">
                 <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                   Payment Reminders

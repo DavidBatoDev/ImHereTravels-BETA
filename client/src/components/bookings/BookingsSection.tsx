@@ -1171,105 +1171,207 @@ export default function BookingsSection() {
         </div>
       )}
       {/* Statistics Cards with Add Button */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4">
-        {/* Total Bookings */}
-        <Card className="border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
-                  Total Bookings
-                </p>
-                <p className="text-3xl font-bold text-foreground">
-                  {totalBookings}
-                </p>
-                {/* Breakdown */}
-                <div className="flex items-center gap-3 mt-2 flex-wrap">
-                  {confirmedBookings > 0 && (
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full bg-spring-green"></div>
-                      <p className="text-xs text-muted-foreground">
-                        Confirmed:{" "}
-                        <span className="text-spring-green font-bold">
-                          {confirmedBookings}
-                        </span>
-                      </p>
-                    </div>
-                  )}
-                  {pendingBookings > 0 && (
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
-                      <p className="text-xs text-muted-foreground">
-                        Pending:{" "}
-                        <span className="text-vivid-orange font-bold">
-                          {pendingBookings}
-                        </span>
-                      </p>
-                    </div>
-                  )}
-                  {completedBookings > 0 && (
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                      <p className="text-xs text-muted-foreground">
-                        Completed:{" "}
-                        <span className="text-blue-500 font-bold">
-                          {completedBookings}
-                        </span>
-                      </p>
-                    </div>
-                  )}
-                  {cancelledBookings > 0 && (
-                    <div className="flex items-center gap-1">
+      <div className="w-full space-y-3 sm:space-y-0 sm:grid sm:grid-cols-[1fr_1fr_auto] sm:gap-4">
+        {/* Stats Cards Container - Full width on mobile, 50-50 on desktop */}
+        <div className="grid grid-cols-2 gap-3 sm:contents">
+          {/* Total Bookings */}
+          <Card className="relative overflow-hidden border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 pr-6">
+                  <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
+                    Total Bookings
+                  </p>
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">
+                    {totalBookings}
+                  </p>
+                  {/* Breakdown */}
+                  <div className="flex items-center gap-3 mt-2 flex-wrap text-[11px] sm:text-xs">
+                    {confirmedBookings > 0 && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-spring-green"></div>
+                        <p className="text-xs text-muted-foreground">
+                          Confirmed:{" "}
+                          <span className="text-spring-green font-bold">
+                            {confirmedBookings}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                    {pendingBookings > 0 && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
+                        <p className="text-xs text-muted-foreground">
+                          Pending:{" "}
+                          <span className="text-vivid-orange font-bold">
+                            {pendingBookings}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                    {completedBookings > 0 && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                        <p className="text-xs text-muted-foreground">
+                          Completed:{" "}
+                          <span className="text-blue-500 font-bold">
+                            {completedBookings}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                    {cancelledBookings > 0 && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-crimson-red"></div>
+                        <p className="text-xs text-muted-foreground">
+                          Cancelled:{" "}
+                          <span className="text-crimson-red font-bold">
+                            {cancelledBookings}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-blue-500/20 to-blue-500/10 rounded-full rounded-br-none">
+                  <BsCalendar3 className="h-6 w-6 text-foreground" />
+                </div>
+              </div>
+              <div className="pointer-events-none absolute -bottom-4 -right-4 h-16 w-16 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-500/10 p-4 sm:hidden">
+                <BsCalendar3 className="h-full w-full text-foreground opacity-80" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Revenue & Pending */}
+          <Card className="relative overflow-hidden border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 pr-6">
+                  <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
+                    Revenue
+                  </p>
+                  <p className="text-2xl sm:text-3xl font-bold text-spring-green">
+                    {formatCurrency(totalRevenue)}
+                  </p>
+                  {pendingPayments > 0 && (
+                    <div className="flex items-center gap-1.5 mt-2">
                       <div className="w-2 h-2 rounded-full bg-crimson-red"></div>
                       <p className="text-xs text-muted-foreground">
-                        Cancelled:{" "}
+                        Pending:{" "}
                         <span className="text-crimson-red font-bold">
-                          {cancelledBookings}
+                          {formatCurrency(pendingPayments)}
                         </span>
                       </p>
                     </div>
                   )}
                 </div>
+                <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-crimson-red/20 to-crimson-red/10 rounded-full rounded-br-none">
+                  <HiTrendingUp className="h-6 w-6 text-foreground" />
+                </div>
               </div>
-              <div className="p-4 bg-gradient-to-br from-blue-500/20 to-blue-500/10 rounded-full rounded-br-none">
-                <BsCalendar3 className="h-6 w-6 text-foreground" />
+              <div className="pointer-events-none absolute -bottom-4 -right-4 h-16 w-16 rounded-full bg-gradient-to-br from-crimson-red/20 to-crimson-red/10 p-4 sm:hidden">
+                <HiTrendingUp className="h-full w-full text-foreground opacity-80" />
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
-        {/* Revenue & Pending */}
-        <Card className="border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
-                  Revenue
-                </p>
-                <p className="text-2xl font-bold text-spring-green">
-                  {formatCurrency(totalRevenue)}
-                </p>
-                {pendingPayments > 0 && (
-                  <div className="flex items-center gap-1.5 mt-2">
-                    <div className="w-2 h-2 rounded-full bg-crimson-red"></div>
-                    <p className="text-xs text-muted-foreground">
-                      Pending:{" "}
-                      <span className="text-crimson-red font-bold">
-                        {formatCurrency(pendingPayments)}
-                      </span>
-                    </p>
+        {/* Mobile Quick Actions */}
+        <div className="sm:hidden w-full">
+          <div className="grid grid-cols-2 gap-2">
+            {/* Sync from Google Sheets - Mobile (Left) */}
+            <SpreadsheetSync
+              onSyncComplete={() => {
+                toast({
+                  title: "✅ Sync Complete",
+                  description: "Bookings synced from Google Sheets",
+                  variant: "default",
+                });
+              }}
+              trigger={
+                <button
+                  type="button"
+                  className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-3 text-[11px] text-foreground shadow-sm hover:border-royal-purple/40 hover:shadow-md transition-all duration-200"
+                >
+                  <div className="bg-royal-purple mb-2 flex h-10 w-10 items-center justify-center rounded-full text-white">
+                    <RefreshCw className="h-5 w-5" />
                   </div>
-                )}
-              </div>
-              <div className="p-4 bg-gradient-to-br from-crimson-red/20 to-crimson-red/10 rounded-full rounded-br-none">
-                <HiTrendingUp className="h-6 w-6 text-foreground" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                  <span className="text-center leading-tight">Sync Sheets</span>
+                </button>
+              }
+            />
 
-        {/* Add Booking Button */}
-        <div className="flex items-center justify-center gap-3">
+            {/* Add Booking Button - Mobile (Right) */}
+            <button
+              type="button"
+              onClick={async () => {
+                setIsCreatingBooking(true);
+                try {
+                  // Compute next row number (fill gaps)
+                  const rowNumbers = (bookings || [])
+                    .map((b) => (typeof b.row === "number" ? b.row : 0))
+                    .filter((n) => n > 0)
+                    .sort((a, b) => a - b);
+                  let nextRowNumber = 1;
+                  for (let i = 0; i < rowNumbers.length; i++) {
+                    if (rowNumbers[i] !== i + 1) {
+                      nextRowNumber = i + 1;
+                      break;
+                    }
+                    nextRowNumber = i + 2;
+                  }
+
+                  // Create minimal doc then update with id/row/timestamps
+                  const newBookingId = await bookingService.createBooking({});
+                  const bookingData = {
+                    id: newBookingId,
+                    row: nextRowNumber,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                  } as any;
+                  await bookingService.updateBooking(newBookingId, bookingData);
+
+                  // Navigate with bookingId to open detail modal
+                  const params = new URLSearchParams(
+                    searchParams?.toString?.() ?? ""
+                  );
+                  params.set("bookingId", newBookingId);
+                  params.delete("action");
+                  router.push(`/bookings?${params.toString()}`, {
+                    scroll: false,
+                  });
+
+                  toast({
+                    title: "✅ Booking Created",
+                    description: `Successfully created a booking in row ${nextRowNumber}`,
+                    variant: "default",
+                  });
+
+                  setIsCreatingBooking(false);
+                } catch (error) {
+                  setIsCreatingBooking(false);
+                  toast({
+                    title: "❌ Failed to Create Booking",
+                    description: `Error: ${
+                      error instanceof Error ? error.message : "Unknown error"
+                    }`,
+                    variant: "destructive",
+                  });
+                }
+              }}
+              className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-3 text-[11px] text-foreground shadow-sm hover:border-crimson-red/40 hover:shadow-md transition-all duration-200"
+            >
+              <div className="bg-crimson-red mb-2 flex h-10 w-10 items-center justify-center rounded-full text-white">
+                <FaPlus className="h-5 w-5" />
+              </div>
+              <span className="text-center leading-tight">Add Booking</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop Add Booking & Import Buttons */}
+        <div className="hidden sm:flex items-center justify-center gap-3">
           <Button
             onClick={async () => {
               setIsCreatingBooking(true);
@@ -1394,8 +1496,8 @@ export default function BookingsSection() {
         }`}
         style={{ backgroundColor: "hsl(var(--card-surface))" }}
       >
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Search Bar */}
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1422,10 +1524,10 @@ export default function BookingsSection() {
               <DialogTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center gap-2 border-border hover:bg-crimson-red/10 hover:border-crimson-red hover:text-crimson-red"
+                  className="flex items-center gap-2 border-border hover:bg-crimson-red/10 hover:border-crimson-red hover:text-crimson-red px-3 sm:px-4"
                 >
                   <Filter className="h-4 w-4" />
-                  Filters
+                  <span className="hidden sm:inline">Filters</span>
                   {getActiveFiltersCount() > 0 && (
                     <Badge
                       variant="secondary"
@@ -1441,7 +1543,8 @@ export default function BookingsSection() {
               <Button
                 variant="outline"
                 onClick={() => setIsVersionHistoryOpen(true)}
-                className="flex items-center gap-2 border-border hover:bg-royal-purple/10 hover:border-royal-purple hover:text-royal-purple"
+                className="flex items-center gap-2 border-border hover:bg-royal-purple/10 hover:border-royal-purple hover:text-royal-purple px-3 sm:px-4"
+                title="Version History"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -1455,7 +1558,7 @@ export default function BookingsSection() {
                   <circle cx="12" cy="12" r="10" />
                   <polyline points="12 6 12 12 16 14" />
                 </svg>
-                Version History
+                <span className="hidden sm:inline">Version History</span>
               </Button>
               <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
@@ -2601,7 +2704,7 @@ export default function BookingsSection() {
       ) : viewMode === "cards" ? (
         <div
           ref={bookingsContainerRef}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"
+          className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3"
         >
           {filteredBookings
             .filter((booking) => booking.id && booking.id.trim() !== "") // Filter out bookings with empty IDs
@@ -2652,13 +2755,13 @@ export default function BookingsSection() {
                   )}
 
                   {/* Card Header */}
-                  <CardHeader className="p-3 pb-2 border-b border-border/50">
-                    <div className="flex items-start justify-between gap-2">
+                  <CardHeader className="p-2 sm:p-3 pb-1.5 sm:pb-2 border-b border-border/50">
+                    <div className="flex items-start justify-between gap-1.5 sm:gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1 mb-1 pl-8">
+                        <div className="flex items-center gap-0.5 sm:gap-1 mb-0.5 sm:mb-1 pl-6 sm:pl-8">
                           <Badge
                             variant="outline"
-                            className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
+                            className={`text-[8px] sm:text-xs font-medium border-0 text-foreground px-0.5 sm:px-1.5 py-0 rounded-full truncate max-w-[60px] sm:max-w-[80px] ${getStatusBgColor(
                               booking
                             )}`}
                             title={booking.bookingStatus || "Pending"}
@@ -2668,7 +2771,7 @@ export default function BookingsSection() {
                           {booking.bookingType !== "Individual" && (
                             <Badge
                               variant="outline"
-                              className={`text-xs font-medium border-0 text-foreground px-1.5 py-0 rounded-full truncate max-w-[80px] ${getBookingTypeBgColor(
+                              className={`text-[8px] sm:text-xs font-medium border-0 text-foreground px-0.5 sm:px-1.5 py-0 rounded-full truncate max-w-[60px] sm:max-w-[80px] ${getBookingTypeBgColor(
                                 booking.bookingType
                               )}`}
                               title={booking.bookingType}
@@ -2677,11 +2780,11 @@ export default function BookingsSection() {
                             </Badge>
                           )}
                         </div>
-                        <h3 className="font-bold text-lg text-foreground group-hover:text-crimson-red transition-colors truncate font-mono">
+                        <h3 className="font-bold text-xs sm:text-base text-foreground group-hover:text-crimson-red transition-colors truncate font-mono pt-1 sm:pt-1.5">
                           {booking.bookingId || "Invalid Booking"}
                         </h3>
-                        <CardDescription className="text-xs flex items-center gap-1 mt-0.5 truncate">
-                          <MdEmail className="h-3 w-3 flex-shrink-0 text-foreground" />
+                        <CardDescription className="text-[8px] sm:text-[10px] flex items-center gap-1 mt-0.5 truncate">
+                          <MdEmail className="h-2.5 w-2.5 sm:h-3 sm:w-3 flex-shrink-0 text-foreground" />
                           <span className="truncate">
                             {booking.emailAddress}
                           </span>
@@ -2689,7 +2792,7 @@ export default function BookingsSection() {
                       </div>
                       {/* Payment Plan Code */}
                       {getPaymentPlanCode(booking) && (
-                        <div className="text-2xl bg-crimson-red/10 font-bold text-crimson-red font-mono  px-2 py-1 rounded-full rounded-br-none">
+                        <div className="text-base sm:text-xl bg-crimson-red/10 font-bold text-crimson-red font-mono px-1 sm:px-2 py-0.5 sm:py-1 rounded-full rounded-br-none">
                           {getPaymentPlanCode(booking)}
                         </div>
                       )}
@@ -2697,20 +2800,20 @@ export default function BookingsSection() {
                   </CardHeader>
 
                   {/* Card Content */}
-                  <CardContent className="p-3 pt-2 space-y-2">
+                  <CardContent className="p-2 sm:p-3 pt-1.5 sm:pt-2 space-y-1.5 sm:space-y-2">
                     {/* Field 1 - Dynamic */}
                     {(() => {
                       const IconComponent = getFieldIcon(
                         cardFieldMappings.field1
                       );
                       return (
-                        <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                          <IconComponent className="h-4 w-4 text-foreground flex-shrink-0" />
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                          <IconComponent className="h-3 w-3 sm:h-4 sm:w-4 text-foreground flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-muted-foreground font-medium">
+                            <p className="text-[7px] sm:text-[9px] text-muted-foreground font-medium">
                               {getColumnLabel(cardFieldMappings.field1)}
                             </p>
-                            <p className="text-sm font-semibold text-foreground truncate">
+                            <p className="text-[8px] sm:text-xs font-semibold text-foreground truncate">
                               {getFieldValue(booking, cardFieldMappings.field1)}
                             </p>
                           </div>
@@ -2724,13 +2827,13 @@ export default function BookingsSection() {
                         cardFieldMappings.field2
                       );
                       return (
-                        <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                          <IconComponent className="h-4 w-4 text-foreground flex-shrink-0" />
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                          <IconComponent className="h-3 w-3 sm:h-4 sm:w-4 text-foreground flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-muted-foreground font-medium">
+                            <p className="text-[7px] sm:text-[9px] text-muted-foreground font-medium">
                               {getColumnLabel(cardFieldMappings.field2)}
                             </p>
-                            <p className="text-sm font-semibold text-foreground truncate">
+                            <p className="text-[8px] sm:text-xs font-semibold text-foreground truncate">
                               {getFieldValue(booking, cardFieldMappings.field2)}
                             </p>
                           </div>
@@ -2739,19 +2842,19 @@ export default function BookingsSection() {
                     })()}
 
                     {/* Fields 3 - Dynamic Dates */}
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                       {(() => {
                         const IconComponentLeft = getFieldIcon(
                           cardFieldMappings.field3_left
                         );
                         return (
-                          <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                            <IconComponentLeft className="h-4 w-4 text-foreground flex-shrink-0" />
+                          <div className="flex items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                            <IconComponentLeft className="h-3 w-3 sm:h-4 sm:w-4 text-foreground flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-[10px] text-muted-foreground font-medium">
+                              <p className="text-[7px] sm:text-[9px] text-muted-foreground font-medium">
                                 {getColumnLabel(cardFieldMappings.field3_left)}
                               </p>
-                              <p className="text-xs font-semibold text-foreground">
+                              <p className="text-[8px] sm:text-[10px] font-semibold text-foreground">
                                 {getFieldValue(
                                   booking,
                                   cardFieldMappings.field3_left
@@ -2766,13 +2869,13 @@ export default function BookingsSection() {
                           cardFieldMappings.field3_right
                         );
                         return (
-                          <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                            <IconComponentRight className="h-4 w-4 text-foreground flex-shrink-0" />
+                          <div className="flex items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                            <IconComponentRight className="h-3 w-3 sm:h-4 sm:w-4 text-foreground flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-[10px] text-muted-foreground font-medium">
+                              <p className="text-[7px] sm:text-[9px] text-muted-foreground font-medium">
                                 {getColumnLabel(cardFieldMappings.field3_right)}
                               </p>
-                              <p className="text-xs font-semibold text-foreground">
+                              <p className="text-[8px] sm:text-[10px] font-semibold text-foreground">
                                 {getFieldValue(
                                   booking,
                                   cardFieldMappings.field3_right
@@ -2785,16 +2888,16 @@ export default function BookingsSection() {
                     </div>
 
                     {/* Field 4 - Dynamic Payment */}
-                    <div className="p-2.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <IoWallet className="h-4 w-4 text-foreground" />
-                          <span className="text-xs font-semibold text-foreground">
+                    <div className="p-1.5 sm:p-2.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between mb-1 sm:mb-1.5">
+                        <div className="flex items-center gap-1 sm:gap-1.5">
+                          <IoWallet className="h-3 w-3 sm:h-4 sm:w-4 text-foreground" />
+                          <span className="text-[7px] sm:text-[10px] font-semibold text-foreground">
                             {getColumnLabel(cardFieldMappings.field4)}
                           </span>
                         </div>
                         <span
-                          className={`text-xs font-bold ${
+                          className={`text-[8px] sm:text-[10px] font-bold ${
                             calculatePaymentProgress(booking) === 100
                               ? "text-spring-green"
                               : "text-crimson-red"
@@ -2805,7 +2908,7 @@ export default function BookingsSection() {
                       </div>
 
                       {/* Progress Bar */}
-                      <div className="w-full bg-background/50 rounded-full h-2 mb-1.5 border border-border/30">
+                      <div className="w-full bg-background/50 rounded-full h-1.5 sm:h-2 mb-1 sm:mb-1.5 border border-border/30">
                         <div
                           className={`h-full rounded-full transition-all duration-300 ${
                             calculatePaymentProgress(booking) === 100
@@ -2818,9 +2921,9 @@ export default function BookingsSection() {
                         />
                       </div>
 
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-spring-green"></div>
+                      <div className="flex items-center justify-between text-[7px] sm:text-[10px]">
+                        <div className="flex items-center gap-0.5 sm:gap-1">
+                          <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-spring-green"></div>
                           <span className="text-muted-foreground">
                             Paid:{" "}
                             <span className="font-bold text-spring-green">
@@ -2830,8 +2933,8 @@ export default function BookingsSection() {
                         </div>
                         {getTotalCost(booking) - safeNumber(booking.paid, 0) >
                           0 && (
-                          <div className="flex items-center gap-1">
-                            <div className="w-1.5 h-1.5 rounded-full bg-crimson-red"></div>
+                          <div className="flex items-center gap-0.5 sm:gap-1">
+                            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-crimson-red"></div>
                             <span className="text-muted-foreground">
                               Due:{" "}
                               <span className="font-bold text-crimson-red">
@@ -2973,34 +3076,34 @@ export default function BookingsSection() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-muted/30 border-b border-border">
-                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-10 md:w-auto">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[40px] md:w-auto">
                       Row #
                     </th>
-                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-14 md:w-auto">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[100px] md:w-auto">
                       Booking ID
                     </th>
-                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-18 md:w-auto">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[130px] md:w-auto">
                       Email
                     </th>
-                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-20 md:w-auto">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[90px] md:w-auto">
                       {getColumnLabel(cardFieldMappings.field1)}
                     </th>
-                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-20 md:w-auto">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[90px] md:w-auto">
                       {getColumnLabel(cardFieldMappings.field2)}
                     </th>
-                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-18 md:w-auto">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[80px] md:w-auto">
                       {getColumnLabel(cardFieldMappings.field3_left)}
                     </th>
-                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-18 md:w-auto">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[80px] md:w-auto">
                       {getColumnLabel(cardFieldMappings.field3_right)}
                     </th>
-                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-14 md:w-auto">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[70px] md:w-auto">
                       Status
                     </th>
-                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-18 md:w-auto">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[60px] md:w-auto">
                       Payment
                     </th>
-                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] w-10 md:w-auto">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[50px] md:w-auto">
                       Plan
                     </th>
                   </tr>

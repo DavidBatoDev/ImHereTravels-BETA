@@ -125,35 +125,40 @@ export default function SpreadsheetSync({
   };
 
   const renderInputStep = () => (
-    <div className="space-y-4">
-      <Alert>
+    <div className="space-y-3 sm:space-y-4">
+      <Alert className="py-3 sm:py-4">
         <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Warning: This will replace all bookings</AlertTitle>
-        <AlertDescription>
+        <AlertTitle className="text-sm sm:text-base">
+          Warning: This will replace all bookings
+        </AlertTitle>
+        <AlertDescription className="text-xs sm:text-sm">
           This action will download data from the ImHereTravels spreadsheet and
           replace all existing bookings in your database. This cannot be undone.
         </AlertDescription>
       </Alert>
 
       <div className="space-y-2">
-        <Label htmlFor="sheet-name">Sheet Name (Optional)</Label>
+        <Label htmlFor="sheet-name" className="text-sm sm:text-base">
+          Sheet Name (Optional)
+        </Label>
         <Input
           id="sheet-name"
           placeholder="Main Dashboard"
           value={sheetName}
           onChange={(e) => setSheetName(e.target.value)}
           disabled={isSyncing}
+          className="text-sm sm:text-base"
         />
         <p className="text-xs text-muted-foreground">
           Defaults to "Main Dashboard" if left empty
         </p>
       </div>
 
-      <Alert>
+      <Alert className="py-3 sm:py-4">
         <Database className="h-4 w-4" />
-        <AlertTitle>How it works</AlertTitle>
+        <AlertTitle className="text-sm sm:text-base">How it works</AlertTitle>
         <AlertDescription>
-          <ol className="list-decimal list-inside space-y-1 text-sm mt-2">
+          <ol className="list-decimal list-inside space-y-1 text-xs sm:text-sm mt-2">
             <li>Connects to the ImHereTravels Google Spreadsheet</li>
             <li>Downloads CSV data from the specified sheet</li>
             <li>Validates the data format</li>
@@ -163,11 +168,16 @@ export default function SpreadsheetSync({
         </AlertDescription>
       </Alert>
 
-      <Alert variant="default" className="bg-blue-50 border-blue-200">
+      <Alert
+        variant="default"
+        className="bg-blue-50 border-blue-200 py-3 sm:py-4"
+      >
         <ExternalLink className="h-4 w-4" />
-        <AlertTitle>Spreadsheet Information</AlertTitle>
+        <AlertTitle className="text-sm sm:text-base">
+          Spreadsheet Information
+        </AlertTitle>
         <AlertDescription>
-          <ul className="list-disc list-inside space-y-1 text-sm mt-2">
+          <ul className="list-disc list-inside space-y-1 text-xs sm:text-sm mt-2">
             <li>Connected to the official ImHereTravels booking spreadsheet</li>
             <li>
               Accessed using Bella's account (
@@ -183,11 +193,13 @@ export default function SpreadsheetSync({
   );
 
   const renderSyncingStep = () => (
-    <div className="space-y-4">
-      <div className="text-center py-8">
-        <RefreshCw className="w-16 h-16 mx-auto text-blue-600 animate-spin mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Syncing from Spreadsheet</h3>
-        <p className="text-sm text-muted-foreground mb-4">
+    <div className="space-y-3 sm:space-y-4">
+      <div className="text-center py-6 sm:py-8">
+        <RefreshCw className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-blue-600 animate-spin mb-3 sm:mb-4" />
+        <h3 className="text-base sm:text-lg font-semibold mb-2">
+          Syncing from Spreadsheet
+        </h3>
+        <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
           Downloading and importing data...
         </p>
         <Progress value={syncProgress} className="w-full" />
@@ -199,19 +211,21 @@ export default function SpreadsheetSync({
   );
 
   const renderCompleteStep = () => (
-    <div className="space-y-4">
-      <div className="text-center py-8">
-        <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-          <CheckCircle className="w-10 h-10 text-green-600" />
+    <div className="space-y-3 sm:space-y-4">
+      <div className="text-center py-6 sm:py-8">
+        <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+          <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" />
         </div>
-        <h3 className="text-lg font-semibold mb-2">Sync Complete!</h3>
+        <h3 className="text-base sm:text-lg font-semibold mb-2">
+          Sync Complete!
+        </h3>
         {syncResult && (
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {syncResult.message}
             </p>
             {syncResult.validRows !== undefined && (
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 <p>Valid bookings imported: {syncResult.validRows}</p>
               </div>
             )}
@@ -231,14 +245,14 @@ export default function SpreadsheetSync({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="space-y-2 sm:space-y-3">
+          <DialogTitle className="text-lg sm:text-xl">
             {step === "input" && "Sync from Google Spreadsheet"}
             {step === "syncing" && "Syncing..."}
             {step === "complete" && "Sync Complete"}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm sm:text-base">
             {step === "input" &&
               "Download and import bookings from your Google Spreadsheet"}
             {step === "syncing" && "Please wait while we sync your data"}
@@ -252,18 +266,19 @@ export default function SpreadsheetSync({
         {step === "complete" && renderCompleteStep()}
 
         {step === "input" && (
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
             <Button
               variant="outline"
               onClick={() => handleOpenChange(false)}
               disabled={isSyncing}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button
               onClick={handleConfirmSync}
               disabled={isSyncing}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               Confirm Sync
