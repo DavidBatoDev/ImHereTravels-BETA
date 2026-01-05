@@ -31,6 +31,8 @@ export async function POST(req: NextRequest) {
       isGuestBooking,
       parentBookingId,
       guestData,
+      bookingType,
+      numberOfGuests,
     } = await req.json();
 
     // Validate required fields
@@ -155,7 +157,7 @@ export async function POST(req: NextRequest) {
         automatic_payment_methods: {
           enabled: true,
         },
-        description: `Reservation fee for ${tourPackageName || tourPackage}`,
+        description: `Reservation fee for ${tourPackageName || tourPackage}${numberOfGuests && numberOfGuests > 1 ? ` (${numberOfGuests} guests)` : ''}`,
         metadata: {
           ...meta,
           email,
@@ -163,6 +165,8 @@ export async function POST(req: NextRequest) {
           tourPackageName: tourPackageName || tourPackage,
           type: "reservationFee",
           source: "reservation-form",
+          bookingType: bookingType || "Single Booking",
+          numberOfGuests: numberOfGuests ? String(numberOfGuests) : "1",
         },
       },
       {

@@ -975,6 +975,18 @@
   animation: slide-down 0.3s ease-out;
 }
 
+/* Smooth slide down animation for error message */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Fade in animation for step descriptions */
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out;
@@ -1024,4 +1036,272 @@
 .animate-shimmer {
   background-size: 200% 100%;
   animation: shimmer 2s infinite linear;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(var(--float-distance, -6px));
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Print styles for receipt */
+@media print {
+  @page {
+    margin: 0.5in;
+    size: A4;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: auto;
+  }
+
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    background: white !important;
+    color: #000 !important;
+  }
+
+  /* Force light mode for all elements */
+  *,
+  .dark,
+  [data-theme="dark"],
+  .dark *,
+  [data-theme="dark"] * {
+    background-color: transparent !important;
+    color: #000 !important;
+  }
+
+  /* Hide the main page background and theme toggle */
+  .min-h-screen.bg-background {
+    background: white !important;
+  }
+
+  .min-h-screen.bg-background > .absolute.inset-0.z-0 {
+    display: none !important;
+  }
+
+  .fixed.top-6.right-6.z-50 {
+    display: none !important;
+  }
+
+  /* Hide the main form section - only when printing from confirmation page */
+  body:has(.fixed.inset-0.z-50.bg-background) .min-h-screen.bg-background > .relative.z-10 {
+    display: none !important;
+  }
+
+  /* Alternative: Hide main content when confirmation exists */
+  .min-h-screen.bg-background > .relative.z-10 {
+    display: none !important;
+  }
+
+  /* Show only the fixed confirmation modal */
+  .fixed.inset-0.z-50.bg-background {
+    display: block !important;
+    position: static !important;
+    background: white !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .fixed.inset-0.z-50.bg-background > .absolute.inset-0.z-0 {
+    display: none !important;
+  }
+
+  .fixed.inset-0.z-50.bg-background > .relative.z-10 {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: static !important;
+    width: 100% !important;
+  }
+
+  /* If no confirmation modal exists, show the form */
+  body:not(:has(.fixed.inset-0.z-50.bg-background)) .min-h-screen.bg-background > .relative.z-10 {
+    display: block !important;
+  }
+
+  /* Style the card for print */
+  .max-w-2xl.w-full.bg-card {
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 20px !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Light backgrounds for print */
+  .bg-card,
+  .bg-background {
+    background: white !important;
+  }
+
+  .bg-muted {
+    background: #f5f5f5 !important;
+  }
+
+  .bg-muted\/30 {
+    background: #f9f9f9 !important;
+  }
+
+  /* Text colors for print (light mode) */
+  .text-foreground,
+  .text-foreground * {
+    color: #000 !important;
+  }
+
+  .text-muted-foreground,
+  .text-muted-foreground * {
+    color: #666 !important;
+  }
+
+  /* Border colors */
+  .border-border {
+    border-color: #d1d5db !important;
+  }
+
+  /* Print-only Booking Confirmed section styling */
+  .hidden.print\:block {
+    display: block !important;
+    page-break-inside: avoid;
+  }
+
+  .hidden.print\:block.bg-green-50 {
+    background: #f0fdf4 !important;
+    border: 2px solid #86efac !important;
+    padding: 24px !important;
+    border-radius: 8px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .hidden.print\:block .text-green-600 {
+    color: #16a34a !important;
+  }
+
+  .hidden.print\:block .text-black {
+    color: #000 !important;
+  }
+
+  .hidden.print\:block .text-gray-600 {
+    color: #4b5563 !important;
+  }
+
+  /* Ensure receipt header stays red */
+  .receipt-header,
+  .from-crimson-red.to-red-600 {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+    background: #ef4444 !important;
+    background-image: linear-gradient(to right, #ef4444, #dc2626) !important;
+    color: white !important;
+  }
+
+  .receipt-header *,
+  .from-crimson-red.to-red-600 * {
+    color: white !important;
+  }
+
+  .receipt-header .text-red-100 {
+    color: rgba(255, 255, 255, 0.9) !important;
+  }
+
+  /* Receipt container styling */
+  .receipt-container {
+    page-break-inside: avoid;
+  }
+
+  /* Hide screen-only elements */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Show print-only elements */
+  .print\:block {
+    display: block !important;
+  }
+
+  /* Print utility classes */
+  .print\:text-black {
+    color: #000 !important;
+  }
+
+  .print\:text-gray-600 {
+    color: #4b5563 !important;
+  }
+
+  .print\:text-gray-900 {
+    color: #111827 !important;
+  }
+
+  .print\:bg-gray-50 {
+    background: #f9fafb !important;
+  }
+
+  .print\:bg-gray-100 {
+    background: #f3f4f6 !important;
+  }
+
+  .print\:border-gray-300 {
+    border-color: #d1d5db !important;
+  }
+
+  .print\:rounded-none {
+    border-radius: 0 !important;
+  }
+
+  .print\:shadow-none {
+    box-shadow: none !important;
+  }
+
+  .print\:border-0 {
+    border-width: 0 !important;
+  }
+
+  .print\:bg-white {
+    background: white !important;
+  }
+
+  .print\:p-0 {
+    padding: 0 !important;
+  }
+
+  .print\:page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  /* Text styling for print */
+  h1, h2, h3, h4, h5, h6 {
+    color: #000 !important;
+    page-break-after: avoid;
+  }
+
+  p, span, div {
+    color: inherit;
+  }
+
+  /* SVG icons */
+  svg {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
 }
