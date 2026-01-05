@@ -151,7 +151,19 @@ const Page = () => {
   const [groupSize, setGroupSize] = useState<number>(3);
   const [tourPackage, setTourPackage] = useState(""); // will store package id
   const [tourDate, setTourDate] = useState("");
-  const [additionalGuests, setAdditionalGuests] = useState<string[]>([]);
+  const [additionalGuests, setAdditionalGuests] = useState<string[]>([]); // Keep for backward compatibility
+  
+  // New state for guest personal details
+  const [activeGuestTab, setActiveGuestTab] = useState(1); // Track which guest form is active
+  const [guestDetails, setGuestDetails] = useState<Array<{
+    email: string;
+    firstName: string;
+    lastName: string;
+    birthdate: string;
+    nationality: string;
+    whatsAppNumber: string;
+    whatsAppCountry: string;
+  }>>([]);
 
   // dynamic tour packages and dates loaded from Firestore
   // Auto-update WhatsApp country code when nationality changes
@@ -247,7 +259,7 @@ const Page = () => {
   const sessionRestoredRef = useRef(false);
 
   // ---- multi-step flow state ----
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | number>(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [paymentConfirmed, setPaymentConfirmedState] = useState(false);
 
@@ -314,9 +326,9 @@ const Page = () => {
         return "Fill in your personal details and select your tour name";
       case 2:
         return selectedPackage
-          ? `Pay £${depositAmount.toFixed(
-              2
-            )} reservation fee to secure your spot`
+          ? bookingType === "Duo Booking" || bookingType === "Group Booking"
+            ? `Pay £${depositAmount.toFixed(2)} reservation fee (£${baseReservationFee.toFixed(2)} × ${numberOfPeople} ${numberOfPeople === 1 ? 'person' : 'people'}) to secure your spots`
+            : `Pay £${depositAmount.toFixed(2)} reservation fee to secure your spot`
           : "Pay a small reservation fee to secure your spot";
       case 3:
         if (availablePaymentTerm.isInvalid) {
@@ -369,6 +381,21 @@ const Page = () => {
             bookingType === "Duo Booking" || bookingType === "Group Booking"
               ? additionalGuests
               : [],
+          guestDetails:
+            bookingType === "Duo Booking" || bookingType === "Group Booking"
+              ? guestDetails.map(guest => ({
+                  email: guest.email,
+                  firstName: guest.firstName,
+                  lastName: guest.lastName,
+                  birthdate: guest.birthdate,
+                  nationality: guest.nationality,
+                  whatsAppNumber: guest.whatsAppNumber
+                    ? `+${safeGetCountryCallingCode(
+                        guest.whatsAppCountry
+                      )}${guest.whatsAppNumber}`
+                    : "",
+                }))
+              : [],
           id: "PENDING",
           documentId: "",
         },
@@ -413,8 +440,17 @@ const Page = () => {
 
   // Query existing stripePayments for this email and show modal if any
   const checkExistingPaymentsAndMaybeProceed = async () => {
-    if (!validate()) return;
-    if (isCreatingPayment) return;
+    console.log("🚀 checkExistingPaymentsAndMaybeProceed called");
+    if (!validate()) {
+      console.log("❌ Validation failed");
+      return;
+    }
+    console.log("✅ Validation passed");
+    if (isCreatingPayment) {
+      console.log("⏳ Already creating payment, exiting");
+      return;
+    }
+    console.log("🔄 Setting isCreatingPayment to true");
     setIsCreatingPayment(true);
 
     // If we already have a paymentDocId, update it with current form data before proceeding
@@ -445,6 +481,21 @@ const Page = () => {
             additionalGuests:
               bookingType === "Duo Booking" || bookingType === "Group Booking"
                 ? additionalGuests
+                : [],
+            guestDetails:
+              bookingType === "Duo Booking" || bookingType === "Group Booking"
+                ? guestDetails.map(guest => ({
+                    email: guest.email,
+                    firstName: guest.firstName,
+                    lastName: guest.lastName,
+                    birthdate: guest.birthdate,
+                    nationality: guest.nationality,
+                    whatsAppNumber: guest.whatsAppNumber
+                      ? `+${safeGetCountryCallingCode(
+                          guest.whatsAppCountry
+                        )}${guest.whatsAppNumber}`
+                      : "",
+                  }))
                 : [],
             id: "PENDING",
             documentId: "",
@@ -1072,7 +1123,58 @@ const Page = () => {
 
   // Get reservation fee from selected package (not the full deposit)
   const selectedPackage = tourPackages.find((p) => p.id === tourPackage);
-  const depositAmount = (selectedPackage as any)?.reservationFee ?? 250;
+  const baseReservationFee = (selectedPackage as any)?.reservationFee ?? 250;
+  
+  // Calculate total reservation fee based on booking type
+  const numberOfPeople = bookingType === "Group Booking" 
+    ? groupSize 
+    : bookingType === "Duo Booking" 
+    ? 2 
+    : 1;
+  const depositAmount = baseReservationFee * numberOfPeople;
+
+  // Update payment intent when booking type or group size changes (after payment doc is created)
+  useEffect(() => {
+    const updatePaymentIntent = async () => {
+      if (!paymentDocId || !selectedPackage || step !== 1) return;
+      
+      try {
+        console.log("🔄 Updating payment intent due to booking changes:", {
+          bookingType,
+          numberOfPeople,
+          depositAmount,
+        });
+
+        const response = await fetch("/api/stripe-payments/update-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paymentDocId,
+            amountGBP: depositAmount,
+            bookingType,
+            numberOfGuests: numberOfPeople,
+            tourPackageName: selectedPackage.name,
+          }),
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+          if (data.cannotUpdate) {
+            console.log("ℹ️ Payment intent cannot be updated (already in terminal state)");
+          } else {
+            console.error("Failed to update payment intent:", data.error);
+          }
+        } else {
+          console.log("✅ Payment intent updated successfully");
+        }
+      } catch (error) {
+        console.error("Error updating payment intent:", error);
+      }
+    };
+
+    updatePaymentIntent();
+  }, [bookingType, groupSize, depositAmount, paymentDocId, selectedPackage, step]);
 
   // Set `tour` query param when entering Payment (step 2)
   useEffect(() => {
@@ -1278,7 +1380,8 @@ const Page = () => {
   ): Array<{ date: string; amount: number }> => {
     if (!tourDate || !selectedPackage) return [];
 
-    const remainingBalance = selectedPackage.price - depositAmount;
+    const totalTourPrice = selectedPackage.price * numberOfPeople;
+    const remainingBalance = totalTourPrice - depositAmount;
     const monthlyAmount = remainingBalance / monthsRequired;
     const schedule: Array<{ date: string; amount: number }> = [];
 
@@ -2740,6 +2843,17 @@ const Page = () => {
         setAdditionalGuests([additionalGuests[0] ?? ""]);
         setGroupSize(2);
         setBookingType("Duo Booking");
+        // Initialize 1 guest detail
+        setGuestDetails([{
+          email: guestDetails[0]?.email || "",
+          firstName: guestDetails[0]?.firstName || "",
+          lastName: guestDetails[0]?.lastName || "",
+          birthdate: guestDetails[0]?.birthdate || "",
+          nationality: guestDetails[0]?.nationality || "",
+          whatsAppNumber: guestDetails[0]?.whatsAppNumber || "",
+          whatsAppCountry: guestDetails[0]?.whatsAppCountry || "GB",
+        }]);
+        setActiveGuestTab(2);
       });
       return;
     }
@@ -2750,6 +2864,7 @@ const Page = () => {
       await animateHeight(startH, 0);
       setGuestsHeight("0px");
       setAdditionalGuests([]);
+      setGuestDetails([]);
       setGroupSize(3);
       setBookingType("Single Booking");
       setTimeout(() => setGuestsMounted(false), 20);
@@ -2762,6 +2877,17 @@ const Page = () => {
         setGroupSize(2);
         setAdditionalGuests((prev) => [prev[0] ?? ""]);
         setBookingType("Duo Booking");
+        // Initialize 1 guest detail
+        setGuestDetails([{
+          email: guestDetails[0]?.email || "",
+          firstName: guestDetails[0]?.firstName || "",
+          lastName: guestDetails[0]?.lastName || "",
+          birthdate: guestDetails[0]?.birthdate || "",
+          nationality: guestDetails[0]?.nationality || "",
+          whatsAppNumber: guestDetails[0]?.whatsAppNumber || "",
+          whatsAppCountry: guestDetails[0]?.whatsAppCountry || "GB",
+        }]);
+        setActiveGuestTab(2);
       });
       return;
     }
@@ -2777,6 +2903,21 @@ const Page = () => {
           while (copy.length < slots) copy.push("");
           return copy;
         });
+        // Initialize guest details array
+        const newGuestDetails: Array<{email: string; firstName: string; lastName: string; birthdate: string; nationality: string; whatsAppNumber: string; whatsAppCountry: string}> = [];
+        for (let i = 0; i < slots; i++) {
+          newGuestDetails.push({
+            email: guestDetails[i]?.email || "",
+            firstName: guestDetails[i]?.firstName || "",
+            lastName: guestDetails[i]?.lastName || "",
+            birthdate: guestDetails[i]?.birthdate || "",
+            nationality: guestDetails[i]?.nationality || "",
+            whatsAppNumber: guestDetails[i]?.whatsAppNumber || "",
+            whatsAppCountry: guestDetails[i]?.whatsAppCountry || "GB",
+          });
+        }
+        setGuestDetails(newGuestDetails);
+        setActiveGuestTab(2);
       });
       return;
     }
@@ -2794,6 +2935,23 @@ const Page = () => {
         while (copy.length < needed) copy.push("");
         return copy;
       });
+      // Update guest details array
+      setGuestDetails((prev) => {
+        const needed = clamped - 1;
+        const copy = prev.slice(0, needed);
+        while (copy.length < needed) {
+          copy.push({
+            email: "",
+            firstName: "",
+            lastName: "",
+            birthdate: "",
+            nationality: "",
+            whatsAppNumber: "",
+            whatsAppCountry: "GB",
+          });
+        }
+        return copy;
+      });
     });
   };
 
@@ -2804,12 +2962,15 @@ const Page = () => {
   };
 
   const validate = () => {
+    console.log("🔍 Starting validation...");
     const e: { [k: string]: string } = {};
 
+    console.log("📧 Validating email:", email);
     if (!email) e.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       e.email = "Enter a valid email";
 
+    console.log("🎂 Validating birthdate:", birthdate);
     if (!birthdate) e.birthdate = "Birthdate is required";
     else {
       // Validate age is 18 or older
@@ -2823,14 +2984,99 @@ const Page = () => {
       }
       if (age < 18) e.birthdate = "Must be 18 years or older";
     }
+    console.log("👤 Validating names:", { firstName, lastName });
     if (!firstName) e.firstName = "First name is required";
     if (!lastName) e.lastName = "Last name is required";
+    
+    console.log("🌍 Validating nationality:", nationality);
     if (!nationality) e.nationality = "Nationality is required";
+    
+    console.log("🎫 Validating booking details:", { bookingType, tourPackage, tourDate });
     if (!bookingType) e.bookingType = "Booking type is required";
     if (!tourPackage) e.tourPackage = "Tour name is required";
     if (tourPackage && !tourDate) e.tourDate = "Tour date is required";
 
-    // Duo/Group guests email check
+    console.log("📱 Validating WhatsApp:", { whatsAppNumber, whatsAppCountry });
+    if (!whatsAppNumber) {
+      e.whatsAppNumber = "WhatsApp number is required";
+      console.log("❌ WhatsApp number is empty");
+    } else {
+      const fullNumber = `+${safeGetCountryCallingCode(whatsAppCountry)}${whatsAppNumber}`;
+      const isValid = isValidPhoneNumber(fullNumber);
+      console.log("📱 WhatsApp validation:", { fullNumber, isValid });
+      if (!isValid) {
+        e.whatsAppNumber = "Invalid WhatsApp number";
+        console.log("❌ WhatsApp number is invalid");
+      }
+    }
+
+    // Duo/Group guests validation - check guestDetails array
+    console.log("👥 Validating guest details:", {
+      bookingType,
+      guestDetailsLength: guestDetails.length,
+      guestDetails
+    });
+    
+    if (bookingType === "Duo Booking" || bookingType === "Group Booking") {
+      const expectedLength = bookingType === "Duo Booking" ? 1 : groupSize - 1;
+      console.log(`👥 Expected ${expectedLength} guests, found ${guestDetails.length}`);
+      
+      if (guestDetails.length === 0) {
+        e.guests = "Guest details are required";
+        console.log("❌ No guest details found");
+      } else if (guestDetails.length !== expectedLength) {
+        e.guests = `Expected ${expectedLength} guest(s), but found ${guestDetails.length}`;
+        console.log(`❌ Wrong number of guests`);
+      } else {
+        // Validate each guest's details
+        guestDetails.forEach((guest, idx) => {
+          console.log(`👤 Validating guest ${idx + 1}:`, guest);
+          
+          if (!guest.email) {
+            e[`guest-${idx}-email`] = `Guest ${idx + 1} email is required`;
+            console.log(`❌ Guest ${idx + 1} email missing`);
+          } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email)) {
+            e[`guest-${idx}-email`] = `Guest ${idx + 1} email is invalid`;
+            console.log(`❌ Guest ${idx + 1} email invalid`);
+          }
+          
+          if (!guest.firstName) {
+            e[`guest-${idx}-firstName`] = `Guest ${idx + 1} first name is required`;
+            console.log(`❌ Guest ${idx + 1} firstName missing`);
+          }
+          
+          if (!guest.lastName) {
+            e[`guest-${idx}-lastName`] = `Guest ${idx + 1} last name is required`;
+            console.log(`❌ Guest ${idx + 1} lastName missing`);
+          }
+          
+          if (!guest.birthdate) {
+            e[`guest-${idx}-birthdate`] = `Guest ${idx + 1} birthdate is required`;
+            console.log(`❌ Guest ${idx + 1} birthdate missing`);
+          }
+          
+          if (!guest.nationality) {
+            e[`guest-${idx}-nationality`] = `Guest ${idx + 1} nationality is required`;
+            console.log(`❌ Guest ${idx + 1} nationality missing`);
+          }
+          
+          if (!guest.whatsAppNumber) {
+            e[`guest-${idx}-whatsAppNumber`] = `Guest ${idx + 1} WhatsApp is required`;
+            console.log(`❌ Guest ${idx + 1} whatsAppNumber missing`);
+          } else {
+            const fullNumber = `+${safeGetCountryCallingCode(guest.whatsAppCountry)}${guest.whatsAppNumber}`;
+            const isValid = isValidPhoneNumber(fullNumber);
+            console.log(`📱 Guest ${idx + 1} WhatsApp validation:`, { fullNumber, isValid });
+            if (!isValid) {
+              e[`guest-${idx}-whatsAppNumber`] = `Guest ${idx + 1} WhatsApp is invalid`;
+              console.log(`❌ Guest ${idx + 1} whatsAppNumber invalid`);
+            }
+          }
+        });
+      }
+    }
+
+    // Legacy additionalGuests validation (keeping for backward compatibility)
     if (
       (bookingType === "Duo Booking" || bookingType === "Group Booking") &&
       additionalGuests.length
@@ -2841,6 +3087,23 @@ const Page = () => {
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g))
           e[`guest-${idx}`] = `Guest #${idx + 1} enter a valid email`;
       });
+    }
+
+    console.log("📋 Validation errors:", e);
+    console.log("✅ Validation result:", Object.keys(e).length === 0 ? "PASSED" : "FAILED");
+
+    // Auto-focus the first guest tab that has an error so the user can see missing fields
+    const firstGuestErrorKey = Object.keys(e).find((key) =>
+      key === "guests" || key.startsWith("guest-")
+    );
+    if (firstGuestErrorKey) {
+      const match = firstGuestErrorKey.match(/^guest-(\d+)/);
+      if (match) {
+        const guestIdx = Number(match[1]);
+        // guestIdx is zero-based; tabs are 1 (main) then 2... for guests
+        setActiveGuestTab(guestIdx + 2);
+        console.log("🔎 Focusing guest tab", guestIdx + 2, "due to validation error");
+      }
     }
 
     setErrors(e);
@@ -4183,6 +4446,8 @@ const Page = () => {
                         )}
                       </div>
                     </div>
+
+                    </div>
                   </div>
 
                   {/* Personal & Reservation Details Section */}
@@ -4207,9 +4472,141 @@ const Page = () => {
                         Personal & Reservation details
                       </h3>
                     </div>
+
+                    {/* Booking Type Field - First field in Personal Details */}
+                    <div className="mb-8 transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
+                      <label className="block">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
+                          Booking type
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <Select
+                          value={bookingType}
+                          onChange={(v) => handleBookingTypeChange(v)}
+                          options={bookingTypeOptions}
+                          placeholder="Select booking type"
+                          ariaLabel="Booking Type"
+                          className="mt-1"
+                          disabled={paymentConfirmed}
+                          isValid={!!bookingType && !errors.bookingType}
+                        />
+                        {errors.bookingType && (
+                          <p className="mt-2 text-xs text-destructive flex items-center gap-1 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            {errors.bookingType}
+                          </p>
+                        )}
+                      </label>
+
+                      {/* Group Size Controls - Only show for Group Booking */}
+                      {bookingType === "Group Booking" && (
+                        <div className="mt-6 p-6 rounded-lg bg-gradient-to-r from-card/50 to-card/80 border border-border shadow-sm transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
+                          <div className="flex items-center justify-between gap-4">
+                            <label className="text-sm font-semibold text-foreground flex items-center gap-3">
+                              <svg className="w-5 h-5 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                              </svg>
+                              <span>Group size (including you)</span>
+                            </label>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                aria-label="Decrease group size"
+                                onClick={() => handleGroupSizeChange(groupSize - 1)}
+                                className="h-11 w-11 rounded-full bg-gradient-to-br from-crimson-red to-crimson-red/80 text-white flex items-center justify-center hover:scale-110 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-crimson-red focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-md transition-all duration-300 ease-out"
+                                disabled={paymentConfirmed || groupSize <= 3}
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+                                </svg>
+                              </button>
+
+                              <div className="px-7 py-3 min-w-[5.5rem] text-center rounded-lg bg-background border-2 border-primary/20 shadow-inner transition-all duration-300">
+                                <span className="text-xl font-bold text-foreground tabular-nums">{groupSize}</span>
+                              </div>
+
+                              <button
+                                type="button"
+                                aria-label="Increase group size"
+                                onClick={() => handleGroupSizeChange(groupSize + 1)}
+                                className="h-11 w-11 rounded-full bg-gradient-to-br from-crimson-red to-crimson-red/80 text-white flex items-center justify-center hover:scale-110 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-crimson-red focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-md transition-all duration-300 ease-out"
+                                disabled={paymentConfirmed || groupSize >= 20}
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-4 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-muted-foreground/70 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                            </svg>
+                            <span>You'll provide details for all <strong className="text-foreground">{groupSize} guests</strong> below</span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Guest Tabs - Only show for Duo/Group Booking */}
+                    {(bookingType === "Duo Booking" || bookingType === "Group Booking") && (
+                      <div className="mb-8 transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
+                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                          {/* Main Booker Tab */}
+                          <button
+                            type="button"
+                            onClick={() => setActiveGuestTab(1)}
+                            className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all duration-300 ease-in-out ${
+                              activeGuestTab === 1
+                                ? "bg-crimson-red text-white shadow-md"
+                                : "bg-card border border-border text-foreground hover:border-crimson-red/50"
+                            }`}
+                          >
+                            You (Main Booker)
+                          </button>
+                          
+                          {/* Guest Tabs */}
+                          {Array.from({ length: bookingType === "Duo Booking" ? 1 : groupSize - 1 }).map((_, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setActiveGuestTab(idx + 2)}
+                              className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all duration-300 ease-in-out ${
+                                activeGuestTab === idx + 2
+                                  ? "bg-crimson-red text-white shadow-md"
+                                  : "bg-card border border-border text-foreground hover:border-crimson-red/50"
+                              }`}
+                            >
+                              Guest {idx + 1}
+                            </button>
+                          ))}
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1.5">
+                          <svg
+                            className="w-4 h-4 flex-shrink-0"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          <span>
+                            Fill in details for each guest. All guests will be booked for <strong>{selectedPackage?.name || "the selected tour"}</strong> on <strong>{tourDate || "the selected date"}</strong>.
+                          </span>
+                        </p>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Main Booker Form (always visible or when tab 1 is active) */}
+                  <div className={`transition-all duration-500 ease-in-out ${(bookingType === "Duo Booking" || bookingType === "Group Booking") && activeGuestTab !== 1 ? "opacity-0 scale-95 pointer-events-none absolute" : "opacity-100 scale-100"}`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Email address
@@ -4309,10 +4706,8 @@ const Page = () => {
                         </p>
                       )}
                     </label>
-                  </div>
 
                   {/* First name */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <label className="block relative group">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         First name
@@ -4468,10 +4863,8 @@ const Page = () => {
                         </p>
                       )}
                     </label>
-                  </div>
 
-                  {/* Nationality & WhatsApp number */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Nationality */}
                     <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Nationality
@@ -4676,243 +5069,399 @@ const Page = () => {
                       )}
                     </label>
                   </div>
-
-                  {/* Booking type */}
-                  <div className="grid grid-cols-1 gap-6">
-                    <label className="block">
-                      <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        Booking type
-                        <span className="text-destructive text-xs">*</span>
-                      </span>
-                      <Select
-                        value={bookingType}
-                        onChange={(v) => handleBookingTypeChange(v)}
-                        options={bookingTypeOptions}
-                        placeholder="Select booking type"
-                        ariaLabel="Booking Type"
-                        className="mt-1"
-                        disabled={paymentConfirmed}
-                        isValid={!!bookingType && !errors.bookingType}
-                      />
-                      {errors.bookingType && (
-                        <p className="mt-1 text-xs text-destructive">
-                          {errors.bookingType}
-                        </p>
-                      )}
-                    </label>
-                  </div>
-
-                  {/* Additional guests (collapsible) */}
-                  <div
-                    ref={guestsWrapRef}
-                    className="overflow-hidden"
-                    style={{ height: guestsHeight }}
-                  >
-                    {guestsMounted ? (
-                      <div ref={guestsContentRef} className="space-y-2">
-                        {/* Header row stays same height to prevent shaking */}
-                        <div className="flex items-center justify-between min-h-10">
-                          <div className="text-sm font-medium text-foreground">
-                            Additional guests
-                          </div>
-
-                          {/* Keep layout stable; hide controls when not Group */}
-                          <div
-                            className={`flex items-center gap-3 ${
-                              bookingType === "Group Booking"
-                                ? ""
-                                : "opacity-0 pointer-events-none"
-                            }`}
-                          >
-                            <label className="text-sm text-foreground">
-                              Group size
-                            </label>
-                            <div className="inline-flex items-center gap-2">
-                              <button
-                                type="button"
-                                aria-label="Decrease group size"
-                                onClick={() =>
-                                  handleGroupSizeChange(groupSize - 1)
-                                }
-                                className="h-8 w-8 rounded-md bg-crimson-red text-white flex items-center justify-center hover:brightness-95 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={paymentConfirmed}
-                              >
-                                −
-                              </button>
-
-                              <input
-                                type="number"
-                                min={3}
-                                max={20}
-                                value={groupSize}
-                                onChange={(e) =>
-                                  handleGroupSizeChange(
-                                    parseInt(e.target.value || "0", 10)
-                                  )
-                                }
-                                className="w-16 text-center px-2 py-1 rounded-md bg-input border border-border text-foreground [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                disabled={paymentConfirmed}
-                              />
-
-                              <button
-                                type="button"
-                                aria-label="Increase group size"
-                                onClick={() =>
-                                  handleGroupSizeChange(groupSize + 1)
-                                }
-                                className="h-8 w-8 rounded-md bg-crimson-red text-white flex items-center justify-center hover:brightness-95 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={paymentConfirmed}
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          {bookingType === "Duo Booking" ? (
-                            <>
-                              <div className="relative">
-                                <input
-                                  type="email"
-                                  name="guest-email"
-                                  autoComplete="email"
-                                  placeholder="Guest email address"
-                                  value={additionalGuests[0] ?? ""}
-                                  onChange={(e) =>
-                                    handleGuestChange(0, e.target.value)
-                                  }
-                                  className={`${fieldBase} ${fieldBorder(
-                                    !!errors["guest-0"]
-                                  )} ${
-                                    additionalGuests[0] &&
-                                    !errors["guest-0"] &&
-                                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-                                      additionalGuests[0]
-                                    )
-                                      ? "border-green-500"
-                                      : ""
-                                  } ${fieldFocus}`}
-                                  disabled={paymentConfirmed}
-                                />
-                                {additionalGuests[0] &&
-                                  !errors["guest-0"] &&
-                                  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-                                    additionalGuests[0]
-                                  ) && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
-                                      <svg
-                                        className="w-5 h-5"
-                                        fill="currentColor"
-                                        viewBox="0 0 20 20"
-                                      >
-                                        <path
-                                          fillRule="evenodd"
-                                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                          clipRule="evenodd"
-                                        />
-                                      </svg>
-                                    </div>
-                                  )}
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
-                                <svg
-                                  className="w-4 h-4 flex-shrink-0 mt-0.5"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                                <span>
-                                  An email with a pre-filled reservation form
-                                  will be sent to the guest after form
-                                  completion.
-                                </span>
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              {additionalGuests.map((g, idx) => (
-                                <div key={idx} className="relative">
-                                  <input
-                                    type="email"
-                                    name={`guest-email-${idx}`}
-                                    autoComplete="email"
-                                    placeholder={`Guest #${
-                                      idx + 1
-                                    } email address`}
-                                    value={g}
-                                    onChange={(e) =>
-                                      handleGuestChange(idx, e.target.value)
-                                    }
-                                    className={`${fieldBase} ${fieldBorder(
-                                      !!errors[`guest-${idx}`]
-                                    )} ${
-                                      g &&
-                                      !errors[`guest-${idx}`] &&
-                                      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
-                                        ? "border-green-500"
-                                        : ""
-                                    } ${fieldFocus}`}
-                                    disabled={paymentConfirmed}
-                                  />
-                                  {g &&
-                                    !errors[`guest-${idx}`] &&
-                                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g) && (
-                                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
-                                        <svg
-                                          className="w-5 h-5"
-                                          fill="currentColor"
-                                          viewBox="0 0 20 20"
-                                        >
-                                          <path
-                                            fillRule="evenodd"
-                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                            clipRule="evenodd"
-                                          />
-                                        </svg>
-                                      </div>
-                                    )}
-                                  {errors[`guest-${idx}`] && (
-                                    <p className="mt-1 text-xs text-destructive">
-                                      {errors[`guest-${idx}`]}
-                                    </p>
-                                  )}
-                                </div>
-                              ))}
-                              <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
-                                <svg
-                                  className="w-4 h-4 flex-shrink-0 mt-0.5"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                                <span>
-                                  An email with a pre-filled reservation form
-                                  will be sent to each guest after form
-                                  completion.
-                                </span>
-                              </p>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
                 </div>
-              </div>
-            )}
+
+              {/* Guest Forms - Only show for Duo/Group Booking */}
+              {(bookingType === "Duo Booking" || bookingType === "Group Booking") && (
+                <>
+                  {guestDetails.map((guest, guestIndex) => (
+                    <div
+                      key={guestIndex}
+                      className={`transition-all duration-500 ease-in-out ${activeGuestTab !== guestIndex + 2 ? "opacity-0 scale-95 pointer-events-none absolute" : "opacity-100 scale-100"}`}
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                        {/* Guest Email */}
+                        <label className="block">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          Email address
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <div className="relative">
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+                              />
+                            </svg>
+                          </div>
+                          <input
+                            type="email"
+                            value={guest.email}
+                            onChange={(e) => {
+                              const newGuests = [...guestDetails];
+                              newGuests[guestIndex].email = e.target.value;
+                              setGuestDetails(newGuests);
+                            }}
+                            placeholder="guest.email@example.com"
+                            className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
+                              !!errors[`guest-${guestIndex}-email`]
+                            )} ${
+                              guest.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email) && !errors[`guest-${guestIndex}-email`]
+                                ? "border-green-500"
+                                : ""
+                            } ${fieldFocus}`}
+                            disabled={paymentConfirmed}
+                          />
+                          {guest.email &&
+                            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email) &&
+                            !errors[`guest-${guestIndex}-email`] && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </div>
+                            )}
+                        </div>
+                        {errors[`guest-${guestIndex}-email`] && (
+                          <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {errors[`guest-${guestIndex}-email`]}
+                          </p>
+                        )}
+                      </label>
+
+                      {/* Guest Birthdate */}
+                      <label className="block">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          Birthdate
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <BirthdatePicker
+                          value={guest.birthdate}
+                          onChange={(val) => {
+                            const newGuests = [...guestDetails];
+                            newGuests[guestIndex].birthdate = val;
+                            setGuestDetails(newGuests);
+                          }}
+                          isValid={!!guest.birthdate && !errors[`guest-${guestIndex}-birthdate`]}
+                          disabled={paymentConfirmed}
+                        />
+                        {errors[`guest-${guestIndex}-birthdate`] && (
+                          <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {errors[`guest-${guestIndex}-birthdate`]}
+                          </p>
+                        )}
+                      </label>
+
+                      {/* Guest First Name */}
+                      <label className="block">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          First name
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <input
+                          type="text"
+                          value={guest.firstName}
+                          onChange={(e) => {
+                            const newGuests = [...guestDetails];
+                            newGuests[guestIndex].firstName = e.target.value;
+                            setGuestDetails(newGuests);
+                          }}
+                          placeholder="John"
+                          className={`${fieldBase} ${fieldBorder(
+                            !!errors[`guest-${guestIndex}-firstName`]
+                          )} ${
+                            guest.firstName ? "border-green-500" : ""
+                          } ${fieldFocus}`}
+                          disabled={paymentConfirmed}
+                        />
+                        {errors[`guest-${guestIndex}-firstName`] && (
+                          <p className="mt-1.5 text-xs text-destructive">
+                            {errors[`guest-${guestIndex}-firstName`]}
+                          </p>
+                        )}
+                      </label>
+
+                      {/* Guest Last Name */}
+                      <label className="block">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          Last name
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <input
+                          type="text"
+                          value={guest.lastName}
+                          onChange={(e) => {
+                            const newGuests = [...guestDetails];
+                            newGuests[guestIndex].lastName = e.target.value;
+                            setGuestDetails(newGuests);
+                          }}
+                          placeholder="Doe"
+                          className={`${fieldBase} ${fieldBorder(
+                            !!errors[`guest-${guestIndex}-lastName`]
+                          )} ${
+                            guest.lastName ? "border-green-500" : ""
+                          } ${fieldFocus}`}
+                          disabled={paymentConfirmed}
+                        />
+                        {errors[`guest-${guestIndex}-lastName`] && (
+                          <p className="mt-1.5 text-xs text-destructive">
+                            {errors[`guest-${guestIndex}-lastName`]}
+                          </p>
+                        )}
+                      </label>
+
+                      {/* Guest Nationality */}
+                      <label className="block">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          Nationality
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <Select
+                          value={guest.nationality}
+                          onChange={(val) => {
+                            const newGuests = [...guestDetails];
+                            newGuests[guestIndex].nationality = val;
+                            
+                            // Sync WhatsApp country code with nationality
+                            const countryCode = getNationalityCountryCode(val);
+                            if (countryCode) {
+                              newGuests[guestIndex].whatsAppCountry = countryCode;
+                            }
+                            
+                            setGuestDetails(newGuests);
+                          }}
+                          options={getNationalityOptions()}
+                          placeholder="Select nationality"
+                          ariaLabel="Nationality"
+                          className="mt-1"
+                          disabled={paymentConfirmed}
+                          isValid={!!guest.nationality}
+                        />
+                        {errors[`guest-${guestIndex}-nationality`] && (
+                          <p className="mt-1 text-xs text-destructive">
+                            {errors[`guest-${guestIndex}-nationality`]}
+                          </p>
+                        )}
+                      </label>
+
+                      {/* Guest WhatsApp Number */}
+                      <label className="block relative">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          WhatsApp number
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <div className="relative mt-1 flex items-stretch gap-2">
+                          <Select
+                            value={guest.whatsAppCountry}
+                            onChange={(code) => {
+                              const newGuests = [...guestDetails];
+                              newGuests[guestIndex].whatsAppCountry = code;
+                              newGuests[guestIndex].whatsAppNumber = ""; // Clear the number when country changes
+                              setGuestDetails(newGuests);
+                            }}
+                            options={getCountries().map((country) => {
+                              const data = getCountryData(country);
+                              const callingCode = safeGetCountryCallingCode(country);
+                              const countryName = en[country] || country;
+                              return {
+                                label: (
+                                  <span className="inline-flex items-center gap-2">
+                                    <ReactCountryFlag
+                                      countryCode={country}
+                                      svg
+                                      aria-label={countryName}
+                                      style={{
+                                        width: "1rem",
+                                        height: "0.5rem",
+                                        flexShrink: 1,
+                                      }}
+                                    />
+                                    <span>
+                                      {`${data.alpha3} (+${callingCode})`}
+                                    </span>
+                                  </span>
+                                ),
+                                value: country,
+                                searchValue:
+                                  `${data.flag} ${data.alpha3} ${countryName} ${country} ${callingCode}`.toLowerCase(),
+                              };
+                            })}
+                            placeholder="Country"
+                            ariaLabel="Country Code"
+                            disabled={paymentConfirmed}
+                            searchable
+                            className={`w-[160px] flex-shrink-0 ${paymentConfirmed ? "disabled-hover" : ""}`}
+                          />
+                          <div className="flex-1 relative min-w-0">
+                            <div
+                              className={`flex items-center w-full px-4 py-3 rounded-lg transition-all duration-200 shadow-sm border-2 ${
+                                paymentConfirmed
+                                  ? guest.whatsAppNumber &&
+                                    isValidPhoneNumber(
+                                      `+${safeGetCountryCallingCode(
+                                        guest.whatsAppCountry
+                                      )}${guest.whatsAppNumber}`
+                                    )
+                                    ? "opacity-50 bg-muted/40 border-green-500 cursor-not-allowed"
+                                    : "opacity-50 bg-muted/40 border-border cursor-not-allowed"
+                                  : errors[`guest-${guestIndex}-whatsAppNumber`]
+                                  ? "bg-input border-destructive"
+                                  : guest.whatsAppNumber &&
+                                    isValidPhoneNumber(
+                                      `+${safeGetCountryCallingCode(
+                                        guest.whatsAppCountry
+                                      )}${guest.whatsAppNumber}`
+                                    )
+                                  ? "bg-input border-green-500"
+                                  : "bg-input border-border"
+                              } ${
+                                !paymentConfirmed
+                                  ? "focus-within:outline-none focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-md hover:border-primary/50"
+                                  : ""
+                              }`}
+                            >
+                              <span className={`text-muted-foreground mr-2 select-none ${paymentConfirmed ? "opacity-50" : ""}`}>
+                                +
+                                {safeGetCountryCallingCode(guest.whatsAppCountry)}
+                              </span>
+                              <input
+                                type="tel"
+                                value={guest.whatsAppNumber}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(
+                                    /[^0-9]/g,
+                                    ""
+                                  );
+                                  const maxLen =
+                                    getCountryData(guest.whatsAppCountry).maxLength;
+                                  const limitedValue = value.slice(0, maxLen);
+                                  
+                                  const newGuests = [...guestDetails];
+                                  newGuests[guestIndex].whatsAppNumber = limitedValue;
+                                  setGuestDetails(newGuests);
+
+                                  // Real-time validation
+                                  const fullNumber = `+${safeGetCountryCallingCode(
+                                    guest.whatsAppCountry
+                                  )}${limitedValue}`;
+                                  setErrors((prev) => {
+                                    const clone = { ...prev } as any;
+                                    if (!limitedValue.trim()) {
+                                      clone[`guest-${guestIndex}-whatsAppNumber`] =
+                                        "WhatsApp number is required";
+                                    } else if (
+                                      limitedValue.length > 2 &&
+                                      !isValidPhoneNumber(fullNumber)
+                                    ) {
+                                      clone[`guest-${guestIndex}-whatsAppNumber`] =
+                                        "Enter a valid phone number";
+                                    } else if (isValidPhoneNumber(fullNumber)) {
+                                      delete clone[`guest-${guestIndex}-whatsAppNumber`];
+                                    }
+                                    return clone;
+                                  });
+                                }}
+                                onBlur={() => {
+                                  const fullNumber = guest.whatsAppNumber
+                                    ? `+${safeGetCountryCallingCode(
+                                        guest.whatsAppCountry
+                                      )}${guest.whatsAppNumber}`
+                                    : "";
+                                  setErrors((prev) => {
+                                    const clone = { ...prev } as any;
+                                    if (!guest.whatsAppNumber) {
+                                      clone[`guest-${guestIndex}-whatsAppNumber`] =
+                                        "WhatsApp number is required";
+                                    } else if (!isValidPhoneNumber(fullNumber)) {
+                                      clone[`guest-${guestIndex}-whatsAppNumber`] =
+                                        "Enter a valid phone number";
+                                    } else {
+                                      delete clone[`guest-${guestIndex}-whatsAppNumber`];
+                                    }
+                                    return clone;
+                                  });
+                                }}
+                                disabled={paymentConfirmed}
+                                placeholder="123 456 7890"
+                                maxLength={
+                                  getCountryData(guest.whatsAppCountry).maxLength
+                                }
+                                className={`flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60 ${paymentConfirmed ? "opacity-50 text-muted-foreground cursor-not-allowed" : ""}`}
+                              />
+                            </div>
+                            {guest.whatsAppNumber &&
+                              isValidPhoneNumber(
+                                `+${safeGetCountryCallingCode(
+                                  guest.whatsAppCountry
+                                )}${guest.whatsAppNumber}`
+                              ) &&
+                              !errors[`guest-${guestIndex}-whatsAppNumber`] && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none">
+                                  <svg
+                                    className="w-5 h-5"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                          </div>
+                        </div>
+                        {!!errors[`guest-${guestIndex}-whatsAppNumber`] && (
+                          <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {errors[`guest-${guestIndex}-whatsAppNumber`]}
+                          </p>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+                ))}
+                </>
+              )}
+            </div>
+          )}
 
             {/* STEP 2 - PAYMENT */}
             {step === 2 && (
@@ -5027,12 +5576,31 @@ const Page = () => {
                           {tourPackages.find((p) => p.id === tourPackage)?.name}
                         </span>
                       </div>
+                      {(bookingType === "Duo Booking" || bookingType === "Group Booking") && (
+                        <div className="flex justify-between items-center text-sm mt-2">
+                          <span className="text-foreground/70 font-semibold">
+                            Number of people:
+                          </span>
+                          <span className="font-bold text-foreground">
+                            {numberOfPeople}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center text-sm mt-3 pt-3 border-t border-border/50">
                         <span className="text-foreground/70 font-semibold">
                           Reservation fee:
                         </span>
                         <span className="font-bold text-lg text-crimson-red">
-                          £{depositAmount.toFixed(2)}
+                          {(bookingType === "Duo Booking" || bookingType === "Group Booking") ? (
+                            <span className="flex items-center gap-2">
+                              <span className="text-sm text-foreground/60 font-normal">
+                                £{baseReservationFee.toFixed(2)} × {numberOfPeople} =
+                              </span>
+                              £{depositAmount.toFixed(2)}
+                            </span>
+                          ) : (
+                            `£${depositAmount.toFixed(2)}`
+                          )}
                         </span>
                       </div>
                     </div>
@@ -5044,6 +5612,8 @@ const Page = () => {
                       amountGBP={depositAmount}
                       bookingId={bookingId || "PENDING"}
                       paymentDocId={paymentDocId}
+                      bookingType={bookingType}
+                      numberOfGuests={numberOfPeople}
                       onSuccess={(pid, docId) => {
                         setStep2StatusType("success");
                         setStep2StatusMsg(
@@ -5075,7 +5645,7 @@ const Page = () => {
             )}
 
             {/* STEP 3 - PAYMENT PLAN */}
-            {step === 3 && (
+            {(step as number) === 3 && (
               <div className="rounded-lg bg-card/80 backdrop-blur-md p-4 sm:p-6 border border-border shadow-xl space-y-6">
                 <div className="bg-gradient-to-r from-spring-green/10 to-green-500/10 border-2 border-spring-green/40 p-5 rounded-xl shadow-lg">
                   <div className="flex items-start gap-4">
@@ -5150,7 +5720,16 @@ const Page = () => {
                               Tour cost:
                             </span>
                             <span className="font-bold text-foreground text-base">
-                              £{selectedPackage.price.toFixed(2)}
+                              {(bookingType === "Duo Booking" || bookingType === "Group Booking") ? (
+                                <span className="flex items-center gap-2">
+                                  <span className="text-sm text-foreground/60 font-normal">
+                                    £{selectedPackage.price.toFixed(2)} × {numberOfPeople} =
+                                  </span>
+                                  £{(selectedPackage.price * numberOfPeople).toFixed(2)}
+                                </span>
+                              ) : (
+                                `£${selectedPackage.price.toFixed(2)}`
+                              )}
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
@@ -5168,7 +5747,7 @@ const Page = () => {
                             </span>
                             <span className="font-bold text-xl text-crimson-red">
                               £
-                              {(selectedPackage.price - depositAmount).toFixed(
+                              {((selectedPackage.price * numberOfPeople) - depositAmount).toFixed(
                                 2
                               )}
                             </span>
@@ -5205,7 +5784,7 @@ const Page = () => {
                               Your tour is coming up soon! Full payment of £
                               {selectedPackage
                                 ? (
-                                    selectedPackage.price - depositAmount
+                                    (selectedPackage.price * numberOfPeople) - depositAmount
                                   ).toFixed(2)
                                 : "0.00"}{" "}
                               is required within 48 hours to confirm your spot.
@@ -5374,6 +5953,40 @@ const Page = () => {
                 <button
                   type="button"
                   onClick={() => {
+                    console.log("🔍 Continue to Payment clicked");
+                    console.log("📊 Validation state:", {
+                      isCreatingPayment,
+                      email: !!email,
+                      emailValid: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
+                      birthdate: !!birthdate,
+                      firstName: !!firstName,
+                      lastName: !!lastName,
+                      whatsAppNumber: !!whatsAppNumber,
+                      whatsAppValid: whatsAppNumber ? isValidPhoneNumber(
+                        `+${safeGetCountryCallingCode(whatsAppCountry)}${whatsAppNumber}`
+                      ) : false,
+                      nationality: !!nationality,
+                      bookingType,
+                      tourPackage: !!tourPackage,
+                      tourDate: !!tourDate,
+                      guestDetailsLength: guestDetails.length,
+                      expectedGuestLength: bookingType === "Duo Booking" ? 1 : groupSize - 1,
+                      guestDetailsValid: !guestDetails.some(
+                        (guest) =>
+                          !guest.email ||
+                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email) ||
+                          !guest.birthdate ||
+                          !guest.firstName ||
+                          !guest.lastName ||
+                          !guest.nationality ||
+                          !guest.whatsAppNumber ||
+                          !isValidPhoneNumber(
+                            `+${safeGetCountryCallingCode(
+                              guest.whatsAppCountry
+                            )}${guest.whatsAppNumber}`
+                          )
+                      ),
+                    });
                     checkExistingPaymentsAndMaybeProceed();
                   }}
                   disabled={
@@ -5396,10 +6009,23 @@ const Page = () => {
                     !tourDate ||
                     ((bookingType === "Duo Booking" ||
                       bookingType === "Group Booking") &&
-                      additionalGuests.some(
-                        (g, idx) =>
-                          !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
-                      ))
+                      (guestDetails.length === 0 ||
+                        guestDetails.length !== (bookingType === "Duo Booking" ? 1 : groupSize - 1) ||
+                        guestDetails.some(
+                          (guest) =>
+                            !guest.email ||
+                            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email) ||
+                            !guest.birthdate ||
+                            !guest.firstName ||
+                            !guest.lastName ||
+                            !guest.nationality ||
+                            !guest.whatsAppNumber ||
+                            !isValidPhoneNumber(
+                              `+${safeGetCountryCallingCode(
+                                guest.whatsAppCountry
+                              )}${guest.whatsAppNumber}`
+                            )
+                        )))
                   }
                   className="group inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary to-crimson-red text-primary-foreground rounded-lg shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg"
                 >
@@ -5553,9 +6179,9 @@ const Page = () => {
                             )
                       }
                       reservationFee={depositAmount}
-                      totalAmount={selectedPackage?.price || 0}
+                      totalAmount={(selectedPackage?.price || 0) * numberOfPeople}
                       remainingBalance={
-                        (selectedPackage?.price || 0) - depositAmount
+                        ((selectedPackage?.price || 0) * numberOfPeople) - depositAmount
                       }
                       paymentDate={new Date().toLocaleDateString("en-US", {
                         month: "short",
@@ -5827,8 +6453,8 @@ const Page = () => {
                                 ""
                               ),
                               depositAmount,
-                              selectedPackage?.price || 0,
-                              (selectedPackage?.price || 0) - depositAmount,
+                              (selectedPackage?.price || 0) * numberOfPeople,
+                              ((selectedPackage?.price || 0) * numberOfPeople) - depositAmount,
                               new Date().toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
@@ -5848,6 +6474,39 @@ const Page = () => {
                       >
                         Download Receipt
                       </button>
+
+                      {/* Success note */}
+                      <div
+                        role="status"
+                        aria-live="polite"
+                        className="mt-6 rounded-md bg-spring-green/10 border border-spring-green/30 p-4 text-sm text-creative-midnight"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-spring-green text-white">
+                            <svg
+                              className="h-5 w-5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              aria-hidden
+                            >
+                              <path
+                                d="M20 6L9 17l-5-5"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
+                          <div>
+                            <div className="font-medium">You're on the list</div>
+                            <div className="text-xs text-muted-foreground">
+                              We'll send a confirmation to{" "}
+                              <span className="font-medium">{email}</span> if provided.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -5855,40 +6514,6 @@ const Page = () => {
             </div>
           </div>
 
-          {/* Success note */}
-          {submitted && step === 3 && (
-            <div
-              role="status"
-              aria-live="polite"
-              className="mt-6 rounded-md bg-spring-green/10 border border-spring-green/30 p-4 text-sm text-creative-midnight"
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-spring-green text-white">
-                  <svg
-                    className="h-5 w-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden
-                  >
-                    <path
-                      d="M20 6L9 17l-5-5"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <div className="font-medium">You're on the list</div>
-                  <div className="text-xs text-muted-foreground">
-                    We'll send a confirmation to{" "}
-                    <span className="font-medium">{email}</span> if provided.
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -5933,3 +6558,5 @@ export default function ReservationBookingFormPage() {
     </>
   );
 }
+
+

@@ -930,6 +930,8 @@ interface StripePaymentProps {
   onBack?: () => void;
   onError?: (message: string) => void;
   onProcessingChange?: (processing: boolean) => void;
+  bookingType?: string;
+  numberOfGuests?: number;
 
   // Guest booking specific props
   isGuestBooking?: boolean;
@@ -958,6 +960,8 @@ export default function StripePayment({
   onPaymentDocIdCreated,
   onBack,
   onProcessingChange,
+  bookingType,
+  numberOfGuests,
   isGuestBooking = false,
   parentBookingId,
   guestEmail,
@@ -1109,6 +1113,8 @@ export default function StripePayment({
           tourPackageName,
           amountGBP,
           paymentDocId,
+          bookingType,
+          numberOfGuests,
           meta: {
             source: "reservation-form",
             retryAttempt: retryCount,
