@@ -494,7 +494,6 @@ export default function AdminSignupPage() {
                 className="w-full h-full"
               />
             </div>
-            <span className="text-black font-hk-grotesk text-xl font-medium">
             <span className="text-black font-hk-grotesk text-lg sm:text-xl font-medium">
               I&apos;m Here Travels
             </span>
@@ -688,7 +687,9 @@ export default function AdminSignupPage() {
                                 handleInputChange("password", e.target.value)
                               }
                               className={`w-full px-3.5 py-2.5 pr-12 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
-                                errors.password ? "border-red-500" : "border-grey"
+                                errors.password
+                                  ? "border-red-500"
+                                  : "border-grey"
                               }`}
                               required
                             />
@@ -784,7 +785,6 @@ export default function AdminSignupPage() {
                 {currentStep === 2 && (
                   <>
                     <div className="text-center space-y-6">
-                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
                       <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
                         {isPollingVerification ? (
                           <RefreshCw className="w-6 h-6 text-green-600 animate-spin" />
@@ -804,7 +804,6 @@ export default function AdminSignupPage() {
                           </span>
                         </p>
                         <p className="text-grey font-dm-sans text-sm">
-                      <p className="text-grey font-dm-sans text-sm">
                           Please check your inbox and click the verification
                           link. We&apos;ll automatically continue once verified.
                         </p>
@@ -1095,11 +1094,10 @@ export default function AdminSignupPage() {
                                 : "Agent"
                             } Account`}
                       </button>
-                      <div className="flex space-x-3">
                     </div>
                   </>
                 )}
-                        className="flex-1 bg-light-grey hover:bg-grey text-black font-dm-sans font-medium py-2.5 px-4 rounded-lg transition-colors"
+
                 {currentStep === 1 && (
                   <div className="text-center">
                     <span className="text-grey font-dm-sans text-sm">
@@ -1108,7 +1106,7 @@ export default function AdminSignupPage() {
                     <a
                       href="/auth/admin/login"
                       className="text-crimson-red hover:text-light-red font-dm-sans text-sm transition-colors"
-                        className="flex-1 bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-2.5 px-4 rounded-lg transition-colors"
+                    >
                       Sign in here
                     </a>
                   </div>
@@ -1121,7 +1119,6 @@ export default function AdminSignupPage() {
 
       {/* Right side - Dynamic Features based on Role */}
       <div className="hidden lg:flex lg:flex-1 relative items-end p-8">
-                              <div className="hidden lg:flex lg:flex-1 relative items-end p-8">
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
