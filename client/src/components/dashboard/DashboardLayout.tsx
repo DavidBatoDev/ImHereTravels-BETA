@@ -116,6 +116,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Search className="h-5 w-5" />
               </Button>
 
+              {/* Theme toggle for mobile */}
+              <ThemeToggle />
+
               {/* Notification button */}
               <NotificationDropdown />
 

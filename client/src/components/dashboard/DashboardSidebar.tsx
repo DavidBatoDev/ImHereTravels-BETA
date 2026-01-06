@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   LayoutDashboard,
   Calendar,
@@ -162,15 +163,18 @@ export default function DashboardSidebar({
                 ImHereTravels
               </h1>
             </div>
-            {/* Only X close button on mobile */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSidebarOpen(false)}
-              className="text-muted-foreground hover:bg-light-grey hover:text-foreground"
-            >
-              <X className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarOpen(false)}
+                className="text-muted-foreground hover:bg-light-grey hover:text-foreground"
+                aria-label="Close sidebar"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
           <nav className="flex-1 space-y-2 px-4 py-6 overflow-y-auto scrollbar-hide">
             <TooltipProvider>

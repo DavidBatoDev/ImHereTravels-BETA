@@ -479,11 +479,11 @@ export default function AdminSignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-creative-midnight flex">
+    <div className="min-h-screen bg-creative-midnight flex flex-col lg:flex-row">
       {/* Left side - Admin Signup Form */}
-      <div className="flex-1 flex flex-col bg-white">
+      <div className="flex-1 flex flex-col bg-white min-h-screen lg:min-h-0">
         {/* Header */}
-        <div className="flex justify-between items-center p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-6">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8">
               <Image
@@ -495,6 +495,7 @@ export default function AdminSignupPage() {
               />
             </div>
             <span className="text-black font-hk-grotesk text-xl font-medium">
+            <span className="text-black font-hk-grotesk text-lg sm:text-xl font-medium">
               I&apos;m Here Travels
             </span>
             <span className="text-grey font-dm-sans text-sm bg-light-grey px-2 py-1 rounded">
@@ -511,18 +512,18 @@ export default function AdminSignupPage() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex items-center justify-center px-8">
+        <div className="flex-1 flex items-center justify-center px-4 pb-8 sm:px-6 lg:px-10">
           <div className="w-full max-w-md">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-crimson-red/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <UserPlus className="w-8 h-8 text-crimson-red" />
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-crimson-red/15 rounded-full flex items-center justify-center mx-auto mb-3">
+                <UserPlus className="w-7 h-7 text-crimson-red" />
               </div>
-              <h1 className="text-black font-hk-grotesk text-3xl font-medium mb-2">
+              <h1 className="text-black font-hk-grotesk text-2xl sm:text-3xl font-medium mb-1.5">
                 {currentStep === 1 && "Account Setup"}
                 {currentStep === 2 && "Email Verification"}
                 {currentStep === 3 && "Profile Setup"}
               </h1>
-              <p className="text-grey font-dm-sans text-base">
+              <p className="text-grey font-dm-sans text-sm sm:text-base">
                 {currentStep === 1 && "Set up your account credentials"}
                 {currentStep === 2 && "Verify your email address"}
                 {currentStep === 3 && "Complete your profile"}
@@ -535,21 +536,21 @@ export default function AdminSignupPage() {
                 {[1, 2, 3].map((step, index) => (
                   <React.Fragment key={step}>
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300 ${
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium transition-all duration-300 ${
                         step <= currentStep
                           ? "bg-crimson-red text-white shadow-lg"
                           : "bg-light-grey text-grey"
                       }`}
                     >
                       {step < currentStep ? (
-                        <Check className="w-5 h-5" />
+                        <Check className="w-4 h-4" />
                       ) : (
                         step
                       )}
                     </div>
                     {index < 2 && (
                       <div
-                        className={`w-12 h-0.5 mx-2 transition-all duration-300 ${
+                        className={`w-10 h-0.5 mx-2 transition-all duration-300 ${
                           step < currentStep
                             ? "bg-crimson-red"
                             : "bg-light-grey"
@@ -562,7 +563,7 @@ export default function AdminSignupPage() {
             </div>
 
             {/* Fixed Height Container for Form Content */}
-            <div className="min-h-[400px] flex flex-col justify-center">
+            <div className="min-h-[380px] flex flex-col justify-center">
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Step 1: Email Check and Password Setup */}
                 {currentStep === 1 && (
@@ -581,7 +582,7 @@ export default function AdminSignupPage() {
                             handleInputChange("email", e.target.value)
                           }
                           disabled={step1State !== "email"}
-                          className={`w-full px-4 py-3 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
+                          className={`w-full px-3.5 py-2.5 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
                             errors.email ? "border-red-500" : "border-grey"
                           } ${step1State !== "email" ? "opacity-50" : ""}`}
                           required
@@ -616,7 +617,7 @@ export default function AdminSignupPage() {
                         type="button"
                         onClick={handleEmailContinue}
                         disabled={isSubmitting}
-                        className="w-full bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
+                        className="w-full bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-2.5 px-4 rounded-lg transition-colors"
                       >
                         {isSubmitting ? "Checking..." : "Continue"}
                       </button>
@@ -636,7 +637,7 @@ export default function AdminSignupPage() {
                               <button
                                 type="button"
                                 disabled
-                                className="flex-1 px-4 py-3 font-dm-sans text-sm font-medium bg-light-grey text-grey cursor-not-allowed opacity-50 flex items-center justify-center gap-2"
+                                className="flex-1 px-3.5 py-2.5 font-dm-sans text-sm font-medium bg-light-grey text-grey cursor-not-allowed opacity-50 flex items-center justify-center gap-2"
                               >
                                 <Lock className="h-4 w-4" />
                                 Agent
@@ -646,7 +647,7 @@ export default function AdminSignupPage() {
                                 onClick={() =>
                                   handleInputChange("role", "admin")
                                 }
-                                className={`flex-1 px-4 py-3 font-dm-sans text-sm font-medium transition-all ${
+                                className={`flex-1 px-3.5 py-2.5 font-dm-sans text-sm font-medium transition-all ${
                                   formData.role === "admin"
                                     ? "bg-crimson-red text-white"
                                     : "bg-light-grey text-grey hover:bg-grey hover:text-black"
@@ -686,10 +687,8 @@ export default function AdminSignupPage() {
                               onChange={(e) =>
                                 handleInputChange("password", e.target.value)
                               }
-                              className={`w-full px-4 py-3 pr-12 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
-                                errors.password
-                                  ? "border-red-500"
-                                  : "border-grey"
+                              className={`w-full px-3.5 py-2.5 pr-12 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
+                                errors.password ? "border-red-500" : "border-grey"
                               }`}
                               required
                             />
@@ -734,7 +733,7 @@ export default function AdminSignupPage() {
                                     e.target.value
                                   )
                                 }
-                                className={`w-full px-4 py-3 pr-12 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
+                                className={`w-full px-3.5 py-2.5 pr-12 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
                                   errors.confirmPassword
                                     ? "border-red-500"
                                     : "border-grey"
@@ -768,7 +767,7 @@ export default function AdminSignupPage() {
                           type="button"
                           onClick={handlePasswordContinue}
                           disabled={isSubmitting}
-                          className="w-full bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
+                          className="w-full bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-2.5 px-4 rounded-lg transition-colors"
                         >
                           {isSubmitting
                             ? "Processing..."
@@ -786,24 +785,26 @@ export default function AdminSignupPage() {
                   <>
                     <div className="text-center space-y-6">
                       <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
                         {isPollingVerification ? (
-                          <RefreshCw className="w-8 h-8 text-green-600 animate-spin" />
+                          <RefreshCw className="w-6 h-6 text-green-600 animate-spin" />
                         ) : (
-                          <Check className="w-8 h-8 text-green-600" />
+                          <Check className="w-6 h-6 text-green-600" />
                         )}
                       </div>
 
                       <div>
-                        <h3 className="text-black font-hk-grotesk text-xl font-medium mb-2">
+                        <h3 className="text-black font-hk-grotesk text-lg sm:text-xl font-medium mb-2">
                           Verification Email Sent!
                         </h3>
-                        <p className="text-grey font-dm-sans text-sm mb-4">
+                        <p className="text-grey font-dm-sans text-sm mb-3">
                           We&apos;ve sent a verification email to{" "}
                           <span className="font-medium text-black">
                             {formData.email}
                           </span>
                         </p>
                         <p className="text-grey font-dm-sans text-sm">
+                      <p className="text-grey font-dm-sans text-sm">
                           Please check your inbox and click the verification
                           link. We&apos;ll automatically continue once verified.
                         </p>
@@ -843,7 +844,7 @@ export default function AdminSignupPage() {
                           type="button"
                           onClick={handleResendVerification}
                           disabled={isSubmitting || resendCooldown > 0}
-                          className="w-full bg-light-grey hover:bg-grey text-black font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full bg-light-grey hover:bg-grey text-black font-dm-sans font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {resendCooldown > 0
                             ? `Resend in ${resendCooldown}s`
@@ -903,7 +904,7 @@ export default function AdminSignupPage() {
                               }
                             }}
                             disabled={isSubmitting}
-                            className="w-full bg-crimson-red hover:bg-light-red text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full bg-crimson-red hover:bg-light-red text-white font-dm-sans font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isSubmitting ? "Checking..." : "Check Now"}
                           </button>
@@ -911,7 +912,7 @@ export default function AdminSignupPage() {
                       </div>
                     </div>
 
-                    <div className="w-full bg-grey text-white font-dm-sans font-medium py-3 px-4 rounded-lg text-center opacity-50">
+                    <div className="w-full bg-grey text-white font-dm-sans font-medium py-2.5 px-4 rounded-lg text-center opacity-50">
                       {isPollingVerification
                         ? "Waiting for verification..."
                         : "Click the email link to continue"}
@@ -923,7 +924,7 @@ export default function AdminSignupPage() {
                 {currentStep === 3 && (
                   <>
                     {/* Avatar Upload - Circular */}
-                    <div className="flex justify-center mb-6">
+                    <div className="flex justify-center mb-5">
                       <div className="relative">
                         <div className="w-24 h-24 rounded-full bg-light-grey border-2 border-grey flex items-center justify-center overflow-hidden">
                           {formData.avatar ? (
@@ -952,7 +953,7 @@ export default function AdminSignupPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                       <div>
                         <label className="block text-black font-dm-sans text-sm mb-2">
                           First Name
@@ -964,7 +965,7 @@ export default function AdminSignupPage() {
                           onChange={(e) =>
                             handleInputChange("firstName", e.target.value)
                           }
-                          className={`w-full px-4 py-3 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
+                          className={`w-full px-3.5 py-2.5 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
                             errors.firstName ? "border-red-500" : "border-grey"
                           }`}
                           required
@@ -986,7 +987,7 @@ export default function AdminSignupPage() {
                           onChange={(e) =>
                             handleInputChange("lastName", e.target.value)
                           }
-                          className={`w-full px-4 py-3 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
+                          className={`w-full px-3.5 py-2.5 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
                             errors.lastName ? "border-red-500" : "border-grey"
                           }`}
                           required
@@ -1073,7 +1074,7 @@ export default function AdminSignupPage() {
                       <button
                         type="button"
                         onClick={prevStep}
-                        className="flex-1 bg-light-grey hover:bg-grey text-black font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
+                        className="flex-1 bg-light-grey hover:bg-grey text-black font-dm-sans font-medium py-2.5 px-4 rounded-lg transition-colors"
                       >
                         Previous
                       </button>
@@ -1082,7 +1083,7 @@ export default function AdminSignupPage() {
                         disabled={
                           !formData.agreeTerms || isSubmitting || isSuccess
                         }
-                        className="flex-1 bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
+                        className="flex-1 bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-2.5 px-4 rounded-lg transition-colors"
                       >
                         {isSubmitting
                           ? "Creating Account..."
@@ -1094,10 +1095,11 @@ export default function AdminSignupPage() {
                                 : "Agent"
                             } Account`}
                       </button>
+                      <div className="flex space-x-3">
                     </div>
                   </>
                 )}
-
+                        className="flex-1 bg-light-grey hover:bg-grey text-black font-dm-sans font-medium py-2.5 px-4 rounded-lg transition-colors"
                 {currentStep === 1 && (
                   <div className="text-center">
                     <span className="text-grey font-dm-sans text-sm">
@@ -1106,7 +1108,7 @@ export default function AdminSignupPage() {
                     <a
                       href="/auth/admin/login"
                       className="text-crimson-red hover:text-light-red font-dm-sans text-sm transition-colors"
-                    >
+                        className="flex-1 bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-2.5 px-4 rounded-lg transition-colors"
                       Sign in here
                     </a>
                   </div>
@@ -1118,7 +1120,8 @@ export default function AdminSignupPage() {
       </div>
 
       {/* Right side - Dynamic Features based on Role */}
-      <div className="flex-1 relative flex items-end p-8">
+      <div className="hidden lg:flex lg:flex-1 relative items-end p-8">
+                              <div className="hidden lg:flex lg:flex-1 relative items-end p-8">
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"

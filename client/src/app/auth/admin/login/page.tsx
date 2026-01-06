@@ -88,11 +88,11 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-creative-midnight flex">
+    <div className="min-h-screen bg-creative-midnight flex flex-col lg:flex-row">
       {/* Left side - Admin Login Form */}
-      <div className="flex-1 flex flex-col bg-white">
+      <div className="flex-1 flex flex-col bg-white min-h-screen lg:min-h-0">
         {/* Header */}
-        <div className="flex justify-between items-center p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-6">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8">
               <Image
@@ -103,7 +103,7 @@ export default function AdminLoginPage() {
                 className="w-full h-full"
               />
             </div>
-            <span className="text-black font-hk-grotesk text-xl font-medium">
+            <span className="text-black font-hk-grotesk text-lg sm:text-xl font-medium">
               I&apos;m Here Travels
             </span>
             <span className="text-grey font-dm-sans text-sm bg-light-grey px-2 py-1 rounded">
@@ -117,16 +117,16 @@ export default function AdminLoginPage() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex items-center justify-center px-8">
+        <div className="flex-1 flex items-center justify-center px-4 pb-8 sm:px-6 lg:px-10">
           <div className="w-full max-w-md">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-crimson-red/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="w-8 h-8 text-crimson-red" />
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-crimson-red/15 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Shield className="w-7 h-7 text-crimson-red" />
               </div>
-              <h1 className="text-black font-hk-grotesk text-3xl font-medium mb-2">
+              <h1 className="text-black font-hk-grotesk text-2xl sm:text-3xl font-medium mb-1.5">
                 Admin Access
               </h1>
-              <p className="text-grey font-dm-sans text-base">
+              <p className="text-grey font-dm-sans text-sm sm:text-base">
                 Sign in to access the administrative dashboard
               </p>
             </div>
@@ -141,7 +141,7 @@ export default function AdminLoginPage() {
                   placeholder="admin@imheretravels.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className={`w-full px-4 py-3 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
+                  className={`w-full px-3.5 py-2.5 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
                     errors.email ? "border-red-500" : "border-grey"
                   }`}
                 />
@@ -162,7 +162,7 @@ export default function AdminLoginPage() {
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={`w-full px-4 py-3 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all pr-12 ${
+                    className={`w-full px-3.5 py-2.5 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all pr-12 ${
                       errors.password ? "border-red-500" : "border-grey"
                     }`}
                   />
@@ -190,7 +190,7 @@ export default function AdminLoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-3 px-4 rounded-lg transition-colors"
+                className="w-full bg-crimson-red hover:bg-light-red disabled:bg-grey disabled:cursor-not-allowed text-white font-dm-sans font-medium py-2.5 px-4 rounded-lg transition-colors"
               >
                 {isSubmitting ? "Signing in..." : "Sign in to Admin Panel"}
               </button>
@@ -214,7 +214,7 @@ export default function AdminLoginPage() {
               </div>
             </form>
 
-            <div className="mt-8 p-4 bg-light-grey rounded-lg border border-grey">
+            <div className="mt-6 p-4 bg-light-grey rounded-lg border border-grey">
               <div className="flex items-start space-x-3">
                 <Shield className="w-5 h-5 text-grey mt-0.5" />
                 <div className="text-grey font-dm-sans text-xs">
@@ -231,7 +231,7 @@ export default function AdminLoginPage() {
       </div>
 
       {/* Right side - Admin Features */}
-      <div className="flex-1 relative flex items-end p-8">
+      <div className="hidden lg:flex lg:flex-1 relative items-end p-8">
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
