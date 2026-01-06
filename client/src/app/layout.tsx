@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Work_Sans } from "next/font/google";
 import "./globals.css";
+import "@/lib/suppress-warnings";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { SidebarProvider } from "@/contexts/SidebarContext";

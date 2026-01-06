@@ -742,88 +742,132 @@ export default function BookingDetailModal({
             </button>
             {/* Only show controls if booking is valid */}
             {currentBooking?.bookingId && (
-              <div className="hidden sm:flex items-center gap-2">
-                {/* View Mode Toggle */}
-                <div className="flex border border-border rounded-md bg-background shadow-sm">
+              <>
+                {/* Mobile actions (icon-only) */}
+                <div className="flex sm:hidden items-center gap-2">
                   <Button
-                    variant={viewMode === "card" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("card")}
-                    className={`rounded-r-none border-r border-border transition-colors ${
-                      viewMode === "card"
-                        ? "bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25"
-                        : "hover:bg-crimson-red/10"
-                    }`}
-                    title="Card view"
+                    variant={showEmptyFields ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={() => setShowEmptyFields(!showEmptyFields)}
+                    className="h-8 w-8 p-0"
+                    title={
+                      showEmptyFields
+                        ? "Hide empty fields"
+                        : "Show empty fields"
+                    }
                   >
-                    <BsGrid3X3Gap className="h-4 w-4" />
+                    {showEmptyFields ? (
+                      <FaEyeSlash className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <FaEye className="h-4 w-4 text-muted-foreground" />
+                    )}
                   </Button>
                   <Button
-                    variant={viewMode === "list" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                    className={`rounded-l-none transition-colors ${
-                      viewMode === "list"
-                        ? "bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25"
-                        : "hover:bg-crimson-red/10"
-                    }`}
-                    title="List view"
+                    variant="default"
+                    size="icon"
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="h-8 w-8 p-0 bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25"
+                    title="Edit booking"
                   >
-                    <BsListUl className="h-4 w-4" />
+                    <FaEdit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                    className="h-8 w-8 p-0 text-white shadow shadow-red-600/25"
+                    title="Delete booking"
+                  >
+                    <FaTrash className="h-4 w-4" />
                   </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowEmptyFields(!showEmptyFields)}
-                  className="h-8 px-2 sm:px-3 hover:bg-muted flex items-center gap-2"
-                  title={
-                    showEmptyFields ? "Hide empty fields" : "Show empty fields"
-                  }
-                >
-                  {showEmptyFields ? (
-                    <>
-                      <FaEyeSlash className="h-4 w-4 text-muted-foreground" />
-                      <span className="hidden sm:inline text-xs text-muted-foreground">
-                        Hide empty fields
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <FaEye className="h-4 w-4 text-muted-foreground" />
-                      <span className="hidden sm:inline text-xs text-muted-foreground">
-                        Show empty fields
-                      </span>
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    setIsEditModalOpen(true);
-                  }}
-                  className="h-8 px-2 sm:px-4 bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25 flex items-center gap-2"
-                  title="Edit booking"
-                >
-                  <FaEdit className="h-4 w-4" />
-                  <span className="hidden sm:inline text-xs font-medium">
-                    Edit
-                  </span>
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  className="h-8 px-2 sm:px-4 bg-red-600 hover:bg-red-700 text-white shadow shadow-red-600/25 flex items-center gap-2"
-                  title="Delete booking"
-                >
-                  <FaTrash className="h-4 w-4" />
-                  <span className="hidden sm:inline text-xs font-medium">
-                    Delete
-                  </span>
-                </Button>
-              </div>
+
+                {/* Desktop actions */}
+                <div className="hidden sm:flex items-center gap-2">
+                  {/* View Mode Toggle */}
+                  <div className="flex border border-border rounded-md bg-background shadow-sm">
+                    <Button
+                      variant={viewMode === "card" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("card")}
+                      className={`rounded-r-none border-r border-border transition-colors ${
+                        viewMode === "card"
+                          ? "bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25"
+                          : "hover:bg-crimson-red/10"
+                      }`}
+                      title="Card view"
+                    >
+                      <BsGrid3X3Gap className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === "list" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("list")}
+                      className={`rounded-l-none transition-colors ${
+                        viewMode === "list"
+                          ? "bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25"
+                          : "hover:bg-crimson-red/10"
+                      }`}
+                      title="List view"
+                    >
+                      <BsListUl className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowEmptyFields(!showEmptyFields)}
+                    className="h-8 px-2 sm:px-3 hover:bg-muted flex items-center gap-2"
+                    title={
+                      showEmptyFields
+                        ? "Hide empty fields"
+                        : "Show empty fields"
+                    }
+                  >
+                    {showEmptyFields ? (
+                      <>
+                        <FaEyeSlash className="h-4 w-4 text-muted-foreground" />
+                        <span className="hidden sm:inline text-xs text-muted-foreground">
+                          Hide empty fields
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <FaEye className="h-4 w-4 text-muted-foreground" />
+                        <span className="hidden sm:inline text-xs text-muted-foreground">
+                          Show empty fields
+                        </span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditModalOpen(true);
+                    }}
+                    className="h-8 px-2 sm:px-4 bg-crimson-red hover:bg-crimson-red/90 text-white shadow shadow-crimson-red/25 flex items-center gap-2"
+                    title="Edit booking"
+                  >
+                    <FaEdit className="h-4 w-4" />
+                    <span className="hidden sm:inline text-xs font-medium">
+                      Edit
+                    </span>
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                    className="h-8 px-2 sm:px-4 bg-red-600 hover:bg-red-700 text-white shadow shadow-red-600/25 flex items-center gap-2"
+                    title="Delete booking"
+                  >
+                    <FaTrash className="h-4 w-4" />
+                    <span className="hidden sm:inline text-xs font-medium">
+                      Delete
+                    </span>
+                  </Button>
+                </div>
+              </>
             )}
           </div>
 
@@ -903,31 +947,31 @@ export default function BookingDetailModal({
                     id="tab-Summary"
                     className="scroll-mt-4 pb-3 sm:pb-4 mb-3 sm:mb-4 border-b-2 border-border/30"
                   >
-                    <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                    <h2 className="text-sm sm:text-lg font-bold text-foreground flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                       <div className="p-1.5 sm:p-2 bg-crimson-red/20 rounded-full rounded-br-none shadow-sm">
-                        <HiTrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-crimson-red" />
+                        <HiTrendingUp className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-crimson-red" />
                       </div>
                       <span>Booking Summary</span>
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                       {/* Full Name */}
                       <div>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
+                        <p className="text-[9px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
                           Traveler
                         </p>
-                        <p className="text-sm sm:text-base font-bold text-foreground">
+                        <p className="text-[13px] sm:text-base font-bold text-foreground">
                           {currentBooking?.fullName}
                         </p>
                       </div>
 
                       {/* Booking Type */}
                       <div>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
+                        <p className="text-[9px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
                           Type
                         </p>
                         <Badge
                           variant="outline"
-                          className={`text-xs sm:text-sm font-medium border-0 text-foreground px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full rounded-br-none ${getBookingTypeBgColor(
+                          className={`text-[11px] sm:text-sm font-medium border-0 text-foreground px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full rounded-br-none ${getBookingTypeBgColor(
                             currentBooking?.bookingType
                           )}`}
                         >
@@ -937,10 +981,10 @@ export default function BookingDetailModal({
 
                       {/* Tour Package */}
                       <div>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
+                        <p className="text-[9px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
                           Tour Package
                         </p>
-                        <p className="text-sm sm:text-base font-bold text-foreground">
+                        <p className="text-[13px] sm:text-base font-bold text-foreground">
                           {currentBooking?.tourPackageName}
                         </p>
                       </div>
@@ -948,12 +992,12 @@ export default function BookingDetailModal({
                       {/* Booking Status */}
                       {currentBooking?.bookingStatus && (
                         <div>
-                          <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
+                          <p className="text-[9px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
                             Status
                           </p>
                           <Badge
                             variant="outline"
-                            className={`text-xs sm:text-sm font-medium border-0 text-foreground px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full rounded-br-none ${getStatusBgColor(
+                            className={`text-[11px] sm:text-sm font-medium border-0 text-foreground px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full rounded-br-none ${getStatusBgColor(
                               currentBooking
                             )}`}
                           >
@@ -966,12 +1010,12 @@ export default function BookingDetailModal({
 
                       {/* Dates */}
                       <div>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
+                        <p className="text-[9px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
                           Dates
                         </p>
-                        <div className="text-xs sm:text-sm space-y-1">
+                        <div className="text-[11px] sm:text-sm space-y-1">
                           <div className="flex items-center gap-1.5 sm:gap-2">
-                            <BsCalendarEvent className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-crimson-red flex-shrink-0" />
+                            <BsCalendarEvent className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-crimson-red flex-shrink-0" />
                             <span className="font-bold">
                               {safeDate(
                                 currentBooking?.reservationDate
@@ -983,7 +1027,7 @@ export default function BookingDetailModal({
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 sm:gap-2">
-                            <FaPlane className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-crimson-red flex-shrink-0" />
+                            <FaPlane className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-crimson-red flex-shrink-0" />
                             <span className="font-bold">
                               {safeDate(
                                 currentBooking?.tourDate
@@ -999,10 +1043,10 @@ export default function BookingDetailModal({
 
                       {/* Payment Plan */}
                       <div>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
+                        <p className="text-[9px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
                           Payment Plan
                         </p>
-                        <p className="text-sm sm:text-base font-bold text-foreground">
+                        <p className="text-[13px] sm:text-base font-bold text-foreground">
                           {currentBooking?.paymentPlan ||
                             currentBooking?.availablePaymentTerms ||
                             "N/A"}
@@ -1011,11 +1055,11 @@ export default function BookingDetailModal({
 
                       {/* Payment Progress */}
                       <div className="col-span-1 sm:col-span-2">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium mb-1.5 sm:mb-2 uppercase">
+                        <p className="text-[9px] sm:text-xs text-muted-foreground font-medium mb-1.5 sm:mb-2 uppercase">
                           Payment Progress
                         </p>
                         <div className="space-y-1.5 sm:space-y-2">
-                          <div className="flex justify-between text-xs sm:text-sm">
+                          <div className="flex justify-between text-[11px] sm:text-sm">
                             <span className="text-spring-green font-bold">
                               Paid: {formatCurrency(paid)}
                             </span>
@@ -1038,7 +1082,7 @@ export default function BookingDetailModal({
                             }`}
                           />
                           {remaining > 0 && (
-                            <p className="text-xs sm:text-sm text-crimson-red font-bold">
+                            <p className="text-[10px] sm:text-sm text-crimson-red font-bold">
                               Due: {formatCurrency(remaining)}
                             </p>
                           )}
@@ -1074,7 +1118,7 @@ export default function BookingDetailModal({
                           <CardHeader className="py-2 sm:py-3 px-3 sm:px-4 bg-crimson-red/10 border-b border-crimson-red/20">
                             <CardTitle className="text-sm sm:text-base font-bold text-foreground flex items-center gap-1.5 sm:gap-2">
                               <div className="p-0.5 sm:p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                                <IconComponent className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-crimson-red" />
+                                <IconComponent className="h-3 w-3 sm:h-4 sm:w-4 text-crimson-red" />
                               </div>
                               {parentTab}
                             </CardTitle>
@@ -1110,28 +1154,28 @@ export default function BookingDetailModal({
                                           }`}
                                         >
                                           {column.dataType === "function" && (
-                                            <FaCode className="h-3 w-3 text-white" />
+                                            <FaCode className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-white" />
                                           )}
                                           {column.dataType === "date" && (
-                                            <FaCalendarAlt className="h-3 w-3 text-crimson-red" />
+                                            <FaCalendarAlt className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                           )}
                                           {column.dataType === "currency" && (
-                                            <FaEuroSign className="h-3 w-3 text-crimson-red" />
+                                            <FaEuroSign className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                           )}
                                           {column.dataType === "boolean" && (
-                                            <BsPersonCheck className="h-3 w-3 text-crimson-red" />
+                                            <BsPersonCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                           )}
                                           {column.dataType === "string" &&
                                             column.columnName
                                               .toLowerCase()
                                               .includes("email") && (
-                                              <MdEmail className="h-3 w-3 text-crimson-red" />
+                                              <MdEmail className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                             )}
                                           {column.dataType === "string" &&
                                             column.columnName
                                               .toLowerCase()
                                               .includes("name") && (
-                                              <FaUser className="h-3 w-3 text-crimson-red" />
+                                              <FaUser className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                             )}
                                           {![
                                             "date",
@@ -1145,15 +1189,15 @@ export default function BookingDetailModal({
                                             !column.columnName
                                               .toLowerCase()
                                               .includes("name") && (
-                                              <FaTag className="h-3 w-3 text-crimson-red" />
+                                              <FaTag className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                             )}
                                         </div>
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] text-muted-foreground font-medium mb-0.5 uppercase tracking-wide">
+                                        <p className="text-[9px] sm:text-[10px] text-muted-foreground font-medium mb-0.5 uppercase tracking-wide">
                                           {column.columnName}
                                         </p>
-                                        <div className="text-xs font-semibold text-foreground break-words break-all whitespace-pre-wrap">
+                                        <div className="text-[11px] sm:text-xs font-semibold text-foreground break-words break-all whitespace-pre-wrap">
                                           <MemoizedColumnValue
                                             column={column}
                                           />
@@ -1170,7 +1214,7 @@ export default function BookingDetailModal({
                                   return (
                                     <div
                                       key={column.id}
-                                      className={`flex items-center justify-between px-4 py-2 transition-colors ${
+                                      className={`flex items-center justify-between px-3 sm:px-4 py-1.5 sm:py-2 transition-colors ${
                                         isEmpty ? "opacity-50" : ""
                                       } ${
                                         column.dataType === "function"
@@ -1178,38 +1222,38 @@ export default function BookingDetailModal({
                                           : "hover:bg-muted/20"
                                       }`}
                                     >
-                                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                                         <div className="flex-shrink-0">
                                           <div
-                                            className={`p-1 rounded-full rounded-br-none ${
+                                            className={`p-0.5 sm:p-1 rounded-full rounded-br-none ${
                                               column.dataType === "function"
                                                 ? "bg-sunglow-yellow"
                                                 : "bg-crimson-red/10"
                                             }`}
                                           >
                                             {column.dataType === "function" && (
-                                              <FaCode className="h-3 w-3 text-white" />
+                                              <FaCode className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-white" />
                                             )}
                                             {column.dataType === "date" && (
-                                              <FaCalendarAlt className="h-3 w-3 text-crimson-red" />
+                                              <FaCalendarAlt className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                             )}
                                             {column.dataType === "currency" && (
-                                              <FaEuroSign className="h-3 w-3 text-crimson-red" />
+                                              <FaEuroSign className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                             )}
                                             {column.dataType === "boolean" && (
-                                              <BsPersonCheck className="h-3 w-3 text-crimson-red" />
+                                              <BsPersonCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                             )}
                                             {column.dataType === "string" &&
                                               column.columnName
                                                 .toLowerCase()
                                                 .includes("email") && (
-                                                <MdEmail className="h-3 w-3 text-crimson-red" />
+                                                <MdEmail className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                               )}
                                             {column.dataType === "string" &&
                                               column.columnName
                                                 .toLowerCase()
                                                 .includes("name") && (
-                                                <FaUser className="h-3 w-3 text-crimson-red" />
+                                                <FaUser className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                               )}
                                             {![
                                               "date",
@@ -1223,16 +1267,16 @@ export default function BookingDetailModal({
                                               !column.columnName
                                                 .toLowerCase()
                                                 .includes("name") && (
-                                                <FaTag className="h-3 w-3 text-crimson-red" />
+                                                <FaTag className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                               )}
                                           </div>
                                         </div>
-                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wide">
                                           {column.columnName}
                                         </p>
                                       </div>
                                       <div className="text-right">
-                                        <div className="text-sm font-semibold text-foreground break-words break-all whitespace-pre-wrap inline-block max-w-full text-right">
+                                        <div className="text-[11px] sm:text-sm font-semibold text-foreground break-words break-all whitespace-pre-wrap inline-block max-w-full text-right">
                                           <MemoizedColumnValue
                                             column={column}
                                           />

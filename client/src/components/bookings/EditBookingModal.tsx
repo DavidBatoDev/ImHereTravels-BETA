@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  startTransition,
+} from "react";
 import {
   Dialog,
   DialogContent,
@@ -1463,7 +1469,7 @@ export default function EditBookingModal({
       const isReadOnly = isFunction;
 
       const baseClasses = cn(
-        "w-full text-xs",
+        "w-full text-[11px] sm:text-xs",
         error && "border-red-500",
         isReadOnly && "bg-muted cursor-not-allowed"
       );
@@ -1487,177 +1493,183 @@ export default function EditBookingModal({
                 id={fieldId}
                 checked={Boolean(value)}
                 onCheckedChange={(checked) => {
-                  console.log(
-                    `🔘 Boolean field toggled: ${column.id} = ${checked}`
-                  );
-                  console.log(`📊 Current formData for draft link:`, {
-                    emailDraftLink: formData.emailDraftLink,
-                    cancellationEmailDraftLink:
-                      formData.cancellationEmailDraftLink,
-                  });
-
-                  // Prevent toggling on if it's a send email field and there's no draft link
-                  if (isSendEmailField && checked && !hasDraftLink) {
-                    toast({
-                      title: "Cannot Send Email",
-                      description:
-                        column.id === "sendEmail"
-                          ? "Please generate an email draft first before sending."
-                          : "Please generate a cancellation email draft first before sending.",
-                      variant: "destructive",
+                  // Use startTransition to prevent flushSync errors on mobile
+                  startTransition(() => {
+                    console.log(
+                      `🔘 Boolean field toggled: ${column.id} = ${checked}`
+                    );
+                    console.log(`📊 Current formData for draft link:`, {
+                      emailDraftLink: formData.emailDraftLink,
+                      cancellationEmailDraftLink:
+                        formData.cancellationEmailDraftLink,
                     });
-                    return;
-                  }
 
-                  // Prevent toggling "Enable Payment Reminder" on if payment plan or payment method is missing
-                  const isEnablePaymentReminderField =
-                    column.id === "enablePaymentReminder";
-                  if (isEnablePaymentReminderField && checked) {
-                    const hasPaymentPlan = Boolean(formData.paymentPlan);
-                    const hasPaymentMethod = Boolean(formData.paymentMethod);
-
-                    if (!hasPaymentPlan || !hasPaymentMethod) {
+                    // Prevent toggling on if it's a send email field and there's no draft link
+                    if (isSendEmailField && checked && !hasDraftLink) {
                       toast({
-                        title: "Cannot Enable Payment Reminder",
+                        title: "Cannot Send Email",
                         description:
-                          "Please set Payment Plan and Payment Method before enabling payment reminders.",
+                          column.id === "sendEmail"
+                            ? "Please generate an email draft first before sending."
+                            : "Please generate a cancellation email draft first before sending.",
                         variant: "destructive",
                       });
                       return;
                     }
-                  }
 
-                  // Prevent toggling "Generate Email Draft" on if payment plan or payment method exists
-                  const isGenerateEmailDraftField =
-                    column.id === "generateEmailDraft";
-                  if (isGenerateEmailDraftField && checked) {
-                    const hasPaymentPlan = Boolean(formData.paymentPlan);
-                    const hasPaymentMethod = Boolean(formData.paymentMethod);
+                    // Prevent toggling "Enable Payment Reminder" on if payment plan or payment method is missing
+                    const isEnablePaymentReminderField =
+                      column.id === "enablePaymentReminder";
+                    if (isEnablePaymentReminderField && checked) {
+                      const hasPaymentPlan = Boolean(formData.paymentPlan);
+                      const hasPaymentMethod = Boolean(formData.paymentMethod);
 
-                    if (hasPaymentPlan || hasPaymentMethod) {
-                      toast({
-                        title: "Cannot Generate Reservation Email",
-                        description:
-                          "Payment Plan and Payment Method must be empty for reservation emails. Please clear them first.",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                  }
-
-                  // Check if this is enablePaymentReminder being toggled OFF
-                  const isEnablePaymentReminder =
-                    column.id === "enablePaymentReminder";
-                  const wasEnabled = Boolean(formData[column.id]);
-
-                  if (
-                    isEnablePaymentReminder &&
-                    wasEnabled &&
-                    !checked &&
-                    booking?.id
-                  ) {
-                    // Toggle OFF: Clean up scheduled emails first
-                    setIsCleaningScheduledEmails(true);
-
-                    ScheduledEmailService.deletePaymentReminders(booking.id)
-                      .then(() => {
-                        // Now update the field
-                        batchedWriter.queueFieldUpdate(
-                          booking.id,
-                          column.id,
-                          checked
-                        );
-                        setFormData((prev) => ({
-                          ...prev,
-                          [column.id]: checked,
-                        }));
-                        setIsSaving(true);
-                        debouncedSaveIndicator();
-
+                      if (!hasPaymentPlan || !hasPaymentMethod) {
                         toast({
-                          title: "Payment Reminders Disabled",
+                          title: "Cannot Enable Payment Reminder",
                           description:
-                            "All scheduled payment reminder emails have been deleted.",
-                        });
-                      })
-                      .catch((error) => {
-                        console.error(
-                          "Error cleaning scheduled emails:",
-                          error
-                        );
-                        toast({
-                          title: "Error",
-                          description:
-                            "Failed to clean up scheduled emails. Please try again.",
+                            "Please set Payment Plan and Payment Method before enabling payment reminders.",
                           variant: "destructive",
                         });
+                        return;
+                      }
+                    }
+
+                    // Prevent toggling "Generate Email Draft" on if payment plan or payment method exists
+                    const isGenerateEmailDraftField =
+                      column.id === "generateEmailDraft";
+                    if (isGenerateEmailDraftField && checked) {
+                      const hasPaymentPlan = Boolean(formData.paymentPlan);
+                      const hasPaymentMethod = Boolean(formData.paymentMethod);
+
+                      if (hasPaymentPlan || hasPaymentMethod) {
+                        toast({
+                          title: "Cannot Generate Reservation Email",
+                          description:
+                            "Payment Plan and Payment Method must be empty for reservation emails. Please clear them first.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                    }
+
+                    // Check if this is enablePaymentReminder being toggled OFF
+                    const isEnablePaymentReminder =
+                      column.id === "enablePaymentReminder";
+                    const wasEnabled = Boolean(formData[column.id]);
+
+                    if (
+                      isEnablePaymentReminder &&
+                      wasEnabled &&
+                      !checked &&
+                      booking?.id
+                    ) {
+                      // Toggle OFF: Clean up scheduled emails first
+                      setIsCleaningScheduledEmails(true);
+
+                      ScheduledEmailService.deletePaymentReminders(booking.id)
+                        .then(() => {
+                          // Now update the field
+                          batchedWriter.queueFieldUpdate(
+                            booking.id,
+                            column.id,
+                            checked
+                          );
+                          setFormData((prev) => ({
+                            ...prev,
+                            [column.id]: checked,
+                          }));
+                          setIsSaving(true);
+                          debouncedSaveIndicator();
+
+                          toast({
+                            title: "Payment Reminders Disabled",
+                            description:
+                              "All scheduled payment reminder emails have been deleted.",
+                          });
+                        })
+                        .catch((error) => {
+                          console.error(
+                            "Error cleaning scheduled emails:",
+                            error
+                          );
+                          toast({
+                            title: "Error",
+                            description:
+                              "Failed to clean up scheduled emails. Please try again.",
+                            variant: "destructive",
+                          });
+                        })
+                        .finally(() => {
+                          setIsCleaningScheduledEmails(false);
+                        });
+
+                      return; // Don't continue with normal flow
+                    }
+
+                    // For switches, commit immediately to Firebase (discrete choice)
+                    if (booking?.id) {
+                      batchedWriter.queueFieldUpdate(
+                        booking.id,
+                        column.id,
+                        checked
+                      );
+                    }
+                    setFormData((prev) => ({ ...prev, [column.id]: checked }));
+                    setIsSaving(true);
+                    debouncedSaveIndicator();
+
+                    // Mark this boolean field as computing to prevent rapid toggling
+                    setComputingFields((prev) => new Set([...prev, column.id]));
+
+                    // For email-related fields, invalidate cache to force fresh execution
+                    if (
+                      column.id === "generateEmailDraft" ||
+                      column.id === "generateCancellationDraft" ||
+                      column.id === "sendEmail" ||
+                      column.id === "sendCancellationEmail"
+                    ) {
+                      // Find the dependent function column and invalidate by function name
+                      const dependents = dependencyGraph.get(column.id) || [];
+                      dependents.forEach((dep) => {
+                        if (dep.function) {
+                          console.log(
+                            `🗑️ Invalidating cache for function: ${dep.function}`
+                          );
+                          functionExecutionService.invalidate(dep.function);
+                        }
+                      });
+                    }
+
+                    // Execute dependent functions immediately
+                    executeDirectDependents(column.id, {
+                      ...formData,
+                      [column.id]: checked,
+                    })
+                      .then((finalData) => {
+                        console.log(
+                          `✅ Dependents completed for ${column.id}`,
+                          {
+                            finalData,
+                            emailDraftLink: finalData?.emailDraftLink,
+                            cancellationEmailDraftLink:
+                              finalData?.cancellationEmailDraftLink,
+                          }
+                        );
+                        if (finalData) {
+                          // Force update formData with final results to prevent stale values
+                          setFormData(finalData);
+                        }
                       })
                       .finally(() => {
-                        setIsCleaningScheduledEmails(false);
+                        // Remove boolean field from computing state
+                        setComputingFields((prev) => {
+                          const newSet = new Set(prev);
+                          newSet.delete(column.id);
+                          return newSet;
+                        });
                       });
-
-                    return; // Don't continue with normal flow
-                  }
-
-                  // For switches, commit immediately to Firebase (discrete choice)
-                  if (booking?.id) {
-                    batchedWriter.queueFieldUpdate(
-                      booking.id,
-                      column.id,
-                      checked
-                    );
-                  }
-                  setFormData((prev) => ({ ...prev, [column.id]: checked }));
-                  setIsSaving(true);
-                  debouncedSaveIndicator();
-
-                  // Mark this boolean field as computing to prevent rapid toggling
-                  setComputingFields((prev) => new Set([...prev, column.id]));
-
-                  // For email-related fields, invalidate cache to force fresh execution
-                  if (
-                    column.id === "generateEmailDraft" ||
-                    column.id === "generateCancellationDraft" ||
-                    column.id === "sendEmail" ||
-                    column.id === "sendCancellationEmail"
-                  ) {
-                    // Find the dependent function column and invalidate by function name
-                    const dependents = dependencyGraph.get(column.id) || [];
-                    dependents.forEach((dep) => {
-                      if (dep.function) {
-                        console.log(
-                          `🗑️ Invalidating cache for function: ${dep.function}`
-                        );
-                        functionExecutionService.invalidate(dep.function);
-                      }
-                    });
-                  }
-
-                  // Execute dependent functions immediately
-                  executeDirectDependents(column.id, {
-                    ...formData,
-                    [column.id]: checked,
-                  })
-                    .then((finalData) => {
-                      console.log(`✅ Dependents completed for ${column.id}`, {
-                        finalData,
-                        emailDraftLink: finalData?.emailDraftLink,
-                        cancellationEmailDraftLink:
-                          finalData?.cancellationEmailDraftLink,
-                      });
-                      if (finalData) {
-                        // Force update formData with final results to prevent stale values
-                        setFormData(finalData);
-                      }
-                    })
-                    .finally(() => {
-                      // Remove boolean field from computing state
-                      setComputingFields((prev) => {
-                        const newSet = new Set(prev);
-                        newSet.delete(column.id);
-                        return newSet;
-                      });
-                    });
+                  });
                 }}
                 disabled={isReadOnly || isComputing}
               />
@@ -1861,7 +1873,7 @@ export default function EditBookingModal({
                 id={fieldId}
                 value={String(value || "")}
                 className={cn(
-                  "w-full font-mono bg-background",
+                  "w-full font-mono bg-background text-[11px] sm:text-xs",
                   error && "border-red-500",
                   isComputing && "opacity-50"
                 )}
@@ -1927,7 +1939,7 @@ export default function EditBookingModal({
                       });
                     }
                   }}
-                  className="h-7 w-7 p-0"
+                  className="hidden sm:flex h-7 w-7 p-0"
                 >
                   <RefreshCw className="h-3 w-3 text-royal-purple" />
                 </Button>
@@ -1952,6 +1964,9 @@ export default function EditBookingModal({
           );
 
         default: // string and others
+          const isLinkField = column.id.endsWith("Link");
+          const linkValue = isLinkField ? String(value || "") : "";
+
           return column.columnName.toLowerCase().includes("description") ||
             column.columnName.toLowerCase().includes("reason") ||
             column.columnName.toLowerCase().includes("notes") ? (
@@ -1967,6 +1982,49 @@ export default function EditBookingModal({
               rows={3}
               autoComplete="off"
             />
+          ) : isLinkField ? (
+            <div className="flex items-center gap-2">
+              <Input
+                id={fieldId}
+                value={String(value || "")}
+                onChange={(e) => handleFieldChange(column.id, e.target.value)}
+                onBlur={() => handleFieldBlur(column.id)}
+                onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
+                className={baseClasses}
+                disabled={isReadOnly || isComputing}
+                placeholder={`Enter ${column.columnName}`}
+                autoComplete="off"
+              />
+              {linkValue && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  tabIndex={-1}
+                  onClick={() => {
+                    if (linkValue) {
+                      window.open(linkValue, "_blank", "noopener,noreferrer");
+                    }
+                  }}
+                  className="h-7 w-7 p-0 flex-shrink-0"
+                  title="Open link in new tab"
+                >
+                  <svg
+                    className="h-3 w-3 text-royal-purple"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </Button>
+              )}
+            </div>
           ) : (
             <Input
               id={fieldId}
@@ -2091,7 +2149,7 @@ export default function EditBookingModal({
     <>
       <Dialog open={isOpen} onOpenChange={handleClose} modal={true}>
         <DialogContent
-          className="max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-full overflow-hidden"
+          className="w-[calc(100%-1rem)] sm:w-full max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-xl sm:rounded-2xl overflow-hidden"
           onOpenAutoFocus={(e) => {
             // Prevent dialog from auto-focusing on open
             e.preventDefault();
@@ -2142,21 +2200,23 @@ export default function EditBookingModal({
             tabIndex={-1}
           >
             <DialogHeader
-              className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-3 pt-6 px-6"
+              className="sticky top-0 z-50 bg-background shadow-md border-b border-border/50 pb-2 sm:pb-3 pt-3 sm:pt-6 px-3 sm:px-6"
               tabIndex={-1}
             >
-              <div className="flex items-center justify-between">
-                <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
-                    <FaCog className="h-5 w-5 text-white" />
+              <div className="flex items-start sm:items-center justify-between gap-2">
+                <DialogTitle className="text-lg sm:text-2xl font-bold text-foreground flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 bg-gradient-to-br from-crimson-red to-crimson-red/80 rounded-full rounded-br-none shadow-sm">
+                    <FaCog className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                   </div>
                   <div>
-                    <span className="block text-base">Edit Booking</span>
-                    <span className="text-2xl font-mono font-semibold text-crimson-red block">
+                    <span className="block text-sm sm:text-base">
+                      Edit Booking
+                    </span>
+                    <span className="text-base sm:text-2xl font-mono font-semibold text-crimson-red block">
                       {booking.bookingId}
                     </span>
                     {/* Live Saving Indicator */}
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 text-[11px] sm:text-xs">
                       {isSaving ? (
                         <div className="flex items-center gap-1 text-xs text-blue-600">
                           <RefreshCw className="h-3 w-3 animate-spin" />
@@ -2176,14 +2236,38 @@ export default function EditBookingModal({
                     </div>
                   </div>
                 </DialogTitle>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* Mobile close */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleClose}
+                    className={cn(
+                      "sm:hidden h-8 w-8 p-0 hover:bg-gray-100",
+                      computingFields.size > 0 &&
+                        "opacity-50 cursor-not-allowed"
+                    )}
+                    disabled={computingFields.size > 0}
+                    title={
+                      computingFields.size > 0
+                        ? `Please wait for ${computingFields.size} computation(s) to complete`
+                        : "Close"
+                    }
+                  >
+                    {computingFields.size > 0 ? (
+                      <RefreshCw className="h-4 w-4 animate-spin text-royal-purple" />
+                    ) : (
+                      <FaTimes className="h-4 w-4" />
+                    )}
+                  </Button>
+
                   {/* Close Button */}
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleClose}
                     className={cn(
-                      "h-8 w-8 p-0 hover:bg-gray-100",
+                      "hidden sm:flex h-8 w-8 p-0 hover:bg-gray-100",
                       computingFields.size > 0 &&
                         "opacity-50 cursor-not-allowed"
                     )}
@@ -2202,6 +2286,37 @@ export default function EditBookingModal({
                   </Button>
                 </div>
               </div>
+
+              {/* Mobile Sections Nav */}
+              {!isLoadingColumns && sortedParentTabs.length > 0 && (
+                <div className="sm:hidden mt-2 -mb-1">
+                  <div className="flex flex-wrap gap-1">
+                    {sortedParentTabs.map((parentTab) => {
+                      const IconComponent = getParentTabIcon(parentTab);
+                      return (
+                        <button
+                          key={parentTab}
+                          onClick={() => scrollToTab(parentTab)}
+                          className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors ${
+                            activeTab === parentTab
+                              ? "bg-crimson-red text-white"
+                              : "bg-muted/50 text-foreground hover:bg-muted"
+                          }`}
+                        >
+                          <IconComponent
+                            className={`h-2.5 w-2.5 flex-shrink-0 ${
+                              activeTab === parentTab
+                                ? "text-white"
+                                : "text-crimson-red"
+                            }`}
+                          />
+                          <span>{parentTab}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </DialogHeader>
 
             <div
@@ -2211,7 +2326,7 @@ export default function EditBookingModal({
               {/* Main Content */}
               <div
                 ref={scrollContainerRef}
-                className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized"
+                className="flex-1 overflow-y-auto h-[95%] pl-3 sm:pl-6 pr-3 sm:pr-0 pb-3 sm:pb-6 scrollbar-hide scroll-optimized"
                 tabIndex={-1}
               >
                 {isLoadingColumns ? (
@@ -2224,7 +2339,7 @@ export default function EditBookingModal({
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="space-y-6" tabIndex={-1}>
+                  <div className="space-y-4 sm:space-y-6" tabIndex={-1}>
                     {sortedParentTabs.map((parentTab) => {
                       const IconComponent = getParentTabIcon(parentTab);
                       const filteredColumns =
@@ -2240,12 +2355,12 @@ export default function EditBookingModal({
                           tabIndex={-1}
                         >
                           <CardHeader
-                            className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20 dark:border-b dark:border-border/20"
+                            className="py-2 sm:py-2.5 px-2.5 sm:px-4 bg-crimson-red/10 border-b border-crimson-red/20 dark:border-b dark:border-border/20"
                             tabIndex={-1}
                           >
-                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                              <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
-                                <IconComponent className="h-4 w-4 text-crimson-red" />
+                            <CardTitle className="text-[12px] sm:text-sm font-bold text-foreground flex items-center gap-1.5 sm:gap-2">
+                              <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
+                                <IconComponent className="h-3 w-3 sm:h-4 sm:w-4 text-crimson-red" />
                               </div>
                               {parentTab}
                             </CardTitle>
@@ -2268,19 +2383,19 @@ export default function EditBookingModal({
                                         : "hover:bg-muted/10"
                                     )}
                                   >
-                                    <div className="flex items-center gap-2 min-w-0 w-[40%] px-3 py-2 border-r border-field-border">
+                                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 w-[40%] px-2.5 sm:px-3 py-1.5 sm:py-2 border-r border-field-border">
                                       <Label
                                         htmlFor={`field-${column.id}`}
-                                        className="text-xs font-medium"
+                                        className="text-[11px] sm:text-xs font-medium"
                                       >
                                         {column.columnName}
                                       </Label>
                                     </div>
-                                    <div className="w-[60%] px-3 py-2">
-                                      <div className="space-y-2">
+                                    <div className="w-[60%] px-2.5 sm:px-3 py-1.5 sm:py-2">
+                                      <div className="space-y-1.5 sm:space-y-2">
                                         {renderFormField(column)}
                                         {error && (
-                                          <p className="text-xs text-red-600">
+                                          <p className="text-[11px] sm:text-xs text-red-600">
                                             {error}
                                           </p>
                                         )}
@@ -2301,7 +2416,7 @@ export default function EditBookingModal({
               {/* Navigation Sidebar */}
               {!isLoadingColumns && sortedParentTabs.length > 0 && (
                 <div
-                  className="w-48 border-l border-border/50 p-4"
+                  className="hidden lg:block w-48 border-l border-border/50 p-4"
                   tabIndex={-1}
                 >
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
