@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Install phone input deps",
+			"type": "shell",
+			"command": "npm install react-phone-number-input libphonenumber-js",
+			"group": "build"
+		},
+		{
+			"label": "Install phone input deps",
+			"type": "shell",
+			"command": "npm install react-phone-number-input libphonenumber-js"
+		}
+	]
+}

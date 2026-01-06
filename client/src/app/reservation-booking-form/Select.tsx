@@ -4,10 +4,11 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 export type Option = {
-  label: string;
+  label: React.ReactNode;
   value: string;
   disabled?: boolean;
-  description?: string; // small helper text under label
+  description?: string;
+  searchValue?: string; // custom search text for robust matching
 };
 
 type Props = {
@@ -40,21 +41,39 @@ export default function Select({
 
   const selected = options.find(o => o.value === value) ?? null;
   const filtered = searchable
-    ? options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
+    ? options.filter(o => {
+        const searchText = o.searchValue ?? (typeof o.label === "string" ? o.label : "");
+        return searchText.toLowerCase().includes(query.toLowerCase());
+      })
     : options;
 
   const [placement, setPlacement] = React.useState<"down" | "up">("down");
   const [anchor, setAnchor] = React.useState<DOMRect | null>(null);
+  const [maxHeight, setMaxHeight] = React.useState(320); // default max height
 
   React.useEffect(() => {
     if (!open || !btnRef.current) return;
     const compute = () => {
       const r = btnRef.current!.getBoundingClientRect();
       setAnchor(r);
-      const spaceBelow = window.innerHeight - r.bottom;
-      const spaceAbove = r.top;
-      const needed = 260;
-      setPlacement(spaceBelow >= needed || spaceBelow >= spaceAbove ? "down" : "up");
+      const spaceBelow = window.innerHeight - r.bottom - 16; // 16px margin
+      const spaceAbove = r.top - 16;
+      const optimalHeight = 320; // preferred max height
+      
+      // Determine placement and max height
+      if (spaceBelow >= optimalHeight) {
+        setPlacement("down");
+        setMaxHeight(Math.min(optimalHeight, spaceBelow));
+      } else if (spaceAbove >= optimalHeight) {
+        setPlacement("up");
+        setMaxHeight(Math.min(optimalHeight, spaceAbove));
+      } else if (spaceBelow >= spaceAbove) {
+        setPlacement("down");
+        setMaxHeight(spaceBelow);
+      } else {
+        setPlacement("up");
+        setMaxHeight(spaceAbove);
+      }
     };
     compute();
     window.addEventListener("scroll", compute, true);
@@ -87,6 +106,16 @@ export default function Select({
   // keyboard nav
   const [activeIndex, setActiveIndex] = React.useState<number>(-1);
   React.useEffect(() => { if (!open) setActiveIndex(-1); }, [open, query]);
+
+  // Auto-scroll to active item
+  React.useEffect(() => {
+    if (activeIndex >= 0 && listRef.current) {
+      const activeElement = listRef.current.querySelector(`[data-index="${activeIndex}"]`);
+      if (activeElement) {
+        activeElement.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+  }, [activeIndex]);
 
   const nextEnabled = (start: number, dir: 1 | -1) => {
     let i = start;
@@ -181,7 +210,8 @@ export default function Select({
             }}
             style={{
               position: "fixed",
-              top: placement === "down" ? anchor.bottom + 8 : anchor.top - 8,
+              top: placement === "down" ? anchor.bottom + 8 : undefined,
+              bottom: placement === "up" ? window.innerHeight - anchor.top + 8 : undefined,
               left: anchor.left,
               width: anchor.width,
               zIndex: 9999,
@@ -201,7 +231,10 @@ export default function Select({
             </div>
           )}
 
-          <div className="max-h-60 overflow-y-auto overflow-x-hidden py-1">
+          <div 
+            className="overflow-y-auto overflow-x-hidden py-1 pb-2"
+            style={{ maxHeight: `${maxHeight}px` }}
+          >
             {filtered.length === 0 && (
               <motion.div 
                 initial={{ opacity: 0 }}
@@ -228,6 +261,7 @@ export default function Select({
               return (
                 <motion.div
                   key={opt.value}
+                  data-index={idx}
                   role="option"
                   aria-selected={isSelected}
                   aria-disabled={!!opt.disabled}
@@ -238,8 +272,7 @@ export default function Select({
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ 
-                    duration: 0.2,
-                    delay: idx * 0.03,
+                    duration: 0.15,
                     ease: [0.4, 0, 0.2, 1]
                   }}
                   whileHover={!opt.disabled ? { x: 4 } : {}}

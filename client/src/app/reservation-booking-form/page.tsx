@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -25,6 +25,8 @@ import StripePayment from "./StripePayment";
 import BirthdatePicker from "./BirthdatePicker";
 import Select from "./Select";
 import TourSelectionModal from "./TourSelectionModal";
+import { getNationalityOptions, getNationalityCountryCode } from "./nationalities";
+import ReactCountryFlag from "react-country-flag";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Dialog,
@@ -34,6 +36,104 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import BookingConfirmationDocument from "./BookingConfirmationDocument";
+import jsPDF from "jspdf";
+import Receipt from "./Receipt";
+import { generateBookingConfirmationPDF } from "./generatePdf";
+import "react-phone-number-input/style.css";
+import PhoneInput, {
+  isValidPhoneNumber,
+  getCountries,
+  getCountryCallingCode,
+} from "react-phone-number-input";
+import en from "react-phone-number-input/locale/en";
+import type { Country } from "react-phone-number-input";
+
+// Safe wrapper for getCountryCallingCode with fallback
+const safeGetCountryCallingCode = (countryCode: string): string => {
+  try {
+    return getCountryCallingCode(countryCode as Country);
+  } catch (error) {
+    console.warn(`Unknown country code for phone: ${countryCode}`);
+    return "1"; // Default to US/Canada code
+  }
+};
+
+// Country data with Alpha-3 codes and phone number max lengths
+const countryData: Record<
+  string,
+  { alpha3: string; flag: string; maxLength: number }
+> = {
+  US: { alpha3: "USA", flag: "\uD83C\uDDFA\uD83C\uDDF8", maxLength: 10 },
+  GB: { alpha3: "GBR", flag: "\uD83C\uDDEC\uD83C\uDDE7", maxLength: 10 },
+  PH: { alpha3: "PHL", flag: "\uD83C\uDDF5\uD83C\uDDED", maxLength: 10 },
+  JP: { alpha3: "JPN", flag: "\uD83C\uDDEF\uD83C\uDDF5", maxLength: 10 },
+  CN: { alpha3: "CHN", flag: "\uD83C\uDDE8\uD83C\uDDF3", maxLength: 11 },
+  IN: { alpha3: "IND", flag: "\uD83C\uDDEE\uD83C\uDDF3", maxLength: 10 },
+  AU: { alpha3: "AUS", flag: "\uD83C\uDDE6\uD83C\uDDFA", maxLength: 9 },
+  CA: { alpha3: "CAN", flag: "\uD83C\uDDE8\uD83C\uDDE6", maxLength: 10 },
+  DE: { alpha3: "DEU", flag: "\uD83C\uDDE9\uD83C\uDDEA", maxLength: 11 },
+  FR: { alpha3: "FRA", flag: "\uD83C\uDDEB\uD83C\uDDF7", maxLength: 9 },
+  IT: { alpha3: "ITA", flag: "\uD83C\uDDEE\uD83C\uDDF9", maxLength: 10 },
+  ES: { alpha3: "ESP", flag: "\uD83C\uDDEA\uD83C\uDDF8", maxLength: 9 },
+  BR: { alpha3: "BRA", flag: "\uD83C\uDDE7\uD83C\uDDF7", maxLength: 11 },
+  MX: { alpha3: "MEX", flag: "\uD83C\uDDF2\uD83C\uDDFD", maxLength: 10 },
+  KR: { alpha3: "KOR", flag: "\uD83C\uDDF0\uD83C\uDDF7", maxLength: 10 },
+  SG: { alpha3: "SGP", flag: "\uD83C\uDDF8\uD83C\uDDEC", maxLength: 8 },
+  MY: { alpha3: "MYS", flag: "\uD83C\uDDF2\uD83C\uDDFE", maxLength: 10 },
+  TH: { alpha3: "THA", flag: "\uD83C\uDDF9\uD83C\uDDED", maxLength: 9 },
+  VN: { alpha3: "VNM", flag: "\uD83C\uDDFB\uD83C\uDDF3", maxLength: 10 },
+  ID: { alpha3: "IDN", flag: "\uD83C\uDDEE\uD83C\uDDE9", maxLength: 11 },
+  NZ: { alpha3: "NZL", flag: "\uD83C\uDDF3\uD83C\uDDFF", maxLength: 9 },
+  AE: { alpha3: "ARE", flag: "\uD83C\uDDE6\uD83C\uDDEA", maxLength: 9 },
+  SA: { alpha3: "SAU", flag: "\uD83C\uDDF8\uD83C\uDDE6", maxLength: 9 },
+  ZA: { alpha3: "ZAF", flag: "\uD83C\uDDFF\uD83C\uDDE6", maxLength: 9 },
+  RU: { alpha3: "RUS", flag: "\uD83C\uDDF7\uD83C\uDDFA", maxLength: 10 },
+  TR: { alpha3: "TUR", flag: "\uD83C\uDDF9\uD83C\uDDF7", maxLength: 10 },
+  NL: { alpha3: "NLD", flag: "\uD83C\uDDF3\uD83C\uDDF1", maxLength: 9 },
+  SE: { alpha3: "SWE", flag: "\uD83C\uDDF8\uD83C\uDDEA", maxLength: 9 },
+  CH: { alpha3: "CHE", flag: "\uD83C\uDDE8\uD83C\uDDED", maxLength: 9 },
+  PL: { alpha3: "POL", flag: "\uD83C\uDDF5\uD83C\uDDF1", maxLength: 9 },
+  BE: { alpha3: "BEL", flag: "\uD83C\uDDE7\uD83C\uDDEA", maxLength: 9 },
+  AT: { alpha3: "AUT", flag: "\uD83C\uDDE6\uD83C\uDDF9", maxLength: 10 },
+  NO: { alpha3: "NOR", flag: "\uD83C\uDDF3\uD83C\uDDF4", maxLength: 8 },
+  DK: { alpha3: "DNK", flag: "\uD83C\uDDE9\uD83C\uDDF0", maxLength: 8 },
+  FI: { alpha3: "FIN", flag: "\uD83C\uDDEB\uD83C\uDDEE", maxLength: 9 },
+  IE: { alpha3: "IRL", flag: "\uD83C\uDDEE\uD83C\uDDEA", maxLength: 9 },
+  PT: { alpha3: "PRT", flag: "\uD83C\uDDF5\uD83C\uDDF9", maxLength: 9 },
+  GR: { alpha3: "GRC", flag: "\uD83C\uDDEC\uD83C\uDDF7", maxLength: 10 },
+  CZ: { alpha3: "CZE", flag: "\uD83C\uDDE8\uD83C\uDDFF", maxLength: 9 },
+  HU: { alpha3: "HUN", flag: "\uD83C\uDDED\uD83C\uDDFA", maxLength: 9 },
+  RO: { alpha3: "ROU", flag: "\uD83C\uDDF7\uD83C\uDDF4", maxLength: 9 },
+  IL: { alpha3: "ISR", flag: "\uD83C\uDDEE\uD83C\uDDF1", maxLength: 9 },
+  EG: { alpha3: "EGY", flag: "\uD83C\uDDEA\uD83C\uDDEC", maxLength: 10 },
+  AR: { alpha3: "ARG", flag: "\uD83C\uDDE6\uD83C\uDDF7", maxLength: 10 },
+  CL: { alpha3: "CHL", flag: "\uD83C\uDDE8\uD83C\uDDF1", maxLength: 9 },
+  CO: { alpha3: "COL", flag: "\uD83C\uDDE8\uD83C\uDDF4", maxLength: 10 },
+  PE: { alpha3: "PER", flag: "\uD83C\uDDF5\uD83C\uDDEA", maxLength: 9 },
+  HK: { alpha3: "HKG", flag: "\uD83C\uDDED\uD83C\uDDF0", maxLength: 8 },
+  TW: { alpha3: "TWN", flag: "\uD83C\uDDF9\uD83C\uDDFC", maxLength: 9 },
+  PK: { alpha3: "PAK", flag: "\uD83C\uDDF5\uD83C\uDDF0", maxLength: 10 },
+  BD: { alpha3: "BGD", flag: "\uD83C\uDDE7\uD83C\uDDE9", maxLength: 10 },
+  NG: { alpha3: "NGA", flag: "\uD83C\uDDF3\uD83C\uDDEC", maxLength: 10 },
+  KE: { alpha3: "KEN", flag: "\uD83C\uDDF0\uD83C\uDDEA", maxLength: 9 },
+  UA: { alpha3: "UKR", flag: "\uD83C\uDDFA\uD83C\uDDE6", maxLength: 9 },
+};
+
+// Helper to get country data
+const getCountryData = (countryCode: string) => {
+  return (
+    countryData[countryCode] || {
+      alpha3: countryCode.toUpperCase(),
+      flag: countryCode
+        .toUpperCase()
+        .split("")
+        .map((char) => String.fromCodePoint(127397 + char.charCodeAt(0)))
+        .join(""),
+      maxLength: 15, // default max length
+    }
+  );
+};
 
 const Page = () => {
   const DEBUG = true;
@@ -45,13 +145,37 @@ const Page = () => {
   // Section 1 specific state
   const [birthdate, setBirthdate] = useState<string>("");
   const [nationality, setNationality] = useState("");
+  const [whatsAppNumber, setWhatsAppNumber] = useState("");
+  const [whatsAppCountry, setWhatsAppCountry] = useState("GB");
   const [bookingType, setBookingType] = useState("Single Booking");
   const [groupSize, setGroupSize] = useState<number>(3);
   const [tourPackage, setTourPackage] = useState(""); // will store package id
   const [tourDate, setTourDate] = useState("");
-  const [additionalGuests, setAdditionalGuests] = useState<string[]>([]);
+  const [additionalGuests, setAdditionalGuests] = useState<string[]>([]); // Keep for backward compatibility
+  
+  // New state for guest personal details
+  const [activeGuestTab, setActiveGuestTab] = useState(1); // Track which guest form is active
+  const [guestDetails, setGuestDetails] = useState<Array<{
+    email: string;
+    firstName: string;
+    lastName: string;
+    birthdate: string;
+    nationality: string;
+    whatsAppNumber: string;
+    whatsAppCountry: string;
+  }>>([]);
 
   // dynamic tour packages and dates loaded from Firestore
+  // Auto-update WhatsApp country code when nationality changes
+  useEffect(() => {
+    if (nationality) {
+      const countryCode = getNationalityCountryCode(nationality);
+      if (countryCode) {
+        setWhatsAppCountry(countryCode);
+      }
+    }
+  }, [nationality]);
+
   const [tourPackages, setTourPackages] = useState<
     Array<{
       id: string;
@@ -82,6 +206,11 @@ const Page = () => {
   const [tourImageLoading, setTourImageLoading] = useState(false);
   const [tourImageError, setTourImageError] = useState(false);
   const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [step2Processing, setStep2Processing] = useState(false);
+  const [step2StatusMsg, setStep2StatusMsg] = useState<string | null>(null);
+  const [step2StatusType, setStep2StatusType] = useState<
+    "success" | "error" | null
+  >(null);
 
   // Tour selection modal state
   const [showTourModal, setShowTourModal] = useState(false);
@@ -126,11 +255,21 @@ const Page = () => {
   const [howItWorksExpanded, setHowItWorksExpanded] = useState(true);
   // animation timing (ms) used for transitions so entrance/exit durations match
   const ANIM_DURATION = 300;
+  // Track if we've restored guests from sessionStorage to prevent race conditions
+  const sessionRestoredRef = useRef(false);
 
   // ---- multi-step flow state ----
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | number>(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmedState] = useState(false);
+
+  // Wrapper to log when paymentConfirmed changes
+  const setPaymentConfirmed = (value: boolean) => {
+    console.log("🔍 DEBUG: setPaymentConfirmed called with:", value);
+    console.trace("🔍 DEBUG: Call stack:");
+    setPaymentConfirmedState(value);
+  };
+
   const [bookingId, setBookingId] = useState<string>("");
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [confirmingBooking, setConfirmingBooking] = useState(false);
@@ -187,9 +326,9 @@ const Page = () => {
         return "Fill in your personal details and select your tour name";
       case 2:
         return selectedPackage
-          ? `Pay £${depositAmount.toFixed(
-              2
-            )} reservation fee to secure your spot`
+          ? bookingType === "Duo Booking" || bookingType === "Group Booking"
+            ? `Pay £${depositAmount.toFixed(2)} reservation fee (£${baseReservationFee.toFixed(2)} × ${numberOfPeople} ${numberOfPeople === 1 ? 'person' : 'people'}) to secure your spots`
+            : `Pay £${depositAmount.toFixed(2)} reservation fee to secure your spot`
           : "Pay a small reservation fee to secure your spot";
       case 3:
         if (availablePaymentTerm.isInvalid) {
@@ -224,6 +363,11 @@ const Page = () => {
           lastName,
           birthdate,
           nationality,
+          whatsAppNumber: whatsAppNumber
+            ? `+${safeGetCountryCallingCode(
+                whatsAppCountry
+              )}${whatsAppNumber}`
+            : "",
         },
         booking: {
           type: bookingType,
@@ -236,6 +380,21 @@ const Page = () => {
           additionalGuests:
             bookingType === "Duo Booking" || bookingType === "Group Booking"
               ? additionalGuests
+              : [],
+          guestDetails:
+            bookingType === "Duo Booking" || bookingType === "Group Booking"
+              ? guestDetails.map(guest => ({
+                  email: guest.email,
+                  firstName: guest.firstName,
+                  lastName: guest.lastName,
+                  birthdate: guest.birthdate,
+                  nationality: guest.nationality,
+                  whatsAppNumber: guest.whatsAppNumber
+                    ? `+${safeGetCountryCallingCode(
+                        guest.whatsAppCountry
+                      )}${guest.whatsAppNumber}`
+                    : "",
+                }))
               : [],
           id: "PENDING",
           documentId: "",
@@ -281,8 +440,17 @@ const Page = () => {
 
   // Query existing stripePayments for this email and show modal if any
   const checkExistingPaymentsAndMaybeProceed = async () => {
-    if (!validate()) return;
-    if (isCreatingPayment) return;
+    console.log("🚀 checkExistingPaymentsAndMaybeProceed called");
+    if (!validate()) {
+      console.log("❌ Validation failed");
+      return;
+    }
+    console.log("✅ Validation passed");
+    if (isCreatingPayment) {
+      console.log("⏳ Already creating payment, exiting");
+      return;
+    }
+    console.log("🔄 Setting isCreatingPayment to true");
     setIsCreatingPayment(true);
 
     // If we already have a paymentDocId, update it with current form data before proceeding
@@ -296,6 +464,11 @@ const Page = () => {
             lastName,
             birthdate,
             nationality,
+            whatsAppNumber: whatsAppNumber
+              ? `+${safeGetCountryCallingCode(
+                  whatsAppCountry
+                )}${whatsAppNumber}`
+              : "",
           },
           booking: {
             type: bookingType,
@@ -308,6 +481,21 @@ const Page = () => {
             additionalGuests:
               bookingType === "Duo Booking" || bookingType === "Group Booking"
                 ? additionalGuests
+                : [],
+            guestDetails:
+              bookingType === "Duo Booking" || bookingType === "Group Booking"
+                ? guestDetails.map(guest => ({
+                    email: guest.email,
+                    firstName: guest.firstName,
+                    lastName: guest.lastName,
+                    birthdate: guest.birthdate,
+                    nationality: guest.nationality,
+                    whatsAppNumber: guest.whatsAppNumber
+                      ? `+${safeGetCountryCallingCode(
+                          guest.whatsAppCountry
+                        )}${guest.whatsAppNumber}`
+                      : "",
+                  }))
                 : [],
             id: "PENDING",
             documentId: "",
@@ -341,6 +529,7 @@ const Page = () => {
       } catch (err) {
         console.debug("Failed to set paymentid query param:", err);
       }
+      setIsCreatingPayment(false);
       return;
     }
 
@@ -354,7 +543,37 @@ const Page = () => {
         limit(5)
       );
       const snap = await getDocs(q);
-      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
+
+      // Check for payment plans in reserve_paid documents
+      const { doc, getDoc } = await import("firebase/firestore");
+      for (const payment of docs) {
+        if (
+          payment?.payment?.status === "reserve_paid" ||
+          payment?.status === "reserve_paid"
+        ) {
+          const bookingDocId =
+            payment.booking?.documentId || payment.booking?.id;
+          if (
+            bookingDocId &&
+            bookingDocId !== "PENDING" &&
+            bookingDocId !== ""
+          ) {
+            try {
+              const bookingDoc = await getDoc(
+                doc(db, "bookings", bookingDocId)
+              );
+              if (bookingDoc.exists()) {
+                const bookingData = bookingDoc.data();
+                payment._hasPaymentPlan = !!bookingData?.paymentPlan;
+              }
+            } catch (err) {
+              console.error("Error checking booking for payment plan:", err);
+            }
+          }
+        }
+      }
+
       if (!docs || docs.length === 0) {
         // no existing records — create a new placeholder
         const id = await createPlaceholder();
@@ -371,10 +590,28 @@ const Page = () => {
         }
         setStep(2);
       } else {
-        // show modal with options
-        setFoundStripePayments(docs);
-        setShowEmailModal(true);
-        setIsCreatingPayment(false); // Reset since user needs to choose
+        // Check if any payment matches current tour AND date exactly
+        const exactMatch = docs.find(
+          (d) =>
+            d?.tour?.packageName === (selectedPackage?.name || "") &&
+            d?.tour?.date === tourDate
+        );
+
+        if (exactMatch) {
+          // Same tour and same date - show modal to let user decide
+          console.log("📋 Found exact match (same tour + date), showing modal");
+          setFoundStripePayments([exactMatch]);
+          setShowEmailModal(true);
+          setIsCreatingPayment(false);
+        } else {
+          // Different tour or different date - show modal with all payments
+          console.log(
+            "📋 Found existing payments for different tour/date, showing modal"
+          );
+          setFoundStripePayments(docs);
+          setShowEmailModal(true);
+          setIsCreatingPayment(false);
+        }
       }
     } catch (err) {
       console.error("Error checking existing payments:", err);
@@ -398,6 +635,338 @@ const Page = () => {
   };
 
   const handleReuseExisting = async (rec: any) => {
+    const status = rec?.payment?.status || rec?.status;
+
+    // For reserve_paid: verify payment with Stripe before proceeding
+    if (status === "reserve_paid") {
+      const stripeIntentId = rec?.payment?.stripeIntentId;
+
+      // Verify payment status with Stripe if we have a payment intent ID
+      if (stripeIntentId) {
+        try {
+          console.log("🔍 Verifying payment status with Stripe...");
+          const response = await fetch(
+            `/api/stripe-payments/verify-payment?paymentIntentId=${stripeIntentId}`
+          );
+          const result = await response.json();
+
+          if (!response.ok || result.status !== "succeeded") {
+            console.error("❌ Payment verification failed:", result);
+            // Payment didn't actually succeed - update status and treat as pending
+            const { doc, updateDoc } = await import("firebase/firestore");
+            await updateDoc(doc(db, "stripePayments", rec.id), {
+              "payment.status": "reserve_pending",
+            });
+            alert(
+              "Payment verification failed. The payment was not completed successfully. Please try again."
+            );
+            // Treat as pending and reload
+            window.location.reload();
+            return;
+          }
+          console.log("✅ Payment verified successfully");
+        } catch (err) {
+          console.error("Error verifying payment:", err);
+          // If verification fails, proceed cautiously but log the issue
+        }
+      }
+
+      // Check if booking exists and has a payment plan
+      const bookingDocId = rec.booking?.documentId || rec.booking?.id;
+      let hasPaymentPlan = false;
+
+      if (bookingDocId && bookingDocId !== "PENDING" && bookingDocId !== "") {
+        try {
+          const { doc, getDoc } = await import("firebase/firestore");
+          const bookingDoc = await getDoc(doc(db, "bookings", bookingDocId));
+
+          if (bookingDoc.exists()) {
+            const bookingData = bookingDoc.data();
+            hasPaymentPlan = !!bookingData?.paymentPlan;
+
+            if (hasPaymentPlan) {
+              console.log(
+                "✅ reserve_paid has payment plan, treating as confirmed"
+              );
+              // Treat as terms_selected - show confirmation page
+              setShowEmailModal(false);
+              setPaymentDocId(rec.id);
+              setBookingId(bookingDocId);
+              setPaymentConfirmed(true);
+              setBookingConfirmed(true);
+              setSelectedPaymentPlan(bookingData.paymentPlan);
+
+              try {
+                sessionStorage.setItem(
+                  `stripe_payment_doc_${email}_${tourPackage}`,
+                  rec.id
+                );
+              } catch {}
+
+              try {
+                replaceWithPaymentId(rec.id);
+              } catch (err) {
+                console.debug("Failed to set paymentid query param:", err);
+              }
+
+              if (!completedSteps.includes(1)) {
+                setCompletedSteps([...completedSteps, 1]);
+              }
+              if (!completedSteps.includes(2)) {
+                setCompletedSteps([...completedSteps, 2]);
+              }
+              if (!completedSteps.includes(3)) {
+                setCompletedSteps([...completedSteps, 3]);
+              }
+              setStep(3);
+              return;
+            }
+          }
+        } catch (err) {
+          console.error("Error checking booking for payment plan:", err);
+          // Continue with normal reserve_paid flow
+        }
+      }
+
+      // No payment plan yet - proceed to step 3 to select plan
+      setShowEmailModal(false);
+      setPaymentDocId(rec.id);
+      try {
+        sessionStorage.setItem(
+          `stripe_payment_doc_${email}_${tourPackage}`,
+          rec.id
+        );
+      } catch {}
+      try {
+        replaceWithPaymentId(rec.id);
+      } catch (err) {
+        console.debug(
+          "Failed to set paymentid query param for reserve_paid:",
+          err
+        );
+      }
+      // Extract booking info
+      if (rec.bookingId) setBookingId(rec.bookingId);
+      if (rec.booking?.id && rec.booking.id !== "PENDING")
+        setBookingId(rec.booking.id);
+      setPaymentConfirmed(true);
+      if (!completedSteps.includes(1)) {
+        setCompletedSteps([...completedSteps, 1]);
+      }
+      if (!completedSteps.includes(2)) {
+        setCompletedSteps([...completedSteps, 2]);
+      }
+      setStep(3);
+      return;
+    }
+
+    // For reserve_pending: load existing booking data and fetch fresh PaymentIntent
+    if (status === "reserve_pending" || status === "pending") {
+      try {
+        setIsCreatingPayment(true);
+        
+        // Load existing booking data into form fields
+        console.log("📋 Loading existing booking data into form:", rec);
+        
+        // Customer data
+        if (rec.customer?.email) setEmail(rec.customer.email);
+        if (rec.customer?.firstName) setFirstName(rec.customer.firstName);
+        if (rec.customer?.lastName) setLastName(rec.customer.lastName);
+        if (rec.customer?.birthdate) setBirthdate(rec.customer.birthdate);
+        if (rec.customer?.nationality) setNationality(rec.customer.nationality);
+        
+        // Parse WhatsApp number
+        if (rec.customer?.whatsAppNumber) {
+          const whatsAppStr = rec.customer.whatsAppNumber;
+          // Try to extract country code and number
+          // Format is typically "+44123456789"
+          if (whatsAppStr.startsWith("+")) {
+            // Find which country code matches
+            const countries = getCountries();
+            let foundCountry: Country | null = null;
+            let foundNumber = "";
+            
+            for (const country of countries) {
+              try {
+                const countryCode = safeGetCountryCallingCode(country);
+                if (whatsAppStr.startsWith(`+${countryCode}`)) {
+                  foundCountry = country;
+                  foundNumber = whatsAppStr.substring(`+${countryCode}`.length);
+                  break;
+                }
+              } catch {}
+            }
+            
+            if (foundCountry) {
+              setWhatsAppCountry(foundCountry);
+              setWhatsAppNumber(foundNumber);
+            }
+          }
+        }
+        
+        // Booking data - set booking type and group size first
+        const loadedBookingType = rec.booking?.type || "Single Booking";
+        const loadedGroupSize = rec.booking?.groupSize || 3;
+        
+        if (rec.booking?.type) setBookingType(loadedBookingType);
+        if (rec.booking?.groupSize) setGroupSize(loadedGroupSize);
+        
+        // Set guestsMounted to true for Duo/Group bookings
+        if (loadedBookingType === "Duo Booking" || loadedBookingType === "Group Booking") {
+          setGuestsMounted(true);
+          // Schedule height calculation after state updates
+          setTimeout(() => {
+            const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
+            if (contentHeight > 0) {
+              setGuestsHeight(`${contentHeight}px`);
+            }
+          }, 0);
+        }
+        
+        // Handle additional guests based on booking type
+        if (rec.booking?.additionalGuests && Array.isArray(rec.booking.additionalGuests)) {
+          if (loadedBookingType === "Duo Booking") {
+            // For Duo Booking, keep 1 additional guest (fill with empty if needed)
+            const guest = rec.booking.additionalGuests[0] || "";
+            setAdditionalGuests([guest]);
+          } else if (loadedBookingType === "Group Booking") {
+            // For Group Booking, preserve existing guests up to groupSize - 1
+            const maxGuests = Math.max(0, loadedGroupSize - 1);
+            const existingGuests = rec.booking.additionalGuests.slice(0, maxGuests);
+            // Pad with empty strings if needed to match expected count
+            while (existingGuests.length < maxGuests) {
+              existingGuests.push("");
+            }
+            setAdditionalGuests(existingGuests);
+          } else {
+            // Single Booking - no additional guests
+            setAdditionalGuests([]);
+          }
+        } else if (loadedBookingType === "Duo Booking") {
+          // Initialize with one empty guest for Duo if not present
+          setAdditionalGuests([""]);
+        } else if (loadedBookingType === "Group Booking") {
+          // Initialize with empty guests based on group size
+          const guestCount = Math.max(0, loadedGroupSize - 1);
+          setAdditionalGuests(Array(guestCount).fill(""));
+        } else {
+          // Single Booking
+          setAdditionalGuests([]);
+        }
+        
+        // Tour data
+        if (rec.tour?.packageId) setTourPackage(rec.tour.packageId);
+        if (rec.tour?.date) setTourDate(rec.tour.date);
+
+        // Fetch fresh PaymentIntent via init-payment API
+        const response = await fetch("/api/stripe-payments/init-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: rec.customer?.email || email,
+            tourPackage: rec.tour?.packageId || tourPackage,
+            tourPackageName: rec.tour?.packageName || selectedPackage?.name || "",
+            amountGBP: rec.payment?.amount || depositAmount,
+            paymentDocId: rec.id,
+            meta: {
+              source: "reservation-form-reuse",
+              reuseAttempt: Date.now(),
+            },
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok || data.error) {
+          throw new Error(data.error || "Failed to initialize payment");
+        }
+
+        console.log(
+          "✅ Fetched fresh PaymentIntent for existing document:",
+          rec.id
+        );
+        setShowEmailModal(false);
+        setPaymentDocId(rec.id);
+        try {
+          sessionStorage.setItem(
+            `stripe_payment_doc_${rec.customer?.email || email}_${rec.tour?.packageId || tourPackage}`,
+            rec.id
+          );
+        } catch {}
+        try {
+          replaceWithPaymentId(rec.id);
+        } catch (err) {
+          console.debug("Failed to set paymentid query param:", err);
+        }
+        if (!completedSteps.includes(1)) {
+          setCompletedSteps([...completedSteps, 1]);
+        }
+        setStep(2);
+      } catch (err) {
+        console.error("Error reusing existing payment:", err);
+        alert("Unable to reuse existing payment. Please try again.");
+      } finally {
+        setIsCreatingPayment(false);
+      }
+      return;
+    }
+
+    // For terms_selected: treat like reserve_paid with payment plan - show confirmation
+    if (status === "terms_selected") {
+      console.log("✅ terms_selected status, treating as fully confirmed");
+      setShowEmailModal(false);
+      setPaymentDocId(rec.id);
+
+      // Extract booking info
+      const bookingDocId = rec.booking?.documentId || rec.booking?.id;
+      if (bookingDocId && bookingDocId !== "PENDING" && bookingDocId !== "") {
+        setBookingId(bookingDocId);
+
+        // Try to fetch payment plan from booking
+        try {
+          const { doc, getDoc } = await import("firebase/firestore");
+          const bookingDoc = await getDoc(doc(db, "bookings", bookingDocId));
+
+          if (bookingDoc.exists()) {
+            const bookingData = bookingDoc.data();
+            if (bookingData?.paymentPlan) {
+              setSelectedPaymentPlan(bookingData.paymentPlan);
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching booking payment plan:", err);
+        }
+      }
+
+      setPaymentConfirmed(true);
+      setBookingConfirmed(true);
+
+      try {
+        sessionStorage.setItem(
+          `stripe_payment_doc_${email}_${tourPackage}`,
+          rec.id
+        );
+      } catch {}
+
+      try {
+        replaceWithPaymentId(rec.id);
+      } catch (err) {
+        console.debug("Failed to set paymentid query param:", err);
+      }
+
+      if (!completedSteps.includes(1)) {
+        setCompletedSteps([...completedSteps, 1]);
+      }
+      if (!completedSteps.includes(2)) {
+        setCompletedSteps([...completedSteps, 2]);
+      }
+      if (!completedSteps.includes(3)) {
+        setCompletedSteps([...completedSteps, 3]);
+      }
+      setStep(3);
+      return;
+    }
+
+    // For other statuses: fallback behavior
     setShowEmailModal(false);
     setPaymentDocId(rec.id);
     try {
@@ -406,35 +975,24 @@ const Page = () => {
         rec.id
       );
     } catch {}
-    // navigate to appropriate step based on status
     try {
       replaceWithPaymentId(rec.id);
     } catch (err) {
-      console.debug(
-        "Failed to set paymentid query param for reused record:",
-        err
-      );
+      console.debug("Failed to set paymentid query param:", err);
     }
-    if (rec.status === "reserve_paid" || rec.status === "terms_selected") {
-      setPaymentConfirmed(true);
-      setStep(3);
-      if (rec.bookingId) setBookingId(rec.bookingId);
-      // mark step1 completed
-      if (!completedSteps.includes(1)) {
-        setCompletedSteps([...completedSteps, 1]);
-      }
-    } else {
-      // pending
-      if (!completedSteps.includes(1)) {
-        setCompletedSteps([...completedSteps, 1]);
-      }
-      setStep(2);
+    if (!completedSteps.includes(1)) {
+      setCompletedSteps([...completedSteps, 1]);
     }
+    setStep(2);
   };
 
   const handleDiscardExisting = async (recId: string, status?: string) => {
     // Prevent discarding paid or confirmed reservations
-    if (status === "reserve_paid" || status === "terms_selected") {
+    const paymentStatus = status || "";
+    if (
+      paymentStatus === "reserve_paid" ||
+      paymentStatus === "terms_selected"
+    ) {
       alert(
         "Cannot discard a reservation that is already paid or confirmed. If you need help, contact support."
       );
@@ -442,18 +1000,59 @@ const Page = () => {
     }
 
     try {
+      setIsCreatingPayment(true);
       await deleteDoc(doc(db, "stripePayments", recId));
       setFoundStripePayments((prev) => prev.filter((d) => d.id !== recId));
-      // after discard, create a fresh placeholder
-      const id = await createPlaceholder();
-      if (!completedSteps.includes(1)) {
-        setCompletedSteps([...completedSteps, 1]);
+
+      // Check if there are more records in the modal
+      const remainingDocs = foundStripePayments.filter((d) => d.id !== recId);
+      if (remainingDocs.length === 0) {
+        // No more existing records, create fresh placeholder with new PaymentIntent
+        const id = await createPlaceholder();
+        if (!completedSteps.includes(1)) {
+          setCompletedSteps([...completedSteps, 1]);
+        }
+
+        if (id) {
+          // Immediately fetch fresh PaymentIntent
+          try {
+            const response = await fetch("/api/stripe-payments/init-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email,
+                tourPackage,
+                tourPackageName: selectedPackage?.name || "",
+                amountGBP: depositAmount,
+                paymentDocId: id,
+                meta: {
+                  source: "reservation-form-new",
+                  createdAt: Date.now(),
+                },
+              }),
+            });
+
+            const data = await response.json();
+            if (!response.ok || data.error) {
+              throw new Error(data.error || "Failed to initialize payment");
+            }
+
+            console.log("✅ Created fresh PaymentIntent for new document:", id);
+          } catch (err) {
+            console.error("Error initializing new payment:", err);
+            // Continue anyway, the payment component will handle it
+          }
+        }
+
+        setShowEmailModal(false);
+        setStep(2);
       }
-      setShowEmailModal(false);
-      setStep(2);
+      // If there are still more records, keep modal open
     } catch (err) {
       console.error("Failed to discard existing stripePayment:", err);
       alert("Unable to discard reservation. Please try again.");
+    } finally {
+      setIsCreatingPayment(false);
     }
   };
 
@@ -524,7 +1123,58 @@ const Page = () => {
 
   // Get reservation fee from selected package (not the full deposit)
   const selectedPackage = tourPackages.find((p) => p.id === tourPackage);
-  const depositAmount = (selectedPackage as any)?.reservationFee ?? 250;
+  const baseReservationFee = (selectedPackage as any)?.reservationFee ?? 250;
+  
+  // Calculate total reservation fee based on booking type
+  const numberOfPeople = bookingType === "Group Booking" 
+    ? groupSize 
+    : bookingType === "Duo Booking" 
+    ? 2 
+    : 1;
+  const depositAmount = baseReservationFee * numberOfPeople;
+
+  // Update payment intent when booking type or group size changes (after payment doc is created)
+  useEffect(() => {
+    const updatePaymentIntent = async () => {
+      if (!paymentDocId || !selectedPackage || step !== 1) return;
+      
+      try {
+        console.log("🔄 Updating payment intent due to booking changes:", {
+          bookingType,
+          numberOfPeople,
+          depositAmount,
+        });
+
+        const response = await fetch("/api/stripe-payments/update-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paymentDocId,
+            amountGBP: depositAmount,
+            bookingType,
+            numberOfGuests: numberOfPeople,
+            tourPackageName: selectedPackage.name,
+          }),
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+          if (data.cannotUpdate) {
+            console.log("ℹ️ Payment intent cannot be updated (already in terminal state)");
+          } else {
+            console.error("Failed to update payment intent:", data.error);
+          }
+        } else {
+          console.log("✅ Payment intent updated successfully");
+        }
+      } catch (error) {
+        console.error("Error updating payment intent:", error);
+      }
+    };
+
+    updatePaymentIntent();
+  }, [bookingType, groupSize, depositAmount, paymentDocId, selectedPackage, step]);
 
   // Set `tour` query param when entering Payment (step 2)
   useEffect(() => {
@@ -730,7 +1380,8 @@ const Page = () => {
   ): Array<{ date: string; amount: number }> => {
     if (!tourDate || !selectedPackage) return [];
 
-    const remainingBalance = selectedPackage.price - depositAmount;
+    const totalTourPrice = selectedPackage.price * numberOfPeople;
+    const remainingBalance = totalTourPrice - depositAmount;
     const monthlyAmount = remainingBalance / monthsRequired;
     const schedule: Array<{ date: string; amount: number }> = [];
 
@@ -865,12 +1516,12 @@ const Page = () => {
 
   // shared field classes with enhanced styling
   const fieldBase =
-    "mt-1 block w-full px-4 py-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground/60 transition-all duration-200 shadow-sm";
+    "mt-1 block w-full px-4 py-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground/60 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:bg-muted/40 disabled:cursor-not-allowed disabled:text-muted-foreground";
   const fieldBorder = (err?: boolean) =>
     `border-2 ${err ? "border-destructive" : "border-border"}`;
   const fieldFocus =
-    "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 focus:shadow-md hover:border-primary/50";
-  const fieldSuccess = "border-green-500/50 bg-green-50/5";
+    "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 focus:shadow-md hover:border-primary/50 disabled:focus:outline-none disabled:focus:ring-0 disabled:hover:border-primary/50 disabled:hover:shadow-sm";
+  const fieldSuccess = "border-green-500 disabled:border-green-500";
   const fieldWithIcon = "pl-11";
 
   // Helper to check if field is valid
@@ -886,17 +1537,8 @@ const Page = () => {
 
   const guestsVisible = guestsHeight;
 
-  const nationalities = [
-    "Philippines",
-    "United States",
-    "United Kingdom",
-    "Canada",
-    "Australia",
-    "India",
-    "Other",
-  ];
-
-  const nationalityOptions = nationalities.map((n) => ({ label: n, value: n }));
+  // Get all nationalities from world-countries library
+  const nationalityOptions = getNationalityOptions();
 
   const bookingTypeOptions = [
     { label: "Single Booking", value: "Single Booking" },
@@ -923,8 +1565,16 @@ const Page = () => {
     const daysBetween = calculateDaysBetween(d);
     const isInvalid = daysBetween < 2;
 
+    // Format date as "mmm dd, yyyy" (e.g., "Mar 27, 2026")
+    const dateObj = new Date(d);
+    const formattedDate = dateObj.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
     return {
-      label: d,
+      label: formattedDate,
       value: d,
       disabled: isInvalid,
       description: isInvalid
@@ -1097,6 +1747,10 @@ const Page = () => {
         // remove only the ephemeral client secret entry but keep the
         // payment document id so we can continue to payment-plan step
         sessionStorage.removeItem(sessionKey);
+        
+        // Also clean up additional guests sessionStorage after payment
+        const guestsSessionKey = `additional_guests_${email}_${tourPackage}`;
+        sessionStorage.removeItem(guestsSessionKey);
       } catch (e) {
         console.warn("Failed to clean up session storage:", e);
       }
@@ -1110,14 +1764,10 @@ const Page = () => {
       }
     } catch (error) {
       console.error("❌ Error in payment success handler:", error);
-      // Still proceed with payment confirmation even if saving fails
-      setPaymentConfirmed(true);
-      if (!completedSteps.includes(1)) {
-        setCompletedSteps((prev) => [...prev, 1]);
-      }
-      if (!completedSteps.includes(2)) {
-        setCompletedSteps((prev) => [...prev, 2]);
-      }
+      // Do NOT set paymentConfirmed if there was an error - the payment status update failed
+      alert(
+        "Payment processing encountered an error. Please refresh the page and verify your payment status."
+      );
     }
   };
 
@@ -1168,7 +1818,7 @@ const Page = () => {
             console.warn(
               `Tour package "${
                 payload.name ?? payload.title ?? doc.id
-              }" has no valid travel dates.`
+              }" has no valid tour dates.`
             );
           }
 
@@ -1317,7 +1967,8 @@ const Page = () => {
         const key = sessionStorage.key(i);
         if (
           key &&
-          key.startsWith("stripe_payment_") &&
+          (key.startsWith("stripe_payment_") ||
+           key.startsWith("additional_guests_")) &&
           !key.includes(email) &&
           !key.includes(tourPackage)
         ) {
@@ -1400,11 +2051,71 @@ const Page = () => {
                   setBirthdate(data.customer.birthdate);
                 if (data.customer?.nationality)
                   setNationality(data.customer.nationality);
-                if (data.booking?.type) setBookingType(data.booking.type);
+                if (data.customer?.whatsAppNumber) {
+                  // Parse the stored WhatsApp number to extract country and number
+                  const fullNumber = data.customer.whatsAppNumber;
+                  if (fullNumber && fullNumber.startsWith("+")) {
+                    // Find matching country by calling code
+                    let foundCountry = false;
+                    for (const country of getCountries()) {
+                      const callingCode = safeGetCountryCallingCode(country);
+                      if (fullNumber.startsWith(`+${callingCode}`)) {
+                        setWhatsAppCountry(country);
+                        setWhatsAppNumber(
+                          fullNumber.slice(callingCode.length + 1)
+                        );
+                        foundCountry = true;
+                        break;
+                      }
+                    }
+                    if (!foundCountry) {
+                      // Fallback: just remove the + and set as-is
+                      setWhatsAppNumber(fullNumber.replace(/^\+/, ""));
+                    }
+                  }
+                }
+                const loadedBookingType = data.booking?.type || "Single Booking";
+                const loadedGroupSize = data.booking?.groupSize || 3;
+                
+                if (data.booking?.type) setBookingType(loadedBookingType);
                 if (typeof data.booking?.groupSize === "number")
-                  setGroupSize(data.booking.groupSize);
-                if (Array.isArray(data.booking?.additionalGuests))
-                  setAdditionalGuests(data.booking.additionalGuests);
+                  setGroupSize(loadedGroupSize);
+                
+                // Set guestsMounted to true for Duo/Group bookings
+                if (loadedBookingType === "Duo Booking" || loadedBookingType === "Group Booking") {
+                  setGuestsMounted(true);
+                  // Schedule height calculation after state updates
+                  setTimeout(() => {
+                    const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
+                    if (contentHeight > 0) {
+                      setGuestsHeight(`${contentHeight}px`);
+                    }
+                  }, 0);
+                }
+                
+                // Handle additional guests based on booking type
+                if (Array.isArray(data.booking?.additionalGuests)) {
+                  if (loadedBookingType === "Duo Booking") {
+                    const guest = data.booking.additionalGuests[0] || "";
+                    setAdditionalGuests([guest]);
+                  } else if (loadedBookingType === "Group Booking") {
+                    const maxGuests = Math.max(0, loadedGroupSize - 1);
+                    const existingGuests = data.booking.additionalGuests.slice(0, maxGuests);
+                    while (existingGuests.length < maxGuests) {
+                      existingGuests.push("");
+                    }
+                    setAdditionalGuests(existingGuests);
+                  } else {
+                    setAdditionalGuests([]);
+                  }
+                } else if (loadedBookingType === "Duo Booking") {
+                  setAdditionalGuests([""]);
+                } else if (loadedBookingType === "Group Booking") {
+                  const guestCount = Math.max(0, loadedGroupSize - 1);
+                  setAdditionalGuests(Array(guestCount).fill(""));
+                } else {
+                  setAdditionalGuests([]);
+                }
                 if (data.tour?.packageId) setTourPackage(data.tour.packageId);
                 if (data.tour?.date) setTourDate(data.tour.date);
 
@@ -1479,16 +2190,89 @@ const Page = () => {
                 setBirthdate(data.customer.birthdate);
               if (data.customer?.nationality)
                 setNationality(data.customer.nationality);
-              if (data.booking?.type) setBookingType(data.booking.type);
+              if (data.customer?.whatsAppNumber) {
+                // Parse the stored WhatsApp number to extract country and number
+                const fullNumber = data.customer.whatsAppNumber;
+                if (fullNumber && fullNumber.startsWith("+")) {
+                  // Find matching country by calling code
+                  let foundCountry = false;
+                  for (const country of getCountries()) {
+                    const callingCode = safeGetCountryCallingCode(country);
+                    if (fullNumber.startsWith(`+${callingCode}`)) {
+                      setWhatsAppCountry(country);
+                      setWhatsAppNumber(
+                        fullNumber.slice(callingCode.length + 1)
+                      );
+                      foundCountry = true;
+                      break;
+                    }
+                  }
+                  if (!foundCountry) {
+                    // Fallback: just remove the + and set as-is
+                    setWhatsAppNumber(fullNumber.replace(/^\+/, ""));
+                  }
+                }
+              }
+              const loadedBookingType = data.booking?.type || "Single Booking";
+              const loadedGroupSize = data.booking?.groupSize || 3;
+              
+              if (data.booking?.type) setBookingType(loadedBookingType);
               if (typeof data.booking?.groupSize === "number")
-                setGroupSize(data.booking.groupSize);
-              if (Array.isArray(data.booking?.additionalGuests))
-                setAdditionalGuests(data.booking.additionalGuests);
+                setGroupSize(loadedGroupSize);
+              
+              // Set guestsMounted to true for Duo/Group bookings
+              if (loadedBookingType === "Duo Booking" || loadedBookingType === "Group Booking") {
+                setGuestsMounted(true);
+                // Schedule height calculation after state updates
+                setTimeout(() => {
+                  const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
+                  if (contentHeight > 0) {
+                    setGuestsHeight(`${contentHeight}px`);
+                  }
+                }, 0);
+              }
+              
+              // Handle additional guests based on booking type
+              if (Array.isArray(data.booking?.additionalGuests)) {
+                if (loadedBookingType === "Duo Booking") {
+                  const guest = data.booking.additionalGuests[0] || "";
+                  setAdditionalGuests([guest]);
+                } else if (loadedBookingType === "Group Booking") {
+                  const maxGuests = Math.max(0, loadedGroupSize - 1);
+                  const existingGuests = data.booking.additionalGuests.slice(0, maxGuests);
+                  while (existingGuests.length < maxGuests) {
+                    existingGuests.push("");
+                  }
+                  setAdditionalGuests(existingGuests);
+                } else {
+                  setAdditionalGuests([]);
+                }
+              } else if (loadedBookingType === "Duo Booking") {
+                setAdditionalGuests([""]);
+              } else if (loadedBookingType === "Group Booking") {
+                const guestCount = Math.max(0, loadedGroupSize - 1);
+                setAdditionalGuests(Array(guestCount).fill(""));
+              } else {
+                setAdditionalGuests([]);
+              }
               if (data.tour?.packageId) setTourPackage(data.tour.packageId);
               if (data.tour?.date) setTourDate(data.tour.date);
 
               // Advance to the appropriate step based on status
+              console.log(
+                "🔍 DEBUG: Session restore - Payment status:",
+                data.payment?.status
+              );
+              console.log(
+                "🔍 DEBUG: Session restore - Payment intent ID:",
+                data.payment?.stripeIntentId
+              );
+              console.log("🔍 DEBUG: Session restore - Document ID:", docId);
+
               if (data.payment?.status === "reserve_pending") {
+                console.log(
+                  "✅ DEBUG: Status is reserve_pending, staying on step 2"
+                );
                 // mark step 1 completed and go to payment step
                 // update URL to reference this payment doc and remove any `tour` param
                 try {
@@ -1511,8 +2295,85 @@ const Page = () => {
                 }
                 setStep(2);
                 setCompletedSteps((prev) => Array.from(new Set([...prev, 1])));
+                console.log(
+                  "✅ DEBUG: Set step to 2, paymentConfirmed should be false"
+                );
               } else if (data.payment?.status === "reserve_paid") {
-                // payment completed — go to payment plan
+                console.log(
+                  "⚠️ DEBUG: Status is reserve_paid, verifying payment..."
+                );
+                // Verify payment with Stripe before showing as confirmed
+                const stripeIntentId = data.payment?.stripeIntentId;
+
+                if (stripeIntentId) {
+                  try {
+                    console.log("🔍 Verifying payment on page load...");
+                    const verifyResponse = await fetch(
+                      `/api/stripe-payments/verify-payment?paymentIntentId=${stripeIntentId}`
+                    );
+                    const verifyResult = await verifyResponse.json();
+
+                    if (
+                      !verifyResponse.ok ||
+                      verifyResult.status !== "succeeded"
+                    ) {
+                      console.error(
+                        "❌ Payment verification failed on load:",
+                        verifyResult
+                      );
+                      // Payment didn't actually succeed - update status to pending
+                      const { doc: firestoreDoc, updateDoc } = await import(
+                        "firebase/firestore"
+                      );
+                      await updateDoc(
+                        firestoreDoc(db, "stripePayments", docId),
+                        {
+                          "payment.status": "reserve_pending",
+                        }
+                      );
+
+                      // Go to payment step instead
+                      try {
+                        replaceWithPaymentId(docId);
+                      } catch (err) {
+                        console.debug(
+                          "Failed to set paymentid query param:",
+                          err
+                        );
+                      }
+                      setStep(2);
+                      setCompletedSteps((prev) =>
+                        Array.from(new Set([...prev, 1]))
+                      );
+                      alert(
+                        "Payment verification failed. The payment was not completed. Please try again."
+                      );
+                      return; // Exit early
+                    }
+                    console.log("✅ Payment verified successfully on load");
+                  } catch (err) {
+                    console.error("Error verifying payment on load:", err);
+                    // If verification fails, proceed cautiously to payment step
+                    try {
+                      replaceWithPaymentId(docId);
+                    } catch (err2) {
+                      console.debug(
+                        "Failed to set paymentid query param:",
+                        err2
+                      );
+                    }
+                    setStep(2);
+                    setCompletedSteps((prev) =>
+                      Array.from(new Set([...prev, 1]))
+                    );
+                    return;
+                  }
+                }
+
+                // payment completed and verified — go to payment plan
+                console.log(
+                  "✅ DEBUG: Payment verified, setting paymentConfirmed to TRUE"
+                );
                 setPaymentConfirmed(true);
                 try {
                   if (DEBUG)
@@ -1538,6 +2399,14 @@ const Page = () => {
                 setCompletedSteps((prev) =>
                   Array.from(new Set([...prev, 1, 2]))
                 );
+              } else {
+                console.log(
+                  "⚠️ DEBUG: Unknown payment status:",
+                  data.payment?.status,
+                  "- going to step 2"
+                );
+                setStep(2);
+                setCompletedSteps((prev) => Array.from(new Set([...prev, 1])));
               }
 
               // stop after first matching key
@@ -1758,15 +2627,183 @@ const Page = () => {
     };
   }, [showTourModal]);
 
+  // Restore payment state when arriving with a paymentid in the URL
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const verifyPaymentFromURL = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const pid = params.get("paymentid");
+        if (pid) {
+          console.log(
+            "🔍 DEBUG: Found paymentid in URL, verifying payment status:",
+            pid
+          );
+
+          // Verify payment with Stripe before setting as confirmed
+          try {
+            const verifyRes = await fetch(
+              `/api/stripe-payments/verify-payment?paymentIntentId=${pid}`,
+              { method: "GET" }
+            );
+
+            if (verifyRes.ok) {
+              const verifyData = await verifyRes.json();
+              console.log(
+                "🔍 DEBUG: Stripe verification result for URL paymentid:",
+                verifyData.status
+              );
+
+              if (verifyData.status === "succeeded") {
+                console.log(
+                  "✅ DEBUG: Payment verified from URL, setting paymentConfirmed to true"
+                );
+                // Mark payment as confirmed and ensure steps 1 and 2 are completed
+                setPaymentConfirmed(true);
+                setCompletedSteps((prev) => {
+                  const next = new Set(prev);
+                  next.add(1);
+                  next.add(2);
+                  return Array.from(next);
+                });
+              } else {
+                console.log(
+                  "❌ DEBUG: Payment not succeeded, status:",
+                  verifyData.status
+                );
+              }
+            } else {
+              console.log("❌ DEBUG: Failed to verify payment from URL");
+            }
+          } catch (verifyErr) {
+            console.error(
+              "❌ DEBUG: Error verifying payment from URL:",
+              verifyErr
+            );
+          }
+        }
+      } catch {}
+    };
+
+    verifyPaymentFromURL();
+  }, []);
+
+  // Additional guard: Keep steps 1 and 2 completed when paymentid is in URL
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const pid = params.get("paymentid");
+      if (pid && paymentConfirmed) {
+        // Ensure steps remain completed even after navigation
+        setCompletedSteps((prev) => {
+          const next = new Set(prev);
+          next.add(1);
+          next.add(2);
+          return Array.from(next).sort();
+        });
+      }
+    } catch {}
+  }, [step, paymentConfirmed]);
+
   // animate additional guests area when bookingType changes (measured height)
   useEffect(() => {
     if (bookingType === "Duo Booking" || bookingType === "Group Booking") {
       setGuestsMounted(true);
+      // Set the proper height for the content
+      requestAnimationFrame(() => {
+        const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
+        if (contentHeight > 0) {
+          setGuestsHeight(`${contentHeight}px`);
+        }
+      });
     } else {
       setGuestsHeight("0px");
       setTimeout(() => setGuestsMounted(false), ANIM_DURATION + 20);
     }
   }, [bookingType]);
+
+  // Ensure guests section is visible when loading existing data with guests
+  useEffect(() => {
+    if ((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
+        additionalGuests.length > 0) {
+      
+      if (!guestsMounted) {
+        setGuestsMounted(true);
+      }
+      
+      // Calculate and set the height for the guests section
+      // Use multiple retries to ensure DOM is ready
+      const calculateHeight = () => {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
+            console.log('📏 Calculating guest section height:', contentHeight, 'guestsMounted:', guestsMounted);
+            if (contentHeight > 0) {
+              setGuestsHeight(`${contentHeight}px`);
+              console.log('✅ Guest section height updated to:', contentHeight);
+            } else {
+              // If height is still 0, try one more time after a longer delay
+              setTimeout(() => {
+                const retryHeight = guestsContentRef.current?.scrollHeight ?? 0;
+                console.log('📏 Retry calculating height:', retryHeight);
+                if (retryHeight > 0) {
+                  setGuestsHeight(`${retryHeight}px`);
+                  console.log('✅ Guest section height updated (retry) to:', retryHeight);
+                }
+              }, 150);
+            }
+          }, 100);
+        });
+      };
+      
+      calculateHeight();
+    }
+  }, [bookingType, additionalGuests, guestsMounted]);
+
+  // Save additional guests to sessionStorage whenever they change
+  useEffect(() => {
+    if (
+      (bookingType === "Duo Booking" || bookingType === "Group Booking") &&
+      additionalGuests.length > 0
+    ) {
+      try {
+        const sessionKey = `additional_guests_${email}_${tourPackage}`;
+        sessionStorage.setItem(sessionKey, JSON.stringify(additionalGuests));
+      } catch (err) {
+        console.warn("Failed to save additional guests to sessionStorage:", err);
+      }
+    }
+  }, [additionalGuests, email, tourPackage, bookingType]);
+
+  // Restore additional guests from sessionStorage on mount or when session key changes
+  useEffect(() => {
+    if (!email || !tourPackage) return;
+    if (bookingType !== "Duo Booking" && bookingType !== "Group Booking") return;
+    if (sessionRestoredRef.current) return; // Prevent multiple restorations
+
+    try {
+      const sessionKey = `additional_guests_${email}_${tourPackage}`;
+      const savedGuests = sessionStorage.getItem(sessionKey);
+      
+      if (savedGuests) {
+        const parsedGuests = JSON.parse(savedGuests);
+        if (Array.isArray(parsedGuests) && parsedGuests.length > 0) {
+          console.log('🔄 Restoring additional guests from sessionStorage:', parsedGuests);
+          
+          // Mark that we've restored from session
+          sessionRestoredRef.current = true;
+          
+          // Restore the guest emails - the other useEffect will handle visibility
+          setAdditionalGuests(parsedGuests);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to restore additional guests from sessionStorage:", err);
+    }
+  }, [email, tourPackage, bookingType]);
 
   const handleAddGuest = () => {
     // For group booking, limit guests to groupSize - 1 (booker + others)
@@ -1806,6 +2843,17 @@ const Page = () => {
         setAdditionalGuests([additionalGuests[0] ?? ""]);
         setGroupSize(2);
         setBookingType("Duo Booking");
+        // Initialize 1 guest detail
+        setGuestDetails([{
+          email: guestDetails[0]?.email || "",
+          firstName: guestDetails[0]?.firstName || "",
+          lastName: guestDetails[0]?.lastName || "",
+          birthdate: guestDetails[0]?.birthdate || "",
+          nationality: guestDetails[0]?.nationality || "",
+          whatsAppNumber: guestDetails[0]?.whatsAppNumber || "",
+          whatsAppCountry: guestDetails[0]?.whatsAppCountry || "GB",
+        }]);
+        setActiveGuestTab(2);
       });
       return;
     }
@@ -1816,6 +2864,7 @@ const Page = () => {
       await animateHeight(startH, 0);
       setGuestsHeight("0px");
       setAdditionalGuests([]);
+      setGuestDetails([]);
       setGroupSize(3);
       setBookingType("Single Booking");
       setTimeout(() => setGuestsMounted(false), 20);
@@ -1828,6 +2877,17 @@ const Page = () => {
         setGroupSize(2);
         setAdditionalGuests((prev) => [prev[0] ?? ""]);
         setBookingType("Duo Booking");
+        // Initialize 1 guest detail
+        setGuestDetails([{
+          email: guestDetails[0]?.email || "",
+          firstName: guestDetails[0]?.firstName || "",
+          lastName: guestDetails[0]?.lastName || "",
+          birthdate: guestDetails[0]?.birthdate || "",
+          nationality: guestDetails[0]?.nationality || "",
+          whatsAppNumber: guestDetails[0]?.whatsAppNumber || "",
+          whatsAppCountry: guestDetails[0]?.whatsAppCountry || "GB",
+        }]);
+        setActiveGuestTab(2);
       });
       return;
     }
@@ -1843,6 +2903,21 @@ const Page = () => {
           while (copy.length < slots) copy.push("");
           return copy;
         });
+        // Initialize guest details array
+        const newGuestDetails: Array<{email: string; firstName: string; lastName: string; birthdate: string; nationality: string; whatsAppNumber: string; whatsAppCountry: string}> = [];
+        for (let i = 0; i < slots; i++) {
+          newGuestDetails.push({
+            email: guestDetails[i]?.email || "",
+            firstName: guestDetails[i]?.firstName || "",
+            lastName: guestDetails[i]?.lastName || "",
+            birthdate: guestDetails[i]?.birthdate || "",
+            nationality: guestDetails[i]?.nationality || "",
+            whatsAppNumber: guestDetails[i]?.whatsAppNumber || "",
+            whatsAppCountry: guestDetails[i]?.whatsAppCountry || "GB",
+          });
+        }
+        setGuestDetails(newGuestDetails);
+        setActiveGuestTab(2);
       });
       return;
     }
@@ -1860,6 +2935,23 @@ const Page = () => {
         while (copy.length < needed) copy.push("");
         return copy;
       });
+      // Update guest details array
+      setGuestDetails((prev) => {
+        const needed = clamped - 1;
+        const copy = prev.slice(0, needed);
+        while (copy.length < needed) {
+          copy.push({
+            email: "",
+            firstName: "",
+            lastName: "",
+            birthdate: "",
+            nationality: "",
+            whatsAppNumber: "",
+            whatsAppCountry: "GB",
+          });
+        }
+        return copy;
+      });
     });
   };
 
@@ -1870,21 +2962,121 @@ const Page = () => {
   };
 
   const validate = () => {
+    console.log("🔍 Starting validation...");
     const e: { [k: string]: string } = {};
 
+    console.log("📧 Validating email:", email);
     if (!email) e.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       e.email = "Enter a valid email";
 
+    console.log("🎂 Validating birthdate:", birthdate);
     if (!birthdate) e.birthdate = "Birthdate is required";
+    else {
+      // Validate age is 18 or older
+      const [year, month, day] = birthdate.split("-").map(Number);
+      const birthDate = new Date(year, month - 1, day);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      if (age < 18) e.birthdate = "Must be 18 years or older";
+    }
+    console.log("👤 Validating names:", { firstName, lastName });
     if (!firstName) e.firstName = "First name is required";
     if (!lastName) e.lastName = "Last name is required";
+    
+    console.log("🌍 Validating nationality:", nationality);
     if (!nationality) e.nationality = "Nationality is required";
+    
+    console.log("🎫 Validating booking details:", { bookingType, tourPackage, tourDate });
     if (!bookingType) e.bookingType = "Booking type is required";
     if (!tourPackage) e.tourPackage = "Tour name is required";
     if (tourPackage && !tourDate) e.tourDate = "Tour date is required";
 
-    // Duo/Group guests email check
+    console.log("📱 Validating WhatsApp:", { whatsAppNumber, whatsAppCountry });
+    if (!whatsAppNumber) {
+      e.whatsAppNumber = "WhatsApp number is required";
+      console.log("❌ WhatsApp number is empty");
+    } else {
+      const fullNumber = `+${safeGetCountryCallingCode(whatsAppCountry)}${whatsAppNumber}`;
+      const isValid = isValidPhoneNumber(fullNumber);
+      console.log("📱 WhatsApp validation:", { fullNumber, isValid });
+      if (!isValid) {
+        e.whatsAppNumber = "Invalid WhatsApp number";
+        console.log("❌ WhatsApp number is invalid");
+      }
+    }
+
+    // Duo/Group guests validation - check guestDetails array
+    console.log("👥 Validating guest details:", {
+      bookingType,
+      guestDetailsLength: guestDetails.length,
+      guestDetails
+    });
+    
+    if (bookingType === "Duo Booking" || bookingType === "Group Booking") {
+      const expectedLength = bookingType === "Duo Booking" ? 1 : groupSize - 1;
+      console.log(`👥 Expected ${expectedLength} guests, found ${guestDetails.length}`);
+      
+      if (guestDetails.length === 0) {
+        e.guests = "Guest details are required";
+        console.log("❌ No guest details found");
+      } else if (guestDetails.length !== expectedLength) {
+        e.guests = `Expected ${expectedLength} guest(s), but found ${guestDetails.length}`;
+        console.log(`❌ Wrong number of guests`);
+      } else {
+        // Validate each guest's details
+        guestDetails.forEach((guest, idx) => {
+          console.log(`👤 Validating guest ${idx + 1}:`, guest);
+          
+          if (!guest.email) {
+            e[`guest-${idx}-email`] = `Guest ${idx + 1} email is required`;
+            console.log(`❌ Guest ${idx + 1} email missing`);
+          } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email)) {
+            e[`guest-${idx}-email`] = `Guest ${idx + 1} email is invalid`;
+            console.log(`❌ Guest ${idx + 1} email invalid`);
+          }
+          
+          if (!guest.firstName) {
+            e[`guest-${idx}-firstName`] = `Guest ${idx + 1} first name is required`;
+            console.log(`❌ Guest ${idx + 1} firstName missing`);
+          }
+          
+          if (!guest.lastName) {
+            e[`guest-${idx}-lastName`] = `Guest ${idx + 1} last name is required`;
+            console.log(`❌ Guest ${idx + 1} lastName missing`);
+          }
+          
+          if (!guest.birthdate) {
+            e[`guest-${idx}-birthdate`] = `Guest ${idx + 1} birthdate is required`;
+            console.log(`❌ Guest ${idx + 1} birthdate missing`);
+          }
+          
+          if (!guest.nationality) {
+            e[`guest-${idx}-nationality`] = `Guest ${idx + 1} nationality is required`;
+            console.log(`❌ Guest ${idx + 1} nationality missing`);
+          }
+          
+          if (!guest.whatsAppNumber) {
+            e[`guest-${idx}-whatsAppNumber`] = `Guest ${idx + 1} WhatsApp is required`;
+            console.log(`❌ Guest ${idx + 1} whatsAppNumber missing`);
+          } else {
+            const fullNumber = `+${safeGetCountryCallingCode(guest.whatsAppCountry)}${guest.whatsAppNumber}`;
+            const isValid = isValidPhoneNumber(fullNumber);
+            console.log(`📱 Guest ${idx + 1} WhatsApp validation:`, { fullNumber, isValid });
+            if (!isValid) {
+              e[`guest-${idx}-whatsAppNumber`] = `Guest ${idx + 1} WhatsApp is invalid`;
+              console.log(`❌ Guest ${idx + 1} whatsAppNumber invalid`);
+            }
+          }
+        });
+      }
+    }
+
+    // Legacy additionalGuests validation (keeping for backward compatibility)
     if (
       (bookingType === "Duo Booking" || bookingType === "Group Booking") &&
       additionalGuests.length
@@ -1895,6 +3087,23 @@ const Page = () => {
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g))
           e[`guest-${idx}`] = `Guest #${idx + 1} enter a valid email`;
       });
+    }
+
+    console.log("📋 Validation errors:", e);
+    console.log("✅ Validation result:", Object.keys(e).length === 0 ? "PASSED" : "FAILED");
+
+    // Auto-focus the first guest tab that has an error so the user can see missing fields
+    const firstGuestErrorKey = Object.keys(e).find((key) =>
+      key === "guests" || key.startsWith("guest-")
+    );
+    if (firstGuestErrorKey) {
+      const match = firstGuestErrorKey.match(/^guest-(\d+)/);
+      if (match) {
+        const guestIdx = Number(match[1]);
+        // guestIdx is zero-based; tabs are 1 (main) then 2... for guests
+        setActiveGuestTab(guestIdx + 2);
+        console.log("🔎 Focusing guest tab", guestIdx + 2, "due to validation error");
+      }
     }
 
     setErrors(e);
@@ -1972,21 +3181,42 @@ const Page = () => {
           plan.id === selectedPaymentPlan || plan.type === selectedPaymentPlan
       );
 
-      // Find the payment document by bookingId
+      // Find the payment document by bookingId or paymentDocId
       const { collection, query, where, getDocs } = await import(
         "firebase/firestore"
       );
 
       const paymentsRef = collection(db, "stripePayments");
-      const q = query(paymentsRef, where("booking.id", "==", bookingId));
-      const querySnapshot = await getDocs(q);
+      let q: any;
 
-      if (!querySnapshot.empty) {
-        const paymentDoc = querySnapshot.docs[0];
-        const paymentDocId = paymentDoc.id;
+      // If bookingId exists, use it; otherwise try paymentDocId
+      if (bookingId) {
+        q = query(paymentsRef, where("booking.id", "==", bookingId));
+      } else if (paymentDocId) {
+        // If paymentDocId exists, we can use it directly below
+        console.log("📝 Using paymentDocId directly:", paymentDocId);
+      } else {
+        throw new Error(
+          "No booking or payment document found. Please complete payment first."
+        );
+      }
+
+      const querySnapshot = bookingId
+        ? await getDocs(q)
+        : { empty: false, docs: [] };
+
+      if (!querySnapshot.empty || paymentDocId) {
+        const paymentDocIdToUse =
+          paymentDocId ||
+          (querySnapshot.docs.length > 0 ? querySnapshot.docs[0].id : null);
+
+        if (!paymentDocIdToUse) {
+          throw new Error("Payment document ID not found");
+        }
+
         console.log(
           "📝 Updating booking with payment plan via API:",
-          paymentDocId
+          paymentDocIdToUse
         );
 
         // Call the select-plan API to update both stripePayments and bookings
@@ -1996,7 +3226,7 @@ const Page = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            paymentDocId: paymentDocId,
+            paymentDocId: paymentDocIdToUse,
             selectedPaymentPlan: paymentPlanToSend,
             paymentPlanDetails: selectedPlan || null,
           }),
@@ -2065,11 +3295,9 @@ const Page = () => {
 
         setBookingConfirmed(true);
       } else {
-        console.error(
-          "❌ Payment document not found for bookingId:",
-          bookingId
+        throw new Error(
+          "Payment document not found. Please complete payment first."
         );
-        alert("Error: Could not find your booking. Please contact support.");
       }
     } catch (error) {
       console.error("❌ Error confirming booking:", error);
@@ -2102,78 +3330,198 @@ const Page = () => {
       <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Existing reservation(s) for this email</DialogTitle>
-            <DialogDescription>
-              {foundStripePayments &&
-              foundStripePayments.some((r) => r.status === "reserve_paid")
-                ? "We found a paid reservation for this email — you can reuse it to continue selecting a payment plan or view its details."
-                : "We found previous reservation attempts using this email. You can reuse one of them or discard it and create a new reservation."}
-            </DialogDescription>
+            <DialogTitle className="text-xl font-bold">
+              {foundStripePayments.length > 0 &&
+              (foundStripePayments[0]?.payment?.status === "reserve_paid" ||
+                foundStripePayments[0]?.status === "reserve_paid")
+                ? "Complete Your Booking"
+                : "Existing Reservation Found"}
+            </DialogTitle>
           </DialogHeader>
 
-          <div className="mt-4 space-y-3">
-            {modalLoading ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-              </div>
-            ) : (
-              foundStripePayments.map((rec) => (
-                <div
-                  key={rec.id}
-                  className="flex items-center justify-between p-3 bg-muted/30 rounded"
-                >
-                  <div className="text-sm">
-                    <div className="font-semibold">
-                      {rec.tourPackageName || rec.tourPackageId || "-"}
-                    </div>
-                    <div className="text-xs text-foreground/70 flex items-center gap-2">
-                      {rec.tourDate ? <span>{rec.tourDate} ·</span> : null}
-                      <span>
-                        {/* compact status tag */}
-                        {rec.status === "reserve_paid" ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800 font-semibold">
-                            Paid
-                          </span>
-                        ) : rec.status === "reserve_pending" ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-800 font-semibold">
-                            Pending
-                          </span>
-                        ) : rec.status === "terms_selected" ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800 font-semibold">
-                            Terms
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted/30 text-foreground font-semibold">
-                            Unknown
-                          </span>
-                        )}
-                      </span>
-                      <span>· £{rec.amountGBP || "0.00"}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleReuseExisting(rec)}
-                      className="px-3 py-1 rounded bg-primary text-primary-foreground text-sm font-medium"
-                    >
-                      Use this
-                    </button>
-                    {!(
-                      rec.status === "reserve_paid" ||
-                      rec.status === "terms_selected"
-                    ) && (
-                      <button
-                        onClick={() => handleDiscardExisting(rec.id)}
-                        className="px-3 py-1 rounded bg-red-600 text-white text-sm font-medium"
+          {modalLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="ml-3 text-sm text-muted-foreground">
+                Checking for existing reservations...
+              </span>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Status-based messaging */}
+              {foundStripePayments.length > 0 &&
+                (foundStripePayments[0]?.payment?.status === "reserve_paid" ||
+                  foundStripePayments[0]?.status === "reserve_paid") &&
+                !foundStripePayments[0]?._hasPaymentPlan && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <svg
+                        className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
                       >
-                        Discard
-                      </button>
-                    )}
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <div className="flex-1">
+                        <h5 className="font-semibold text-blue-900 dark:text-blue-100">
+                          Payment Complete - Select Your Payment Plan
+                        </h5>
+                        <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
+                          You've already paid the reservation fee. Please
+                          complete your booking by selecting a payment plan.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
+                )}
+
+              {foundStripePayments.length > 0 &&
+                (foundStripePayments[0]?.payment?.status ===
+                  "reserve_pending" ||
+                  foundStripePayments[0]?.status === "reserve_pending" ||
+                  foundStripePayments[0]?.status === "pending") && (
+                  <p className="text-sm text-muted-foreground">
+                    We found {foundStripePayments.length} pending reservation
+                    {foundStripePayments.length !== 1 ? "s" : ""} for this tour.
+                    You can continue with an existing reservation or start
+                    fresh.
+                  </p>
+                )}
+
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {foundStripePayments.map((rec) => {
+                  const status = rec?.payment?.status || rec?.status;
+                  const tourName =
+                    rec?.tour?.packageName ||
+                    rec?.tourPackageName ||
+                    "Unknown Tour";
+                  const tourDate =
+                    rec?.tour?.date || rec?.tourDate || "No date set";
+                  const amount = rec?.payment?.amount || rec?.amountGBP || 0;
+                  const createdAt = rec?.timestamps?.createdAt;
+                  let createdDate = "Unknown date";
+                  if (createdAt && typeof createdAt.toDate === "function") {
+                    createdDate = createdAt.toDate().toLocaleDateString();
+                  }
+
+                  return (
+                    <div
+                      key={rec.id}
+                      className="border rounded-lg p-4 space-y-3"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{tourName}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Tour Date: {tourDate}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Created: {createdDate}
+                          </p>
+                        </div>
+                        <span
+                          className={`px-2 py-1 text-xs rounded-full shrink-0 ${
+                            status === "reserve_paid"
+                              ? rec._hasPaymentPlan
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+                                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
+                              : status === "terms_selected"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
+                          }`}
+                        >
+                          {status === "reserve_paid"
+                            ? rec._hasPaymentPlan
+                              ? "Confirmed"
+                              : "Awaiting Plan"
+                            : status === "terms_selected"
+                            ? "Confirmed"
+                            : "Pending Payment"}
+                        </span>
+                      </div>
+
+                      <p className="text-sm">
+                        Reservation Fee: £{amount.toFixed(2)}
+                      </p>
+
+                      <div className="flex gap-2">
+                        {status === "reserve_paid" ||
+                        status === "terms_selected" ? (
+                          <button
+                            onClick={() => handleReuseExisting(rec)}
+                            className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition font-medium"
+                          >
+                            {rec._hasPaymentPlan || status === "terms_selected"
+                              ? "View Booking"
+                              : "Complete Payment Plan"}
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleReuseExisting(rec)}
+                              className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
+                              disabled={isCreatingPayment}
+                            >
+                              {isCreatingPayment ? "Processing..." : "Use This"}
+                            </button>
+                            {status !== "terms_selected" && (
+                              <button
+                                onClick={() =>
+                                  handleDiscardExisting(rec.id, status)
+                                }
+                                className="flex-1 px-4 py-2 border border-destructive text-destructive rounded-md hover:bg-destructive/10 transition"
+                                disabled={isCreatingPayment}
+                              >
+                                Discard This
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Add "Create New Reservation" button for different tours */}
+              <div className="pt-4 border-t">
+                <button
+                  onClick={async () => {
+                    setShowEmailModal(false);
+                    setIsCreatingPayment(true);
+                    const id = await createPlaceholder();
+                    if (!completedSteps.includes(1)) {
+                      setCompletedSteps([...completedSteps, 1]);
+                    }
+                    if (id) {
+                      try {
+                        replaceWithPaymentId(id);
+                      } catch (err) {
+                        console.debug(
+                          "Failed to set paymentid query param:",
+                          err
+                        );
+                      }
+                    }
+                    setStep(2);
+                    setIsCreatingPayment(false);
+                  }}
+                  className="w-full px-4 py-2 border border-primary text-primary rounded-md hover:bg-primary/10 transition"
+                  disabled={isCreatingPayment}
+                >
+                  {isCreatingPayment
+                    ? "Creating..."
+                    : "Create New Reservation Instead"}
+                </button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -2196,6 +3544,15 @@ const Page = () => {
 
         {/* Max-width container for better readability on larger screens */}
         <div className="max-w-4xl mx-auto">
+          {/* ImHereTravels Logo - Top Left */}
+          <div className="mb-8">
+            <img 
+              src="/logos/Digital_Horizontal_Red.svg" 
+              alt="ImHereTravels Logo" 
+              className="h-10 sm:h-12 md:h-14 w-auto object-contain"
+            />
+          </div>
+
           {/* Progress tracker placeholder for Steps 1-3 (static; wire later) */}
           <div className="mb-2">
             <div className="flex items-center gap-4">
@@ -2242,6 +3599,14 @@ const Page = () => {
                 type="button"
                 onClick={() => {
                   setStep(1);
+                  // Only clear payment confirmation if no paymentid in URL
+                  if (typeof window !== "undefined") {
+                    const params = new URLSearchParams(window.location.search);
+                    const pid = params.get("paymentid");
+                    if (!pid) {
+                      setPaymentConfirmed(false);
+                    }
+                  }
                 }}
                 className="flex items-center gap-1.5 sm:gap-2 transition-all duration-200 hover:opacity-80 cursor-pointer group"
               >
@@ -2288,66 +3653,18 @@ const Page = () => {
               <button
                 type="button"
                 onClick={() => {
-                  if (completedSteps.includes(2) || step === 2) {
-                    setStep(2);
-                  } else if (
-                    step === 1 &&
-                    email &&
-                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
-                    birthdate &&
-                    firstName &&
-                    lastName &&
-                    nationality &&
-                    bookingType &&
-                    tourPackage &&
-                    tourDate &&
-                    !(
-                      (bookingType === "Duo Booking" ||
-                        bookingType === "Group Booking") &&
-                      additionalGuests.some(
-                        (g) =>
-                          !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
-                      )
-                    )
-                  ) {
+                  // If step 1 is complete and we're not already on step 2, allow navigation
+                  if (completedSteps.includes(1) && !completedSteps.includes(2)) {
+                    // New booking - trigger the existing reservation check
                     checkExistingPaymentsAndMaybeProceed();
+                  } else if (completedSteps.includes(2) && step !== 2) {
+                    // Already have a payment - allow direct navigation
+                    setStep(2);
                   }
                 }}
-                disabled={
-                  step === 1 &&
-                  (!email ||
-                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-                    !birthdate ||
-                    !firstName ||
-                    !lastName ||
-                    !nationality ||
-                    !bookingType ||
-                    !tourPackage ||
-                    !tourDate ||
-                    ((bookingType === "Duo Booking" ||
-                      bookingType === "Group Booking") &&
-                      additionalGuests.some(
-                        (g) =>
-                          !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
-                      )))
-                }
+                disabled={!completedSteps.includes(1)}
                 className={`flex items-center gap-1.5 sm:gap-2 transition-all duration-200 group ${
-                  step === 1 &&
-                  (!email ||
-                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-                    !birthdate ||
-                    !firstName ||
-                    !lastName ||
-                    !nationality ||
-                    !bookingType ||
-                    !tourPackage ||
-                    !tourDate ||
-                    ((bookingType === "Duo Booking" ||
-                      bookingType === "Group Booking") &&
-                      additionalGuests.some(
-                        (g) =>
-                          !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
-                      )))
+                  !completedSteps.includes(1)
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:opacity-80 cursor-pointer"
                 }`}
@@ -2357,24 +3674,8 @@ const Page = () => {
                     step === 2
                       ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
                       : completedSteps.includes(2)
-                      ? "bg-green-500/20 text-green-600 dark:text-green-400 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
-                      : step === 1 &&
-                        (!email ||
-                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-                          !birthdate ||
-                          !firstName ||
-                          !lastName ||
-                          !nationality ||
-                          !bookingType ||
-                          !tourPackage ||
-                          !tourDate ||
-                          ((bookingType === "Duo Booking" ||
-                            bookingType === "Group Booking") &&
-                            additionalGuests.some(
-                              (g) =>
-                                !g.trim() ||
-                                !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
-                            )))
+                      ? "bg-white text-green-600 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
+                      : step === 1
                       ? "bg-muted/50 text-muted-foreground"
                       : "bg-muted text-foreground group-hover:scale-105"
                   }`}
@@ -2559,7 +3860,7 @@ const Page = () => {
           </div>
 
           <div className="space-y-6">
-            {/* STEP 1 - Personal & Booking Details */}
+            {/* STEP 1 - Personal & Reservation Details */}
             {step === 1 && (
               <div className="rounded-2xl bg-background dark:bg-card/80 dark:backdrop-blur-md p-6 sm:p-8 border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
                 {/* Show locked message if payment confirmed */}
@@ -3145,9 +4446,11 @@ const Page = () => {
                         )}
                       </div>
                     </div>
+
+                    </div>
                   </div>
 
-                  {/* Personal & Booking Details Section */}
+                  {/* Personal & Reservation Details Section */}
                   <div className="pt-6 border-t-2 border-border/30">
                     <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border/50">
                       <div className="p-4 bg-primary rounded-full rounded-br-none">
@@ -3166,13 +4469,145 @@ const Page = () => {
                         </svg>
                       </div>
                       <h3 className="text-xl font-bold text-foreground">
-                        Personal & Booking details
+                        Personal & Reservation details
                       </h3>
                     </div>
+
+                    {/* Booking Type Field - First field in Personal Details */}
+                    <div className="mb-8 transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
+                      <label className="block">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
+                          Booking type
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <Select
+                          value={bookingType}
+                          onChange={(v) => handleBookingTypeChange(v)}
+                          options={bookingTypeOptions}
+                          placeholder="Select booking type"
+                          ariaLabel="Booking Type"
+                          className="mt-1"
+                          disabled={paymentConfirmed}
+                          isValid={!!bookingType && !errors.bookingType}
+                        />
+                        {errors.bookingType && (
+                          <p className="mt-2 text-xs text-destructive flex items-center gap-1 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            {errors.bookingType}
+                          </p>
+                        )}
+                      </label>
+
+                      {/* Group Size Controls - Only show for Group Booking */}
+                      {bookingType === "Group Booking" && (
+                        <div className="mt-6 p-6 rounded-lg bg-gradient-to-r from-card/50 to-card/80 border border-border shadow-sm transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
+                          <div className="flex items-center justify-between gap-4">
+                            <label className="text-sm font-semibold text-foreground flex items-center gap-3">
+                              <svg className="w-5 h-5 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                              </svg>
+                              <span>Group size (including you)</span>
+                            </label>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                aria-label="Decrease group size"
+                                onClick={() => handleGroupSizeChange(groupSize - 1)}
+                                className="h-11 w-11 rounded-full bg-gradient-to-br from-crimson-red to-crimson-red/80 text-white flex items-center justify-center hover:scale-110 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-crimson-red focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-md transition-all duration-300 ease-out"
+                                disabled={paymentConfirmed || groupSize <= 3}
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+                                </svg>
+                              </button>
+
+                              <div className="px-7 py-3 min-w-[5.5rem] text-center rounded-lg bg-background border-2 border-primary/20 shadow-inner transition-all duration-300">
+                                <span className="text-xl font-bold text-foreground tabular-nums">{groupSize}</span>
+                              </div>
+
+                              <button
+                                type="button"
+                                aria-label="Increase group size"
+                                onClick={() => handleGroupSizeChange(groupSize + 1)}
+                                className="h-11 w-11 rounded-full bg-gradient-to-br from-crimson-red to-crimson-red/80 text-white flex items-center justify-center hover:scale-110 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-crimson-red focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-md transition-all duration-300 ease-out"
+                                disabled={paymentConfirmed || groupSize >= 20}
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-4 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-muted-foreground/70 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                            </svg>
+                            <span>You'll provide details for all <strong className="text-foreground">{groupSize} guests</strong> below</span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Guest Tabs - Only show for Duo/Group Booking */}
+                    {(bookingType === "Duo Booking" || bookingType === "Group Booking") && (
+                      <div className="mb-8 transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
+                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                          {/* Main Booker Tab */}
+                          <button
+                            type="button"
+                            onClick={() => setActiveGuestTab(1)}
+                            className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all duration-300 ease-in-out ${
+                              activeGuestTab === 1
+                                ? "bg-crimson-red text-white shadow-md"
+                                : "bg-card border border-border text-foreground hover:border-crimson-red/50"
+                            }`}
+                          >
+                            You (Main Booker)
+                          </button>
+                          
+                          {/* Guest Tabs */}
+                          {Array.from({ length: bookingType === "Duo Booking" ? 1 : groupSize - 1 }).map((_, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setActiveGuestTab(idx + 2)}
+                              className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all duration-300 ease-in-out ${
+                                activeGuestTab === idx + 2
+                                  ? "bg-crimson-red text-white shadow-md"
+                                  : "bg-card border border-border text-foreground hover:border-crimson-red/50"
+                              }`}
+                            >
+                              Guest {idx + 1}
+                            </button>
+                          ))}
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1.5">
+                          <svg
+                            className="w-4 h-4 flex-shrink-0"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          <span>
+                            Fill in details for each guest. All guests will be booked for <strong>{selectedPackage?.name || "the selected tour"}</strong> on <strong>{tourDate || "the selected date"}</strong>.
+                          </span>
+                        </p>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <label className="block relative group">
+                  {/* Main Booker Form (always visible or when tab 1 is active) */}
+                  <div className={`transition-all duration-500 ease-in-out ${(bookingType === "Duo Booking" || bookingType === "Group Booking") && activeGuestTab !== 1 ? "opacity-0 scale-95 pointer-events-none absolute" : "opacity-100 scale-100"}`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                    <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Email address
                         <span className="text-destructive text-xs">*</span>
@@ -3250,7 +4685,7 @@ const Page = () => {
                       )}
                     </label>
 
-                    <label className="block relative group">
+                    <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Birthdate
                         <span className="text-destructive text-xs">*</span>
@@ -3271,10 +4706,8 @@ const Page = () => {
                         </p>
                       )}
                     </label>
-                  </div>
 
                   {/* First name */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <label className="block relative group">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         First name
@@ -3411,7 +4844,10 @@ const Page = () => {
                           )}
                       </div>
                       {errors.lastName && (
-                        <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                        <p
+                          id="lastName-error"
+                          className="mt-1.5 text-xs text-destructive flex items-center gap-1"
+                        >
                           <svg
                             className="w-3.5 h-3.5"
                             fill="currentColor"
@@ -3427,10 +4863,8 @@ const Page = () => {
                         </p>
                       )}
                     </label>
-                  </div>
 
-                  {/* Nationality & Booking Type */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Nationality */}
                     <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Nationality
@@ -3445,6 +4879,7 @@ const Page = () => {
                         className="mt-1"
                         disabled={paymentConfirmed}
                         isValid={!!nationality && !errors.nationality}
+                        searchable={true}
                       />
                       {errors.nationality && (
                         <p className="mt-1 text-xs text-destructive">
@@ -3453,241 +4888,580 @@ const Page = () => {
                       )}
                     </label>
 
-                    {/* Booking type */}
-                    <label className="block">
+                    <label className="block relative">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        Booking type
+                        WhatsApp number
                         <span className="text-destructive text-xs">*</span>
                       </span>
-                      <Select
-                        value={bookingType}
-                        onChange={(v) => handleBookingTypeChange(v)}
-                        options={bookingTypeOptions}
-                        placeholder="Select booking type"
-                        ariaLabel="Booking Type"
-                        className="mt-1"
-                        disabled={paymentConfirmed}
-                        isValid={!!bookingType && !errors.bookingType}
-                      />
-                      {errors.bookingType && (
-                        <p className="mt-1 text-xs text-destructive">
-                          {errors.bookingType}
+                      <div className="relative mt-1 flex items-stretch gap-2">
+                        <Select
+                          value={whatsAppCountry}
+                          onChange={(code) => {
+                            setWhatsAppCountry(code);
+                            // Clear the number when country changes to avoid confusion
+                            setWhatsAppNumber("");
+                          }}
+                          options={getCountries().map((country) => {
+                            const data = getCountryData(country);
+                            const callingCode = safeGetCountryCallingCode(country);
+                            const countryName = en[country] || country;
+                            return {
+                              label: (
+                                <span className="inline-flex items-center gap-2">
+                                  <ReactCountryFlag
+                                    countryCode={country}
+                                    svg
+                                    aria-label={countryName}
+                                    style={{
+                                      width: "1rem",
+                                      height: "0.5rem",
+                                      flexShrink: 1,
+                                    }}
+                                  />
+                                  <span>
+                                    {`${data.alpha3} (+${callingCode})`}
+                                  </span>
+                                </span>
+                              ),
+                              value: country,
+                              searchValue:
+                                `${data.flag} ${data.alpha3} ${countryName} ${country} ${callingCode}`.toLowerCase(),
+                            };
+                          })}
+                          placeholder="Country"
+                          ariaLabel="Country Code"
+                          disabled={paymentConfirmed}
+                          searchable
+                          className={`w-[160px] flex-shrink-0 ${paymentConfirmed ? "disabled-hover" : ""}`}
+                        />
+                        <div className="flex-1 relative min-w-0">
+                          <div
+                            className={`flex items-center w-full px-4 py-3 rounded-lg transition-all duration-200 shadow-sm border-2 ${
+                              paymentConfirmed
+                                ? whatsAppNumber &&
+                                  isValidPhoneNumber(
+                                    `+${safeGetCountryCallingCode(
+                                      whatsAppCountry
+                                    )}${whatsAppNumber}`
+                                  )
+                                  ? "opacity-50 bg-muted/40 border-green-500 cursor-not-allowed"
+                                  : "opacity-50 bg-muted/40 border-border cursor-not-allowed"
+                                : errors.whatsAppNumber
+                                ? "bg-input border-destructive"
+                                : whatsAppNumber &&
+                                  isValidPhoneNumber(
+                                    `+${safeGetCountryCallingCode(
+                                      whatsAppCountry
+                                    )}${whatsAppNumber}`
+                                  )
+                                ? "bg-input border-green-500"
+                                : "bg-input border-border"
+                            } ${
+                              !paymentConfirmed
+                                ? "focus-within:outline-none focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-md hover:border-primary/50"
+                                : ""
+                            }`}
+                          >
+                            <span className={`text-muted-foreground mr-2 select-none ${paymentConfirmed ? "opacity-50" : ""}`}>
+                              +
+                              {safeGetCountryCallingCode(whatsAppCountry)}
+                            </span>
+                            <input
+                              type="tel"
+                              value={whatsAppNumber}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(
+                                  /[^0-9]/g,
+                                  ""
+                                );
+                                const maxLen =
+                                  getCountryData(whatsAppCountry).maxLength;
+                                const limitedValue = value.slice(0, maxLen);
+                                setWhatsAppNumber(limitedValue);
+
+                                // Real-time validation
+                                const fullNumber = `+${safeGetCountryCallingCode(
+                                  whatsAppCountry
+                                )}${limitedValue}`;
+                                setErrors((prev) => {
+                                  const clone = { ...prev } as any;
+                                  if (!limitedValue.trim()) {
+                                    clone.whatsAppNumber =
+                                      "WhatsApp number is required";
+                                  } else if (
+                                    limitedValue.length > 2 &&
+                                    !isValidPhoneNumber(fullNumber)
+                                  ) {
+                                    clone.whatsAppNumber =
+                                      "Enter a valid phone number";
+                                  } else if (isValidPhoneNumber(fullNumber)) {
+                                    delete clone.whatsAppNumber;
+                                  }
+                                  return clone;
+                                });
+                              }}
+                              onBlur={() => {
+                                const fullNumber = whatsAppNumber
+                                  ? `+${safeGetCountryCallingCode(
+                                      whatsAppCountry
+                                    )}${whatsAppNumber}`
+                                  : "";
+                                setErrors((prev) => {
+                                  const clone = { ...prev } as any;
+                                  if (!whatsAppNumber) {
+                                    clone.whatsAppNumber =
+                                      "WhatsApp number is required";
+                                  } else if (!isValidPhoneNumber(fullNumber)) {
+                                    clone.whatsAppNumber =
+                                      "Enter a valid phone number";
+                                  } else {
+                                    delete clone.whatsAppNumber;
+                                  }
+                                  return clone;
+                                });
+                              }}
+                              disabled={paymentConfirmed}
+                              placeholder="123 456 7890"
+                              maxLength={
+                                getCountryData(whatsAppCountry).maxLength
+                              }
+                              className={`flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60 ${paymentConfirmed ? "opacity-50 text-muted-foreground cursor-not-allowed" : ""}`}
+                            />
+                          </div>
+                          {whatsAppNumber &&
+                            isValidPhoneNumber(
+                              `+${safeGetCountryCallingCode(
+                                whatsAppCountry
+                              )}${whatsAppNumber}`
+                            ) &&
+                            !errors.whatsAppNumber && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none">
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </div>
+                            )}
+                        </div>
+                      </div>
+                      {!!errors.whatsAppNumber && (
+                        <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          {errors.whatsAppNumber}
                         </p>
                       )}
                     </label>
                   </div>
-
-                  {/* Additional guests (collapsible) */}
-                  <div
-                    ref={guestsWrapRef}
-                    className="overflow-hidden"
-                    style={{ height: guestsHeight }}
-                  >
-                    {guestsMounted ? (
-                      <div ref={guestsContentRef} className="space-y-2">
-                        {/* Header row stays same height to prevent shaking */}
-                        <div className="flex items-center justify-between min-h-10">
-                          <div className="text-sm font-medium text-foreground">
-                            Additional guests
-                          </div>
-
-                          {/* Keep layout stable; hide controls when not Group */}
-                          <div
-                            className={`flex items-center gap-3 ${
-                              bookingType === "Group Booking"
-                                ? ""
-                                : "opacity-0 pointer-events-none"
-                            }`}
-                          >
-                            <label className="text-sm text-foreground">
-                              Group size
-                            </label>
-                            <div className="inline-flex items-center gap-2">
-                              <button
-                                type="button"
-                                aria-label="Decrease group size"
-                                onClick={() =>
-                                  handleGroupSizeChange(groupSize - 1)
-                                }
-                                className="h-8 w-8 rounded-md bg-crimson-red text-white flex items-center justify-center hover:brightness-95 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={paymentConfirmed}
-                              >
-                                −
-                              </button>
-
-                              <input
-                                type="number"
-                                min={3}
-                                max={20}
-                                value={groupSize}
-                                onChange={(e) =>
-                                  handleGroupSizeChange(
-                                    parseInt(e.target.value || "0", 10)
-                                  )
-                                }
-                                className="w-16 text-center px-2 py-1 rounded-md bg-input border border-border text-foreground [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                disabled={paymentConfirmed}
-                              />
-
-                              <button
-                                type="button"
-                                aria-label="Increase group size"
-                                onClick={() =>
-                                  handleGroupSizeChange(groupSize + 1)
-                                }
-                                className="h-8 w-8 rounded-md bg-crimson-red text-white flex items-center justify-center hover:brightness-95 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={paymentConfirmed}
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          {bookingType === "Duo Booking" ? (
-                            <>
-                              <div className="relative">
-                                <input
-                                  type="email"
-                                  name="guest-email"
-                                  autoComplete="email"
-                                  placeholder="Guest email address"
-                                  value={additionalGuests[0] ?? ""}
-                                  onChange={(e) =>
-                                    handleGuestChange(0, e.target.value)
-                                  }
-                                  className={`${fieldBase} ${fieldBorder(
-                                    !!errors["guest-0"]
-                                  )} ${
-                                    additionalGuests[0] &&
-                                    !errors["guest-0"] &&
-                                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-                                      additionalGuests[0]
-                                    )
-                                      ? "border-green-500"
-                                      : ""
-                                  } ${fieldFocus}`}
-                                  disabled={paymentConfirmed}
-                                />
-                                {additionalGuests[0] &&
-                                  !errors["guest-0"] &&
-                                  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-                                    additionalGuests[0]
-                                  ) && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
-                                      <svg
-                                        className="w-5 h-5"
-                                        fill="currentColor"
-                                        viewBox="0 0 20 20"
-                                      >
-                                        <path
-                                          fillRule="evenodd"
-                                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                          clipRule="evenodd"
-                                        />
-                                      </svg>
-                                    </div>
-                                  )}
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
-                                <svg
-                                  className="w-4 h-4 flex-shrink-0 mt-0.5"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                                <span>
-                                  An email with a pre-filled reservation form
-                                  will be sent to the guest after form
-                                  completion.
-                                </span>
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              {additionalGuests.map((g, idx) => (
-                                <div key={idx} className="relative">
-                                  <input
-                                    type="email"
-                                    name={`guest-email-${idx}`}
-                                    autoComplete="email"
-                                    placeholder={`Guest #${
-                                      idx + 1
-                                    } email address`}
-                                    value={g}
-                                    onChange={(e) =>
-                                      handleGuestChange(idx, e.target.value)
-                                    }
-                                    className={`${fieldBase} ${fieldBorder(
-                                      !!errors[`guest-${idx}`]
-                                    )} ${
-                                      g &&
-                                      !errors[`guest-${idx}`] &&
-                                      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
-                                        ? "border-green-500"
-                                        : ""
-                                    } ${fieldFocus}`}
-                                    disabled={paymentConfirmed}
-                                  />
-                                  {g &&
-                                    !errors[`guest-${idx}`] &&
-                                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g) && (
-                                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
-                                        <svg
-                                          className="w-5 h-5"
-                                          fill="currentColor"
-                                          viewBox="0 0 20 20"
-                                        >
-                                          <path
-                                            fillRule="evenodd"
-                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                            clipRule="evenodd"
-                                          />
-                                        </svg>
-                                      </div>
-                                    )}
-                                  {errors[`guest-${idx}`] && (
-                                    <p className="mt-1 text-xs text-destructive">
-                                      {errors[`guest-${idx}`]}
-                                    </p>
-                                  )}
-                                </div>
-                              ))}
-                              <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
-                                <svg
-                                  className="w-4 h-4 flex-shrink-0 mt-0.5"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                                <span>
-                                  An email with a pre-filled reservation form
-                                  will be sent to each guest after form
-                                  completion.
-                                </span>
-                              </p>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
                 </div>
-              </div>
-            )}
+
+              {/* Guest Forms - Only show for Duo/Group Booking */}
+              {(bookingType === "Duo Booking" || bookingType === "Group Booking") && (
+                <>
+                  {guestDetails.map((guest, guestIndex) => (
+                    <div
+                      key={guestIndex}
+                      className={`transition-all duration-500 ease-in-out ${activeGuestTab !== guestIndex + 2 ? "opacity-0 scale-95 pointer-events-none absolute" : "opacity-100 scale-100"}`}
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                        {/* Guest Email */}
+                        <label className="block">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          Email address
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <div className="relative">
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+                              />
+                            </svg>
+                          </div>
+                          <input
+                            type="email"
+                            value={guest.email}
+                            onChange={(e) => {
+                              const newGuests = [...guestDetails];
+                              newGuests[guestIndex].email = e.target.value;
+                              setGuestDetails(newGuests);
+                            }}
+                            placeholder="guest.email@example.com"
+                            className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
+                              !!errors[`guest-${guestIndex}-email`]
+                            )} ${
+                              guest.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email) && !errors[`guest-${guestIndex}-email`]
+                                ? "border-green-500"
+                                : ""
+                            } ${fieldFocus}`}
+                            disabled={paymentConfirmed}
+                          />
+                          {guest.email &&
+                            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email) &&
+                            !errors[`guest-${guestIndex}-email`] && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </div>
+                            )}
+                        </div>
+                        {errors[`guest-${guestIndex}-email`] && (
+                          <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {errors[`guest-${guestIndex}-email`]}
+                          </p>
+                        )}
+                      </label>
+
+                      {/* Guest Birthdate */}
+                      <label className="block">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          Birthdate
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <BirthdatePicker
+                          value={guest.birthdate}
+                          onChange={(val) => {
+                            const newGuests = [...guestDetails];
+                            newGuests[guestIndex].birthdate = val;
+                            setGuestDetails(newGuests);
+                          }}
+                          isValid={!!guest.birthdate && !errors[`guest-${guestIndex}-birthdate`]}
+                          disabled={paymentConfirmed}
+                        />
+                        {errors[`guest-${guestIndex}-birthdate`] && (
+                          <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {errors[`guest-${guestIndex}-birthdate`]}
+                          </p>
+                        )}
+                      </label>
+
+                      {/* Guest First Name */}
+                      <label className="block">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          First name
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <input
+                          type="text"
+                          value={guest.firstName}
+                          onChange={(e) => {
+                            const newGuests = [...guestDetails];
+                            newGuests[guestIndex].firstName = e.target.value;
+                            setGuestDetails(newGuests);
+                          }}
+                          placeholder="John"
+                          className={`${fieldBase} ${fieldBorder(
+                            !!errors[`guest-${guestIndex}-firstName`]
+                          )} ${
+                            guest.firstName ? "border-green-500" : ""
+                          } ${fieldFocus}`}
+                          disabled={paymentConfirmed}
+                        />
+                        {errors[`guest-${guestIndex}-firstName`] && (
+                          <p className="mt-1.5 text-xs text-destructive">
+                            {errors[`guest-${guestIndex}-firstName`]}
+                          </p>
+                        )}
+                      </label>
+
+                      {/* Guest Last Name */}
+                      <label className="block">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          Last name
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <input
+                          type="text"
+                          value={guest.lastName}
+                          onChange={(e) => {
+                            const newGuests = [...guestDetails];
+                            newGuests[guestIndex].lastName = e.target.value;
+                            setGuestDetails(newGuests);
+                          }}
+                          placeholder="Doe"
+                          className={`${fieldBase} ${fieldBorder(
+                            !!errors[`guest-${guestIndex}-lastName`]
+                          )} ${
+                            guest.lastName ? "border-green-500" : ""
+                          } ${fieldFocus}`}
+                          disabled={paymentConfirmed}
+                        />
+                        {errors[`guest-${guestIndex}-lastName`] && (
+                          <p className="mt-1.5 text-xs text-destructive">
+                            {errors[`guest-${guestIndex}-lastName`]}
+                          </p>
+                        )}
+                      </label>
+
+                      {/* Guest Nationality */}
+                      <label className="block">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          Nationality
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <Select
+                          value={guest.nationality}
+                          onChange={(val) => {
+                            const newGuests = [...guestDetails];
+                            newGuests[guestIndex].nationality = val;
+                            
+                            // Sync WhatsApp country code with nationality
+                            const countryCode = getNationalityCountryCode(val);
+                            if (countryCode) {
+                              newGuests[guestIndex].whatsAppCountry = countryCode;
+                            }
+                            
+                            setGuestDetails(newGuests);
+                          }}
+                          options={getNationalityOptions()}
+                          placeholder="Select nationality"
+                          ariaLabel="Nationality"
+                          className="mt-1"
+                          disabled={paymentConfirmed}
+                          isValid={!!guest.nationality}
+                        />
+                        {errors[`guest-${guestIndex}-nationality`] && (
+                          <p className="mt-1 text-xs text-destructive">
+                            {errors[`guest-${guestIndex}-nationality`]}
+                          </p>
+                        )}
+                      </label>
+
+                      {/* Guest WhatsApp Number */}
+                      <label className="block relative">
+                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          WhatsApp number
+                          <span className="text-destructive text-xs">*</span>
+                        </span>
+                        <div className="relative mt-1 flex items-stretch gap-2">
+                          <Select
+                            value={guest.whatsAppCountry}
+                            onChange={(code) => {
+                              const newGuests = [...guestDetails];
+                              newGuests[guestIndex].whatsAppCountry = code;
+                              newGuests[guestIndex].whatsAppNumber = ""; // Clear the number when country changes
+                              setGuestDetails(newGuests);
+                            }}
+                            options={getCountries().map((country) => {
+                              const data = getCountryData(country);
+                              const callingCode = safeGetCountryCallingCode(country);
+                              const countryName = en[country] || country;
+                              return {
+                                label: (
+                                  <span className="inline-flex items-center gap-2">
+                                    <ReactCountryFlag
+                                      countryCode={country}
+                                      svg
+                                      aria-label={countryName}
+                                      style={{
+                                        width: "1rem",
+                                        height: "0.5rem",
+                                        flexShrink: 1,
+                                      }}
+                                    />
+                                    <span>
+                                      {`${data.alpha3} (+${callingCode})`}
+                                    </span>
+                                  </span>
+                                ),
+                                value: country,
+                                searchValue:
+                                  `${data.flag} ${data.alpha3} ${countryName} ${country} ${callingCode}`.toLowerCase(),
+                              };
+                            })}
+                            placeholder="Country"
+                            ariaLabel="Country Code"
+                            disabled={paymentConfirmed}
+                            searchable
+                            className={`w-[160px] flex-shrink-0 ${paymentConfirmed ? "disabled-hover" : ""}`}
+                          />
+                          <div className="flex-1 relative min-w-0">
+                            <div
+                              className={`flex items-center w-full px-4 py-3 rounded-lg transition-all duration-200 shadow-sm border-2 ${
+                                paymentConfirmed
+                                  ? guest.whatsAppNumber &&
+                                    isValidPhoneNumber(
+                                      `+${safeGetCountryCallingCode(
+                                        guest.whatsAppCountry
+                                      )}${guest.whatsAppNumber}`
+                                    )
+                                    ? "opacity-50 bg-muted/40 border-green-500 cursor-not-allowed"
+                                    : "opacity-50 bg-muted/40 border-border cursor-not-allowed"
+                                  : errors[`guest-${guestIndex}-whatsAppNumber`]
+                                  ? "bg-input border-destructive"
+                                  : guest.whatsAppNumber &&
+                                    isValidPhoneNumber(
+                                      `+${safeGetCountryCallingCode(
+                                        guest.whatsAppCountry
+                                      )}${guest.whatsAppNumber}`
+                                    )
+                                  ? "bg-input border-green-500"
+                                  : "bg-input border-border"
+                              } ${
+                                !paymentConfirmed
+                                  ? "focus-within:outline-none focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-md hover:border-primary/50"
+                                  : ""
+                              }`}
+                            >
+                              <span className={`text-muted-foreground mr-2 select-none ${paymentConfirmed ? "opacity-50" : ""}`}>
+                                +
+                                {safeGetCountryCallingCode(guest.whatsAppCountry)}
+                              </span>
+                              <input
+                                type="tel"
+                                value={guest.whatsAppNumber}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(
+                                    /[^0-9]/g,
+                                    ""
+                                  );
+                                  const maxLen =
+                                    getCountryData(guest.whatsAppCountry).maxLength;
+                                  const limitedValue = value.slice(0, maxLen);
+                                  
+                                  const newGuests = [...guestDetails];
+                                  newGuests[guestIndex].whatsAppNumber = limitedValue;
+                                  setGuestDetails(newGuests);
+
+                                  // Real-time validation
+                                  const fullNumber = `+${safeGetCountryCallingCode(
+                                    guest.whatsAppCountry
+                                  )}${limitedValue}`;
+                                  setErrors((prev) => {
+                                    const clone = { ...prev } as any;
+                                    if (!limitedValue.trim()) {
+                                      clone[`guest-${guestIndex}-whatsAppNumber`] =
+                                        "WhatsApp number is required";
+                                    } else if (
+                                      limitedValue.length > 2 &&
+                                      !isValidPhoneNumber(fullNumber)
+                                    ) {
+                                      clone[`guest-${guestIndex}-whatsAppNumber`] =
+                                        "Enter a valid phone number";
+                                    } else if (isValidPhoneNumber(fullNumber)) {
+                                      delete clone[`guest-${guestIndex}-whatsAppNumber`];
+                                    }
+                                    return clone;
+                                  });
+                                }}
+                                onBlur={() => {
+                                  const fullNumber = guest.whatsAppNumber
+                                    ? `+${safeGetCountryCallingCode(
+                                        guest.whatsAppCountry
+                                      )}${guest.whatsAppNumber}`
+                                    : "";
+                                  setErrors((prev) => {
+                                    const clone = { ...prev } as any;
+                                    if (!guest.whatsAppNumber) {
+                                      clone[`guest-${guestIndex}-whatsAppNumber`] =
+                                        "WhatsApp number is required";
+                                    } else if (!isValidPhoneNumber(fullNumber)) {
+                                      clone[`guest-${guestIndex}-whatsAppNumber`] =
+                                        "Enter a valid phone number";
+                                    } else {
+                                      delete clone[`guest-${guestIndex}-whatsAppNumber`];
+                                    }
+                                    return clone;
+                                  });
+                                }}
+                                disabled={paymentConfirmed}
+                                placeholder="123 456 7890"
+                                maxLength={
+                                  getCountryData(guest.whatsAppCountry).maxLength
+                                }
+                                className={`flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60 ${paymentConfirmed ? "opacity-50 text-muted-foreground cursor-not-allowed" : ""}`}
+                              />
+                            </div>
+                            {guest.whatsAppNumber &&
+                              isValidPhoneNumber(
+                                `+${safeGetCountryCallingCode(
+                                  guest.whatsAppCountry
+                                )}${guest.whatsAppNumber}`
+                              ) &&
+                              !errors[`guest-${guestIndex}-whatsAppNumber`] && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none">
+                                  <svg
+                                    className="w-5 h-5"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                          </div>
+                        </div>
+                        {!!errors[`guest-${guestIndex}-whatsAppNumber`] && (
+                          <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {errors[`guest-${guestIndex}-whatsAppNumber`]}
+                          </p>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+                ))}
+                </>
+              )}
+            </div>
+          )}
 
             {/* STEP 2 - PAYMENT */}
             {step === 2 && (
@@ -3785,7 +5559,7 @@ const Page = () => {
                           </div>
                           <div className="text-sm text-muted-foreground mt-1">
                             Once payment is complete, you won't be able to
-                            change your booking details. If you need to make
+                            change your reservation details. If you need to make
                             changes after payment, you can request a refund
                             through the reservation confirmation email.
                           </div>
@@ -3802,12 +5576,31 @@ const Page = () => {
                           {tourPackages.find((p) => p.id === tourPackage)?.name}
                         </span>
                       </div>
+                      {(bookingType === "Duo Booking" || bookingType === "Group Booking") && (
+                        <div className="flex justify-between items-center text-sm mt-2">
+                          <span className="text-foreground/70 font-semibold">
+                            Number of people:
+                          </span>
+                          <span className="font-bold text-foreground">
+                            {numberOfPeople}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center text-sm mt-3 pt-3 border-t border-border/50">
                         <span className="text-foreground/70 font-semibold">
                           Reservation fee:
                         </span>
                         <span className="font-bold text-lg text-crimson-red">
-                          £{depositAmount.toFixed(2)}
+                          {(bookingType === "Duo Booking" || bookingType === "Group Booking") ? (
+                            <span className="flex items-center gap-2">
+                              <span className="text-sm text-foreground/60 font-normal">
+                                £{baseReservationFee.toFixed(2)} × {numberOfPeople} =
+                              </span>
+                              £{depositAmount.toFixed(2)}
+                            </span>
+                          ) : (
+                            `£${depositAmount.toFixed(2)}`
+                          )}
                         </span>
                       </div>
                     </div>
@@ -3819,15 +5612,40 @@ const Page = () => {
                       amountGBP={depositAmount}
                       bookingId={bookingId || "PENDING"}
                       paymentDocId={paymentDocId}
-                      onSuccess={handlePaymentSuccess}
+                      bookingType={bookingType}
+                      numberOfGuests={numberOfPeople}
+                      onSuccess={(pid, docId) => {
+                        setStep2StatusType("success");
+                        setStep2StatusMsg(
+                          "Payment succeeded! Securing your reservation..."
+                        );
+                        handlePaymentSuccess(pid, docId);
+                      }}
+                      onError={(msg) => {
+                        setStep2StatusType("error");
+                        setStep2StatusMsg(
+                          msg || "Payment failed. Please try again."
+                        );
+                      }}
+                      onProcessingChange={(p) => setStep2Processing(p)}
                     />
+
+                    {/* Step 2 status + processing prompt */}
+                    {step2Processing && (
+                      <div className="mt-4 flex items-center gap-3 p-3 rounded-md border border-border bg-muted/30">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                        <span className="text-sm text-muted-foreground">
+                          Processing payment…
+                        </span>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
             )}
 
             {/* STEP 3 - PAYMENT PLAN */}
-            {step === 3 && (
+            {(step as number) === 3 && (
               <div className="rounded-lg bg-card/80 backdrop-blur-md p-4 sm:p-6 border border-border shadow-xl space-y-6">
                 <div className="bg-gradient-to-r from-spring-green/10 to-green-500/10 border-2 border-spring-green/40 p-5 rounded-xl shadow-lg">
                   <div className="flex items-start gap-4">
@@ -3852,7 +5670,7 @@ const Page = () => {
                         🎉 Reservation confirmed!
                       </div>
                       <div className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-                        <span>Booking ID:</span>
+                        <span>Reservation ID:</span>
                         <span className="font-mono font-semibold text-foreground bg-background/50 px-2 py-0.5 rounded">
                           {bookingId}
                         </span>
@@ -3861,197 +5679,217 @@ const Page = () => {
                   </div>
                 </div>
 
-                <h3 className="text-lg font-medium text-foreground">
-                  Choose your payment plan
-                </h3>
+                {/* Choose Payment Plan Card */}
+                <div className="rounded-2xl bg-white dark:bg-card/80 dark:backdrop-blur-md border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
+                  <div className="p-6">
+                    <h3 className="text-lg font-bold text-foreground mb-6">
+                      Choose your payment plan
+                    </h3>
 
-                {/* Tour Details Summary */}
-                {selectedPackage && (
-                  <div className="bg-muted/10 border-2 border-border rounded-lg p-5 shadow-sm">
-                    <div className="text-sm space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-foreground/70 font-semibold">
-                          Tour name:
-                        </span>
-                        <span className="font-bold text-foreground">
-                          {selectedPackage.name}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-foreground/70 font-semibold">
-                          Tour date:
-                        </span>
-                        <span className="font-bold text-foreground">
-                          {tourDate}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-foreground/70 font-semibold">
-                          Days until tour:
-                        </span>
-                        <span className="font-bold text-foreground">
-                          {calculateDaysBetween(tourDate)} days
-                        </span>
-                      </div>
-                      <div className="border-t-2 border-border/50 my-3"></div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-foreground/70 font-semibold">
-                          Tour cost:
-                        </span>
-                        <span className="font-bold text-foreground text-base">
-                          £{selectedPackage.price.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-foreground/70 font-semibold">
-                          Reservation fee paid:
-                        </span>
-                        <span className="font-bold text-spring-green text-base">
-                          -£{depositAmount.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="border-t-2 border-border/50 my-3"></div>
-                      <div className="flex justify-between items-center pt-1">
-                        <span className="text-foreground font-bold">
-                          Remaining balance:
-                        </span>
-                        <span className="font-bold text-xl text-crimson-red">
-                          £{(selectedPackage.price - depositAmount).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Payment Plan Options */}
-                {availablePaymentTerm.isLastMinute ? (
-                  <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-md">
-                    <div className="flex items-start gap-3">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
-                        <svg
-                          className="h-5 w-5"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          aria-hidden
-                        >
-                          <path
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="font-medium text-foreground">
-                          Full Payment Required
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          Your tour is coming up soon! Full payment of £
-                          {selectedPackage
-                            ? (selectedPackage.price - depositAmount).toFixed(2)
-                            : "0.00"}{" "}
-                          is required within 48 hours to confirm your spot.
+                    {/* Tour Details Summary */}
+                    {selectedPackage && (
+                      <div className="bg-muted/10 border-2 border-border rounded-lg p-5 shadow-sm">
+                        <div className="text-sm space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-foreground/70 font-semibold">
+                              Tour name:
+                            </span>
+                            <span className="font-bold text-foreground">
+                              {selectedPackage.name}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-foreground/70 font-semibold">
+                              Tour date:
+                            </span>
+                            <span className="font-bold text-foreground">
+                              {tourDate}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-foreground/70 font-semibold">
+                              Days until tour:
+                            </span>
+                            <span className="font-bold text-foreground">
+                              {calculateDaysBetween(tourDate)} days
+                            </span>
+                          </div>
+                          <div className="border-t-2 border-border/50 my-3"></div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-foreground/70 font-semibold">
+                              Tour cost:
+                            </span>
+                            <span className="font-bold text-foreground text-base">
+                              {(bookingType === "Duo Booking" || bookingType === "Group Booking") ? (
+                                <span className="flex items-center gap-2">
+                                  <span className="text-sm text-foreground/60 font-normal">
+                                    £{selectedPackage.price.toFixed(2)} × {numberOfPeople} =
+                                  </span>
+                                  £{(selectedPackage.price * numberOfPeople).toFixed(2)}
+                                </span>
+                              ) : (
+                                `£${selectedPackage.price.toFixed(2)}`
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-foreground/70 font-semibold">
+                              Reservation fee paid:
+                            </span>
+                            <span className="font-bold text-spring-green text-base">
+                              -£{depositAmount.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="border-t-2 border-border/50 my-3"></div>
+                          <div className="flex justify-between items-center pt-1">
+                            <span className="text-foreground font-bold">
+                              Remaining balance:
+                            </span>
+                            <span className="font-bold text-xl text-crimson-red">
+                              £
+                              {((selectedPackage.price * numberOfPeople) - depositAmount).toFixed(
+                                2
+                              )}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-sm text-muted-foreground">
-                      Great news! You have up to{" "}
-                      <span className="font-medium text-foreground">
-                        {availablePaymentTerm.term}
-                      </span>{" "}
-                      flexible payment options. Pick what works best for you:
-                    </p>
+                    )}
 
-                    <div className="space-y-3">
-                      {getAvailablePaymentPlans().map((plan) => (
-                        <button
-                          key={plan.id}
-                          type="button"
-                          onClick={() => setSelectedPaymentPlan(plan.id)}
-                          className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                            selectedPaymentPlan === plan.id
-                              ? "border-primary bg-primary/5 shadow-md"
-                              : "border-border bg-card hover:border-primary/50 hover:bg-muted/50"
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div
-                              className="flex items-center justify-center h-10 w-10 rounded-full text-white font-semibold flex-shrink-0"
-                              style={{ backgroundColor: plan.color }}
+                    {/* Payment Plan Options */}
+                    {availablePaymentTerm.isLastMinute ? (
+                      <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-md mt-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
+                            <svg
+                              className="h-5 w-5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              aria-hidden
                             >
-                              P{plan.monthsRequired}
+                              <path
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
+                          <div>
+                            <div className="font-medium text-foreground">
+                              Full Payment Required
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <div className="font-medium text-foreground">
-                                  {plan.label}
-                                </div>
-                                {selectedPaymentPlan === plan.id && (
-                                  <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary text-primary-foreground flex-shrink-0">
-                                    <svg
-                                      className="h-4 w-4"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      aria-hidden
-                                    >
-                                      <path
-                                        d="M20 6L9 17l-5-5"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                      />
-                                    </svg>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="text-xs text-muted-foreground mb-3">
-                                {plan.description}
-                              </div>
-
-                              {/* Payment Schedule */}
-                              <div className="space-y-2 bg-muted/30 rounded-md p-3">
-                                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                                  Payment Schedule
-                                </div>
-                                {plan.schedule.map((payment, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center justify-between text-sm"
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <div className="h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-xs font-medium">
-                                        {idx + 1}
-                                      </div>
-                                      <span className="text-foreground">
-                                        {new Date(
-                                          payment.date + "T00:00:00Z"
-                                        ).toLocaleDateString("en-US", {
-                                          month: "short",
-                                          day: "numeric",
-                                          year: "numeric",
-                                          timeZone: "UTC",
-                                        })}
-                                      </span>
-                                    </div>
-                                    <span className="font-medium text-foreground">
-                                      £{payment.amount.toFixed(2)}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              Your tour is coming up soon! Full payment of £
+                              {selectedPackage
+                                ? (
+                                    (selectedPackage.price * numberOfPeople) - depositAmount
+                                  ).toFixed(2)
+                                : "0.00"}{" "}
+                              is required within 48 hours to confirm your spot.
                             </div>
                           </div>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted-foreground mt-6 mb-4">
+                          Great news! You have up to{" "}
+                          <span className="font-medium text-foreground">
+                            {availablePaymentTerm.term}
+                          </span>{" "}
+                          flexible payment options. Pick what works best for
+                          you:
+                        </p>
+
+                        <div className="space-y-3 mt-4">
+                          {getAvailablePaymentPlans().map((plan) => (
+                            <button
+                              key={plan.id}
+                              type="button"
+                              onClick={() => setSelectedPaymentPlan(plan.id)}
+                              className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                                selectedPaymentPlan === plan.id
+                                  ? "border-primary bg-primary/5 shadow-md"
+                                  : "border-border bg-card hover:border-primary/50 hover:bg-muted/50"
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div
+                                  className="flex items-center justify-center h-10 w-10 rounded-full text-white font-semibold flex-shrink-0"
+                                  style={{ backgroundColor: plan.color }}
+                                >
+                                  P{plan.monthsRequired}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-2 mb-1">
+                                    <div className="font-medium text-foreground">
+                                      {plan.label}
+                                    </div>
+                                    {selectedPaymentPlan === plan.id && (
+                                      <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary text-primary-foreground flex-shrink-0">
+                                        <svg
+                                          className="h-4 w-4"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          aria-hidden
+                                        >
+                                          <path
+                                            d="M20 6L9 17l-5-5"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                          />
+                                        </svg>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mb-3">
+                                    {plan.description}
+                                  </div>
+
+                                  {/* Payment Schedule */}
+                                  <div className="space-y-2 bg-muted/30 rounded-md p-3">
+                                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                                      Payment Schedule
+                                    </div>
+                                    {plan.schedule.map((payment, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center justify-between text-sm"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <div className="h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-xs font-medium">
+                                            {idx + 1}
+                                          </div>
+                                          <span className="text-foreground">
+                                            {new Date(
+                                              payment.date + "T00:00:00Z"
+                                            ).toLocaleDateString("en-US", {
+                                              month: "short",
+                                              day: "numeric",
+                                              year: "numeric",
+                                              timeZone: "UTC",
+                                            })}
+                                          </span>
+                                        </div>
+                                        <span className="font-medium text-foreground">
+                                          £{payment.amount.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -4115,6 +5953,40 @@ const Page = () => {
                 <button
                   type="button"
                   onClick={() => {
+                    console.log("🔍 Continue to Payment clicked");
+                    console.log("📊 Validation state:", {
+                      isCreatingPayment,
+                      email: !!email,
+                      emailValid: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
+                      birthdate: !!birthdate,
+                      firstName: !!firstName,
+                      lastName: !!lastName,
+                      whatsAppNumber: !!whatsAppNumber,
+                      whatsAppValid: whatsAppNumber ? isValidPhoneNumber(
+                        `+${safeGetCountryCallingCode(whatsAppCountry)}${whatsAppNumber}`
+                      ) : false,
+                      nationality: !!nationality,
+                      bookingType,
+                      tourPackage: !!tourPackage,
+                      tourDate: !!tourDate,
+                      guestDetailsLength: guestDetails.length,
+                      expectedGuestLength: bookingType === "Duo Booking" ? 1 : groupSize - 1,
+                      guestDetailsValid: !guestDetails.some(
+                        (guest) =>
+                          !guest.email ||
+                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email) ||
+                          !guest.birthdate ||
+                          !guest.firstName ||
+                          !guest.lastName ||
+                          !guest.nationality ||
+                          !guest.whatsAppNumber ||
+                          !isValidPhoneNumber(
+                            `+${safeGetCountryCallingCode(
+                              guest.whatsAppCountry
+                            )}${guest.whatsAppNumber}`
+                          )
+                      ),
+                    });
                     checkExistingPaymentsAndMaybeProceed();
                   }}
                   disabled={
@@ -4124,16 +5996,36 @@ const Page = () => {
                     !birthdate ||
                     !firstName ||
                     !lastName ||
+                    !whatsAppNumber ||
+                    (whatsAppNumber &&
+                      !isValidPhoneNumber(
+                        `+${safeGetCountryCallingCode(
+                          whatsAppCountry
+                        )}${whatsAppNumber}`
+                      )) ||
                     !nationality ||
                     !bookingType ||
                     !tourPackage ||
                     !tourDate ||
                     ((bookingType === "Duo Booking" ||
                       bookingType === "Group Booking") &&
-                      additionalGuests.some(
-                        (g, idx) =>
-                          !g.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g)
-                      ))
+                      (guestDetails.length === 0 ||
+                        guestDetails.length !== (bookingType === "Duo Booking" ? 1 : groupSize - 1) ||
+                        guestDetails.some(
+                          (guest) =>
+                            !guest.email ||
+                            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email) ||
+                            !guest.birthdate ||
+                            !guest.firstName ||
+                            !guest.lastName ||
+                            !guest.nationality ||
+                            !guest.whatsAppNumber ||
+                            !isValidPhoneNumber(
+                              `+${safeGetCountryCallingCode(
+                                guest.whatsAppCountry
+                              )}${guest.whatsAppNumber}`
+                            )
+                        )))
                   }
                   className="group inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary to-crimson-red text-primary-foreground rounded-lg shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg"
                 >
@@ -4250,15 +6142,59 @@ const Page = () => {
               )}
 
               {step === 3 && bookingConfirmed && (
-                <div className="fixed inset-0 z-50 bg-background">
+                <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
                   {/* Animated gradient background */}
                   <div className="absolute inset-0 z-0">
                     <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/5 via-sunglow-yellow/5 to-spring-green/5 dark:from-crimson-red/20 dark:via-creative-midnight/30 dark:to-spring-green/20 animate-gradient-shift bg-[length:200%_200%]" />
                   </div>
 
-                  <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+                  {/* Offscreen: Document for PDF generation (must be renderable, not display:none) */}
+                  <div
+                    id="booking-confirmation-doc"
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: "-99999px",
+                      opacity: 0,
+                      pointerEvents: "none",
+                      width: "100%",
+                    }}
+                  >
+                    <BookingConfirmationDocument
+                      bookingId={bookingId}
+                      tourName={selectedPackage?.name || "Tour"}
+                      tourDate={tourDate}
+                      email={email}
+                      firstName={firstName}
+                      lastName={lastName}
+                      paymentPlan={
+                        availablePaymentTerm.isLastMinute ||
+                        selectedPaymentPlan === "full_payment"
+                          ? "Full Payment"
+                          : fixTermName(
+                              paymentTerms.find(
+                                (p) => p.id === selectedPaymentPlan
+                              )?.name || "Selected"
+                            )
+                      }
+                      reservationFee={depositAmount}
+                      totalAmount={(selectedPackage?.price || 0) * numberOfPeople}
+                      remainingBalance={
+                        ((selectedPackage?.price || 0) * numberOfPeople) - depositAmount
+                      }
+                      paymentDate={new Date().toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                      currency="GBP"
+                    />
+                  </div>
+
+                  <div className="relative z-10 flex justify-center py-8 px-4 print:hidden">
                     <div className="max-w-2xl w-full bg-card rounded-2xl shadow-xl p-8 border border-border">
-                      <div className="bg-spring-green/10 border border-spring-green/30 p-6 rounded-lg mb-6">
+                      <div className="bg-spring-green/10 border border-spring-green/30 p-6 rounded-lg mb-6 print:hidden print:mb-0 print:border-spring-green/10 print:bg-green-50">
                         <div className="flex items-start gap-3">
                           <svg
                             className="h-8 w-8 text-spring-green flex-shrink-0 mt-0.5"
@@ -4275,7 +6211,7 @@ const Page = () => {
                           </svg>
                           <div className="flex-1">
                             <h2 className="text-2xl font-bold text-foreground mb-2">
-                              Booking Confirmed!
+                              Reservation Confirmed!
                             </h2>
                             <p className="text-muted-foreground">
                               You're all set for {selectedPackage?.name}
@@ -4284,15 +6220,64 @@ const Page = () => {
                         </div>
                       </div>
 
-                      {/* Booking Details */}
-                      <div className="bg-muted/30 rounded-lg p-6 mb-6">
+                      {/* Print-only Reservation Details section */}
+                      <div className="hidden print:block bg-gray-50 rounded-lg p-6 mb-6">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wide">
+                          Reservation Details
+                        </h3>
+                        <div className="space-y-3">
+                          <div className="flex justify-between py-2 border-b border-gray-300">
+                            <span className="text-sm text-gray-600">
+                              Reservation ID
+                            </span>
+                            <span className="text-sm font-mono font-semibold text-gray-900">
+                              {bookingId}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2 border-b border-gray-300">
+                            <span className="text-sm text-gray-600">Tour</span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {selectedPackage?.name}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2 border-b border-gray-300">
+                            <span className="text-sm text-gray-600">
+                              Tour Date
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {tourDate}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2 border-b border-gray-300">
+                            <span className="text-sm text-gray-600">Email</span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {email}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2">
+                            <span className="text-sm text-gray-600">
+                              Payment Plan
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {selectedPaymentPlan === "full_payment"
+                                ? "Full Payment"
+                                : paymentTerms.find(
+                                    (p) => p.id === selectedPaymentPlan
+                                  )?.name || "Selected"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Reservation Details - Screen only */}
+                      <div className="bg-muted/30 rounded-lg p-6 mb-6 print:hidden">
                         <h3 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wide">
-                          Booking Details
+                          Reservation Details
                         </h3>
                         <div className="space-y-3">
                           <div className="flex justify-between py-2 border-b border-border">
                             <span className="text-sm text-muted-foreground">
-                              Booking ID
+                              Reservation ID
                             </span>
                             <span className="text-sm font-mono font-semibold text-foreground">
                               {bookingId}
@@ -4308,7 +6293,7 @@ const Page = () => {
                           </div>
                           <div className="flex justify-between py-2 border-b border-border">
                             <span className="text-sm text-muted-foreground">
-                              Travel Date
+                              Tour Date
                             </span>
                             <span className="text-sm font-medium text-foreground">
                               {tourDate}
@@ -4327,12 +6312,34 @@ const Page = () => {
                               Payment Plan
                             </span>
                             <span className="text-sm font-medium text-foreground">
-                              {paymentTerms.find(
-                                (p) => p.id === selectedPaymentPlan
-                              )?.name || "Selected"}
+                              {selectedPaymentPlan === "full_payment"
+                                ? "Full Payment"
+                                : paymentTerms.find(
+                                    (p) => p.id === selectedPaymentPlan
+                                  )?.name || "Selected"}
                             </span>
                           </div>
                         </div>
+                      </div>
+
+                      {/* Divider - hidden on print, replaced with light mode version */}
+                      <div className="my-8 border-t-2 border-border print:hidden"></div>
+
+                      {/* Receipt - shown on screen and in print */}
+                      <div className="mb-6 print:page-break-before">
+                        <Receipt
+                          bookingId={bookingId}
+                          tourName={selectedPackage?.name || "Tour"}
+                          reservationFee={depositAmount}
+                          currency="GBP"
+                          email={email}
+                          travelDate={tourDate}
+                          paymentDate={new Date().toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        />
                       </div>
 
                       {/* What's Next */}
@@ -4363,7 +6370,7 @@ const Page = () => {
                                 {email}
                               </span>{" "}
                               for a confirmation message with your complete
-                              booking details and payment schedule.
+                              reservation details and payment schedule.
                             </p>
                           </div>
                           <div className="flex items-start gap-3">
@@ -4413,11 +6420,93 @@ const Page = () => {
 
                       {/* Action Button */}
                       <button
-                        onClick={() => window.print()}
-                        className="w-full px-6 py-3 border-2 border-border bg-card text-foreground font-medium rounded-lg hover:bg-muted/50 transition-colors"
+                        onClick={async () => {
+                          // Prefer human-friendly Reservation ID over Firestore docId
+                          const fallbackDisplayId = "SB-IDD-20260327-JD002";
+                          const isDocId = (id?: string) =>
+                            !!id && /^[A-Za-z0-9]{20,}$/.test(id);
+                          const confirmationId =
+                            bookingId && !isDocId(bookingId)
+                              ? bookingId
+                              : fallbackDisplayId;
+                          try {
+                            // Build payment plan label (e.g., "P2 - Two Installment")
+                            const selectedPlanTerm = paymentTerms.find(
+                              (p) => p.id === selectedPaymentPlan
+                            );
+                            const paymentPlanLabel =
+                              availablePaymentTerm.isLastMinute ||
+                              selectedPaymentPlan === "full_payment"
+                                ? "Full Payment"
+                                : selectedPlanTerm
+                                ? fixTermName(selectedPlanTerm.name)
+                                : "Selected";
+                            const pdf = await generateBookingConfirmationPDF(
+                              confirmationId,
+                              selectedPackage?.name || "Tour",
+                              tourDate,
+                              email,
+                              firstName,
+                              lastName,
+                              paymentPlanLabel.replace(
+                                /^P\d+_[A-Z_]+\s-\s/,
+                                ""
+                              ),
+                              depositAmount,
+                              (selectedPackage?.price || 0) * numberOfPeople,
+                              ((selectedPackage?.price || 0) * numberOfPeople) - depositAmount,
+                              new Date().toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              }),
+                              "GBP"
+                            );
+                            pdf.save(
+                              `IHT_Reservation-Confirmation_${confirmationId}.pdf`
+                            );
+                          } catch (error) {
+                            console.error("Error generating PDF:", error);
+                            alert("Failed to generate PDF. Please try again.");
+                          }
+                        }}
+                        className="mt-4 w-full px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition"
                       >
-                        Print Confirmation
+                        Download Receipt
                       </button>
+
+                      {/* Success note */}
+                      <div
+                        role="status"
+                        aria-live="polite"
+                        className="mt-6 rounded-md bg-spring-green/10 border border-spring-green/30 p-4 text-sm text-creative-midnight"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-spring-green text-white">
+                            <svg
+                              className="h-5 w-5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              aria-hidden
+                            >
+                              <path
+                                d="M20 6L9 17l-5-5"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
+                          <div>
+                            <div className="font-medium">You're on the list</div>
+                            <div className="text-xs text-muted-foreground">
+                              We'll send a confirmation to{" "}
+                              <span className="font-medium">{email}</span> if provided.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4425,40 +6514,6 @@ const Page = () => {
             </div>
           </div>
 
-          {/* Success note */}
-          {submitted && step === 3 && (
-            <div
-              role="status"
-              aria-live="polite"
-              className="mt-6 rounded-md bg-spring-green/10 border border-spring-green/30 p-4 text-sm text-creative-midnight"
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-spring-green text-white">
-                  <svg
-                    className="h-5 w-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden
-                  >
-                    <path
-                      d="M20 6L9 17l-5-5"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <div className="font-medium">You're on the list</div>
-                  <div className="text-xs text-muted-foreground">
-                    We'll send a confirmation to{" "}
-                    <span className="font-medium">{email}</span> if provided.
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -4476,16 +6531,32 @@ const Page = () => {
   );
 };
 
+const styles = `
+  .disabled-hover {
+    pointer-events: none;
+  }
+  
+  .disabled-hover:hover {
+    border-color: inherit !important;
+    background-color: inherit !important;
+  }
+`;
+
 export default function ReservationBookingFormPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      }
-    >
-      <Page />
-    </Suspense>
+    <>
+      <style>{styles}</style>
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        }
+      >
+        <Page />
+      </Suspense>
+    </>
   );
 }
+
+
