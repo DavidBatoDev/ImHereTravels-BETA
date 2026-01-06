@@ -1491,7 +1491,7 @@ export default function BookingsSection() {
       {/* Search and Filters Section */}
       <Card
         data-filter-section
-        className={`sticky top-4 z-50 border border-border backdrop-blur-sm transition-all duration-300 ${
+        className={`sticky top-4 z-40 border border-border backdrop-blur-sm transition-all duration-300 ${
           isFilterSticky ? "shadow-[0_-12px_60px_0px_rgba(0,0,0,0.6)]" : ""
         }`}
         style={{ backgroundColor: "hsl(var(--card-surface))" }}
