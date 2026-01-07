@@ -24,20 +24,34 @@ const workSans = Work_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "I'm Here Travels",
+  title: "I'm Here Travels - Admin Dashboard",
   description:
-    "Connect people with places and create lifelong impact together for the community.",
+    "Admin dashboard for ImHereTravels booking management. Connect people with places and create lifelong impact together for the community.",
   icons: {
     icon: [
       {
-        url: "/favicon.svg?v=2",
+        url: "/logos/Logo_Red.svg",
         type: "image/svg+xml",
         sizes: "any",
       },
     ],
-    shortcut: "/favicon.svg?v=2",
-    apple: "/favicon.svg?v=2",
+    shortcut: "/logos/Logo_Red.svg",
+    apple: "/logos/Logo_Red.svg",
   },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://admin.imheretravels.com",
+    siteName: "ImHereTravels Admin",
+    title: "Dashboard - ImHereTravels Admin",
+    description: "Admin dashboard for ImHereTravels booking management",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Dashboard - ImHereTravels Admin",
+    description: "Admin dashboard for ImHereTravels booking management",
+  },
+  metadataBase: new URL("https://admin.imheretravels.com"),
 };
 
 export default function RootLayout({
