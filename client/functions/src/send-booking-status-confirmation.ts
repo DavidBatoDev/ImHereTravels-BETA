@@ -167,7 +167,7 @@ export const sendBookingStatusConfirmation = onCall(
 
       // Generate booking status URL
       const bookingStatusUrl = `${
-        process.env.NEXT_PUBLIC_APP_URL || "https://im-here-travels.vercel.app/"
+        process.env.NEXT_PUBLIC_APP_URL || "https://admin.imheretravels.com/"
       }/booking-status/${bookingDocumentId}?email=${encodeURIComponent(email)}`;
 
       // Generate QR code
