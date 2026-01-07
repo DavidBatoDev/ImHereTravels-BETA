@@ -43,7 +43,7 @@ export const sendVerificationEmail = onCall(
 
       // Create verification link
       const verificationLink = `${
-        process.env.FRONTEND_URL || "https://im-here-travels.vercel.app"
+        process.env.FRONTEND_URL || "https://admin.imheretravels.com"
       }/auth/verify-email?token=${verificationToken}&userId=${userId}`;
 
       // Load email template

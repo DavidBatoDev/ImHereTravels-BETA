@@ -933,7 +933,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
               .collection("bookings")
               .doc(bookingId)
               .update({
-                [scheduledEmailLinkCol.id]: `https://im-here-travels.vercel.app/mail/payment-reminders?emailId=${scheduledEmailDoc.id}`,
+                [scheduledEmailLinkCol.id]: `https://admin.imheretravels.com/mail/payment-reminders?emailId=${scheduledEmailDoc.id}`,
               });
           }
         } catch (error) {
