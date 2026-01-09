@@ -34,9 +34,18 @@ export interface TourPackage {
 export interface TravelDate {
   startDate: Timestamp;
   endDate: Timestamp;
+  tourDays?: number; // Number of days for the tour
   isAvailable: boolean;
   maxCapacity?: number;
   currentBookings?: number;
+  // Optional per-date custom pricing overrides
+  customOriginal?: number;
+  customDiscounted?: number;
+  customDeposit?: number;
+  // UI flags to explicitly add/remove individual custom fields
+  hasCustomOriginal?: boolean;
+  hasCustomDiscounted?: boolean;
+  hasCustomDeposit?: boolean;
 }
 
 // ============================================================================
@@ -144,9 +153,18 @@ export interface TourFormDataWithStringDates {
   travelDates: {
     startDate: string;
     endDate: string;
+    tourDays?: number; // Number of days for the tour
     isAvailable: boolean;
     maxCapacity?: number;
     currentBookings?: number;
+    // Optional per-date custom pricing values
+    customOriginal?: number;
+    customDiscounted?: number;
+    customDeposit?: number;
+    // UI flags to explicitly add/remove individual custom fields
+    hasCustomOriginal?: boolean;
+    hasCustomDiscounted?: boolean;
+    hasCustomDeposit?: boolean;
   }[];
   pricing: {
     original: number;
