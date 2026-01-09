@@ -410,7 +410,7 @@ export async function updateTour(
         changedBy: currentUserId,
       };
       updateData.pricingHistory = [
-        ...currentData.pricingHistory,
+        ...(currentData.pricingHistory || []),
         newPricingEntry,
       ];
     }
