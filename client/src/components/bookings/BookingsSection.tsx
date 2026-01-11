@@ -1441,7 +1441,8 @@ export default function BookingsSection() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                className="group h-20 w-20 rounded-full rounded-br-none bg-royal-purple hover:bg-crimson-red text-white transition-all duration-300 hover:scale-105 shadow-lg relative"
+                disabled
+                className="group h-20 w-20 rounded-full rounded-br-none bg-royal-purple hover:bg-crimson-red text-white transition-all duration-300 hover:scale-105 shadow-lg relative opacity-50 cursor-not-allowed"
                 title="Import Data"
               >
                 <Download className="h-10 w-10 absolute group-hover:opacity-0 group-hover:scale-0 transition-all duration-300" />
