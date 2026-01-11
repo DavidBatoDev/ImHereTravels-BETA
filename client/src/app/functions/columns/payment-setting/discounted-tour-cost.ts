@@ -23,6 +23,15 @@ export const discountedTourCostColumn: BookingSheetColumn = {
         isRest: false,
         value: "",
       },
+      {
+        name: "tourDate",
+        type: "date",
+        columnReference: "Tour Date",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
     ],
   },
 };
@@ -51,7 +60,8 @@ export const discountedTourCostColumn: BookingSheetColumn = {
  */
 
 export default async function getTourDiscountedCost(
-  tourPackageName: string
+  tourPackageName: string,
+  tourDate?: any
 ): Promise<number | ""> {
   if (!tourPackageName) return "";
 
@@ -65,8 +75,26 @@ export default async function getTourDiscountedCost(
       pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim()
   );
 
-  // Return the deposit field if found
-  const depositCost = (matchedPackage as any)?.pricing?.discounted ?? "";
+  // Check for custom discounted price if tourDate is provided
+  if (tourDate && (matchedPackage as any)?.travelDates) {
+    const travelDateToMatch = new Date(tourDate);
+    const matchingTravelDate = (matchedPackage as any).travelDates.find(
+      (td: any) => {
+        const tdStart = td.startDate?.toDate?.() || new Date(td.startDate);
+        return tdStart.toDateString() === travelDateToMatch.toDateString();
+      }
+    );
 
-  return depositCost;
+    // If custom discounted price is set for this date, use it
+    if (
+      matchingTravelDate?.hasCustomDiscounted &&
+      matchingTravelDate?.customDiscounted !== undefined
+    ) {
+      return matchingTravelDate.customDiscounted;
+    }
+  }
+
+  // Return the default discounted price
+  const discountedCost = (matchedPackage as any)?.pricing?.discounted ?? "";
+  return discountedCost;
 }

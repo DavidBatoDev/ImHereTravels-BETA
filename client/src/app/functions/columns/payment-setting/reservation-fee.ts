@@ -23,6 +23,15 @@ export const reservationFeeColumn: BookingSheetColumn = {
         isRest: false,
         value: "",
       },
+      {
+        name: "tourDate",
+        type: "date",
+        columnReference: "Tour Date",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
     ],
   },
 };
@@ -54,7 +63,8 @@ export const reservationFeeColumn: BookingSheetColumn = {
  */
 
 export default async function getTourCurrencyAndDeposit(
-  tourPackageName: string
+  tourPackageName: string,
+  tourDate?: any
 ): Promise<string | ""> {
   if (!tourPackageName) return "";
 
@@ -70,8 +80,29 @@ export default async function getTourCurrencyAndDeposit(
 
   if (!matchedPackage?.pricing) return "";
 
-  const { currency, deposit } = matchedPackage.pricing;
+  let depositAmount = matchedPackage.pricing.deposit;
+
+  // Check for custom deposit price if tourDate is provided
+  if (tourDate && (matchedPackage as any)?.travelDates) {
+    const travelDateToMatch = new Date(tourDate);
+    const matchingTravelDate = (matchedPackage as any).travelDates.find(
+      (td: any) => {
+        const tdStart = td.startDate?.toDate?.() || new Date(td.startDate);
+        return tdStart.toDateString() === travelDateToMatch.toDateString();
+      }
+    );
+
+    // If custom deposit is set for this date, use it
+    if (
+      matchingTravelDate?.hasCustomDeposit &&
+      matchingTravelDate?.customDeposit !== undefined
+    ) {
+      depositAmount = matchingTravelDate.customDeposit;
+    }
+  }
+
+  const { currency } = matchedPackage.pricing;
 
   // Return formatted currency+deposit (e.g., "EUR250")
-  return currency && deposit ? deposit : "";
+  return currency && depositAmount ? depositAmount : "";
 }

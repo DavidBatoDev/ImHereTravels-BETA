@@ -24,6 +24,15 @@ export const originalTourCostColumn: BookingSheetColumn = {
         value: "",
       },
       {
+        name: "tourDate",
+        type: "date",
+        columnReference: "Tour Date",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
         name: "eventName",
         type: "string",
         columnReference: "Event Name",
@@ -77,6 +86,7 @@ export const originalTourCostColumn: BookingSheetColumn = {
  */
 export default async function getOriginalTourCost(
   tourPackageName: string,
+  tourDate?: any,
   eventName?: string | null,
   discountRate?: number | string | null
 ): Promise<number | ""> {
@@ -92,8 +102,30 @@ export default async function getOriginalTourCost(
       pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim()
   );
 
-  // Get the base original tour cost
-  const baseCost = (matchedPackage as any)?.pricing?.original ?? "";
+  // Check for custom original price if tourDate is provided
+  let baseCost: number | "" = "";
+  if (tourDate && (matchedPackage as any)?.travelDates) {
+    const travelDateToMatch = new Date(tourDate);
+    const matchingTravelDate = (matchedPackage as any).travelDates.find(
+      (td: any) => {
+        const tdStart = td.startDate?.toDate?.() || new Date(td.startDate);
+        return tdStart.toDateString() === travelDateToMatch.toDateString();
+      }
+    );
+
+    // If custom original price is set for this date, use it
+    if (
+      matchingTravelDate?.hasCustomOriginal &&
+      matchingTravelDate?.customOriginal !== undefined
+    ) {
+      baseCost = matchingTravelDate.customOriginal;
+    } else {
+      baseCost = (matchedPackage as any)?.pricing?.original ?? "";
+    }
+  } else {
+    // No tourDate provided, use default pricing
+    baseCost = (matchedPackage as any)?.pricing?.original ?? "";
+  }
 
   if (baseCost === "") return "";
 

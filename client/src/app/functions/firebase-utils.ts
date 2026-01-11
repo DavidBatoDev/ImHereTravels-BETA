@@ -79,6 +79,7 @@ import {
   collection as firestoreCollection,
   doc as firestoreDoc,
   getDocs as firestoreGetDocs,
+  getDocsFromServer as firestoreGetDocsFromServer,
   getDoc as firestoreGetDoc,
   addDoc as firestoreAddDoc,
   updateDoc as firestoreUpdateDoc,
@@ -191,7 +192,9 @@ export const firebaseUtils = {
         ...constraints
       );
     }
-    const querySnapshot = await firestoreGetDocs(q);
+    // Use getDocsFromServer to bypass cache and always fetch fresh data
+    // This ensures real-time updates (e.g., custom pricing changes) are immediately reflected
+    const querySnapshot = await firestoreGetDocsFromServer(q);
     return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   },
 
