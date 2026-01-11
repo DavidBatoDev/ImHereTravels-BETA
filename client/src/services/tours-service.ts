@@ -82,13 +82,50 @@ interface TourFormDataWithStringDates {
 
 // Convert string dates to Firestore Timestamps for travelDates
 function convertTravelDatesToTimestamps(travelDates: any[]): TravelDate[] {
-  return travelDates.map((td) => ({
-    startDate: Timestamp.fromDate(new Date(td.startDate)),
-    endDate: Timestamp.fromDate(new Date(td.endDate)),
-    isAvailable: td.isAvailable,
-    maxCapacity: td.maxCapacity || 0,
-    currentBookings: td.currentBookings || 0,
-  }));
+  return travelDates.map((td) => {
+    const converted: any = {
+      startDate: Timestamp.fromDate(new Date(td.startDate)),
+      endDate: Timestamp.fromDate(new Date(td.endDate)),
+      isAvailable: td.isAvailable,
+      maxCapacity: td.maxCapacity || 0,
+      currentBookings: td.currentBookings || 0,
+    };
+
+    // Only include optional fields if they have values
+    if (td.tourDays !== undefined && td.tourDays !== null) {
+      converted.tourDays = td.tourDays;
+    }
+
+    if (td.hasCustomPricing !== undefined) {
+      converted.hasCustomPricing = td.hasCustomPricing;
+    }
+
+    if (td.customOriginal !== undefined && td.customOriginal !== null) {
+      converted.customOriginal = td.customOriginal;
+    }
+
+    if (td.customDiscounted !== undefined && td.customDiscounted !== null) {
+      converted.customDiscounted = td.customDiscounted;
+    }
+
+    if (td.customDeposit !== undefined && td.customDeposit !== null) {
+      converted.customDeposit = td.customDeposit;
+    }
+
+    if (td.hasCustomOriginal !== undefined) {
+      converted.hasCustomOriginal = td.hasCustomOriginal;
+    }
+
+    if (td.hasCustomDiscounted !== undefined) {
+      converted.hasCustomDiscounted = td.hasCustomDiscounted;
+    }
+
+    if (td.hasCustomDeposit !== undefined) {
+      converted.hasCustomDeposit = td.hasCustomDeposit;
+    }
+
+    return converted;
+  });
 }
 
 // Convert Firestore Timestamps to Date objects for display

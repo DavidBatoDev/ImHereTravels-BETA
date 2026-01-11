@@ -94,6 +94,7 @@ export default function ToursList() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [tourToDelete, setTourToDelete] = useState<TourPackage | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isModalLoading, setIsModalLoading] = useState(false);
 
   const { toast } = useToast();
 
@@ -186,47 +187,67 @@ export default function ToursList() {
     }
   };
 
-  // Load tours
-  const loadTours = async () => {
+  // Load tours with real-time updates
+  const loadTours = () => {
     try {
       setLoading(true);
 
-      // Test Firestore connection first
-      await testFirestoreConnection();
+      const toursQuery = query(collection(db, "tourPackages"));
 
-      // Don't apply search filter server-side, use client-side fuzzy search instead
-      const filters: TourFilters = {};
+      const unsubscribe = onSnapshot(
+        toursQuery,
+        (snapshot) => {
+          const tourData = snapshot.docs.map((doc) => {
+            const data = doc.data();
+            return {
+              ...data,
+              id: doc.id,
+              // Convert Firestore Timestamps to Date objects if needed
+              createdAt: data.createdAt?.toDate
+                ? data.createdAt.toDate()
+                : data.createdAt,
+              updatedAt: data.updatedAt?.toDate
+                ? data.updatedAt.toDate()
+                : data.updatedAt,
+            } as unknown as TourPackage;
+          });
 
-      const { tours: fetchedTours } = await getTours(
-        filters,
-        "createdAt",
-        "desc",
-        50
+          console.log("Real-time tours update:", tourData.length);
+          setAllTours(tourData);
+          setLoading(false);
+        },
+        (error) => {
+          console.error("Error loading tours:", error);
+          toast({
+            title: "Error",
+            description: "Failed to load tours. Please try again.",
+            variant: "destructive",
+          });
+          setLoading(false);
+        }
       );
-      console.log("Fetched tours:", fetchedTours);
-      console.log("Total tours fetched:", fetchedTours.length);
-      console.log(
-        "Tour codes:",
-        fetchedTours.map((t) => t.tourCode)
-      );
-      setAllTours(fetchedTours);
+
+      return unsubscribe;
     } catch (error) {
-      console.error("Error loading tours:", error);
+      console.error("Error setting up tours listener:", error);
       toast({
         title: "Error",
         description: "Failed to load tours. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
+      return () => {}; // Return empty function as fallback
     }
   };
 
   useEffect(() => {
-    loadTours();
+    const unsubscribeTours = loadTours();
     const unsubscribeBookings = loadBookings();
 
     return () => {
+      if (unsubscribeTours) {
+        unsubscribeTours();
+      }
       if (unsubscribeBookings) {
         unsubscribeBookings();
       }
@@ -268,7 +289,6 @@ export default function ToursList() {
         description: "Tour created successfully!",
       });
 
-      await loadTours();
       setIsFormOpen(false);
       setSelectedTour(null);
 
@@ -305,7 +325,6 @@ export default function ToursList() {
         description: "Tour updated successfully!",
       });
 
-      await loadTours();
       setIsFormOpen(false);
       setSelectedTour(null);
 
@@ -337,7 +356,6 @@ export default function ToursList() {
         description: "Tour archived successfully!",
       });
 
-      await loadTours();
       setIsDetailsOpen(false);
 
       // Clear URL parameters after archive
@@ -368,7 +386,6 @@ export default function ToursList() {
         description: "Tour deleted successfully!",
       });
 
-      await loadTours();
       setIsDeleteDialogOpen(false);
       setTourToDelete(null);
       setIsDetailsOpen(false);
@@ -400,8 +417,14 @@ export default function ToursList() {
 
   // Open create form
   const openCreateForm = () => {
+    setIsModalLoading(true);
     setSelectedTour(null);
-    setIsFormOpen(true);
+
+    // Simulate loading time for smooth transition
+    setTimeout(() => {
+      setIsFormOpen(true);
+      setIsModalLoading(false);
+    }, 300);
 
     // Add action to URL
     const params = new URLSearchParams(searchParams?.toString() ?? "");
@@ -411,8 +434,14 @@ export default function ToursList() {
 
   // Open edit form
   const openEditForm = (tour: TourPackage) => {
+    setIsModalLoading(true);
     setSelectedTour(tour);
-    setIsFormOpen(true);
+
+    // Simulate loading time for smooth transition
+    setTimeout(() => {
+      setIsFormOpen(true);
+      setIsModalLoading(false);
+    }, 300);
 
     // Add tourId and mode to URL
     const params = new URLSearchParams(searchParams?.toString() ?? "");
@@ -423,8 +452,14 @@ export default function ToursList() {
 
   // Open tour details
   const openTourDetails = (tour: TourPackage) => {
+    setIsModalLoading(true);
     setSelectedTour(tour);
-    setIsDetailsOpen(true);
+
+    // Simulate loading time for smooth transition
+    setTimeout(() => {
+      setIsDetailsOpen(true);
+      setIsModalLoading(false);
+    }, 300);
 
     // Add tourId to URL
     const params = new URLSearchParams(searchParams?.toString() ?? "");
@@ -457,15 +492,45 @@ export default function ToursList() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="h-8 w-8 animate-spin text-royal-purple" />
-        <span className="ml-2 text-foreground">Loading tours...</span>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-20 h-20 border-4 border-crimson-red/30 rounded-full"></div>
+            <div className="w-20 h-20 border-4 border-crimson-red border-t-transparent rounded-full animate-spin absolute inset-0"></div>
+          </div>
+          <div className="text-center">
+            <p className="text-xl font-semibold text-foreground">
+              Loading Tour Packages...
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Fetching your tour collection
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Loading Modal Overlay */}
+      {isModalLoading && (
+        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-crimson-red/30 rounded-full"></div>
+              <div className="w-16 h-16 border-4 border-crimson-red border-t-transparent rounded-full animate-spin absolute inset-0"></div>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-foreground">
+                Opening...
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">Please wait</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Statistics Cards with Add Button */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-4">
         {/* Total Tours */}

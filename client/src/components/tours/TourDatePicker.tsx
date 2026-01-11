@@ -20,14 +20,15 @@ function toISO(y: number, m: number, d: number) {
   return `${y}-${pad(m + 1)}-${pad(d)}`;
 }
 function daysInMonth(y: number, m: number) {
-  return new Date(y, m + 1, 0).getDate();
+  // Use UTC to avoid timezone/DST offsets when computing day counts
+  return new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
 }
 
 export default function TourDatePicker({
   value,
   onChange,
   label = "Tour Date",
-  minYear = 2020,
+  minYear = 2000,
   maxYear = 2050,
   disabled = false,
   isValid = false,
@@ -76,9 +77,11 @@ export default function TourDatePicker({
   const selectedISO = value || "";
 
   // build grid
-  const firstOfMonth = new Date(viewYear, viewMonth, 1);
-  const startWeekday = firstOfMonth.getDay();
-  const prevDays = daysInMonth(viewYear, (viewMonth + 11) % 12);
+  const firstOfMonth = new Date(Date.UTC(viewYear, viewMonth, 1));
+  const startWeekday = firstOfMonth.getUTCDay();
+  const prevMonth = (viewMonth + 11) % 12;
+  const prevYear = viewMonth === 0 ? viewYear - 1 : viewYear;
+  const prevDays = daysInMonth(prevYear, prevMonth);
   const thisDays = daysInMonth(viewYear, viewMonth);
 
   const cells: Array<{ d: number; inMonth: boolean }> = [];
@@ -154,11 +157,11 @@ export default function TourDatePicker({
         disabled={disabled}
         className={`mt-1 block w-full px-3 py-2 rounded-md bg-input text-foreground placeholder:opacity-70 border-2 focus:outline-none text-left disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 h-9 text-sm ${
           open
-            ? "border-spring-green"
+            ? "border-crimson-red"
             : isValid
-              ? "border-spring-green pr-12 hover:border-spring-green"
-              : "border-border hover:border-primary/50"
-        } focus:border-primary focus:ring-2 focus:ring-primary/20`}
+            ? "border-crimson-red pr-12 hover:border-crimson-red"
+            : "border-border hover:border-primary/50"
+        } focus:border-crimson-red focus:ring-2 focus:ring-crimson-red/20`}
       >
         {selectedISO
           ? new Date(selectedISO + "T00:00:00").toLocaleDateString("en-US", {
@@ -169,7 +172,7 @@ export default function TourDatePicker({
           : "Select date"}
       </button>
       {isValid && !open && (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5 text-spring-green">
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5 text-crimson-red">
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"
@@ -183,7 +186,7 @@ export default function TourDatePicker({
       {open &&
         createPortal(
           <div
-            className={`fixed inset-0 z-[9999] flex items-center justify-center ${
+            className={`fixed inset-0 z-[2147483647] flex items-center justify-center pointer-events-auto ${
               isClosing
                 ? "animate-[fadeOut_150ms_ease-in]"
                 : "animate-[fadeIn_150ms_ease-out]"
@@ -197,7 +200,7 @@ export default function TourDatePicker({
             <div className="absolute inset-0 bg-black/50" />
 
             {/* modal */}
-            <div 
+            <div
               className="relative bg-white rounded-lg shadow-lg p-6 max-w-sm w-96 z-[10000]"
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => e.stopPropagation()}
@@ -251,7 +254,10 @@ export default function TourDatePicker({
               <div className="mb-4">
                 <div className="grid grid-cols-7 gap-1 text-center mb-2">
                   {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                    <div key={d} className="text-xs font-semibold text-gray-500">
+                    <div
+                      key={d}
+                      className="text-xs font-semibold text-gray-500"
+                    >
                       {d}
                     </div>
                   ))}
@@ -261,8 +267,7 @@ export default function TourDatePicker({
                     const rowIndex = Math.floor(idx / 7);
                     const isSelected =
                       cell.inMonth &&
-                      selectedISO ===
-                        toISO(viewYear, viewMonth, cell.d);
+                      selectedISO === toISO(viewYear, viewMonth, cell.d);
                     return (
                       <button
                         key={idx}
@@ -275,8 +280,8 @@ export default function TourDatePicker({
                           !cell.inMonth
                             ? "text-gray-300 cursor-default"
                             : isSelected
-                              ? "bg-spring-green text-white font-semibold"
-                              : "hover:bg-gray-100 text-foreground"
+                            ? "bg-crimson-red text-white font-semibold"
+                            : "hover:bg-gray-100 text-foreground"
                         }`}
                       >
                         {cell.d}
@@ -301,7 +306,7 @@ export default function TourDatePicker({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 px-4 py-2 text-sm font-medium bg-spring-green text-white rounded hover:bg-spring-green/90 transition"
+                  className="flex-1 px-4 py-2 text-sm font-medium bg-crimson-red text-white rounded hover:bg-crimson-red/90 transition"
                 >
                   Done
                 </button>

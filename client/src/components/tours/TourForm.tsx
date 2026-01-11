@@ -400,12 +400,17 @@ export default function TourForm({
   const { toast } = useToast();
 
   // Helper: compute duration between start/end in days
-  const calculateDurationDays = (start?: string, end?: string): number | null => {
+  const calculateDurationDays = (
+    start?: string,
+    end?: string
+  ): number | null => {
     if (!start || !end) return null;
     const s = new Date(start);
     const e = new Date(end);
     if (isNaN(s.getTime()) || isNaN(e.getTime())) return null;
-    const diffDays = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round(
+      (e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)
+    );
     return diffDays > 0 ? diffDays : null;
   };
 
@@ -499,10 +504,10 @@ export default function TourForm({
   const formatDateDisplay = (isoDate: string): string => {
     if (!isoDate) return "";
     const date = new Date(isoDate + "T00:00:00");
-    return date.toLocaleDateString("en-US", { 
-      month: "short", 
-      day: "2-digit", 
-      year: "numeric" 
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
     });
   };
 
@@ -519,31 +524,51 @@ export default function TourForm({
       });
 
       // Convert Timestamps to string dates for form
-      const travelDates = tour.travelDates?.map((td) => ({
-        startDate: td.startDate?.toDate?.()?.toISOString()?.split("T")[0] || "",
-        endDate: td.endDate?.toDate?.()?.toISOString()?.split("T")[0] || "",
-        isAvailable: td.isAvailable,
-        maxCapacity:
-          td.maxCapacity === null || td.maxCapacity === undefined
-            ? 0
-            : td.maxCapacity,
-        currentBookings:
-          td.currentBookings === null || td.currentBookings === undefined
-            ? 0
-            : td.currentBookings,
-        hasCustomPricing:
-          td.customOriginal !== undefined ||
-          td.customDiscounted !== undefined ||
-          td.customDeposit !== undefined
-            ? true
-            : false,
-        customOriginal: td.customOriginal,
-        customDiscounted: td.customDiscounted,
-        customDeposit: td.customDeposit,
-        hasCustomOriginal: td.hasCustomOriginal ?? (td.customOriginal !== undefined),
-        hasCustomDiscounted: td.hasCustomDiscounted ?? (td.customDiscounted !== undefined),
-        hasCustomDeposit: td.hasCustomDeposit ?? (td.customDeposit !== undefined),
-      })) || [
+      const travelDates = tour.travelDates?.map((td) => {
+        const startDate =
+          td.startDate?.toDate?.()?.toISOString()?.split("T")[0] || "";
+        const endDate =
+          td.endDate?.toDate?.()?.toISOString()?.split("T")[0] || "";
+
+        // Calculate tourDays if not present
+        let tourDays = td.tourDays;
+        if (!tourDays && startDate && endDate) {
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+          const diffTime = Math.abs(end.getTime() - start.getTime());
+          tourDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end day
+        }
+
+        return {
+          startDate,
+          endDate,
+          tourDays,
+          isAvailable: td.isAvailable,
+          maxCapacity:
+            td.maxCapacity === null || td.maxCapacity === undefined
+              ? 0
+              : td.maxCapacity,
+          currentBookings:
+            td.currentBookings === null || td.currentBookings === undefined
+              ? 0
+              : td.currentBookings,
+          hasCustomPricing:
+            td.customOriginal !== undefined ||
+            td.customDiscounted !== undefined ||
+            td.customDeposit !== undefined
+              ? true
+              : false,
+          customOriginal: td.customOriginal,
+          customDiscounted: td.customDiscounted,
+          customDeposit: td.customDeposit,
+          hasCustomOriginal:
+            td.hasCustomOriginal ?? td.customOriginal !== undefined,
+          hasCustomDiscounted:
+            td.hasCustomDiscounted ?? td.customDiscounted !== undefined,
+          hasCustomDeposit:
+            td.hasCustomDeposit ?? td.customDeposit !== undefined,
+        };
+      }) || [
         {
           startDate: "",
           endDate: "",
@@ -1233,6 +1258,21 @@ export default function TourForm({
       const cleanedData: TourFormDataWithStringDates = {
         ...restData,
         location: finalLocation,
+        travelDates: data.travelDates.map((td: any) => ({
+          startDate: td.startDate,
+          endDate: td.endDate,
+          tourDays: td.tourDays,
+          isAvailable: td.isAvailable,
+          maxCapacity: td.maxCapacity,
+          currentBookings: td.currentBookings,
+          hasCustomPricing: td.hasCustomPricing,
+          customOriginal: td.customOriginal,
+          customDiscounted: td.customDiscounted,
+          customDeposit: td.customDeposit,
+          hasCustomOriginal: td.hasCustomOriginal,
+          hasCustomDiscounted: td.hasCustomDiscounted,
+          hasCustomDeposit: td.hasCustomDeposit,
+        })),
         details: {
           highlights: data.details.highlights
             .filter((h: any) => {
@@ -1342,6 +1382,26 @@ export default function TourForm({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[95vh] p-0 bg-background">
+        {/* Loading Overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-crimson-red/30 rounded-full"></div>
+                <div className="w-16 h-16 border-4 border-crimson-red border-t-transparent rounded-full animate-spin absolute inset-0"></div>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-semibold text-foreground">
+                  Loading Tour Data...
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Please wait while we fetch the tour details
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <DialogHeader className="relative px-8 pt-8 pb-6 text-white rounded-t-lg overflow-hidden">
           {/* Blurred Background Image */}
           {(uploadedCover || tour?.media?.coverImage) && (
@@ -1812,7 +1872,7 @@ export default function TourForm({
                       Add available tour dates for this tour package
                     </CardDescription>
                   </CardHeader>
-                   <CardContent className="pt-4 space-y-4">
+                  <CardContent className="pt-4 space-y-4">
                     {travelDateFields.map((field, index) => (
                       <div
                         key={field.id}
@@ -1858,7 +1918,9 @@ export default function TourForm({
                               size="sm"
                               title="Duplicate date"
                               onClick={() => {
-                                const values = form.getValues(`travelDates.${index}` as any) as any;
+                                const values = form.getValues(
+                                  `travelDates.${index}` as any
+                                ) as any;
                                 appendTravelDate({
                                   startDate: values?.startDate || "",
                                   endDate: values?.endDate || "",
@@ -1869,8 +1931,10 @@ export default function TourForm({
                                   customOriginal: values?.customOriginal,
                                   customDiscounted: values?.customDiscounted,
                                   customDeposit: values?.customDeposit,
-                                  hasCustomOriginal: !!values?.hasCustomOriginal,
-                                  hasCustomDiscounted: !!values?.hasCustomDiscounted,
+                                  hasCustomOriginal:
+                                    !!values?.hasCustomOriginal,
+                                  hasCustomDiscounted:
+                                    !!values?.hasCustomDiscounted,
                                   hasCustomDeposit: !!values?.hasCustomDeposit,
                                 });
                               }}
@@ -1908,22 +1972,33 @@ export default function TourForm({
                                     onChange={(iso) => {
                                       field.onChange(iso);
                                       // Auto-calculate end date when start date changes
-                                      const days = form.getValues(`travelDates.${index}.tourDays` as any) as number;
+                                      const days = form.getValues(
+                                        `travelDates.${index}.tourDays` as any
+                                      ) as number;
                                       if (iso && days && days > 0) {
                                         const startDate = new Date(iso);
                                         const endDate = new Date(startDate);
                                         // Subtract 1 because the start date counts as day 1
-                                        endDate.setDate(endDate.getDate() + days - 1);
-                                        const endDateString = endDate.toISOString().split('T')[0];
-                                        form.setValue(`travelDates.${index}.endDate` as any, endDateString);
+                                        endDate.setDate(
+                                          endDate.getDate() + days - 1
+                                        );
+                                        const endDateString = endDate
+                                          .toISOString()
+                                          .split("T")[0];
+                                        form.setValue(
+                                          `travelDates.${index}.endDate` as any,
+                                          endDateString
+                                        );
                                       }
                                     }}
                                     label="Tour Start Date"
-                                    minYear={2024}
+                                    minYear={2000}
                                     maxYear={2050}
                                   />
                                 </FormControl>
-                                <FormDescription className="text-xs text-muted-foreground">&nbsp;</FormDescription>
+                                <FormDescription className="text-xs text-muted-foreground">
+                                  &nbsp;
+                                </FormDescription>
                                 <FormMessage className="text-xs" />
                               </FormItem>
                             )}
@@ -1948,25 +2023,36 @@ export default function TourForm({
                                       placeholder="e.g., 9"
                                       value={field.value || ""}
                                       onChange={(e) => {
-                                        const daysValue = e.target.value ? parseInt(e.target.value, 10) : 0;
+                                        const daysValue = e.target.value
+                                          ? parseInt(e.target.value, 10)
+                                          : 0;
                                         field.onChange(daysValue || "");
                                         // Auto-calculate end date when days change
-                                        const startDate = form.getValues(`travelDates.${index}.startDate` as any) as string;
+                                        const startDate = form.getValues(
+                                          `travelDates.${index}.startDate` as any
+                                        ) as string;
                                         const days = daysValue;
                                         if (startDate && days > 0) {
                                           const start = new Date(startDate);
                                           const end = new Date(start);
                                           // Subtract 1 because the start date counts as day 1
                                           end.setDate(end.getDate() + days - 1);
-                                          const endDateString = end.toISOString().split('T')[0];
-                                          form.setValue(`travelDates.${index}.endDate` as any, endDateString);
+                                          const endDateString = end
+                                            .toISOString()
+                                            .split("T")[0];
+                                          form.setValue(
+                                            `travelDates.${index}.endDate` as any,
+                                            endDateString
+                                          );
                                         }
                                       }}
                                       className="pl-8 h-9 text-sm border-2 border-border focus:border-spring-green"
                                     />
                                   </div>
                                 </FormControl>
-                                <FormDescription className="text-xs text-muted-foreground">&nbsp;</FormDescription>
+                                <FormDescription className="text-xs text-muted-foreground">
+                                  &nbsp;
+                                </FormDescription>
                                 <FormMessage className="text-xs" />
                               </FormItem>
                             )}
@@ -1984,7 +2070,9 @@ export default function TourForm({
                                 <FormControl>
                                   <div className="relative">
                                     <div className="mt-1 w-full px-3 py-2 rounded-md bg-muted/50 text-muted-foreground border-2 border-border text-sm h-9 flex items-center cursor-not-allowed">
-                                      {field.value ? formatDateDisplay(field.value) : "Auto-calculated"}
+                                      {field.value
+                                        ? formatDateDisplay(field.value)
+                                        : "Auto-calculated"}
                                     </div>
                                   </div>
                                 </FormControl>
@@ -1999,17 +2087,23 @@ export default function TourForm({
                           {/* Duration Badge - Hidden */}
                           <div className="sm:col-span-2 hidden">
                             {(() => {
-                              const start = form.watch(`travelDates.${index}.startDate` as any) as string;
-                              const end = form.watch(`travelDates.${index}.endDate` as any) as string;
+                              const start = form.watch(
+                                `travelDates.${index}.startDate` as any
+                              ) as string;
+                              const end = form.watch(
+                                `travelDates.${index}.endDate` as any
+                              ) as string;
                               const days = calculateDurationDays(start, end);
                               return days ? (
-                                <Badge variant="outline" className="text-xs border-spring-green text-spring-green">
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs border-spring-green text-spring-green"
+                                >
                                   {days} days
                                 </Badge>
                               ) : null;
                             })()}
                           </div>
-
                         </div>
 
                         {/* Tour Size (max capacity) */}
@@ -2051,21 +2145,37 @@ export default function TourForm({
                         <div className="space-y-3 pt-1">
                           <div className="space-y-2">
                             <div className="flex flex-wrap items-center gap-2 p-2.5 bg-muted/30 rounded-lg border-2 border-border">
-                              <span className="text-xs sm:text-sm font-medium text-foreground whitespace-nowrap">Add fields:</span>
+                              <span className="text-xs sm:text-sm font-medium text-foreground whitespace-nowrap">
+                                Add fields:
+                              </span>
                               <Button
                                 type="button"
                                 size="sm"
                                 variant="ghost"
                                 className="h-7 px-2 text-xs"
                                 onClick={() => {
-                                  form.setValue(`travelDates.${index}.hasCustomOriginal` as any, true);
-                                  if (form.getValues(`travelDates.${index}.customOriginal` as any) === undefined) {
-                                    form.setValue(`travelDates.${index}.customOriginal` as any, "");
+                                  form.setValue(
+                                    `travelDates.${index}.hasCustomOriginal` as any,
+                                    true
+                                  );
+                                  if (
+                                    form.getValues(
+                                      `travelDates.${index}.customOriginal` as any
+                                    ) === undefined
+                                  ) {
+                                    form.setValue(
+                                      `travelDates.${index}.customOriginal` as any,
+                                      ""
+                                    );
                                   }
                                 }}
-                                disabled={form.watch(`travelDates.${index}.hasCustomOriginal`) === true}
+                                disabled={
+                                  form.watch(
+                                    `travelDates.${index}.hasCustomOriginal`
+                                  ) === true
+                                }
                               >
-                                + Orig
+                                + Custom Price
                               </Button>
                               <Button
                                 type="button"
@@ -2073,12 +2183,26 @@ export default function TourForm({
                                 variant="ghost"
                                 className="h-7 px-2 text-xs"
                                 onClick={() => {
-                                  form.setValue(`travelDates.${index}.hasCustomDiscounted` as any, true);
-                                  if (form.getValues(`travelDates.${index}.customDiscounted` as any) === undefined) {
-                                    form.setValue(`travelDates.${index}.customDiscounted` as any, "");
+                                  form.setValue(
+                                    `travelDates.${index}.hasCustomDiscounted` as any,
+                                    true
+                                  );
+                                  if (
+                                    form.getValues(
+                                      `travelDates.${index}.customDiscounted` as any
+                                    ) === undefined
+                                  ) {
+                                    form.setValue(
+                                      `travelDates.${index}.customDiscounted` as any,
+                                      ""
+                                    );
                                   }
                                 }}
-                                disabled={form.watch(`travelDates.${index}.hasCustomDiscounted`) === true}
+                                disabled={
+                                  form.watch(
+                                    `travelDates.${index}.hasCustomDiscounted`
+                                  ) === true
+                                }
                               >
                                 + Disc
                               </Button>
@@ -2088,146 +2212,255 @@ export default function TourForm({
                                 variant="ghost"
                                 className="h-7 px-2 text-xs"
                                 onClick={() => {
-                                  form.setValue(`travelDates.${index}.hasCustomDeposit` as any, true);
-                                  if (form.getValues(`travelDates.${index}.customDeposit` as any) === undefined) {
-                                    form.setValue(`travelDates.${index}.customDeposit` as any, "");
+                                  form.setValue(
+                                    `travelDates.${index}.hasCustomDeposit` as any,
+                                    true
+                                  );
+                                  if (
+                                    form.getValues(
+                                      `travelDates.${index}.customDeposit` as any
+                                    ) === undefined
+                                  ) {
+                                    form.setValue(
+                                      `travelDates.${index}.customDeposit` as any,
+                                      ""
+                                    );
                                   }
                                 }}
-                                disabled={form.watch(`travelDates.${index}.hasCustomDeposit`) === true}
+                                disabled={
+                                  form.watch(
+                                    `travelDates.${index}.hasCustomDeposit`
+                                  ) === true
+                                }
                               >
                                 + ResFee
                               </Button>
                             </div>
-                            <p className="text-xs text-muted-foreground px-2.5">Set custom prices for this specific tour date. Original = base price, Discounted = sale price, ResFee = deposit/reservation amount.</p>
+                            <p className="text-xs text-muted-foreground px-2.5">
+                              Changing the price here will override the default
+                              pricing for this tour date only.
+                            </p>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 p-2.5 bg-muted/20 rounded-lg border border-border">
-                            {form.watch(`travelDates.${index}.hasCustomOriginal`) && (
-                              <FormField
-                                control={form.control}
-                                name={`travelDates.${index}.customOriginal`}
-                                render={({ field }) => (
-                                  <FormItem className="space-y-1.5">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <FormLabel className="text-xs sm:text-sm font-medium text-foreground truncate">Original <Badge variant="outline" className="text-[9px]">Opt</Badge></FormLabel>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0 flex-shrink-0"
-                                        onClick={() => {
-                                          form.setValue(`travelDates.${index}.hasCustomOriginal` as any, false);
-                                          form.setValue(`travelDates.${index}.customOriginal` as any, undefined);
-                                        }}
-                                        title="Remove"
-                                      >
-                                        <Minus className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                    <FormControl>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        placeholder="e.g., 299.99"
-                                        {...field}
-                                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : "")}
-                                        className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
-                                      />
-                                    </FormControl>
-                                    <FormMessage className="text-xs" />
-                                  </FormItem>
-                                )}
-                              />
-                            )}
+                          {(form.watch(
+                            `travelDates.${index}.hasCustomOriginal`
+                          ) ||
+                            form.watch(
+                              `travelDates.${index}.hasCustomDiscounted`
+                            ) ||
+                            form.watch(
+                              `travelDates.${index}.hasCustomDeposit`
+                            )) && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 p-2.5 bg-muted/20 rounded-lg border border-border">
+                              {form.watch(
+                                `travelDates.${index}.hasCustomOriginal`
+                              ) && (
+                                <FormField
+                                  control={form.control}
+                                  name={`travelDates.${index}.customOriginal`}
+                                  render={({ field }) => (
+                                    <FormItem className="space-y-1.5">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <FormLabel className="text-xs sm:text-sm font-medium text-foreground truncate">
+                                          Custom Price{" "}
+                                          <Badge
+                                            variant="outline"
+                                            className="text-[9px]"
+                                          >
+                                            Opt
+                                          </Badge>
+                                        </FormLabel>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0 flex-shrink-0"
+                                          onClick={() => {
+                                            form.setValue(
+                                              `travelDates.${index}.hasCustomOriginal` as any,
+                                              false
+                                            );
+                                            form.setValue(
+                                              `travelDates.${index}.customOriginal` as any,
+                                              undefined
+                                            );
+                                          }}
+                                          title="Remove"
+                                        >
+                                          <Minus className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                      <FormControl>
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          placeholder="e.g., 299.99"
+                                          {...field}
+                                          onChange={(e) =>
+                                            field.onChange(
+                                              e.target.value
+                                                ? parseFloat(e.target.value)
+                                                : ""
+                                            )
+                                          }
+                                          className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
+                                        />
+                                      </FormControl>
+                                      <FormMessage className="text-xs" />
+                                    </FormItem>
+                                  )}
+                                />
+                              )}
 
-                            {form.watch(`travelDates.${index}.hasCustomDiscounted`) && (
-                              <FormField
-                                control={form.control}
-                                name={`travelDates.${index}.customDiscounted`}
-                                render={({ field }) => (
-                                  <FormItem className="space-y-1.5">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <FormLabel className="text-xs sm:text-sm font-medium text-foreground truncate">Discounted <Badge variant="outline" className="text-[9px]">Opt</Badge></FormLabel>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0 flex-shrink-0"
-                                        onClick={() => {
-                                          form.setValue(`travelDates.${index}.hasCustomDiscounted` as any, false);
-                                          form.setValue(`travelDates.${index}.customDiscounted` as any, undefined);
-                                        }}
-                                        title="Remove"
-                                      >
-                                        <Minus className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                    <FormControl>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        placeholder="e.g., 249.99"
-                                        {...field}
-                                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : "")}
-                                        className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
-                                      />
-                                    </FormControl>
-                                    {(() => {
-                                      const original = form.watch(`pricing.original` as any) as number;
-                                      const discounted = form.watch(`travelDates.${index}.customDiscounted` as any) as number;
-                                      if (original && discounted && discounted < original) {
-                                        const pct = Math.round(((original - discounted) / original) * 100);
-                                        return <span className="text-xs text-muted-foreground">-{pct}% off</span>;
-                                      }
-                                      return null;
-                                    })()}
-                                    <FormMessage className="text-xs" />
-                                  </FormItem>
-                                )}
-                              />
-                            )}
+                              {form.watch(
+                                `travelDates.${index}.hasCustomDiscounted`
+                              ) && (
+                                <FormField
+                                  control={form.control}
+                                  name={`travelDates.${index}.customDiscounted`}
+                                  render={({ field }) => (
+                                    <FormItem className="space-y-1.5">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <FormLabel className="text-xs sm:text-sm font-medium text-foreground truncate">
+                                          Discounted{" "}
+                                          <Badge
+                                            variant="outline"
+                                            className="text-[9px]"
+                                          >
+                                            Opt
+                                          </Badge>
+                                        </FormLabel>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0 flex-shrink-0"
+                                          onClick={() => {
+                                            form.setValue(
+                                              `travelDates.${index}.hasCustomDiscounted` as any,
+                                              false
+                                            );
+                                            form.setValue(
+                                              `travelDates.${index}.customDiscounted` as any,
+                                              undefined
+                                            );
+                                          }}
+                                          title="Remove"
+                                        >
+                                          <Minus className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                      <FormControl>
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          placeholder="e.g., 249.99"
+                                          {...field}
+                                          onChange={(e) =>
+                                            field.onChange(
+                                              e.target.value
+                                                ? parseFloat(e.target.value)
+                                                : ""
+                                            )
+                                          }
+                                          className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
+                                        />
+                                      </FormControl>
+                                      {(() => {
+                                        const original = form.watch(
+                                          `pricing.original` as any
+                                        ) as number;
+                                        const discounted = form.watch(
+                                          `travelDates.${index}.customDiscounted` as any
+                                        ) as number;
+                                        if (
+                                          original &&
+                                          discounted &&
+                                          discounted < original
+                                        ) {
+                                          const pct = Math.round(
+                                            ((original - discounted) /
+                                              original) *
+                                              100
+                                          );
+                                          return (
+                                            <span className="text-xs text-muted-foreground">
+                                              -{pct}% off
+                                            </span>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                      <FormMessage className="text-xs" />
+                                    </FormItem>
+                                  )}
+                                />
+                              )}
 
-                            {form.watch(`travelDates.${index}.hasCustomDeposit`) && (
-                              <FormField
-                                control={form.control}
-                                name={`travelDates.${index}.customDeposit`}
-                                render={({ field }) => (
-                                  <FormItem className="space-y-1.5">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <FormLabel className="text-xs sm:text-sm font-medium text-foreground truncate">Reservation <Badge variant="outline" className="text-[9px]">Opt</Badge></FormLabel>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0 flex-shrink-0"
-                                        onClick={() => {
-                                          form.setValue(`travelDates.${index}.hasCustomDeposit` as any, false);
-                                          form.setValue(`travelDates.${index}.customDeposit` as any, undefined);
-                                        }}
-                                        title="Remove"
-                                      >
-                                        <Minus className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                    <FormControl>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        placeholder="e.g., 100.00"
-                                        {...field}
-                                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : "")}
-                                        className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
-                                      />
-                                    </FormControl>
-                                    <FormMessage className="text-xs" />
-                                  </FormItem>
-                                )}
-                              />
-                            )}
-                          </div>
+                              {form.watch(
+                                `travelDates.${index}.hasCustomDeposit`
+                              ) && (
+                                <FormField
+                                  control={form.control}
+                                  name={`travelDates.${index}.customDeposit`}
+                                  render={({ field }) => (
+                                    <FormItem className="space-y-1.5">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <FormLabel className="text-xs sm:text-sm font-medium text-foreground truncate">
+                                          Reservation{" "}
+                                          <Badge
+                                            variant="outline"
+                                            className="text-[9px]"
+                                          >
+                                            Opt
+                                          </Badge>
+                                        </FormLabel>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0 flex-shrink-0"
+                                          onClick={() => {
+                                            form.setValue(
+                                              `travelDates.${index}.hasCustomDeposit` as any,
+                                              false
+                                            );
+                                            form.setValue(
+                                              `travelDates.${index}.customDeposit` as any,
+                                              undefined
+                                            );
+                                          }}
+                                          title="Remove"
+                                        >
+                                          <Minus className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                      <FormControl>
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          placeholder="e.g., 100.00"
+                                          {...field}
+                                          onChange={(e) =>
+                                            field.onChange(
+                                              e.target.value
+                                                ? parseFloat(e.target.value)
+                                                : ""
+                                            )
+                                          }
+                                          className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
+                                        />
+                                      </FormControl>
+                                      <FormMessage className="text-xs" />
+                                    </FormItem>
+                                  )}
+                                />
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -2263,7 +2496,7 @@ export default function TourForm({
                       <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
                         <Banknote className="h-4 w-4 text-crimson-red" />
                       </div>
-                      Pricing
+                      Default Pricing
                     </CardTitle>
                     <CardDescription className="text-muted-foreground">
                       Set pricing details and currency for your tour
