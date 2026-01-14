@@ -641,6 +641,24 @@ export default function BookingDetailModal({
       return value ? "Yes" : "No";
     }
 
+    // For discount rate, return the value as-is (function already formats it with 'off')
+    if (column.id === "discountRate") {
+      // If the value is a string (already formatted), return it
+      if (typeof value === "string" && value.trim()) {
+        return value;
+      }
+      // If numeric and > 0, treat as percentage for backward compatibility
+      const numValue = safeNumber(value, 0);
+      if (numValue > 0) {
+        return `${numValue.toFixed(2)}% off`;
+      }
+      // If 0 or empty and we have event name, the booking needs to be re-saved to recalculate
+      if ((currentBooking as any).eventName) {
+        return "Not calculated - Edit & Save to recalculate";
+      }
+      return null;
+    }
+
     const stringValue = String(value).trim();
     return stringValue === "" ? null : stringValue;
   };

@@ -35,6 +35,7 @@ export interface Booking {
 
   // Discounts
   eventName?: string;
+  discountType?: "percent" | "amount"; // percent or flat amount
   discountRate?: number;
 
   // Email management - Reservation

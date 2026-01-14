@@ -250,8 +250,8 @@ export default function getRemainingBalanceFunction(
     (p3DatePaid ? p3Amount ?? 0 : 0) +
     (p4DatePaid ? p4Amount ?? 0 : 0);
 
-  // Remaining balance
-  const remaining = total - paid;
+  // Remaining balance - round to 2 decimal places
+  const remaining = Math.round((total - paid) * 100) / 100;
 
   // Special rule for P1 plan
   if (paymentPlan === "P1" && p1DatePaid) {

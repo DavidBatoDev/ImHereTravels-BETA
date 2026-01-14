@@ -92,9 +92,19 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     order: 9,
   },
   {
-    columnName: "Discount Rate",
+    columnName: "Discount Type",
     dataType: "function",
-    includeInForms: false,
+    includeInForms: true,
+
+    parentTab: "Discounts",
+
+    width: 120,
+    order: 9.5,
+  },
+  {
+    columnName: "Discount",
+    dataType: "function",
+    includeInForms: true,
 
     parentTab: "Discounts",
 

@@ -4393,7 +4393,7 @@ export default function BookingsDataGrid({
                         <HelpCircle className="h-4 w-4 text-muted-foreground" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
-                        <p className="text-sm">
+                        <div className="text-sm">
                           When enabled, function columns become editable text
                           inputs, allowing manual value overrides.
                           <br />
@@ -4408,7 +4408,7 @@ export default function BookingsDataGrid({
                             <li>Pasting past email URLs or content</li>
                             <li>Overriding calculated values temporarily</li>
                           </ul>
-                        </p>
+                        </div>
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -4432,7 +4432,7 @@ export default function BookingsDataGrid({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
-                      <p className="text-sm">
+                      <div className="text-sm">
                         Retry computation for all function columns across all
                         rows.
                         <br />
@@ -4444,7 +4444,7 @@ export default function BookingsDataGrid({
                           <li>Progress tracking with statistics</li>
                           <li>Handles timing and dependency issues</li>
                         </ul>
-                      </p>
+                      </div>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

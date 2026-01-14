@@ -148,8 +148,8 @@ export default async function getOriginalTourCost(
       discountDecimal = discountRate > 1 ? discountRate / 100 : discountRate;
     }
 
-    // Apply discount
-    const discountedCost = baseCost * (1 - discountDecimal);
+    // Apply discount and round to 2 decimal places
+    const discountedCost = Math.round(baseCost * (1 - discountDecimal) * 100) / 100;
     return discountedCost;
   }
 

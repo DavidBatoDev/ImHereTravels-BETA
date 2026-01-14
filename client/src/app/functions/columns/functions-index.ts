@@ -71,6 +71,8 @@ import paymentProgressFunction from "./payment-setting/payment-progress";
 
 // Discount Functions
 import getDiscountRateFunction from "./discounts/discount-rate";
+import getDiscountTypeFunction from "./discounts/discount-type";
+import getDiscountDisplayFunction from "./discounts/discount-display";
 
 // Payment Reminder Functions
 import getBaseMondayFromP1DueDateFunction from "./payment-term-1/p1-scheduled-reminder-date";
@@ -122,6 +124,8 @@ export {
   paymentProgressFunction,
   // Discounts
   getDiscountRateFunction,
+  getDiscountTypeFunction,
+  getDiscountDisplayFunction,
   // Payment Terms
   fullPaymentAmountFunction,
   fullPaymentDueDateFunction,
@@ -221,6 +225,8 @@ export const functionMap: Record<string, Function> = {
 
   // Discount functions
   getDiscountRateFunction,
+  getDiscountTypeFunction,
+  getDiscountDisplayFunction,
 
   // Full Payment functions
   getFullPaymentDueDateFunction: fullPaymentDueDateFunction,

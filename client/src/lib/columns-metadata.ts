@@ -43,6 +43,11 @@ export const ALL_COLUMN_IDS = [
   "paymentMethod",
   "enablePaymentReminder",
 
+  // Discounts
+  "eventName",
+  "discountType",
+  "discountRate",
+
   // Full Payment
   "fullPaymentDueDate",
   "fullPaymentAmount",
