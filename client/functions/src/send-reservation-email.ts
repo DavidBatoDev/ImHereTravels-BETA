@@ -186,9 +186,9 @@ export const onSendReservationEmailChanged = onDocumentUpdated(
 
           // Create notification for sent email
           try {
-            const travelerName = bookingData.travelerName || "Customer";
+            const travelerName = bookingData.fullName || "Customer";
             const tourPackageName = bookingData.tourPackageName || "Tour";
-            const recipientEmail = bookingData.email || "customer";
+            const recipientEmail = bookingData.emailAddress || "customer";
 
             await db.collection("notifications").add({
               type: "reservation_email",
@@ -199,6 +199,7 @@ export const onSendReservationEmailChanged = onDocumentUpdated(
                 bookingDocumentId: bookingId,
                 travelerName,
                 tourPackageName,
+                email: recipientEmail,
                 recipientEmail,
                 emailUrl: sentUrl,
               },
