@@ -441,7 +441,7 @@ export default function BookingsSection() {
       const filterSection = document.querySelector("[data-filter-section]");
       if (filterSection) {
         const rect = filterSection.getBoundingClientRect();
-        setIsFilterSticky(rect.top <= 16); // 16px is the top-4 offset
+        setIsFilterSticky(rect.top <= 64); // 64px is the top-16 offset (16 * 4px)
       }
     };
 
@@ -1492,7 +1492,7 @@ export default function BookingsSection() {
       {/* Search and Filters Section */}
       <Card
         data-filter-section
-        className={`sticky top-4 z-40 border border-border backdrop-blur-sm transition-all duration-300 ${
+        className={`sticky top-20 z-40 border border-border backdrop-blur-sm transition-all duration-300 ${
           isFilterSticky ? "shadow-[0_-12px_60px_0px_rgba(0,0,0,0.6)]" : ""
         }`}
         style={{ backgroundColor: "hsl(var(--card-surface))" }}
