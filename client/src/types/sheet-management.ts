@@ -74,7 +74,7 @@ export interface SheetColumn {
   minWidth?: number;
   maxWidth?: number;
   options?: string[]; // For select type columns
-  loadOptions?: () => Promise<string[]>; // Dynamic options loader for select type columns
+  loadOptions?: (context?: { formData?: any }) => Promise<string[]>; // Dynamic options loader for select type columns (can access formData for context-aware options)
   color?: ColumnColor; // Optional column color theme
   showColumn?: boolean; // Whether to show/hide this column in the grid (default: true)
   defaultValue?: any;

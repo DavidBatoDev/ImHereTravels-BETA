@@ -714,17 +714,56 @@ export default function EditBookingModal({
     setColumns(codedColumns);
     setIsLoadingColumns(false);
 
-    // Load dynamic options for select columns with loadOptions
+    // Load available functions
+    const loadFunctions = async () => {
+      try {
+        const functions = await typescriptFunctionsService.getAllFunctions();
+        setAvailableFunctions(functions);
+      } catch (error) {
+        console.error("Failed to load functions:", error);
+      }
+    };
+
+    loadFunctions();
+
+    return () => {
+      console.log("🧹 [EDIT BOOKING MODAL] Cleaning up subscriptions");
+
+      // Clean up debounce timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
+  }, [isOpen]);
+
+  // Load dynamic options for select columns AFTER formData is ready
+  useEffect(() => {
+    if (
+      !isOpen ||
+      columns.length === 0 ||
+      !formData ||
+      Object.keys(formData).length === 0
+    ) {
+      return;
+    }
+
     const loadDynamicOptions = async () => {
+      console.log(
+        "🔄 [EDIT BOOKING MODAL] Loading dynamic options with formData context:",
+        { availablePaymentTerms: formData.availablePaymentTerms }
+      );
+
       const optionsMap: Record<string, string[]> = {};
 
-      for (const col of codedColumns) {
+      for (const col of columns) {
         if (col.dataType === "select" && col.loadOptions) {
           try {
             console.log(
               `🔄 [EDIT BOOKING MODAL] Loading options for ${col.columnName}...`
             );
-            const options = await col.loadOptions();
+            // Pass formData as context for context-aware options
+            const options = await col.loadOptions({ formData });
             console.log(
               `✅ [EDIT BOOKING MODAL] Loaded ${options.length} options for ${col.columnName}:`,
               options
@@ -748,29 +787,7 @@ export default function EditBookingModal({
     };
 
     loadDynamicOptions();
-
-    // Load available functions
-    const loadFunctions = async () => {
-      try {
-        const functions = await typescriptFunctionsService.getAllFunctions();
-        setAvailableFunctions(functions);
-      } catch (error) {
-        console.error("Failed to load functions:", error);
-      }
-    };
-
-    loadFunctions();
-
-    return () => {
-      console.log("🧹 [EDIT BOOKING MODAL] Cleaning up subscriptions");
-
-      // Clean up debounce timer
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
-      }
-    };
-  }, [isOpen]);
+  }, [isOpen, columns, formData.id]); // Only re-run when modal opens or when we get a new booking (formData.id changes)
 
   // Build dependency graph: source columnId -> list of function columns depending on it
   const dependencyGraph = useMemo(() => {
@@ -812,6 +829,69 @@ export default function EditBookingModal({
     });
     return map;
   }, [columns]);
+
+  // Optimized function to reload ONLY Payment Plan options when Available Payment Terms changes
+  const reloadPaymentPlanOptions = useCallback(
+    async (availablePaymentTerms: string) => {
+      const paymentPlanColumn = columns.find((col) => col.id === "paymentPlan");
+
+      if (!paymentPlanColumn || !paymentPlanColumn.loadOptions) {
+        return;
+      }
+
+      try {
+        console.log(
+          "🔄 [EDIT BOOKING MODAL] Reloading Payment Plan options for:",
+          availablePaymentTerms
+        );
+
+        // Pass formData context to loadOptions
+        const options = await paymentPlanColumn.loadOptions({
+          formData: { availablePaymentTerms },
+        });
+
+        console.log(
+          "✅ [EDIT BOOKING MODAL] Payment Plan options updated:",
+          options
+        );
+
+        // Update only the paymentPlan options, keep others unchanged
+        setDynamicOptions((prev) => ({
+          ...prev,
+          paymentPlan: options,
+        }));
+      } catch (error) {
+        console.error("Failed to reload Payment Plan options:", error);
+        setDynamicOptions((prev) => ({
+          ...prev,
+          paymentPlan: paymentPlanColumn.options || [],
+        }));
+      }
+    },
+    [columns]
+  );
+
+  // Reactive tracking: reload Payment Plan options when Available Payment Terms changes
+  const previousAvailablePaymentTerms = React.useRef<string | undefined>(
+    undefined
+  );
+
+  useEffect(() => {
+    const currentValue = formData.availablePaymentTerms;
+    const previousValue = previousAvailablePaymentTerms.current;
+
+    // Only reload if the value actually changed and isn't the initial undefined
+    if (previousValue !== undefined && currentValue !== previousValue) {
+      console.log("📊 [EDIT BOOKING MODAL] Available Payment Terms changed:", {
+        from: previousValue,
+        to: currentValue,
+      });
+      reloadPaymentPlanOptions(String(currentValue || ""));
+    }
+
+    // Update the ref for next comparison
+    previousAvailablePaymentTerms.current = currentValue;
+  }, [formData.availablePaymentTerms, reloadPaymentPlanOptions]);
 
   // Set first tab as active on load
   useEffect(() => {
@@ -1769,10 +1849,30 @@ export default function EditBookingModal({
           );
 
         case "select":
+          // Calculate options inline (lightweight operation, no need for useMemo)
+          const options = dynamicOptions[column.id] || column.options || [];
+          const currentValue = String(value || "");
+          const hasCurrentValue = currentValue && currentValue !== "";
+          const currentValueInOptions = options.includes(currentValue);
+          const hasEmptyOption = options.includes("");
+
+          // Build final options list
+          const selectOptions = [...options];
+
+          // Add current value if it's not in options and not empty
+          if (hasCurrentValue && !currentValueInOptions) {
+            selectOptions.unshift(currentValue);
+          }
+
+          // Add placeholder option if no value selected AND no empty option exists
+          if (!hasCurrentValue && !hasEmptyOption) {
+            selectOptions.unshift("");
+          }
+
           return (
             <select
               id={fieldId}
-              value={String(value || "")}
+              value={currentValue}
               onChange={(e) => {
                 const newValue = e.target.value;
                 // For select, commit immediately to Firebase (discrete choice)
@@ -1804,45 +1904,14 @@ export default function EditBookingModal({
               )}
               disabled={isReadOnly || isComputing}
             >
-              {(() => {
-                const options =
-                  dynamicOptions[column.id] || column.options || [];
-                if (column.id === "eventName") {
-                  console.log("🎯 [RENDER] Event Name options:", {
-                    dynamicOptions: dynamicOptions[column.id],
-                    columnOptions: column.options,
-                    finalOptions: options,
-                  });
-                }
-
-                // Ensure current value is in the options list
-                const currentValue = String(value || "");
-                const hasCurrentValue = currentValue && currentValue !== "";
-                const currentValueInOptions = options.includes(currentValue);
-                const hasEmptyOption = options.includes("");
-
-                // Build final options list
-                const finalOptions = [...options];
-
-                // Add current value if it's not in options and not empty
-                if (hasCurrentValue && !currentValueInOptions) {
-                  finalOptions.unshift(currentValue);
-                }
-
-                // Add placeholder option if no value selected AND no empty option exists
-                if (!hasCurrentValue && !hasEmptyOption) {
-                  finalOptions.unshift("");
-                }
-
-                return finalOptions.map((option, index) => (
-                  <option
-                    key={option || `placeholder-${column.id}-${index}`}
-                    value={option}
-                  >
-                    {option || `Select ${column.columnName}`}
-                  </option>
-                ));
-              })()}
+              {selectOptions.map((option, index) => (
+                <option
+                  key={option || `placeholder-${column.id}-${index}`}
+                  value={option}
+                >
+                  {option || `Select ${column.columnName}`}
+                </option>
+              ))}
             </select>
           );
 
