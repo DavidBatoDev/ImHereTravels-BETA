@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Fuse from "fuse.js";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -131,17 +132,17 @@ export default function ScheduledEmailsTab() {
     setIsDeletePaymentRemindersDialogOpen,
   ] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<ScheduledEmail | null>(
-    null
+    null,
   );
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
-    null
+    null,
   );
   const [isDeletingPaymentReminders, setIsDeletingPaymentReminders] =
     useState(false);
   const [newEmailData, setNewEmailData] = useState<Partial<ScheduledEmailData>>(
     {
       maxAttempts: 3,
-    }
+    },
   );
   const [newScheduleDate, setNewScheduleDate] = useState("");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
@@ -168,7 +169,7 @@ export default function ScheduledEmailsTab() {
       q = query(
         scheduledEmailsRef,
         where("status", "==", statusFilter),
-        orderBy("scheduledFor", "asc")
+        orderBy("scheduledFor", "asc"),
       );
     }
 
@@ -211,7 +212,7 @@ export default function ScheduledEmailsTab() {
           variant: "destructive",
         });
         setIsLoading(false);
-      }
+      },
     );
 
     // Cleanup subscription on unmount
@@ -287,7 +288,7 @@ export default function ScheduledEmailsTab() {
 
       await ScheduledEmailService.rescheduleEmail(
         selectedEmail.id,
-        scheduledDate.toISOString()
+        scheduledDate.toISOString(),
       );
 
       toast({
@@ -439,9 +440,8 @@ export default function ScheduledEmailsTab() {
       setIsDeletingPaymentReminders(true);
       setIsDeletePaymentRemindersDialogOpen(false);
 
-      const result = await ScheduledEmailService.deletePaymentReminders(
-        selectedBookingId
-      );
+      const result =
+        await ScheduledEmailService.deletePaymentReminders(selectedBookingId);
 
       toast({
         title: "Success",
@@ -545,7 +545,7 @@ export default function ScheduledEmailsTab() {
           // Helper function to parse due date for a specific term
           const parseDueDateForTerm = (
             dueDateRaw: any,
-            termIndex: number
+            termIndex: number,
           ): string => {
             if (!dueDateRaw) return "";
 
@@ -608,7 +608,7 @@ export default function ScheduledEmailsTab() {
                 "Error formatting date:",
                 error,
                 "Value:",
-                dateValue
+                dateValue,
               );
               return "";
             }
@@ -635,7 +635,7 @@ export default function ScheduledEmailsTab() {
             // Update the main dueDate and amount with parsed values
             freshVariables.dueDate = formatDate(parsedDueDate);
             freshVariables.amount = formatGBP(
-              (bookingData as any)[`${termLower}Amount`]
+              (bookingData as any)[`${termLower}Amount`],
             );
           }
 
@@ -697,11 +697,11 @@ export default function ScheduledEmailsTab() {
             freshVariables.totalAmount = formatGBP(
               bookingData.useDiscountedTourCost
                 ? bookingData.discountedTourCost
-                : bookingData.originalTourCost
+                : bookingData.originalTourCost,
             );
             freshVariables.paid = formatGBP(bookingData.paid);
             freshVariables.remainingBalance = formatGBP(
-              bookingData.remainingBalance
+              bookingData.remainingBalance,
             );
           }
 
@@ -718,7 +718,7 @@ export default function ScheduledEmailsTab() {
 
           if (!templateDoc.exists()) {
             throw new Error(
-              `Template ${email.templateId} not found in database`
+              `Template ${email.templateId} not found in database`,
             );
           }
 
@@ -734,7 +734,7 @@ export default function ScheduledEmailsTab() {
           // Re-render the template with fresh data using EmailTemplateService
           htmlContent = EmailTemplateService.processTemplate(
             rawTemplateHtml,
-            freshVariables
+            freshVariables,
           );
 
           console.log("Rendered HTML length:", htmlContent.length);
@@ -905,45 +905,102 @@ export default function ScheduledEmailsTab() {
     });
   };
 
-  // Filter emails based on search and status
-  const filteredEmails = scheduledEmails.filter((email) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.to.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (email.cc &&
-        email.cc.join(", ").toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (email.bcc &&
-        email.bcc
-          .join(", ")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())) ||
-      (email.emailType &&
-        email.emailType.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (email.bookingId &&
-        email.bookingId.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Create Fuse instance for fuzzy search on scheduled emails
+  const fuse = useMemo(() => {
+    if (scheduledEmails.length === 0) return null;
 
-    const matchesStatus =
-      statusFilter === "all" || email.status === statusFilter;
+    return new Fuse(scheduledEmails, {
+      keys: [
+        { name: "subject", weight: 1.0 },
+        { name: "to", weight: 0.9 },
+        {
+          name: "cc",
+          getFn: (email: ScheduledEmail) => {
+            return (email.cc || []).join(", ");
+          },
+          weight: 0.7,
+        },
+        {
+          name: "bcc",
+          getFn: (email: ScheduledEmail) => {
+            return (email.bcc || []).join(", ");
+          },
+          weight: 0.7,
+        },
+        { name: "emailType", weight: 0.8 },
+        { name: "bookingId", weight: 0.9 },
+        {
+          name: "templateVariablesBookingId",
+          getFn: (email: ScheduledEmail) => {
+            return (email.templateVariables as any)?.bookingId || "";
+          },
+          weight: 1.0, // High priority for booking reference
+        },
+      ],
+      threshold: 0.4, // 0 = exact match, 1 = match anything
+      includeScore: true,
+      minMatchCharLength: 2,
+    });
+  }, [scheduledEmails]);
 
-    // Date filter logic
-    let matchesDate = true;
-    if (dateFrom || dateTo) {
-      const emailDate = new Date(email.scheduledFor);
-      if (dateFrom) {
-        const fromDate = new Date(dateFrom);
-        fromDate.setHours(0, 0, 0, 0);
-        if (emailDate < fromDate) matchesDate = false;
-      }
-      if (dateTo) {
-        const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999);
-        if (emailDate > toDate) matchesDate = false;
-      }
+  // Filter emails based on search and status using Fuse for better search
+  const filteredEmails = useMemo(() => {
+    let results = scheduledEmails;
+
+    // Apply Fuse search if search term is provided
+    if (searchTerm !== "" && fuse) {
+      const fuseResults = fuse.search(searchTerm);
+      results = fuseResults.map((result) => result.item);
+    } else if (searchTerm === "") {
+      results = scheduledEmails;
+    } else {
+      // Fallback to basic filtering if Fuse fails
+      results = scheduledEmails.filter((email) => {
+        const lowerSearch = searchTerm.toLowerCase();
+        return (
+          email.subject.toLowerCase().includes(lowerSearch) ||
+          email.to.toLowerCase().includes(lowerSearch) ||
+          (email.cc &&
+            email.cc.join(", ").toLowerCase().includes(lowerSearch)) ||
+          (email.bcc &&
+            email.bcc.join(", ").toLowerCase().includes(lowerSearch)) ||
+          (email.emailType &&
+            email.emailType.toLowerCase().includes(lowerSearch)) ||
+          (email.bookingId &&
+            email.bookingId.toLowerCase().includes(lowerSearch)) ||
+          ((email.templateVariables as any)?.bookingId &&
+            String((email.templateVariables as any).bookingId)
+              .toLowerCase()
+              .includes(lowerSearch))
+        );
+      });
     }
 
-    return matchesSearch && matchesStatus && matchesDate;
-  });
+    // Apply status filter
+    results = results.filter(
+      (email) => statusFilter === "all" || email.status === statusFilter,
+    );
+
+    // Apply date range filter
+    if (dateFrom || dateTo) {
+      results = results.filter((email) => {
+        const emailDate = new Date(email.scheduledFor);
+        if (dateFrom) {
+          const fromDate = new Date(dateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (emailDate < fromDate) return false;
+        }
+        if (dateTo) {
+          const toDate = new Date(dateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (emailDate > toDate) return false;
+        }
+        return true;
+      });
+    }
+
+    return results;
+  }, [scheduledEmails, searchTerm, statusFilter, dateFrom, dateTo, fuse]);
 
   // Group emails by bookingId
   const groupEmailsByBookingId = (emails: ScheduledEmail[]) => {
@@ -1309,15 +1366,15 @@ export default function ScheduledEmailsTab() {
                                       typeof email.scheduledFor === "string"
                                         ? email.scheduledFor
                                         : (email.scheduledFor as any)?.toDate
-                                        ? (email.scheduledFor as any)
-                                            .toDate()
-                                            .toISOString()
-                                        : new Date(
-                                            email.scheduledFor as unknown as
-                                              | string
-                                              | number
-                                              | Date
-                                          ).toISOString();
+                                          ? (email.scheduledFor as any)
+                                              .toDate()
+                                              .toISOString()
+                                          : new Date(
+                                              email.scheduledFor as unknown as
+                                                | string
+                                                | number
+                                                | Date,
+                                            ).toISOString();
                                     setNewScheduleDate(isoString.slice(0, 10));
                                     setIsRescheduleDialogOpen(true);
                                   }}
@@ -1445,15 +1502,15 @@ export default function ScheduledEmailsTab() {
                                 typeof email.scheduledFor === "string"
                                   ? email.scheduledFor
                                   : (email.scheduledFor as any)?.toDate
-                                  ? (email.scheduledFor as any)
-                                      .toDate()
-                                      .toISOString()
-                                  : new Date(
-                                      email.scheduledFor as unknown as
-                                        | string
-                                        | number
-                                        | Date
-                                    ).toISOString();
+                                    ? (email.scheduledFor as any)
+                                        .toDate()
+                                        .toISOString()
+                                    : new Date(
+                                        email.scheduledFor as unknown as
+                                          | string
+                                          | number
+                                          | Date,
+                                      ).toISOString();
                               setNewScheduleDate(isoString.slice(0, 10));
                               setIsRescheduleDialogOpen(true);
                             }}
