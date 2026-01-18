@@ -30,7 +30,7 @@
         <!-- Hero Image -->
         <div style="width: 100%; margin: 0 auto;">
             <img
-            src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1767334951959_b0f582526af6adb523ad1036d0b0a6ff3437ea61.jpg?alt=media&token=c56af73d-0bfa-492d-8680-e1588d72d1b6"
+            src="{% if tourPackageCoverImage %}{{ tourPackageCoverImage }}{% else %}https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1767334951959_b0f582526af6adb523ad1036d0b0a6ff3437ea61.jpg?alt=media&token=c56af73d-0bfa-492d-8680-e1588d72d1b6{% endif %}"
             alt="ImHereTravels Banner"
             style="
             width: 100%;

@@ -41,7 +41,7 @@ function formatDateLikeSheets(dateValue: any): string {
         "Dec",
       ];
       const hasMonthName = monthNames.some((month) =>
-        trimmedValue.includes(month)
+        trimmedValue.includes(month),
       );
 
       if (hasMonthName) {
@@ -129,7 +129,7 @@ export const sendBookingStatusConfirmation = onCall(
       if (!bookingDocumentId) {
         throw new HttpsError(
           "invalid-argument",
-          "bookingDocumentId is required"
+          "bookingDocumentId is required",
         );
       }
 
@@ -138,7 +138,7 @@ export const sendBookingStatusConfirmation = onCall(
       }
 
       logger.info(
-        `📧 Sending booking status confirmation for booking: ${bookingDocumentId}`
+        `📧 Sending booking status confirmation for booking: ${bookingDocumentId}`,
       );
 
       // Get booking data
@@ -161,7 +161,7 @@ export const sendBookingStatusConfirmation = onCall(
       if (bookingData.emailAddress !== email) {
         throw new HttpsError(
           "permission-denied",
-          "Email does not match booking"
+          "Email does not match booking",
         );
       }
 
@@ -187,7 +187,7 @@ export const sendBookingStatusConfirmation = onCall(
       if (!templateDoc.exists) {
         throw new HttpsError(
           "not-found",
-          "Email template 'Reservation Confirmed' not found"
+          "Email template 'Reservation Confirmed' not found",
         );
       }
 
@@ -206,6 +206,22 @@ export const sendBookingStatusConfirmation = onCall(
       const paid = bookingData.paid || 0;
       const remainingBalance = totalCost - paid;
 
+      // Fetch tour package cover image for hero
+      let tourPackageCoverImage = "";
+      try {
+        const tourPackageSnap = await db
+          .collection("tourPackages")
+          .where("name", "==", bookingData.tourPackageName)
+          .limit(1)
+          .get();
+        if (!tourPackageSnap.empty) {
+          const tourPackageData = tourPackageSnap.docs[0].data();
+          tourPackageCoverImage = tourPackageData.media?.coverImage || "";
+        }
+      } catch (error) {
+        logger.warn("Could not fetch tour package for cover image:", error);
+      }
+
       // Prepare template variables
       const templateVariables: Record<string, any> = {
         fullName: bookingData.fullName || "",
@@ -221,12 +237,13 @@ export const sendBookingStatusConfirmation = onCall(
         remainingBalance: remainingBalance.toFixed(2),
         bookingStatusUrl: bookingStatusUrl,
         currentYear: new Date().getFullYear(),
+        tourPackageCoverImage,
       };
 
       // Process template using EmailTemplateService (Nunjucks)
       const processedHtml = EmailTemplateService.processTemplate(
         emailTemplate,
-        templateVariables
+        templateVariables,
       );
 
       const subject = `Booking Confirmed - ${bookingData.tourPackageName}`;
@@ -271,7 +288,7 @@ export const sendBookingStatusConfirmation = onCall(
         });
 
       logger.info(
-        `✅ Booking updated with email sent status: ${bookingDocumentId}`
+        `✅ Booking updated with email sent status: ${bookingDocumentId}`,
       );
 
       return {
@@ -289,8 +306,8 @@ export const sendBookingStatusConfirmation = onCall(
 
       throw new HttpsError(
         "internal",
-        error.message || "Failed to send booking status confirmation"
+        error.message || "Failed to send booking status confirmation",
       );
     }
-  }
+  },
 );

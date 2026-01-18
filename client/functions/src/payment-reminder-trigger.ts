@@ -235,14 +235,14 @@ async function createCalendarEvent(
   fullName: string,
   tourPackage: string,
   bookingId: string,
-  guestEmail: string
+  guestEmail: string,
 ): Promise<{ eventId: string; eventLink: string }> {
   try {
     // Initialize OAuth2 client
     const oauth2Client = new google.auth.OAuth2(
       process.env.GMAIL_CLIENT_ID,
       process.env.GMAIL_CLIENT_SECRET,
-      "urn:ietf:wg:oauth:2.0:oob"
+      "urn:ietf:wg:oauth:2.0:oob",
     );
 
     oauth2Client.setCredentials({
@@ -312,7 +312,7 @@ function getPaymentReminderSubject(
   paymentPlan: string,
   term: string,
   tourPackage: string,
-  dueDate: string
+  dueDate: string,
 ): string {
   const termNumber = parseInt(term.replace("P", ""));
   const planNumber = parseInt(paymentPlan.replace("P", ""));
@@ -361,7 +361,7 @@ function getApplicableTerms(paymentPlan: string): string[] {
 function getColumnValue(
   booking: Record<string, any>,
   columnName: string,
-  columns: SheetColumn[]
+  columns: SheetColumn[],
 ): any {
   const column = columns.find((col) => col.columnName === columnName);
   if (!column) return undefined;
@@ -448,22 +448,22 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
       const emailAddress = getColumnValue(
         booking,
         "Email Address",
-        PAYMENT_REMINDER_COLUMNS
+        PAYMENT_REMINDER_COLUMNS,
       );
       const fullName = getColumnValue(
         booking,
         "Full Name",
-        PAYMENT_REMINDER_COLUMNS
+        PAYMENT_REMINDER_COLUMNS,
       );
       const tourPackage = getColumnValue(
         booking,
         "Tour Package Name",
-        PAYMENT_REMINDER_COLUMNS
+        PAYMENT_REMINDER_COLUMNS,
       );
       const sentInitialReminderLink = getColumnValue(
         booking,
         "Sent Initial Reminder Link",
-        PAYMENT_REMINDER_COLUMNS
+        PAYMENT_REMINDER_COLUMNS,
       );
 
       // Use availablePaymentTerms directly from booking (e.g., "P1", "P1, P2", "P1, P2, P3", "P1, P2, P3, P4")
@@ -483,7 +483,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
       // Validate required fields
       if (!paymentPlan) {
         logger.warn(
-          "Payment Plan (availablePaymentTerms) missing, cannot enable reminders"
+          "Payment Plan (availablePaymentTerms) missing, cannot enable reminders",
         );
         return;
       }
@@ -513,17 +513,17 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             const dueDateRaw = getColumnValue(
               booking,
               `${term} Due Date`,
-              PAYMENT_REMINDER_COLUMNS
+              PAYMENT_REMINDER_COLUMNS,
             );
             const calendarEventId = getColumnValue(
               booking,
               `${term} Calendar Event ID`,
-              PAYMENT_REMINDER_COLUMNS
+              PAYMENT_REMINDER_COLUMNS,
             );
             const calendarEventLink = getColumnValue(
               booking,
               `${term} Calendar Event Link`,
-              PAYMENT_REMINDER_COLUMNS
+              PAYMENT_REMINDER_COLUMNS,
             );
 
             // Skip if calendar event already exists or no due date
@@ -533,9 +533,9 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
                   calendarEventId
                     ? "already exists"
                     : calendarEventLink
-                    ? "link already provided"
-                    : "no due date"
-                }`
+                      ? "link already provided"
+                      : "no due date"
+                }`,
               );
               continue;
             }
@@ -550,9 +550,9 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
                 getColumnValue(
                   booking,
                   "Booking ID",
-                  PAYMENT_REMINDER_COLUMNS
+                  PAYMENT_REMINDER_COLUMNS,
                 ) || "",
-                emailAddress
+                emailAddress,
               );
 
               calendarLinks[term] = eventLink;
@@ -560,10 +560,10 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
 
               // Update booking with calendar event ID and link
               const calendarEventIdCol = PAYMENT_REMINDER_COLUMNS.find(
-                (col) => col.columnName === `${term} Calendar Event ID`
+                (col) => col.columnName === `${term} Calendar Event ID`,
               );
               const calendarEventLinkCol = PAYMENT_REMINDER_COLUMNS.find(
-                (col) => col.columnName === `${term} Calendar Event Link`
+                (col) => col.columnName === `${term} Calendar Event Link`,
               );
 
               const updateData: Record<string, any> = {};
@@ -585,7 +585,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             } catch (calendarError) {
               logger.error(
                 `Error creating calendar event for ${term}:`,
-                calendarError
+                calendarError,
               );
               // Continue with other terms even if one fails
             }
@@ -595,13 +595,39 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           const termData = terms.map((t) => ({
             name: t,
             amount: formatGBP(
-              getColumnValue(booking, `${t} Amount`, PAYMENT_REMINDER_COLUMNS)
+              getColumnValue(booking, `${t} Amount`, PAYMENT_REMINDER_COLUMNS),
             ),
             dueDate: formatDate(
-              getColumnValue(booking, `${t} Due Date`, PAYMENT_REMINDER_COLUMNS)
+              getColumnValue(
+                booking,
+                `${t} Due Date`,
+                PAYMENT_REMINDER_COLUMNS,
+              ),
             ),
             calendarLink: calendarLinks[t] || "",
           }));
+
+          // Fetch tour package to get cover image
+          let tourPackageCoverImage = "";
+          try {
+            const tourPackageSnap = await db
+              .collection("tourPackages")
+              .where("name", "==", tourPackage)
+              .limit(1)
+              .get();
+
+            if (!tourPackageSnap.empty) {
+              const tourPackageData = tourPackageSnap.docs[0].data();
+              tourPackageCoverImage = tourPackageData.media?.coverImage || "";
+              logger.info(
+                `Found tour package cover image: ${tourPackageCoverImage ? "yes" : "no"}`,
+              );
+            } else {
+              logger.info(`Tour package not found for: ${tourPackage}`);
+            }
+          } catch (error) {
+            logger.warn("Could not fetch tour package for cover image:", error);
+          }
 
           // Prepare template variables for initial email
           const templateVariables = {
@@ -614,9 +640,10 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
               getColumnValue(
                 booking,
                 "Remaining Balance",
-                PAYMENT_REMINDER_COLUMNS
-              )
+                PAYMENT_REMINDER_COLUMNS,
+              ),
             ),
+            tourPackageCoverImage,
           };
 
           // Fetch template from Firestore
@@ -627,7 +654,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
 
           if (!templateDoc.exists) {
             throw new Error(
-              "Initial Payment Reminder template not found in database"
+              "Initial Payment Reminder template not found in database",
             );
           }
 
@@ -641,7 +668,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           // Process template with Nunjucks
           const htmlContent = EmailTemplateService.processTemplate(
             rawTemplateHtml,
-            templateVariables
+            templateVariables,
           );
 
           const gmailService = new GmailApiService();
@@ -659,7 +686,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           // Update the booking with the sent email link
           const sentEmailLink = getGmailSentUrl(result.messageId);
           const sentInitialReminderLinkCol = PAYMENT_REMINDER_COLUMNS.find(
-            (col) => col.columnName === "Sent Initial Reminder Link"
+            (col) => col.columnName === "Sent Initial Reminder Link",
           );
 
           if (sentInitialReminderLinkCol) {
@@ -691,14 +718,14 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             getColumnValue(
               booking,
               `${term} Scheduled Email Link`,
-              PAYMENT_REMINDER_COLUMNS
+              PAYMENT_REMINDER_COLUMNS,
             ) || booking?.[`${term.toLowerCase()}ScheduledEmailLink`];
 
           const scheduledReminderLink =
             getColumnValue(
               booking,
               `${term} Scheduled Reminder Link`,
-              PAYMENT_REMINDER_COLUMNS
+              PAYMENT_REMINDER_COLUMNS,
             ) || booking?.[`${term.toLowerCase()}ScheduledReminderLink`];
 
           if (scheduledEmailLink || scheduledReminderLink) {
@@ -708,7 +735,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
                 reason: scheduledEmailLink
                   ? "scheduledEmailLink present"
                   : "scheduledReminderLink present",
-              }
+              },
             );
             continue;
           }
@@ -717,7 +744,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           const scheduledReminderDate = getColumnValue(
             booking,
             `${term} Scheduled Reminder Date`,
-            PAYMENT_REMINDER_COLUMNS
+            PAYMENT_REMINDER_COLUMNS,
           );
 
           if (!scheduledReminderDate) {
@@ -729,12 +756,12 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           const amount = getColumnValue(
             booking,
             `${term} Amount`,
-            PAYMENT_REMINDER_COLUMNS
+            PAYMENT_REMINDER_COLUMNS,
           );
           const dueDateRaw = getColumnValue(
             booking,
             `${term} Due Date`,
-            PAYMENT_REMINDER_COLUMNS
+            PAYMENT_REMINDER_COLUMNS,
           );
 
           // Parse due date for this specific term
@@ -756,7 +783,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           logger.info(
             `Processing ${term} scheduled reminder date:`,
             scheduledReminderDate,
-            `Type: ${typeof scheduledReminderDate}`
+            `Type: ${typeof scheduledReminderDate}`,
           );
 
           if (
@@ -766,7 +793,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           ) {
             // Firestore Timestamp object
             scheduledFor = Timestamp.fromMillis(
-              scheduledReminderDate._seconds * 1000
+              scheduledReminderDate._seconds * 1000,
             );
             logger.info(`Converted Firestore Timestamp for ${term}`);
           } else if (scheduledReminderDate instanceof Date) {
@@ -780,19 +807,19 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
 
             if (isNaN(dateObj.getTime())) {
               logger.warn(
-                `Invalid date string format for ${term}: ${scheduledReminderDate}`
+                `Invalid date string format for ${term}: ${scheduledReminderDate}`,
               );
               continue;
             }
 
             scheduledFor = Timestamp.fromDate(dateObj);
             logger.info(
-              `Converted string date for ${term}: ${scheduledReminderDate} -> ${dateObj.toISOString()}`
+              `Converted string date for ${term}: ${scheduledReminderDate} -> ${dateObj.toISOString()}`,
             );
           } else {
             logger.warn(
               `Invalid scheduled reminder date for ${term}:`,
-              scheduledReminderDate
+              scheduledReminderDate,
             );
             continue;
           }
@@ -802,8 +829,30 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             paymentPlan,
             term,
             tourPackage || "",
-            formatDate(dueDate)
+            formatDate(dueDate),
           );
+
+          // Fetch tour package to get cover image
+          let tourPackageCoverImage = "";
+          try {
+            const tourPackageSnap = await db
+              .collection("tourPackages")
+              .where("name", "==", tourPackage)
+              .limit(1)
+              .get();
+
+            if (!tourPackageSnap.empty) {
+              const tourPackageData = tourPackageSnap.docs[0].data();
+              tourPackageCoverImage = tourPackageData.media?.coverImage || "";
+              logger.info(
+                `Found tour package cover image: ${tourPackageCoverImage ? "yes" : "no"}`,
+              );
+            } else {
+              logger.info(`Tour package not found for: ${tourPackage}`);
+            }
+          } catch (error) {
+            logger.warn("Could not fetch tour package for cover image:", error);
+          }
 
           // Build term data for template - only show terms up to current payment plan
           const currentTermIndex = terms.indexOf(term);
@@ -813,7 +862,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             const tDueDateRaw = getColumnValue(
               booking,
               `${t} Due Date`,
-              PAYMENT_REMINDER_COLUMNS
+              PAYMENT_REMINDER_COLUMNS,
             );
             let tDueDate = tDueDateRaw;
 
@@ -829,15 +878,19 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             return {
               term: t,
               amount: formatGBP(
-                getColumnValue(booking, `${t} Amount`, PAYMENT_REMINDER_COLUMNS)
+                getColumnValue(
+                  booking,
+                  `${t} Amount`,
+                  PAYMENT_REMINDER_COLUMNS,
+                ),
               ),
               dueDate: formatDate(tDueDate),
               datePaid: formatDate(
                 getColumnValue(
                   booking,
                   `${t} Date Paid`,
-                  PAYMENT_REMINDER_COLUMNS
-                )
+                  PAYMENT_REMINDER_COLUMNS,
+                ),
               ),
             };
           });
@@ -854,49 +907,50 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
               getColumnValue(booking, "Booking ID", PAYMENT_REMINDER_COLUMNS) ||
               "",
             tourDate: formatDate(
-              getColumnValue(booking, "Tour Date", PAYMENT_REMINDER_COLUMNS)
+              getColumnValue(booking, "Tour Date", PAYMENT_REMINDER_COLUMNS),
             ),
             paid: formatGBP(
-              getColumnValue(booking, "Paid", PAYMENT_REMINDER_COLUMNS)
+              getColumnValue(booking, "Paid", PAYMENT_REMINDER_COLUMNS),
             ),
             remainingBalance: formatGBP(
               getColumnValue(
                 booking,
                 "Remaining Balance",
-                PAYMENT_REMINDER_COLUMNS
-              )
+                PAYMENT_REMINDER_COLUMNS,
+              ),
             ),
             totalAmount: formatGBP(
               getColumnValue(
                 booking,
                 "Use Discounted Tour Cost?",
-                PAYMENT_REMINDER_COLUMNS
+                PAYMENT_REMINDER_COLUMNS,
               )
                 ? getColumnValue(
                     booking,
                     "Discounted Tour Cost",
-                    PAYMENT_REMINDER_COLUMNS
+                    PAYMENT_REMINDER_COLUMNS,
                   )
                 : getColumnValue(
                     booking,
                     "Original Tour Cost",
-                    PAYMENT_REMINDER_COLUMNS
-                  )
+                    PAYMENT_REMINDER_COLUMNS,
+                  ),
             ),
             showTable: term !== "P1",
             termData: termData,
+            tourPackageCoverImage,
           };
 
           // Load raw template HTML from file
           const rawTemplateHtml = EmailTemplateLoader.loadTemplate(
             "scheduledReminderEmail",
-            {} as any // Pass empty object since we'll process with Nunjucks
+            {} as any, // Pass empty object since we'll process with Nunjucks
           );
 
           // Process template with Nunjucks for conditionals and loops
           const htmlContent = EmailTemplateService.processTemplate(
             rawTemplateHtml,
-            templateVariables
+            templateVariables,
           );
 
           // Create scheduled email document
@@ -918,14 +972,14 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           });
 
           logger.info(
-            `✅ Created scheduled email for ${term}: ${scheduledEmailDoc.id}`
+            `✅ Created scheduled email for ${term}: ${scheduledEmailDoc.id}`,
           );
 
           scheduledEmailCreatedTerms.push(term);
 
           // Update booking with scheduled email document ID
           const scheduledEmailLinkCol = PAYMENT_REMINDER_COLUMNS.find(
-            (col) => col.columnName === `${term} Scheduled Email Link`
+            (col) => col.columnName === `${term} Scheduled Email Link`,
           );
 
           if (scheduledEmailLinkCol) {
@@ -953,7 +1007,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           {
             created: scheduledEmailCreatedTerms,
             expected: terms,
-          }
+          },
         );
       } else {
         try {
@@ -970,7 +1024,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
                 getColumnValue(
                   booking,
                   "Booking ID",
-                  PAYMENT_REMINDER_COLUMNS
+                  PAYMENT_REMINDER_COLUMNS,
                 ) || bookingId,
               bookingDocumentId: bookingId,
               travelerName: fullName || "",
@@ -994,5 +1048,5 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
       logger.error("❌ Error in payment reminder trigger:", error);
       throw error;
     }
-  }
+  },
 );

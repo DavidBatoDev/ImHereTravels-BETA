@@ -53,7 +53,7 @@ function formatDateLikeSheets(dateValue: any): string {
         "Dec",
       ];
       const hasMonthName = monthNames.some((month) =>
-        trimmedValue.includes(month)
+        trimmedValue.includes(month),
       );
 
       if (hasMonthName) {
@@ -108,7 +108,7 @@ function getSubjectLine(
   availablePaymentTerms: string,
   fullName: string,
   tourPackage: string,
-  isCancelled: boolean = false
+  isCancelled: boolean = false,
 ): string {
   if (isCancelled) {
     return `Important Update: Your ${tourPackage} has been Cancelled`;
@@ -257,9 +257,8 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
             if (messageId) {
               // Find the actual draft ID using the message ID
               logger.info(`Finding draft ID for message ID: ${messageId}`);
-              const draftId = await gmailService.findDraftIdByMessageId(
-                messageId
-              );
+              const draftId =
+                await gmailService.findDraftIdByMessageId(messageId);
 
               if (draftId) {
                 logger.info(`Found draft ID: ${draftId}, deleting...`);
@@ -267,7 +266,7 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
                 logger.info("✅ Gmail draft deleted successfully");
               } else {
                 logger.warn(
-                  `Could not find draft with message ID: ${messageId}`
+                  `Could not find draft with message ID: ${messageId}`,
                 );
               }
             } else {
@@ -311,11 +310,10 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
             if (messageId) {
               // Find the actual draft ID using the message ID
               logger.info(
-                "Finding existing draft to delete before creating new one"
+                "Finding existing draft to delete before creating new one",
               );
-              const draftId = await gmailService.findDraftIdByMessageId(
-                messageId
-              );
+              const draftId =
+                await gmailService.findDraftIdByMessageId(messageId);
 
               if (draftId) {
                 logger.info(`Deleting existing draft with ID: ${draftId}`);
@@ -378,8 +376,30 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
           availablePaymentTerms,
           fullName,
           tourPackage,
-          isCancelled
+          isCancelled,
         );
+
+        // Fetch tour package to get cover image
+        let tourPackageCoverImage = "";
+        try {
+          const tourPackageSnap = await db
+            .collection("tourPackages")
+            .where("name", "==", tourPackage)
+            .limit(1)
+            .get();
+
+          if (!tourPackageSnap.empty) {
+            const tourPackageData = tourPackageSnap.docs[0].data();
+            tourPackageCoverImage = tourPackageData.media?.coverImage || "";
+            logger.info(
+              `Found tour package cover image: ${tourPackageCoverImage ? "yes" : "no"}`,
+            );
+          } else {
+            logger.info(`Tour package not found for: ${tourPackage}`);
+          }
+        } catch (error) {
+          logger.warn("Could not fetch tour package for cover image:", error);
+        }
 
         // Get main booker for group bookings
         let mainBooker = fullName;
@@ -409,7 +429,7 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
           originalTourCost: Number(originalTourCost).toFixed(2),
           discountedTourCost: Number(discountedTourCost).toFixed(2),
           discountSavings: Number(
-            originalTourCost - discountedTourCost
+            originalTourCost - discountedTourCost,
           ).toFixed(2),
           remainingBalance: Number(remainingBalance).toFixed(2),
           fullPaymentAmount: Number(fullPaymentAmount).toFixed(2),
@@ -426,6 +446,7 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
           cancelledRefundAmount: isCancelled
             ? Number(reservationFee).toFixed(2)
             : "",
+          tourPackageCoverImage,
         };
 
         // Process template content
@@ -433,10 +454,10 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
         try {
           processedHtml = EmailTemplateService.processTemplate(
             templateData.content,
-            templateVariables
+            templateVariables,
           );
           logger.info(
-            `Template processed successfully, HTML length: ${processedHtml.length}`
+            `Template processed successfully, HTML length: ${processedHtml.length}`,
           );
         } catch (templateError) {
           logger.error(`Template processing error:`, templateError);
@@ -449,7 +470,7 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
 
         if (bccList.length > 0) {
           logger.info(
-            `Including ${bccList.length} BCC recipients in email draft`
+            `Including ${bccList.length} BCC recipients in email draft`,
           );
         }
 
@@ -464,13 +485,13 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
           });
 
           logger.info(
-            `Gmail draft created successfully: ${gmailDraftResult.draftId}`
+            `Gmail draft created successfully: ${gmailDraftResult.draftId}`,
           );
 
           // Generate the Gmail draft URL
           const draftUrl = getGmailDraftUrl(
             gmailDraftResult.draftId,
-            gmailDraftResult.messageId
+            gmailDraftResult.messageId,
           );
 
           // Update booking with draft URL and subject
@@ -480,7 +501,7 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
           });
 
           logger.info(
-            `✅ Email draft created and booking updated with URL and subject`
+            `✅ Email draft created and booking updated with URL and subject`,
           );
         } catch (gmailError) {
           logger.error("Error creating Gmail draft:", gmailError);
@@ -491,5 +512,5 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
       logger.error("❌ Error in onGenerateEmailDraftChanged:", error);
       // Don't throw error to prevent retries
     }
-  }
+  },
 );
