@@ -7,7 +7,6 @@ export const isMainBookerColumn: BookingSheetColumn = {
     columnName: 'Is Main Booker?',
     dataType: 'boolean',
     parentTab: 'If Duo or Group Booking',
-    order: 22,
     includeInForms: true,
     color: 'orange',
     width: 272,

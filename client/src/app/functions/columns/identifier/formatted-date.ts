@@ -8,7 +8,6 @@ export const formattedDateColumn: BookingSheetColumn = {
     dataType: "function",
     function: "tourDateToYyyymmddFunction",
     parentTab: "Identifier",
-    order: 6,
     includeInForms: false,
     showColumn: true,
     color: "gray",

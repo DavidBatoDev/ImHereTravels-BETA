@@ -9,7 +9,6 @@ export const tourDurationColumn: BookingSheetColumn = {
     dataType: "function",
     function: "tourDurationByNameFunction",
     parentTab: "Tour Details",
-    order: 18,
     includeInForms: false,
     showColumn: true,
     color: "gray",

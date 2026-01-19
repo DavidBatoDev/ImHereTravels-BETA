@@ -19,7 +19,7 @@ import { BookingSheetColumn } from "@/types/booking-sheet-column";
  */
 export const COLUMN_ORDERS: Record<string, number> = {
   // ============================================================================
-  // IDENTIFIER (1-6, 85)
+  // IDENTIFIER (1-6)
   // ============================================================================
   bookingId: 1,
   bookingCode: 2,
@@ -27,7 +27,6 @@ export const COLUMN_ORDERS: Record<string, number> = {
   travellerInitials: 4,
   tourPackageNameUniqueCounter: 5,
   formattedDate: 6,
-  delete: 85, // Delete column at the end
 
   // ============================================================================
   // TRAVELER INFORMATION (7-10)
@@ -35,133 +34,138 @@ export const COLUMN_ORDERS: Record<string, number> = {
   emailAddress: 7,
   firstName: 8,
   lastName: 9,
-  fullName: 10, // Computed from first + last
+  fullName: 10,
 
   // ============================================================================
-  // DISCOUNTS (9-10) - Note: overlaps with traveler info in original
+  // DISCOUNTS (11-12)
   // ============================================================================
-  eventName: 9,
-  discountRate: 10,
+  eventName: 11,
+  discountRate: 12,
 
   // ============================================================================
-  // TOUR DETAILS (12-21)
+  // TOUR DETAILS (13-22)
   // ============================================================================
-  reservationDate: 12,
-  bookingType: 13,
-  tourPackageName: 14,
-  tourDate: 15,
-  returnDate: 16,
+  reservationDate: 13,
+  bookingType: 14,
+  tourPackageName: 15,
+  tourDate: 16,
+  returnDate: 17,
   tourDuration: 18,
-  paymentCondition: 18, // Note: duplicate order with tourDuration
-  eligible2ndOfMonths: 20,
+  paymentCondition: 19,
+  eligible2ndofmonths: 20,
   availablePaymentTerms: 21,
-  daysBetweenBookingAndTourDate: 21, // Note: duplicate order
+  daysBetweenBookingAndTourDate: 22,
 
   // ============================================================================
-  // DUO OR GROUP BOOKING (22-24)
+  // DUO OR GROUP BOOKING (23-25)
   // ============================================================================
-  isMainBooker: 22,
-  groupIdGroupIdGenerator: 23,
-  groupId: 24,
+  isMainBooker: 23,
+  groupIdGroupIdGenerator: 24,
+  groupId: 25,
 
   // ============================================================================
-  // RESERVATION EMAIL (25-32)
+  // RESERVATION EMAIL (26-33)
   // ============================================================================
-  includeBccReservation: 25,
-  useDiscountedTourCost: 26,
-  generateEmailDraft: 27,
-  emailDraftLink: 28,
-  subjectLineReservation: 29,
-  sendEmail: 30,
-  sentEmailLink: 31,
-  reservationEmailSentDate: 32,
+  includeBccReservation: 26,
+  useDiscountedTourCost: 27,
+  generateEmailDraft: 28,
+  emailDraftLink: 29,
+  subjectLineReservation: 30,
+  sendEmail: 31,
+  sentEmailLink: 32,
+  reservationEmailSentDate: 33,
 
   // ============================================================================
-  // PAYMENT SETTING (33-46)
+  // PAYMENT SETTING (34-49)
   // ============================================================================
-  originalTourCost: 33,
-  discountedTourCost: 34,
-  reservationFee: 35,
-  adminFee: 35.5, // New column - Admin fee (10% of paid terms)
-  paid: 36,
-  paidTerms: 36.5, // New column - Total amount paid
-  remainingBalance: 37,
-  manualCredit: 38,
-  creditFrom: 39,
-  paymentPlan: 40,
-  paymentMethod: 41,
-  enablePaymentReminder: 42,
-  sentInitialReminderLink: 43,
-  bookingStatus: 44,
-  paymentProgress: 45,
-  guestInfoEmailSentLink: 46,
+  originalTourCost: 34,
+  discountedTourCost: 35,
+  reservationFee: 36,
+  adminFee: 37,
+  paid: 38,
+  paidTerms: 39,
+  remainingBalance: 40,
+  manualCredit: 41,
+  creditFrom: 42,
+  paymentPlan: 43,
+  paymentMethod: 44,
+  enablePaymentReminder: 45,
+  sentInitialReminderLink: 46,
+  bookingStatus: 47,
+  paymentProgress: 48,
+  guestInfoEmailSentLink: 49,
 
   // ============================================================================
-  // FULL PAYMENT (47-49)
+  // FULL PAYMENT (50-52)
   // ============================================================================
-  fullPaymentDueDate: 47,
-  fullPaymentAmount: 48,
-  fullPaymentDatePaid: 49,
+  fullPaymentDueDate: 50,
+  fullPaymentAmount: 51,
+  fullPaymentDatePaid: 52,
 
   // ============================================================================
-  // PAYMENT TERM 1 - P1 (50-56)
+  // PAYMENT TERM 1 - P1 (53-59)
   // ============================================================================
-  p1ScheduledReminderDate: 50,
-  p1ScheduledEmailLink: 51,
-  p1CalendarEventId: 52,
-  p1CalendarEventLink: 53,
-  p1DueDate: 54,
-  p1Amount: 55,
-  p1DatePaid: 56,
+  p1ScheduledReminderDate: 53,
+  p1ScheduledEmailLink: 54,
+  p1CalendarEventId: 55,
+  p1CalendarEventLink: 56,
+  p1DueDate: 57,
+  p1Amount: 58,
+  p1DatePaid: 59,
 
   // ============================================================================
-  // PAYMENT TERM 2 - P2 (57-63)
+  // PAYMENT TERM 2 - P2 (60-66)
   // ============================================================================
-  p2ScheduledReminderDate: 57,
-  p2ScheduledEmailLink: 58,
-  p2CalendarEventId: 59,
-  p2CalendarEventLink: 60,
-  p2DueDate: 61,
-  p2Amount: 62,
-  p2DatePaid: 63,
+  p2ScheduledReminderDate: 60,
+  p2ScheduledEmailLink: 61,
+  p2CalendarEventId: 62,
+  p2CalendarEventLink: 63,
+  p2DueDate: 64,
+  p2Amount: 65,
+  p2DatePaid: 66,
 
   // ============================================================================
-  // PAYMENT TERM 3 - P3 (64-70)
+  // PAYMENT TERM 3 - P3 (67-73)
   // ============================================================================
-  p3ScheduledReminderDate: 64,
-  p3ScheduledEmailLink: 65,
-  p3CalendarEventId: 66,
-  p3CalendarEventLink: 67,
-  p3DueDate: 68,
-  p3Amount: 69,
-  p3DatePaid: 70,
+  p3ScheduledReminderDate: 67,
+  p3ScheduledEmailLink: 68,
+  p3CalendarEventId: 69,
+  p3CalendarEventLink: 70,
+  p3DueDate: 71,
+  p3Amount: 72,
+  p3DatePaid: 73,
 
   // ============================================================================
-  // PAYMENT TERM 4 - P4 (71-77)
+  // PAYMENT TERM 4 - P4 (74-80)
   // ============================================================================
-  p4ScheduledReminderDate: 71,
-  p4ScheduledEmailLink: 72,
-  p4CalendarEventId: 73,
-  p4CalendarEventLink: 74,
-  p4DueDate: 75,
-  p4Amount: 76,
-  p4DatePaid: 77,
+  p4ScheduledReminderDate: 74,
+  p4ScheduledEmailLink: 75,
+  p4CalendarEventId: 76,
+  p4CalendarEventLink: 77,
+  p4DueDate: 78,
+  p4Amount: 79,
+  p4DatePaid: 80,
 
   // ============================================================================
-  // CANCELLATION (78-85)
+  // CANCELLATION (81-92)
   // ============================================================================
-  reasonForCancellation: 78,
-  cancellationRequestDate: 78.5, // New column - Date cancellation was requested
-  includeBccCancellation: 79,
-  eligibleRefund: 79.5, // New column - Refund eligibility status
-  generateCancellationEmailDraft: 80,
-  nonRefundableAmount: 80.5, // New column - Amount that cannot be refunded
-  cancellationEmailDraftLink: 81,
-  refundableAmount: 81.5, // New column - Amount that can be refunded
-  subjectLineCancellation: 82,
-  sendCancellationEmail: 83,
-  sentCancellationEmailLink: 84,
-  cancellationEmailSentDate: 85,
+  reasonForCancellation: 81,
+  cancellationRequestDate: 82,
+  includeBccCancellation: 83,
+  eligibleRefund: 84,
+  nonRefundableAmount: 85,
+  refundableAmount: 86,
+  generateCancellationDraft: 87,
+  cancellationEmailDraftLink: 88,
+  subjectLineCancellation: 89,
+  sendCancellationEmail: 90,
+  sentCancellationEmailLink: 91,
+  cancellationEmailSentDate: 92,
+
+  // ============================================================================
+  // DELETE (93) - Delete column at the end
+  // ============================================================================
+  delete: 93,
 };
 
 /**

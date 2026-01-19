@@ -7,7 +7,6 @@ export const p2ScheduledEmailLinkColumn: BookingSheetColumn = {
     columnName: "P2 Scheduled Email Link",
     dataType: "string",
     parentTab: "Payment Term 2",
-    order: 58,
     includeInForms: false,
     color: "yellow",
     width: 180,

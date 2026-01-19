@@ -8,7 +8,6 @@ export const paidTermsColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getPaidTermsFunction",
     parentTab: "Payment Setting",
-    order: 36.5,
     includeInForms: false,
     color: "gray",
     width: 150,

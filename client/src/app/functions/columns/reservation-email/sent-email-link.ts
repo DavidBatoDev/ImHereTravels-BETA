@@ -9,7 +9,6 @@ export const sentEmailLinkColumn: BookingSheetColumn = {
     columnName: "Sent Email Link",
     dataType: "string",
     parentTab: "Reservation Email",
-    order: 31,
     includeInForms: false,
     color: "yellow",
     width: 483.3333740234375,

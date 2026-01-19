@@ -8,7 +8,6 @@ export const p3ScheduledReminderDateColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getBaseMondayFromP3DueDateFunction",
     parentTab: "Payment Term 3",
-    order: 64,
     includeInForms: false,
     color: "yellow",
     width: 213.33331298828125,

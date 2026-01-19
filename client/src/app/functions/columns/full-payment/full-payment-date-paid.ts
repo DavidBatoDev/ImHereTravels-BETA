@@ -7,7 +7,6 @@ export const fullPaymentDatePaidColumn: BookingSheetColumn = {
     columnName: "Full Payment Date Paid",
     dataType: "date",
     parentTab: "Full Payment",
-    order: 49,
     includeInForms: true,
     width: 160,
   },

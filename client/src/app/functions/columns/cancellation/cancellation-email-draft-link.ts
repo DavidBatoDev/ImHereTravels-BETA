@@ -10,7 +10,6 @@ export const cancellationEmailDraftLinkColumn: BookingSheetColumn = {
     columnName: "Cancellation Email Draft Link",
     dataType: "string",
     parentTab: "Cancellation",
-    order: 81,
     includeInForms: false,
     color: "yellow",
     width: 200,

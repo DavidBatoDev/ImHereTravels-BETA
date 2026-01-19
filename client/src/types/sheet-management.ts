@@ -84,7 +84,7 @@ export interface SheetColumn {
     pattern?: string;
     custom?: (value: any) => boolean | string;
   };
-  order: number;
+  order?: number; // Optional - injected by withOrder() helper from column-orders.ts
 }
 
 export interface SheetConfig {

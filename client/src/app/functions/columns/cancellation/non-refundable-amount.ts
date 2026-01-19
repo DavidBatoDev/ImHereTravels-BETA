@@ -8,7 +8,6 @@ export const nonRefundableAmountColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getNonRefundableAmountFunction",
     parentTab: "Cancellation",
-    order: 80.5,
     includeInForms: false,
     color: "none",
     width: 200,

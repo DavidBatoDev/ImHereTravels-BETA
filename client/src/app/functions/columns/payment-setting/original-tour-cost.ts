@@ -9,7 +9,6 @@ export const originalTourCostColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getOriginalTourCostFunction",
     parentTab: "Payment Setting",
-    order: 33,
     includeInForms: false,
     color: "gray",
     width: 183.3333740234375,

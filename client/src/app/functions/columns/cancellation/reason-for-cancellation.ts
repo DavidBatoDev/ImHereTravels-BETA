@@ -7,7 +7,6 @@ export const reasonForCancellationColumn: BookingSheetColumn = {
     columnName: "Reason for Cancellation",
     dataType: "select",
     parentTab: "Cancellation",
-    order: 78,
     includeInForms: true,
     color: "none",
     width: 200,

@@ -7,7 +7,6 @@ export const enablePaymentReminderColumn: BookingSheetColumn = {
     columnName: "Enable Payment Reminder",
     dataType: "boolean",
     parentTab: "Payment Setting",
-    order: 42,
     includeInForms: true,
     color: "orange",
     width: 239.3333740234375,

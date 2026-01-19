@@ -7,7 +7,6 @@ export const bookingTypeColumn: BookingSheetColumn = {
     columnName: "Booking Type",
     dataType: "select",
     parentTab: "Tour Details",
-    order: 13,
     includeInForms: true,
     color: "none",
     width: 158,

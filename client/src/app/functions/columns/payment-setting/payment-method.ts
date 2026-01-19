@@ -7,7 +7,6 @@ export const paymentMethodColumn: BookingSheetColumn = {
     columnName: "Payment Method",
     dataType: "select",
     parentTab: "Payment Setting",
-    order: 41,
     includeInForms: true,
     width: 179.3333740234375,
     options: ["", "Revolut", "Ulster", "Stripe"],

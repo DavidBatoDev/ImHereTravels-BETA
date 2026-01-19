@@ -7,7 +7,6 @@ export const lastNameColumn: BookingSheetColumn = {
     columnName: "Last Name",
     dataType: "string",
     parentTab: "Traveler Information",
-    order: 9,
     includeInForms: true,
     width: 169.33331298828125,
   },

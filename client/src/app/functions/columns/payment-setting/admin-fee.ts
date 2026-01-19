@@ -8,7 +8,6 @@ export const adminFeeColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getAdminFeeFunction",
     parentTab: "Payment Setting",
-    order: 35.5,
     includeInForms: false,
     color: "gray",
     width: 150,

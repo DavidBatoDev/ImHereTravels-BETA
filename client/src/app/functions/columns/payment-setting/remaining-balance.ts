@@ -8,7 +8,6 @@ export const remainingBalanceColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getRemainingBalanceFunction",
     parentTab: "Payment Setting",
-    order: 37,
     includeInForms: false,
     color: "yellow",
     width: 191.33331298828125,

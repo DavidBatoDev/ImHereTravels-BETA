@@ -8,7 +8,6 @@ export const paymentProgressColumn: BookingSheetColumn = {
     dataType: "function",
     function: "paymentProgressFunction",
     parentTab: "Payment Setting",
-    order: 45,
     includeInForms: false,
     color: "yellow",
     width: 140,

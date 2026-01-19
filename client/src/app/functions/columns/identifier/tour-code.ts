@@ -9,7 +9,6 @@ export const tourCodeColumn: BookingSheetColumn = {
     dataType: "function",
     function: "lookupTourCodeFunction",
     parentTab: "Identifier",
-    order: 3,
     includeInForms: false,
     showColumn: true,
     color: "gray",

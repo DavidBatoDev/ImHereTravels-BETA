@@ -8,7 +8,6 @@ export const eligibleRefundColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getEligibleRefundFunction",
     parentTab: "Cancellation",
-    order: 79.5,
     includeInForms: false,
     color: "none",
     width: 250,

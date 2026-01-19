@@ -8,7 +8,6 @@ export const bookingIdColumn: BookingSheetColumn = {
     dataType: "function",
     function: "generateBookingReferenceFunction",
     parentTab: "Identifier",
-    order: 1,
     includeInForms: false,
     showColumn: true,
     color: "gray",

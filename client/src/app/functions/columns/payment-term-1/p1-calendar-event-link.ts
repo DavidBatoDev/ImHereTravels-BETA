@@ -7,7 +7,6 @@ export const p1CalendarEventLinkColumn: BookingSheetColumn = {
     columnName: "P1 Calendar Event Link",
     dataType: "string",
     parentTab: "Payment Term 1",
-    order: 53,
     includeInForms: false,
     color: "yellow",
     width: 160,

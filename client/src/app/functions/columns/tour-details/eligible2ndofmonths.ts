@@ -8,7 +8,6 @@ export const eligible2ndofmonthsColumn: BookingSheetColumn = {
     dataType: "function",
     function: "eligibleSecondsCountFunction",
     parentTab: "Tour Details",
-    order: 20,
     includeInForms: false,
     showColumn: true,
     color: "gray",

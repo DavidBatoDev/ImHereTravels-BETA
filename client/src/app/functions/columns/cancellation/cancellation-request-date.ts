@@ -7,7 +7,6 @@ export const cancellationRequestDateColumn: BookingSheetColumn = {
     columnName: "Cancellation Request Date",
     dataType: "date",
     parentTab: "Cancellation",
-    order: 78.5,
     includeInForms: true,
     color: "none",
     width: 200,

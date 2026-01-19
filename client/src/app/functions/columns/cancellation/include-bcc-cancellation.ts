@@ -7,7 +7,6 @@ export const includeBccCancellationColumn: BookingSheetColumn = {
     columnName: "Include BCC (Cancellation)",
     dataType: "boolean",
     parentTab: "Cancellation",
-    order: 79,
     includeInForms: true,
     color: "orange",
     width: 180,

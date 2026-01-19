@@ -7,7 +7,6 @@ export const useDiscountedTourCostColumn: BookingSheetColumn = {
     columnName: 'Use Discounted Tour Cost?',
     dataType: 'boolean',
     parentTab: 'Reservation Email',
-    order: 26,
     includeInForms: true,
     color: 'orange',
     width: 242.6666259765625,
