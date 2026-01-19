@@ -29,7 +29,7 @@ export const paymentPlanColumn: BookingSheetColumn = {
 
       // Handle "Cancelled" case
       if (availablePaymentTerms === "Cancelled") {
-        return [""];
+        return ["The booking has been cancelled. No payment plan available."];
       }
 
       // Handle Standard Booking cases (P1, P2, P3, P4)

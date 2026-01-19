@@ -59,6 +59,9 @@ import generateCancellationGmailDraftFunction from "./cancellation/cancellation-
 import getEmailSentDateFunction from "./cancellation/subject-line-cancellation";
 import sendCancellationEmailDraftOnceFunction from "./cancellation/sent-cancellation-email-link";
 import getSentDateCancellationFunction from "./cancellation/cancellation-email-sent-date";
+import getEligibleRefundFunction from "./cancellation/eligible-refund";
+import getNonRefundableAmountFunction from "./cancellation/non-refundable-amount";
+import getRefundableAmountFunction from "./cancellation/refundable-amount";
 
 // Payment Setting Functions
 import getOriginalTourCostFunction from "./payment-setting/original-tour-cost";
@@ -68,6 +71,8 @@ import getTotalPaidAmountFunction from "./payment-setting/paid";
 import getRemainingBalanceFunction from "./payment-setting/remaining-balance";
 import bookingStatusFunction from "./payment-setting/booking-status";
 import paymentProgressFunction from "./payment-setting/payment-progress";
+import getAdminFeeFunction from "./payment-setting/admin-fee";
+import getPaidTermsFunction from "./payment-setting/paid-terms";
 
 // Discount Functions
 import getDiscountRateFunction from "./discounts/discount-rate";
@@ -112,6 +117,9 @@ export {
   getEmailSentDateFunction,
   sendCancellationEmailDraftOnceFunction,
   getSentDateCancellationFunction,
+  getEligibleRefundFunction,
+  getNonRefundableAmountFunction,
+  getRefundableAmountFunction,
   // Payment Setting
   getOriginalTourCostFunction,
   getTourDiscountedCostFunction,
@@ -120,6 +128,8 @@ export {
   getRemainingBalanceFunction,
   bookingStatusFunction,
   paymentProgressFunction,
+  getAdminFeeFunction,
+  getPaidTermsFunction,
   // Discounts
   getDiscountRateFunction,
   // Payment Terms
@@ -209,6 +219,9 @@ export const functionMap: Record<string, Function> = {
   getEmailSentDateFunction,
   sendCancellationEmailDraftOnceFunction,
   getSentDateCancellationFunction,
+  getEligibleRefundFunction,
+  getNonRefundableAmountFunction,
+  getRefundableAmountFunction,
 
   // Payment Setting functions
   getOriginalTourCostFunction,
@@ -218,6 +231,8 @@ export const functionMap: Record<string, Function> = {
   getRemainingBalanceFunction,
   bookingStatusFunction,
   paymentProgressFunction,
+  getAdminFeeFunction,
+  getPaidTermsFunction,
 
   // Discount functions
   getDiscountRateFunction,

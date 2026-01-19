@@ -1,3 +1,4 @@
+export { adminFeeColumn } from "./admin-fee";
 export { bookingStatusColumn } from "./booking-status";
 export { creditFromColumn } from "./credit-from";
 export { discountedTourCostColumn } from "./discounted-tour-cost";
@@ -6,6 +7,7 @@ export { guestInfoEmailSentLinkColumn } from "./guest-info-email-sent-link";
 export { manualCreditColumn } from "./manual-credit";
 export { originalTourCostColumn } from "./original-tour-cost";
 export { paidColumn } from "./paid";
+export { paidTermsColumn } from "./paid-terms";
 export { paymentMethodColumn } from "./payment-method";
 export { paymentPlanColumn } from "./payment-plan";
 export { paymentProgressColumn } from "./payment-progress";
