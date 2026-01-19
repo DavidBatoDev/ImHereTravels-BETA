@@ -1,5 +1,5 @@
 ﻿import { BookingSheetColumn } from "@/types/booking-sheet-column";
-import { formatTimestampToDDMMYYYY } from "@/lib/booking-calculations";
+import { formatTimestampToMonthDayYear } from "@/lib/booking-calculations";
 
 export const tourDateColumn: BookingSheetColumn = {
   id: "tourDate",
@@ -52,10 +52,10 @@ export const tourDateColumn: BookingSheetColumn = {
           const tourData = doc.data();
           const travelDates = tourData.travelDates || [];
 
-          // Convert each startDate Timestamp to dd/mm/yyyy format
+          // Convert each startDate Timestamp to Month Day Year format
           travelDates.forEach((td: any) => {
             try {
-              const formatted = formatTimestampToDDMMYYYY(td.startDate);
+              const formatted = formatTimestampToMonthDayYear(td.startDate);
               if (formatted && !allDates.includes(formatted)) {
                 allDates.push(formatted);
               }

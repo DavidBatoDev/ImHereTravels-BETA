@@ -131,6 +131,83 @@ export function formatTimestampToDDMMYYYY(dateInput: unknown): string {
   }
 }
 
+/**
+ * Format a Timestamp to "Month Day Year" format (e.g., "February 03 2026")
+ */
+export function formatTimestampToMonthDayYear(dateInput: unknown): string {
+  try {
+    const date = toDate(dateInput);
+    if (!date) return "";
+
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = monthNames[date.getMonth()];
+    const year = date.getFullYear();
+
+    return `${month} ${day} ${year}`;
+  } catch (error) {
+    console.error(
+      "Error formatting timestamp to Month Day Year:",
+      error,
+      dateInput,
+    );
+    return "";
+  }
+}
+
+/**
+ * Parse "Month Day Year" format back to Date object
+ */
+export function parseMonthDayYear(dateString: string): Date | null {
+  try {
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+
+    const parts = dateString.trim().split(/\s+/);
+    if (parts.length !== 3) return null;
+
+    const [monthName, dayStr, yearStr] = parts;
+    const monthIndex = monthNames.indexOf(monthName);
+    if (monthIndex === -1) return null;
+
+    const day = parseInt(dayStr, 10);
+    const year = parseInt(yearStr, 10);
+
+    if (isNaN(day) || isNaN(year)) return null;
+
+    return new Date(year, monthIndex, day);
+  } catch (error) {
+    console.error("Error parsing Month Day Year:", error, dateString);
+    return null;
+  }
+}
+
 // ============================================================================
 // BOOKING IDENTIFIER FUNCTIONS
 // ============================================================================

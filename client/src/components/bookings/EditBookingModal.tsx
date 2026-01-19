@@ -39,8 +39,20 @@ import {
 import { BsListUl, BsCalendarEvent } from "react-icons/bs";
 import { MdEmail } from "react-icons/md";
 import { HiTrendingUp } from "react-icons/hi";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, CalendarIcon, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { Booking } from "@/types/bookings";
 import { SheetColumn, TypeScriptFunction } from "@/types/sheet-management";
 import { allBookingSheetColumns } from "@/app/functions/columns";
@@ -1317,10 +1329,18 @@ export default function EditBookingModal({
 
   // Reactive tracking: reload Tour Date options when Tour Package Name changes
   const previousTourPackageName = React.useRef<string | undefined>(undefined);
+  const isInitialMount = React.useRef(true);
 
   useEffect(() => {
     const currentValue = formData.tourPackageName;
     const previousValue = previousTourPackageName.current;
+
+    // On initial mount, just set the ref without triggering reload
+    if (isInitialMount.current) {
+      previousTourPackageName.current = currentValue;
+      isInitialMount.current = false;
+      return;
+    }
 
     // Reload if the value changed and currentValue is not undefined/empty
     if (currentValue !== previousValue && currentValue) {
@@ -1983,12 +2003,12 @@ export default function EditBookingModal({
           // Special handling for tourDate - display as dd/mm/yyyy
           let displayValue: string;
           if (column.id === "tourDate" && value) {
-            // Import the formatTimestampToDDMMYYYY helper
+            // Import the formatTimestampToMonthDayYear helper
             const {
-              formatTimestampToDDMMYYYY,
+              formatTimestampToMonthDayYear,
             } = require("@/lib/booking-calculations");
             displayValue =
-              formatTimestampToDDMMYYYY(value) || String(value || "");
+              formatTimestampToMonthDayYear(value) || String(value || "");
           } else {
             displayValue = String(value || "");
           }
@@ -2011,6 +2031,176 @@ export default function EditBookingModal({
             selectOptions.unshift("");
           }
 
+          // Special wrapper for tourDate with date picker
+          if (column.id === "tourDate") {
+            // Convert Timestamp to local date string for native date input (avoid timezone shift)
+            let dateInputValue = "";
+            if (value && typeof value === "object" && "toDate" in value) {
+              const date = value.toDate();
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, "0");
+              const day = String(date.getDate()).padStart(2, "0");
+              dateInputValue = `${year}-${month}-${day}`;
+            }
+
+            return (
+              <div className="flex items-center gap-2">
+                <select
+                  id={fieldId}
+                  value={currentValue}
+                  onChange={async (e) => {
+                    const newValue = e.target.value;
+
+                    // Special handling for tourDate - convert Month Day Year back to Timestamp
+                    let valueToSave = newValue;
+                    if (newValue) {
+                      const {
+                        parseMonthDayYear,
+                      } = require("@/lib/booking-calculations");
+                      const { Timestamp } = await import("firebase/firestore");
+
+                      // Convert "Month Day Year" string to Date
+                      const dateObj = parseMonthDayYear(newValue);
+                      if (dateObj) {
+                        // Validate that this date exists in the tour package's travelDates
+                        const tourPackageName = formData.tourPackageName;
+                        if (tourPackageName) {
+                          const { collection, getDocs, query, where } =
+                            await import("firebase/firestore");
+                          const { db } = await import("@/lib/firebase");
+
+                          const tourPackagesRef = collection(
+                            db,
+                            "tourPackages",
+                          );
+                          const q = query(
+                            tourPackagesRef,
+                            where("name", "==", tourPackageName),
+                          );
+                          const snapshot = await getDocs(q);
+
+                          if (!snapshot.empty) {
+                            const tourData = snapshot.docs[0].data();
+                            const travelDates = tourData.travelDates || [];
+                            const {
+                              formatTimestampToMonthDayYear,
+                            } = require("@/lib/booking-calculations");
+
+                            // Check if selected date exists in travelDates
+                            const dateExists = travelDates.some((td: any) => {
+                              return (
+                                formatTimestampToMonthDayYear(td.startDate) ===
+                                newValue
+                              );
+                            });
+
+                            if (!dateExists) {
+                              console.warn(
+                                `Selected date ${newValue} does not exist in tour package travelDates`,
+                              );
+                            }
+                          }
+                        }
+
+                        // Convert to Firebase Timestamp
+                        valueToSave = Timestamp.fromDate(dateObj) as any;
+                      } else {
+                        console.error("Failed to parse date:", newValue);
+                        valueToSave = newValue;
+                      }
+                    }
+
+                    // For select, commit immediately to Firebase (discrete choice)
+                    if (booking?.id) {
+                      batchedWriter.queueFieldUpdate(
+                        booking.id,
+                        column.id,
+                        valueToSave,
+                      );
+                    }
+                    setFormData((prev) => ({
+                      ...prev,
+                      [column.id]: valueToSave,
+                    }));
+                    setIsSaving(true);
+                    debouncedSaveIndicator();
+
+                    // Execute dependent functions immediately
+                    executeDirectDependents(column.id, {
+                      ...formData,
+                      [column.id]: valueToSave,
+                    }).then((finalData) => {
+                      if (finalData) {
+                        setFormData(finalData);
+                      }
+                    });
+                  }}
+                  className={cn(
+                    "flex h-10 w-full bg-gray-200 items-center justify-between rounded-md border border-input px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer pr-10",
+                    error && "border-red-500",
+                    isReadOnly && "opacity-50",
+                  )}
+                  disabled={isReadOnly || isComputing}
+                >
+                  {selectOptions.map((option, index) => (
+                    <option
+                      key={option || `placeholder-${column.id}-${index}`}
+                      value={option}
+                    >
+                      {option || `Select ${column.columnName}`}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-sm text-muted-foreground font-medium">
+                  OR
+                </span>
+                <Input
+                  type="date"
+                  value={dateInputValue}
+                  onChange={async (e) => {
+                    const selectedDate = e.target.value;
+                    if (!selectedDate) return;
+
+                    const { Timestamp } = await import("firebase/firestore");
+                    const dateObj = new Date(selectedDate);
+                    const valueToSave = Timestamp.fromDate(dateObj) as any;
+
+                    // For date picker, commit immediately to Firebase
+                    if (booking?.id) {
+                      batchedWriter.queueFieldUpdate(
+                        booking.id,
+                        column.id,
+                        valueToSave,
+                      );
+                    }
+                    setFormData((prev) => ({
+                      ...prev,
+                      [column.id]: valueToSave,
+                    }));
+                    setIsSaving(true);
+                    debouncedSaveIndicator();
+
+                    // Execute dependent functions immediately
+                    executeDirectDependents(column.id, {
+                      ...formData,
+                      [column.id]: valueToSave,
+                    }).then((finalData) => {
+                      if (finalData) {
+                        setFormData(finalData);
+                      }
+                    });
+                  }}
+                  className={cn(
+                    "h-10 w-auto flex-shrink-0",
+                    error && "border-red-500",
+                  )}
+                  disabled={isReadOnly || isComputing}
+                />
+              </div>
+            );
+          }
+
+          // Regular select for other columns
           return (
             <select
               id={fieldId}
@@ -2662,6 +2852,26 @@ export default function EditBookingModal({
                                       >
                                         {column.columnName}
                                       </Label>
+                                      {column.id === "tourDate" && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                              side="right"
+                                              className="max-w-xs"
+                                            >
+                                              <p className="text-xs">
+                                                To be able to see the dates
+                                                explicitly in the dropdown, edit
+                                                the tour dates in the Tour
+                                                Packages page
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
                                     </div>
                                     <div className="w-[60%] px-2.5 sm:px-3 py-1.5 sm:py-2">
                                       <div className="space-y-1.5 sm:space-y-2">
