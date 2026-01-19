@@ -52,9 +52,14 @@ export const tourDateColumn: BookingSheetColumn = {
           const tourData = doc.data();
           const travelDates = tourData.travelDates || [];
 
-          // Convert each startDate Timestamp to Month Day Year format
+          // Convert each startDate Timestamp to Month Day Year format (only if isAvailable)
           travelDates.forEach((td: any) => {
             try {
+              // Only show dates that are available
+              if (td.isAvailable !== true) {
+                return;
+              }
+
               const formatted = formatTimestampToMonthDayYear(td.startDate);
               if (formatted && !allDates.includes(formatted)) {
                 allDates.push(formatted);
