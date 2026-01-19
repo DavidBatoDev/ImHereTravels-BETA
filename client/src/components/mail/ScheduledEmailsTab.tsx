@@ -536,7 +536,6 @@ export default function ScheduledEmailsTab() {
             remainingBalance: bookingData.remainingBalance,
             originalTourCost: bookingData.originalTourCost,
             discountedTourCost: bookingData.discountedTourCost,
-            useDiscountedTourCost: bookingData.useDiscountedTourCost,
             // Use the paymentMethod field from booking data
             paymentMethod: bookingData.paymentMethod || "Other",
             paymentPlan: bookingData.availablePaymentTerms || "",
@@ -695,7 +694,7 @@ export default function ScheduledEmailsTab() {
 
             // Update totals
             freshVariables.totalAmount = formatGBP(
-              bookingData.useDiscountedTourCost
+              bookingData.discountedTourCost && bookingData.discountedTourCost > 0
                 ? bookingData.discountedTourCost
                 : bookingData.originalTourCost
             );

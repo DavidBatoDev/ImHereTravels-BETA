@@ -428,7 +428,7 @@ export default function BookingDetailModal({
     const originalCost = Number(booking.originalTourCost) || 0;
     const discountedCost = Number(booking.discountedTourCost) || 0;
 
-    if (booking.useDiscountedTourCost && discountedCost > 0) {
+    if (discountedCost > 0) {
       return discountedCost;
     }
     return originalCost;

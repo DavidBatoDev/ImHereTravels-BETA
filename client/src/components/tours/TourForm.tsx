@@ -2503,7 +2503,7 @@ export default function TourForm({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <FormField
                         control={form.control}
                         name="pricing.original"
@@ -2526,36 +2526,6 @@ export default function TourForm({
                                 className="border-2 border-border focus:border-vivid-orange"
                               />
                             </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="pricing.discounted"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-foreground font-medium">
-                              Discounted Price
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                {...field}
-                                onChange={(e) =>
-                                  field.onChange(
-                                    parseFloat(e.target.value) || 0
-                                  )
-                                }
-                                className="border-2 border-border focus:border-vivid-orange"
-                              />
-                            </FormControl>
-                            <FormDescription className="text-muted-foreground">
-                              Optional
-                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}

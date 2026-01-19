@@ -15,7 +15,7 @@ export const discountDisplayColumn: BookingSheetColumn = {
       {
         name: "discountRate",
         type: "number",
-        columnReference: "Discount Rate",
+        columnReference: "Discount",
         isOptional: true,
         hasDefault: false,
         isRest: false,

@@ -29,7 +29,7 @@ export interface Booking {
   tourDuration: string;
 
   // Pricing
-  useDiscountedTourCost: boolean;
+  useDiscountedTourCost?: boolean;
   originalTourCost: number;
   discountedTourCost?: number;
 

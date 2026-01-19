@@ -194,9 +194,10 @@ export default function getP3AmountFunction(
   if (!p3DueDate) return "";
 
   // total, credit_from, credit_amt
-  const total =
-    (useDiscountedTourCost ? discountedTourCost ?? 0 : originalTourCost ?? 0) -
-    (reservationFee ?? 0);
+  const discCost = discountedTourCost ?? 0;
+  const origCost = originalTourCost ?? 0;
+  const baseCost = (discCost > 0) ? discCost : origCost;
+  const total = baseCost - (reservationFee ?? 0);
   const credit_from = creditFrom ?? "";
   const credit_amt = creditAmount ?? 0;
 

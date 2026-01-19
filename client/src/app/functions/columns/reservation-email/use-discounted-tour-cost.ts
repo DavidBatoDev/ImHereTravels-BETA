@@ -8,7 +8,7 @@ export const useDiscountedTourCostColumn: BookingSheetColumn = {
     dataType: 'boolean',
     parentTab: 'Reservation Email',
     order: 26,
-    includeInForms: true,
+    includeInForms: false,
     color: 'orange',
     width: 242.6666259765625,
   },

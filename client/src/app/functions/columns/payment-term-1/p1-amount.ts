@@ -202,9 +202,10 @@ export default function getP1AmountFunction(
 ) {
   if (!p1DueDate) return "";
 
-  const total =
-    (useDiscountedTourCost ? discountedTourCost ?? 0 : originalTourCost ?? 0) -
-    (reservationFee ?? 0);
+  // Automatically use discounted cost if available (from active discount events)
+  const discCost = discountedTourCost ?? 0;
+  const origCost = originalTourCost ?? 0;
+  const total = (discCost > 0 ? discCost : origCost) - (reservationFee ?? 0);
   const credit_from = creditFrom ?? "";
   const credit_amt = creditAmount ?? 0;
 

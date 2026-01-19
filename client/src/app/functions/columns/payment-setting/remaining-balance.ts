@@ -237,7 +237,8 @@ export default function getRemainingBalanceFunction(
   const credit = creditAmount ?? 0;
 
   // Determine which total cost to use (discounted or original)
-  const baseCost = useDiscountedCost ? origCost - discCost : origCost;
+  // Automatically use discounted cost if available (from active discount events)
+  const baseCost = (discCost > 0) ? discCost : origCost;
 
   // Subtract reservation fee and any credit from reservation
   const total = baseCost - resFee - (creditFrom === "Reservation" ? credit : 0);

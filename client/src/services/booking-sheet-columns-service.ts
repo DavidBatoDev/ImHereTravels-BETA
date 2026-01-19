@@ -115,7 +115,6 @@ const DEFAULT_COLUMN_IDS = [
   "tourDate",
   "returnDate",
   "tourDuration",
-  "useDiscountedTourCost",
   "originalTourCost",
   "discountedTourCost",
   "eventName",

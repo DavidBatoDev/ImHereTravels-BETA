@@ -33,7 +33,6 @@ export const ALL_COLUMN_IDS = [
   "daysBetweenBookingAndTour",
 
   // Payment Setting
-  "useDiscountedTourCost",
   "originalTourCost",
   "discountedTourCost",
   "paymentCondition",

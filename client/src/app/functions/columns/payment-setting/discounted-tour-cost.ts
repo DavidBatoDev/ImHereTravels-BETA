@@ -44,7 +44,7 @@ export const discountedTourCostColumn: BookingSheetColumn = {
       {
         name: "discountRate",
         type: "number",
-        columnReference: "Discount Rate",
+        columnReference: "Discount",
         isOptional: true,
         hasDefault: false,
         isRest: false,
@@ -139,17 +139,20 @@ export default async function getTourDiscountedCost(
   ) {
     let discountedCost: number;
     
-    if (discountType === "percent") {
+    // Normalize discountType to lowercase for case-insensitive comparison
+    const normalizedDiscountType = discountType?.toLowerCase().trim();
+    
+    if (normalizedDiscountType === "percent" || normalizedDiscountType === "percentage") {
       // For percentage discounts: apply percentage reduction
       // discountRate is like 20 for 20%
       const discountDecimal = discountRate / 100;
       discountedCost = Math.round(baseCost * (1 - discountDecimal) * 100) / 100;
-    } else if (discountType === "amount") {
+    } else if (normalizedDiscountType === "amount" || normalizedDiscountType?.includes("amount")) {
       // For flat amount discounts: subtract the flat amount
       // discountRate is the amount like 300 for £300 off
       discountedCost = Math.round((baseCost - discountRate) * 100) / 100;
     } else {
-      // Default: treat as percentage if not specified
+      // Default: treat as percentage if not specified or unrecognized
       const discountDecimal = discountRate / 100;
       discountedCost = Math.round(baseCost * (1 - discountDecimal) * 100) / 100;
     }
@@ -157,6 +160,6 @@ export default async function getTourDiscountedCost(
     return discountedCost;
   }
 
-  // No discount, return base cost
-  return baseCost;
+  // No discount, return empty string (system should use Original Tour Cost instead)
+  return "";
 }
