@@ -500,253 +500,248 @@ export default function ScheduledEmailsTab() {
     console.log("Template ID:", email.templateId);
     console.log("Has template variables:", !!email.templateVariables);
 
-    // Re-render template with fresh data for payment reminders ONLY if not sent yet
+    // Re-render template for payment reminders with current template design
+    // Always fetch fresh booking data to show current state (including date paid)
     if (
-      email.status !== "sent" &&
       email.emailType === "payment-reminder" &&
       email.bookingId &&
       email.templateId &&
       email.templateVariables
     ) {
-      console.log("Starting template re-render process for pending email...");
+      console.log(
+        `Starting template re-render for ${email.status} email with fresh booking data...`,
+      );
       try {
-        // Fetch fresh booking data directly from Firestore
+        // Always fetch fresh booking data from Firestore
+        console.log("Fetching fresh booking data from Firestore...");
         const bookingRef = doc(db, "bookings", email.bookingId);
         const bookingDoc = await getDoc(bookingRef);
 
         console.log("Booking doc exists:", bookingDoc.exists());
 
-        if (bookingDoc.exists()) {
-          const bookingData = bookingDoc.data()!;
-          console.log("Fetched booking data:", bookingData);
-
-          // Store the actual bookingId from the booking document
-          actualBookingId = bookingData.bookingId;
-
-          // Update template variables with fresh data
-          const freshVariables: Record<string, any> = {
-            ...email.templateVariables,
-            // Update key fields with fresh data
-            fullName: bookingData.fullName,
-            emailAddress: bookingData.emailAddress,
-            tourPackageName: bookingData.tourPackageName,
-            bookingId: bookingData.bookingId,
-            tourDate: bookingData.tourDate,
-            paid: bookingData.paid,
-            remainingBalance: bookingData.remainingBalance,
-            originalTourCost: bookingData.originalTourCost,
-            discountedTourCost: bookingData.discountedTourCost,
-            useDiscountedTourCost: bookingData.useDiscountedTourCost,
-            // Use the paymentMethod field from booking data
-            paymentMethod: bookingData.paymentMethod || "Other",
-            paymentPlan: bookingData.availablePaymentTerms || "",
-          };
-
-          // Helper function to parse due date for a specific term
-          const parseDueDateForTerm = (
-            dueDateRaw: any,
-            termIndex: number,
-          ): string => {
-            if (!dueDateRaw) return "";
-
-            if (typeof dueDateRaw === "string" && dueDateRaw.includes(",")) {
-              const parts = dueDateRaw.split(",").map((p) => p.trim());
-              // Dates are in format: "Month Day", "Year", "Month Day", "Year"
-              // For term index n, we need parts[n*2] + ", " + parts[n*2+1]
-              if (parts.length > termIndex * 2 + 1) {
-                return `${parts[termIndex * 2]}, ${parts[termIndex * 2 + 1]}`;
-              }
-            }
-
-            return dueDateRaw;
-          };
-
-          // Helper function to format currency
-          const formatGBP = (value: any): string => {
-            if (!value) return "£0.00";
-            return `£${Number(value).toFixed(2)}`;
-          };
-
-          // Helper function to format date
-          const formatDate = (dateValue: any): string => {
-            if (!dateValue) return "";
-
-            try {
-              let date: Date | null = null;
-
-              // Handle Firestore Timestamp objects
-              if (dateValue && typeof dateValue === "object") {
-                if (dateValue.seconds) {
-                  date = new Date(dateValue.seconds * 1000);
-                } else if (
-                  dateValue.type === "firestore/timestamp/1.0" &&
-                  dateValue.seconds
-                ) {
-                  date = new Date(dateValue.seconds * 1000);
-                }
-              }
-              // Handle string dates
-              else if (
-                typeof dateValue === "string" &&
-                dateValue.trim() !== ""
-              ) {
-                date = new Date(dateValue);
-              }
-              // Handle Date objects
-              else if (dateValue instanceof Date) {
-                date = dateValue;
-              }
-
-              // Validate and format
-              if (date && !isNaN(date.getTime())) {
-                return date.toISOString().split("T")[0];
-              }
-
-              return "";
-            } catch (error) {
-              console.warn(
-                "Error formatting date:",
-                error,
-                "Value:",
-                dateValue,
-              );
-              return "";
-            }
-          };
-
-          // Update payment term data if applicable
-          if (email.templateVariables.paymentTerm) {
-            const term = email.templateVariables.paymentTerm as string;
-            const termLower = term.toLowerCase();
-            const termIndex = parseInt(term.replace("P", "")) - 1;
-
-            // Parse due date for this specific term
-            const dueDateRaw = (bookingData as any)[`${termLower}DueDate`];
-            const parsedDueDate = parseDueDateForTerm(dueDateRaw, termIndex);
-
-            freshVariables[`${termLower}Amount`] = (bookingData as any)[
-              `${termLower}Amount`
-            ];
-            freshVariables[`${termLower}DueDate`] = parsedDueDate;
-            freshVariables[`${termLower}DatePaid`] = (bookingData as any)[
-              `${termLower}DatePaid`
-            ];
-
-            // Update the main dueDate and amount with parsed values
-            freshVariables.dueDate = formatDate(parsedDueDate);
-            freshVariables.amount = formatGBP(
-              (bookingData as any)[`${termLower}Amount`],
-            );
-          }
-
-          // Update term data array if showTable is true
-          if (
-            email.templateVariables.showTable &&
-            email.templateVariables.termData
-          ) {
-            const allTerms = ["P1", "P2", "P3", "P4"];
-
-            // Determine which terms to show based on payment plan
-            // If availablePaymentTerms is "P3", we should show P1, P2, P3
-            const paymentPlanValue =
-              bookingData.availablePaymentTerms ||
-              bookingData.paymentPlan ||
-              "";
-            let maxTermIndex = 0;
-
-            // Extract the highest payment term number
-            if (paymentPlanValue.includes("P4")) {
-              maxTermIndex = 4;
-            } else if (paymentPlanValue.includes("P3")) {
-              maxTermIndex = 3;
-            } else if (paymentPlanValue.includes("P2")) {
-              maxTermIndex = 2;
-            } else if (paymentPlanValue.includes("P1")) {
-              maxTermIndex = 1;
-            }
-
-            // Get all terms up to the max payment plan
-            const availableTerms = allTerms.slice(0, maxTermIndex);
-
-            // Only show terms up to current payment term
-            const currentTerm = email.templateVariables.paymentTerm as string;
-            const currentTermIndex = allTerms.indexOf(currentTerm);
-            const visibleTerms = availableTerms.slice(0, currentTermIndex + 1);
-
-            console.log("Payment plan value:", paymentPlanValue);
-            console.log("Max term index:", maxTermIndex);
-            console.log("Available terms:", availableTerms);
-            console.log("Current term:", currentTerm);
-            console.log("Visible terms:", visibleTerms);
-
-            freshVariables.termData = visibleTerms.map((t) => {
-              const tIndex = parseInt(t.replace("P", "")) - 1;
-              const tLower = t.toLowerCase();
-              const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
-              const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
-
-              return {
-                term: t,
-                amount: formatGBP((bookingData as any)[`${tLower}Amount`]),
-                dueDate: formatDate(parsedDueDate),
-                datePaid: formatDate((bookingData as any)[`${tLower}DatePaid`]),
-              };
-            });
-
-            // Update totals
-            freshVariables.totalAmount = formatGBP(
-              bookingData.useDiscountedTourCost
-                ? bookingData.discountedTourCost
-                : bookingData.originalTourCost,
-            );
-            freshVariables.paid = formatGBP(bookingData.paid);
-            freshVariables.remainingBalance = formatGBP(
-              bookingData.remainingBalance,
-            );
-          }
-
-          console.log("Fresh variables prepared:", freshVariables);
-          console.log("Term data:", freshVariables.termData);
-          console.log("Payment Method:", freshVariables.paymentMethod);
-          console.log("Due Date:", freshVariables.dueDate);
-          console.log("Amount:", freshVariables.amount);
-
-          // Fetch the template from the database to ensure we're using the latest version
-          console.log("Fetching template from database:", email.templateId);
-          const templateRef = doc(db, "emailTemplates", email.templateId);
-          const templateDoc = await getDoc(templateRef);
-
-          if (!templateDoc.exists()) {
-            throw new Error(
-              `Template ${email.templateId} not found in database`,
-            );
-          }
-
-          const templateData = templateDoc.data();
-          const rawTemplateHtml = templateData.content || "";
-
-          if (!rawTemplateHtml) {
-            throw new Error(`Template ${email.templateId} has no content`);
-          }
-
-          console.log("Successfully fetched template from database");
-
-          // Re-render the template with fresh data using EmailTemplateService
-          htmlContent = EmailTemplateService.processTemplate(
-            rawTemplateHtml,
-            freshVariables,
-          );
-
-          console.log("Rendered HTML length:", htmlContent.length);
-          console.log("Rendered HTML preview:", htmlContent.substring(0, 500));
-
-          // Update subject with fresh data
-          subject = `Payment Reminder - ${freshVariables.fullName} - ${
-            email.templateVariables.paymentTerm || "Payment"
-          } Due`;
-
-          console.log("Successfully re-rendered template with fresh data");
+        if (!bookingDoc.exists()) {
+          throw new Error(`Booking ${email.bookingId} not found in database`);
         }
+
+        const bookingData = bookingDoc.data()!;
+        console.log("Fetched booking data:", bookingData);
+
+        // Store the actual bookingId from the booking document
+        actualBookingId = bookingData.bookingId;
+
+        // Update template variables with fresh data
+        const freshVariables: Record<string, any> = {
+          ...email.templateVariables,
+          // Update key fields with fresh data
+          fullName: bookingData.fullName,
+          emailAddress: bookingData.emailAddress,
+          tourPackageName: bookingData.tourPackageName,
+          bookingId: bookingData.bookingId,
+          tourDate: bookingData.tourDate,
+          paid: bookingData.paid,
+          remainingBalance: bookingData.remainingBalance,
+          originalTourCost: bookingData.originalTourCost,
+          discountedTourCost: bookingData.discountedTourCost,
+          useDiscountedTourCost: bookingData.useDiscountedTourCost,
+          // Use the paymentMethod field from booking data
+          paymentMethod: bookingData.paymentMethod || "Other",
+          paymentPlan: bookingData.availablePaymentTerms || "",
+        };
+
+        // Helper function to parse due date for a specific term
+        const parseDueDateForTerm = (
+          dueDateRaw: any,
+          termIndex: number,
+        ): string => {
+          if (!dueDateRaw) return "";
+
+          if (typeof dueDateRaw === "string" && dueDateRaw.includes(",")) {
+            const parts = dueDateRaw.split(",").map((p) => p.trim());
+            // Dates are in format: "Month Day", "Year", "Month Day", "Year"
+            // For term index n, we need parts[n*2] + ", " + parts[n*2+1]
+            if (parts.length > termIndex * 2 + 1) {
+              return `${parts[termIndex * 2]}, ${parts[termIndex * 2 + 1]}`;
+            }
+          }
+
+          return dueDateRaw;
+        };
+
+        // Helper function to format currency
+        const formatGBP = (value: any): string => {
+          if (!value) return "£0.00";
+          return `£${Number(value).toFixed(2)}`;
+        };
+
+        // Helper function to format date
+        const formatDate = (dateValue: any): string => {
+          if (!dateValue) return "";
+
+          try {
+            let date: Date | null = null;
+
+            // Handle Firestore Timestamp objects
+            if (dateValue && typeof dateValue === "object") {
+              if (dateValue.seconds) {
+                date = new Date(dateValue.seconds * 1000);
+              } else if (
+                dateValue.type === "firestore/timestamp/1.0" &&
+                dateValue.seconds
+              ) {
+                date = new Date(dateValue.seconds * 1000);
+              }
+            }
+            // Handle string dates
+            else if (typeof dateValue === "string" && dateValue.trim() !== "") {
+              date = new Date(dateValue);
+            }
+            // Handle Date objects
+            else if (dateValue instanceof Date) {
+              date = dateValue;
+            }
+
+            // Validate and format
+            if (date && !isNaN(date.getTime())) {
+              return date.toISOString().split("T")[0];
+            }
+
+            return "";
+          } catch (error) {
+            console.warn("Error formatting date:", error, "Value:", dateValue);
+            return "";
+          }
+        };
+
+        // Update payment term data if applicable
+        if (email.templateVariables.paymentTerm) {
+          const term = email.templateVariables.paymentTerm as string;
+          const termLower = term.toLowerCase();
+          const termIndex = parseInt(term.replace("P", "")) - 1;
+
+          // Parse due date for this specific term
+          const dueDateRaw = (bookingData as any)[`${termLower}DueDate`];
+          const parsedDueDate = parseDueDateForTerm(dueDateRaw, termIndex);
+
+          freshVariables[`${termLower}Amount`] = (bookingData as any)[
+            `${termLower}Amount`
+          ];
+          freshVariables[`${termLower}DueDate`] = parsedDueDate;
+          freshVariables[`${termLower}DatePaid`] = (bookingData as any)[
+            `${termLower}DatePaid`
+          ];
+
+          // Update the main dueDate and amount with parsed values
+          freshVariables.dueDate = formatDate(parsedDueDate);
+          freshVariables.amount = formatGBP(
+            (bookingData as any)[`${termLower}Amount`],
+          );
+        }
+
+        // Update term data array if showTable is true
+        if (
+          email.templateVariables.showTable &&
+          email.templateVariables.termData
+        ) {
+          const allTerms = ["P1", "P2", "P3", "P4"];
+
+          // Determine which terms to show based on payment plan
+          // If availablePaymentTerms is "P3", we should show P1, P2, P3
+          const paymentPlanValue =
+            bookingData.availablePaymentTerms || bookingData.paymentPlan || "";
+          let maxTermIndex = 0;
+
+          // Extract the highest payment term number
+          if (paymentPlanValue.includes("P4")) {
+            maxTermIndex = 4;
+          } else if (paymentPlanValue.includes("P3")) {
+            maxTermIndex = 3;
+          } else if (paymentPlanValue.includes("P2")) {
+            maxTermIndex = 2;
+          } else if (paymentPlanValue.includes("P1")) {
+            maxTermIndex = 1;
+          }
+
+          // Get all terms up to the max payment plan
+          const availableTerms = allTerms.slice(0, maxTermIndex);
+
+          // Only show terms up to current payment term
+          const currentTerm = email.templateVariables.paymentTerm as string;
+          const currentTermIndex = allTerms.indexOf(currentTerm);
+          const visibleTerms = availableTerms.slice(0, currentTermIndex + 1);
+
+          console.log("Payment plan value:", paymentPlanValue);
+          console.log("Max term index:", maxTermIndex);
+          console.log("Available terms:", availableTerms);
+          console.log("Current term:", currentTerm);
+          console.log("Visible terms:", visibleTerms);
+
+          freshVariables.termData = visibleTerms.map((t) => {
+            const tIndex = parseInt(t.replace("P", "")) - 1;
+            const tLower = t.toLowerCase();
+            const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
+            const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
+
+            return {
+              term: t,
+              amount: formatGBP((bookingData as any)[`${tLower}Amount`]),
+              dueDate: formatDate(parsedDueDate),
+              datePaid: formatDate((bookingData as any)[`${tLower}DatePaid`]),
+            };
+          });
+
+          // Update totals
+          freshVariables.totalAmount = formatGBP(
+            bookingData.useDiscountedTourCost
+              ? bookingData.discountedTourCost
+              : bookingData.originalTourCost,
+          );
+          freshVariables.paid = formatGBP(bookingData.paid);
+          freshVariables.remainingBalance = formatGBP(
+            bookingData.remainingBalance,
+          );
+        }
+
+        console.log("Fresh variables prepared:", freshVariables);
+        console.log("Term data:", freshVariables.termData);
+        console.log("Payment Method:", freshVariables.paymentMethod);
+        console.log("Due Date:", freshVariables.dueDate);
+        console.log("Amount:", freshVariables.amount);
+
+        // Fetch the template from the database to ensure we're using the latest version
+        console.log("Fetching template from database:", email.templateId);
+        const templateRef = doc(db, "emailTemplates", email.templateId);
+        const templateDoc = await getDoc(templateRef);
+
+        if (!templateDoc.exists()) {
+          throw new Error(`Template ${email.templateId} not found in database`);
+        }
+
+        const templateData = templateDoc.data();
+        const rawTemplateHtml = templateData.content || "";
+
+        if (!rawTemplateHtml) {
+          throw new Error(`Template ${email.templateId} has no content`);
+        }
+
+        console.log("Successfully fetched template from database");
+
+        // Re-render the template using EmailTemplateService
+        htmlContent = EmailTemplateService.processTemplate(
+          rawTemplateHtml,
+          freshVariables,
+        );
+
+        console.log("Rendered HTML length:", htmlContent.length);
+        console.log("Rendered HTML preview:", htmlContent.substring(0, 500));
+
+        // Update subject with fresh data
+        subject = `Payment Reminder - ${freshVariables.fullName} - ${
+          email.templateVariables.paymentTerm || "Payment"
+        } Due`;
+
+        console.log(
+          `Successfully re-rendered template with fresh booking data`,
+        );
       } catch (error) {
         console.error("Error re-rendering template:", error);
         // Fall back to original content if re-rendering fails
