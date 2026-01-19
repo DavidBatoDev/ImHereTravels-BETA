@@ -232,7 +232,7 @@ export default function BookingsDataGrid({
   // Debug function to manually check selected cell
   const debugSelectedCell = useCallback(() => {
     const selectedCellElement = document.querySelector(
-      '.rdg [role="gridcell"][aria-selected="true"]'
+      '.rdg [role="gridcell"][aria-selected="true"]',
     ) as HTMLElement;
     console.log("🔍 [DEBUG] Current selected cell:", {
       element: selectedCellElement,
@@ -243,7 +243,7 @@ export default function BookingsDataGrid({
         selectedCellElement?.querySelector("input")?.value ||
         selectedCellElement?.textContent?.trim(),
       allAriaSelectedCells: document.querySelectorAll(
-        '.rdg [role="gridcell"][aria-selected="true"]'
+        '.rdg [role="gridcell"][aria-selected="true"]',
       ),
       allGridCells: document.querySelectorAll('.rdg [role="gridcell"]').length,
     });
@@ -251,7 +251,7 @@ export default function BookingsDataGrid({
 
   // Local state for input values to avoid laggy typing
   const [localInputValues, setLocalInputValues] = useState<Map<string, string>>(
-    new Map()
+    new Map(),
   );
 
   // Dynamic options for select columns (loaded via column.loadOptions)
@@ -286,14 +286,14 @@ export default function BookingsDataGrid({
         ? localValue
         : fallbackValue?.toString() || "";
     },
-    [localInputValues]
+    [localInputValues],
   );
 
   // Monitor selected cell by watching aria-selected="true"
   const monitorSelectedCell = useCallback(() => {
     // Look for the cell with aria-selected="true"
     const selectedCellElement = document.querySelector(
-      '.rdg [role="gridcell"][aria-selected="true"]'
+      '.rdg [role="gridcell"][aria-selected="true"]',
     ) as HTMLElement;
 
     if (!selectedCellElement) {
@@ -306,7 +306,7 @@ export default function BookingsDataGrid({
 
     // Get the row element
     const rowElement = selectedCellElement.closest(
-      '[role="row"]'
+      '[role="row"]',
     ) as HTMLElement;
     if (!rowElement) return;
 
@@ -322,12 +322,12 @@ export default function BookingsDataGrid({
       const rowDataAttributes = Array.from(rowElement.attributes).filter(
         (attr) =>
           attr.name.startsWith("data-") &&
-          (attr.name.includes("row") || attr.name.includes("id"))
+          (attr.name.includes("row") || attr.name.includes("id")),
       );
 
       // Try to find row ID from data attributes
       let rowId = rowDataAttributes.find(
-        (attr) => attr.name.includes("row") || attr.name.includes("id")
+        (attr) => attr.name.includes("row") || attr.name.includes("id"),
       )?.value;
 
       // If no data attributes, try to find by row index
@@ -381,7 +381,7 @@ export default function BookingsDataGrid({
           } catch (error) {
             console.error(
               `Failed to load options for ${col.columnName}:`,
-              error
+              error,
             );
             map[col.id] = col.options || [];
           }
@@ -422,7 +422,7 @@ export default function BookingsDataGrid({
           const hasGridCells = [...addedNodes, ...removedNodes].some(
             (node) =>
               node.nodeType === Node.ELEMENT_NODE &&
-              (node as Element).matches?.('[role="gridcell"]')
+              (node as Element).matches?.('[role="gridcell"]'),
           );
 
           if (hasGridCells) {
@@ -465,7 +465,7 @@ export default function BookingsDataGrid({
   useEffect(() => {
     return () => {
       firebaseUpdateTimeouts.current.forEach((timeout) =>
-        clearTimeout(timeout)
+        clearTimeout(timeout),
       );
       firebaseUpdateTimeouts.current.clear();
     };
@@ -499,7 +499,7 @@ export default function BookingsDataGrid({
     string | null
   >(null);
   const [frozenColumnIds, setFrozenColumnIds] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [allowFunctionOverride, setAllowFunctionOverride] = useState(false);
   const [isRecomputingAll, setIsRecomputingAll] = useState(false);
@@ -556,7 +556,7 @@ export default function BookingsDataGrid({
         return false;
       }
     },
-    []
+    [],
   );
 
   // Track execution times and determine if function is consistently slow
@@ -663,7 +663,7 @@ export default function BookingsDataGrid({
         console.error("Failed to save column metadata:", error);
       }
     },
-    [user?.uid]
+    [user?.uid],
   );
 
   // Debounced resize handler
@@ -691,7 +691,7 @@ export default function BookingsDataGrid({
         saveColumnMetadata({ widths: updatedWidths });
       }, 300); // 300ms delay
     },
-    [customColumnWidths, saveColumnMetadata]
+    [customColumnWidths, saveColumnMetadata],
   );
 
   // Function to toggle column visibility
@@ -715,7 +715,7 @@ export default function BookingsDataGrid({
       setCustomColumnVisibility(updatedVisibility);
       saveColumnMetadata({ visibility: updatedVisibility });
     },
-    [customColumnVisibility, saveColumnMetadata, columns]
+    [customColumnVisibility, saveColumnMetadata, columns],
   );
 
   // Function to update column order
@@ -724,7 +724,7 @@ export default function BookingsDataGrid({
       setCustomColumnOrder(newOrder);
       saveColumnMetadata({ order: newOrder });
     },
-    [saveColumnMetadata]
+    [saveColumnMetadata],
   );
 
   // Refresh user profile on mount to get latest preferences
@@ -809,7 +809,7 @@ export default function BookingsDataGrid({
     async (
       row: SheetData,
       funcCol: SheetColumn,
-      skipInitialCheck = false
+      skipInitialCheck = false,
     ): Promise<any> => {
       // Do not execute functions during CSV import
       if (isImporting()) {
@@ -843,7 +843,7 @@ export default function BookingsDataGrid({
         // Skip recomputation if arguments haven't changed AND this is not a forced recomputation
         if (!argsChanged && !skipInitialCheck) {
           console.log(
-            `⏭️ [SKIP] ${funcCol.function} for row ${row.id} - args unchanged`
+            `⏭️ [SKIP] ${funcCol.function} for row ${row.id} - args unchanged`,
           );
           return row[funcCol.id]; // Return existing value without recomputing
         }
@@ -851,7 +851,7 @@ export default function BookingsDataGrid({
         // Log when we're recomputing due to dependency change
         if (!argsChanged && skipInitialCheck) {
           console.log(
-            `🔄 [FORCED RECOMPUTE] ${funcCol.function} for row ${row.id} - dependency changed`
+            `🔄 [FORCED RECOMPUTE] ${funcCol.function} for row ${row.id} - dependency changed`,
           );
         }
 
@@ -862,7 +862,7 @@ export default function BookingsDataGrid({
 
         // Wrap function execution with retry logic
         const retryConfig = createColumnComputationRetryConfig(
-          funcCol.columnName
+          funcCol.columnName,
         );
 
         const retryResult = await retryComputation(async () => {
@@ -870,7 +870,7 @@ export default function BookingsDataGrid({
             // Direct function execution (fastest path)
             console.log(
               `⚡ [DIRECT EXEC] Calling ${funcCol.function} with args:`,
-              args
+              args,
             );
 
             // Check if this is an email generation or sending function
@@ -944,7 +944,7 @@ export default function BookingsDataGrid({
                 args,
                 timeout,
                 row.id, // Pass rowId for dependency-aware caching
-                funcCol.id // Pass columnId for dependency-aware caching
+                funcCol.id, // Pass columnId for dependency-aware caching
               );
 
             if (!executionResult.success) {
@@ -969,7 +969,7 @@ export default function BookingsDataGrid({
           }
           logFunctionError(
             `Function execution failed for ${funcCol.function} after ${retryResult.attempts} attempts:`,
-            retryResult.error
+            retryResult.error,
           );
           return row[funcCol.id]; // Return existing value on error
         }
@@ -981,7 +981,7 @@ export default function BookingsDataGrid({
           console.log(
             `✅ [RETRY SUCCESS] ${funcCol.function} succeeded after ${
               retryResult.attempts
-            } attempts (${retryResult.totalTime.toFixed(2)}ms)`
+            } attempts (${retryResult.totalTime.toFixed(2)}ms)`,
           );
         }
 
@@ -1002,12 +1002,12 @@ export default function BookingsDataGrid({
         }
         logFunctionError(
           `Function execution error for ${funcCol.function}:`,
-          err
+          err,
         );
         return undefined;
       }
     },
-    [columns, allowFunctionOverride]
+    [columns, allowFunctionOverride],
   );
 
   // Build dependency graph: source columnId -> list of function columns depending on it
@@ -1021,7 +1021,7 @@ export default function BookingsDataGrid({
             if (arg.columnReference !== "ID") {
               // Find the column ID for the referenced column name
               const refCol = columns.find(
-                (c) => c.columnName === arg.columnReference
+                (c) => c.columnName === arg.columnReference,
               );
               if (refCol) {
                 const list = map.get(refCol.id) || [];
@@ -1079,7 +1079,7 @@ export default function BookingsDataGrid({
           id: d.id,
           name: d.columnName,
           function: d.function,
-        }))
+        })),
       );
     }
 
@@ -1108,7 +1108,7 @@ export default function BookingsDataGrid({
       // Flush immediately for manual retries
       batchedWriter.flush();
     },
-    [columns, localData, data, computeFunctionForRow]
+    [columns, localData, data, computeFunctionForRow],
   );
 
   // Open debug console for a specific cell
@@ -1134,7 +1134,7 @@ export default function BookingsDataGrid({
       });
       // The grid will automatically update via Firebase listeners
     },
-    [toast]
+    [toast],
   );
 
   // Toggle column freeze
@@ -1153,7 +1153,7 @@ export default function BookingsDataGrid({
         return newSet;
       });
     },
-    []
+    [],
   );
 
   // Update global column definitions
@@ -1176,7 +1176,7 @@ export default function BookingsDataGrid({
       rowId: string,
       changedColumnId: string,
       updatedValue: any,
-      rowSnapshot?: SheetData
+      rowSnapshot?: SheetData,
     ) => {
       // Block during CSV import to preserve imported values
       if (isImporting()) return;
@@ -1237,10 +1237,10 @@ export default function BookingsDataGrid({
           const result = await computeFunctionForRow(
             workingSnapshot,
             funcCol,
-            true
+            true,
           ); // Skip initial check for user-triggered changes
           return { funcCol, result };
-        })
+        }),
       );
 
       // Update the working snapshot with computed results for recursive computation
@@ -1271,14 +1271,14 @@ export default function BookingsDataGrid({
                 rowId,
                 funcCol.id,
                 result,
-                updatedSnapshot
+                updatedSnapshot,
               );
             }
           }
         }
       }
     },
-    [columns, localData, data, dependencyGraph, computeFunctionForRow]
+    [columns, localData, data, dependencyGraph, computeFunctionForRow],
   );
 
   // Helper function to save changes to Firebase (called on blur)
@@ -1287,7 +1287,7 @@ export default function BookingsDataGrid({
       rowId: string,
       columnId: string,
       value: string,
-      dataType?: string
+      dataType?: string,
     ) => {
       const key = `${rowId}:${columnId}`;
 
@@ -1333,7 +1333,7 @@ export default function BookingsDataGrid({
         return newMap;
       });
     },
-    [localInputValues, columns, recomputeDirectDependentsForRow]
+    [localInputValues, columns, recomputeDirectDependentsForRow],
   );
 
   // Helper function to update input value - ONLY local state updates during typing!
@@ -1353,7 +1353,7 @@ export default function BookingsDataGrid({
 
       // NO function recomputation during typing - only on save/blur for performance
     },
-    []
+    [],
   );
 
   // Handle keyboard input to replace selected cell value
@@ -1423,20 +1423,20 @@ export default function BookingsDataGrid({
           if (cellElement) {
             // Get row element and extract rowId using same logic as monitorSelectedCell
             const rowElement = cellElement.closest(
-              '[role="row"]'
+              '[role="row"]',
             ) as HTMLElement;
             if (rowElement) {
               // Try to get row ID from row attributes or data
               const rowDataAttributes = Array.from(
-                rowElement.attributes
+                rowElement.attributes,
               ).filter(
                 (attr) =>
                   attr.name.startsWith("data-") &&
-                  (attr.name.includes("row") || attr.name.includes("id"))
+                  (attr.name.includes("row") || attr.name.includes("id")),
               );
 
               let rowId = rowDataAttributes.find(
-                (attr) => attr.name.includes("row") || attr.name.includes("id")
+                (attr) => attr.name.includes("row") || attr.name.includes("id"),
               )?.value;
 
               // If no data attributes, try to find by row index
@@ -1454,7 +1454,7 @@ export default function BookingsDataGrid({
                 ? parseInt(ariaColIndex) - 1
                 : -1;
               const visibleColumns = columns.filter(
-                (col) => col.showColumn !== false
+                (col) => col.showColumn !== false,
               );
 
               if (
@@ -1468,7 +1468,7 @@ export default function BookingsDataGrid({
                   columnId,
                   data.find((row) => row.id === rowId)?.[
                     columnId as keyof SheetData
-                  ]
+                  ],
                 );
 
                 // Get the original value from the row data
@@ -1500,7 +1500,7 @@ export default function BookingsDataGrid({
                     rowId,
                     columnId,
                     currentValue,
-                    isCurrency ? "currency" : undefined
+                    isCurrency ? "currency" : undefined,
                   );
                 }
               }
@@ -1562,13 +1562,13 @@ export default function BookingsDataGrid({
               case "ArrowLeft":
                 inputElement.setSelectionRange(
                   Math.max(0, currentPosition - 1),
-                  Math.max(0, currentPosition - 1)
+                  Math.max(0, currentPosition - 1),
                 );
                 break;
               case "ArrowRight":
                 inputElement.setSelectionRange(
                   Math.min(textLength, currentPosition + 1),
-                  Math.min(textLength, currentPosition + 1)
+                  Math.min(textLength, currentPosition + 1),
                 );
                 break;
               case "ArrowUp":
@@ -1613,7 +1613,7 @@ export default function BookingsDataGrid({
           return prevData.map((row) =>
             row.id === selectedCellInfo.rowId
               ? { ...row, [selectedCellInfo.columnId]: "" }
-              : row
+              : row,
           );
         });
 
@@ -1663,7 +1663,7 @@ export default function BookingsDataGrid({
       data,
       getInputValue,
       setLocalData,
-    ]
+    ],
   );
 
   // Set up keyboard event listener for cell value replacement
@@ -1709,7 +1709,7 @@ export default function BookingsDataGrid({
     async (funcId: string) => {
       if (isImporting()) return;
       const impactedColumns = columns.filter(
-        (c) => c.dataType === "function" && c.function === funcId
+        (c) => c.dataType === "function" && c.function === funcId,
       );
       if (impactedColumns.length === 0) return;
 
@@ -1731,7 +1731,7 @@ export default function BookingsDataGrid({
       // Expedite persistence
       batchedWriter.flush();
     },
-    [columns, localData, data]
+    [columns, localData, data],
   );
 
   // Recompute selected column with retry logic
@@ -1762,7 +1762,7 @@ export default function BookingsDataGrid({
 
       const rows = getCurrentRows();
       console.log(
-        `🔄 [COLUMN RECOMPUTE] Starting recomputation for column "${selectedCol.columnName}" (${rows.length} rows)`
+        `🔄 [COLUMN RECOMPUTE] Starting recomputation for column "${selectedCol.columnName}" (${rows.length} rows)`,
       );
 
       // Clear cache for this column
@@ -1795,7 +1795,7 @@ export default function BookingsDataGrid({
             errorCount++;
             logFunctionError(
               `❌ [COLUMN RECOMPUTE] Error for row ${row.id}:`,
-              error
+              error,
             );
           }
         });
@@ -1830,7 +1830,7 @@ export default function BookingsDataGrid({
       console.log(
         `✅ [COLUMN RECOMPUTE] Completed for "${selectedCol.columnName}"${
           errorCount > 0 ? ` with ${errorCount} errors` : ""
-        }`
+        }`,
       );
 
       setTimeout(() => setIsRecomputingAll(false), 400);
@@ -1856,7 +1856,7 @@ export default function BookingsDataGrid({
         // Safety check to prevent infinite recursion
         if (retryAttempt > MAX_RECOMPUTE_ATTEMPTS) {
           console.error(
-            `🚫 [FUNCTION RECOMPUTE] Maximum attempts (${MAX_RECOMPUTE_ATTEMPTS}) exceeded, aborting recursion`
+            `🚫 [FUNCTION RECOMPUTE] Maximum attempts (${MAX_RECOMPUTE_ATTEMPTS}) exceeded, aborting recursion`,
           );
           setRecomputeProgress({
             completed: 1,
@@ -1873,7 +1873,7 @@ export default function BookingsDataGrid({
 
         if (!isRetry) {
           console.log(
-            "🔄 [FUNCTION RECOMPUTE] Starting recomputation of all function columns"
+            "🔄 [FUNCTION RECOMPUTE] Starting recomputation of all function columns",
           );
           setIsRecomputingAll(true);
           // Reset error count for fresh start
@@ -1889,7 +1889,7 @@ export default function BookingsDataGrid({
           });
         } else {
           console.log(
-            `🔄 [FUNCTION RECOMPUTE] Retrying recomputation (attempt ${retryAttempt}/${MAX_RECOMPUTE_ATTEMPTS})`
+            `🔄 [FUNCTION RECOMPUTE] Retrying recomputation (attempt ${retryAttempt}/${MAX_RECOMPUTE_ATTEMPTS})`,
           );
           setRecomputeProgress({
             completed: 0,
@@ -1903,7 +1903,7 @@ export default function BookingsDataGrid({
         }
 
         const functionColumns = columns.filter(
-          (c) => c.dataType === "function" && !!c.function
+          (c) => c.dataType === "function" && !!c.function,
         );
 
         if (functionColumns.length === 0) {
@@ -1925,7 +1925,7 @@ export default function BookingsDataGrid({
         const rows = getCurrentRows();
 
         console.log(
-          `🔄 [FUNCTION RECOMPUTE] Processing ${functionColumns.length} function columns for ${rows.length} rows`
+          `🔄 [FUNCTION RECOMPUTE] Processing ${functionColumns.length} function columns for ${rows.length} rows`,
         );
 
         // Build function-to-function dependency order using existing dependencyGraph
@@ -1979,7 +1979,7 @@ export default function BookingsDataGrid({
           .filter(Boolean);
         const visitedIds = new Set(topoOrderIds);
         const cyclicCols: SheetColumn[] = functionColumns.filter(
-          (fc) => !visitedIds.has(fc.id)
+          (fc) => !visitedIds.has(fc.id),
         );
 
         // Initialize progress totals (best effort upper bound)
@@ -2018,7 +2018,7 @@ export default function BookingsDataGrid({
         const totalBatches = Math.ceil(rows.length / BATCH_SIZE);
 
         console.log(
-          `🚀 [FUNCTION RECOMPUTE] Processing ${rows.length} rows in ${totalBatches} parallel batches of ${BATCH_SIZE}`
+          `🚀 [FUNCTION RECOMPUTE] Processing ${rows.length} rows in ${totalBatches} parallel batches of ${BATCH_SIZE}`,
         );
 
         for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
@@ -2029,7 +2029,7 @@ export default function BookingsDataGrid({
           console.log(
             `📦 [BATCH ${batchIndex + 1}/${totalBatches}] Processing rows ${
               batchStart + 1
-            }-${batchEnd}`
+            }-${batchEnd}`,
           );
 
           // Process all rows in this batch in parallel
@@ -2042,7 +2042,7 @@ export default function BookingsDataGrid({
               try {
                 // Check if function is likely to be slow/async
                 const isLikelyAsync = await isFunctionLikelyAsync(
-                  funcCol.function || ""
+                  funcCol.function || "",
                 );
                 const isSlow = isSlowFunction(funcCol.function || "");
 
@@ -2051,7 +2051,7 @@ export default function BookingsDataGrid({
                 const result = await computeFunctionForRow(
                   rowSnapshot,
                   funcCol,
-                  true
+                  true,
                 );
                 const executionTime = performance.now() - executionStart;
 
@@ -2067,7 +2067,7 @@ export default function BookingsDataGrid({
                   console.log(
                     `⏰ [SLOW FUNCTION] ${
                       funcCol.columnName
-                    } (${functionId}) took ${executionTime.toFixed(2)}ms`
+                    } (${functionId}) took ${executionTime.toFixed(2)}ms`,
                   );
                 }
 
@@ -2083,7 +2083,7 @@ export default function BookingsDataGrid({
                 rowErrors++;
                 logFunctionError(
                   `❌ [FUNCTION RECOMPUTE] Error computing ${funcCol.id} for row ${originalRow.id}:`,
-                  error
+                  error,
                 );
               }
             }
@@ -2096,7 +2096,7 @@ export default function BookingsDataGrid({
                   try {
                     // Check if function is likely to be slow/async
                     const isLikelyAsync = await isFunctionLikelyAsync(
-                      funcCol.function || ""
+                      funcCol.function || "",
                     );
                     const isSlow = isSlowFunction(funcCol.function || "");
 
@@ -2105,7 +2105,7 @@ export default function BookingsDataGrid({
                     const result = await computeFunctionForRow(
                       rowSnapshot,
                       funcCol,
-                      true
+                      true,
                     );
                     const executionTime = performance.now() - executionStart;
 
@@ -2123,8 +2123,8 @@ export default function BookingsDataGrid({
                         `⏰ [SLOW FUNCTION] ${
                           funcCol.columnName
                         } (${functionId}) took ${executionTime.toFixed(
-                          2
-                        )}ms (cyclic pass ${pass})`
+                          2,
+                        )}ms (cyclic pass ${pass})`,
                       );
                     }
 
@@ -2141,7 +2141,7 @@ export default function BookingsDataGrid({
                     rowErrors++;
                     logFunctionError(
                       `❌ [FUNCTION RECOMPUTE] Error computing ${funcCol.id} for row ${originalRow.id}:`,
-                      error
+                      error,
                     );
                   }
                 }
@@ -2158,7 +2158,7 @@ export default function BookingsDataGrid({
           // Update error count for this batch
           const batchErrors = batchResults.reduce(
             (sum, result) => sum + result.errors,
-            0
+            0,
           );
           attemptErrorCountRef.current =
             (attemptErrorCountRef.current || 0) + batchErrors;
@@ -2184,7 +2184,7 @@ export default function BookingsDataGrid({
           console.log(
             `✅ [BATCH ${
               batchIndex + 1
-            }/${totalBatches}] Completed with ${batchErrors} errors`
+            }/${totalBatches}] Completed with ${batchErrors} errors`,
           );
         }
 
@@ -2200,18 +2200,18 @@ export default function BookingsDataGrid({
           const baseDelay = 2000;
           const progressiveDelay = Math.min(
             baseDelay * Math.pow(2, retryAttempt - 1),
-            30000
+            30000,
           );
 
           console.log(
             `⏱️ [FUNCTION RECOMPUTE] Attempt ${retryAttempt} had ${finalErrorCount} errors, retrying in ${
               progressiveDelay / 1000
-            } seconds...`
+            } seconds...`,
           );
           console.log(
             `🔄 [RECURSION] Will recursively call recomputeAllFunctionColumns(true, ${
               retryAttempt + 1
-            })`
+            })`,
           );
           setRecomputeProgress((prev) => ({
             ...prev,
@@ -2226,7 +2226,7 @@ export default function BookingsDataGrid({
             console.log(
               `🔄 [FUNCTION RECOMPUTE] Initiating recursive retry attempt ${
                 retryAttempt + 1
-              }/${MAX_RECOMPUTE_ATTEMPTS}`
+              }/${MAX_RECOMPUTE_ATTEMPTS}`,
             );
             // Wrap recursive call in try-catch to prevent unhandled errors
             try {
@@ -2236,7 +2236,7 @@ export default function BookingsDataGrid({
                 `❌ [FUNCTION RECOMPUTE] Error in recursive call attempt ${
                   retryAttempt + 1
                 }:`,
-                error
+                error,
               );
               // If recursive call fails, mark as done with error
               setRecomputeProgress((prev) => ({
@@ -2256,11 +2256,11 @@ export default function BookingsDataGrid({
         // Completed (either successfully or max attempts reached)
         if (finalErrorCount > 0) {
           console.log(
-            `⚠️ [FUNCTION RECOMPUTE] Completed with ${finalErrorCount} remaining errors after ${retryAttempt} attempts`
+            `⚠️ [FUNCTION RECOMPUTE] Completed with ${finalErrorCount} remaining errors after ${retryAttempt} attempts`,
           );
         } else {
           console.log(
-            "✅ [FUNCTION RECOMPUTE] Completed recomputation of all function columns with no errors"
+            "✅ [FUNCTION RECOMPUTE] Completed recomputation of all function columns with no errors",
           );
         }
 
@@ -2275,7 +2275,7 @@ export default function BookingsDataGrid({
       } catch (error) {
         console.error(
           `❌ [FUNCTION RECOMPUTE] Critical error in recompute process (attempt ${retryAttempt}):`,
-          error
+          error,
         );
         // Mark as failed and stop recomputing
         setRecomputeProgress({
@@ -2290,7 +2290,7 @@ export default function BookingsDataGrid({
         setIsRecomputingAll(false);
       }
     },
-    [columns, computeFunctionForRow, getCurrentRows]
+    [columns, computeFunctionForRow, getCurrentRows],
   );
 
   // Subscribe to changes for only the functions referenced by current columns
@@ -2311,7 +2311,7 @@ export default function BookingsDataGrid({
         (col) =>
           col.dataType === "string" ||
           col.dataType === "email" ||
-          col.dataType === "select"
+          col.dataType === "select",
       )
       .map((col) => ({
         name: col.id,
@@ -2377,7 +2377,7 @@ export default function BookingsDataGrid({
             date = (cellValue as any).toDate();
           } else if (typeof cellValue === "number") {
             date = new Date(
-              cellValue > 1000000000000 ? cellValue : cellValue * 1000
+              cellValue > 1000000000000 ? cellValue : cellValue * 1000,
             );
           } else if (typeof cellValue === "string") {
             date = new Date(cellValue);
@@ -2504,7 +2504,7 @@ export default function BookingsDataGrid({
 
   // Use state for dynamic height to avoid hydration mismatch
   const [dynamicHeight, setDynamicHeight] = useState(
-    isFullscreen ? 800 : 450 // Default values for SSR
+    isFullscreen ? 800 : 450, // Default values for SSR
   );
 
   // Update height after component mounts to avoid hydration mismatch
@@ -2524,7 +2524,7 @@ export default function BookingsDataGrid({
   const renderEmptyRowCell = (
     column: any,
     isFirstEmptyRow: boolean,
-    shouldShowAddButton: boolean
+    shouldShowAddButton: boolean,
   ) => {
     const isFirstColumn = column.key === columns[0]?.id;
 
@@ -2687,7 +2687,7 @@ export default function BookingsDataGrid({
         </select>
       );
     },
-    [columns, dynamicOptions, recomputeDirectDependentsForRow]
+    [columns, dynamicOptions, recomputeDirectDependentsForRow],
   );
 
   function FunctionEditor({
@@ -2736,7 +2736,7 @@ export default function BookingsDataGrid({
             }
             // Find the column and get value from row
             const refCol = globalAllColumns.find(
-              (c) => c.columnName === arg.columnReference
+              (c) => c.columnName === arg.columnReference,
             );
             if (refCol) {
               const value = row[refCol.id];
@@ -3023,25 +3023,32 @@ export default function BookingsDataGrid({
       return isVisible;
     });
 
-    // Apply custom order if exists
+    // Apply custom order if exists, else use default order
     if (customColumnOrder.length > 0) {
-      filteredColumns = filteredColumns.sort((a, b) => {
-        const indexA = customColumnOrder.indexOf(a.id);
-        const indexB = customColumnOrder.indexOf(b.id);
+      // Sanity check: ensure custom order matches current visible columns
+      const visibleIds = new Set(filteredColumns.map((c) => c.id));
+      const sanitizedOrder = customColumnOrder.filter((id) =>
+        visibleIds.has(id),
+      );
 
-        // If both columns are in the custom order, sort by that
-        if (indexA !== -1 && indexB !== -1) {
-          return indexA - indexB;
-        }
-        // If only one is in the custom order, prioritize it
-        if (indexA !== -1) return -1;
-        if (indexB !== -1) return 1;
-        // Otherwise, use default order
-        return a.order - b.order;
-      });
+      const isCustomOrderValid =
+        sanitizedOrder.length === filteredColumns.length;
+
+      if (isCustomOrderValid) {
+        filteredColumns = filteredColumns.sort(
+          (a, b) => sanitizedOrder.indexOf(a.id) - sanitizedOrder.indexOf(b.id),
+        );
+      } else {
+        // Fallback to default order when preferences are stale/out-of-sync
+        filteredColumns = filteredColumns.sort(
+          (a, b) => (a.order ?? 999) - (b.order ?? 999),
+        );
+      }
     } else {
       // Use default order
-      filteredColumns = filteredColumns.sort((a, b) => a.order - b.order);
+      filteredColumns = filteredColumns.sort(
+        (a, b) => (a.order ?? 999) - (b.order ?? 999),
+      );
     }
 
     const dataColumns = filteredColumns.map((col) => {
@@ -3130,7 +3137,7 @@ export default function BookingsDataGrid({
         // Find the current column index in the sorted columns
         const sortedColumns = columns
           .filter((c) => c && c.id && c.columnName)
-          .sort((a, b) => a.order - b.order);
+          .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         const currentIndex = sortedColumns.findIndex((c) => c.id === col.id);
 
         // Check if this is the first column in a group of same parent tabs
@@ -3273,21 +3280,21 @@ export default function BookingsDataGrid({
 
                     try {
                       await ScheduledEmailService.deletePaymentReminders(
-                        row.id
+                        row.id,
                       );
 
                       // Now update the field
                       batchedWriter.queueFieldUpdate(
                         row.id,
                         column.key,
-                        newValue
+                        newValue,
                       );
 
                       // Trigger recomputation for dependent function columns
                       await recomputeDirectDependentsForRow(
                         row.id,
                         column.key,
-                        newValue
+                        newValue,
                       );
 
                       toast({
@@ -3376,7 +3383,7 @@ export default function BookingsDataGrid({
                   await recomputeDirectDependentsForRow(
                     row.id,
                     column.key,
-                    newValue
+                    newValue,
                   );
                 }}
                 className="w-5 h-5 text-royal-purple bg-white border-2 border-royal-purple/30 rounded focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-royal-purple/50 checked:bg-royal-purple checked:border-royal-purple"
@@ -3396,7 +3403,7 @@ export default function BookingsDataGrid({
             return renderEmptyRowCell(
               column,
               isFirstEmptyRow,
-              shouldShowAddButton
+              shouldShowAddButton,
             );
           }
 
@@ -3464,7 +3471,7 @@ export default function BookingsDataGrid({
                 await recomputeDirectDependentsForRow(
                   row.id,
                   column.key,
-                  newValue
+                  newValue,
                 );
               }}
               className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
@@ -3489,7 +3496,7 @@ export default function BookingsDataGrid({
             return renderEmptyRowCell(
               column,
               isFirstEmptyRow,
-              shouldShowAddButton
+              shouldShowAddButton,
             );
           }
 
@@ -3524,7 +3531,7 @@ export default function BookingsDataGrid({
                 await recomputeDirectDependentsForRow(
                   row.id,
                   column.key,
-                  newValue
+                  newValue,
                 );
               }}
               className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${
@@ -3557,7 +3564,7 @@ export default function BookingsDataGrid({
             return renderEmptyRowCell(
               column,
               isFirstEmptyRow,
-              shouldShowAddButton
+              shouldShowAddButton,
             );
           }
 
@@ -3566,7 +3573,7 @@ export default function BookingsDataGrid({
 
           // Check if this cell has unsaved changes
           const hasUnsavedChanges = localInputValues.has(
-            `${row.id}:${column.key}`
+            `${row.id}:${column.key}`,
           );
 
           const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3594,7 +3601,7 @@ export default function BookingsDataGrid({
             const currentValue = getInputValue(
               row.id,
               column.key,
-              row[column.key as keyof SheetData]
+              row[column.key as keyof SheetData],
             );
 
             // Get the original value from the row data
@@ -3640,7 +3647,7 @@ export default function BookingsDataGrid({
               return renderEmptyRowCell(
                 column,
                 isFirstEmptyRow,
-                shouldShowAddButton
+                shouldShowAddButton,
               );
             }
 
@@ -3657,7 +3664,7 @@ export default function BookingsDataGrid({
               const currentValue = getInputValue(
                 row.id,
                 column.key,
-                row[column.key as keyof SheetData]
+                row[column.key as keyof SheetData],
               );
               const originalValue = row[column.key];
 
@@ -3691,7 +3698,7 @@ export default function BookingsDataGrid({
               return renderEmptyRowCell(
                 column,
                 isFirstEmptyRow,
-                shouldShowAddButton
+                shouldShowAddButton,
               );
             }
 
@@ -3723,7 +3730,7 @@ export default function BookingsDataGrid({
             return renderEmptyRowCell(
               column,
               isFirstEmptyRow,
-              shouldShowAddButton
+              shouldShowAddButton,
             );
           }
 
@@ -3746,7 +3753,7 @@ export default function BookingsDataGrid({
             const currentValue = getInputValue(
               row.id,
               column.key,
-              row[column.key as keyof SheetData]
+              row[column.key as keyof SheetData],
             );
 
             // Get the original value from the row data
@@ -3784,7 +3791,7 @@ export default function BookingsDataGrid({
             return renderEmptyRowCell(
               column,
               isFirstEmptyRow,
-              shouldShowAddButton
+              shouldShowAddButton,
             );
           }
 
@@ -3807,7 +3814,7 @@ export default function BookingsDataGrid({
             const currentValue = getInputValue(
               row.id,
               column.key,
-              row[column.key as keyof SheetData]
+              row[column.key as keyof SheetData],
             );
 
             // Get the original value from the row data
@@ -3866,7 +3873,7 @@ export default function BookingsDataGrid({
 
     // Validate all columns have renderCell
     const invalidColumns = validatedColumns.filter(
-      (col) => typeof col.renderCell !== "function"
+      (col) => typeof col.renderCell !== "function",
     );
     if (invalidColumns.length > 0) {
       console.error("Columns without renderCell:", invalidColumns);
@@ -4007,10 +4014,10 @@ export default function BookingsDataGrid({
       // await recomputeAllFunctionColumns();
 
       console.log(
-        "✅ [CSV IMPORT] CSV import complete (function columns preserved from CSV, no auto-recomputation)"
+        "✅ [CSV IMPORT] CSV import complete (function columns preserved from CSV, no auto-recomputation)",
       );
     },
-    [clearFunctionCache, toast, getCurrentRows]
+    [clearFunctionCache, toast, getCurrentRows],
   );
 
   return (
@@ -4451,7 +4458,7 @@ export default function BookingsDataGrid({
                 {selectedColumnId &&
                   columns.find(
                     (c) =>
-                      c.id === selectedColumnId && c.dataType === "function"
+                      c.id === selectedColumnId && c.dataType === "function",
                   ) && (
                     <TooltipProvider>
                       <Tooltip>
@@ -4552,7 +4559,7 @@ export default function BookingsDataGrid({
             onRowsChange={(rows, { indexes, column }) => {
               // Filter out empty rows and only process data rows
               const dataRows = rows.filter(
-                (row: any) => row._isDataRow !== false
+                (row: any) => row._isDataRow !== false,
               );
               const newData = dataRows as SheetData[];
               // Note: Don't update local data - Firebase listener is the source of truth
@@ -4565,7 +4572,7 @@ export default function BookingsDataGrid({
               // Helper function to convert value based on column type
               const convertValueByType = (
                 value: any,
-                columnDef: SheetColumn | undefined
+                columnDef: SheetColumn | undefined,
               ) => {
                 if (!columnDef) return value;
 
@@ -4585,7 +4592,7 @@ export default function BookingsDataGrid({
               indexes.forEach(async (index) => {
                 const changedRow = rows[index] as SheetData;
                 const originalRow = data.find(
-                  (row) => row.id === changedRow.id
+                  (row) => row.id === changedRow.id,
                 );
 
                 if (originalRow && column) {
@@ -4601,7 +4608,7 @@ export default function BookingsDataGrid({
                     batchedWriter.queueFieldUpdate(
                       changedRow.id,
                       fieldKey,
-                      newValue
+                      newValue,
                     );
                     // Note: Recomputation will be triggered by Firebase listener
                   }
@@ -4618,14 +4625,14 @@ export default function BookingsDataGrid({
                   // Multiple field changes - compare all fields
                   const changedFields = Object.keys(changedRow).filter(
                     (key) =>
-                      key !== "id" && originalRow[key] !== changedRow[key]
+                      key !== "id" && originalRow[key] !== changedRow[key],
                   );
 
                   // Process each changed field
                   for (const fieldKey of changedFields) {
                     let newValue = changedRow[fieldKey as keyof SheetData];
                     const fieldColumnDef = columns.find(
-                      (col) => col.id === fieldKey
+                      (col) => col.id === fieldKey,
                     );
 
                     // Convert value based on column type
@@ -4634,7 +4641,7 @@ export default function BookingsDataGrid({
                     batchedWriter.queueFieldUpdate(
                       changedRow.id,
                       fieldKey,
-                      newValue
+                      newValue,
                     );
                     // Note: Recomputation will be triggered by Firebase listener
                   }
@@ -4648,7 +4655,7 @@ export default function BookingsDataGrid({
             }}
             onCellClick={(args) => {
               const columnDef = columns.find(
-                (col) => col.id === args.column.key
+                (col) => col.id === args.column.key,
               );
 
               // Skip date columns - they handle their own clicking
@@ -4683,7 +4690,7 @@ export default function BookingsDataGrid({
 
               // Find the column and update its width
               const columnToUpdate = columns.find(
-                (col) => col.id === actualColumnKey
+                (col) => col.id === actualColumnKey,
               );
 
               if (columnToUpdate) {
@@ -4693,7 +4700,7 @@ export default function BookingsDataGrid({
               } else {
                 console.warn(
                   "⚠️ Column not found for resize:",
-                  actualColumnKey
+                  actualColumnKey,
                 );
               }
             }}
@@ -4701,7 +4708,7 @@ export default function BookingsDataGrid({
               // Check if any column width changed
               for (const newCol of newColumns) {
                 const existingCol = columns.find(
-                  (col) => col.id === newCol.key
+                  (col) => col.id === newCol.key,
                 );
                 if (existingCol && existingCol.width !== newCol.width) {
                   try {
@@ -4714,7 +4721,7 @@ export default function BookingsDataGrid({
                   } catch (error) {
                     console.error(
                       "❌ Failed to update column width in Firebase:",
-                      error
+                      error,
                     );
                   }
                 }
@@ -4747,11 +4754,11 @@ export default function BookingsDataGrid({
                 const displayValue = getInputValue(
                   row.id,
                   column.key,
-                  cellValue
+                  cellValue,
                 );
 
                 const handleChange = (
-                  e: React.ChangeEvent<HTMLInputElement>
+                  e: React.ChangeEvent<HTMLInputElement>,
                 ) => {
                   const newValue = e.target.value;
                   // Update with debounced Firebase update
@@ -4776,12 +4783,12 @@ export default function BookingsDataGrid({
                   const currentValue = getInputValue(
                     row.id,
                     column.key,
-                    row[column.key as keyof SheetData]
+                    row[column.key as keyof SheetData],
                   );
                   batchedWriter.queueFieldUpdate(
                     row.id,
                     column.key,
-                    currentValue
+                    currentValue,
                   );
 
                   // Clear local state
@@ -4984,8 +4991,8 @@ export default function BookingsDataGrid({
                     {emailGenerationProgress.action === "generating"
                       ? "Generating Email Draft"
                       : emailGenerationProgress.action === "deleting"
-                      ? "Deleting Email Draft"
-                      : "Sending Email"}
+                        ? "Deleting Email Draft"
+                        : "Sending Email"}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {emailGenerationProgress.action === "generating"
@@ -4993,12 +5000,12 @@ export default function BookingsDataGrid({
                         ? "Creating reservation email draft..."
                         : "Creating cancellation email draft..."
                       : emailGenerationProgress.action === "deleting"
-                      ? emailGenerationProgress.type === "reservation"
-                        ? "Deleting reservation email draft if it exists..."
-                        : "Deleting cancellation email draft if it exists..."
-                      : emailGenerationProgress.type === "reservation"
-                      ? "Sending reservation email..."
-                      : "Sending cancellation email..."}
+                        ? emailGenerationProgress.type === "reservation"
+                          ? "Deleting reservation email draft if it exists..."
+                          : "Deleting cancellation email draft if it exists..."
+                        : emailGenerationProgress.type === "reservation"
+                          ? "Sending reservation email..."
+                          : "Sending cancellation email..."}
                   </p>
                 </div>
               </div>
@@ -5094,7 +5101,7 @@ export default function BookingsDataGrid({
                 recomputeProgress.total > 0
                   ? Math.round(
                       (recomputeProgress.completed / recomputeProgress.total) *
-                        100
+                        100,
                     )
                   : 0
               }
