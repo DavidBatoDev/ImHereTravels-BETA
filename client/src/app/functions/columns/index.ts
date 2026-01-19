@@ -113,7 +113,7 @@ export const allBookingSheetColumns: BookingSheetColumn[] = [
   ...bookingSheetColumns.cancellation,
   ...bookingSheetColumns.groupBooking,
   ...bookingSheetColumns.discounts,
-].sort((a, b) => a.data.order - b.data.order);
+].sort((a, b) => (a.data.order ?? 999) - (b.data.order ?? 999));
 
 /**
  * Map of column ID to column definition for quick lookup

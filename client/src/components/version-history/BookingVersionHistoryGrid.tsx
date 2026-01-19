@@ -524,7 +524,7 @@ export default function BookingVersionHistoryGrid({
         // Find the column index for the changed field
         const sortedColumns = columns
           .filter((col) => col && col.id && col.columnName)
-          .sort((a, b) => a.order - b.order);
+          .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
 
         const changedColumnIndex = sortedColumns.findIndex(
           (col) => col.id === firstChangedFieldPath
@@ -730,7 +730,7 @@ export default function BookingVersionHistoryGrid({
         // Note: We intentionally show ALL columns in version history, including hidden ones
         // This allows users to see changes in hidden columns
       )
-      .sort((a, b) => a.order - b.order)
+      .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
       .map((col) => {
         const baseColumn: Column<VersionHighlightedData> = {
           key: col.id,
@@ -746,7 +746,7 @@ export default function BookingVersionHistoryGrid({
         const parentTab = col.parentTab || "General";
         const sortedColumns = columns
           .filter((c) => c && c.id && c.columnName)
-          .sort((a, b) => a.order - b.order);
+          .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         const currentIndex = sortedColumns.findIndex((c) => c.id === col.id);
         const isFirstInGroup =
           currentIndex === 0 ||
@@ -832,7 +832,7 @@ export default function BookingVersionHistoryGrid({
           const parentTab = col.parentTab || "General";
           const sortedColumns = columns
             .filter((c) => c && c.id && c.columnName)
-            .sort((a, b) => a.order - b.order);
+            .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
           const currentIndex = sortedColumns.findIndex((c) => c.id === col.id);
           const isFirstInGroup =
             currentIndex === 0 ||

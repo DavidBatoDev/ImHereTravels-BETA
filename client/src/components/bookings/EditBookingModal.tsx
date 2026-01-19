@@ -910,10 +910,10 @@ export default function EditBookingModal({
     // Sort parentTabs by the order they first appear in the columns
     const sortedParentTabs = Object.keys(groupedColumns).sort((a, b) => {
       const aFirstOrder = Math.min(
-        ...groupedColumns[a].map((col) => col.order)
+        ...groupedColumns[a].map((col) => col.order ?? 999)
       );
       const bFirstOrder = Math.min(
-        ...groupedColumns[b].map((col) => col.order)
+        ...groupedColumns[b].map((col) => col.order ?? 999)
       );
       return aFirstOrder - bFirstOrder;
     });
@@ -2204,13 +2204,19 @@ export default function EditBookingModal({
 
   // Sort columns within each group by order
   Object.keys(groupedColumns).forEach((tab) => {
-    groupedColumns[tab].sort((a, b) => a.order - b.order);
+    groupedColumns[tab].sort(
+      (a, b) => (a.order ?? 999) - (b.order ?? 999)
+    );
   });
 
   // Sort parentTabs by the order they first appear in the columns
   const sortedParentTabs = Object.keys(groupedColumns).sort((a, b) => {
-    const aFirstOrder = Math.min(...groupedColumns[a].map((col) => col.order));
-    const bFirstOrder = Math.min(...groupedColumns[b].map((col) => col.order));
+    const aFirstOrder = Math.min(
+      ...groupedColumns[a].map((col) => col.order ?? 999)
+    );
+    const bFirstOrder = Math.min(
+      ...groupedColumns[b].map((col) => col.order ?? 999)
+    );
     return aFirstOrder - bFirstOrder;
   });
 

@@ -284,10 +284,10 @@ export default function BookingDetailModal({
     // Sort parentTabs by the order they first appear in the columns
     const sortedParentTabs = Object.keys(groupedColumns).sort((a, b) => {
       const aFirstOrder = Math.min(
-        ...groupedColumns[a].map((col) => col.order)
+        ...groupedColumns[a].map((col) => col.order ?? 999)
       );
       const bFirstOrder = Math.min(
-        ...groupedColumns[b].map((col) => col.order)
+        ...groupedColumns[b].map((col) => col.order ?? 999)
       );
       return aFirstOrder - bFirstOrder;
     });
@@ -531,14 +531,20 @@ export default function BookingDetailModal({
 
   // Sort parentTabs by the order they first appear in the columns
   const sortedParentTabs = Object.keys(groupedColumns).sort((a, b) => {
-    const aFirstOrder = Math.min(...groupedColumns[a].map((col) => col.order));
-    const bFirstOrder = Math.min(...groupedColumns[b].map((col) => col.order));
+    const aFirstOrder = Math.min(
+      ...groupedColumns[a].map((col) => col.order ?? 999)
+    );
+    const bFirstOrder = Math.min(
+      ...groupedColumns[b].map((col) => col.order ?? 999)
+    );
     return aFirstOrder - bFirstOrder;
   });
 
   // Sort columns within each group by order
   sortedParentTabs.forEach((parentTab) => {
-    groupedColumns[parentTab].sort((a, b) => a.order - b.order);
+    groupedColumns[parentTab].sort(
+      (a, b) => (a.order ?? 999) - (b.order ?? 999)
+    );
   });
 
   // Scroll to a specific parent tab
