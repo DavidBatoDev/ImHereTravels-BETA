@@ -226,7 +226,7 @@ export default function BookingsSection() {
   });
 
   const [fieldSelectorOpen, setFieldSelectorOpen] = useState<string | null>(
-    null
+    null,
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isFilterSticky, setIsFilterSticky] = useState(false);
@@ -250,7 +250,7 @@ export default function BookingsSection() {
         (col) =>
           col.dataType === "string" ||
           col.dataType === "email" ||
-          col.dataType === "select"
+          col.dataType === "select",
       )
       .map((col) => ({
         name: col.id,
@@ -293,7 +293,7 @@ export default function BookingsSection() {
               };
             } else {
               console.warn(
-                `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`
+                `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`,
               );
             }
           }
@@ -312,17 +312,17 @@ export default function BookingsSection() {
             } catch (error) {
               console.warn(
                 `⚠️  Failed to load options for column ${columnData.columnName}:`,
-                error
+                error,
               );
             }
           }
 
           return columnData;
-        })
+        }),
       );
 
       console.log(
-        `✅ [BOOKINGS SECTION] Loaded ${codedColumns.length} coded columns from TypeScript files`
+        `✅ [BOOKINGS SECTION] Loaded ${codedColumns.length} coded columns from TypeScript files`,
       );
 
       setColumns(codedColumns);
@@ -334,7 +334,7 @@ export default function BookingsSection() {
   // Subscribe to real-time bookings data
   useEffect(() => {
     console.log(
-      "🔍 [BOOKINGS SECTION] Setting up real-time booking subscription..."
+      "🔍 [BOOKINGS SECTION] Setting up real-time booking subscription...",
     );
 
     const unsubscribe = onSnapshot(
@@ -356,7 +356,7 @@ export default function BookingsSection() {
         });
 
         console.log(
-          `✅ [BOOKINGS SECTION] Received ${sortedBookings.length} bookings from Firestore`
+          `✅ [BOOKINGS SECTION] Received ${sortedBookings.length} bookings from Firestore`,
         );
 
         // Debug: Log first booking's payment and date data
@@ -395,7 +395,7 @@ export default function BookingsSection() {
           setBookings(sortedBookings);
         } else {
           console.log(
-            "📝 [BOOKINGS SECTION] No real data found, showing empty state"
+            "📝 [BOOKINGS SECTION] No real data found, showing empty state",
           );
           setBookings([]);
         }
@@ -404,11 +404,11 @@ export default function BookingsSection() {
       (error) => {
         console.error("❌ Error listening to bookings:", error);
         console.log(
-          "📝 [BOOKINGS SECTION] Error occurred, showing empty state"
+          "📝 [BOOKINGS SECTION] Error occurred, showing empty state",
         );
         setBookings([]);
         setIsLoading(false);
-      }
+      },
     );
 
     // Cleanup subscription on unmount
@@ -463,7 +463,7 @@ export default function BookingsSection() {
       // Set data attributes for CSS
       document.body.setAttribute(
         "data-scroll",
-        isAtTop ? "top" : isAtBottom ? "bottom" : "middle"
+        isAtTop ? "top" : isAtBottom ? "bottom" : "middle",
       );
     };
 
@@ -518,7 +518,7 @@ export default function BookingsSection() {
 
   // Helper function to determine booking status category
   const getBookingStatusCategory = (
-    status: string | null | undefined
+    status: string | null | undefined,
   ): string => {
     if (typeof status !== "string" || status.trim() === "") return "Pending";
 
@@ -572,16 +572,16 @@ export default function BookingsSection() {
   const statistics = useMemo(() => {
     const totalBookings = bookings.length;
     const confirmedBookings = bookings.filter(
-      (b) => getBookingStatusCategory(b.bookingStatus) === "Confirmed"
+      (b) => getBookingStatusCategory(b.bookingStatus) === "Confirmed",
     ).length;
     const pendingBookings = bookings.filter(
-      (b) => getBookingStatusCategory(b.bookingStatus) === "Pending"
+      (b) => getBookingStatusCategory(b.bookingStatus) === "Pending",
     ).length;
     const cancelledBookings = bookings.filter(
-      (b) => getBookingStatusCategory(b.bookingStatus) === "Cancelled"
+      (b) => getBookingStatusCategory(b.bookingStatus) === "Cancelled",
     ).length;
     const completedBookings = bookings.filter(
-      (b) => getBookingStatusCategory(b.bookingStatus) === "Completed"
+      (b) => getBookingStatusCategory(b.bookingStatus) === "Completed",
     ).length;
 
     const totalRevenue = bookings.reduce((sum, booking) => {
@@ -781,8 +781,8 @@ export default function BookingsSection() {
     // Update the booking in the local bookings array
     setBookings((prevBookings) =>
       prevBookings.map((booking) =>
-        booking.id === updatedBooking.id ? updatedBooking : booking
-      )
+        booking.id === updatedBooking.id ? updatedBooking : booking,
+      ),
     );
 
     // Update the selected booking as well
@@ -797,7 +797,7 @@ export default function BookingsSection() {
 
     console.log(
       "✅ [BOOKINGS SECTION] New booking created, Firebase will handle updates:",
-      newBookingData
+      newBookingData,
     );
 
     // Scroll to the bottom after the booking is added
@@ -1025,7 +1025,7 @@ export default function BookingsSection() {
           if (opts.matchWholeWord) {
             const re = new RegExp(
               `(^|\b)${needle}(\b|$)`,
-              opts.matchCase ? "" : "i"
+              opts.matchCase ? "" : "i",
             );
             return re.test(text);
           }
@@ -1087,8 +1087,8 @@ export default function BookingsSection() {
           const values: string[] = Array.isArray(f.value)
             ? f.value
             : f.value
-            ? [String(f.value)]
-            : [];
+              ? [String(f.value)]
+              : [];
           if (values.length === 0) return true;
           const cell = rawValue == null ? "" : String(rawValue);
           return values.includes(cell);
@@ -1115,7 +1115,7 @@ export default function BookingsSection() {
           date = (cellValue as any).toDate();
         } else if (typeof cellValue === "number") {
           date = new Date(
-            cellValue > 1000000000000 ? cellValue : cellValue * 1000
+            cellValue > 1000000000000 ? cellValue : cellValue * 1000,
           );
         } else if (typeof cellValue === "string") {
           date = new Date(cellValue);
@@ -1334,7 +1334,7 @@ export default function BookingsSection() {
 
                   // Navigate with bookingId to open detail modal
                   const params = new URLSearchParams(
-                    searchParams?.toString?.() ?? ""
+                    searchParams?.toString?.() ?? "",
                   );
                   params.set("bookingId", newBookingId);
                   params.delete("action");
@@ -1402,7 +1402,7 @@ export default function BookingsSection() {
 
                 // Navigate with bookingId to open detail modal
                 const params = new URLSearchParams(
-                  searchParams?.toString?.() ?? ""
+                  searchParams?.toString?.() ?? "",
                 );
                 params.set("bookingId", newBookingId);
                 params.delete("action");
@@ -1492,7 +1492,7 @@ export default function BookingsSection() {
       {/* Search and Filters Section */}
       <Card
         data-filter-section
-        className={`sticky top-20 z-40 border border-border backdrop-blur-sm transition-all duration-300 ${
+        className={`border border-border backdrop-blur-sm transition-all duration-300 ${
           isFilterSticky ? "shadow-[0_-12px_60px_0px_rgba(0,0,0,0.6)]" : ""
         }`}
         style={{ backgroundColor: "hsl(var(--card-surface))" }}
@@ -1684,7 +1684,7 @@ export default function BookingsSection() {
                           )}
                           {tempFilters.map((f, idx) => {
                             const selectedColumn = columns.find(
-                              (c) => c.id === f.columnId
+                              (c) => c.id === f.columnId,
                             );
                             const effectiveType =
                               selectedColumn?.dataType === "function"
@@ -1713,15 +1713,17 @@ export default function BookingsSection() {
                                               effectiveType === "email"
                                                 ? "Text filter"
                                                 : effectiveType === "number" ||
-                                                  effectiveType === "currency"
-                                                ? "Numeric filter"
-                                                : effectiveType === "date"
-                                                ? "Date filter"
-                                                : effectiveType === "boolean"
-                                                ? "Boolean filter"
-                                                : effectiveType === "select"
-                                                ? "Selection filter"
-                                                : "Filter"}
+                                                    effectiveType === "currency"
+                                                  ? "Numeric filter"
+                                                  : effectiveType === "date"
+                                                    ? "Date filter"
+                                                    : effectiveType ===
+                                                        "boolean"
+                                                      ? "Boolean filter"
+                                                      : effectiveType ===
+                                                          "select"
+                                                        ? "Selection filter"
+                                                        : "Filter"}
                                             </p>
                                           </>
                                         ) : (
@@ -1742,7 +1744,7 @@ export default function BookingsSection() {
                                       className="h-8 w-8 flex-shrink-0 hover:bg-crimson-red/10 hover:text-crimson-red transition-colors"
                                       onClick={() =>
                                         setTempFilters((prev) =>
-                                          prev.filter((x) => x.id !== f.id)
+                                          prev.filter((x) => x.id !== f.id),
                                         )
                                       }
                                     >
@@ -1886,8 +1888,7 @@ export default function BookingsSection() {
                                                             const mo = copy[idx]
                                                               .matchOptions || {
                                                               matchCase: false,
-                                                              matchWholeWord:
-                                                                false,
+                                                              matchWholeWord: false,
                                                               useRegex: false,
                                                             };
                                                             copy[idx] = {
@@ -1899,7 +1900,7 @@ export default function BookingsSection() {
                                                               },
                                                             };
                                                             return copy;
-                                                          }
+                                                          },
                                                         )
                                                       }
                                                     >
@@ -1933,8 +1934,7 @@ export default function BookingsSection() {
                                                             const mo = copy[idx]
                                                               .matchOptions || {
                                                               matchCase: false,
-                                                              matchWholeWord:
-                                                                false,
+                                                              matchWholeWord: false,
                                                               useRegex: false,
                                                             };
                                                             copy[idx] = {
@@ -1946,7 +1946,7 @@ export default function BookingsSection() {
                                                               },
                                                             };
                                                             return copy;
-                                                          }
+                                                          },
                                                         )
                                                       }
                                                     >
@@ -1979,8 +1979,7 @@ export default function BookingsSection() {
                                                             const mo = copy[idx]
                                                               .matchOptions || {
                                                               matchCase: false,
-                                                              matchWholeWord:
-                                                                false,
+                                                              matchWholeWord: false,
                                                               useRegex: false,
                                                             };
                                                             copy[idx] = {
@@ -1992,7 +1991,7 @@ export default function BookingsSection() {
                                                               },
                                                             };
                                                             return copy;
-                                                          }
+                                                          },
                                                         )
                                                       }
                                                     >
@@ -2186,7 +2185,7 @@ export default function BookingsSection() {
                                                     setTempFilters((prev) => {
                                                       const copy = [...prev];
                                                       const arr = Array.isArray(
-                                                        copy[idx].value
+                                                        copy[idx].value,
                                                       )
                                                         ? [
                                                             ...(copy[idx]
@@ -2307,7 +2306,7 @@ export default function BookingsSection() {
                           {/* Field 1 - Traveler */}
                           {(() => {
                             const IconComponent = getFieldIcon(
-                              tempCardFieldMappings.field1
+                              tempCardFieldMappings.field1,
                             );
                             return (
                               <Popover
@@ -2322,12 +2321,12 @@ export default function BookingsSection() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-[10px] text-muted-foreground font-medium">
                                         {getColumnLabel(
-                                          tempCardFieldMappings.field1
+                                          tempCardFieldMappings.field1,
                                         )}
                                       </p>
                                       <p className="text-sm font-semibold text-foreground truncate">
                                         {getSamplePreviewValue(
-                                          tempCardFieldMappings.field1
+                                          tempCardFieldMappings.field1,
                                         )}
                                       </p>
                                     </div>
@@ -2349,7 +2348,7 @@ export default function BookingsSection() {
                                         (col) =>
                                           !col.columnName
                                             .toLowerCase()
-                                            .includes("delete")
+                                            .includes("delete"),
                                       )
                                       .map((col) => (
                                         <button
@@ -2376,7 +2375,7 @@ export default function BookingsSection() {
                           {/* Field 2 - Tour Package */}
                           {(() => {
                             const IconComponent = getFieldIcon(
-                              tempCardFieldMappings.field2
+                              tempCardFieldMappings.field2,
                             );
                             return (
                               <Popover
@@ -2391,12 +2390,12 @@ export default function BookingsSection() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-[10px] text-muted-foreground font-medium">
                                         {getColumnLabel(
-                                          tempCardFieldMappings.field2
+                                          tempCardFieldMappings.field2,
                                         )}
                                       </p>
                                       <p className="text-sm font-semibold text-foreground truncate">
                                         {getSamplePreviewValue(
-                                          tempCardFieldMappings.field2
+                                          tempCardFieldMappings.field2,
                                         )}
                                       </p>
                                     </div>
@@ -2418,7 +2417,7 @@ export default function BookingsSection() {
                                         (col) =>
                                           !col.columnName
                                             .toLowerCase()
-                                            .includes("delete")
+                                            .includes("delete"),
                                       )
                                       .map((col) => (
                                         <button
@@ -2446,14 +2445,14 @@ export default function BookingsSection() {
                           <div className="grid grid-cols-2 gap-2">
                             {(() => {
                               const IconComponentLeft = getFieldIcon(
-                                tempCardFieldMappings.field3_left
+                                tempCardFieldMappings.field3_left,
                               );
                               return (
                                 <Popover
                                   open={fieldSelectorOpen === "field3_left"}
                                   onOpenChange={(open) =>
                                     setFieldSelectorOpen(
-                                      open ? "field3_left" : null
+                                      open ? "field3_left" : null,
                                     )
                                   }
                                 >
@@ -2463,12 +2462,12 @@ export default function BookingsSection() {
                                       <div className="flex-1 min-w-0">
                                         <p className="text-[10px] text-muted-foreground font-medium">
                                           {getColumnLabel(
-                                            tempCardFieldMappings.field3_left
+                                            tempCardFieldMappings.field3_left,
                                           )}
                                         </p>
                                         <p className="text-xs font-semibold text-foreground">
                                           {getSamplePreviewValue(
-                                            tempCardFieldMappings.field3_left
+                                            tempCardFieldMappings.field3_left,
                                           )}
                                         </p>
                                       </div>
@@ -2490,7 +2489,7 @@ export default function BookingsSection() {
                                           (col) =>
                                             !col.columnName
                                               .toLowerCase()
-                                              .includes("delete")
+                                              .includes("delete"),
                                         )
                                         .map((col) => (
                                           <button
@@ -2498,7 +2497,7 @@ export default function BookingsSection() {
                                             onClick={() =>
                                               handleFieldSelect(
                                                 "field3_left",
-                                                col.id
+                                                col.id,
                                               )
                                             }
                                             className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-muted transition-colors ${
@@ -2519,14 +2518,14 @@ export default function BookingsSection() {
 
                             {(() => {
                               const IconComponentRight = getFieldIcon(
-                                tempCardFieldMappings.field3_right
+                                tempCardFieldMappings.field3_right,
                               );
                               return (
                                 <Popover
                                   open={fieldSelectorOpen === "field3_right"}
                                   onOpenChange={(open) =>
                                     setFieldSelectorOpen(
-                                      open ? "field3_right" : null
+                                      open ? "field3_right" : null,
                                     )
                                   }
                                 >
@@ -2536,12 +2535,12 @@ export default function BookingsSection() {
                                       <div className="flex-1 min-w-0">
                                         <p className="text-[10px] text-muted-foreground font-medium">
                                           {getColumnLabel(
-                                            tempCardFieldMappings.field3_right
+                                            tempCardFieldMappings.field3_right,
                                           )}
                                         </p>
                                         <p className="text-xs font-semibold text-foreground">
                                           {getSamplePreviewValue(
-                                            tempCardFieldMappings.field3_right
+                                            tempCardFieldMappings.field3_right,
                                           )}
                                         </p>
                                       </div>
@@ -2563,7 +2562,7 @@ export default function BookingsSection() {
                                           (col) =>
                                             !col.columnName
                                               .toLowerCase()
-                                              .includes("delete")
+                                              .includes("delete"),
                                         )
                                         .map((col) => (
                                           <button
@@ -2571,7 +2570,7 @@ export default function BookingsSection() {
                                             onClick={() =>
                                               handleFieldSelect(
                                                 "field3_right",
-                                                col.id
+                                                col.id,
                                               )
                                             }
                                             className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-muted transition-colors ${
@@ -2763,7 +2762,7 @@ export default function BookingsSection() {
                           <Badge
                             variant="outline"
                             className={`text-[8px] sm:text-xs font-medium border-0 text-foreground px-0.5 sm:px-1.5 py-0 rounded-full truncate max-w-[60px] sm:max-w-[80px] ${getStatusBgColor(
-                              booking
+                              booking,
                             )}`}
                             title={booking.bookingStatus || "Pending"}
                           >
@@ -2773,7 +2772,7 @@ export default function BookingsSection() {
                             <Badge
                               variant="outline"
                               className={`text-[8px] sm:text-xs font-medium border-0 text-foreground px-0.5 sm:px-1.5 py-0 rounded-full truncate max-w-[60px] sm:max-w-[80px] ${getBookingTypeBgColor(
-                                booking.bookingType
+                                booking.bookingType,
                               )}`}
                               title={booking.bookingType}
                             >
@@ -2805,7 +2804,7 @@ export default function BookingsSection() {
                     {/* Field 1 - Dynamic */}
                     {(() => {
                       const IconComponent = getFieldIcon(
-                        cardFieldMappings.field1
+                        cardFieldMappings.field1,
                       );
                       return (
                         <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
@@ -2825,7 +2824,7 @@ export default function BookingsSection() {
                     {/* Field 2 - Dynamic */}
                     {(() => {
                       const IconComponent = getFieldIcon(
-                        cardFieldMappings.field2
+                        cardFieldMappings.field2,
                       );
                       return (
                         <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
@@ -2846,7 +2845,7 @@ export default function BookingsSection() {
                     <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                       {(() => {
                         const IconComponentLeft = getFieldIcon(
-                          cardFieldMappings.field3_left
+                          cardFieldMappings.field3_left,
                         );
                         return (
                           <div className="flex items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
@@ -2858,7 +2857,7 @@ export default function BookingsSection() {
                               <p className="text-[8px] sm:text-[10px] font-semibold text-foreground">
                                 {getFieldValue(
                                   booking,
-                                  cardFieldMappings.field3_left
+                                  cardFieldMappings.field3_left,
                                 )}
                               </p>
                             </div>
@@ -2867,7 +2866,7 @@ export default function BookingsSection() {
                       })()}
                       {(() => {
                         const IconComponentRight = getFieldIcon(
-                          cardFieldMappings.field3_right
+                          cardFieldMappings.field3_right,
                         );
                         return (
                           <div className="flex items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
@@ -2879,7 +2878,7 @@ export default function BookingsSection() {
                               <p className="text-[8px] sm:text-[10px] font-semibold text-foreground">
                                 {getFieldValue(
                                   booking,
-                                  cardFieldMappings.field3_right
+                                  cardFieldMappings.field3_right,
                                 )}
                               </p>
                             </div>
@@ -2941,7 +2940,7 @@ export default function BookingsSection() {
                               <span className="font-bold text-crimson-red">
                                 {formatCurrency(
                                   getTotalCost(booking) -
-                                    safeNumber(booking.paid, 0)
+                                    safeNumber(booking.paid, 0),
                                 )}
                               </span>
                             </span>
@@ -2985,7 +2984,7 @@ export default function BookingsSection() {
 
                 // Navigate with bookingId to open detail modal
                 const params = new URLSearchParams(
-                  searchParams?.toString?.() ?? ""
+                  searchParams?.toString?.() ?? "",
                 );
                 params.set("bookingId", newBookingId);
                 params.delete("action");
@@ -3075,7 +3074,7 @@ export default function BookingsSection() {
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-muted/30">
                   <tr className="bg-muted/30 border-b border-border">
                     <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[40px] md:w-auto">
                       Row #
@@ -3150,11 +3149,11 @@ export default function BookingsSection() {
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             {(() => {
                               const IconComponent = getFieldIcon(
-                                cardFieldMappings.field1
+                                cardFieldMappings.field1,
                               );
                               const value = getFieldValue(
                                 booking,
-                                cardFieldMappings.field1
+                                cardFieldMappings.field1,
                               );
                               return (
                                 <div className="flex items-center gap-0.5 md:gap-1">
@@ -3169,11 +3168,11 @@ export default function BookingsSection() {
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             {(() => {
                               const IconComponent = getFieldIcon(
-                                cardFieldMappings.field2
+                                cardFieldMappings.field2,
                               );
                               const value = getFieldValue(
                                 booking,
-                                cardFieldMappings.field2
+                                cardFieldMappings.field2,
                               );
                               return (
                                 <div className="flex items-center gap-0.5 md:gap-1">
@@ -3188,11 +3187,11 @@ export default function BookingsSection() {
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             {(() => {
                               const IconComponent = getFieldIcon(
-                                cardFieldMappings.field3_left
+                                cardFieldMappings.field3_left,
                               );
                               const value = getFieldValue(
                                 booking,
-                                cardFieldMappings.field3_left
+                                cardFieldMappings.field3_left,
                               );
                               return (
                                 <div className="flex items-center gap-0.5 md:gap-1">
@@ -3207,11 +3206,11 @@ export default function BookingsSection() {
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             {(() => {
                               const IconComponent = getFieldIcon(
-                                cardFieldMappings.field3_right
+                                cardFieldMappings.field3_right,
                               );
                               const value = getFieldValue(
                                 booking,
-                                cardFieldMappings.field3_right
+                                cardFieldMappings.field3_right,
                               );
                               return (
                                 <div className="flex items-center gap-0.5 md:gap-1">
@@ -3227,7 +3226,7 @@ export default function BookingsSection() {
                             <Badge
                               variant="outline"
                               className={`text-[7px] md:text-[10px] font-medium border-0 text-foreground px-0.5 py-0 md:px-1 md:py-0 rounded-full truncate max-w-[80px] ${getStatusBgColor(
-                                booking
+                                booking,
                               )}`}
                               title={booking.bookingStatus || "Pending"}
                             >
@@ -3256,7 +3255,7 @@ export default function BookingsSection() {
                                   }`}
                                   style={{
                                     width: `${calculatePaymentProgress(
-                                      booking
+                                      booking,
                                     )}%`,
                                   }}
                                 />
@@ -3311,7 +3310,7 @@ export default function BookingsSection() {
 
                         // Create minimal doc then update with id/row/timestamps
                         const newBookingId = await bookingService.createBooking(
-                          {}
+                          {},
                         );
                         const bookingData = {
                           id: newBookingId,
@@ -3321,12 +3320,12 @@ export default function BookingsSection() {
                         } as any;
                         await bookingService.updateBooking(
                           newBookingId,
-                          bookingData
+                          bookingData,
                         );
 
                         // Navigate with bookingId to open detail modal
                         const params = new URLSearchParams(
-                          searchParams?.toString?.() ?? ""
+                          searchParams?.toString?.() ?? "",
                         );
                         params.set("bookingId", newBookingId);
                         params.delete("action");

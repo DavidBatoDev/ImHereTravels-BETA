@@ -373,20 +373,43 @@ export default function BookingsDataGrid({
 
     const loadDynamicOptions = async () => {
       const map: Record<string, string[]> = {};
+      const selectColumns = columns.filter((col) => col.dataType === "select");
+
+      console.log(
+        "🔍 [BOOKINGS DATA GRID] Loading dynamic options for select columns:",
+        {
+          totalColumns: columns.length,
+          selectColumns: selectColumns.map((col) => ({
+            id: col.id,
+            columnName: col.columnName,
+            hasLoadOptions: !!col.loadOptions,
+            staticOptions: col.options,
+          })),
+        },
+      );
+
       for (const col of columns) {
         if (col.dataType === "select" && col.loadOptions) {
+          console.log(
+            `⏳ Loading options for ${col.columnName} (${col.id})...`,
+          );
           try {
             const opts = await col.loadOptions();
             map[col.id] = opts || [];
+            console.log(
+              `✅ Loaded ${opts?.length || 0} options for ${col.columnName}`,
+            );
           } catch (error) {
             console.error(
-              `Failed to load options for ${col.columnName}:`,
+              `❌ Failed to load options for ${col.columnName}:`,
               error,
             );
             map[col.id] = col.options || [];
           }
         }
       }
+
+      console.log("✅ [BOOKINGS DATA GRID] Dynamic options loaded:", map);
       if (mounted) setDynamicOptions(map);
     };
 
