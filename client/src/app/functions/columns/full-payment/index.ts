@@ -1,3 +1,9 @@
-export { fullPaymentAmountColumn } from './full-payment-amount';
-export { fullPaymentDatePaidColumn } from './full-payment-date-paid';
-export { fullPaymentDueDateColumn } from './full-payment-due-date';
+import { withOrder } from "../column-orders";
+import { fullPaymentAmountColumn as _fullPaymentAmountColumn } from "./full-payment-amount";
+import { fullPaymentDatePaidColumn as _fullPaymentDatePaidColumn } from "./full-payment-date-paid";
+import { fullPaymentDueDateColumn as _fullPaymentDueDateColumn } from "./full-payment-due-date";
+
+// Export columns with orders injected from global column-orders.ts
+export const fullPaymentAmountColumn = withOrder(_fullPaymentAmountColumn);
+export const fullPaymentDatePaidColumn = withOrder(_fullPaymentDatePaidColumn);
+export const fullPaymentDueDateColumn = withOrder(_fullPaymentDueDateColumn);

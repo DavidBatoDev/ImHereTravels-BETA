@@ -14,32 +14,32 @@ import { subjectLineCancellationColumn as _subjectLineCancellationColumn } from 
 
 // Export columns with orders injected from global column-orders.ts
 export const cancellationEmailDraftLinkColumn = withOrder(
-  _cancellationEmailDraftLinkColumn
+  _cancellationEmailDraftLinkColumn,
 );
 export const cancellationEmailSentDateColumn = withOrder(
-  _cancellationEmailSentDateColumn
+  _cancellationEmailSentDateColumn,
 );
 export const cancellationRequestDateColumn = withOrder(
-  _cancellationRequestDateColumn
+  _cancellationRequestDateColumn,
 );
 export const eligibleRefundColumn = withOrder(_eligibleRefundColumn);
 export const generateCancellationEmailDraftColumn = withOrder(
-  _generateCancellationEmailDraftColumn
+  _generateCancellationEmailDraftColumn,
 );
 export const includeBccCancellationColumn = withOrder(
-  _includeBccCancellationColumn
+  _includeBccCancellationColumn,
 );
 export const nonRefundableAmountColumn = withOrder(_nonRefundableAmountColumn);
 export const reasonForCancellationColumn = withOrder(
-  _reasonForCancellationColumn
+  _reasonForCancellationColumn,
 );
 export const refundableAmountColumn = withOrder(_refundableAmountColumn);
 export const sendCancellationEmailColumn = withOrder(
-  _sendCancellationEmailColumn
+  _sendCancellationEmailColumn,
 );
 export const sentCancellationEmailLinkColumn = withOrder(
-  _sentCancellationEmailLinkColumn
+  _sentCancellationEmailLinkColumn,
 );
 export const subjectLineCancellationColumn = withOrder(
-  _subjectLineCancellationColumn
+  _subjectLineCancellationColumn,
 );

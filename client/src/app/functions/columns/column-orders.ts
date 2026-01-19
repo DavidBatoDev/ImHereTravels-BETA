@@ -173,14 +173,14 @@ export const COLUMN_ORDERS: Record<string, number> = {
  */
 export function withOrder(
   column: BookingSheetColumn,
-  columnId?: string
+  columnId?: string,
 ): BookingSheetColumn {
   const id = columnId || column.id;
   const order = COLUMN_ORDERS[id];
 
   if (order === undefined) {
     console.warn(
-      `⚠️ No order defined for column: ${id} (${column.data.columnName})`
+      `⚠️ No order defined for column: ${id} (${column.data.columnName})`,
     );
   }
 
@@ -208,7 +208,7 @@ export function validateColumnOrders(): void {
   });
 
   const duplicates = Object.entries(orderCounts).filter(
-    ([, ids]) => ids.length > 1
+    ([, ids]) => ids.length > 1,
   );
 
   if (duplicates.length > 0) {
@@ -226,7 +226,7 @@ export function validateColumnOrders(): void {
  */
 export function getColumnIdsSortedByOrder(): string[] {
   return Object.keys(COLUMN_ORDERS).sort(
-    (a, b) => COLUMN_ORDERS[a] - COLUMN_ORDERS[b]
+    (a, b) => COLUMN_ORDERS[a] - COLUMN_ORDERS[b],
   );
 }
 
@@ -234,7 +234,7 @@ export function getColumnIdsSortedByOrder(): string[] {
  * Get order range for a specific tab/category
  */
 export function getOrderRangeForTab(
-  tabName: string
+  tabName: string,
 ): { min: number; max: number; columns: string[] } | null {
   const tabRanges: Record<
     string,

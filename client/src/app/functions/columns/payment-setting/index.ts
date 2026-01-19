@@ -22,10 +22,10 @@ export const bookingStatusColumn = withOrder(_bookingStatusColumn);
 export const creditFromColumn = withOrder(_creditFromColumn);
 export const discountedTourCostColumn = withOrder(_discountedTourCostColumn);
 export const enablePaymentReminderColumn = withOrder(
-  _enablePaymentReminderColumn
+  _enablePaymentReminderColumn,
 );
 export const guestInfoEmailSentLinkColumn = withOrder(
-  _guestInfoEmailSentLinkColumn
+  _guestInfoEmailSentLinkColumn,
 );
 export const manualCreditColumn = withOrder(_manualCreditColumn);
 export const originalTourCostColumn = withOrder(_originalTourCostColumn);
@@ -37,5 +37,5 @@ export const paymentProgressColumn = withOrder(_paymentProgressColumn);
 export const remainingBalanceColumn = withOrder(_remainingBalanceColumn);
 export const reservationFeeColumn = withOrder(_reservationFeeColumn);
 export const sentInitialReminderLinkColumn = withOrder(
-  _sentInitialReminderLinkColumn
+  _sentInitialReminderLinkColumn,
 );
