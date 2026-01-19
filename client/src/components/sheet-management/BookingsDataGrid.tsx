@@ -394,7 +394,8 @@ export default function BookingsDataGrid({
             `⏳ Loading options for ${col.columnName} (${col.id})...`,
           );
           try {
-            const opts = await col.loadOptions();
+            // Pass empty formData context for grid-level loading
+            const opts = await col.loadOptions({ formData: {} });
             map[col.id] = opts || [];
             console.log(
               `✅ Loaded ${opts?.length || 0} options for ${col.columnName}`,
@@ -2648,14 +2649,34 @@ export default function BookingsDataGrid({
       const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newValue = e.target.value;
 
+        // Special handling for tourDate - convert dd/mm/yyyy back to Timestamp
+        let valueToSave = newValue;
+        if (column.key === "tourDate" && newValue) {
+          const { toDate } = require("@/lib/booking-calculations");
+          const { Timestamp } = await import("firebase/firestore");
+
+          const dateObj = toDate(newValue);
+          if (dateObj) {
+            valueToSave = Timestamp.fromDate(dateObj) as any;
+          }
+        }
+
         // Update local row state
-        onRowChange({ ...row, [column.key]: newValue });
+        onRowChange({ ...row, [column.key]: valueToSave });
 
         // Save to Firestore
         try {
-          await bookingService.updateBookingField(row.id, column.key, newValue);
+          await bookingService.updateBookingField(
+            row.id,
+            column.key,
+            valueToSave,
+          );
           // Trigger recomputation for dependent function columns
-          await recomputeDirectDependentsForRow(row.id, column.key, newValue);
+          await recomputeDirectDependentsForRow(
+            row.id,
+            column.key,
+            valueToSave,
+          );
         } catch (error) {
           console.error("Failed to update select field:", error);
         }
@@ -2674,7 +2695,18 @@ export default function BookingsDataGrid({
       };
 
       const cellValue = row[column.key as keyof SheetData];
-      const displayValue = cellValue?.toString() || "";
+
+      // Special handling for tourDate - display as dd/mm/yyyy
+      let displayValue: string;
+      if (column.key === "tourDate" && cellValue) {
+        const {
+          formatTimestampToDDMMYYYY,
+        } = require("@/lib/booking-calculations");
+        displayValue =
+          formatTimestampToDDMMYYYY(cellValue) || String(cellValue || "");
+      } else {
+        displayValue = cellValue?.toString() || "";
+      }
 
       // Build final options list similar to EditBookingModal: ensure current value present and placeholder
       const currentValue = String(displayValue || "");
@@ -3527,8 +3559,30 @@ export default function BookingsDataGrid({
           const options = dynamicOptions[col.id] || col.options || [];
           const hasColor = col.color && col.color !== "none";
 
+          // Debug log for select options
+          if (options.length === 0 && col.loadOptions) {
+            console.warn(
+              `⚠️ No options loaded for ${col.columnName} (${col.id}). dynamicOptions:`,
+              dynamicOptions[col.id],
+              "staticOptions:",
+              col.options,
+            );
+          }
+
+          // Special handling for tourDate - display as dd/mm/yyyy
+          let displayValue: string;
+          if (col.id === "tourDate" && cellValue) {
+            const {
+              formatTimestampToDDMMYYYY,
+            } = require("@/lib/booking-calculations");
+            displayValue =
+              formatTimestampToDDMMYYYY(cellValue) || String(cellValue || "");
+          } else {
+            displayValue = String(cellValue || "");
+          }
+
           // Ensure current value is present and add placeholder if necessary (match EditBookingModal)
-          const currentValue = String(cellValue || "");
+          const currentValue = displayValue;
           const hasCurrentValue = currentValue && currentValue !== "";
           const currentValueInOptions = options.includes(currentValue);
           const hasEmptyOption = options.includes("");
@@ -3543,18 +3597,55 @@ export default function BookingsDataGrid({
 
           return (
             <select
-              value={cellValue?.toString() || ""}
+              value={displayValue}
               onChange={async (e) => {
                 const newValue = e.target.value;
 
+                // Special handling for tourDate - convert dd/mm/yyyy back to Timestamp
+                let valueToSave = newValue;
+                if (col.id === "tourDate" && newValue) {
+                  const { toDate } = require("@/lib/booking-calculations");
+                  const { Timestamp } = await import("firebase/firestore");
+
+                  const dateObj = toDate(newValue);
+                  if (dateObj) {
+                    valueToSave = Timestamp.fromDate(dateObj) as any;
+                  }
+                }
+
+                // Special handling for tourPackageName - clear tourDate when package changes
+                if (col.id === "tourPackageName" && row.tourDate) {
+                  console.log(
+                    "🧹 [BOOKINGS DATA GRID] Clearing tourDate due to package change",
+                  );
+                  const { doc, updateDoc, deleteField } =
+                    await import("firebase/firestore");
+                  const { db } = await import("@/lib/firebase");
+
+                  // Clear tourDate in Firebase immediately
+                  const bookingRef = doc(db, "bookings", row.id);
+                  await updateDoc(bookingRef, {
+                    tourDate: deleteField(),
+                  }).catch((error) => {
+                    console.error("Failed to clear tourDate:", error);
+                  });
+
+                  // Trigger recomputation for tourDate dependents to clear Return Date and other calculated fields
+                  await recomputeDirectDependentsForRow(
+                    row.id,
+                    "tourDate",
+                    undefined,
+                  );
+                }
+
                 // Use batched writer to track changes in version history
-                batchedWriter.queueFieldUpdate(row.id, column.key, newValue);
+                batchedWriter.queueFieldUpdate(row.id, column.key, valueToSave);
 
                 // Trigger recomputation for dependent function columns
                 await recomputeDirectDependentsForRow(
                   row.id,
                   column.key,
-                  newValue,
+                  valueToSave,
                 );
               }}
               className={`h-8 w-full border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 rounded-none text-xs px-2 ${

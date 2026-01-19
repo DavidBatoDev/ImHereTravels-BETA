@@ -107,6 +107,30 @@ export function formatDateDisplay(dateInput: unknown): string {
   });
 }
 
+/**
+ * Format Firebase Timestamp or Date to dd/mm/yyyy format
+ * Silently filters out invalid timestamps but logs errors to console
+ */
+export function formatTimestampToDDMMYYYY(dateInput: unknown): string {
+  try {
+    const date = toDate(dateInput);
+    if (!date) return "";
+
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
+    return `${day}/${month}/${year}`;
+  } catch (error) {
+    console.error(
+      "Error formatting timestamp to dd/mm/yyyy:",
+      error,
+      dateInput,
+    );
+    return "";
+  }
+}
+
 // ============================================================================
 // BOOKING IDENTIFIER FUNCTIONS
 // ============================================================================
@@ -128,7 +152,7 @@ export function getBookingCode(bookingType: string): string {
  */
 export function getTravellerInitials(
   firstName: string,
-  lastName: string
+  lastName: string,
 ): string {
   const f = firstName && firstName.length > 0 ? firstName[0] : "";
   const l = lastName && lastName.length > 0 ? lastName[0] : "";
@@ -148,7 +172,7 @@ export function getFullName(firstName: string, lastName: string): string {
  */
 export async function getTourPackageUniqueCounter(
   tourPackageName: string,
-  existingBookingsCount: number
+  existingBookingsCount: number,
 ): Promise<string> {
   if (!tourPackageName) return "";
   const count = existingBookingsCount + 1;
@@ -165,7 +189,7 @@ export function generateBookingId(
   tourCode: string,
   formattedDate: string,
   travellerInitials: string,
-  uniqueCounter: string
+  uniqueCounter: string,
 ): string {
   if (
     !bookingCode ||
@@ -188,7 +212,7 @@ export function generateBookingId(
  */
 export function getDaysBetweenDates(
   reservationDate: unknown,
-  tourDate: unknown
+  tourDate: unknown,
 ): number | "" {
   const res = toDate(reservationDate);
   const tour = toDate(tourDate);
@@ -204,7 +228,7 @@ export function getDaysBetweenDates(
  */
 export function getEligible2ndOfMonths(
   reservationDate: unknown,
-  tourDate: unknown
+  tourDate: unknown,
 ): number | "" {
   const res = toDate(reservationDate);
   const tour = toDate(tourDate);
@@ -247,7 +271,7 @@ export function getEligible2ndOfMonths(
 export function getPaymentCondition(
   tourDate: unknown,
   eligible2ndOfMonths: number | "",
-  daysBetween: number | ""
+  daysBetween: number | "",
 ): string {
   if (toDate(tourDate) === null) return "";
   if (eligible2ndOfMonths === "" || daysBetween === "") return "";
@@ -270,7 +294,7 @@ export function getPaymentCondition(
  */
 export function getAvailablePaymentTerms(
   paymentCondition: string,
-  isCancelled: boolean = false
+  isCancelled: boolean = false,
 ): string {
   if (isCancelled) return "Cancelled";
   if (!paymentCondition) return "";
@@ -296,7 +320,7 @@ export function getAvailablePaymentTerms(
  */
 export function getFullPaymentDueDate(
   reservationDate: unknown,
-  paymentPlan: string
+  paymentPlan: string,
 ): string {
   if (paymentPlan !== "Full Payment") return "";
 
@@ -318,7 +342,7 @@ export function getFullPaymentAmount(
   discountedTourCost: number | null,
   reservationFee: number,
   isMainBooker: boolean,
-  creditAmount: number = 0
+  creditAmount: number = 0,
 ): number | "" {
   if (paymentPlan !== "Full Payment") return "";
 
@@ -342,7 +366,7 @@ export function generateInstallmentDueDates(
   reservationDate: unknown,
   tourDate: unknown,
   paymentPlan: string,
-  paymentCondition: string
+  paymentCondition: string,
 ): {
   p1DueDate: string;
   p2DueDate: string;
@@ -366,13 +390,13 @@ export function generateInstallmentDueDates(
   const DAY_MS = 24 * 60 * 60 * 1000;
   const secondDates: Date[] = Array.from(
     { length: monthCount },
-    (_, i) => new Date(res.getFullYear(), res.getMonth() + i + 1, 2)
+    (_, i) => new Date(res.getFullYear(), res.getMonth() + i + 1, 2),
   );
 
   const validDates = secondDates.filter(
     (d) =>
       d.getTime() > res.getTime() + 2 * DAY_MS &&
-      d.getTime() <= tour.getTime() - 3 * DAY_MS
+      d.getTime() <= tour.getTime() - 3 * DAY_MS,
   );
 
   const fmt = (d: Date) =>
@@ -441,7 +465,7 @@ export function generateInstallmentDueDates(
       } else {
         // When no payment plan, show all three dates comma-separated
         result.p3DueDate = `${fmt(validDates[0])}, ${fmt(validDates[1])}, ${fmt(
-          validDates[2]
+          validDates[2],
         )}`;
       }
     }
@@ -460,7 +484,7 @@ export function generateInstallmentDueDates(
       } else {
         // When no payment plan, show all four dates comma-separated
         result.p4DueDate = `${fmt(validDates[0])}, ${fmt(validDates[1])}, ${fmt(
-          validDates[2]
+          validDates[2],
         )}, ${fmt(validDates[3])}`;
       }
     }
@@ -489,7 +513,7 @@ export function calculateInstallmentAmounts(
   p1DueDate?: string,
   p2DueDate?: string,
   p3DueDate?: string,
-  p4DueDate?: string
+  p4DueDate?: string,
 ): {
   p1Amount: number | "";
   p2Amount: number | "";
@@ -555,14 +579,14 @@ export function calculateInstallmentAmounts(
     credit_amt > 0 && credit_from === "Reservation"
       ? 0
       : credit_amt > 0 && credit_from === "P1"
-      ? 1
-      : credit_amt > 0 && credit_from === "P2"
-      ? 2
-      : credit_amt > 0 && credit_from === "P3"
-      ? 3
-      : credit_amt > 0 && credit_from === "P4"
-      ? 4
-      : 0;
+        ? 1
+        : credit_amt > 0 && credit_from === "P2"
+          ? 2
+          : credit_amt > 0 && credit_from === "P3"
+            ? 3
+            : credit_amt > 0 && credit_from === "P4"
+              ? 4
+              : 0;
 
   const base = total / terms;
 
@@ -615,7 +639,7 @@ export function calculateInstallmentAmounts(
       // Last payment gets the remainder to handle rounding
       const previousPayments = roundedAmount * 3;
       result.p4Amount = (Math.round(
-        (total - credit_amt - previousPayments) * 100
+        (total - credit_amt - previousPayments) * 100,
       ) / 100) as number;
     }
   }
@@ -633,7 +657,7 @@ export function calculateScheduledReminderDates(
     p3DueDate: string;
     p4DueDate: string;
   },
-  daysBeforeDue: number = 7
+  daysBeforeDue: number = 7,
 ): {
   p1ScheduledReminderDate: string;
   p2ScheduledReminderDate: string;
@@ -795,7 +819,7 @@ export interface CreatedBookingData {
  * Create a complete booking data object from input
  */
 export async function createBookingData(
-  input: BookingCreationInput
+  input: BookingCreationInput,
 ): Promise<CreatedBookingData> {
   const now = new Date();
 
@@ -803,19 +827,19 @@ export async function createBookingData(
   const bookingCode = getBookingCode(input.bookingType);
   const travellerInitials = getTravellerInitials(
     input.firstName,
-    input.lastName
+    input.lastName,
   );
   const formattedDate = formatDateYYYYMMDD(input.tourDate);
   const uniqueCounter = await getTourPackageUniqueCounter(
     input.tourPackageName,
-    input.existingBookingsCount
+    input.existingBookingsCount,
   );
   const bookingId = generateBookingId(
     bookingCode,
     input.tourCode,
     formattedDate,
     travellerInitials,
-    uniqueCounter
+    uniqueCounter,
   );
 
   // Calculate payment-related fields
@@ -824,7 +848,7 @@ export async function createBookingData(
   const paymentCondition = getPaymentCondition(
     input.tourDate,
     eligible2ndOfMonths,
-    daysBetween
+    daysBetween,
   );
   const availablePaymentTerms = getAvailablePaymentTerms(paymentCondition);
 
@@ -854,7 +878,7 @@ export async function createBookingData(
         now,
         input.tourDate,
         "", // Empty paymentPlan at step 2 - shows all available dates comma-separated
-        paymentCondition
+        paymentCondition,
       );
 
   // At step 2, calculate pxAmounts with empty paymentPlan (matches EditBookingModal logic)
@@ -874,7 +898,7 @@ export async function createBookingData(
         allDueDates.p1DueDate,
         allDueDates.p2DueDate,
         allDueDates.p3DueDate,
-        allDueDates.p4DueDate
+        allDueDates.p4DueDate,
       );
 
   // For Last Minute Booking, full payment fields should be empty at creation (Step 2)
@@ -999,14 +1023,14 @@ export interface PaymentPlanUpdateResult {
 }
 
 export function calculatePaymentPlanUpdate(
-  input: PaymentPlanUpdateInput
+  input: PaymentPlanUpdateInput,
 ): PaymentPlanUpdateResult {
   const reminderDays = input.reminderDaysBefore ?? 7;
 
   // Calculate full payment fields
   const fullPaymentDueDate = getFullPaymentDueDate(
     input.reservationDate,
-    input.paymentPlan
+    input.paymentPlan,
   );
   const fullPaymentAmount = getFullPaymentAmount(
     input.paymentPlan,
@@ -1014,7 +1038,7 @@ export function calculatePaymentPlanUpdate(
     input.discountedTourCost,
     input.reservationFee,
     input.isMainBooker,
-    input.creditAmount
+    input.creditAmount,
   );
 
   // Calculate installment due dates
@@ -1022,7 +1046,7 @@ export function calculatePaymentPlanUpdate(
     input.reservationDate,
     input.tourDate,
     input.paymentPlan,
-    input.paymentCondition
+    input.paymentCondition,
   );
 
   // Calculate installment amounts (with due dates for proper calculation)
@@ -1037,7 +1061,7 @@ export function calculatePaymentPlanUpdate(
     dueDates.p1DueDate,
     dueDates.p2DueDate,
     dueDates.p3DueDate,
-    dueDates.p4DueDate
+    dueDates.p4DueDate,
   );
 
   // Calculate scheduled reminder dates

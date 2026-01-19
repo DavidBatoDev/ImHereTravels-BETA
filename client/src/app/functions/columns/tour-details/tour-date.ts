@@ -1,99 +1,83 @@
-﻿import { BookingSheetColumn } from '@/types/booking-sheet-column';
-import { Timestamp } from '@/app/functions/firebase-utils';
-
-/**
- * Format a date as dd/mm/yyyy string
- */
-function formatDateDisplay(date: Date | Timestamp): string {
-  let d: Date;
-  
-  if (date instanceof Timestamp) {
-    d = date.toDate();
-  } else {
-    d = date;
-  }
-  
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  
-  return `${day}/${month}/${year}`;
-}
-
-/**
- * Parse a dd/mm/yyyy string to a Date
- */
-function parseDisplayDate(displayStr: string): Date {
-  const [day, month, year] = displayStr.split('/').map(Number);
-  return new Date(year, month - 1, day);
-}
+﻿import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { formatTimestampToDDMMYYYY } from "@/lib/booking-calculations";
 
 export const tourDateColumn: BookingSheetColumn = {
-  id: 'tourDate',
+  id: "tourDate",
   data: {
-    id: 'tourDate',
-    columnName: 'Tour Date',
-    dataType: 'select',
-    parentTab: 'Tour Details',
+    id: "tourDate",
+    columnName: "Tour Date",
+    dataType: "select",
+    parentTab: "Tour Details",
     includeInForms: true,
     width: 148.666748046875,
-    options: [], // Will be populated by loadOptions
-    loadOptions: async () => {
+    options: [],
+    // Load available tour dates from the selected tour package
+    loadOptions: async ({ formData }: { formData: Record<string, any> }) => {
       try {
-        const { collection, query, getDocs } = await import(
-          "firebase/firestore"
-        );
+        const tourPackageName = formData.tourPackageName;
+
+        // Import Firebase functions
+        const { collection, getDocs, query, where } =
+          await import("firebase/firestore");
         const { db } = await import("@/app/functions/firebase");
 
-        // Query for tour packages with their dates
         const tourPackagesRef = collection(db, "tourPackages");
-        const snapshot = await getDocs(query(tourPackagesRef));
 
-        const dateSet = new Set<string>();
+        // If no tourPackageName provided, load dates from ALL tour packages
+        let snapshot;
+        if (!tourPackageName) {
+          // Load all tour packages
+          snapshot = await getDocs(tourPackagesRef);
+        } else {
+          // Query for specific tour package
+          const q = query(
+            tourPackagesRef,
+            where("name", "==", tourPackageName),
+          );
+          snapshot = await getDocs(q);
+        }
 
-        // Extract unique tour dates from all tour packages
+        if (snapshot.empty) {
+          console.log(
+            tourPackageName
+              ? `No tour package found with name: ${tourPackageName}`
+              : "No tour packages found",
+          );
+          return [];
+        }
+
+        // Collect all travel dates from all matching tour packages
+        const allDates: string[] = [];
         snapshot.docs.forEach((doc) => {
-          const data = doc.data();
-          
-          // Check if tourDates array exists
-          if (Array.isArray(data.tourDates)) {
-            data.tourDates.forEach((dateData: any) => {
-              try {
-                let date: Date;
-                
-                // Handle both Timestamp objects and Date strings
-                if (dateData.date instanceof Timestamp) {
-                  date = dateData.date.toDate();
-                } else if (typeof dateData.date === 'string') {
-                  date = new Date(dateData.date);
-                } else if (dateData.date?.toDate) {
-                  date = dateData.date.toDate();
-                } else {
-                  return;
-                }
-                
-                const displayDate = formatDateDisplay(date);
-                dateSet.add(displayDate);
-              } catch (error) {
-                console.warn("Error parsing tour date:", error);
+          const tourData = doc.data();
+          const travelDates = tourData.travelDates || [];
+
+          // Convert each startDate Timestamp to dd/mm/yyyy format
+          travelDates.forEach((td: any) => {
+            try {
+              const formatted = formatTimestampToDDMMYYYY(td.startDate);
+              if (formatted && !allDates.includes(formatted)) {
+                allDates.push(formatted);
               }
-            });
-          }
+            } catch (error) {
+              console.error("Error formatting travel date:", error, td);
+            }
+          });
         });
 
-        // Sort dates chronologically (convert back to Date for sorting)
-        const sortedDates = Array.from(dateSet).sort((a, b) => {
-          const dateA = parseDisplayDate(a);
-          const dateB = parseDisplayDate(b);
+        // Sort dates chronologically
+        allDates.sort((a, b) => {
+          const [dayA, monthA, yearA] = a.split("/").map(Number);
+          const [dayB, monthB, yearB] = b.split("/").map(Number);
+          const dateA = new Date(yearA, monthA - 1, dayA);
+          const dateB = new Date(yearB, monthB - 1, dayB);
           return dateA.getTime() - dateB.getTime();
         });
 
-        // Return with empty option at the beginning
-        return sortedDates.length > 0 ? ["", ...sortedDates] : [""];
+        return ["", ...allDates];
       } catch (error) {
-        console.error("Error loading tour dates:", error);
-        // Return static fallback on error
-        return [""];
+        console.error("Error loading tour date options:", error);
+        return [];
       }
     },
   },

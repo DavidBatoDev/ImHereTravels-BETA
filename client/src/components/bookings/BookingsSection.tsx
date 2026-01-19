@@ -196,6 +196,11 @@ export default function BookingsSection() {
   const [tempFilters, setTempFilters] = useState<FilterConfig[]>([]);
   const [activeFilters, setActiveFilters] = useState<FilterConfig[]>([]);
 
+  // Dynamic options for select columns with loadOptions
+  const [dynamicOptions, setDynamicOptions] = useState<
+    Record<string, string[]>
+  >({});
+
   // Temporary filter states (for modal preview before applying)
   const [tempColumnFilters, setTempColumnFilters] = useState<
     Record<string, any>
@@ -330,6 +335,40 @@ export default function BookingsSection() {
 
     loadColumns();
   }, []);
+
+  // Load dynamic options for select columns with loadOptions
+  useEffect(() => {
+    const loadDynamicOptions = async () => {
+      const optionsMap: Record<string, string[]> = {};
+
+      for (const col of columns) {
+        if (col.dataType === "select" && col.loadOptions) {
+          try {
+            // Pass empty formData context for filter loading
+            const options = await col.loadOptions({ formData: {} });
+            optionsMap[col.id] = options;
+            console.log(
+              `📋 Loaded ${options.length} options for ${col.columnName}`,
+            );
+          } catch (error) {
+            console.error(
+              `Failed to load options for ${col.columnName}:`,
+              error,
+            );
+            optionsMap[col.id] = col.options || [];
+          }
+        }
+      }
+
+      if (Object.keys(optionsMap).length > 0) {
+        setDynamicOptions(optionsMap);
+      }
+    };
+
+    if (columns.length > 0) {
+      loadDynamicOptions();
+    }
+  }, [columns]);
 
   // Subscribe to real-time bookings data
   useEffect(() => {
@@ -924,6 +963,15 @@ export default function BookingsSection() {
     const column = columns.find((col) => col.id === columnId);
 
     if (value === null || value === undefined) return "N/A";
+
+    // Special handling for tourDate - it's a select type but stores Timestamp
+    if (columnId === "tourDate") {
+      return safeDate(value).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
 
     if (column?.dataType === "date") {
       return safeDate(value).toLocaleDateString("en-US", {
@@ -2162,6 +2210,24 @@ export default function BookingsSection() {
                                             variant="outline"
                                             size="sm"
                                             className="h-8 flex-shrink-0"
+                                            onClick={() => {
+                                              console.log(
+                                                "📊 Selected column:",
+                                                selectedColumn?.id,
+                                              );
+                                              console.log(
+                                                "📊 All dynamicOptions:",
+                                                dynamicOptions,
+                                              );
+                                              console.log(
+                                                "📊 Options for this column:",
+                                                dynamicOptions[
+                                                  selectedColumn?.id || ""
+                                                ] ||
+                                                  selectedColumn?.options ||
+                                                  [],
+                                              );
+                                            }}
                                           >
                                             {Array.isArray(f.value) &&
                                             f.value.length > 0
@@ -2171,53 +2237,69 @@ export default function BookingsSection() {
                                         </PopoverTrigger>
                                         <PopoverContent className="w-56 p-2">
                                           <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
-                                            {(
-                                              selectedColumn?.options || []
-                                            ).map((opt) => {
-                                              const selected =
-                                                Array.isArray(f.value) &&
-                                                f.value.includes(opt);
-                                              return (
-                                                <div
-                                                  key={opt}
-                                                  className="flex items-center gap-2 p-1 rounded hover:bg-muted cursor-pointer"
-                                                  onClick={() =>
-                                                    setTempFilters((prev) => {
-                                                      const copy = [...prev];
-                                                      const arr = Array.isArray(
-                                                        copy[idx].value,
-                                                      )
-                                                        ? [
-                                                            ...(copy[idx]
-                                                              .value as string[]),
-                                                          ]
-                                                        : [];
-                                                      const i =
-                                                        arr.indexOf(opt);
-                                                      if (i >= 0)
-                                                        arr.splice(i, 1);
-                                                      else arr.push(opt);
-                                                      copy[idx] = {
-                                                        ...copy[idx],
-                                                        value: arr,
-                                                      };
-                                                      return copy;
-                                                    })
-                                                  }
-                                                >
+                                            {(() => {
+                                              const options =
+                                                dynamicOptions[
+                                                  selectedColumn?.id || ""
+                                                ] ||
+                                                selectedColumn?.options ||
+                                                [];
+
+                                              if (options.length === 0) {
+                                                return (
+                                                  <div className="p-2 text-xs text-muted-foreground text-center">
+                                                    No options available
+                                                  </div>
+                                                );
+                                              }
+
+                                              return options.map((opt) => {
+                                                const selected =
+                                                  Array.isArray(f.value) &&
+                                                  f.value.includes(opt);
+                                                return (
                                                   <div
-                                                    className={`h-4 w-4 border border-border rounded-sm ${
-                                                      selected
-                                                        ? "bg-crimson-red"
-                                                        : "bg-background"
-                                                    }`}
-                                                  />
-                                                  <span className="text-xs">
-                                                    {opt}
-                                                  </span>
-                                                </div>
-                                              );
-                                            })}
+                                                    key={opt}
+                                                    className="flex items-center gap-2 p-1 rounded hover:bg-muted cursor-pointer"
+                                                    onClick={() =>
+                                                      setTempFilters((prev) => {
+                                                        const copy = [...prev];
+                                                        const arr =
+                                                          Array.isArray(
+                                                            copy[idx].value,
+                                                          )
+                                                            ? [
+                                                                ...(copy[idx]
+                                                                  .value as string[]),
+                                                              ]
+                                                            : [];
+                                                        const i =
+                                                          arr.indexOf(opt);
+                                                        if (i >= 0)
+                                                          arr.splice(i, 1);
+                                                        else arr.push(opt);
+                                                        copy[idx] = {
+                                                          ...copy[idx],
+                                                          value: arr,
+                                                        };
+                                                        return copy;
+                                                      })
+                                                    }
+                                                  >
+                                                    <div
+                                                      className={`h-4 w-4 border border-border rounded-sm ${
+                                                        selected
+                                                          ? "bg-crimson-red"
+                                                          : "bg-background"
+                                                      }`}
+                                                    />
+                                                    <span className="text-xs">
+                                                      {opt || "(Empty)"}
+                                                    </span>
+                                                  </div>
+                                                );
+                                              });
+                                            })()}
                                           </div>
                                         </PopoverContent>
                                       </Popover>

@@ -50,7 +50,7 @@ import { typescriptFunctionsService } from "@/services/typescript-functions-serv
 import { batchedWriter } from "@/services/batched-writer";
 import ScheduledEmailService from "@/services/scheduled-email-service";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, deleteField } from "firebase/firestore";
 import { isEqual, debounce } from "lodash";
 
 interface EditBookingModalProps {
@@ -84,16 +84,16 @@ export default function EditBookingModal({
   // Form state
   const [formData, setFormData] = useState<Partial<Booking>>({});
   const [computingFields, setComputingFields] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Local editing state - tracks which fields are currently being edited (local first pattern)
   const [activeEditingFields, setActiveEditingFields] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [localFieldValues, setLocalFieldValues] = useState<Record<string, any>>(
-    {}
+    {},
   );
   // Track pending changes that haven't been saved to Firebase yet
   const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({});
@@ -113,17 +113,17 @@ export default function EditBookingModal({
   // Track previous values for detecting changes
   const prevGenerateEmailDraft = React.useRef<boolean | undefined>(undefined);
   const prevGenerateCancellationDraft = React.useRef<boolean | undefined>(
-    undefined
+    undefined,
   );
   const prevSendEmail = React.useRef<boolean | undefined>(undefined);
   const prevSendCancellationEmail = React.useRef<boolean | undefined>(
-    undefined
+    undefined,
   );
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const cancellationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const sendEmailTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const sendCancellationEmailTimeoutRef = React.useRef<NodeJS.Timeout | null>(
-    null
+    null,
   );
 
   // Loading state for cleaning scheduled emails
@@ -143,7 +143,7 @@ export default function EditBookingModal({
 
     console.log(
       "🔍 [EDIT BOOKING MODAL] Setting up real-time booking listener for:",
-      booking.id
+      booking.id,
     );
 
     const unsubscribe = onSnapshot(
@@ -156,7 +156,7 @@ export default function EditBookingModal({
           } as Booking;
 
           console.log(
-            "📄 [EDIT BOOKING MODAL] Real-time booking update received"
+            "📄 [EDIT BOOKING MODAL] Real-time booking update received",
           );
 
           // Update form data with real-time changes (LOCAL FIRST pattern like BookingsDataGrid)
@@ -174,7 +174,7 @@ export default function EditBookingModal({
               // LOCAL FIRST: Skip updating if user is actively editing this field
               if (activeEditingFields.has(key)) {
                 console.log(
-                  `🚫 [EDIT BOOKING MODAL] Skipping Firebase update for actively edited field: ${key}`
+                  `🚫 [EDIT BOOKING MODAL] Skipping Firebase update for actively edited field: ${key}`,
                 );
                 return;
               }
@@ -197,14 +197,14 @@ export default function EditBookingModal({
       (error) => {
         console.error(
           "🚨 [EDIT BOOKING MODAL] Real-time listener error:",
-          error
+          error,
         );
-      }
+      },
     );
 
     return () => {
       console.log(
-        "🧹 [EDIT BOOKING MODAL] Cleaning up real-time booking listener"
+        "🧹 [EDIT BOOKING MODAL] Cleaning up real-time booking listener",
       );
       unsubscribe();
     };
@@ -231,7 +231,7 @@ export default function EditBookingModal({
     // Detect change from false to true (toggled ON)
     if (previousValue === false && currentValue === true) {
       console.log(
-        "✅ [GENERATE EMAIL DRAFT] Toggled ON - showing generating modal"
+        "✅ [GENERATE EMAIL DRAFT] Toggled ON - showing generating modal",
       );
 
       // Clear any existing timeout
@@ -261,7 +261,7 @@ export default function EditBookingModal({
     // Detect change from true to false (toggled OFF)
     if (previousValue === true && currentValue === false) {
       console.log(
-        "🗑️ [GENERATE EMAIL DRAFT] Toggled OFF - showing deleting modal"
+        "🗑️ [GENERATE EMAIL DRAFT] Toggled OFF - showing deleting modal",
       );
 
       // Clear any existing timeout
@@ -295,7 +295,7 @@ export default function EditBookingModal({
       emailGenerationProgress.action === "generating"
     ) {
       console.log(
-        "✅ [GENERATE EMAIL DRAFT] Draft link received - hiding modal"
+        "✅ [GENERATE EMAIL DRAFT] Draft link received - hiding modal",
       );
 
       if (timeoutRef.current) {
@@ -317,7 +317,7 @@ export default function EditBookingModal({
       emailGenerationProgress.action === "deleting"
     ) {
       console.log(
-        "✅ [GENERATE EMAIL DRAFT] Draft link cleared - hiding modal"
+        "✅ [GENERATE EMAIL DRAFT] Draft link cleared - hiding modal",
       );
 
       if (timeoutRef.current) {
@@ -369,7 +369,7 @@ export default function EditBookingModal({
     // Detect change from false to true (toggled ON)
     if (previousValue === false && currentValue === true) {
       console.log(
-        "✅ [GENERATE CANCELLATION DRAFT] Toggled ON - showing generating modal"
+        "✅ [GENERATE CANCELLATION DRAFT] Toggled ON - showing generating modal",
       );
 
       // Clear any existing timeout
@@ -387,7 +387,7 @@ export default function EditBookingModal({
       // Set timeout to hide modal after 30 seconds
       cancellationTimeoutRef.current = setTimeout(() => {
         console.log(
-          "⏱️ [GENERATE CANCELLATION DRAFT] Timeout reached - hiding modal"
+          "⏱️ [GENERATE CANCELLATION DRAFT] Timeout reached - hiding modal",
         );
         setIsGeneratingEmail(false);
         setEmailGenerationProgress({
@@ -401,7 +401,7 @@ export default function EditBookingModal({
     // Detect change from true to false (toggled OFF)
     if (previousValue === true && currentValue === false) {
       console.log(
-        "🗑️ [GENERATE CANCELLATION DRAFT] Toggled OFF - showing deleting modal"
+        "🗑️ [GENERATE CANCELLATION DRAFT] Toggled OFF - showing deleting modal",
       );
 
       // Clear any existing timeout
@@ -419,7 +419,7 @@ export default function EditBookingModal({
       // Set timeout to hide modal after 30 seconds
       cancellationTimeoutRef.current = setTimeout(() => {
         console.log(
-          "⏱️ [GENERATE CANCELLATION DRAFT] Timeout reached - hiding modal"
+          "⏱️ [GENERATE CANCELLATION DRAFT] Timeout reached - hiding modal",
         );
         setIsGeneratingEmail(false);
         setEmailGenerationProgress({
@@ -437,7 +437,7 @@ export default function EditBookingModal({
       emailGenerationProgress.action === "generating"
     ) {
       console.log(
-        "✅ [GENERATE CANCELLATION DRAFT] Draft link received - hiding modal"
+        "✅ [GENERATE CANCELLATION DRAFT] Draft link received - hiding modal",
       );
 
       if (cancellationTimeoutRef.current) {
@@ -459,7 +459,7 @@ export default function EditBookingModal({
       emailGenerationProgress.action === "deleting"
     ) {
       console.log(
-        "✅ [GENERATE CANCELLATION DRAFT] Draft link cleared - hiding modal"
+        "✅ [GENERATE CANCELLATION DRAFT] Draft link cleared - hiding modal",
       );
 
       if (cancellationTimeoutRef.current) {
@@ -588,7 +588,7 @@ export default function EditBookingModal({
     // Detect change from false to true (toggled ON)
     if (previousValue === false && currentValue === true) {
       console.log(
-        "✅ [SEND CANCELLATION EMAIL] Toggled ON - showing sending modal"
+        "✅ [SEND CANCELLATION EMAIL] Toggled ON - showing sending modal",
       );
 
       // Clear any existing timeout
@@ -606,7 +606,7 @@ export default function EditBookingModal({
       // Set timeout to hide modal after 30 seconds
       sendCancellationEmailTimeoutRef.current = setTimeout(() => {
         console.log(
-          "⏱️ [SEND CANCELLATION EMAIL] Timeout reached - hiding modal"
+          "⏱️ [SEND CANCELLATION EMAIL] Timeout reached - hiding modal",
         );
         setIsGeneratingEmail(false);
         setEmailGenerationProgress({
@@ -624,7 +624,7 @@ export default function EditBookingModal({
       emailGenerationProgress.action === "sending"
     ) {
       console.log(
-        "✅ [SEND CANCELLATION EMAIL] Sent email link received - hiding modal"
+        "✅ [SEND CANCELLATION EMAIL] Sent email link received - hiding modal",
       );
 
       if (sendCancellationEmailTimeoutRef.current) {
@@ -668,7 +668,7 @@ export default function EditBookingModal({
     if (!isOpen) return;
 
     console.log(
-      "🔍 [EDIT BOOKING MODAL] Loading coded columns and functions..."
+      "🔍 [EDIT BOOKING MODAL] Loading coded columns and functions...",
     );
     setIsLoadingColumns(true);
 
@@ -681,11 +681,11 @@ export default function EditBookingModal({
         if (columnData.dataType === "select" && columnData.id === "eventName") {
           console.log(
             "🔍 [EDIT BOOKING MODAL] Event Name column data:",
-            columnData
+            columnData,
           );
           console.log(
             "🔍 [EDIT BOOKING MODAL] Has loadOptions?",
-            !!columnData.loadOptions
+            !!columnData.loadOptions,
           );
         }
 
@@ -699,17 +699,17 @@ export default function EditBookingModal({
             };
           } else {
             console.warn(
-              `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`
+              `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`,
             );
           }
         }
 
         return columnData;
-      }
+      },
     );
 
     console.log(
-      `✅ [EDIT BOOKING MODAL] Loaded ${codedColumns.length} coded columns`
+      `✅ [EDIT BOOKING MODAL] Loaded ${codedColumns.length} coded columns`,
     );
     setColumns(codedColumns);
     setIsLoadingColumns(false);
@@ -751,7 +751,7 @@ export default function EditBookingModal({
     const loadDynamicOptions = async () => {
       console.log(
         "🔄 [EDIT BOOKING MODAL] Loading dynamic options with formData context:",
-        { availablePaymentTerms: formData.availablePaymentTerms }
+        { availablePaymentTerms: formData.availablePaymentTerms },
       );
 
       const optionsMap: Record<string, string[]> = {};
@@ -760,19 +760,19 @@ export default function EditBookingModal({
         if (col.dataType === "select" && col.loadOptions) {
           try {
             console.log(
-              `🔄 [EDIT BOOKING MODAL] Loading options for ${col.columnName}...`
+              `🔄 [EDIT BOOKING MODAL] Loading options for ${col.columnName}...`,
             );
             // Pass formData as context for context-aware options
             const options = await col.loadOptions({ formData });
             console.log(
               `✅ [EDIT BOOKING MODAL] Loaded ${options.length} options for ${col.columnName}:`,
-              options
+              options,
             );
             optionsMap[col.id] = options;
           } catch (error) {
             console.error(
               `Failed to load options for ${col.columnName}:`,
-              error
+              error,
             );
             optionsMap[col.id] = col.options || [];
           }
@@ -781,7 +781,7 @@ export default function EditBookingModal({
 
       console.log(
         "📦 [EDIT BOOKING MODAL] All dynamic options loaded:",
-        optionsMap
+        optionsMap,
       );
       setDynamicOptions(optionsMap);
     };
@@ -800,7 +800,7 @@ export default function EditBookingModal({
             if (arg.columnReference !== "ID" && arg.columnReference !== "Row") {
               // Find the column ID for the referenced column name
               const refCol = columns.find(
-                (c) => c.columnName === arg.columnReference
+                (c) => c.columnName === arg.columnReference,
               );
               if (refCol) {
                 const list = map.get(refCol.id) || [];
@@ -842,7 +842,7 @@ export default function EditBookingModal({
       try {
         console.log(
           "🔄 [EDIT BOOKING MODAL] Reloading Payment Plan options for:",
-          availablePaymentTerms
+          availablePaymentTerms,
         );
 
         // Pass formData context to loadOptions
@@ -852,7 +852,7 @@ export default function EditBookingModal({
 
         console.log(
           "✅ [EDIT BOOKING MODAL] Payment Plan options updated:",
-          options
+          options,
         );
 
         // Update only the paymentPlan options, keep others unchanged
@@ -868,12 +868,53 @@ export default function EditBookingModal({
         }));
       }
     },
-    [columns]
+    [columns],
+  );
+
+  // Optimized function to reload ONLY Tour Date options when Tour Package Name changes
+  const reloadTourDateOptions = useCallback(
+    async (tourPackageName: string) => {
+      const tourDateColumn = columns.find((col) => col.id === "tourDate");
+
+      if (!tourDateColumn || !tourDateColumn.loadOptions) {
+        return;
+      }
+
+      try {
+        console.log(
+          "🔄 [EDIT BOOKING MODAL] Reloading Tour Date options for:",
+          tourPackageName,
+        );
+
+        // Pass formData context to loadOptions
+        const options = await tourDateColumn.loadOptions({
+          formData: { tourPackageName },
+        });
+
+        console.log(
+          "✅ [EDIT BOOKING MODAL] Tour Date options updated:",
+          options,
+        );
+
+        // Update only the tourDate options, keep others unchanged
+        setDynamicOptions((prev) => ({
+          ...prev,
+          tourDate: options,
+        }));
+      } catch (error) {
+        console.error("Failed to reload Tour Date options:", error);
+        setDynamicOptions((prev) => ({
+          ...prev,
+          tourDate: tourDateColumn.options || [],
+        }));
+      }
+    },
+    [columns],
   );
 
   // Reactive tracking: reload Payment Plan options when Available Payment Terms changes
   const previousAvailablePaymentTerms = React.useRef<string | undefined>(
-    undefined
+    undefined,
   );
 
   useEffect(() => {
@@ -898,22 +939,25 @@ export default function EditBookingModal({
     if (!booking || !isOpen || !columns.length) return;
 
     // Group columns by parentTab
-    const groupedColumns = columns.reduce((groups, column) => {
-      const parentTab = column.parentTab || "General";
-      if (!groups[parentTab]) {
-        groups[parentTab] = [];
-      }
-      groups[parentTab].push(column);
-      return groups;
-    }, {} as Record<string, SheetColumn[]>);
+    const groupedColumns = columns.reduce(
+      (groups, column) => {
+        const parentTab = column.parentTab || "General";
+        if (!groups[parentTab]) {
+          groups[parentTab] = [];
+        }
+        groups[parentTab].push(column);
+        return groups;
+      },
+      {} as Record<string, SheetColumn[]>,
+    );
 
     // Sort parentTabs by the order they first appear in the columns
     const sortedParentTabs = Object.keys(groupedColumns).sort((a, b) => {
       const aFirstOrder = Math.min(
-        ...groupedColumns[a].map((col) => col.order ?? 999)
+        ...groupedColumns[a].map((col) => col.order ?? 999),
       );
       const bFirstOrder = Math.min(
-        ...groupedColumns[b].map((col) => col.order ?? 999)
+        ...groupedColumns[b].map((col) => col.order ?? 999),
       );
       return aFirstOrder - bFirstOrder;
     });
@@ -963,7 +1007,7 @@ export default function EditBookingModal({
     debounce(() => {
       // Handle any scroll-related updates here if needed
     }, 16), // ~60fps
-    []
+    [],
   );
 
   // Debounced save indicator handler
@@ -972,7 +1016,7 @@ export default function EditBookingModal({
       setIsSaving(false);
       setLastSaved(new Date());
     }, 1000), // Show "saving" for 1 second after last change
-    []
+    [],
   );
 
   // Track active section on scroll
@@ -1076,7 +1120,7 @@ export default function EditBookingModal({
   const executeFunction = React.useCallback(
     async (
       funcCol: SheetColumn,
-      currentData: Partial<Booking>
+      currentData: Partial<Booking>,
     ): Promise<any> => {
       if (!funcCol.function || funcCol.dataType !== "function") return;
 
@@ -1134,7 +1178,7 @@ export default function EditBookingModal({
         const args = functionExecutionService.buildArgs(
           funcCol,
           currentData as any,
-          columns
+          columns,
         );
 
         // Use longer timeout for email-sending and email-generating functions (30 seconds)
@@ -1150,7 +1194,7 @@ export default function EditBookingModal({
         const result = await functionExecutionService.executeFunction(
           funcCol.function,
           args,
-          timeout
+          timeout,
         );
 
         console.log(
@@ -1159,7 +1203,7 @@ export default function EditBookingModal({
             success: result.success,
             result: result.result,
             executionTime: result.executionTime,
-          }
+          },
         );
 
         if (result.success) {
@@ -1187,7 +1231,7 @@ export default function EditBookingModal({
         }
       }
     },
-    [columns]
+    [columns],
   );
 
   // Immediate function execution with parallel direct dependents (like BookingsDataGrid)
@@ -1221,13 +1265,13 @@ export default function EditBookingModal({
               } catch (error) {
                 console.error(
                   `Error executing function ${funcCol.columnName}:`,
-                  error
+                  error,
                 );
                 return { columnId: funcCol.id, result: undefined };
               }
             }
             return { columnId: funcCol.id, result: undefined };
-          })
+          }),
         );
 
         // Apply results and queue Firebase updates
@@ -1255,7 +1299,7 @@ export default function EditBookingModal({
               if (oldValue !== result) {
                 updatedData = await executeDirectDependents(
                   columnId,
-                  updatedData
+                  updatedData,
                 );
               }
             }
@@ -1268,8 +1312,92 @@ export default function EditBookingModal({
         return currentData;
       }
     },
-    [dependencyGraph, executeFunction, booking?.id]
+    [dependencyGraph, executeFunction, booking?.id],
   );
+
+  // Reactive tracking: reload Tour Date options when Tour Package Name changes
+  const previousTourPackageName = React.useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    const currentValue = formData.tourPackageName;
+    const previousValue = previousTourPackageName.current;
+
+    // Reload if the value changed and currentValue is not undefined/empty
+    if (currentValue !== previousValue && currentValue) {
+      console.log("📊 [EDIT BOOKING MODAL] Tour Package Name changed:", {
+        from: previousValue,
+        to: currentValue,
+      });
+
+      // Clear existing tourDate value both locally and in Firebase (only if changing from one package to another)
+      if (formData.tourDate && previousValue !== undefined) {
+        console.log(
+          "🧹 [EDIT BOOKING MODAL] Clearing tourDate due to package change",
+        );
+
+        // Create updated data with cleared tourDate
+        const updatedData = {
+          ...formData,
+          tourPackageName: currentValue,
+          tourDate: undefined,
+        };
+
+        // Update local form state
+        setFormData(updatedData);
+
+        // Update Firebase immediately (not using batched writer to ensure it clears before listener restores it)
+        if (booking?.id) {
+          const bookingRef = doc(db, "bookings", booking.id);
+          updateDoc(bookingRef, {
+            tourDate: deleteField(),
+          }).catch((error) => {
+            console.error("Failed to clear tourDate:", error);
+          });
+        }
+
+        // Trigger recalculation of ALL dependent fields (both tourPackageName and tourDate dependents)
+        // This ensures Return Date and other calculated fields are recalculated
+        executeDirectDependents("tourPackageName", updatedData).then(
+          async (intermediateData) => {
+            const finalData = intermediateData || updatedData;
+            // Also recalculate tourDate dependents to clear Return Date and other dependent fields
+            const fullData = await executeDirectDependents(
+              "tourDate",
+              finalData,
+            );
+            if (fullData) {
+              setFormData(fullData);
+            }
+          },
+        );
+      } else {
+        // If no tourDate to clear, just recalculate tourPackageName dependents
+        const updatedData = {
+          ...formData,
+          tourPackageName: currentValue,
+        };
+        executeDirectDependents("tourPackageName", updatedData).then(
+          (finalData) => {
+            if (finalData) {
+              setFormData(finalData);
+            }
+          },
+        );
+      }
+
+      // Reload tour date options for the new package
+      reloadTourDateOptions(String(currentValue));
+    }
+
+    // Update the ref for next comparison
+    previousTourPackageName.current = currentValue;
+  }, [
+    formData.tourPackageName,
+    formData.tourDate,
+    booking?.id,
+    reloadTourDateOptions,
+    executeDirectDependents,
+  ]);
 
   // Debounced wrapper to avoid excessive calls while maintaining responsiveness
   const debouncedExecuteFunctions = React.useCallback(
@@ -1284,7 +1412,7 @@ export default function EditBookingModal({
         try {
           const updatedData = await executeDirectDependents(
             changedColumnId,
-            currentData
+            currentData,
           );
 
           // Update form data with all computed results
@@ -1294,7 +1422,7 @@ export default function EditBookingModal({
         }
       }, 100); // Reduced to 100ms for better responsiveness like BookingsDataGrid
     },
-    [executeDirectDependents]
+    [executeDirectDependents],
   );
 
   const handleFieldChange = useCallback(
@@ -1335,7 +1463,7 @@ export default function EditBookingModal({
         });
       }
     },
-    [formData, fieldErrors]
+    [formData, fieldErrors],
   );
 
   // Get form value for a column (LOCAL FIRST pattern) - memoized for performance
@@ -1354,14 +1482,14 @@ export default function EditBookingModal({
       // Otherwise use formData (which gets updated by Firebase)
       return formData[column.id as keyof Booking] || "";
     },
-    [activeEditingFields, localFieldValues, formData]
+    [activeEditingFields, localFieldValues, formData],
   );
 
   // Handle when user finishes editing a field (LOCAL FIRST pattern)
   const handleFieldBlur = useCallback(
     (columnId: string) => {
       console.log(
-        `📝 [EDIT BOOKING MODAL] Field editing finished: ${columnId}`
+        `📝 [EDIT BOOKING MODAL] Field editing finished: ${columnId}`,
       );
 
       // Get pending change value
@@ -1371,7 +1499,7 @@ export default function EditBookingModal({
       // Only save to Firebase if the value has actually changed from original
       if (pendingValue !== undefined && pendingValue !== originalValue) {
         console.log(
-          `💾 [EDIT BOOKING MODAL] Saving to Firebase: ${columnId} = ${pendingValue}`
+          `💾 [EDIT BOOKING MODAL] Saving to Firebase: ${columnId} = ${pendingValue}`,
         );
 
         // Show saving indicator
@@ -1434,7 +1562,7 @@ export default function EditBookingModal({
       booking?.id,
       debouncedSaveIndicator,
       executeDirectDependents,
-    ]
+    ],
   );
 
   // Handle key events during editing
@@ -1481,7 +1609,7 @@ export default function EditBookingModal({
 
         // User cancelled editing - discard pending changes and revert to original value
         console.log(
-          `🚫 [EDIT BOOKING MODAL] Discarding changes for: ${columnId}`
+          `🚫 [EDIT BOOKING MODAL] Discarding changes for: ${columnId}`,
         );
 
         // Get the original value before editing started
@@ -1525,7 +1653,7 @@ export default function EditBookingModal({
         }
       }
     },
-    [handleFieldBlur, formData, originalValues]
+    [handleFieldBlur, formData, originalValues],
   );
 
   // Check if column should be displayed
@@ -1551,7 +1679,7 @@ export default function EditBookingModal({
       const baseClasses = cn(
         "w-full text-[11px] sm:text-xs",
         error && "border-red-500",
-        isReadOnly && "bg-muted cursor-not-allowed"
+        isReadOnly && "bg-muted cursor-not-allowed",
       );
 
       const fieldId = `field-${column.id}`;
@@ -1576,7 +1704,7 @@ export default function EditBookingModal({
                   // Use startTransition to prevent flushSync errors on mobile
                   startTransition(() => {
                     console.log(
-                      `🔘 Boolean field toggled: ${column.id} = ${checked}`
+                      `🔘 Boolean field toggled: ${column.id} = ${checked}`,
                     );
                     console.log(`📊 Current formData for draft link:`, {
                       emailDraftLink: formData.emailDraftLink,
@@ -1653,7 +1781,7 @@ export default function EditBookingModal({
                           batchedWriter.queueFieldUpdate(
                             booking.id,
                             column.id,
-                            checked
+                            checked,
                           );
                           setFormData((prev) => ({
                             ...prev,
@@ -1671,7 +1799,7 @@ export default function EditBookingModal({
                         .catch((error) => {
                           console.error(
                             "Error cleaning scheduled emails:",
-                            error
+                            error,
                           );
                           toast({
                             title: "Error",
@@ -1692,7 +1820,7 @@ export default function EditBookingModal({
                       batchedWriter.queueFieldUpdate(
                         booking.id,
                         column.id,
-                        checked
+                        checked,
                       );
                     }
                     setFormData((prev) => ({ ...prev, [column.id]: checked }));
@@ -1714,7 +1842,7 @@ export default function EditBookingModal({
                       dependents.forEach((dep) => {
                         if (dep.function) {
                           console.log(
-                            `🗑️ Invalidating cache for function: ${dep.function}`
+                            `🗑️ Invalidating cache for function: ${dep.function}`,
                           );
                           functionExecutionService.invalidate(dep.function);
                         }
@@ -1734,7 +1862,7 @@ export default function EditBookingModal({
                             emailDraftLink: finalData?.emailDraftLink,
                             cancellationEmailDraftLink:
                               finalData?.cancellationEmailDraftLink,
-                          }
+                          },
                         );
                         if (finalData) {
                           // Force update formData with final results to prevent stale values
@@ -1821,7 +1949,7 @@ export default function EditBookingModal({
                   batchedWriter.queueFieldUpdate(
                     booking.id,
                     column.id,
-                    dateValue
+                    dateValue,
                   );
                 }
                 setFormData((prev) => ({ ...prev, [column.id]: dateValue }));
@@ -1841,7 +1969,7 @@ export default function EditBookingModal({
               onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
               className={cn(
                 baseClasses,
-                "text-xs [&::-webkit-calendar-picker-indicator]:text-xs"
+                "text-xs [&::-webkit-calendar-picker-indicator]:text-xs",
               )}
               disabled={isReadOnly || isComputing}
               autoComplete="off"
@@ -1851,7 +1979,21 @@ export default function EditBookingModal({
         case "select":
           // Calculate options inline (lightweight operation, no need for useMemo)
           const options = dynamicOptions[column.id] || column.options || [];
-          const currentValue = String(value || "");
+
+          // Special handling for tourDate - display as dd/mm/yyyy
+          let displayValue: string;
+          if (column.id === "tourDate" && value) {
+            // Import the formatTimestampToDDMMYYYY helper
+            const {
+              formatTimestampToDDMMYYYY,
+            } = require("@/lib/booking-calculations");
+            displayValue =
+              formatTimestampToDDMMYYYY(value) || String(value || "");
+          } else {
+            displayValue = String(value || "");
+          }
+
+          const currentValue = displayValue;
           const hasCurrentValue = currentValue && currentValue !== "";
           const currentValueInOptions = options.includes(currentValue);
           const hasEmptyOption = options.includes("");
@@ -1873,24 +2015,78 @@ export default function EditBookingModal({
             <select
               id={fieldId}
               value={currentValue}
-              onChange={(e) => {
+              onChange={async (e) => {
                 const newValue = e.target.value;
+
+                // Special handling for tourDate - convert dd/mm/yyyy back to Timestamp
+                let valueToSave = newValue;
+                if (column.id === "tourDate" && newValue) {
+                  const { toDate } = require("@/lib/booking-calculations");
+                  const { Timestamp } = await import("firebase/firestore");
+
+                  // Convert dd/mm/yyyy string to Date
+                  const dateObj = toDate(newValue);
+                  if (dateObj) {
+                    // Validate that this date exists in the tour package's travelDates
+                    const tourPackageName = formData.tourPackageName;
+                    if (tourPackageName) {
+                      const { collection, getDocs, query, where } =
+                        await import("firebase/firestore");
+                      const { db } = await import("@/lib/firebase");
+
+                      const tourPackagesRef = collection(db, "tourPackages");
+                      const q = query(
+                        tourPackagesRef,
+                        where("name", "==", tourPackageName),
+                      );
+                      const snapshot = await getDocs(q);
+
+                      if (!snapshot.empty) {
+                        const tourData = snapshot.docs[0].data();
+                        const travelDates = tourData.travelDates || [];
+                        const {
+                          formatTimestampToDDMMYYYY,
+                        } = require("@/lib/booking-calculations");
+
+                        // Check if selected date exists in travelDates
+                        const dateExists = travelDates.some((td: any) => {
+                          return (
+                            formatTimestampToDDMMYYYY(td.startDate) === newValue
+                          );
+                        });
+
+                        if (!dateExists) {
+                          console.warn(
+                            `Selected date ${newValue} does not exist in tour package travelDates`,
+                          );
+                        }
+                      }
+                    }
+
+                    // Convert to Firebase Timestamp
+                    valueToSave = Timestamp.fromDate(dateObj) as any;
+                  } else {
+                    console.error("Failed to parse date:", newValue);
+                    valueToSave = newValue;
+                  }
+                }
+
                 // For select, commit immediately to Firebase (discrete choice)
                 if (booking?.id) {
                   batchedWriter.queueFieldUpdate(
                     booking.id,
                     column.id,
-                    newValue
+                    valueToSave,
                   );
                 }
-                setFormData((prev) => ({ ...prev, [column.id]: newValue }));
+                setFormData((prev) => ({ ...prev, [column.id]: valueToSave }));
                 setIsSaving(true);
                 debouncedSaveIndicator();
 
                 // Execute dependent functions immediately
                 executeDirectDependents(column.id, {
                   ...formData,
-                  [column.id]: newValue,
+                  [column.id]: valueToSave,
                 }).then((finalData) => {
                   if (finalData) {
                     setFormData(finalData);
@@ -1900,7 +2096,7 @@ export default function EditBookingModal({
               className={cn(
                 "flex h-10 w-full bg-gray-200 items-center justify-between rounded-md border border-input px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer pr-10",
                 error && "border-red-500",
-                isReadOnly && "opacity-50"
+                isReadOnly && "opacity-50",
               )}
               disabled={isReadOnly || isComputing}
             >
@@ -1944,7 +2140,7 @@ export default function EditBookingModal({
                 className={cn(
                   "w-full font-mono bg-background text-[11px] sm:text-xs",
                   error && "border-red-500",
-                  isComputing && "opacity-50"
+                  isComputing && "opacity-50",
                 )}
                 disabled={true}
                 placeholder={isComputing ? "Computing..." : ""}
@@ -1977,13 +2173,13 @@ export default function EditBookingModal({
                         batchedWriter.queueFieldUpdate(
                           booking.id,
                           column.id,
-                          result
+                          result,
                         );
 
                         // Then compute dependent functions
                         const finalData = await executeDirectDependents(
                           column.id,
-                          updatedData
+                          updatedData,
                         );
 
                         if (finalData) {
@@ -1993,7 +2189,7 @@ export default function EditBookingModal({
                     } catch (error) {
                       console.error(
                         `Error recomputing ${column.columnName}:`,
-                        error
+                        error,
                       );
                       toast({
                         title: "Recomputation Failed",
@@ -2125,7 +2321,7 @@ export default function EditBookingModal({
       toast,
       batchedWriter,
       dynamicOptions, // Add dynamicOptions to dependencies so select fields re-render when options load
-    ]
+    ],
   );
 
   // Handle close with computation check
@@ -2146,14 +2342,14 @@ export default function EditBookingModal({
     if (hasActiveEdits || hasPendingChanges) {
       // Show confirmation alert
       const confirmed = window.confirm(
-        "You have unsaved changes. Do you want to save them before closing?"
+        "You have unsaved changes. Do you want to save them before closing?",
       );
 
       if (confirmed) {
         // Save pending changes before closing
         if (hasPendingChanges && booking?.id) {
           console.log(
-            "💾 [EDIT BOOKING MODAL] Saving pending changes before close"
+            "💾 [EDIT BOOKING MODAL] Saving pending changes before close",
           );
           Object.entries(pendingChanges).forEach(([columnId, value]) => {
             batchedWriter.queueFieldUpdate(booking.id, columnId, value);
@@ -2191,31 +2387,32 @@ export default function EditBookingModal({
   if (!booking) return null;
 
   // Group columns by parentTab
-  const groupedColumns = columns.reduce((groups, column) => {
-    if (!shouldDisplayColumn(column)) return groups;
+  const groupedColumns = columns.reduce(
+    (groups, column) => {
+      if (!shouldDisplayColumn(column)) return groups;
 
-    const parentTab = column.parentTab || "General";
-    if (!groups[parentTab]) {
-      groups[parentTab] = [];
-    }
-    groups[parentTab].push(column);
-    return groups;
-  }, {} as Record<string, SheetColumn[]>);
+      const parentTab = column.parentTab || "General";
+      if (!groups[parentTab]) {
+        groups[parentTab] = [];
+      }
+      groups[parentTab].push(column);
+      return groups;
+    },
+    {} as Record<string, SheetColumn[]>,
+  );
 
   // Sort columns within each group by order
   Object.keys(groupedColumns).forEach((tab) => {
-    groupedColumns[tab].sort(
-      (a, b) => (a.order ?? 999) - (b.order ?? 999)
-    );
+    groupedColumns[tab].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
   });
 
   // Sort parentTabs by the order they first appear in the columns
   const sortedParentTabs = Object.keys(groupedColumns).sort((a, b) => {
     const aFirstOrder = Math.min(
-      ...groupedColumns[a].map((col) => col.order ?? 999)
+      ...groupedColumns[a].map((col) => col.order ?? 999),
     );
     const bFirstOrder = Math.min(
-      ...groupedColumns[b].map((col) => col.order ?? 999)
+      ...groupedColumns[b].map((col) => col.order ?? 999),
     );
     return aFirstOrder - bFirstOrder;
   });
@@ -2238,14 +2435,14 @@ export default function EditBookingModal({
                 // Get all focusable inputs within the form (including selects, switches, and combobox triggers)
                 const focusableElements = Array.from(
                   e.currentTarget.querySelectorAll<HTMLElement>(
-                    'input:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), button[role="switch"]:not([disabled]):not([tabindex="-1"]), button[role="combobox"]:not([disabled]):not([tabindex="-1"])'
-                  )
+                    'input:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), button[role="switch"]:not([disabled]):not([tabindex="-1"]), button[role="combobox"]:not([disabled]):not([tabindex="-1"])',
+                  ),
                 );
 
                 if (focusableElements.length === 0) return;
 
                 const currentIndex = focusableElements.indexOf(
-                  document.activeElement as HTMLElement
+                  document.activeElement as HTMLElement,
                 );
 
                 if (currentIndex === -1) return;
@@ -2320,7 +2517,7 @@ export default function EditBookingModal({
                     className={cn(
                       "sm:hidden h-8 w-8 p-0 hover:bg-gray-100",
                       computingFields.size > 0 &&
-                        "opacity-50 cursor-not-allowed"
+                        "opacity-50 cursor-not-allowed",
                     )}
                     disabled={computingFields.size > 0}
                     title={
@@ -2344,7 +2541,7 @@ export default function EditBookingModal({
                     className={cn(
                       "hidden sm:flex h-8 w-8 p-0 hover:bg-gray-100",
                       computingFields.size > 0 &&
-                        "opacity-50 cursor-not-allowed"
+                        "opacity-50 cursor-not-allowed",
                     )}
                     disabled={computingFields.size > 0}
                     title={
@@ -2455,7 +2652,7 @@ export default function EditBookingModal({
                                       error && "bg-red-50/50",
                                       isFunction
                                         ? "bg-sunglow-yellow/20 hover:bg-sunglow-yellow/30 border-sunglow-yellow/30 dark:border-sunglow-yellow/40"
-                                        : "hover:bg-muted/10"
+                                        : "hover:bg-muted/10",
                                     )}
                                   >
                                     <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 w-[40%] px-2.5 sm:px-3 py-1.5 sm:py-2 border-r border-field-border">
@@ -2580,8 +2777,8 @@ export default function EditBookingModal({
                     {emailGenerationProgress.action === "generating"
                       ? "Generating Email Draft"
                       : emailGenerationProgress.action === "deleting"
-                      ? "Deleting Email Draft"
-                      : "Sending Email"}
+                        ? "Deleting Email Draft"
+                        : "Sending Email"}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {emailGenerationProgress.action === "generating"
@@ -2589,12 +2786,12 @@ export default function EditBookingModal({
                         ? "Creating reservation email draft in Gmail..."
                         : "Creating cancellation email draft in Gmail..."
                       : emailGenerationProgress.action === "deleting"
-                      ? emailGenerationProgress.type === "reservation"
-                        ? "Deleting reservation email draft if it exists..."
-                        : "Deleting cancellation email draft if it exists..."
-                      : emailGenerationProgress.type === "reservation"
-                      ? "Sending reservation email to customer..."
-                      : "Sending cancellation email to customer..."}
+                        ? emailGenerationProgress.type === "reservation"
+                          ? "Deleting reservation email draft if it exists..."
+                          : "Deleting cancellation email draft if it exists..."
+                        : emailGenerationProgress.type === "reservation"
+                          ? "Sending reservation email to customer..."
+                          : "Sending cancellation email to customer..."}
                   </p>
                 </div>
               </div>
