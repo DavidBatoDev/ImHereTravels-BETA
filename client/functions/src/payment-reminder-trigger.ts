@@ -967,6 +967,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             maxAttempts: 3,
             emailType: "payment-reminder",
             bookingId: bookingId,
+            row: booking.row || null,
             templateId: "GEB3llGzftDaWRFXj8qz",
             templateVariables,
           });

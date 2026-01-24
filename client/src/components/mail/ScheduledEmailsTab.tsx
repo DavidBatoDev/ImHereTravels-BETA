@@ -146,7 +146,7 @@ export default function ScheduledEmailsTab() {
   );
   const [newScheduleDate, setNewScheduleDate] = useState("");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-  const [bookingRows, setBookingRows] = useState<Record<string, number>>({});
+
   const [viewEmailData, setViewEmailData] = useState<{
     to: string;
     cc: string;
@@ -998,7 +998,7 @@ export default function ScheduledEmailsTab() {
     return results;
   }, [scheduledEmails, searchTerm, statusFilter, dateFrom, dateTo, fuse]);
 
-  // Group emails by bookingId
+  // Group emails by bookingId and extract row from first email in each group
   const groupEmailsByBookingId = (emails: ScheduledEmail[]) => {
     const grouped: Record<string, ScheduledEmail[]> = {};
     const ungrouped: ScheduledEmail[] = [];
@@ -1019,35 +1019,6 @@ export default function ScheduledEmailsTab() {
 
   const { grouped: groupedEmails, ungrouped: ungroupedEmails } =
     groupEmailsByBookingId(filteredEmails);
-
-  // Fetch row numbers for bookings
-  useEffect(() => {
-    const fetchBookingRows = async () => {
-      const bookingIds = Object.keys(groupedEmails);
-      const rowsMap: Record<string, number> = {};
-
-      for (const bookingId of bookingIds) {
-        try {
-          const bookingRef = doc(db, "bookings", bookingId);
-          const bookingDoc = await getDoc(bookingRef);
-          if (bookingDoc.exists()) {
-            const data = bookingDoc.data();
-            if (data.row) {
-              rowsMap[bookingId] = data.row;
-            }
-          }
-        } catch (error) {
-          console.error(`Error fetching row for booking ${bookingId}:`, error);
-        }
-      }
-
-      setBookingRows(rowsMap);
-    };
-
-    if (Object.keys(groupedEmails).length > 0) {
-      fetchBookingRows();
-    }
-  }, [groupedEmails]);
 
   // Track scroll position for scroll buttons
   useEffect(() => {
@@ -1265,9 +1236,10 @@ export default function ScheduledEmailsTab() {
       <div className="space-y-3">
         {/* Grouped Emails by Booking */}
         {Object.entries(groupedEmails)
-          .sort(([bookingIdA], [bookingIdB]) => {
-            const rowA = bookingRows[bookingIdA] || 0;
-            const rowB = bookingRows[bookingIdB] || 0;
+          .sort(([, emailsA], [, emailsB]) => {
+            // Get row from first email in each group
+            const rowA = emailsA[0]?.row ?? 999999;
+            const rowB = emailsB[0]?.row ?? 999999;
             return rowA - rowB; // Ascending order
           })
           .map(([bookingId, emails]) => {
@@ -1290,9 +1262,9 @@ export default function ScheduledEmailsTab() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
                       <CardTitle className="text-lg">
-                        {bookingRows[bookingId] && (
+                        {emails[0]?.row && (
                           <span className="text-muted-foreground font-normal mr-2">
-                            Row {bookingRows[bookingId]}:
+                            Row {emails[0].row}:
                           </span>
                         )}
                         Booking: {actualBookingId}

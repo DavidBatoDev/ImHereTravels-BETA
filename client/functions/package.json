@@ -11,7 +11,8 @@
     "logs": "firebase functions:log",
     "create-payment-reminders": "ts-node src/create-payment-reminders-script.ts",
     "delete-migration-emails": "ts-node src/delete-migration-emails-script.ts",
-    "cleanup-booking-links": "ts-node src/cleanup-booking-links-script.ts"
+    "cleanup-booking-links": "ts-node src/cleanup-booking-links-script.ts",
+    "update-scheduled-email-rows": "ts-node src/update-scheduled-email-rows-script.ts"
   },
   "engines": {
     "node": "20"
