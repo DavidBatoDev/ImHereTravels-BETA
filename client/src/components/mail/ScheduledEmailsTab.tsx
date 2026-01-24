@@ -146,6 +146,7 @@ export default function ScheduledEmailsTab() {
   );
   const [newScheduleDate, setNewScheduleDate] = useState("");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [bookingRows, setBookingRows] = useState<Record<string, number>>({});
   const [viewEmailData, setViewEmailData] = useState<{
     to: string;
     cc: string;
@@ -1019,6 +1020,70 @@ export default function ScheduledEmailsTab() {
   const { grouped: groupedEmails, ungrouped: ungroupedEmails } =
     groupEmailsByBookingId(filteredEmails);
 
+  // Fetch row numbers for bookings
+  useEffect(() => {
+    const fetchBookingRows = async () => {
+      const bookingIds = Object.keys(groupedEmails);
+      const rowsMap: Record<string, number> = {};
+
+      for (const bookingId of bookingIds) {
+        try {
+          const bookingRef = doc(db, "bookings", bookingId);
+          const bookingDoc = await getDoc(bookingRef);
+          if (bookingDoc.exists()) {
+            const data = bookingDoc.data();
+            if (data.row) {
+              rowsMap[bookingId] = data.row;
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching row for booking ${bookingId}:`, error);
+        }
+      }
+
+      setBookingRows(rowsMap);
+    };
+
+    if (Object.keys(groupedEmails).length > 0) {
+      fetchBookingRows();
+    }
+  }, [groupedEmails]);
+
+  // Track scroll position for scroll buttons
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop =
+        window.pageYOffset || document.documentElement.scrollTop;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+
+      const isAtTop = scrollTop <= 10;
+      const isAtBottom = scrollTop >= documentHeight - windowHeight - 10;
+
+      // Set data attributes for CSS
+      document.body.setAttribute(
+        "data-scroll",
+        isAtTop ? "top" : isAtBottom ? "bottom" : "middle",
+      );
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    handleScroll(); // Initial call
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Scroll functions
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const scrollToBottom = () => {
+    window.scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: "smooth",
+    });
+  };
+
   // Navigate to booking detail
   const handleNavigateToBooking = (bookingId: string) => {
     window.open(`/bookings?tab=bookings&bookingId=${bookingId}`, "_blank");
@@ -1199,7 +1264,13 @@ export default function ScheduledEmailsTab() {
       {/* Scheduled Emails List */}
       <div className="space-y-3">
         {/* Grouped Emails by Booking */}
-        {Object.entries(groupedEmails).map(([bookingId, emails]) => {
+        {Object.entries(groupedEmails)
+          .sort(([bookingIdA], [bookingIdB]) => {
+            const rowA = bookingRows[bookingIdA] || 0;
+            const rowB = bookingRows[bookingIdB] || 0;
+            return rowA - rowB; // Ascending order
+          })
+          .map(([bookingId, emails]) => {
           const isOpen = openGroups[bookingId] ?? true;
           const allStatuses = emails.map((e) => e.status);
           const hasPending = allStatuses.includes("pending");
@@ -1219,6 +1290,11 @@ export default function ScheduledEmailsTab() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
                       <CardTitle className="text-lg">
+                        {bookingRows[bookingId] && (
+                          <span className="text-muted-foreground font-normal mr-2">
+                            Row {bookingRows[bookingId]}:
+                          </span>
+                        )}
                         Booking: {actualBookingId}
                       </CardTitle>
                       <Badge
@@ -2038,6 +2114,24 @@ export default function ScheduledEmailsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Fixed Scroll Buttons - CSS-only visibility */}
+      <Button
+        onClick={scrollToTop}
+        size="sm"
+        className="fixed right-6 bottom-20 z-50 h-10 w-10 rounded-full bg-crimson-red hover:bg-crimson-red/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 scroll-to-top-btn"
+        title="Scroll to top"
+      >
+        <ChevronUp className="h-4 w-4" />
+      </Button>
+      <Button
+        onClick={scrollToBottom}
+        size="sm"
+        className="fixed right-6 bottom-6 z-50 h-10 w-10 rounded-full bg-crimson-red hover:bg-crimson-red/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 scroll-to-bottom-btn"
+        title="Scroll to bottom"
+      >
+        <ChevronDown className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
