@@ -1,7 +1,7 @@
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import EmailTemplateService from "./email-template-service";
-import { EmailTemplateLoader } from "./email-template-loader";
+import EmailTemplateService from "../functions/src/email-template-service";
+import { EmailTemplateLoader } from "../functions/src/email-template-loader";
 import * as dotenv from "dotenv";
 import * as path from "path";
 
