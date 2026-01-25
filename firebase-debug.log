@@ -1,0 +1,24 @@
+[debug] [2026-01-25T11:17:36.484Z] ----------------------------------------------------------------------
+[debug] [2026-01-25T11:17:36.490Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\huawei\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js use dev
+[debug] [2026-01-25T11:17:36.491Z] CLI Version:   14.17.0
+[debug] [2026-01-25T11:17:36.491Z] Platform:      win32
+[debug] [2026-01-25T11:17:36.491Z] Node Version:  v20.16.0
+[debug] [2026-01-25T11:17:36.491Z] Time:          Sun Jan 25 2026 19:17:36 GMT+0800 (Philippine Standard Time)
+[debug] [2026-01-25T11:17:36.492Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-01-25T11:17:36.504Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-01-25T11:17:36.505Z] > authorizing via signed-in user (bella@imheretravels.com)
+[error] 
+[error] Error: firebase use must be run from a Firebase project directory.
+
+Run firebase init to start a project directory in the current folder.
+[debug] [2026-01-25T11:17:37.087Z] Error: EBUSY: resource busy or locked, unlink 'D:\Documents\GitHub\ImHereTravels-BETA\firebase-debug.log'
+    at Object.unlinkSync (node:fs:1884:11)
+    at process.<anonymous> (C:\Users\huawei\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\cli.js:44:16)
+    at process.emit (node:events:531:35)
+    at process.exit (node:internal/process/per_thread:185:15)
+    at Timeout._onTimeout (C:\Users\huawei\AppData\Roaming\npm\node_modules\firebase-tools\lib\errorOut.js:20:17)
+    at listOnTimeout (node:internal/timers:581:17)
+    at process.processTimers (node:internal/timers:519:7)
+[error] 
+[error] Error: An unexpected error has occurred.

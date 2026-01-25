@@ -23,6 +23,7 @@ import {
   generateGroupId,
   type BookingCreationInput,
 } from "@/lib/booking-calculations";
+import crypto from "crypto";
 
 /**
  * Generate Group/Duo Booking Member ID (standalone version, no allRows needed).
@@ -229,6 +230,22 @@ async function getTotalBookingsCount(): Promise<number> {
   }
 }
 
+/**
+ * Generate a secure, unguessable access token using crypto.randomBytes
+ * Uses 32 bytes of cryptographically secure random data encoded as URL-safe base64
+ * This provides 256 bits of entropy, making it practically impossible to guess
+ * 
+ * @returns {string} A secure access token (43 characters, URL-safe)
+ */
+function generateAccessToken(): string {
+  return crypto
+    .randomBytes(32)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { paymentDocId } = await req.json();
@@ -393,10 +410,15 @@ export async function POST(req: NextRequest) {
       : null;
     const reservationDateTimestamp = Timestamp.now();
 
+    // Generate access token for the booking
+    const access_token = generateAccessToken();
+    console.log("🔐 Generated access token for booking");
+
     // Add to bookings collection with proper Timestamps
     const bookingsRef = collection(db, "bookings");
     const newBookingRef = await addDoc(bookingsRef, {
       ...bookingData,
+      access_token,
       // Override dates - tourDate and reservationDate as Timestamps, returnDate as string
       tourDate: tourDateTimestamp,
       returnDate: calculatedReturnDate, // Keep as string "yyyy-mm-dd"

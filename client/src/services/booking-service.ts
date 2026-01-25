@@ -16,6 +16,7 @@ import {
   Unsubscribe,
   writeBatch,
 } from "firebase/firestore";
+import crypto from "crypto";
 import { bookingVersionHistoryService } from "./booking-version-history-service";
 import { SheetData } from "@/types/sheet-management";
 import { useAuthStore } from "@/store/auth-store";
@@ -25,6 +26,22 @@ import { useAuthStore } from "@/store/auth-store";
 // ============================================================================
 
 const COLLECTION_NAME = "bookings";
+
+/**
+ * Generate a secure, unguessable access token using crypto.randomBytes
+ * Uses 32 bytes of cryptographically secure random data encoded as URL-safe base64
+ * This provides 256 bits of entropy, making it practically impossible to guess
+ * 
+ * @returns {string} A secure access token (43 characters, URL-safe)
+ */
+function generateAccessToken(): string {
+  return crypto
+    .randomBytes(32)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+}
 
 // Configuration for version tracking
 const VERSION_TRACKING_CONFIG = {
@@ -317,8 +334,12 @@ class BookingServiceImpl implements BookingService {
     let docId: string | undefined;
 
     try {
+      // Generate access token for new booking
+      const access_token = generateAccessToken();
+      
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
         ...bookingData,
+        access_token,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -590,9 +611,13 @@ class BookingServiceImpl implements BookingService {
 
       if (!docSnap.exists()) {
         // Create new document
+        // Generate access token for new booking
+        const access_token = generateAccessToken();
+        
         const newBookingData = {
           ...bookingData,
           id: bookingId,
+          access_token,
           createdAt: new Date(),
           updatedAt: new Date(),
         };

@@ -7,6 +7,7 @@ import {
   query,
   where,
   getDocs,
+  limit,
 } from "firebase/firestore";
 
 export async function GET(
@@ -18,36 +19,42 @@ export async function GET(
     const email = searchParams.get("email");
     const { bookingDocumentId } = await params;
 
-    console.log("Fetching booking:", bookingDocumentId, "Email:", email);
+    console.log("Fetching booking with access token:", bookingDocumentId);
 
-    // Validate bookingDocumentId
+    // Validate access token
     if (!bookingDocumentId) {
       return NextResponse.json(
-        { success: false, error: "Booking ID is required" },
+        { success: false, error: "Access token is required" },
         { status: 400 }
       );
     }
 
-    // Fetch booking document
-    const bookingRef = doc(db, "bookings", bookingDocumentId);
-    const bookingSnap = await getDoc(bookingRef);
+    // Fetch booking by access_token
+    const bookingsQuery = query(
+      collection(db, "bookings"),
+      where("access_token", "==", bookingDocumentId),
+      limit(1)
+    );
+    const bookingsSnap = await getDocs(bookingsQuery);
 
-    if (!bookingSnap.exists()) {
-      console.log("Booking not found:", bookingDocumentId);
+    if (bookingsSnap.empty) {
+      console.log("Booking not found with access token:", bookingDocumentId);
       return NextResponse.json(
         { success: false, error: "Booking not found" },
         { status: 404 }
       );
     }
 
+    const bookingDoc = bookingsSnap.docs[0];
     const bookingData = {
-      id: bookingSnap.id,
-      ...bookingSnap.data(),
+      id: bookingDoc.id,
+      ...bookingDoc.data(),
     } as any;
 
     console.log("Booking found:", bookingData.id);
 
-    // Email verification for security
+    // Email verification is optional now since access token provides security
+    // But we still support it for backward compatibility
     if (email) {
       const bookingEmail = bookingData.emailAddress?.toLowerCase();
       const providedEmail = email.toLowerCase();
@@ -73,7 +80,7 @@ export async function GET(
     try {
       const confirmedBookingsQuery = query(
         collection(db, "confirmedBookings"),
-        where("bookingDocumentId", "==", bookingDocumentId)
+        where("bookingDocumentId", "==", bookingDoc.id)
       );
       const confirmedBookingsSnap = await getDocs(confirmedBookingsQuery);
 
