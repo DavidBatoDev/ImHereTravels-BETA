@@ -142,7 +142,16 @@ export async function GET(
       reservationFee: bookingData.reservationFee,
       paid: bookingData.paid,
       remainingBalance: bookingData.remainingBalance,
-      paymentProgress: bookingData.paymentProgress,
+      paymentProgress: (() => {
+        const totalCost =
+          (bookingData.isMainBooker && bookingData.discountedTourCost
+            ? bookingData.discountedTourCost
+            : bookingData.originalTourCost) || 0;
+        const paid = bookingData.paid || 0;
+
+        if (totalCost === 0) return 0;
+        return Math.round((paid / totalCost) * 100);
+      })(),
 
       // Payment Plan
       paymentPlan: bookingData.paymentPlan,
