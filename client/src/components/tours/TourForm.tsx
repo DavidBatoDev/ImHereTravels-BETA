@@ -2184,35 +2184,6 @@ export default function TourForm({
                                 className="h-7 px-2 text-xs"
                                 onClick={() => {
                                   form.setValue(
-                                    `travelDates.${index}.hasCustomDiscounted` as any,
-                                    true
-                                  );
-                                  if (
-                                    form.getValues(
-                                      `travelDates.${index}.customDiscounted` as any
-                                    ) === undefined
-                                  ) {
-                                    form.setValue(
-                                      `travelDates.${index}.customDiscounted` as any,
-                                      ""
-                                    );
-                                  }
-                                }}
-                                disabled={
-                                  form.watch(
-                                    `travelDates.${index}.hasCustomDiscounted`
-                                  ) === true
-                                }
-                              >
-                                + Disc
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 px-2 text-xs"
-                                onClick={() => {
-                                  form.setValue(
                                     `travelDates.${index}.hasCustomDeposit` as any,
                                     true
                                   );
