@@ -23,6 +23,7 @@ import {
   HardDrive,
   ChevronLeft,
   ChevronRight,
+  Banknote,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import {
@@ -51,6 +52,12 @@ const navigation = [
     href: "/bookings",
     icon: Calendar,
     description: "Manage reservations",
+  },
+  {
+    name: "Transactions",
+    href: "/transactions",
+    icon: Banknote,
+    description: "View all payments",
   },
   { type: "separator" },
   {

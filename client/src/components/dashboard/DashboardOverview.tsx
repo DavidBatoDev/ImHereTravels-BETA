@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
   FiPlus,
@@ -416,20 +417,7 @@ export default function DashboardOverview() {
     },
   ];
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Card className="border border-border">
-          <CardContent className="p-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-crimson-red mx-auto mb-4"></div>
-            <p className="text-muted-foreground text-lg">
-              Loading dashboard...
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+
 
   return (
     <div className="space-y-6 text-sm sm:text-base">
@@ -537,29 +525,40 @@ export default function DashboardOverview() {
                 <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                   Total Bookings
                 </p>
-                <p className="text-2xl sm:text-3xl font-bold text-foreground">
-                  {metrics.totalBookings}
-                </p>
-                <div className="flex items-center gap-3 mt-2 flex-wrap text-[11px] sm:text-xs">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-spring-green"></div>
-                    <p className="text-xs text-muted-foreground">
-                      Confirmed:{" "}
-                      <span className="text-spring-green font-bold">
-                        {metrics.confirmedBookings}
-                      </span>
-                    </p>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-24 mb-2" />
+                ) : (
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">
+                    {metrics.totalBookings}
+                  </p>
+                )}
+                {isLoading ? (
+                  <div className="flex gap-2 mt-2">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-16" />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
-                    <p className="text-xs text-muted-foreground">
-                      Pending:{" "}
-                      <span className="text-vivid-orange font-bold">
-                        {metrics.pendingBookings}
-                      </span>
-                    </p>
+                ) : (
+                  <div className="flex items-center gap-3 mt-2 flex-wrap text-[11px] sm:text-xs">
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-spring-green"></div>
+                      <p className="text-xs text-muted-foreground">
+                        Confirmed:{" "}
+                        <span className="text-spring-green font-bold">
+                          {metrics.confirmedBookings}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
+                      <p className="text-xs text-muted-foreground">
+                        Pending:{" "}
+                        <span className="text-vivid-orange font-bold">
+                          {metrics.pendingBookings}
+                        </span>
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
               <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-crimson-red/20 to-crimson-red/10 rounded-full rounded-br-none">
                 <FiUsers className="h-6 w-6 text-foreground" />
@@ -579,17 +578,25 @@ export default function DashboardOverview() {
                 <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                   Total Revenue
                 </p>
-                <p className="text-2xl sm:text-3xl font-bold text-foreground">
-                  €{metrics.totalRevenue.toLocaleString()}
-                </p>
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="flex items-center gap-1">
-                    <FiTrendingUp className="h-3 w-3 text-spring-green" />
-                    <p className="text-xs text-spring-green font-bold">
-                      This month: €{metrics.revenueThisMonth.toLocaleString()}
-                    </p>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-32 mb-2" />
+                ) : (
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">
+                    €{metrics.totalRevenue.toLocaleString()}
+                  </p>
+                )}
+                {isLoading ? (
+                   <Skeleton className="h-4 w-40 mt-2" />
+                ) : (
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-1">
+                      <FiTrendingUp className="h-3 w-3 text-spring-green" />
+                      <p className="text-xs text-spring-green font-bold">
+                        This month: €{metrics.revenueThisMonth.toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
               <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-spring-green/20 to-spring-green/10 rounded-full rounded-br-none">
                 <FiDollarSign className="h-6 w-6 text-foreground" />
@@ -609,17 +616,25 @@ export default function DashboardOverview() {
                 <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                   Upcoming Tours
                 </p>
-                <p className="text-2xl sm:text-3xl font-bold text-foreground">
-                  {metrics.upcomingTours}
-                </p>
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="flex items-center gap-1">
-                    <FiCalendar className="h-3 w-3 text-royal-purple" />
-                    <p className="text-xs text-muted-foreground">
-                      Confirmed bookings
-                    </p>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-16 mb-2" />
+                ) : (
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">
+                    {metrics.upcomingTours}
+                  </p>
+                )}
+                {isLoading ? (
+                  <Skeleton className="h-4 w-32 mt-2" />
+                ) : (
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-1">
+                      <FiCalendar className="h-3 w-3 text-royal-purple" />
+                      <p className="text-xs text-muted-foreground">
+                        Confirmed bookings
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
               <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-royal-purple/20 to-royal-purple/10 rounded-full rounded-br-none">
                 <FiClock className="h-6 w-6 text-foreground" />
@@ -639,38 +654,50 @@ export default function DashboardOverview() {
                 <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                   Payment Reminders
                 </p>
-                <p className="text-2xl sm:text-3xl font-bold text-foreground">
-                  {metrics.pendingReminders}
-                </p>
-                <div className="flex items-center gap-3 mt-2 flex-wrap text-[11px] sm:text-xs">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
-                    <p className="text-xs text-muted-foreground">
-                      Pending:{" "}
-                      <span className="text-vivid-orange font-bold">
-                        {paymentReminderStats.pending}
-                      </span>
-                    </p>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-16 mb-2" />
+                ) : (
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">
+                    {metrics.pendingReminders}
+                  </p>
+                )}
+                {isLoading ? (
+                  <div className="flex gap-2 mt-2">
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 w-12" />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-spring-green"></div>
-                    <p className="text-xs text-muted-foreground">
-                      Sent:{" "}
-                      <span className="text-spring-green font-bold">
-                        {paymentReminderStats.sent}
-                      </span>
-                    </p>
+                ) : (
+                  <div className="flex items-center gap-3 mt-2 flex-wrap text-[11px] sm:text-xs">
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
+                      <p className="text-xs text-muted-foreground">
+                        Pending:{" "}
+                        <span className="text-vivid-orange font-bold">
+                          {paymentReminderStats.pending}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-spring-green"></div>
+                      <p className="text-xs text-muted-foreground">
+                        Sent:{" "}
+                        <span className="text-spring-green font-bold">
+                          {paymentReminderStats.sent}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                      <p className="text-xs text-muted-foreground">
+                        Skipped:{" "}
+                        <span className="text-gray-400 font-bold">
+                          {paymentReminderStats.skipped}
+                        </span>
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-gray-400"></div>
-                    <p className="text-xs text-muted-foreground">
-                      Skipped:{" "}
-                      <span className="text-gray-400 font-bold">
-                        {paymentReminderStats.skipped}
-                      </span>
-                    </p>
-                  </div>
-                </div>
+                )}
               </div>
               <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-vivid-orange/20 to-vivid-orange/10 rounded-full rounded-br-none">
                 <FiCreditCard className="h-6 w-6 text-foreground" />
@@ -685,65 +712,92 @@ export default function DashboardOverview() {
 
       {/* Quick Actions */}
       <div className="sm:hidden">
-        <div className="grid grid-cols-4 gap-2">
-          {quickActions.map((action) => (
-            <button
-              key={`mobile-${action.title}`}
-              type="button"
-              onClick={action.disabled ? undefined : action.onClick}
-              disabled={action.disabled}
-              aria-disabled={action.disabled}
-              className={
-                action.disabled
-                  ? "flex flex-col items-center justify-center rounded-xl border border-border bg-muted/40 p-3 text-[11px] text-muted-foreground cursor-not-allowed"
-                  : "flex flex-col items-center justify-center rounded-xl border border-border bg-card p-3 text-[11px] text-foreground shadow-sm hover:border-crimson-red/40 hover:shadow-md transition-all duration-200"
-              }
-            >
-              <div
-                className={`${action.color} mb-2 flex h-10 w-10 items-center justify-center rounded-full text-white`}
+        {isLoading ? (
+          <div className="grid grid-cols-4 gap-2">
+             {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-3 h-[90px]">
+                   <Skeleton className="h-10 w-10 rounded-full mb-2" />
+                   <Skeleton className="h-3 w-16" />
+                </div>
+             ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-2">
+            {quickActions.map((action) => (
+              <button
+                key={`mobile-${action.title}`}
+                type="button"
+                onClick={action.disabled ? undefined : action.onClick}
+                disabled={action.disabled}
+                aria-disabled={action.disabled}
+                className={
+                  action.disabled
+                    ? "flex flex-col items-center justify-center rounded-xl border border-border bg-muted/40 p-3 text-[11px] text-muted-foreground cursor-not-allowed"
+                    : "flex flex-col items-center justify-center rounded-xl border border-border bg-card p-3 text-[11px] text-foreground shadow-sm hover:border-crimson-red/40 hover:shadow-md transition-all duration-200"
+                }
               >
-                <action.icon className="h-5 w-5" />
-              </div>
-              <span className="text-center leading-tight">{action.title}</span>
-            </button>
-          ))}
-        </div>
+                <div
+                  className={`${action.color} mb-2 flex h-10 w-10 items-center justify-center rounded-full text-white`}
+                >
+                  <action.icon className="h-5 w-5" />
+                </div>
+                <span className="text-center leading-tight">{action.title}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="hidden sm:grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {quickActions.map((action) => (
-          <Card
-            key={action.title}
-            onClick={action.disabled ? undefined : action.onClick}
-            className={`${
-              action.disabled
-                ? "opacity-50 cursor-not-allowed"
-                : "cursor-pointer hover:shadow-lg"
-            } transition-all duration-300 border border-border shadow ${
-              action.disabled ? "" : "hover:border-crimson-red/40"
-            } group`}
-          >
-            <CardContent className="p-5">
-              <div className="flex items-center space-x-3">
-                <div
-                  className={`p-3 rounded-full ${action.color} shadow-lg ${
-                    action.disabled ? "" : "group-hover:scale-110"
-                  } transition-transform duration-200`}
-                >
-                  <action.icon className="h-5 w-5 text-white" />
+        {isLoading ? (
+           Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="border border-border shadow">
+              <CardContent className="p-5">
+                <div className="flex items-center space-x-3">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <CardTitle className="text-sm font-bold text-foreground mb-1">
-                    {action.title}
-                  </CardTitle>
-                  <CardDescription className="text-xs text-muted-foreground">
-                    {action.description}
-                  </CardDescription>
+              </CardContent>
+            </Card>
+           ))
+        ) : (
+          quickActions.map((action) => (
+            <Card
+              key={action.title}
+              onClick={action.disabled ? undefined : action.onClick}
+              className={`${
+                action.disabled
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer hover:shadow-lg"
+              } transition-all duration-300 border border-border shadow ${
+                action.disabled ? "" : "hover:border-crimson-red/40"
+              } group`}
+            >
+              <CardContent className="p-5">
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={`p-3 rounded-full ${action.color} shadow-lg ${
+                      action.disabled ? "" : "group-hover:scale-110"
+                    } transition-transform duration-200`}
+                  >
+                    <action.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-sm font-bold text-foreground mb-1">
+                      {action.title}
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground">
+                      {action.description}
+                    </CardDescription>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       {/* Charts Section */}
@@ -760,7 +814,11 @@ export default function DashboardOverview() {
           </CardHeader>
           <CardContent className="p-6">
             <div className="h-[220px] sm:h-64">
-              {bookings.length === 0 ? (
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Skeleton className="h-48 w-48 rounded-full" />
+                </div>
+              ) : bookings.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="p-3 bg-muted/20 rounded-xl inline-block mb-3">
@@ -818,7 +876,9 @@ export default function DashboardOverview() {
           </CardHeader>
           <CardContent className="p-6">
             <div className="h-[220px] sm:h-64">
-              {bookings.length === 0 ? (
+              {isLoading ? (
+                <Skeleton className="w-full h-full rounded-md" />
+              ) : bookings.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="p-3 bg-muted/20 rounded-xl inline-block mb-3">
@@ -899,7 +959,9 @@ export default function DashboardOverview() {
         </CardHeader>
         <CardContent className="p-6">
           <div className="h-[260px] sm:h-80">
-            {tourPopularity.length === 0 ? (
+            {isLoading ? (
+               <Skeleton className="w-full h-full rounded-md" />
+            ) : tourPopularity.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <div className="p-3 bg-muted/20 rounded-xl inline-block mb-3">
@@ -979,7 +1041,19 @@ export default function DashboardOverview() {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4 sm:p-6">
-          {bookings.length === 0 ? (
+          {isLoading ? (
+            <div className="space-y-4">
+               {Array.from({ length: 5 }).map((_, i) => (
+                 <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-1/3" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                 </div>
+               ))}
+            </div>
+          ) : bookings.length === 0 ? (
             <div className="text-center py-6 sm:py-8">
               <div className="p-2 sm:p-3 bg-muted/20 rounded-xl inline-block mb-2 sm:mb-3">
                 <FiUsers className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground mx-auto" />
