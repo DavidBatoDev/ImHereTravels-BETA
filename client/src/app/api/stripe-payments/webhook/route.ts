@@ -332,6 +332,12 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ received: true });
         }
 
+        // Verify this is actually an installment payment
+        if (paymentData.payment?.type !== "installment") {
+          console.log(`⚠️ Payment doc type is '${paymentData.payment?.type}', expected 'installment'. Skipping installment processing.`);
+          return NextResponse.json({ received: true });
+        }
+
         // 2. Update stripePayments document
         await updateDoc(doc(db, "stripePayments", stripe_payment_doc_id), {
           "payment.status": "installment_paid",
@@ -350,11 +356,39 @@ export async function POST(req: NextRequest) {
         
         const booking = bookingSnap.data();
 
-        // 4. Calculate new payment totals
-        const newPaid = (booking.paid || 0) + (paymentData.payment?.amount || 0);
+        // 4. Recalculate everything from scratch to prevent double-counting
         const totalCost = booking.discountedTourCost || booking.originalTourCost || 0;
-        const newRemainingBalance = totalCost - newPaid;
-        const newPaymentProgress = totalCost > 0 ? Math.round((newPaid / totalCost) * 100) : 0;
+        
+        // Start with reservation fee
+        let calculatedPaid = booking.reservationFee || 0;
+        
+        // Check all installments
+        const installments = ["p1", "p2", "p3", "p4"];
+        let installmentsPaidCount = 0;
+        const totalInstallments = installments.filter((id: string) => booking[`${id}Amount`] > 0).length;
+
+        installments.forEach((id: string) => {
+          const isCurrentPayment = id === installment_id;
+          const isAlreadyPaid = booking[`${id}DatePaid`] || 
+                               booking.paymentTokens?.[id]?.status === "success";
+          
+          if (isCurrentPayment || isAlreadyPaid) {
+            const amount = booking[`${id}Amount`] || 0;
+            calculatedPaid += amount;
+            installmentsPaidCount++;
+          }
+        });
+
+        const newRemainingBalance = totalCost - calculatedPaid;
+        const newPaymentProgress = totalCost > 0 ? Math.round((calculatedPaid / totalCost) * 100) : 0;
+        
+        // Determine new booking status string
+        let newBookingStatus = booking.bookingStatus;
+        if (newRemainingBalance <= 0) {
+          newBookingStatus = "Paid in Full";
+        } else {
+          newBookingStatus = `Installment ${installmentsPaidCount}/${totalInstallments}`;
+        }
 
         // 5. Map installment_id to flat field names
         const datePaidFieldMap: Record<string, string> = {
@@ -368,7 +402,7 @@ export async function POST(req: NextRequest) {
         const datePaidField = datePaidFieldMap[installment_id];
         const paidTimestamp = serverTimestamp();
 
-        // 6. Update booking with SUCCESS status
+        // 6. Update booking with SUCCESS status and recalculated totals
         await updateDoc(bookingRef, {
           // Update nested paymentTokens object
           [`paymentTokens.${installment_id}.status`]: "success",
@@ -378,16 +412,17 @@ export async function POST(req: NextRequest) {
           // Update flat field for backward compatibility
           [datePaidField]: paidTimestamp,
 
-          // Update totals
-          paid: newPaid,
+          // Update totals with recalculated values
+          paid: calculatedPaid,
           remainingBalance: newRemainingBalance,
           paymentProgress: newPaymentProgress,
+          bookingStatus: newBookingStatus,
         });
 
         console.log(
           `✅ Installment ${installment_id} paid successfully for booking ${booking_document_id}`
         );
-        console.log(`💰 New totals: Paid €${newPaid}, Remaining €${newRemainingBalance}, Progress ${newPaymentProgress}%`);
+        console.log(`💰 New totals: Paid €${calculatedPaid}, Remaining €${newRemainingBalance}, Progress ${newPaymentProgress}%`);
       } catch (error: any) {
         console.error("❌ Webhook processing error:", error);
 

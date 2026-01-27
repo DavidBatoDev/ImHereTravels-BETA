@@ -140,11 +140,72 @@ export async function POST(req: NextRequest) {
       `🔐 Generated payment token: ${payment_token.substring(0, 10)}...`
     );
 
-    // 7. Create stripePayments document
+    // 7. Fetch tour package ID from tourPackages collection
+    let tourPackageId = "";
+    try {
+      const tourPackagesQuery = query(
+        collection(db, "tourPackages"),
+        where("name", "==", booking.tourPackageName),
+        limit(1)
+      );
+      const tourPackagesSnap = await getDocs(tourPackagesQuery);
+      
+      if (!tourPackagesSnap.empty) {
+        tourPackageId = tourPackagesSnap.docs[0].id;
+        console.log(`📦 Found tour package ID: ${tourPackageId}`);
+      } else {
+        console.log(`⚠️ Tour package not found for: ${booking.tourPackageName}`);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching tour package:", error);
+    }
+
+    // 8. Create stripePayments document with full booking context
     const stripePaymentDoc = await addDoc(collection(db, "stripePayments"), {
+      // Booking reference
       bookingDocumentId: booking.id,
+      
+      // Payment token for security
       payment_token: payment_token,
       payment_token_expires_at: payment_token_expires_at,
+      
+      // Customer information
+      customer: {
+        firstName: booking.firstName || "",
+        lastName: booking.lastName || "",
+        email: booking.emailAddress || "",
+        // Add additional fields if available in booking
+        ...(booking.birthdate && { birthdate: booking.birthdate }),
+        ...(booking.nationality && { nationality: booking.nationality }),
+        ...(booking.whatsAppNumber && { whatsAppNumber: booking.whatsAppNumber }),
+      },
+      
+      // Booking details
+      booking: {
+        id: booking.bookingId,
+        documentId: booking.id,
+        type: booking.bookingType || "Single Booking",
+        groupSize: 1, // Can be enhanced based on booking type
+        ...(booking.groupId && { groupId: booking.groupId }),
+      },
+      
+      // Tour information
+      tour: {
+        packageName: booking.tourPackageName,
+        packageId: tourPackageId,
+        date: booking.tourDate ? 
+          (typeof booking.tourDate === 'string' ? booking.tourDate : 
+           booking.tourDate.toDate ? booking.tourDate.toDate().toISOString().split('T')[0] : 
+           new Date(booking.tourDate.seconds * 1000).toISOString().split('T')[0]) : "",
+        ...(booking.returnDate && { 
+          returnDate: typeof booking.returnDate === 'string' ? booking.returnDate : 
+                     booking.returnDate.toDate ? booking.returnDate.toDate().toISOString().split('T')[0] : 
+                     new Date(booking.returnDate).toISOString().split('T')[0]
+        }),
+        ...(booking.tourDuration && { duration: booking.tourDuration }),
+      },
+      
+      // Payment details
       payment: {
         type: "installment",
         installmentTerm: installment_id,
@@ -152,6 +213,17 @@ export async function POST(req: NextRequest) {
         currency: "GBP",
         status: "installment_pending",
       },
+      
+      // Payment plan context
+      paymentPlan: {
+        condition: booking.paymentCondition || "",
+        plan: booking.paymentPlan || "",
+        totalCost: booking.discountedTourCost || booking.originalTourCost || 0,
+        paid: booking.paid || 0,
+        remainingBalance: booking.remainingBalance || 0,
+      },
+      
+      // Timestamps
       timestamps: {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -203,6 +275,17 @@ export async function POST(req: NextRequest) {
           quantity: 1,
         },
       ],
+      payment_intent_data: {
+        description: `Installment ${installmentDisplayName} for ${booking.tourPackageName}`,
+        metadata: {
+          payment_token: payment_token,
+          installment_id: installment_id,
+          booking_document_id: booking.id,
+          stripe_payment_doc_id: stripePaymentDoc.id,
+          booking_id: booking.bookingId,
+          tour_name: booking.tourPackageName,
+        },
+      },
       success_url: `${baseUrl}/booking-status/${access_token}?payment_success=true&installment=${installment_id}`,
       cancel_url: `${baseUrl}/booking-status/${access_token}?payment_cancelled=true&installment=${installment_id}`,
       metadata: {

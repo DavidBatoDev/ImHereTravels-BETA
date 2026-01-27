@@ -100,7 +100,7 @@ export default function BookingStatusPage() {
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState<string | null>(null);
   const [paymentMessage, setPaymentMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -112,37 +112,60 @@ export default function BookingStatusPage() {
     const paymentCancelled = searchParams.get("payment_cancelled");
     const installmentId = searchParams.get("installment");
 
-    if (paymentSuccess === "true" && installmentId && booking) {
+    if (paymentSuccess === "true" && installmentId) {
       // In development, automatically trigger test confirmation
-      const isDevelopment = process.env.NODE_ENV === "development";
+      const isDevelopment = process.env.NEXT_PUBLIC_ENV === "development";
       
       if (isDevelopment) {
         console.log("🧪 Development mode: Auto-triggering payment confirmation");
+        console.log("📡 Refetching booking to get latest payment tokens...");
         
-        // Get the stripePaymentDocId from the booking's payment tokens
-        const stripePaymentDocId = booking.paymentTokens?.[installmentId as keyof typeof booking.paymentTokens]?.stripePaymentDocId;
+        // Refetch booking to get the latest paymentTokens
+        const url = email
+          ? `/api/public/booking/${bookingDocumentId}?email=${encodeURIComponent(email)}`
+          : `/api/public/booking/${bookingDocumentId}`;
         
-        if (stripePaymentDocId) {
-          // Automatically confirm the payment in development
-          fetch("/api/installments/test-confirm", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              stripe_payment_doc_id: stripePaymentDocId,
-            }),
+        fetch(url)
+          .then((res) => res.json())
+          .then((result) => {
+            if (!result.success) {
+              console.error("❌ Failed to refetch booking:", result.error);
+              return;
+            }
+            
+            const freshBooking = result.data;
+            console.log("📦 Fresh booking paymentTokens:", freshBooking.paymentTokens);
+            const stripePaymentDocId = freshBooking.paymentTokens?.[installmentId as keyof typeof freshBooking.paymentTokens]?.stripePaymentDocId;
+            
+            console.log("📝 stripePaymentDocId:", stripePaymentDocId);
+            
+            if (stripePaymentDocId) {
+              // Automatically confirm the payment in development
+              fetch("/api/installments/test-confirm", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  stripe_payment_doc_id: stripePaymentDocId,
+                }),
+              })
+                .then((res) => res.json())
+                .then((data) => {
+                  console.log("✅ Auto-confirmed payment:", data);
+                  // Reload to show updated status
+                  setTimeout(() => {
+                    window.location.href = `/booking-status/${bookingDocumentId}`;
+                  }, 1500);
+                })
+                .catch((error) => {
+                  console.error("❌ Auto-confirm failed:", error);
+                });
+            } else {
+              console.error("❌ No stripePaymentDocId found for installment:", installmentId);
+            }
           })
-            .then((res) => res.json())
-            .then((data) => {
-              console.log("✅ Auto-confirmed payment:", data);
-              // Reload to show updated status
-              setTimeout(() => {
-                window.location.href = `/booking-status/${bookingDocumentId}`;
-              }, 1500);
-            })
-            .catch((error) => {
-              console.error("❌ Auto-confirm failed:", error);
-            });
-        }
+          .catch((error) => {
+            console.error("❌ Failed to refetch booking:", error);
+          });
       } else {
         // Only show message in production
         setPaymentMessage({
@@ -218,7 +241,7 @@ export default function BookingStatusPage() {
   ) => {
     if (!booking) return;
 
-    setPaymentProcessing(true);
+    setPaymentProcessing(installmentId);
     setPaymentMessage(null);
 
     try {
@@ -246,7 +269,7 @@ export default function BookingStatusPage() {
         type: "error",
         text: error.message || "Failed to initiate payment. Please try again.",
       });
-      setPaymentProcessing(false);
+      setPaymentProcessing(null);
     }
   };
 
@@ -640,22 +663,47 @@ export default function BookingStatusPage() {
                                 </span>
                               )}
 
-                              {(term.status === "pending" ||
-                                term.status === "overdue" ||
-                                term.status === "failed") && (
-                                <Button
-                                  onClick={() => handlePayInstallment(term.id)}
-                                  disabled={paymentProcessing}
-                                  size="sm"
-                                  className="bg-crimson-red hover:bg-crimson-red/90 text-white"
-                                >
-                                  {paymentProcessing
-                                    ? "Processing..."
-                                    : term.status === "failed"
-                                    ? "Retry Payment"
-                                    : "Pay Now"}
-                                </Button>
-                              )}
+                              {(() => {
+                                // Find the first unpaid installment
+                                const firstUnpaid = paymentTerms.find(
+                                  (t) => t.status === "pending" || t.status === "overdue" || t.status === "failed"
+                                );
+                                
+                                // Only show button if this is the first unpaid OR if it's failed
+                                const showButton = 
+                                  (term.status === "failed") || 
+                                  (firstUnpaid && firstUnpaid.id === term.id);
+
+                                if ((term.status === "pending" ||
+                                    term.status === "overdue" ||
+                                    term.status === "failed") && showButton) {
+                                  return (
+                                    <Button
+                                      onClick={() => handlePayInstallment(term.id)}
+                                      disabled={paymentProcessing !== null}
+                                      size="sm"
+                                      className="bg-crimson-red hover:bg-crimson-red/90 text-white"
+                                    >
+                                      {paymentProcessing === term.id
+                                        ? "Processing..."
+                                        : term.status === "failed"
+                                        ? "Retry Payment"
+                                        : "Pay Now"}
+                                    </Button>
+                                  );
+                                }
+                                
+                                // Show message for locked installments
+                                if ((term.status === "pending" || term.status === "overdue") && !showButton && firstUnpaid) {
+                                  return (
+                                    <span className="text-xs text-gray-500 italic">
+                                      Pay {firstUnpaid.term} first
+                                    </span>
+                                  );
+                                }
+                                
+                                return null;
+                              })()}
 
                               {term.status === "processing" && (
                                 <span className="text-sm text-blue-600 flex items-center gap-1">

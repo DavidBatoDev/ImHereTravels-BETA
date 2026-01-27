@@ -190,6 +190,11 @@ export async function GET(
 
       // Pre-Departure Pack
       preDeparturePack,
+      
+      // Payment Tokens (only in development for auto-confirm)
+      ...(process.env.NEXT_PUBLIC_ENV === "development" && {
+        paymentTokens: bookingData.paymentTokens,
+      }),
     };
 
     return NextResponse.json({ success: true, data: publicData });
