@@ -21,6 +21,16 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 
+interface PaymentTokenData {
+  token: string;
+  expiresAt: any;
+  stripePaymentDocId: string;
+  status: "pending" | "processing" | "success" | "failed" | "expired";
+  paidAt?: any;
+  lastAttemptAt?: any;
+  errorMessage?: string;
+}
+
 interface BookingData {
   bookingId: string;
   bookingCode: string;
@@ -63,6 +73,13 @@ interface BookingData {
   bookingType: string;
   isMainBooker: boolean;
   enablePaymentReminder: boolean;
+  paymentTokens?: {
+    full_payment?: PaymentTokenData;
+    p1?: PaymentTokenData;
+    p2?: PaymentTokenData;
+    p3?: PaymentTokenData;
+    p4?: PaymentTokenData;
+  };
   preDeparturePack?: {
     id: string;
     fileName: string;
@@ -83,6 +100,87 @@ export default function BookingStatusPage() {
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  // Check for payment success/cancel messages in URL
+  useEffect(() => {
+    const paymentSuccess = searchParams.get("payment_success");
+    const paymentCancelled = searchParams.get("payment_cancelled");
+    const installmentId = searchParams.get("installment");
+
+    if (paymentSuccess === "true" && installmentId && booking) {
+      // In development, automatically trigger test confirmation
+      const isDevelopment = process.env.NODE_ENV === "development";
+      
+      if (isDevelopment) {
+        console.log("🧪 Development mode: Auto-triggering payment confirmation");
+        
+        // Get the stripePaymentDocId from the booking's payment tokens
+        const stripePaymentDocId = booking.paymentTokens?.[installmentId as keyof typeof booking.paymentTokens]?.stripePaymentDocId;
+        
+        if (stripePaymentDocId) {
+          // Automatically confirm the payment in development
+          fetch("/api/installments/test-confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              stripe_payment_doc_id: stripePaymentDocId,
+            }),
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              console.log("✅ Auto-confirmed payment:", data);
+              // Reload to show updated status
+              setTimeout(() => {
+                window.location.href = `/booking-status/${bookingDocumentId}`;
+              }, 1500);
+            })
+            .catch((error) => {
+              console.error("❌ Auto-confirm failed:", error);
+            });
+        }
+      } else {
+        // Only show message in production
+        setPaymentMessage({
+          type: "success",
+          text: `Payment for ${installmentId.toUpperCase()} installment initiated successfully! Please wait while we confirm your payment.`,
+        });
+        // Clear message after 10 seconds
+        setTimeout(() => setPaymentMessage(null), 10000);
+      }
+    } else if (paymentCancelled === "true" && installmentId) {
+      // Reset the processing status when user cancels
+      const resetStatus = async () => {
+        try {
+          await fetch("/api/installments/reset-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              access_token: bookingDocumentId,
+              installment_id: installmentId,
+            }),
+          });
+          // Reload booking data to show updated status
+          window.location.href = `/booking-status/${bookingDocumentId}`;
+        } catch (error) {
+          console.error("Failed to reset status:", error);
+        }
+      };
+
+      resetStatus();
+
+      setPaymentMessage({
+        type: "error",
+        text: `Payment for ${installmentId.toUpperCase()} was cancelled. You can try again anytime.`,
+      });
+      // Clear message after 10 seconds
+      setTimeout(() => setPaymentMessage(null), 10000);
+    }
+  }, [searchParams, bookingDocumentId, booking]);
 
   useEffect(() => {
     async function fetchBooking() {
@@ -113,6 +211,44 @@ export default function BookingStatusPage() {
 
     fetchBooking();
   }, [bookingDocumentId, email]);
+
+  // Handle installment payment
+  const handlePayInstallment = async (
+    installmentId: "full_payment" | "p1" | "p2" | "p3" | "p4"
+  ) => {
+    if (!booking) return;
+
+    setPaymentProcessing(true);
+    setPaymentMessage(null);
+
+    try {
+      const response = await fetch("/api/installments/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: bookingDocumentId, // The bookingDocumentId IS the access_token
+          installment_id: installmentId,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create checkout");
+      }
+
+      const { checkout_url } = await response.json();
+
+      // Redirect to Stripe Checkout
+      window.location.href = checkout_url;
+    } catch (error: any) {
+      console.error("Payment error:", error);
+      setPaymentMessage({
+        type: "error",
+        text: error.message || "Failed to initiate payment. Please try again.",
+      });
+      setPaymentProcessing(false);
+    }
+  };
 
 
 
@@ -168,47 +304,62 @@ export default function BookingStatusPage() {
 
   const totalCost = booking.discountedTourCost || booking.originalTourCost;
 
-  const paymentTerms: any[] = [];
-  if (booking.fullPaymentDueDate) {
-    paymentTerms.push({
-      term: "Full Payment",
-      dueDate: booking.fullPaymentDueDate,
-      amount: booking.fullPaymentAmount || totalCost,
-      datePaid: booking.fullPaymentDatePaid,
+  // Build payment terms with status information
+  const buildPaymentTerms = () => {
+    const terms: any[] = [];
+
+    const installments = [
+      { id: "full_payment", term: "Full Payment", prefix: "fullPayment" },
+      { id: "p1", term: "P1", prefix: "p1" },
+      { id: "p2", term: "P2", prefix: "p2" },
+      { id: "p3", term: "P3", prefix: "p3" },
+      { id: "p4", term: "P4", prefix: "p4" },
+    ];
+
+    installments.forEach(({ id, term, prefix }) => {
+      const dueDate = booking[`${prefix}DueDate` as keyof BookingData];
+      const amount = booking[`${prefix}Amount` as keyof BookingData];
+      const datePaid = booking[`${prefix}DatePaid` as keyof BookingData];
+
+      if (!dueDate || !amount) return; // Skip if installment doesn't exist
+
+      // Get status from paymentTokens (primary) or flat DatePaid (fallback)
+      const tokenData = booking.paymentTokens?.[id as keyof typeof booking.paymentTokens];
+      
+      let status = "pending";
+      let statusInfo: any = {};
+
+      if (tokenData?.status === "success" || datePaid) {
+        status = "paid";
+        statusInfo = {
+          paidAt: tokenData?.paidAt || datePaid,
+        };
+      } else if (tokenData?.status === "processing") {
+        status = "processing";
+      } else if (tokenData?.status === "failed") {
+        status = "failed";
+        statusInfo = {
+          errorMessage: tokenData.errorMessage,
+        };
+      } else if (new Date(dueDate as any) < new Date()) {
+        status = "overdue";
+      }
+
+      terms.push({
+        id,
+        term,
+        dueDate,
+        amount,
+        status,
+        ...statusInfo,
+      });
     });
-  }
-  if (booking.p1DueDate) {
-    paymentTerms.push({
-      term: "P1",
-      dueDate: booking.p1DueDate,
-      amount: booking.p1Amount || 0,
-      datePaid: booking.p1DatePaid,
-    });
-  }
-  if (booking.p2DueDate) {
-    paymentTerms.push({
-      term: "P2",
-      dueDate: booking.p2DueDate,
-      amount: booking.p2Amount || 0,
-      datePaid: booking.p2DatePaid,
-    });
-  }
-  if (booking.p3DueDate) {
-    paymentTerms.push({
-      term: "P3",
-      dueDate: booking.p3DueDate,
-      amount: booking.p3Amount || 0,
-      datePaid: booking.p3DatePaid,
-    });
-  }
-  if (booking.p4DueDate) {
-    paymentTerms.push({
-      term: "P4",
-      dueDate: booking.p4DueDate,
-      amount: booking.p4Amount || 0,
-      datePaid: booking.p4DatePaid,
-    });
-  }
+
+    return terms;
+  };
+
+  const paymentTerms = buildPaymentTerms();
+
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + " B";
@@ -244,6 +395,36 @@ export default function BookingStatusPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-6 py-8 max-w-5xl">
+        {/* Payment Success/Error Message */}
+        {paymentMessage && (
+          <div
+            className={`mb-6 border-l-4 p-4 rounded-r-lg ${
+              paymentMessage.type === "success"
+                ? "bg-green-50 border-green-500"
+                : "bg-red-50 border-red-500"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              {paymentMessage.type === "success" ? (
+                <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              )}
+              <div>
+                <p
+                  className={`text-sm font-medium ${
+                    paymentMessage.type === "success"
+                      ? "text-green-900"
+                      : "text-red-900"
+                  }`}
+                >
+                  {paymentMessage.text}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Important Notice */}
         <div className="mb-6 bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg print:border print:border-amber-200">
           <div className="flex items-start gap-3">
@@ -386,9 +567,7 @@ export default function BookingStatusPage() {
                     </thead>
                     <tbody>
                       {paymentTerms.map((term, index) => {
-                        const isPaid = !!term.datePaid;
                         const dueDate = new Date(term.dueDate);
-                        const isOverdue = !isPaid && dueDate < new Date();
 
                         return (
                           <tr
@@ -404,18 +583,38 @@ export default function BookingStatusPage() {
                             <td className="py-3 px-4 text-right font-semibold text-gray-900">
                               €{term.amount.toFixed(2)}
                             </td>
+
+                            {/* Status Badge */}
                             <td className="py-3 px-4 text-center">
-                              {isPaid ? (
+                              {term.status === "paid" && (
                                 <Badge className="bg-spring-green text-white text-xs">
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
                                   Paid
                                 </Badge>
-                              ) : isOverdue ? (
+                              )}
+                              {term.status === "processing" && (
+                                <Badge className="bg-blue-500 text-white text-xs">
+                                  <Clock className="h-3 w-3 mr-1 animate-spin" />
+                                  Processing
+                                </Badge>
+                              )}
+                              {term.status === "failed" && (
+                                <Badge
+                                  variant="destructive"
+                                  className="text-xs"
+                                  title={term.errorMessage || "Payment failed"}
+                                >
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  Failed
+                                </Badge>
+                              )}
+                              {term.status === "overdue" && (
                                 <Badge variant="destructive" className="text-xs">
                                   <AlertCircle className="h-3 w-3 mr-1" />
                                   Overdue
                                 </Badge>
-                              ) : (
+                              )}
+                              {term.status === "pending" && (
                                 <Badge
                                   variant="outline"
                                   className="border-gray-300 text-gray-700 text-xs"
@@ -425,13 +624,45 @@ export default function BookingStatusPage() {
                                 </Badge>
                               )}
                             </td>
-                            <td className="py-3 px-4 text-sm text-gray-700">
-                              {isPaid
-                                ? format(
-                                    new Date(term.datePaid.seconds * 1000),
+
+                            {/* Action Column */}
+                            <td className="py-3 px-4">
+                              {term.status === "paid" && term.paidAt && (
+                                <span className="text-sm text-gray-500">
+                                  {format(
+                                    new Date(
+                                      term.paidAt.seconds
+                                        ? term.paidAt.seconds * 1000
+                                        : term.paidAt
+                                    ),
                                     "MMM dd, yyyy"
-                                  )
-                                : "—"}
+                                  )}
+                                </span>
+                              )}
+
+                              {(term.status === "pending" ||
+                                term.status === "overdue" ||
+                                term.status === "failed") && (
+                                <Button
+                                  onClick={() => handlePayInstallment(term.id)}
+                                  disabled={paymentProcessing}
+                                  size="sm"
+                                  className="bg-crimson-red hover:bg-crimson-red/90 text-white"
+                                >
+                                  {paymentProcessing
+                                    ? "Processing..."
+                                    : term.status === "failed"
+                                    ? "Retry Payment"
+                                    : "Pay Now"}
+                                </Button>
+                              )}
+
+                              {term.status === "processing" && (
+                                <span className="text-sm text-blue-600 flex items-center gap-1">
+                                  <Clock className="h-3 w-3 animate-spin" />
+                                  Processing...
+                                </span>
+                              )}
                             </td>
                           </tr>
                         );

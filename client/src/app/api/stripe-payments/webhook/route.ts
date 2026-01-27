@@ -279,6 +279,145 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Handle Stripe Checkout session completion (for installment payments)
+    if(event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const {
+        payment_token,
+        installment_id,
+        booking_document_id,
+        stripe_payment_doc_id,
+      } = session.metadata || {};
+
+      console.log(`💳 Checkout session completed: ${session.id}`);
+      console.log(`📦 Metadata:`, { payment_token: payment_token?.substring(0, 10), installment_id, booking_document_id });
+
+      if (!payment_token || !installment_id || !booking_document_id || !stripe_payment_doc_id) {
+        console.log("⚠️ Missing metadata for installment payment, skipping...");
+        return NextResponse.json({ received: true });
+      }
+
+      try {
+        // 1. Validate payment_token
+        const stripePaymentDoc = await getDoc(
+          doc(db, "stripePayments", stripe_payment_doc_id)
+        );
+
+        if (!stripePaymentDoc.exists()) {
+          console.error("❌ Invalid payment document");
+          return NextResponse.json({ received: true });
+        }
+
+        const paymentData = stripePaymentDoc.data();
+
+        // Security: Verify payment_token matches
+        if (paymentData.payment_token !== payment_token) {
+          console.error("❌ Payment token mismatch - potential fraud");
+          await updateDoc(doc(db, "bookings", booking_document_id), {
+            [`paymentTokens.${installment_id}.status`]: "failed",
+            [`paymentTokens.${installment_id}.errorMessage`]:
+              "Security validation failed",
+          });
+          return NextResponse.json({ received: true });
+        }
+
+        // Check token hasn't expired
+        if (paymentData.payment_token_expires_at?.toMillis() < Date.now()) {
+          console.error("❌ Payment token expired");
+          await updateDoc(doc(db, "bookings", booking_document_id), {
+            [`paymentTokens.${installment_id}.status`]: "expired",
+            [`paymentTokens.${installment_id}.errorMessage`]:
+              "Payment token expired",
+          });
+          return NextResponse.json({ received: true });
+        }
+
+        // 2. Update stripePayments document
+        await updateDoc(doc(db, "stripePayments", stripe_payment_doc_id), {
+          "payment.status": "installment_paid",
+          "timestamps.updatedAt": serverTimestamp(),
+          "timestamps.paidAt": serverTimestamp(),
+        });
+
+        // 3. Get booking data
+        const bookingRef = doc(db, "bookings", booking_document_id);
+        const bookingSnap = await getDoc(bookingRef);
+        
+        if (!bookingSnap.exists()) {
+          console.error("❌ Booking not found");
+          return NextResponse.json({ received: true });
+        }
+        
+        const booking = bookingSnap.data();
+
+        // 4. Calculate new payment totals
+        const newPaid = (booking.paid || 0) + (paymentData.payment?.amount || 0);
+        const totalCost = booking.discountedTourCost || booking.originalTourCost || 0;
+        const newRemainingBalance = totalCost - newPaid;
+        const newPaymentProgress = totalCost > 0 ? Math.round((newPaid / totalCost) * 100) : 0;
+
+        // 5. Map installment_id to flat field names
+        const datePaidFieldMap: Record<string, string> = {
+          full_payment: "fullPaymentDatePaid",
+          p1: "p1DatePaid",
+          p2: "p2DatePaid",
+          p3: "p3DatePaid",
+          p4: "p4DatePaid",
+        };
+
+        const datePaidField = datePaidFieldMap[installment_id];
+        const paidTimestamp = serverTimestamp();
+
+        // 6. Update booking with SUCCESS status
+        await updateDoc(bookingRef, {
+          // Update nested paymentTokens object
+          [`paymentTokens.${installment_id}.status`]: "success",
+          [`paymentTokens.${installment_id}.paidAt`]: paidTimestamp,
+          [`paymentTokens.${installment_id}.token`]: null, // Invalidate token
+
+          // Update flat field for backward compatibility
+          [datePaidField]: paidTimestamp,
+
+          // Update totals
+          paid: newPaid,
+          remainingBalance: newRemainingBalance,
+          paymentProgress: newPaymentProgress,
+        });
+
+        console.log(
+          `✅ Installment ${installment_id} paid successfully for booking ${booking_document_id}`
+        );
+        console.log(`💰 New totals: Paid €${newPaid}, Remaining €${newRemainingBalance}, Progress ${newPaymentProgress}%`);
+      } catch (error: any) {
+        console.error("❌ Webhook processing error:", error);
+
+        // Mark payment as failed
+        try {
+          await updateDoc(doc(db, "bookings", booking_document_id), {
+            [`paymentTokens.${installment_id}.status`]: "failed",
+            [`paymentTokens.${installment_id}.errorMessage`]: error.message,
+          });
+        } catch (updateError) {
+          console.error("❌ Failed to update error status:", updateError);
+        }
+      }
+    }
+
+    // Handle failed checkout sessions (for installment payments)
+    if (event.type === "checkout.session.async_payment_failed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const { installment_id, booking_document_id } = session.metadata || {};
+
+      if (installment_id && booking_document_id) {
+        console.log(`❌ Payment failed for installment ${installment_id}`);
+        
+        await updateDoc(doc(db, "bookings", booking_document_id), {
+          [`paymentTokens.${installment_id}.status`]: "failed",
+          [`paymentTokens.${installment_id}.errorMessage`]: "Payment failed",
+        });
+      }
+    }
+
     if (event.type === "payment_intent.payment_failed") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
       console.log("❌ PaymentIntent failed:", paymentIntent.id);

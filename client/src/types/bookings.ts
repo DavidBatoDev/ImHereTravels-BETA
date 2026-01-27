@@ -1,5 +1,25 @@
 import { Timestamp } from "firebase/firestore";
 
+// Payment token data for installment tracking
+export interface PaymentTokenData {
+  token: string;
+  expiresAt: Timestamp;
+  stripePaymentDocId: string;
+  status: "pending" | "processing" | "success" | "failed" | "expired";
+  paidAt?: Timestamp;
+  lastAttemptAt?: Timestamp;
+  errorMessage?: string;
+}
+
+// Payment tokens object for all installments
+export interface PaymentTokens {
+  full_payment?: PaymentTokenData;
+  p1?: PaymentTokenData;
+  p2?: PaymentTokenData;
+  p3?: PaymentTokenData;
+  p4?: PaymentTokenData;
+}
+
 export interface Booking {
   // Core booking fields (matching default columns)
   id: string;
@@ -81,6 +101,12 @@ export interface Booking {
   sendCancellationEmail: boolean;
   sentCancellationEmailLink?: string;
   cancellationEmailSentDate?: Date;
+
+  // Payment tokens for installment tracking
+  paymentTokens?: PaymentTokens;
+  
+  // Access token for public booking status page
+  access_token?: string;
 
   // Dynamic fields for any additional columns
   [key: string]: any;
