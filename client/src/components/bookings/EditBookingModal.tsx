@@ -3477,13 +3477,7 @@ export default function EditBookingModal({
                             Total
                           </td>
                           <td className="py-2 px-2 text-foreground font-mono font-semibold">
-                            £
-                            {(
-                              (Number(formData.p1Amount) || 0) +
-                              (Number(formData.p2Amount) || 0) +
-                              (Number(formData.p3Amount) || 0) +
-                              (Number(formData.p4Amount) || 0)
-                            ).toFixed(2)}
+                            £{Number(formData.remainingBalance || 0).toFixed(2)}
                           </td>
                           <td className="py-2 px-2 text-foreground"></td>
                         </tr>
