@@ -413,6 +413,12 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
         }
 
         // Prepare template variables
+        const parsedDiscountRate = parseDiscountRate(discountRate);
+        const normalizedDiscountType = String(discountType).toLowerCase();
+        const originalCostNumber = Number(originalTourCost) || 0;
+        const discountedCostNumber = Number(discountedTourCost) || 0;
+        const formattedDiscountRate = parsedDiscountRate.toFixed(2);
+
         const templateVariables: Record<string, any> = {
           fullName,
           mainBooker,
@@ -427,15 +433,15 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
           reservationFee: Number(reservationFee).toFixed(2),
           eventName: eventName || "",
           discountType: discountType || "",
-          discountRate: parseDiscountRate(discountRate),
-          discountDisplayText:
-            discountType === "Percentage"
-              ? `${parseDiscountRate(discountRate)}%`
-              : `£${parseDiscountRate(discountRate)}`,
+          discountRate: parsedDiscountRate,
+          discountDisplayText: normalizedDiscountType.includes("amount")
+            ? `£${formattedDiscountRate}`
+            : `${formattedDiscountRate}%`,
           hasDiscount: !!(
             eventName &&
-            discountRate &&
-            originalTourCost > discountedTourCost
+            parsedDiscountRate > 0 &&
+            (discountedCostNumber === 0 ||
+              originalCostNumber > discountedCostNumber)
           ),
           originalTourCost: Number(originalTourCost).toFixed(2),
           discountedTourCost: Number(discountedTourCost).toFixed(2),

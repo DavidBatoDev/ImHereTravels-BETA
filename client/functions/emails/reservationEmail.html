@@ -259,7 +259,7 @@
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ remainingBalance }} {% if hasDiscount %}
                   <br /><span style="color: #28a745; font-size: 13px"
-                    >After {{ discountDisplayText }} discount</span
+                    >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
                 </td>
@@ -369,7 +369,7 @@
               font-weight: bold;
             "
           >
-            🎉 {{ eventName }} Discount Applied!
+            {{ eventName }} Discount Applied!
           </p>
         </div>
         {% endif %}
@@ -412,7 +412,11 @@
                   P1 – Full payment
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
-                  £{{ p1Amount }}
+                  £{{ p1Amount }} {% if hasDiscount %}
+                  <br /><span style="color: #28a745; font-size: 13px"
+                    >After {{ discountDisplayText }} off</span
+                  >
+                  {% endif %}
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   {{ p1DueDate }}
@@ -519,7 +523,7 @@
               font-weight: bold;
             "
           >
-            🎉 {{ eventName }} Discount Applied!
+            {{ eventName }} Discount Applied!
           </p>
         </div>
         {% endif %}
@@ -564,7 +568,7 @@
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p1Amount }} {% if hasDiscount %}
                   <br /><span style="color: #28a745; font-size: 13px"
-                    >After {{ discountDisplayText }} discount</span
+                    >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
                 </td>
@@ -579,7 +583,7 @@
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p2Amount }} /month {% if hasDiscount %}
                   <br /><span style="color: #28a745; font-size: 13px"
-                    >After {{ discountDisplayText }} discount</span
+                    >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
                 </td>
@@ -688,7 +692,7 @@
               font-weight: bold;
             "
           >
-            🎉 {{ eventName }} Discount Applied!
+            {{ eventName }} Discount Applied!
           </p>
         </div>
         {% endif %}
@@ -733,7 +737,7 @@
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p1Amount }} {% if hasDiscount %}
                   <br /><span style="color: #28a745; font-size: 13px"
-                    >After {{ discountDisplayText }} discount</span
+                    >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
                 </td>
@@ -748,7 +752,7 @@
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p2Amount }} /month {% if hasDiscount %}
                   <br /><span style="color: #28a745; font-size: 13px"
-                    >After {{ discountDisplayText }} discount</span
+                    >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
                 </td>
@@ -763,7 +767,7 @@
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p3Amount }} /month {% if hasDiscount %}
                   <br /><span style="color: #28a745; font-size: 13px"
-                    >After {{ discountDisplayText }} discount</span
+                    >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
                 </td>
@@ -872,7 +876,7 @@
               font-weight: bold;
             "
           >
-            🎉 {{ eventName }} Discount Applied!
+            {{ eventName }} Discount Applied!
           </p>
         </div>
         {% endif %}
@@ -917,7 +921,7 @@
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p1Amount }} {% if hasDiscount %}
                   <br /><span style="color: #28a745; font-size: 13px"
-                    >After {{ discountDisplayText }} discount</span
+                    >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
                 </td>
@@ -932,7 +936,7 @@
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p2Amount }} /month {% if hasDiscount %}
                   <br /><span style="color: #28a745; font-size: 13px"
-                    >After {{ discountDisplayText }} discount</span
+                    >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
                 </td>
@@ -947,7 +951,7 @@
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p3Amount }} /month {% if hasDiscount %}
                   <br /><span style="color: #28a745; font-size: 13px"
-                    >After {{ discountDisplayText }} discount</span
+                    >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
                 </td>
@@ -962,7 +966,7 @@
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p4Amount }} /month {% if hasDiscount %}
                   <br /><span style="color: #28a745; font-size: 13px"
-                    >After {{ discountDisplayText }} discount</span
+                    >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
                 </td>
