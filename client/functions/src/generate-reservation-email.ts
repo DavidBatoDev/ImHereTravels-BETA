@@ -350,6 +350,7 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
         const bookingType = bookingData.bookingType || "";
         const reservationFee = bookingData.reservationFee || 0;
         const eventName = bookingData.eventName || "";
+        const discountType = bookingData.discountType || "";
         const discountRate = bookingData.discountRate || "";
         const originalTourCost = bookingData.originalTourCost || 0;
         const discountedTourCost = bookingData.discountedTourCost || 0;
@@ -425,7 +426,17 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
           groupId,
           reservationFee: Number(reservationFee).toFixed(2),
           eventName: eventName || "",
+          discountType: discountType || "",
           discountRate: parseDiscountRate(discountRate),
+          discountDisplayText:
+            discountType === "Percentage"
+              ? `${parseDiscountRate(discountRate)}%`
+              : `£${parseDiscountRate(discountRate)}`,
+          hasDiscount: !!(
+            eventName &&
+            discountRate &&
+            originalTourCost > discountedTourCost
+          ),
           originalTourCost: Number(originalTourCost).toFixed(2),
           discountedTourCost: Number(discountedTourCost).toFixed(2),
           discountSavings: Number(

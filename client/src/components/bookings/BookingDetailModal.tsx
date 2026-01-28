@@ -668,9 +668,13 @@ export default function BookingDetailModal({
       if (typeof value === "string" && value.trim()) {
         return value;
       }
-      // If numeric and > 0, treat as percentage for backward compatibility
+      // If numeric and > 0, format based on discount type
       const numValue = safeNumber(value, 0);
       if (numValue > 0) {
+        const discountType = (currentBooking as any).discountType || "";
+        if (discountType === "Flat amount") {
+          return `£${numValue.toFixed(2)} off`;
+        }
         return `${numValue.toFixed(2)}% off`;
       }
       // If 0 or empty and we have event name, the booking needs to be re-saved to recalculate

@@ -115,8 +115,12 @@ export default function EditBookingModal({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Auto-detection of matching discount events
-  const [matchedDiscountEvent, setMatchedDiscountEvent] = useState<string | null>(null);
-  const [availableDiscountEvents, setAvailableDiscountEvents] = useState<any[]>([]);
+  const [matchedDiscountEvent, setMatchedDiscountEvent] = useState<
+    string | null
+  >(null);
+  const [availableDiscountEvents, setAvailableDiscountEvents] = useState<any[]>(
+    [],
+  );
 
   // Loading state for email generation and sending
   const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
@@ -158,6 +162,11 @@ export default function EditBookingModal({
 
   // Debounce timer for function execution
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const skipInitialAutoDetectRef = React.useRef(true);
+  const skipInitialEventNameDependentsRef = React.useRef(true);
+  const skipNextEventNameDependentsRef = React.useRef(false);
+  const hasUserChangedTourDetailsRef = React.useRef(false);
+  const hasUserChangedEventNameRef = React.useRef(false);
 
   // Real-time Firebase listener for booking updates (like BookingsDataGrid)
   useEffect(() => {
@@ -680,6 +689,11 @@ export default function EditBookingModal({
   // Initialize form data when modal opens
   useEffect(() => {
     if (booking && isOpen) {
+      skipInitialAutoDetectRef.current = true;
+      skipInitialEventNameDependentsRef.current = true;
+      skipNextEventNameDependentsRef.current = false;
+      hasUserChangedTourDetailsRef.current = false;
+      hasUserChangedEventNameRef.current = false;
       setFormData({ ...booking });
       setFieldErrors({});
     }
@@ -707,20 +721,21 @@ export default function EditBookingModal({
       }
 
       try {
-        const { collection, query, where, getDocs } = await import(
-          "firebase/firestore"
-        );
+        const { collection, query, where, getDocs } =
+          await import("firebase/firestore");
         const { db } = await import("@/lib/firebase");
 
         // Query discount events that are active
         const discountEventsRef = collection(db, "discountEvents");
         const activeEventsQuery = query(
           discountEventsRef,
-          where("active", "==", true)
+          where("active", "==", true),
         );
 
         const snapshot = await getDocs(activeEventsQuery);
-        console.log(`🔍 [AUTO-DETECT] Found ${snapshot.docs.length} active discount events`);
+        console.log(
+          `🔍 [AUTO-DETECT] Found ${snapshot.docs.length} active discount events`,
+        );
 
         // Normalize tourDate for comparison (convert to YYYY-MM-DD format)
         let normalizedTourDate = "";
@@ -749,7 +764,10 @@ export default function EditBookingModal({
           normalizedTourDate = `${year}-${month}-${day}`;
         } else if (typeof tourDate === "object" && tourDate !== null) {
           // Handle Firestore Timestamp
-          if ("toDate" in tourDate && typeof (tourDate as any).toDate === "function") {
+          if (
+            "toDate" in tourDate &&
+            typeof (tourDate as any).toDate === "function"
+          ) {
             const date = (tourDate as any).toDate();
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -762,7 +780,10 @@ export default function EditBookingModal({
           normalizedTourDate = String(tourDate);
         }
 
-        console.log("🔍 [AUTO-DETECT] Normalized tour date:", normalizedTourDate);
+        console.log(
+          "🔍 [AUTO-DETECT] Normalized tour date:",
+          normalizedTourDate,
+        );
 
         // Filter events that match the tour package name and date
         const matchedEvents: any[] = [];
@@ -778,7 +799,9 @@ export default function EditBookingModal({
           const eventName = eventData.name;
           const items = eventData.items || [];
 
-          console.log(`🔍 [AUTO-DETECT] Event "${eventName}" has ${items.length} items`);
+          console.log(
+            `🔍 [AUTO-DETECT] Event "${eventName}" has ${items.length} items`,
+          );
 
           // Check each item in the event to see if it matches our tour package and date
           const matchingItems = items.filter((item: any) => {
@@ -787,12 +810,15 @@ export default function EditBookingModal({
 
             const packageMatch = itemTourPackageName === tourPackageName;
 
-            console.log(`🔍 [AUTO-DETECT] Checking item "${itemTourPackageName}":`, {
-              packageMatch,
-              tourPackageName,
-              itemTourPackageName,
-              dateDiscountsCount: dateDiscounts.length,
-            });
+            console.log(
+              `🔍 [AUTO-DETECT] Checking item "${itemTourPackageName}":`,
+              {
+                packageMatch,
+                tourPackageName,
+                itemTourPackageName,
+                dateDiscountsCount: dateDiscounts.length,
+              },
+            );
 
             if (!packageMatch) {
               return false;
@@ -824,15 +850,16 @@ export default function EditBookingModal({
               return dateMatch;
             });
 
-            console.log(`🔍 [AUTO-DETECT] Item "${itemTourPackageName}" date match result:`, hasMatchingDate);
+            console.log(
+              `🔍 [AUTO-DETECT] Item "${itemTourPackageName}" date match result:`,
+              hasMatchingDate,
+            );
 
             return packageMatch && hasMatchingDate;
           });
 
           if (matchingItems.length > 0) {
-            console.log(
-              `✅ [AUTO-DETECT] Event "${eventName}" matches!`
-            );
+            console.log(`✅ [AUTO-DETECT] Event "${eventName}" matches!`);
             matchedEvents.push({
               id: doc.id,
               name: eventName,
@@ -842,7 +869,7 @@ export default function EditBookingModal({
         });
 
         console.log(
-          `✅ [AUTO-DETECT] Found ${matchedEvents.length} matching discount events`
+          `✅ [AUTO-DETECT] Found ${matchedEvents.length} matching discount events`,
         );
 
         // Set the matched event(s) but don't auto-apply
@@ -850,16 +877,21 @@ export default function EditBookingModal({
         if (matchedEvents.length > 0) {
           setMatchedDiscountEvent(matchedEvents[0].name);
           console.log(
-            `📌 [AUTO-DETECT] Detected event: ${matchedEvents[0].name}`
+            `📌 [AUTO-DETECT] Detected event: ${matchedEvents[0].name}`,
           );
         } else {
           // No matches found - clear event name and discount fields
-          console.log("❌ [AUTO-DETECT] No matching events found - clearing discounts");
+          console.log(
+            "❌ [AUTO-DETECT] No matching events found - clearing discounts",
+          );
           setMatchedDiscountEvent(null);
-          
+
           // Clear event name if one was previously set
-          if (currentEventName) {
-            console.log("🧹 [AUTO-DETECT] Clearing eventName, discount, and discountType");
+          if (currentEventName && hasUserChangedTourDetailsRef.current) {
+            console.log(
+              "🧹 [AUTO-DETECT] Clearing eventName, discount, and discountType",
+            );
+            hasUserChangedEventNameRef.current = true;
             setFormData((prev) => ({
               ...prev,
               eventName: "", // This will trigger the eventName watcher to clear discount/discountType
@@ -873,13 +905,20 @@ export default function EditBookingModal({
 
         setAvailableDiscountEvents(matchedEvents);
       } catch (error) {
-        console.error("🚨 [AUTO-DETECT] Error detecting discount events:", error);
+        console.error(
+          "🚨 [AUTO-DETECT] Error detecting discount events:",
+          error,
+        );
         setMatchedDiscountEvent(null);
         setAvailableDiscountEvents([]);
       }
     };
 
     if (isOpen) {
+      if (skipInitialAutoDetectRef.current) {
+        skipInitialAutoDetectRef.current = false;
+        return;
+      }
       // Debounce the detection to avoid rapid re-runs
       const timeoutId = setTimeout(() => {
         detectMatchingDiscountEvent();
@@ -893,6 +932,25 @@ export default function EditBookingModal({
   useEffect(() => {
     if (!booking?.id || !isOpen) return;
 
+    if (skipInitialEventNameDependentsRef.current) {
+      skipInitialEventNameDependentsRef.current = false;
+      return;
+    }
+
+    if (skipNextEventNameDependentsRef.current) {
+      skipNextEventNameDependentsRef.current = false;
+      hasUserChangedEventNameRef.current = false;
+      hasUserChangedTourDetailsRef.current = false;
+      return;
+    }
+
+    if (
+      !hasUserChangedEventNameRef.current &&
+      !hasUserChangedTourDetailsRef.current
+    ) {
+      return;
+    }
+
     const eventName = formData.eventName;
     console.log("🔄 [EVENT NAME CHANGED] New value:", eventName);
 
@@ -904,6 +962,8 @@ export default function EditBookingModal({
         setFormData(finalData);
       }
     });
+    hasUserChangedEventNameRef.current = false;
+    hasUserChangedTourDetailsRef.current = false;
   }, [formData.eventName, booking?.id, isOpen]);
 
   // Load coded booking sheet columns and functions
@@ -1710,6 +1770,13 @@ export default function EditBookingModal({
 
   const handleFieldChange = useCallback(
     (columnId: string, value: any) => {
+      if (columnId === "tourPackageName" || columnId === "tourDate") {
+        hasUserChangedTourDetailsRef.current = true;
+      }
+
+      if (columnId === "eventName") {
+        hasUserChangedEventNameRef.current = true;
+      }
       // LOCAL FIRST: Update all state in one batch to minimize re-renders
       // Only update if these haven't been set yet (first keystroke)
       setActiveEditingFields((prev) => {
@@ -2246,6 +2313,8 @@ export default function EditBookingModal({
                   ? new Date(e.target.value)
                   : null;
 
+                hasUserChangedTourDetailsRef.current = true;
+
                 // For date picker, commit immediately to Firebase
                 if (booking?.id) {
                   batchedWriter.queueFieldUpdate(
@@ -2284,13 +2353,31 @@ export default function EditBookingModal({
             const tourPackageName = formData.tourPackageName;
             const tourDate = formData.tourDate;
             const selectedEventName = String(value || "");
-            const hasMatchedEvent = matchedDiscountEvent && matchedDiscountEvent !== "";
+            const hasMatchedEvent =
+              matchedDiscountEvent && matchedDiscountEvent !== "";
 
             // If no tour package/date selected, show hint message
             if (!tourPackageName || !tourDate) {
               return (
                 <div className="flex items-center gap-2 p-3 rounded-md border border-dashed border-gray-400 bg-gray-50 text-xs text-gray-600">
-                  <span>Select tour package and date to see available discounts</span>
+                  <span>
+                    Select tour package and date to see available discounts
+                  </span>
+                </div>
+              );
+            }
+
+            // If we already have an event name but no matched active event, still show it
+            if (!hasMatchedEvent && selectedEventName) {
+              return (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 rounded-md border border-green-500 bg-green-50 px-3 py-2 text-xs font-medium text-green-700">
+                    <span>✓</span>
+                    <span>{selectedEventName}</span>
+                  </div>
+                  <span className="text-xs text-amber-600">
+                    Applied (not in active discount events)
+                  </span>
                 </div>
               );
             }
@@ -2305,20 +2392,25 @@ export default function EditBookingModal({
                     size="sm"
                     onClick={() => {
                       // Toggle selection/deselection
-                      const newValue = selectedEventName === matchedDiscountEvent ? "" : matchedDiscountEvent;
-                      
+                      const newValue =
+                        selectedEventName === matchedDiscountEvent
+                          ? ""
+                          : matchedDiscountEvent;
+
                       console.log("👤 [USER ACTION] User toggled event:", {
                         oldValue: selectedEventName,
                         newValue: newValue,
                       });
-                      
+
                       if (booking?.id) {
                         batchedWriter.queueFieldUpdate(
                           booking.id,
                           column.id,
-                          newValue
+                          newValue,
                         );
                       }
+                      hasUserChangedEventNameRef.current = true;
+                      skipNextEventNameDependentsRef.current = true;
                       setFormData((prev) => ({
                         ...prev,
                         [column.id]: newValue,
@@ -2340,7 +2432,7 @@ export default function EditBookingModal({
                       "gap-2 rounded-md border px-3 py-2 text-xs font-medium transition-colors",
                       selectedEventName === matchedDiscountEvent
                         ? "border-green-500 bg-green-50 text-green-700 hover:bg-green-100"
-                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50",
                     )}
                   >
                     <span>+</span>
@@ -3469,25 +3561,33 @@ export default function EditBookingModal({
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Booking ID</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Booking ID
+                  </p>
                   <p className="font-mono font-semibold text-foreground">
                     {formData.bookingId || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Tour Name</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Tour Name
+                  </p>
                   <p className="font-semibold text-foreground">
                     {formData.tourPackageName || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Booking Type</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Booking Type
+                  </p>
                   <p className="font-semibold text-foreground">
                     {formData.bookingType || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Tour Date</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Tour Date
+                  </p>
                   <p className="font-semibold text-foreground">
                     {formData.tourDate
                       ? (() => {
@@ -3505,7 +3605,9 @@ export default function EditBookingModal({
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Return Date</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Return Date
+                  </p>
                   <p className="font-semibold text-foreground">
                     {formData.returnDate
                       ? (() => {
@@ -3523,13 +3625,17 @@ export default function EditBookingModal({
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Tour Duration</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Tour Duration
+                  </p>
                   <p className="font-semibold text-foreground">
                     {formData.tourDuration || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Reservation Fee</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Reservation Fee
+                  </p>
                   <p className="font-semibold text-foreground">
                     {formData.reservationFee
                       ? `£${Number(formData.reservationFee).toFixed(2)}`
@@ -3574,7 +3680,8 @@ export default function EditBookingModal({
                             </td>
                             <td className="py-2 px-2 text-foreground">
                               {formData.fullPaymentDueDate
-                                ? typeof formData.fullPaymentDueDate === "string"
+                                ? typeof formData.fullPaymentDueDate ===
+                                  "string"
                                   ? formData.fullPaymentDueDate
                                   : formData.fullPaymentDueDate instanceof Date
                                     ? formData.fullPaymentDueDate.toLocaleDateString(

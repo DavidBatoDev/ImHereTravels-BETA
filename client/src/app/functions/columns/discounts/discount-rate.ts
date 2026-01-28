@@ -52,15 +52,15 @@ export const discountRateColumn: BookingSheetColumn = {
 export default async function getDiscountRateFunction(
   eventName: string | null | undefined,
   tourPackageName: string | null | undefined,
-  tourDate: any
+  tourDate: any,
 ): Promise<number> {
   const toNumber = (value: any): number | null => {
     const num =
       typeof value === "number"
         ? value
         : typeof value === "string"
-        ? parseFloat(value)
-        : NaN;
+          ? parseFloat(value)
+          : NaN;
     return Number.isFinite(num) ? num : null;
   };
 
@@ -102,24 +102,21 @@ export default async function getDiscountRateFunction(
     // Format the tour date to match the format stored (YYYY-MM-DD)
     // Use timezone-neutral formatting to avoid off-by-one issues
     const tourDateStr = new Date(
-      tourDateObj.getTime() - tourDateObj.getTimezoneOffset() * 60 * 1000
+      tourDateObj.getTime() - tourDateObj.getTimezoneOffset() * 60 * 1000,
     )
       .toISOString()
       .split("T")[0];
 
-    // Query for active discount events matching the event name
+    // Query by name only (do NOT filter by active/schedule) to preserve historical bookings
+    // Past bookings should keep their applied discount data even if the event is turned off later.
     const discountEventsRef = collection(db, "discountEvents");
     const { query, where } = await import("firebase/firestore");
-    const eventQuery = query(
-      discountEventsRef,
-      where("name", "==", eventName),
-      where("active", "==", true)
-    );
+    const eventQuery = query(discountEventsRef, where("name", "==", eventName));
 
     const eventSnapshot = await getDocs(eventQuery);
 
     if (eventSnapshot.empty) {
-      console.log("🔍 [DISCOUNT-RATE] No active event found for:", eventName);
+      console.log("🔍 [DISCOUNT-RATE] No event found for:", eventName);
       return 0;
     }
 
@@ -130,56 +127,54 @@ export default async function getDiscountRateFunction(
       discountType: eventData.discountType,
       items: eventData.items?.length || 0,
     });
-    const activationMode = eventData.activationMode || "manual";
-    const scheduledStart = eventData.scheduledStart
-      ? new Date(eventData.scheduledStart)
-      : null;
-    const scheduledEnd = eventData.scheduledEnd
-      ? new Date(eventData.scheduledEnd)
-      : null;
-
-    // Honor scheduled activation windows
-    if (activationMode === "scheduled") {
-      const now = new Date();
-      const startsOk = scheduledStart ? now >= scheduledStart : true;
-      const endsOk = scheduledEnd ? now <= scheduledEnd : true;
-      if (!(startsOk && endsOk)) {
-        return 0;
-      }
-    }
-
     const items = eventData.items || [];
-    console.log("🔍 [DISCOUNT-RATE] Looking for tourPackageName:", tourPackageName, "in items:", items.length);
+    console.log(
+      "🔍 [DISCOUNT-RATE] Looking for tourPackageName:",
+      tourPackageName,
+      "in items:",
+      items.length,
+    );
 
     // Find the matching tour package in items array
     for (const item of items) {
       // Check if tour package name matches
       if (item.tourPackageName === tourPackageName) {
-        console.log("🔍 [DISCOUNT-RATE] Found matching package, looking for date:", tourDateStr);
+        console.log(
+          "🔍 [DISCOUNT-RATE] Found matching package, looking for date:",
+          tourDateStr,
+        );
         const dateDiscounts = item.dateDiscounts || [];
         const itemOriginalCost = toNumber(item.originalCost); // Get originalCost from item level
 
         // Search through dateDiscounts array for matching date
         for (const dateDiscount of dateDiscounts) {
           if (dateDiscount.date === tourDateStr) {
-            console.log("🎉 [DISCOUNT-RATE] Found discount date match, full data:", JSON.stringify(dateDiscount, null, 2));
-            
+            console.log(
+              "🎉 [DISCOUNT-RATE] Found discount date match, full data:",
+              JSON.stringify(dateDiscount, null, 2),
+            );
+
             // Check if this is a flat amount discount
             const discountType = eventData.discountType || "percent";
-            
+
             if (discountType === "amount") {
               // Prefer an explicit discountAmount field if present
               const discountAmountValue = toNumber(
-                (dateDiscount as any).discountAmount ?? (dateDiscount as any).amount
+                (dateDiscount as any).discountAmount ??
+                  (dateDiscount as any).amount,
               );
 
               let flatAmount = discountAmountValue;
-              console.log("🔍 [DISCOUNT-RATE] discountAmountValue:", discountAmountValue);
+              console.log(
+                "🔍 [DISCOUNT-RATE] discountAmountValue:",
+                discountAmountValue,
+              );
 
               // Fallback: derive flat amount from costs (original - discounted)
               // originalCost comes from ITEM level, discountedCost from dateDiscount
               if (flatAmount === null) {
-                const originalCost = toNumber(dateDiscount.originalCost) ?? itemOriginalCost; // Try dateDiscount first, fallback to item
+                const originalCost =
+                  toNumber(dateDiscount.originalCost) ?? itemOriginalCost; // Try dateDiscount first, fallback to item
                 const discountedCost = toNumber(dateDiscount.discountedCost);
                 console.log("🔍 [DISCOUNT-RATE] Calculating from costs:", {
                   originalCostRaw: dateDiscount.originalCost,
@@ -190,26 +185,35 @@ export default async function getDiscountRateFunction(
                 });
                 if (originalCost !== null && discountedCost !== null) {
                   flatAmount = originalCost - discountedCost;
-                  console.log("🔍 [DISCOUNT-RATE] Calculated flatAmount:", flatAmount);
+                  console.log(
+                    "🔍 [DISCOUNT-RATE] Calculated flatAmount:",
+                    flatAmount,
+                  );
                 }
               }
 
               if (flatAmount !== null && flatAmount > 0) {
                 const safeAmount = Math.max(flatAmount, 0);
-                console.log("🎉 [DISCOUNT-RATE] Flat amount discount calculated:", {
-                  discountAmount: discountAmountValue,
-                  originalCost: itemOriginalCost,
-                  discountedCost: dateDiscount.discountedCost,
-                  flatAmount: safeAmount,
-                });
+                console.log(
+                  "🎉 [DISCOUNT-RATE] Flat amount discount calculated:",
+                  {
+                    discountAmount: discountAmountValue,
+                    originalCost: itemOriginalCost,
+                    discountedCost: dateDiscount.discountedCost,
+                    flatAmount: safeAmount,
+                  },
+                );
                 // Return numeric value for calculations
                 return safeAmount;
               }
 
-              console.log("❌ [DISCOUNT-RATE] No flat amount data available or amount is zero/negative", {
-                flatAmount,
-                dateDiscount,
-              });
+              console.log(
+                "❌ [DISCOUNT-RATE] No flat amount data available or amount is zero/negative",
+                {
+                  flatAmount,
+                  dateDiscount,
+                },
+              );
               return 0;
             } else {
               // For percentages, return the numeric rate directly
