@@ -114,13 +114,7 @@ export default function EditBookingModal({
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // Auto-detection of matching discount events
-  const [matchedDiscountEvent, setMatchedDiscountEvent] = useState<
-    string | null
-  >(null);
-  const [availableDiscountEvents, setAvailableDiscountEvents] = useState<any[]>(
-    [],
-  );
+
 
   // Loading state for email generation and sending
   const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
@@ -162,9 +156,7 @@ export default function EditBookingModal({
 
   // Debounce timer for function execution
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const skipInitialAutoDetectRef = React.useRef(true);
   const skipInitialEventNameDependentsRef = React.useRef(true);
-  const skipNextEventNameDependentsRef = React.useRef(false);
   const hasUserChangedTourDetailsRef = React.useRef(false);
   const hasUserChangedEventNameRef = React.useRef(false);
 
@@ -689,9 +681,7 @@ export default function EditBookingModal({
   // Initialize form data when modal opens
   useEffect(() => {
     if (booking && isOpen) {
-      skipInitialAutoDetectRef.current = true;
       skipInitialEventNameDependentsRef.current = true;
-      skipNextEventNameDependentsRef.current = false;
       hasUserChangedTourDetailsRef.current = false;
       hasUserChangedEventNameRef.current = false;
       setFormData({ ...booking });
@@ -699,234 +689,200 @@ export default function EditBookingModal({
     }
   }, [booking, isOpen]);
 
-  // Auto-detect matching discount events when tour package name or date changes
-  useEffect(() => {
-    const detectMatchingDiscountEvent = async () => {
-      const tourPackageName = formData.tourPackageName;
-      const tourDate = formData.tourDate;
-      const currentEventName = formData.eventName;
-
-      console.log("🔍 [AUTO-DETECT DISCOUNT] Checking for matches:", {
-        tourPackageName,
-        tourDate,
-        currentEventName,
-      });
-
-      // Clear matched event if either field is empty
-      if (!tourPackageName || !tourDate) {
-        console.log("🚫 [AUTO-DETECT] Missing tourPackageName or tourDate");
-        setMatchedDiscountEvent(null);
-        setAvailableDiscountEvents([]);
-        return;
+  // Optimized function to reload Event Name options based on Tour Package and Date
+  const reloadEventNameOptions = useCallback(
+    async (currentTourPackageName: string, currentTourDate: any) => {
+      // If missing required fields, clear options and return empty
+      if (!currentTourPackageName || !currentTourDate) {
+         setDynamicOptions((prev) => ({
+            ...prev,
+            eventName: [""],
+         }));
+         return;
       }
+
+      console.log("🔄 [DISCOUNT LOGIC] Reloading Event Name options...", {
+        package: currentTourPackageName,
+        date: currentTourDate
+      });
 
       try {
         const { collection, query, where, getDocs } =
           await import("firebase/firestore");
         const { db } = await import("@/lib/firebase");
 
-        // Query discount events that are active
+        // Query active discount events
         const discountEventsRef = collection(db, "discountEvents");
         const activeEventsQuery = query(
           discountEventsRef,
           where("active", "==", true),
         );
 
-        const snapshot = await getDocs(activeEventsQuery);
-        console.log(
-          `🔍 [AUTO-DETECT] Found ${snapshot.docs.length} active discount events`,
-        );
+         const snapshot = await getDocs(activeEventsQuery);
+         
+         // Helper for date normalization (Local Time) to match tourDate
+         const toLocalISODate = (date: Date) => {
+           const year = date.getFullYear();
+           const month = String(date.getMonth() + 1).padStart(2, "0");
+           const day = String(date.getDate()).padStart(2, "0");
+           return `${year}-${month}-${day}`;
+         };
 
-        // Normalize tourDate for comparison (convert to YYYY-MM-DD format)
-        let normalizedTourDate = "";
-        const tourDateValue = tourDate as string | Date | undefined;
-        if (typeof tourDateValue === "string") {
-          // If it's MM/DD/YYYY format, parse it correctly
-          if (tourDateValue.includes("/")) {
-            const parts = tourDateValue.split("/");
-            if (parts.length === 3) {
-              const [month, day, year] = parts;
-              normalizedTourDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-            } else {
-              normalizedTourDate = tourDateValue;
-            }
-          } else if (tourDateValue.includes("-")) {
-            // Already in YYYY-MM-DD format
-            normalizedTourDate = tourDateValue;
-          } else {
-            normalizedTourDate = tourDateValue;
-          }
-        } else if (tourDateValue instanceof Date) {
-          // Convert Date object to YYYY-MM-DD
-          const year = tourDateValue.getFullYear();
-          const month = String(tourDateValue.getMonth() + 1).padStart(2, "0");
-          const day = String(tourDateValue.getDate()).padStart(2, "0");
-          normalizedTourDate = `${year}-${month}-${day}`;
-        } else if (typeof tourDate === "object" && tourDate !== null) {
-          // Handle Firestore Timestamp
-          if (
-            "toDate" in tourDate &&
-            typeof (tourDate as any).toDate === "function"
-          ) {
-            const date = (tourDate as any).toDate();
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            normalizedTourDate = `${year}-${month}-${day}`;
-          } else {
-            normalizedTourDate = String(tourDate);
-          }
-        } else {
-          normalizedTourDate = String(tourDate);
-        }
+         // Normalize current tour date
+         let normalizedTourDate = "";
+         const tourDateValue = currentTourDate;
+         
+         if (typeof tourDateValue === "string") {
+            if (tourDateValue.includes("/")) {
+               const parts = tourDateValue.split("/");
+               if (parts.length === 3) {
+                  const [month, day, year] = parts;
+                  normalizedTourDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+               } else normalizedTourDate = tourDateValue;
+            } else normalizedTourDate = tourDateValue; // Assume YYYY-MM-DD
+         } else if (tourDateValue instanceof Date) {
+            normalizedTourDate = toLocalISODate(tourDateValue);
+         } else if (tourDateValue && typeof tourDateValue === "object" && 'toDate' in tourDateValue) {
+             // Firestore Timestamp
+             normalizedTourDate = toLocalISODate(tourDateValue.toDate());
+         }
 
-        console.log(
-          "🔍 [AUTO-DETECT] Normalized tour date:",
-          normalizedTourDate,
-        );
+         const cleanString = (str: string) => str?.trim().toLowerCase() || "";
+         const targetPackageName = cleanString(currentTourPackageName);
 
-        // Filter events that match the tour package name and date
-        const matchedEvents: any[] = [];
+         const validEventNames: string[] = [];
 
-        console.log("🔍 [AUTO-DETECT] Processing events:", {
-          eventsCount: snapshot.docs.length,
-          normalizedTourDate,
-          tourPackageName,
-        });
+         snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            const items = data.items || [];
+            
+            // Check if this event has a matching item config
+            const hasMatch = items.some((item: any) => {
+               // 1. Package Name Match
+               if (cleanString(item.tourPackageName) !== targetPackageName) return false;
 
-        snapshot.docs.forEach((doc) => {
-          const eventData = doc.data();
-          const eventName = eventData.name;
-          const items = eventData.items || [];
-
-          console.log(
-            `🔍 [AUTO-DETECT] Event "${eventName}" has ${items.length} items`,
-          );
-
-          // Check each item in the event to see if it matches our tour package and date
-          const matchingItems = items.filter((item: any) => {
-            const itemTourPackageName = item.tourPackageName;
-            const dateDiscounts = item.dateDiscounts || [];
-
-            const packageMatch = itemTourPackageName === tourPackageName;
-
-            console.log(
-              `🔍 [AUTO-DETECT] Checking item "${itemTourPackageName}":`,
-              {
-                packageMatch,
-                tourPackageName,
-                itemTourPackageName,
-                dateDiscountsCount: dateDiscounts.length,
-              },
-            );
-
-            if (!packageMatch) {
-              return false;
-            }
-
-            // Check if any date discount matches our tour date
-            const hasMatchingDate = dateDiscounts.some((dd: any) => {
-              let ddDate = dd.date;
-
-              // If it's a Firestore Timestamp, convert to date string
-              if (ddDate && typeof ddDate.toDate === "function") {
-                ddDate = ddDate.toDate().toISOString().split("T")[0];
-              }
-              // If it's a Date object, convert to date string
-              else if (ddDate instanceof Date) {
-                ddDate = ddDate.toISOString().split("T")[0];
-              }
-              // Keep string as-is
-              else if (typeof ddDate === "string") {
-                ddDate = ddDate;
-              }
-
-              const dateMatch = ddDate === normalizedTourDate;
-              console.log(`🔍 [AUTO-DETECT] Comparing dates:`, {
-                ddDate,
-                normalizedTourDate,
-                dateMatch,
-              });
-              return dateMatch;
+               // 2. Date Match
+               const dateDiscounts = item.dateDiscounts || [];
+               return dateDiscounts.some((dd: any) => {
+                  let ddStr = "";
+                  if (dd.date && typeof dd.date.toDate === 'function') ddStr = toLocalISODate(dd.date.toDate());
+                  else if (dd.date instanceof Date) ddStr = toLocalISODate(dd.date);
+                  else if (typeof dd.date === 'string') ddStr = dd.date;
+                  
+                  return ddStr === normalizedTourDate;
+               });
             });
 
-            console.log(
-              `🔍 [AUTO-DETECT] Item "${itemTourPackageName}" date match result:`,
-              hasMatchingDate,
-            );
-
-            return packageMatch && hasMatchingDate;
-          });
-
-          if (matchingItems.length > 0) {
-            console.log(`✅ [AUTO-DETECT] Event "${eventName}" matches!`);
-            matchedEvents.push({
-              id: doc.id,
-              name: eventName,
-              ...eventData,
-            });
-          }
-        });
-
-        console.log(
-          `✅ [AUTO-DETECT] Found ${matchedEvents.length} matching discount events`,
-        );
-
-        // Set the matched event(s) but don't auto-apply
-        // User will toggle with button if they want to apply
-        if (matchedEvents.length > 0) {
-          setMatchedDiscountEvent(matchedEvents[0].name);
-          console.log(
-            `📌 [AUTO-DETECT] Detected event: ${matchedEvents[0].name}`,
-          );
-        } else {
-          // No matches found - clear event name and discount fields
-          console.log(
-            "❌ [AUTO-DETECT] No matching events found - clearing discounts",
-          );
-          setMatchedDiscountEvent(null);
-
-          // Clear event name if one was previously set
-          if (currentEventName && hasUserChangedTourDetailsRef.current) {
-            console.log(
-              "🧹 [AUTO-DETECT] Clearing eventName, discount, and discountType",
-            );
-            hasUserChangedEventNameRef.current = true;
-            setFormData((prev) => ({
-              ...prev,
-              eventName: "", // This will trigger the eventName watcher to clear discount/discountType
-            }));
-            // Save to Firebase
-            if (booking?.id) {
-              batchedWriter.queueFieldUpdate(booking.id, "eventName", "");
+            if (hasMatch) {
+               validEventNames.push(data.name);
             }
-          }
-        }
+         });
 
-        setAvailableDiscountEvents(matchedEvents);
+         console.log("✅ [DISCOUNT LOGIC] Found valid events:", validEventNames);
+
+         // Update options
+         setDynamicOptions((prev) => ({
+            ...prev,
+            eventName: validEventNames.length > 0 ? ["", ...validEventNames] : [""],
+         }));
+
+         return validEventNames;
+
       } catch (error) {
-        console.error(
-          "🚨 [AUTO-DETECT] Error detecting discount events:",
-          error,
-        );
-        setMatchedDiscountEvent(null);
-        setAvailableDiscountEvents([]);
+        console.error("🚨 [DISCOUNT LOGIC] Error loading events:", error);
+         setDynamicOptions((prev) => ({
+            ...prev,
+            eventName: [""],
+         }));
+         return [];
       }
-    };
+    },
+    []
+  );
 
-    if (isOpen) {
-      if (skipInitialAutoDetectRef.current) {
-        skipInitialAutoDetectRef.current = false;
-        return;
-      }
-      // Debounce the detection to avoid rapid re-runs
-      const timeoutId = setTimeout(() => {
-        detectMatchingDiscountEvent();
-      }, 300);
+  // Auto-detect/Clear Event Name when dependencies change
+  useEffect(() => {
+     if (!isOpen) return;
 
-      return () => clearTimeout(timeoutId);
-    }
-  }, [formData.tourPackageName, formData.tourDate, isOpen, booking?.id]);
+     const runLogic = async () => {
+        const pkg = formData.tourPackageName;
+        const date = formData.tourDate;
+        const currentEvent = formData.eventName;
+
+        // Reload options
+        // We await this to get the new valid list
+        let validEvents: string[] = [];
+        if (pkg && date) {
+           // We need to call the function we just defined. 
+           // Since it's async, we can get the result.
+           // However, reloadEventNameOptions updates state, so we should be careful.
+           // Modified reloadEventNameOptions to return the list.
+           validEvents = await reloadEventNameOptions(pkg, date) || [];
+        } else {
+           // If missing dependencies, options are empty
+           setDynamicOptions(prev => ({ ...prev, eventName: [""] }));
+        }
+
+        // Logic to Clear or Auto-Set Event Name
+        if (validEvents.length === 0) {
+           if (currentEvent) {
+            // Determine if context has changed from original booking (robust check)
+            const isOriginalContext = 
+               booking?.tourPackageName === formData.tourPackageName && 
+               isEqual(booking?.tourDate, formData.tourDate);
+            
+            const contextChanged = !isOriginalContext || hasUserChangedTourDetailsRef.current;
+
+            if (contextChanged) {
+                 console.log("🧹 [DISCOUNT LOGIC] Clearing Event Name (no valid events) due to context change");
+                 setFormData(prev => ({ ...prev, eventName: "" }));
+                 
+                 // Explicitly update Firebase
+                 if (booking?.id) {
+                    batchedWriter.queueFieldUpdate(booking.id, "eventName", "");
+                 }
+
+                 // Ensure dependent fields (discount, type) are also cleared via their own watchers or side-effects
+                 hasUserChangedEventNameRef.current = true; // Signal that this is a "user-like" change to trigger dependents
+              } else {
+                 console.log("🛡️ [DISCOUNT LOGIC] Preserving historical inactive event (no valid options):", currentEvent);
+              }
+           }
+        } else {
+           // If current event is invalid, clear it
+           if (currentEvent && !validEvents.includes(currentEvent)) {
+              // Determine if context has changed from original booking (robust check)
+              const isOriginalContext = 
+                 booking?.tourPackageName === formData.tourPackageName && 
+                 isEqual(booking?.tourDate, formData.tourDate);
+              
+              const contextChanged = !isOriginalContext || hasUserChangedTourDetailsRef.current;
+
+              if (contextChanged) {
+                 console.log("🧹 [DISCOUNT LOGIC] Clearing invalid Event Name due to context change:", currentEvent);
+                 setFormData(prev => ({ ...prev, eventName: "" }));
+                 
+                 // Explicitly update Firebase
+                 if (booking?.id) {
+                    batchedWriter.queueFieldUpdate(booking.id, "eventName", "");
+                 }
+
+                 hasUserChangedEventNameRef.current = true; 
+              } else {
+                 console.log("🛡️ [DISCOUNT LOGIC] Preserving historical inactive event:", currentEvent);
+              }
+           }
+
+        }
+     };
+
+     // Debounce slightly to allow typing/updates to settle
+     const timer = setTimeout(runLogic, 300);
+     return () => clearTimeout(timer);
+
+  }, [formData.tourPackageName, formData.tourDate, isOpen, reloadEventNameOptions]);
+
+
 
   // Trigger dependent functions when eventName changes (including clearing it)
   useEffect(() => {
@@ -937,12 +893,7 @@ export default function EditBookingModal({
       return;
     }
 
-    if (skipNextEventNameDependentsRef.current) {
-      skipNextEventNameDependentsRef.current = false;
-      hasUserChangedEventNameRef.current = false;
-      hasUserChangedTourDetailsRef.current = false;
-      return;
-    }
+
 
     if (
       !hasUserChangedEventNameRef.current &&
@@ -1214,6 +1165,34 @@ export default function EditBookingModal({
     },
     [columns],
   );
+
+  // STRICT DEPENDENCY: When Tour Package changes, Clear Tour Date & Reload Options
+  // Use a ref to track previous package name to avoid loops
+  const prevTourPackageRef = React.useRef<string | undefined>(undefined);
+  
+  useEffect(() => {
+     if (!isOpen) { 
+        prevTourPackageRef.current = undefined; 
+        return; 
+     }
+
+     const currentPkg = formData.tourPackageName;
+     const prevPkg = prevTourPackageRef.current;
+
+     if (prevPkg !== undefined && currentPkg !== prevPkg) {
+        console.log("🔄 [DEPENDENCY] Tour Package changed. Clearing Tour Date & Reloading Options.");
+        
+        // 1. Clear Tour Date
+        setFormData(prev => ({ ...prev, tourDate: null }));
+        
+        // 2. Reload Tour Date options
+        reloadTourDateOptions(currentPkg || "");
+     }
+     
+     // Initialize ref on first open if needed, or just update it
+     prevTourPackageRef.current = currentPkg;
+     
+  }, [formData.tourPackageName, isOpen, reloadTourDateOptions]);
 
   // Reactive tracking: reload Payment Plan options when Available Payment Terms changes
   const previousAvailablePaymentTerms = React.useRef<string | undefined>(
@@ -2348,119 +2327,7 @@ export default function EditBookingModal({
           );
 
         case "select":
-          // Special rendering for Event Name field - use button interface
-          if (column.id === "eventName") {
-            const tourPackageName = formData.tourPackageName;
-            const tourDate = formData.tourDate;
-            const selectedEventName = String(value || "");
-            const hasMatchedEvent =
-              matchedDiscountEvent && matchedDiscountEvent !== "";
 
-            // If no tour package/date selected, show hint message
-            if (!tourPackageName || !tourDate) {
-              return (
-                <div className="flex items-center gap-2 p-3 rounded-md border border-dashed border-gray-400 bg-gray-50 text-xs text-gray-600">
-                  <span>
-                    Select tour package and date to see available discounts
-                  </span>
-                </div>
-              );
-            }
-
-            // If we already have an event name but no matched active event, still show it
-            if (!hasMatchedEvent && selectedEventName) {
-              return (
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 rounded-md border border-green-500 bg-green-50 px-3 py-2 text-xs font-medium text-green-700">
-                    <span>✓</span>
-                    <span>{selectedEventName}</span>
-                  </div>
-                  <span className="text-xs text-amber-600">
-                    Applied (not in active discount events)
-                  </span>
-                </div>
-              );
-            }
-
-            // Show matched event as button or show "No matching discounts" message
-            if (hasMatchedEvent) {
-              return (
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Toggle selection/deselection
-                      const newValue =
-                        selectedEventName === matchedDiscountEvent
-                          ? ""
-                          : matchedDiscountEvent;
-
-                      console.log("👤 [USER ACTION] User toggled event:", {
-                        oldValue: selectedEventName,
-                        newValue: newValue,
-                      });
-
-                      if (booking?.id) {
-                        batchedWriter.queueFieldUpdate(
-                          booking.id,
-                          column.id,
-                          newValue,
-                        );
-                      }
-                      hasUserChangedEventNameRef.current = true;
-                      skipNextEventNameDependentsRef.current = true;
-                      setFormData((prev) => ({
-                        ...prev,
-                        [column.id]: newValue,
-                      }));
-                      setIsSaving(true);
-                      debouncedSaveIndicator();
-
-                      // Execute dependent functions immediately
-                      executeDirectDependents(column.id, {
-                        ...formData,
-                        [column.id]: newValue,
-                      }).then((finalData) => {
-                        if (finalData) {
-                          setFormData(finalData);
-                        }
-                      });
-                    }}
-                    className={cn(
-                      "gap-2 rounded-md border px-3 py-2 text-xs font-medium transition-colors",
-                      selectedEventName === matchedDiscountEvent
-                        ? "border-green-500 bg-green-50 text-green-700 hover:bg-green-100"
-                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50",
-                    )}
-                  >
-                    <span>+</span>
-                    <span>{matchedDiscountEvent}</span>
-                  </Button>
-                  <div className="flex flex-col gap-1">
-                    {selectedEventName === matchedDiscountEvent && (
-                      <span className="text-xs text-green-600 font-medium">
-                        ✓ Applied
-                      </span>
-                    )}
-                    {selectedEventName !== matchedDiscountEvent && (
-                      <span className="text-xs text-blue-600 font-medium">
-                        📍 Detected discount available
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            } else {
-              // No matching events - just show message, no dropdown
-              return (
-                <div className="flex items-center gap-2 p-3 rounded-md border border-dashed border-gray-300 bg-gray-50 text-xs text-gray-600">
-                  <span>No discount events match this tour and date</span>
-                </div>
-              );
-            }
-          }
 
           // Calculate options inline (lightweight operation, no need for useMemo)
           const options = dynamicOptions[column.id] || column.options || [];
@@ -2515,6 +2382,10 @@ export default function EditBookingModal({
                   value={currentValue}
                   onChange={async (e) => {
                     const newValue = e.target.value;
+
+                    if (column.id === "tourPackageName" || column.id === "tourDate") {
+                      hasUserChangedTourDetailsRef.current = true;
+                    }
 
                     // Special handling for tourDate - convert Month Day Year back to Timestamp
                     let valueToSave = newValue;
@@ -2627,6 +2498,9 @@ export default function EditBookingModal({
                   value={dateInputValue}
                   onChange={async (e) => {
                     const selectedDate = e.target.value;
+                    if (column.id === "tourPackageName" || column.id === "tourDate") {
+                      hasUserChangedTourDetailsRef.current = true;
+                    }
                     if (!selectedDate) return;
 
                     const { Timestamp } = await import("firebase/firestore");
@@ -2677,6 +2551,10 @@ export default function EditBookingModal({
               value={currentValue}
               onChange={async (e) => {
                 const newValue = e.target.value;
+
+                if (column.id === "tourPackageName" || column.id === "tourDate") {
+                   hasUserChangedTourDetailsRef.current = true;
+                }
 
                 // Special handling for tourDate - convert dd/mm/yyyy back to Timestamp
                 let valueToSave = newValue;
