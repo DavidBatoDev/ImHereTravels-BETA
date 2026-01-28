@@ -8,7 +8,6 @@ export const travellerInitialsColumn: BookingSheetColumn = {
     dataType: "function",
     function: "travellerInitialsFunction",
     parentTab: "Identifier",
-    order: 4,
     includeInForms: false,
     showColumn: true,
     color: "gray",

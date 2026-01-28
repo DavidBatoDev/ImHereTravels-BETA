@@ -8,7 +8,6 @@ export const fullNameColumn: BookingSheetColumn = {
     dataType: "function",
     function: "fullNameFunction",
     parentTab: "Traveler Information",
-    order: 10,
     includeInForms: false,
     color: "gray",
     width: 327.3333740234375,

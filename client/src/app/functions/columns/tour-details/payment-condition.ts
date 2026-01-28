@@ -8,7 +8,6 @@ export const paymentConditionColumn: BookingSheetColumn = {
     dataType: "function",
     function: "paymentConditionFunction",
     parentTab: "Tour Details",
-    order: 18,
     includeInForms: false,
     showColumn: true,
     color: "gray",

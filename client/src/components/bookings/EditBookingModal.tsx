@@ -39,8 +39,20 @@ import {
 import { BsListUl, BsCalendarEvent } from "react-icons/bs";
 import { MdEmail } from "react-icons/md";
 import { HiTrendingUp } from "react-icons/hi";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, CalendarIcon, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { Booking } from "@/types/bookings";
 import { SheetColumn, TypeScriptFunction } from "@/types/sheet-management";
 import { allBookingSheetColumns } from "@/app/functions/columns";
@@ -50,7 +62,7 @@ import { typescriptFunctionsService } from "@/services/typescript-functions-serv
 import { batchedWriter } from "@/services/batched-writer";
 import ScheduledEmailService from "@/services/scheduled-email-service";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, deleteField } from "firebase/firestore";
 import { isEqual, debounce } from "lodash";
 
 interface EditBookingModalProps {
@@ -84,16 +96,16 @@ export default function EditBookingModal({
   // Form state
   const [formData, setFormData] = useState<Partial<Booking>>({});
   const [computingFields, setComputingFields] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Local editing state - tracks which fields are currently being edited (local first pattern)
   const [activeEditingFields, setActiveEditingFields] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [localFieldValues, setLocalFieldValues] = useState<Record<string, any>>(
-    {}
+    {},
   );
   // Track pending changes that haven't been saved to Firebase yet
   const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({});
@@ -117,21 +129,27 @@ export default function EditBookingModal({
   // Track previous values for detecting changes
   const prevGenerateEmailDraft = React.useRef<boolean | undefined>(undefined);
   const prevGenerateCancellationDraft = React.useRef<boolean | undefined>(
-    undefined
+    undefined,
   );
   const prevSendEmail = React.useRef<boolean | undefined>(undefined);
   const prevSendCancellationEmail = React.useRef<boolean | undefined>(
-    undefined
+    undefined,
   );
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const cancellationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const sendEmailTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const sendCancellationEmailTimeoutRef = React.useRef<NodeJS.Timeout | null>(
-    null
+    null,
   );
 
   // Loading state for cleaning scheduled emails
   const [isCleaningScheduledEmails, setIsCleaningScheduledEmails] =
+    useState(false);
+
+  // Confirmation modals
+  const [showSendEmailConfirmation, setShowSendEmailConfirmation] =
+    useState(false);
+  const [showPaymentReminderConfirmation, setShowPaymentReminderConfirmation] =
     useState(false);
 
   const { toast } = useToast();
@@ -147,7 +165,7 @@ export default function EditBookingModal({
 
     console.log(
       "🔍 [EDIT BOOKING MODAL] Setting up real-time booking listener for:",
-      booking.id
+      booking.id,
     );
 
     const unsubscribe = onSnapshot(
@@ -160,7 +178,7 @@ export default function EditBookingModal({
           } as Booking;
 
           console.log(
-            "📄 [EDIT BOOKING MODAL] Real-time booking update received"
+            "📄 [EDIT BOOKING MODAL] Real-time booking update received",
           );
 
           // Update form data with real-time changes (LOCAL FIRST pattern like BookingsDataGrid)
@@ -178,7 +196,7 @@ export default function EditBookingModal({
               // LOCAL FIRST: Skip updating if user is actively editing this field
               if (activeEditingFields.has(key)) {
                 console.log(
-                  `🚫 [EDIT BOOKING MODAL] Skipping Firebase update for actively edited field: ${key}`
+                  `🚫 [EDIT BOOKING MODAL] Skipping Firebase update for actively edited field: ${key}`,
                 );
                 return;
               }
@@ -201,14 +219,14 @@ export default function EditBookingModal({
       (error) => {
         console.error(
           "🚨 [EDIT BOOKING MODAL] Real-time listener error:",
-          error
+          error,
         );
-      }
+      },
     );
 
     return () => {
       console.log(
-        "🧹 [EDIT BOOKING MODAL] Cleaning up real-time booking listener"
+        "🧹 [EDIT BOOKING MODAL] Cleaning up real-time booking listener",
       );
       unsubscribe();
     };
@@ -235,7 +253,7 @@ export default function EditBookingModal({
     // Detect change from false to true (toggled ON)
     if (previousValue === false && currentValue === true) {
       console.log(
-        "✅ [GENERATE EMAIL DRAFT] Toggled ON - showing generating modal"
+        "✅ [GENERATE EMAIL DRAFT] Toggled ON - showing generating modal",
       );
 
       // Clear any existing timeout
@@ -265,7 +283,7 @@ export default function EditBookingModal({
     // Detect change from true to false (toggled OFF)
     if (previousValue === true && currentValue === false) {
       console.log(
-        "🗑️ [GENERATE EMAIL DRAFT] Toggled OFF - showing deleting modal"
+        "🗑️ [GENERATE EMAIL DRAFT] Toggled OFF - showing deleting modal",
       );
 
       // Clear any existing timeout
@@ -299,7 +317,7 @@ export default function EditBookingModal({
       emailGenerationProgress.action === "generating"
     ) {
       console.log(
-        "✅ [GENERATE EMAIL DRAFT] Draft link received - hiding modal"
+        "✅ [GENERATE EMAIL DRAFT] Draft link received - hiding modal",
       );
 
       if (timeoutRef.current) {
@@ -321,7 +339,7 @@ export default function EditBookingModal({
       emailGenerationProgress.action === "deleting"
     ) {
       console.log(
-        "✅ [GENERATE EMAIL DRAFT] Draft link cleared - hiding modal"
+        "✅ [GENERATE EMAIL DRAFT] Draft link cleared - hiding modal",
       );
 
       if (timeoutRef.current) {
@@ -373,7 +391,7 @@ export default function EditBookingModal({
     // Detect change from false to true (toggled ON)
     if (previousValue === false && currentValue === true) {
       console.log(
-        "✅ [GENERATE CANCELLATION DRAFT] Toggled ON - showing generating modal"
+        "✅ [GENERATE CANCELLATION DRAFT] Toggled ON - showing generating modal",
       );
 
       // Clear any existing timeout
@@ -391,7 +409,7 @@ export default function EditBookingModal({
       // Set timeout to hide modal after 30 seconds
       cancellationTimeoutRef.current = setTimeout(() => {
         console.log(
-          "⏱️ [GENERATE CANCELLATION DRAFT] Timeout reached - hiding modal"
+          "⏱️ [GENERATE CANCELLATION DRAFT] Timeout reached - hiding modal",
         );
         setIsGeneratingEmail(false);
         setEmailGenerationProgress({
@@ -405,7 +423,7 @@ export default function EditBookingModal({
     // Detect change from true to false (toggled OFF)
     if (previousValue === true && currentValue === false) {
       console.log(
-        "🗑️ [GENERATE CANCELLATION DRAFT] Toggled OFF - showing deleting modal"
+        "🗑️ [GENERATE CANCELLATION DRAFT] Toggled OFF - showing deleting modal",
       );
 
       // Clear any existing timeout
@@ -423,7 +441,7 @@ export default function EditBookingModal({
       // Set timeout to hide modal after 30 seconds
       cancellationTimeoutRef.current = setTimeout(() => {
         console.log(
-          "⏱️ [GENERATE CANCELLATION DRAFT] Timeout reached - hiding modal"
+          "⏱️ [GENERATE CANCELLATION DRAFT] Timeout reached - hiding modal",
         );
         setIsGeneratingEmail(false);
         setEmailGenerationProgress({
@@ -441,7 +459,7 @@ export default function EditBookingModal({
       emailGenerationProgress.action === "generating"
     ) {
       console.log(
-        "✅ [GENERATE CANCELLATION DRAFT] Draft link received - hiding modal"
+        "✅ [GENERATE CANCELLATION DRAFT] Draft link received - hiding modal",
       );
 
       if (cancellationTimeoutRef.current) {
@@ -463,7 +481,7 @@ export default function EditBookingModal({
       emailGenerationProgress.action === "deleting"
     ) {
       console.log(
-        "✅ [GENERATE CANCELLATION DRAFT] Draft link cleared - hiding modal"
+        "✅ [GENERATE CANCELLATION DRAFT] Draft link cleared - hiding modal",
       );
 
       if (cancellationTimeoutRef.current) {
@@ -592,7 +610,7 @@ export default function EditBookingModal({
     // Detect change from false to true (toggled ON)
     if (previousValue === false && currentValue === true) {
       console.log(
-        "✅ [SEND CANCELLATION EMAIL] Toggled ON - showing sending modal"
+        "✅ [SEND CANCELLATION EMAIL] Toggled ON - showing sending modal",
       );
 
       // Clear any existing timeout
@@ -610,7 +628,7 @@ export default function EditBookingModal({
       // Set timeout to hide modal after 30 seconds
       sendCancellationEmailTimeoutRef.current = setTimeout(() => {
         console.log(
-          "⏱️ [SEND CANCELLATION EMAIL] Timeout reached - hiding modal"
+          "⏱️ [SEND CANCELLATION EMAIL] Timeout reached - hiding modal",
         );
         setIsGeneratingEmail(false);
         setEmailGenerationProgress({
@@ -628,7 +646,7 @@ export default function EditBookingModal({
       emailGenerationProgress.action === "sending"
     ) {
       console.log(
-        "✅ [SEND CANCELLATION EMAIL] Sent email link received - hiding modal"
+        "✅ [SEND CANCELLATION EMAIL] Sent email link received - hiding modal",
       );
 
       if (sendCancellationEmailTimeoutRef.current) {
@@ -893,7 +911,7 @@ export default function EditBookingModal({
     if (!isOpen) return;
 
     console.log(
-      "🔍 [EDIT BOOKING MODAL] Loading coded columns and functions..."
+      "🔍 [EDIT BOOKING MODAL] Loading coded columns and functions...",
     );
     setIsLoadingColumns(true);
 
@@ -906,11 +924,11 @@ export default function EditBookingModal({
         if (columnData.dataType === "select" && columnData.id === "eventName") {
           console.log(
             "🔍 [EDIT BOOKING MODAL] Event Name column data:",
-            columnData
+            columnData,
           );
           console.log(
             "🔍 [EDIT BOOKING MODAL] Has loadOptions?",
-            !!columnData.loadOptions
+            !!columnData.loadOptions,
           );
         }
 
@@ -924,55 +942,20 @@ export default function EditBookingModal({
             };
           } else {
             console.warn(
-              `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`
+              `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`,
             );
           }
         }
 
         return columnData;
-      }
+      },
     );
 
     console.log(
-      `✅ [EDIT BOOKING MODAL] Loaded ${codedColumns.length} coded columns`
+      `✅ [EDIT BOOKING MODAL] Loaded ${codedColumns.length} coded columns`,
     );
     setColumns(codedColumns);
     setIsLoadingColumns(false);
-
-    // Load dynamic options for select columns with loadOptions
-    const loadDynamicOptions = async () => {
-      const optionsMap: Record<string, string[]> = {};
-
-      for (const col of codedColumns) {
-        if (col.dataType === "select" && col.loadOptions) {
-          try {
-            console.log(
-              `🔄 [EDIT BOOKING MODAL] Loading options for ${col.columnName}...`
-            );
-            const options = await col.loadOptions();
-            console.log(
-              `✅ [EDIT BOOKING MODAL] Loaded ${options.length} options for ${col.columnName}:`,
-              options
-            );
-            optionsMap[col.id] = options;
-          } catch (error) {
-            console.error(
-              `Failed to load options for ${col.columnName}:`,
-              error
-            );
-            optionsMap[col.id] = col.options || [];
-          }
-        }
-      }
-
-      console.log(
-        "📦 [EDIT BOOKING MODAL] All dynamic options loaded:",
-        optionsMap
-      );
-      setDynamicOptions(optionsMap);
-    };
-
-    loadDynamicOptions();
 
     // Load available functions
     const loadFunctions = async () => {
@@ -997,6 +980,58 @@ export default function EditBookingModal({
     };
   }, [isOpen]);
 
+  // Load dynamic options for select columns AFTER formData is ready
+  useEffect(() => {
+    if (
+      !isOpen ||
+      columns.length === 0 ||
+      !formData ||
+      Object.keys(formData).length === 0
+    ) {
+      return;
+    }
+
+    const loadDynamicOptions = async () => {
+      console.log(
+        "🔄 [EDIT BOOKING MODAL] Loading dynamic options with formData context:",
+        { availablePaymentTerms: formData.availablePaymentTerms },
+      );
+
+      const optionsMap: Record<string, string[]> = {};
+
+      for (const col of columns) {
+        if (col.dataType === "select" && col.loadOptions) {
+          try {
+            console.log(
+              `🔄 [EDIT BOOKING MODAL] Loading options for ${col.columnName}...`,
+            );
+            // Pass formData as context for context-aware options
+            const options = await col.loadOptions({ formData });
+            console.log(
+              `✅ [EDIT BOOKING MODAL] Loaded ${options.length} options for ${col.columnName}:`,
+              options,
+            );
+            optionsMap[col.id] = options;
+          } catch (error) {
+            console.error(
+              `Failed to load options for ${col.columnName}:`,
+              error,
+            );
+            optionsMap[col.id] = col.options || [];
+          }
+        }
+      }
+
+      console.log(
+        "📦 [EDIT BOOKING MODAL] All dynamic options loaded:",
+        optionsMap,
+      );
+      setDynamicOptions(optionsMap);
+    };
+
+    loadDynamicOptions();
+  }, [isOpen, columns, formData.id]); // Only re-run when modal opens or when we get a new booking (formData.id changes)
+
   // Build dependency graph: source columnId -> list of function columns depending on it
   const dependencyGraph = useMemo(() => {
     const map = new Map<string, SheetColumn[]>();
@@ -1008,7 +1043,7 @@ export default function EditBookingModal({
             if (arg.columnReference !== "ID" && arg.columnReference !== "Row") {
               // Find the column ID for the referenced column name
               const refCol = columns.find(
-                (c) => c.columnName === arg.columnReference
+                (c) => c.columnName === arg.columnReference,
               );
               if (refCol) {
                 const list = map.get(refCol.id) || [];
@@ -1038,27 +1073,134 @@ export default function EditBookingModal({
     return map;
   }, [columns]);
 
+  // Optimized function to reload ONLY Payment Plan options when Available Payment Terms changes
+  const reloadPaymentPlanOptions = useCallback(
+    async (availablePaymentTerms: string) => {
+      const paymentPlanColumn = columns.find((col) => col.id === "paymentPlan");
+
+      if (!paymentPlanColumn || !paymentPlanColumn.loadOptions) {
+        return;
+      }
+
+      try {
+        console.log(
+          "🔄 [EDIT BOOKING MODAL] Reloading Payment Plan options for:",
+          availablePaymentTerms,
+        );
+
+        // Pass formData context to loadOptions
+        const options = await paymentPlanColumn.loadOptions({
+          formData: { availablePaymentTerms },
+        });
+
+        console.log(
+          "✅ [EDIT BOOKING MODAL] Payment Plan options updated:",
+          options,
+        );
+
+        // Update only the paymentPlan options, keep others unchanged
+        setDynamicOptions((prev) => ({
+          ...prev,
+          paymentPlan: options,
+        }));
+      } catch (error) {
+        console.error("Failed to reload Payment Plan options:", error);
+        setDynamicOptions((prev) => ({
+          ...prev,
+          paymentPlan: paymentPlanColumn.options || [],
+        }));
+      }
+    },
+    [columns],
+  );
+
+  // Optimized function to reload ONLY Tour Date options when Tour Package Name changes
+  const reloadTourDateOptions = useCallback(
+    async (tourPackageName: string) => {
+      const tourDateColumn = columns.find((col) => col.id === "tourDate");
+
+      if (!tourDateColumn || !tourDateColumn.loadOptions) {
+        return;
+      }
+
+      try {
+        console.log(
+          "🔄 [EDIT BOOKING MODAL] Reloading Tour Date options for:",
+          tourPackageName,
+        );
+
+        // Pass formData context to loadOptions
+        const options = await tourDateColumn.loadOptions({
+          formData: { tourPackageName },
+        });
+
+        console.log(
+          "✅ [EDIT BOOKING MODAL] Tour Date options updated:",
+          options,
+        );
+
+        // Update only the tourDate options, keep others unchanged
+        setDynamicOptions((prev) => ({
+          ...prev,
+          tourDate: options,
+        }));
+      } catch (error) {
+        console.error("Failed to reload Tour Date options:", error);
+        setDynamicOptions((prev) => ({
+          ...prev,
+          tourDate: tourDateColumn.options || [],
+        }));
+      }
+    },
+    [columns],
+  );
+
+  // Reactive tracking: reload Payment Plan options when Available Payment Terms changes
+  const previousAvailablePaymentTerms = React.useRef<string | undefined>(
+    undefined,
+  );
+
+  useEffect(() => {
+    const currentValue = formData.availablePaymentTerms;
+    const previousValue = previousAvailablePaymentTerms.current;
+
+    // Only reload if the value actually changed and isn't the initial undefined
+    if (previousValue !== undefined && currentValue !== previousValue) {
+      console.log("📊 [EDIT BOOKING MODAL] Available Payment Terms changed:", {
+        from: previousValue,
+        to: currentValue,
+      });
+      reloadPaymentPlanOptions(String(currentValue || ""));
+    }
+
+    // Update the ref for next comparison
+    previousAvailablePaymentTerms.current = currentValue;
+  }, [formData.availablePaymentTerms, reloadPaymentPlanOptions]);
+
   // Set first tab as active on load
   useEffect(() => {
     if (!booking || !isOpen || !columns.length) return;
 
     // Group columns by parentTab
-    const groupedColumns = columns.reduce((groups, column) => {
-      const parentTab = column.parentTab || "General";
-      if (!groups[parentTab]) {
-        groups[parentTab] = [];
-      }
-      groups[parentTab].push(column);
-      return groups;
-    }, {} as Record<string, SheetColumn[]>);
+    const groupedColumns = columns.reduce(
+      (groups, column) => {
+        const parentTab = column.parentTab || "General";
+        if (!groups[parentTab]) {
+          groups[parentTab] = [];
+        }
+        groups[parentTab].push(column);
+        return groups;
+      },
+      {} as Record<string, SheetColumn[]>,
+    );
 
     // Sort parentTabs by the order they first appear in the columns
     const sortedParentTabs = Object.keys(groupedColumns).sort((a, b) => {
       const aFirstOrder = Math.min(
-        ...groupedColumns[a].map((col) => col.order)
+        ...groupedColumns[a].map((col) => col.order ?? 999),
       );
       const bFirstOrder = Math.min(
-        ...groupedColumns[b].map((col) => col.order)
+        ...groupedColumns[b].map((col) => col.order ?? 999),
       );
       return aFirstOrder - bFirstOrder;
     });
@@ -1108,7 +1250,7 @@ export default function EditBookingModal({
     debounce(() => {
       // Handle any scroll-related updates here if needed
     }, 16), // ~60fps
-    []
+    [],
   );
 
   // Debounced save indicator handler
@@ -1117,7 +1259,7 @@ export default function EditBookingModal({
       setIsSaving(false);
       setLastSaved(new Date());
     }, 1000), // Show "saving" for 1 second after last change
-    []
+    [],
   );
 
   // Track active section on scroll
@@ -1200,6 +1342,38 @@ export default function EditBookingModal({
     }
   }, [isOpen, isLoadingColumns, activeTab]);
 
+  // Handle send email confirmation
+  const handleSendEmailConfirm = () => {
+    if (!booking?.id) return;
+
+    setShowSendEmailConfirmation(false);
+
+    // Proceed with sending
+    batchedWriter.queueFieldUpdate(booking.id, "sendEmail", true);
+    setFormData((prev) => ({ ...prev, sendEmail: true }));
+    setIsSaving(true);
+    debouncedSaveIndicator();
+  };
+
+  const handleSendEmailCancel = () => {
+    setShowSendEmailConfirmation(false);
+  };
+
+  const handlePaymentReminderConfirm = () => {
+    if (!booking?.id) return;
+
+    setShowPaymentReminderConfirmation(false);
+
+    batchedWriter.queueFieldUpdate(booking.id, "enablePaymentReminder", true);
+    setFormData((prev) => ({ ...prev, enablePaymentReminder: true }));
+    setIsSaving(true);
+    debouncedSaveIndicator();
+  };
+
+  const handlePaymentReminderCancel = () => {
+    setShowPaymentReminderConfirmation(false);
+  };
+
   // Get icon for parent tab
   const getParentTabIcon = (parentTab: string) => {
     if (parentTab.includes("Identifier") || parentTab.includes("🆔"))
@@ -1221,7 +1395,7 @@ export default function EditBookingModal({
   const executeFunction = React.useCallback(
     async (
       funcCol: SheetColumn,
-      currentData: Partial<Booking>
+      currentData: Partial<Booking>,
     ): Promise<any> => {
       if (!funcCol.function || funcCol.dataType !== "function") return;
 
@@ -1279,7 +1453,7 @@ export default function EditBookingModal({
         const args = functionExecutionService.buildArgs(
           funcCol,
           currentData as any,
-          columns
+          columns,
         );
 
         // Use longer timeout for email-sending and email-generating functions (30 seconds)
@@ -1295,7 +1469,7 @@ export default function EditBookingModal({
         const result = await functionExecutionService.executeFunction(
           funcCol.function,
           args,
-          timeout
+          timeout,
         );
 
         console.log(
@@ -1304,7 +1478,7 @@ export default function EditBookingModal({
             success: result.success,
             result: result.result,
             executionTime: result.executionTime,
-          }
+          },
         );
 
         if (result.success) {
@@ -1332,7 +1506,7 @@ export default function EditBookingModal({
         }
       }
     },
-    [columns]
+    [columns],
   );
 
   // Immediate function execution with parallel direct dependents (like BookingsDataGrid)
@@ -1366,13 +1540,13 @@ export default function EditBookingModal({
               } catch (error) {
                 console.error(
                   `Error executing function ${funcCol.columnName}:`,
-                  error
+                  error,
                 );
                 return { columnId: funcCol.id, result: undefined };
               }
             }
             return { columnId: funcCol.id, result: undefined };
-          })
+          }),
         );
 
         // Apply results and queue Firebase updates
@@ -1400,7 +1574,7 @@ export default function EditBookingModal({
               if (oldValue !== result) {
                 updatedData = await executeDirectDependents(
                   columnId,
-                  updatedData
+                  updatedData,
                 );
               }
             }
@@ -1413,8 +1587,100 @@ export default function EditBookingModal({
         return currentData;
       }
     },
-    [dependencyGraph, executeFunction, booking?.id]
+    [dependencyGraph, executeFunction, booking?.id],
   );
+
+  // Reactive tracking: reload Tour Date options when Tour Package Name changes
+  const previousTourPackageName = React.useRef<string | undefined>(undefined);
+  const isInitialMount = React.useRef(true);
+
+  useEffect(() => {
+    const currentValue = formData.tourPackageName;
+    const previousValue = previousTourPackageName.current;
+
+    // On initial mount, just set the ref without triggering reload
+    if (isInitialMount.current) {
+      previousTourPackageName.current = currentValue;
+      isInitialMount.current = false;
+      return;
+    }
+
+    // Reload if the value changed and currentValue is not undefined/empty
+    if (currentValue !== previousValue && currentValue) {
+      console.log("📊 [EDIT BOOKING MODAL] Tour Package Name changed:", {
+        from: previousValue,
+        to: currentValue,
+      });
+
+      // Clear existing tourDate value both locally and in Firebase (only if changing from one package to another)
+      if (formData.tourDate && previousValue !== undefined) {
+        console.log(
+          "🧹 [EDIT BOOKING MODAL] Clearing tourDate due to package change",
+        );
+
+        // Create updated data with cleared tourDate
+        const updatedData = {
+          ...formData,
+          tourPackageName: currentValue,
+          tourDate: undefined,
+        };
+
+        // Update local form state
+        setFormData(updatedData);
+
+        // Update Firebase immediately (not using batched writer to ensure it clears before listener restores it)
+        if (booking?.id) {
+          const bookingRef = doc(db, "bookings", booking.id);
+          updateDoc(bookingRef, {
+            tourDate: deleteField(),
+          }).catch((error) => {
+            console.error("Failed to clear tourDate:", error);
+          });
+        }
+
+        // Trigger recalculation of ALL dependent fields (both tourPackageName and tourDate dependents)
+        // This ensures Return Date and other calculated fields are recalculated
+        executeDirectDependents("tourPackageName", updatedData).then(
+          async (intermediateData) => {
+            const finalData = intermediateData || updatedData;
+            // Also recalculate tourDate dependents to clear Return Date and other dependent fields
+            const fullData = await executeDirectDependents(
+              "tourDate",
+              finalData,
+            );
+            if (fullData) {
+              setFormData(fullData);
+            }
+          },
+        );
+      } else {
+        // If no tourDate to clear, just recalculate tourPackageName dependents
+        const updatedData = {
+          ...formData,
+          tourPackageName: currentValue,
+        };
+        executeDirectDependents("tourPackageName", updatedData).then(
+          (finalData) => {
+            if (finalData) {
+              setFormData(finalData);
+            }
+          },
+        );
+      }
+
+      // Reload tour date options for the new package
+      reloadTourDateOptions(String(currentValue));
+    }
+
+    // Update the ref for next comparison
+    previousTourPackageName.current = currentValue;
+  }, [
+    formData.tourPackageName,
+    formData.tourDate,
+    booking?.id,
+    reloadTourDateOptions,
+    executeDirectDependents,
+  ]);
 
   // Debounced wrapper to avoid excessive calls while maintaining responsiveness
   const debouncedExecuteFunctions = React.useCallback(
@@ -1429,7 +1695,7 @@ export default function EditBookingModal({
         try {
           const updatedData = await executeDirectDependents(
             changedColumnId,
-            currentData
+            currentData,
           );
 
           // Update form data with all computed results
@@ -1439,7 +1705,7 @@ export default function EditBookingModal({
         }
       }, 100); // Reduced to 100ms for better responsiveness like BookingsDataGrid
     },
-    [executeDirectDependents]
+    [executeDirectDependents],
   );
 
   const handleFieldChange = useCallback(
@@ -1480,7 +1746,7 @@ export default function EditBookingModal({
         });
       }
     },
-    [formData, fieldErrors]
+    [formData, fieldErrors],
   );
 
   // Get form value for a column (LOCAL FIRST pattern) - memoized for performance
@@ -1499,14 +1765,14 @@ export default function EditBookingModal({
       // Otherwise use formData (which gets updated by Firebase)
       return formData[column.id as keyof Booking] || "";
     },
-    [activeEditingFields, localFieldValues, formData]
+    [activeEditingFields, localFieldValues, formData],
   );
 
   // Handle when user finishes editing a field (LOCAL FIRST pattern)
   const handleFieldBlur = useCallback(
     (columnId: string) => {
       console.log(
-        `📝 [EDIT BOOKING MODAL] Field editing finished: ${columnId}`
+        `📝 [EDIT BOOKING MODAL] Field editing finished: ${columnId}`,
       );
 
       // Get pending change value
@@ -1516,7 +1782,7 @@ export default function EditBookingModal({
       // Only save to Firebase if the value has actually changed from original
       if (pendingValue !== undefined && pendingValue !== originalValue) {
         console.log(
-          `💾 [EDIT BOOKING MODAL] Saving to Firebase: ${columnId} = ${pendingValue}`
+          `💾 [EDIT BOOKING MODAL] Saving to Firebase: ${columnId} = ${pendingValue}`,
         );
 
         // Show saving indicator
@@ -1579,7 +1845,7 @@ export default function EditBookingModal({
       booking?.id,
       debouncedSaveIndicator,
       executeDirectDependents,
-    ]
+    ],
   );
 
   // Handle key events during editing
@@ -1626,7 +1892,7 @@ export default function EditBookingModal({
 
         // User cancelled editing - discard pending changes and revert to original value
         console.log(
-          `🚫 [EDIT BOOKING MODAL] Discarding changes for: ${columnId}`
+          `🚫 [EDIT BOOKING MODAL] Discarding changes for: ${columnId}`,
         );
 
         // Get the original value before editing started
@@ -1670,7 +1936,7 @@ export default function EditBookingModal({
         }
       }
     },
-    [handleFieldBlur, formData, originalValues]
+    [handleFieldBlur, formData, originalValues],
   );
 
   // Check if column should be displayed
@@ -1696,7 +1962,7 @@ export default function EditBookingModal({
       const baseClasses = cn(
         "w-full text-[11px] sm:text-xs",
         error && "border-red-500",
-        isReadOnly && "bg-muted cursor-not-allowed"
+        isReadOnly && "bg-muted cursor-not-allowed",
       );
 
       const fieldId = `field-${column.id}`;
@@ -1721,7 +1987,7 @@ export default function EditBookingModal({
                   // Use startTransition to prevent flushSync errors on mobile
                   startTransition(() => {
                     console.log(
-                      `🔘 Boolean field toggled: ${column.id} = ${checked}`
+                      `🔘 Boolean field toggled: ${column.id} = ${checked}`,
                     );
                     console.log(`📊 Current formData for draft link:`, {
                       emailDraftLink: formData.emailDraftLink,
@@ -1742,12 +2008,28 @@ export default function EditBookingModal({
                       return;
                     }
 
+                    // Show confirmation modal for sendEmail
+                    if (column.id === "sendEmail" && checked) {
+                      setShowSendEmailConfirmation(true);
+                      return; // Don't proceed until user confirms
+                    }
+
                     // Prevent toggling "Enable Payment Reminder" on if payment plan or payment method is missing
                     const isEnablePaymentReminderField =
                       column.id === "enablePaymentReminder";
                     if (isEnablePaymentReminderField && checked) {
+                      const paymentPlan = String(formData.paymentPlan || "");
                       const hasPaymentPlan = Boolean(formData.paymentPlan);
                       const hasPaymentMethod = Boolean(formData.paymentMethod);
+
+                      if (paymentPlan.toLowerCase() === "full payment") {
+                        toast({
+                          title: "Payment Reminder Not Required",
+                          description:
+                            "Full Payment plan does not require payment reminders.",
+                        });
+                        return;
+                      }
 
                       if (!hasPaymentPlan || !hasPaymentMethod) {
                         toast({
@@ -1758,6 +2040,9 @@ export default function EditBookingModal({
                         });
                         return;
                       }
+
+                      setShowPaymentReminderConfirmation(true);
+                      return;
                     }
 
                     // Prevent toggling "Generate Email Draft" on if payment plan or payment method exists
@@ -1798,7 +2083,7 @@ export default function EditBookingModal({
                           batchedWriter.queueFieldUpdate(
                             booking.id,
                             column.id,
-                            checked
+                            checked,
                           );
                           setFormData((prev) => ({
                             ...prev,
@@ -1816,7 +2101,7 @@ export default function EditBookingModal({
                         .catch((error) => {
                           console.error(
                             "Error cleaning scheduled emails:",
-                            error
+                            error,
                           );
                           toast({
                             title: "Error",
@@ -1837,7 +2122,7 @@ export default function EditBookingModal({
                       batchedWriter.queueFieldUpdate(
                         booking.id,
                         column.id,
-                        checked
+                        checked,
                       );
                     }
                     setFormData((prev) => ({ ...prev, [column.id]: checked }));
@@ -1859,7 +2144,7 @@ export default function EditBookingModal({
                       dependents.forEach((dep) => {
                         if (dep.function) {
                           console.log(
-                            `🗑️ Invalidating cache for function: ${dep.function}`
+                            `🗑️ Invalidating cache for function: ${dep.function}`,
                           );
                           functionExecutionService.invalidate(dep.function);
                         }
@@ -1879,7 +2164,7 @@ export default function EditBookingModal({
                             emailDraftLink: finalData?.emailDraftLink,
                             cancellationEmailDraftLink:
                               finalData?.cancellationEmailDraftLink,
-                          }
+                          },
                         );
                         if (finalData) {
                           // Force update formData with final results to prevent stale values
@@ -1966,7 +2251,7 @@ export default function EditBookingModal({
                   batchedWriter.queueFieldUpdate(
                     booking.id,
                     column.id,
-                    dateValue
+                    dateValue,
                   );
                 }
                 setFormData((prev) => ({ ...prev, [column.id]: dateValue }));
@@ -1986,7 +2271,7 @@ export default function EditBookingModal({
               onKeyDown={(e) => handleFieldKeyDown(e, column.id)}
               className={cn(
                 baseClasses,
-                "text-xs [&::-webkit-calendar-picker-indicator]:text-xs"
+                "text-xs [&::-webkit-calendar-picker-indicator]:text-xs",
               )}
               disabled={isReadOnly || isComputing}
               autoComplete="off"
@@ -2085,29 +2370,291 @@ export default function EditBookingModal({
             }
           }
 
-          // Standard select field for other columns
+          // Calculate options inline (lightweight operation, no need for useMemo)
+          const options = dynamicOptions[column.id] || column.options || [];
+
+          // Special handling for tourDate - display as dd/mm/yyyy
+          let displayValue: string;
+          if (column.id === "tourDate" && value) {
+            // Import the formatTimestampToMonthDayYear helper
+            const {
+              formatTimestampToMonthDayYear,
+            } = require("@/lib/booking-calculations");
+            displayValue =
+              formatTimestampToMonthDayYear(value) || String(value || "");
+          } else {
+            displayValue = String(value || "");
+          }
+
+          const currentValue = displayValue;
+          const hasCurrentValue = currentValue && currentValue !== "";
+          const currentValueInOptions = options.includes(currentValue);
+          const hasEmptyOption = options.includes("");
+
+          // Build final options list
+          const selectOptions = [...options];
+
+          // Add current value if it's not in options and not empty
+          if (hasCurrentValue && !currentValueInOptions) {
+            selectOptions.unshift(currentValue);
+          }
+
+          // Add placeholder option if no value selected AND no empty option exists
+          if (!hasCurrentValue && !hasEmptyOption) {
+            selectOptions.unshift("");
+          }
+
+          // Special wrapper for tourDate with date picker
+          if (column.id === "tourDate") {
+            // Convert Timestamp to local date string for native date input (avoid timezone shift)
+            let dateInputValue = "";
+            if (value && typeof value === "object" && "toDate" in value) {
+              const date = value.toDate();
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, "0");
+              const day = String(date.getDate()).padStart(2, "0");
+              dateInputValue = `${year}-${month}-${day}`;
+            }
+
+            return (
+              <div className="flex items-center gap-2">
+                <select
+                  id={fieldId}
+                  value={currentValue}
+                  onChange={async (e) => {
+                    const newValue = e.target.value;
+
+                    // Special handling for tourDate - convert Month Day Year back to Timestamp
+                    let valueToSave = newValue;
+                    if (newValue) {
+                      const {
+                        parseMonthDayYear,
+                      } = require("@/lib/booking-calculations");
+                      const { Timestamp } = await import("firebase/firestore");
+
+                      // Convert "Month Day Year" string to Date
+                      const dateObj = parseMonthDayYear(newValue);
+                      if (dateObj) {
+                        // Set time to 9:00 AM UTC+8
+                        dateObj.setHours(9, 0, 0, 0);
+
+                        // Validate that this date exists in the tour package's travelDates
+                        const tourPackageName = formData.tourPackageName;
+                        if (tourPackageName) {
+                          const { collection, getDocs, query, where } =
+                            await import("firebase/firestore");
+                          const { db } = await import("@/lib/firebase");
+
+                          const tourPackagesRef = collection(
+                            db,
+                            "tourPackages",
+                          );
+                          const q = query(
+                            tourPackagesRef,
+                            where("name", "==", tourPackageName),
+                          );
+                          const snapshot = await getDocs(q);
+
+                          if (!snapshot.empty) {
+                            const tourData = snapshot.docs[0].data();
+                            const travelDates = tourData.travelDates || [];
+                            const {
+                              formatTimestampToMonthDayYear,
+                            } = require("@/lib/booking-calculations");
+
+                            // Check if selected date exists in travelDates
+                            const dateExists = travelDates.some((td: any) => {
+                              return (
+                                formatTimestampToMonthDayYear(td.startDate) ===
+                                newValue
+                              );
+                            });
+
+                            if (!dateExists) {
+                              console.warn(
+                                `Selected date ${newValue} does not exist in tour package travelDates`,
+                              );
+                            }
+                          }
+                        }
+
+                        // Convert to Firebase Timestamp
+                        valueToSave = Timestamp.fromDate(dateObj) as any;
+                      } else {
+                        console.error("Failed to parse date:", newValue);
+                        valueToSave = newValue;
+                      }
+                    }
+
+                    // For select, commit immediately to Firebase (discrete choice)
+                    if (booking?.id) {
+                      batchedWriter.queueFieldUpdate(
+                        booking.id,
+                        column.id,
+                        valueToSave,
+                      );
+                    }
+                    setFormData((prev) => ({
+                      ...prev,
+                      [column.id]: valueToSave,
+                    }));
+                    setIsSaving(true);
+                    debouncedSaveIndicator();
+
+                    // Execute dependent functions immediately
+                    executeDirectDependents(column.id, {
+                      ...formData,
+                      [column.id]: valueToSave,
+                    }).then((finalData) => {
+                      if (finalData) {
+                        setFormData(finalData);
+                      }
+                    });
+                  }}
+                  className={cn(
+                    "flex h-10 w-full bg-gray-200 items-center justify-between rounded-md border border-input px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer pr-10",
+                    error && "border-red-500",
+                    isReadOnly && "opacity-50",
+                  )}
+                  disabled={isReadOnly || isComputing}
+                >
+                  {selectOptions.map((option, index) => (
+                    <option
+                      key={option || `placeholder-${column.id}-${index}`}
+                      value={option}
+                    >
+                      {option || `Select ${column.columnName}`}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-sm text-muted-foreground font-medium">
+                  OR
+                </span>
+                <Input
+                  type="date"
+                  value={dateInputValue}
+                  onChange={async (e) => {
+                    const selectedDate = e.target.value;
+                    if (!selectedDate) return;
+
+                    const { Timestamp } = await import("firebase/firestore");
+                    const dateObj = new Date(selectedDate);
+                    // Set time to 9:00 AM UTC+8
+                    dateObj.setHours(9, 0, 0, 0);
+                    const valueToSave = Timestamp.fromDate(dateObj) as any;
+
+                    // For date picker, commit immediately to Firebase
+                    if (booking?.id) {
+                      batchedWriter.queueFieldUpdate(
+                        booking.id,
+                        column.id,
+                        valueToSave,
+                      );
+                    }
+                    setFormData((prev) => ({
+                      ...prev,
+                      [column.id]: valueToSave,
+                    }));
+                    setIsSaving(true);
+                    debouncedSaveIndicator();
+
+                    // Execute dependent functions immediately
+                    executeDirectDependents(column.id, {
+                      ...formData,
+                      [column.id]: valueToSave,
+                    }).then((finalData) => {
+                      if (finalData) {
+                        setFormData(finalData);
+                      }
+                    });
+                  }}
+                  className={cn(
+                    "h-10 w-auto flex-shrink-0",
+                    error && "border-red-500",
+                  )}
+                  disabled={isReadOnly || isComputing}
+                />
+              </div>
+            );
+          }
+
+          // Regular select for other columns
           return (
             <select
               id={fieldId}
-              value={String(value || "")}
-              onChange={(e) => {
+              value={currentValue}
+              onChange={async (e) => {
                 const newValue = e.target.value;
+
+                // Special handling for tourDate - convert dd/mm/yyyy back to Timestamp
+                let valueToSave = newValue;
+                if (column.id === "tourDate" && newValue) {
+                  const { toDate } = require("@/lib/booking-calculations");
+                  const { Timestamp } = await import("firebase/firestore");
+
+                  // Convert dd/mm/yyyy string to Date
+                  const dateObj = toDate(newValue);
+                  if (dateObj) {
+                    // Validate that this date exists in the tour package's travelDates
+                    const tourPackageName = formData.tourPackageName;
+                    if (tourPackageName) {
+                      const { collection, getDocs, query, where } =
+                        await import("firebase/firestore");
+                      const { db } = await import("@/lib/firebase");
+
+                      const tourPackagesRef = collection(db, "tourPackages");
+                      const q = query(
+                        tourPackagesRef,
+                        where("name", "==", tourPackageName),
+                      );
+                      const snapshot = await getDocs(q);
+
+                      if (!snapshot.empty) {
+                        const tourData = snapshot.docs[0].data();
+                        const travelDates = tourData.travelDates || [];
+                        const {
+                          formatTimestampToDDMMYYYY,
+                        } = require("@/lib/booking-calculations");
+
+                        // Check if selected date exists in travelDates
+                        const dateExists = travelDates.some((td: any) => {
+                          return (
+                            formatTimestampToDDMMYYYY(td.startDate) === newValue
+                          );
+                        });
+
+                        if (!dateExists) {
+                          console.warn(
+                            `Selected date ${newValue} does not exist in tour package travelDates`,
+                          );
+                        }
+                      }
+                    }
+
+                    // Convert to Firebase Timestamp
+                    valueToSave = Timestamp.fromDate(dateObj) as any;
+                  } else {
+                    console.error("Failed to parse date:", newValue);
+                    valueToSave = newValue;
+                  }
+                }
+
                 // For select, commit immediately to Firebase (discrete choice)
                 if (booking?.id) {
                   batchedWriter.queueFieldUpdate(
                     booking.id,
                     column.id,
-                    newValue
+                    valueToSave,
                   );
                 }
-                setFormData((prev) => ({ ...prev, [column.id]: newValue }));
+                setFormData((prev) => ({ ...prev, [column.id]: valueToSave }));
                 setIsSaving(true);
                 debouncedSaveIndicator();
 
                 // Execute dependent functions immediately
                 executeDirectDependents(column.id, {
                   ...formData,
-                  [column.id]: newValue,
+                  [column.id]: valueToSave,
                 }).then((finalData) => {
                   if (finalData) {
                     setFormData(finalData);
@@ -2115,51 +2662,20 @@ export default function EditBookingModal({
                 });
               }}
               className={cn(
-                "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px_16px] bg-[right_0.75rem_center] bg-no-repeat pr-10",
+                "flex h-10 w-full bg-gray-200 items-center justify-between rounded-md border border-input px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer pr-10",
                 error && "border-red-500",
-                isReadOnly && "opacity-50"
+                isReadOnly && "opacity-50",
               )}
               disabled={isReadOnly || isComputing}
             >
-              {(() => {
-                const options =
-                  dynamicOptions[column.id] || column.options || [];
-                if (column.id === "eventName") {
-                  console.log("🎯 [RENDER] Event Name options:", {
-                    dynamicOptions: dynamicOptions[column.id],
-                    columnOptions: column.options,
-                    finalOptions: options,
-                  });
-                }
-
-                // Ensure current value is in the options list
-                const currentValue = String(value || "");
-                const hasCurrentValue = currentValue && currentValue !== "";
-                const currentValueInOptions = options.includes(currentValue);
-                const hasEmptyOption = options.includes("");
-
-                // Build final options list
-                const finalOptions = [...options];
-
-                // Add current value if it's not in options and not empty
-                if (hasCurrentValue && !currentValueInOptions) {
-                  finalOptions.unshift(currentValue);
-                }
-
-                // Add placeholder option if no value selected AND no empty option exists
-                if (!hasCurrentValue && !hasEmptyOption) {
-                  finalOptions.unshift("");
-                }
-
-                return finalOptions.map((option, index) => (
-                  <option
-                    key={option || `placeholder-${column.id}-${index}`}
-                    value={option}
-                  >
-                    {option || `Select ${column.columnName}`}
-                  </option>
-                ));
-              })()}
+              {selectOptions.map((option, index) => (
+                <option
+                  key={option || `placeholder-${column.id}-${index}`}
+                  value={option}
+                >
+                  {option || `Select ${column.columnName}`}
+                </option>
+              ))}
             </select>
           );
 
@@ -2192,7 +2708,7 @@ export default function EditBookingModal({
                 className={cn(
                   "w-full font-mono bg-background text-[11px] sm:text-xs",
                   error && "border-red-500",
-                  isComputing && "opacity-50"
+                  isComputing && "opacity-50",
                 )}
                 disabled={true}
                 placeholder={isComputing ? "Computing..." : ""}
@@ -2225,13 +2741,13 @@ export default function EditBookingModal({
                         batchedWriter.queueFieldUpdate(
                           booking.id,
                           column.id,
-                          result
+                          result,
                         );
 
                         // Then compute dependent functions
                         const finalData = await executeDirectDependents(
                           column.id,
-                          updatedData
+                          updatedData,
                         );
 
                         if (finalData) {
@@ -2241,7 +2757,7 @@ export default function EditBookingModal({
                     } catch (error) {
                       console.error(
                         `Error recomputing ${column.columnName}:`,
-                        error
+                        error,
                       );
                       toast({
                         title: "Recomputation Failed",
@@ -2373,7 +2889,7 @@ export default function EditBookingModal({
       toast,
       batchedWriter,
       dynamicOptions, // Add dynamicOptions to dependencies so select fields re-render when options load
-    ]
+    ],
   );
 
   // Handle close with computation check
@@ -2394,14 +2910,14 @@ export default function EditBookingModal({
     if (hasActiveEdits || hasPendingChanges) {
       // Show confirmation alert
       const confirmed = window.confirm(
-        "You have unsaved changes. Do you want to save them before closing?"
+        "You have unsaved changes. Do you want to save them before closing?",
       );
 
       if (confirmed) {
         // Save pending changes before closing
         if (hasPendingChanges && booking?.id) {
           console.log(
-            "💾 [EDIT BOOKING MODAL] Saving pending changes before close"
+            "💾 [EDIT BOOKING MODAL] Saving pending changes before close",
           );
           Object.entries(pendingChanges).forEach(([columnId, value]) => {
             batchedWriter.queueFieldUpdate(booking.id, columnId, value);
@@ -2439,34 +2955,53 @@ export default function EditBookingModal({
   if (!booking) return null;
 
   // Group columns by parentTab
-  const groupedColumns = columns.reduce((groups, column) => {
-    if (!shouldDisplayColumn(column)) return groups;
+  const groupedColumns = columns.reduce(
+    (groups, column) => {
+      if (!shouldDisplayColumn(column)) return groups;
 
-    const parentTab = column.parentTab || "General";
-    if (!groups[parentTab]) {
-      groups[parentTab] = [];
-    }
-    groups[parentTab].push(column);
-    return groups;
-  }, {} as Record<string, SheetColumn[]>);
+      const parentTab = column.parentTab || "General";
+      if (!groups[parentTab]) {
+        groups[parentTab] = [];
+      }
+      groups[parentTab].push(column);
+      return groups;
+    },
+    {} as Record<string, SheetColumn[]>,
+  );
 
   // Sort columns within each group by order
   Object.keys(groupedColumns).forEach((tab) => {
-    groupedColumns[tab].sort((a, b) => a.order - b.order);
+    groupedColumns[tab].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
   });
 
   // Sort parentTabs by the order they first appear in the columns
   const sortedParentTabs = Object.keys(groupedColumns).sort((a, b) => {
-    const aFirstOrder = Math.min(...groupedColumns[a].map((col) => col.order));
-    const bFirstOrder = Math.min(...groupedColumns[b].map((col) => col.order));
+    const aFirstOrder = Math.min(
+      ...groupedColumns[a].map((col) => col.order ?? 999),
+    );
+    const bFirstOrder = Math.min(
+      ...groupedColumns[b].map((col) => col.order ?? 999),
+    );
     return aFirstOrder - bFirstOrder;
   });
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={handleClose} modal={true}>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (showSendEmailConfirmation || showPaymentReminderConfirmation)
+            return;
+          if (!open) handleClose();
+        }}
+        modal={true}
+      >
         <DialogContent
-          className="w-[calc(100%-1rem)] sm:w-full max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-xl sm:rounded-2xl overflow-hidden"
+          className={cn(
+            "w-[calc(100%-1rem)] sm:w-full max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-xl sm:rounded-2xl overflow-hidden",
+            (showSendEmailConfirmation || showPaymentReminderConfirmation) &&
+              "pointer-events-none",
+          )}
           onOpenAutoFocus={(e) => {
             // Prevent dialog from auto-focusing on open
             e.preventDefault();
@@ -2480,14 +3015,14 @@ export default function EditBookingModal({
                 // Get all focusable inputs within the form (including selects, switches, and combobox triggers)
                 const focusableElements = Array.from(
                   e.currentTarget.querySelectorAll<HTMLElement>(
-                    'input:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), button[role="switch"]:not([disabled]):not([tabindex="-1"]), button[role="combobox"]:not([disabled]):not([tabindex="-1"])'
-                  )
+                    'input:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), button[role="switch"]:not([disabled]):not([tabindex="-1"]), button[role="combobox"]:not([disabled]):not([tabindex="-1"])',
+                  ),
                 );
 
                 if (focusableElements.length === 0) return;
 
                 const currentIndex = focusableElements.indexOf(
-                  document.activeElement as HTMLElement
+                  document.activeElement as HTMLElement,
                 );
 
                 if (currentIndex === -1) return;
@@ -2562,7 +3097,7 @@ export default function EditBookingModal({
                     className={cn(
                       "sm:hidden h-8 w-8 p-0 hover:bg-gray-100",
                       computingFields.size > 0 &&
-                        "opacity-50 cursor-not-allowed"
+                        "opacity-50 cursor-not-allowed",
                     )}
                     disabled={computingFields.size > 0}
                     title={
@@ -2586,7 +3121,7 @@ export default function EditBookingModal({
                     className={cn(
                       "hidden sm:flex h-8 w-8 p-0 hover:bg-gray-100",
                       computingFields.size > 0 &&
-                        "opacity-50 cursor-not-allowed"
+                        "opacity-50 cursor-not-allowed",
                     )}
                     disabled={computingFields.size > 0}
                     title={
@@ -2697,7 +3232,7 @@ export default function EditBookingModal({
                                       error && "bg-red-50/50",
                                       isFunction
                                         ? "bg-sunglow-yellow/20 hover:bg-sunglow-yellow/30 border-sunglow-yellow/30 dark:border-sunglow-yellow/40"
-                                        : "hover:bg-muted/10"
+                                        : "hover:bg-muted/10",
                                     )}
                                   >
                                     <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 w-[40%] px-2.5 sm:px-3 py-1.5 sm:py-2 border-r border-field-border">
@@ -2707,6 +3242,26 @@ export default function EditBookingModal({
                                       >
                                         {column.columnName}
                                       </Label>
+                                      {column.id === "tourDate" && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                              side="right"
+                                              className="max-w-xs"
+                                            >
+                                              <p className="text-xs">
+                                                To be able to see the dates
+                                                explicitly in the dropdown, edit
+                                                the tour dates in the Tour
+                                                Packages page
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
                                     </div>
                                     <div className="w-[60%] px-2.5 sm:px-3 py-1.5 sm:py-2">
                                       <div className="space-y-1.5 sm:space-y-2">
@@ -2822,8 +3377,8 @@ export default function EditBookingModal({
                     {emailGenerationProgress.action === "generating"
                       ? "Generating Email Draft"
                       : emailGenerationProgress.action === "deleting"
-                      ? "Deleting Email Draft"
-                      : "Sending Email"}
+                        ? "Deleting Email Draft"
+                        : "Sending Email"}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {emailGenerationProgress.action === "generating"
@@ -2831,12 +3386,12 @@ export default function EditBookingModal({
                         ? "Creating reservation email draft in Gmail..."
                         : "Creating cancellation email draft in Gmail..."
                       : emailGenerationProgress.action === "deleting"
-                      ? emailGenerationProgress.type === "reservation"
-                        ? "Deleting reservation email draft if it exists..."
-                        : "Deleting cancellation email draft if it exists..."
-                      : emailGenerationProgress.type === "reservation"
-                      ? "Sending reservation email to customer..."
-                      : "Sending cancellation email to customer..."}
+                        ? emailGenerationProgress.type === "reservation"
+                          ? "Deleting reservation email draft if it exists..."
+                          : "Deleting cancellation email draft if it exists..."
+                        : emailGenerationProgress.type === "reservation"
+                          ? "Sending reservation email to customer..."
+                          : "Sending cancellation email to customer..."}
                   </p>
                 </div>
               </div>
@@ -2866,6 +3421,408 @@ export default function EditBookingModal({
           </div>
         </div>
       )}
+
+      <Dialog
+        open={showSendEmailConfirmation}
+        onOpenChange={(open) => {
+          if (!open) handleSendEmailCancel();
+        }}
+        modal={true}
+      >
+        <DialogContent
+          hideClose
+          className="max-w-2xl w-[calc(100%-2rem)] sm:w-full z-[100000]"
+        >
+          <div className="flex flex-col space-y-6">
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-royal-purple/10 rounded-lg">
+                  <MdEmail className="h-6 w-6 text-royal-purple" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">
+                    Confirm Send Email
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Please review the booking details before sending
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSendEmailCancel}
+                className="h-8 w-8"
+              >
+                <FaTimes className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Traveler Name
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.fullName || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Booking ID</p>
+                  <p className="font-mono font-semibold text-foreground">
+                    {formData.bookingId || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Tour Name</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.tourPackageName || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Booking Type</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.bookingType || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Tour Date</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.tourDate
+                      ? (() => {
+                          const dateVal = formData.tourDate as any;
+                          const date = dateVal?.toDate
+                            ? dateVal.toDate()
+                            : new Date(dateVal);
+                          return date.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          });
+                        })()
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Return Date</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.returnDate
+                      ? (() => {
+                          const dateVal = formData.returnDate as any;
+                          const date = dateVal?.toDate
+                            ? dateVal.toDate()
+                            : new Date(dateVal);
+                          return date.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          });
+                        })()
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Tour Duration</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.tourDuration || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Reservation Fee</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.reservationFee
+                      ? `£${Number(formData.reservationFee).toFixed(2)}`
+                      : "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              {(formData.fullPaymentAmount ||
+                formData.p2Amount ||
+                formData.p3Amount ||
+                formData.p4Amount) && (
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="bg-muted/50 px-4 py-2 border-b border-border">
+                    <p className="text-sm font-semibold text-foreground">
+                      Payment Terms
+                    </p>
+                  </div>
+                  <div className="p-4">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left py-2 px-2 font-semibold text-foreground">
+                            Payment Terms
+                          </th>
+                          <th className="text-left py-2 px-2 font-semibold text-foreground">
+                            Amount
+                          </th>
+                          <th className="text-left py-2 px-2 font-semibold text-foreground">
+                            Due Date(s)
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.fullPaymentAmount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              P1 – Full payment
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.fullPaymentAmount).toFixed(2)}
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.fullPaymentDueDate
+                                ? typeof formData.fullPaymentDueDate === "string"
+                                  ? formData.fullPaymentDueDate
+                                  : formData.fullPaymentDueDate instanceof Date
+                                    ? formData.fullPaymentDueDate.toLocaleDateString(
+                                        "en-US",
+                                        {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        },
+                                      )
+                                    : "N/A"
+                                : "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                        {formData.p2Amount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              P2 – Two payments
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.p2Amount).toFixed(2)} /month
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.p2DueDate || "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                        {formData.p3Amount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              P3 – Three payments
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.p3Amount).toFixed(2)} /month
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.p3DueDate || "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                        {formData.p4Amount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              P4 – Four payments
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.p4Amount).toFixed(2)} /month
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.p4DueDate || "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={handleSendEmailCancel}
+                className="px-6"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendEmailConfirm}
+                className="px-6 bg-royal-purple hover:bg-royal-purple/90 text-white"
+              >
+                <MdEmail className="h-4 w-4 mr-2" />
+                Confirm & Send Email
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showPaymentReminderConfirmation}
+        onOpenChange={(open) => {
+          if (!open) handlePaymentReminderCancel();
+        }}
+        modal={true}
+      >
+        <DialogContent
+          hideClose
+          className="max-w-2xl w-[calc(100%-2rem)] sm:w-full z-[100000]"
+        >
+          <div className="flex flex-col space-y-6">
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-royal-purple/10 rounded-lg">
+                  <FaWallet className="h-6 w-6 text-royal-purple" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">
+                    Confirm Enable Payment Reminder
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Please review the payment reminder details
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handlePaymentReminderCancel}
+                className="h-8 w-8"
+              >
+                <FaTimes className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Tour</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.tourPackageName || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Payment Plan
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.paymentPlan || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Payment Method
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.paymentMethod || "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="bg-muted/50 px-4 py-2 border-b border-border">
+                  <p className="text-sm font-semibold text-foreground">
+                    Payment Terms
+                  </p>
+                </div>
+                <div className="p-4">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2 px-2 font-semibold text-foreground">
+                          Payment Term
+                        </th>
+                        <th className="text-left py-2 px-2 font-semibold text-foreground">
+                          Amount
+                        </th>
+                        <th className="text-left py-2 px-2 font-semibold text-foreground">
+                          Due Date
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formData.p1Amount && (
+                        <tr className="border-b border-border/50">
+                          <td className="py-2 px-2 text-foreground">P1</td>
+                          <td className="py-2 px-2 text-foreground font-mono">
+                            £{Number(formData.p1Amount).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground">
+                            {String(formData.p1DueDate || "N/A")}
+                          </td>
+                        </tr>
+                      )}
+                      {formData.p2Amount && (
+                        <tr className="border-b border-border/50">
+                          <td className="py-2 px-2 text-foreground">P2</td>
+                          <td className="py-2 px-2 text-foreground font-mono">
+                            £{Number(formData.p2Amount).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground">
+                            {String(formData.p2DueDate || "N/A")}
+                          </td>
+                        </tr>
+                      )}
+                      {formData.p3Amount && (
+                        <tr className="border-b border-border/50">
+                          <td className="py-2 px-2 text-foreground">P3</td>
+                          <td className="py-2 px-2 text-foreground font-mono">
+                            £{Number(formData.p3Amount).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground">
+                            {String(formData.p3DueDate || "N/A")}
+                          </td>
+                        </tr>
+                      )}
+                      {formData.p4Amount && (
+                        <tr className="border-b border-border/50">
+                          <td className="py-2 px-2 text-foreground">P4</td>
+                          <td className="py-2 px-2 text-foreground font-mono">
+                            £{Number(formData.p4Amount).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground">
+                            {String(formData.p4DueDate || "N/A")}
+                          </td>
+                        </tr>
+                      )}
+                      {(formData.p1Amount ||
+                        formData.p2Amount ||
+                        formData.p3Amount ||
+                        formData.p4Amount) && (
+                        <tr className="border-t">
+                          <td className="py-2 px-2 text-foreground font-semibold">
+                            Total
+                          </td>
+                          <td className="py-2 px-2 text-foreground font-mono font-semibold">
+                            £{Number(formData.remainingBalance || 0).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground"></td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={handlePaymentReminderCancel}
+                className="px-6"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handlePaymentReminderConfirm}
+                className="px-6 bg-royal-purple hover:bg-royal-purple/90 text-white"
+              >
+                <FaWallet className="h-4 w-4 mr-2" />
+                Confirm & Enable
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

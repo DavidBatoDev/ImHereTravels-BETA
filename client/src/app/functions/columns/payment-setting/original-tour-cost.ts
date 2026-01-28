@@ -8,8 +8,7 @@ export const originalTourCostColumn: BookingSheetColumn = {
     columnName: "Original Tour Cost",
     dataType: "function",
     function: "getOriginalTourCostFunction",
-    parentTab: "Payment Setting",
-    order: 33,
+    parentTab: "Tour Details",
     includeInForms: false,
     color: "gray",
     width: 183.3333740234375,
@@ -64,18 +63,30 @@ export default async function getOriginalTourCost(
   // Find the document with matching name
   const matchedPackage = tourPackages.find(
     (pkg: any) =>
-      pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim()
+      pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim(),
   );
 
   // Check for custom original price if tourDate is provided
   let baseCost: number | "" = "";
   if (tourDate && (matchedPackage as any)?.travelDates) {
-    const travelDateToMatch = new Date(tourDate);
+    // Handle Firestore Timestamp object properly
+    let travelDateToMatch: Date;
+    if (tourDate.seconds !== undefined) {
+      // Firestore Timestamp format: {seconds: number, nanoseconds: number}
+      travelDateToMatch = new Date(tourDate.seconds * 1000);
+    } else if (tourDate.toDate && typeof tourDate.toDate === "function") {
+      // Firestore Timestamp instance
+      travelDateToMatch = tourDate.toDate();
+    } else {
+      // Fallback: try to parse as regular date
+      travelDateToMatch = new Date(tourDate);
+    }
+
     const matchingTravelDate = (matchedPackage as any).travelDates.find(
       (td: any) => {
         const tdStart = td.startDate?.toDate?.() || new Date(td.startDate);
         return tdStart.toDateString() === travelDateToMatch.toDateString();
-      }
+      },
     );
 
     // If custom original price is set for this date, use it

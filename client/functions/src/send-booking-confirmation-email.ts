@@ -36,7 +36,7 @@ function formatDateLikeSheets(dateValue: any): string {
         "Dec",
       ];
       const hasMonthName = monthNames.some((month) =>
-        trimmedValue.includes(month)
+        trimmedValue.includes(month),
       );
 
       if (hasMonthName) {
@@ -102,12 +102,12 @@ export const sendBookingConfirmationEmail = onCall(
       if (!confirmedBookingId) {
         throw new HttpsError(
           "invalid-argument",
-          "confirmedBookingId is required"
+          "confirmedBookingId is required",
         );
       }
 
       logger.info(
-        `📧 Sending confirmation email for booking: ${confirmedBookingId}`
+        `📧 Sending confirmation email for booking: ${confirmedBookingId}`,
       );
 
       // Get confirmed booking
@@ -182,7 +182,7 @@ export const sendBookingConfirmationEmail = onCall(
         term: string,
         amount: string,
         dueDate: string,
-        datePaid: string
+        datePaid: string,
       ) => {
         return `<tr>
         <td style="padding: 10px; border: 1px solid black;">${term}</td>
@@ -199,8 +199,8 @@ export const sendBookingConfirmationEmail = onCall(
             "Full Payment",
             Number(bookingData.fullPaymentAmount || 0).toFixed(2),
             formatDateLikeSheets(bookingData.fullPaymentDueDate),
-            formatDateLikeSheets(bookingData.fullPaymentDatePaid)
-          )
+            formatDateLikeSheets(bookingData.fullPaymentDatePaid),
+          ),
         );
       } else {
         // Add P1 if exists
@@ -210,8 +210,8 @@ export const sendBookingConfirmationEmail = onCall(
               "P1",
               Number(bookingData.p1Amount || 0).toFixed(2),
               formatDateLikeSheets(bookingData.p1DueDate),
-              formatDateLikeSheets(bookingData.p1DatePaid)
-            )
+              formatDateLikeSheets(bookingData.p1DatePaid),
+            ),
           );
         }
         // Add P2 if exists
@@ -221,8 +221,8 @@ export const sendBookingConfirmationEmail = onCall(
               "P2",
               Number(bookingData.p2Amount || 0).toFixed(2),
               formatDateLikeSheets(bookingData.p2DueDate),
-              formatDateLikeSheets(bookingData.p2DatePaid)
-            )
+              formatDateLikeSheets(bookingData.p2DatePaid),
+            ),
           );
         }
         // Add P3 if exists
@@ -232,8 +232,8 @@ export const sendBookingConfirmationEmail = onCall(
               "P3",
               Number(bookingData.p3Amount || 0).toFixed(2),
               formatDateLikeSheets(bookingData.p3DueDate),
-              formatDateLikeSheets(bookingData.p3DatePaid)
-            )
+              formatDateLikeSheets(bookingData.p3DatePaid),
+            ),
           );
         }
         // Add P4 if exists
@@ -243,10 +243,26 @@ export const sendBookingConfirmationEmail = onCall(
               "P4",
               Number(bookingData.p4Amount || 0).toFixed(2),
               formatDateLikeSheets(bookingData.p4DueDate),
-              formatDateLikeSheets(bookingData.p4DatePaid)
-            )
+              formatDateLikeSheets(bookingData.p4DatePaid),
+            ),
           );
         }
+      }
+
+      // Fetch tour package to get cover image
+      let tourPackageCoverImage = "";
+      try {
+        const tourPackageSnap = await db
+          .collection("tourPackages")
+          .where("name", "==", bookingData.tourPackageName)
+          .limit(1)
+          .get();
+        if (!tourPackageSnap.empty) {
+          const tourPackageData = tourPackageSnap.docs[0].data();
+          tourPackageCoverImage = tourPackageData.media?.coverImage || "";
+        }
+      } catch (error) {
+        logger.warn("Could not fetch tour package for cover image:", error);
       }
 
       // Prepare template variables
@@ -261,13 +277,13 @@ export const sendBookingConfirmationEmail = onCall(
         selectedTerms: selectedTermsHtml.join("\n"),
         paid: Number(bookingData.paid || 0).toFixed(2),
         fullPaymentAmount: Number(bookingData.fullPaymentAmount || 0).toFixed(
-          2
+          2,
         ),
         fullPaymentDueDate: formatDateLikeSheets(
-          bookingData.fullPaymentDueDate
+          bookingData.fullPaymentDueDate,
         ),
         fullPaymentDatePaid: formatDateLikeSheets(
-          bookingData.fullPaymentDatePaid
+          bookingData.fullPaymentDatePaid,
         ),
         p1Amount: Number(bookingData.p1Amount || 0).toFixed(2),
         p1DueDate: formatDateLikeSheets(bookingData.p1DueDate),
@@ -281,12 +297,13 @@ export const sendBookingConfirmationEmail = onCall(
         p4Amount: Number(bookingData.p4Amount || 0).toFixed(2),
         p4DueDate: formatDateLikeSheets(bookingData.p4DueDate),
         p4DatePaid: formatDateLikeSheets(bookingData.p4DatePaid),
+        tourPackageCoverImage,
       };
 
       // Process template
       const processedHtml = EmailTemplateService.processTemplate(
         templateData.content,
-        templateVariables
+        templateVariables,
       );
 
       const subject = `Reservation Confirmed for ${bookingData.tourPackageName}: ${confirmedBooking.bookingReference}`;
@@ -311,7 +328,7 @@ export const sendBookingConfirmationEmail = onCall(
       ) {
         logger.info(
           "Attaching pre-departure pack:",
-          preDeparturePackData.fileName
+          preDeparturePackData.fileName,
         );
 
         try {
@@ -366,8 +383,8 @@ export const sendBookingConfirmationEmail = onCall(
 
       throw new HttpsError(
         "internal",
-        error.message || "Failed to send confirmation email"
+        error.message || "Failed to send confirmation email",
       );
     }
-  }
+  },
 );

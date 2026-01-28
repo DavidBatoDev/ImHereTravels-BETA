@@ -7,7 +7,6 @@ export const emailAddressColumn: BookingSheetColumn = {
     columnName: "Email Address",
     dataType: "string",
     parentTab: "Traveler Information",
-    order: 7,
     includeInForms: true,
     color: "cyan",
     width: 284.66668701171875,

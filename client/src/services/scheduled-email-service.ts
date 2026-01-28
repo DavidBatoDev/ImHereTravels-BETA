@@ -35,6 +35,7 @@ export interface ScheduledEmail {
   messageId?: string;
   emailType?: string;
   bookingId?: string;
+  row?: number;
   templateId?: string;
   templateVariables?: Record<string, any>;
 }

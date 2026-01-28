@@ -51,7 +51,7 @@ function formatDateLikeSheets(dateValue: any): string {
         "Dec",
       ];
       const hasMonthName = monthNames.some((month) =>
-        trimmedValue.includes(month)
+        trimmedValue.includes(month),
       );
 
       if (hasMonthName) {
@@ -149,7 +149,7 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
       }
 
       logger.info(
-        `📧 Checking generateCancellationDraft for booking: ${bookingId}`
+        `📧 Checking generateCancellationDraft for booking: ${bookingId}`,
       );
 
       // Check if generateCancellationDraft changed
@@ -175,7 +175,7 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
       // TOGGLE OFF: Delete draft and clear fields
       if (wasEnabled && !isNowEnabled) {
         logger.info(
-          "🗑️ Generate cancellation draft toggled OFF - deleting draft"
+          "🗑️ Generate cancellation draft toggled OFF - deleting draft",
         );
 
         const existingDraftUrl = afterData.cancellationEmailDraftLink;
@@ -190,9 +190,8 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
             if (messageId) {
               // Find the actual draft ID using the message ID
               logger.info(`Finding draft ID for message ID: ${messageId}`);
-              const draftId = await gmailService.findDraftIdByMessageId(
-                messageId
-              );
+              const draftId =
+                await gmailService.findDraftIdByMessageId(messageId);
 
               if (draftId) {
                 logger.info(`Found draft ID: ${draftId}, deleting...`);
@@ -200,7 +199,7 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
                 logger.info("✅ Cancellation Gmail draft deleted successfully");
               } else {
                 logger.warn(
-                  `Could not find draft with message ID: ${messageId}`
+                  `Could not find draft with message ID: ${messageId}`,
                 );
               }
             } else {
@@ -209,7 +208,7 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
           } catch (deleteError) {
             logger.error(
               "❌ Error deleting cancellation Gmail draft:",
-              deleteError
+              deleteError,
             );
             // Continue to clear fields even if deletion fails
           }
@@ -230,7 +229,7 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
       // TOGGLE ON: Create draft and update fields
       if (!wasEnabled && isNowEnabled) {
         logger.info(
-          "✅ Generate cancellation draft toggled ON - creating draft"
+          "✅ Generate cancellation draft toggled ON - creating draft",
         );
 
         const bookingData = afterData;
@@ -251,11 +250,10 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
             if (messageId) {
               // Find the actual draft ID using the message ID
               logger.info(
-                "Finding existing draft to delete before creating new one"
+                "Finding existing draft to delete before creating new one",
               );
-              const draftId = await gmailService.findDraftIdByMessageId(
-                messageId
-              );
+              const draftId =
+                await gmailService.findDraftIdByMessageId(messageId);
 
               if (draftId) {
                 logger.info(`Deleting existing draft with ID: ${draftId}`);
@@ -287,6 +285,28 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
         const tourDateRaw = bookingData.tourDate;
         const reservationFee = bookingData.reservationFee || 0;
 
+        // Fetch tour package to get cover image
+        let tourPackageCoverImage = "";
+        try {
+          const tourPackageSnap = await db
+            .collection("tourPackages")
+            .where("name", "==", tourPackage)
+            .limit(1)
+            .get();
+
+          if (!tourPackageSnap.empty) {
+            const tourPackageData = tourPackageSnap.docs[0].data();
+            tourPackageCoverImage = tourPackageData.media?.coverImage || "";
+            logger.info(
+              `Found tour package cover image: ${tourPackageCoverImage ? "yes" : "no"}`,
+            );
+          } else {
+            logger.info(`Tour package not found for: ${tourPackage}`);
+          }
+        } catch (error) {
+          logger.warn("Could not fetch tour package for cover image:", error);
+        }
+
         // Generate subject line for cancellation
         const subject = `Important Update: Your ${tourPackage} has been Cancelled`;
 
@@ -296,6 +316,7 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
           tourPackage,
           tourDate: formatDateLikeSheets(tourDateRaw),
           cancelledRefundAmount: Number(reservationFee).toFixed(2),
+          tourPackageCoverImage,
         };
 
         // Process template content
@@ -303,15 +324,15 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
         try {
           processedHtml = EmailTemplateService.processTemplate(
             templateData.content,
-            templateVariables
+            templateVariables,
           );
           logger.info(
-            `Cancellation template processed successfully, HTML length: ${processedHtml.length}`
+            `Cancellation template processed successfully, HTML length: ${processedHtml.length}`,
           );
         } catch (templateError) {
           logger.error(
             `Cancellation template processing error:`,
-            templateError
+            templateError,
           );
           return;
         }
@@ -322,7 +343,7 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
 
         if (bccList.length > 0) {
           logger.info(
-            `Including ${bccList.length} BCC recipients in cancellation email draft`
+            `Including ${bccList.length} BCC recipients in cancellation email draft`,
           );
         }
 
@@ -337,13 +358,13 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
           });
 
           logger.info(
-            `Cancellation Gmail draft created successfully: ${gmailDraftResult.draftId}`
+            `Cancellation Gmail draft created successfully: ${gmailDraftResult.draftId}`,
           );
 
           // Generate the Gmail draft URL
           const draftUrl = getGmailDraftUrl(
             gmailDraftResult.draftId,
-            gmailDraftResult.messageId
+            gmailDraftResult.messageId,
           );
 
           // Update booking with draft URL and subject
@@ -353,7 +374,7 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
           });
 
           logger.info(
-            `✅ Cancellation email draft created and booking updated with URL and subject`
+            `✅ Cancellation email draft created and booking updated with URL and subject`,
           );
         } catch (gmailError) {
           logger.error("Error creating cancellation Gmail draft:", gmailError);
@@ -364,5 +385,5 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
       logger.error("❌ Error in onGenerateCancellationDraftChanged:", error);
       // Don't throw error to prevent retries
     }
-  }
+  },
 );

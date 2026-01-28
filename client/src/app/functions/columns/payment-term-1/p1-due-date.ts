@@ -8,7 +8,6 @@ export const p1DueDateColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getP1DueDateFunction",
     parentTab: "Payment Term 1",
-    order: 54,
     includeInForms: false,
     color: "yellow",
     width: 120,

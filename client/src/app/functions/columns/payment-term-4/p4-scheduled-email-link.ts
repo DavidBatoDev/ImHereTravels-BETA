@@ -7,7 +7,6 @@ export const p4ScheduledEmailLinkColumn: BookingSheetColumn = {
     columnName: "P4 Scheduled Email Link",
     dataType: "string",
     parentTab: "Payment Term 4",
-    order: 72,
     includeInForms: false,
     color: "yellow",
     width: 180,

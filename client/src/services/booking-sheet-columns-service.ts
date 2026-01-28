@@ -188,7 +188,10 @@ class BookingSheetColumnServiceImpl implements BookingSheetColumnService {
 
       // Get the next order number
       const existingColumns = await this.getAllColumns();
-      const maxOrder = Math.max(...existingColumns.map((col) => col.order), 0);
+      const maxOrder = Math.max(
+        ...existingColumns.map((col) => col.order ?? 0),
+        0
+      );
 
       // Clean the column data to remove undefined values
       const cleanColumn = { ...column };

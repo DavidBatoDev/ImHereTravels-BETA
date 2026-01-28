@@ -8,7 +8,6 @@ export const fullPaymentAmountColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getFullPaymentRemainingFunction",
     parentTab: "Full Payment",
-    order: 48,
     includeInForms: false,
     color: "yellow",
     width: 160,
@@ -76,26 +75,30 @@ export const fullPaymentAmountColumn: BookingSheetColumn = {
         isRest: false,
         value: "",
       },
+      {
+        name: "paymentCondition",
+        type: "string",
+        columnReference: "Payment Condition",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
     ],
   },
 };
 
 // Column Function Implementation
 /**
- * Excel equivalent:
- * =IF(
- *   $AT1003<>"",
- *   IF(
- *     $AM1003 = "Full Payment",
- *     ROUND(IF($Y1003, $AG1003, $AF1003) - $AH1003 - N($AK1003), 2),
- *     ""
- *   ),
- *   ""
- * )
+ * Excel equivalent (updated):
+ * Returns the full payment amount if:
+ * - paymentCondition is "Last Minute Booking" (regardless of payment plan), OR
+ * - paymentPlan is "Full Payment"
+ * Returns "" if a payment plan is selected AND it's not "Full Payment"
  *
  * Description:
- * - Calculates the remaining amount for a **Full Payment** plan.
- * - If not "Full Payment" or tourPackageName is blank, returns "".
+ * - Calculates the remaining amount for a **Full Payment** plan or Last Minute Booking.
+ * - If tourPackageName is blank, returns "".
  * - Uses discounted cost if user is the main booker, otherwise uses original cost.
  * - Rounds result using Math.round to 2 decimal places.
  */
@@ -107,14 +110,26 @@ export default function getFullPaymentRemainingFunction(
   discountedTourCost?: number, // $AG1003
   originalTourCost?: number, // $AF1003
   reservationFee?: number, // $AH1003
-  creditAmount?: number // $AK1003
+  creditAmount?: number, // $AK1003
+  paymentCondition?: string // Payment Condition
 ): number | string {
   // if no tour package name, return ""
   if (!tourPackageName) return "";
 
-  // HUH
-  // only compute for Full Payment plan
-  if (paymentPlan !== "Full Payment") return "";
+  // If a payment plan is selected and it's not "Full Payment", hide the value
+  if (
+    paymentPlan &&
+    paymentPlan.trim() !== "" &&
+    paymentPlan.trim() !== "Full Payment"
+  ) {
+    return "";
+  }
+
+  // Show value if payment condition is "Last Minute Booking" OR payment plan is "Full Payment"
+  const isLastMinute = paymentCondition?.trim() === "Last Minute Booking";
+  const isFullPayment = paymentPlan?.trim() === "Full Payment";
+
+  if (!isLastMinute && !isFullPayment) return "";
 
   // choose cost depending on isMainBooker
   const baseCost = isMainBooker

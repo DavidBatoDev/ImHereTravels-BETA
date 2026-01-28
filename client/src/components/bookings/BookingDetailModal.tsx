@@ -172,7 +172,7 @@ export default function BookingDetailModal({
         searchParams?.get("mode") === "edit"
       ) {
         console.log(
-          "🚀 [BOOKING DETAIL MODAL] Opening edit modal from real-time data"
+          "🚀 [BOOKING DETAIL MODAL] Opening edit modal from real-time data",
         );
         setIsEditModalOpen(true);
       }
@@ -188,7 +188,7 @@ export default function BookingDetailModal({
 
     console.log(
       "🔍 [BOOKING DETAIL MODAL] Setting up real-time booking listener for:",
-      booking.id
+      booking.id,
     );
 
     const unsubscribe = onSnapshot(
@@ -202,7 +202,7 @@ export default function BookingDetailModal({
 
           console.log(
             "📄 [BOOKING DETAIL MODAL] Real-time booking update received:",
-            updatedBooking
+            updatedBooking,
           );
 
           setRealtimeBooking(updatedBooking);
@@ -214,16 +214,16 @@ export default function BookingDetailModal({
       (error) => {
         console.error(
           "🚨 [BOOKING DETAIL MODAL] Real-time listener error:",
-          error
+          error,
         );
         // Fallback to the original booking data on error
         setRealtimeBooking(booking);
-      }
+      },
     );
 
     return () => {
       console.log(
-        "🧹 [BOOKING DETAIL MODAL] Cleaning up real-time booking listener"
+        "🧹 [BOOKING DETAIL MODAL] Cleaning up real-time booking listener",
       );
       unsubscribe();
     };
@@ -251,17 +251,17 @@ export default function BookingDetailModal({
             };
           } else {
             console.warn(
-              `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`
+              `⚠️  Function ${columnData.function} not found in function map for column ${columnData.columnName}`,
             );
           }
         }
 
         return columnData;
-      }
+      },
     );
 
     console.log(
-      `✅ [BOOKING DETAIL MODAL] Loaded ${codedColumns.length} coded columns`
+      `✅ [BOOKING DETAIL MODAL] Loaded ${codedColumns.length} coded columns`,
     );
     setColumns(codedColumns);
     setIsLoadingColumns(false);
@@ -272,22 +272,25 @@ export default function BookingDetailModal({
     if (!currentBooking || !isOpen) return;
 
     // Group columns by parentTab
-    const groupedColumns = columns.reduce((groups, column) => {
-      const parentTab = column.parentTab || "General";
-      if (!groups[parentTab]) {
-        groups[parentTab] = [];
-      }
-      groups[parentTab].push(column);
-      return groups;
-    }, {} as Record<string, SheetColumn[]>);
+    const groupedColumns = columns.reduce(
+      (groups, column) => {
+        const parentTab = column.parentTab || "General";
+        if (!groups[parentTab]) {
+          groups[parentTab] = [];
+        }
+        groups[parentTab].push(column);
+        return groups;
+      },
+      {} as Record<string, SheetColumn[]>,
+    );
 
     // Sort parentTabs by the order they first appear in the columns
     const sortedParentTabs = Object.keys(groupedColumns).sort((a, b) => {
       const aFirstOrder = Math.min(
-        ...groupedColumns[a].map((col) => col.order)
+        ...groupedColumns[a].map((col) => col.order ?? 999),
       );
       const bFirstOrder = Math.min(
-        ...groupedColumns[b].map((col) => col.order)
+        ...groupedColumns[b].map((col) => col.order ?? 999),
       );
       return aFirstOrder - bFirstOrder;
     });
@@ -302,7 +305,7 @@ export default function BookingDetailModal({
     debounce(() => {
       // Handle any scroll-related updates here if needed
     }, 16), // ~60fps
-    []
+    [],
   );
 
   // Track active section on scroll
@@ -449,7 +452,7 @@ export default function BookingDetailModal({
 
   // Helper function to determine booking status category
   const getBookingStatusCategory = (
-    status: string | null | undefined
+    status: string | null | undefined,
   ): string => {
     if (typeof status !== "string" || status.trim() === "") return "Pending";
 
@@ -520,25 +523,34 @@ export default function BookingDetailModal({
   const progress = calculatePaymentProgress(currentBooking);
 
   // Group columns by parentTab
-  const groupedColumns = columns.reduce((groups, column) => {
-    const parentTab = column.parentTab || "General";
-    if (!groups[parentTab]) {
-      groups[parentTab] = [];
-    }
-    groups[parentTab].push(column);
-    return groups;
-  }, {} as Record<string, SheetColumn[]>);
+  const groupedColumns = columns.reduce(
+    (groups, column) => {
+      const parentTab = column.parentTab || "General";
+      if (!groups[parentTab]) {
+        groups[parentTab] = [];
+      }
+      groups[parentTab].push(column);
+      return groups;
+    },
+    {} as Record<string, SheetColumn[]>,
+  );
 
   // Sort parentTabs by the order they first appear in the columns
   const sortedParentTabs = Object.keys(groupedColumns).sort((a, b) => {
-    const aFirstOrder = Math.min(...groupedColumns[a].map((col) => col.order));
-    const bFirstOrder = Math.min(...groupedColumns[b].map((col) => col.order));
+    const aFirstOrder = Math.min(
+      ...groupedColumns[a].map((col) => col.order ?? 999),
+    );
+    const bFirstOrder = Math.min(
+      ...groupedColumns[b].map((col) => col.order ?? 999),
+    );
     return aFirstOrder - bFirstOrder;
   });
 
   // Sort columns within each group by order
   sortedParentTabs.forEach((parentTab) => {
-    groupedColumns[parentTab].sort((a, b) => a.order - b.order);
+    groupedColumns[parentTab].sort(
+      (a, b) => (a.order ?? 999) - (b.order ?? 999),
+    );
   });
 
   // Scroll to a specific parent tab
@@ -624,6 +636,15 @@ export default function BookingDetailModal({
 
     const value = (currentBooking as any)[column.id];
     if (value === null || value === undefined) return null;
+
+    // Special handling for tourDate - it's a select type but stores Timestamp
+    if (column.id === "tourDate") {
+      return safeDate(value).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    }
 
     if (column.dataType === "date") {
       return safeDate(value).toLocaleDateString("en-US", {
@@ -990,7 +1011,7 @@ export default function BookingDetailModal({
                         <Badge
                           variant="outline"
                           className={`text-[11px] sm:text-sm font-medium border-0 text-foreground px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full rounded-br-none ${getBookingTypeBgColor(
-                            currentBooking?.bookingType
+                            currentBooking?.bookingType,
                           )}`}
                         >
                           {currentBooking?.bookingType}
@@ -1016,11 +1037,11 @@ export default function BookingDetailModal({
                           <Badge
                             variant="outline"
                             className={`text-[11px] sm:text-sm font-medium border-0 text-foreground px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full rounded-br-none ${getStatusBgColor(
-                              currentBooking
+                              currentBooking,
                             )}`}
                           >
                             {getBookingStatusCategory(
-                              currentBooking?.bookingStatus
+                              currentBooking?.bookingStatus,
                             )}
                           </Badge>
                         </div>
@@ -1036,7 +1057,7 @@ export default function BookingDetailModal({
                             <BsCalendarEvent className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-crimson-red flex-shrink-0" />
                             <span className="font-bold">
                               {safeDate(
-                                currentBooking?.reservationDate
+                                currentBooking?.reservationDate,
                               ).toLocaleDateString("en-US", {
                                 year: "numeric",
                                 month: "short",
@@ -1048,7 +1069,7 @@ export default function BookingDetailModal({
                             <FaPlane className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-crimson-red flex-shrink-0" />
                             <span className="font-bold">
                               {safeDate(
-                                currentBooking?.tourDate
+                                currentBooking?.tourDate,
                               ).toLocaleDateString("en-US", {
                                 year: "numeric",
                                 month: "short",
@@ -1159,8 +1180,8 @@ export default function BookingDetailModal({
                                         isEmpty
                                           ? "bg-muted/10 border-sunglow-yellow/50 opacity-50"
                                           : column.dataType === "function"
-                                          ? "bg-sunglow-yellow/20 border-sunglow-yellow/30"
-                                          : "bg-muted/20 border-field-border hover:shadow-sm hover:border-foreground/10"
+                                            ? "bg-sunglow-yellow/20 border-sunglow-yellow/30"
+                                            : "bg-muted/20 border-field-border hover:shadow-sm hover:border-foreground/10"
                                       }`}
                                     >
                                       <div className="flex-shrink-0 mt-0.5">

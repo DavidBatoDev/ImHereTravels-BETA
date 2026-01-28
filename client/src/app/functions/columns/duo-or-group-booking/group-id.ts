@@ -7,7 +7,6 @@ export const groupIdColumn: BookingSheetColumn = {
     columnName: 'Group ID',
     dataType: 'string',
     parentTab: 'If Duo or Group Booking',
-    order: 24,
     includeInForms: false,
   },
 };

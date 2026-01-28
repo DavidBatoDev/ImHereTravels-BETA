@@ -8,7 +8,6 @@ export const discountRateColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getDiscountRateFunction",
     parentTab: "Discounts",
-    order: 10,
     includeInForms: true,
     width: 120,
     arguments: [

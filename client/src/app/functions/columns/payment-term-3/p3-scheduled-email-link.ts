@@ -7,7 +7,6 @@ export const p3ScheduledEmailLinkColumn: BookingSheetColumn = {
     columnName: "P3 Scheduled Email Link",
     dataType: "string",
     parentTab: "Payment Term 3",
-    order: 65,
     includeInForms: false,
     color: "yellow",
     width: 180,

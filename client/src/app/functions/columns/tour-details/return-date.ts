@@ -8,7 +8,6 @@ export const returnDateColumn: BookingSheetColumn = {
     dataType: "function",
     function: "tourEndDateFromStartAndDurationFunction",
     parentTab: "Tour Details",
-    order: 16,
     includeInForms: false,
     showColumn: true,
     color: "gray",

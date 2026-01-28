@@ -8,7 +8,6 @@ export const availablePaymentTermsColumn: BookingSheetColumn = {
     dataType: 'function',
     function: 'availablePaymentTermFunction',
     parentTab: 'Tour Details',
-    order: 21,
     includeInForms: false,
     color: 'yellow',
     width: 262,

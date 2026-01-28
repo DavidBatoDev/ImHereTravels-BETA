@@ -7,7 +7,6 @@ export const guestInfoEmailSentLinkColumn: BookingSheetColumn = {
     columnName: "Guest Info Email Sent Link",
     dataType: "string",
     parentTab: "Payment Setting",
-    order: 46,
     includeInForms: true,
     color: "yellow",
   },

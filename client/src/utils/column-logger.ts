@@ -13,8 +13,10 @@ export class ColumnLogger {
     console.log(`Total Columns: ${columns.length}`);
     console.log("");    
 
-    // Sort columns by order
-    const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
+    // Sort columns by order (use fallback for missing order)
+    const sortedColumns = [...columns].sort(
+      (a, b) => (a.order ?? 999) - (b.order ?? 999)
+    );
 
     sortedColumns.forEach((column, index) => {
       console.log(`${index + 1}. ${column.columnName}`);
@@ -99,7 +101,9 @@ export class ColumnLogger {
     console.log("📋 COLUMNS QUICK REFERENCE");
     console.log("=".repeat(40));
 
-    const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
+    const sortedColumns = [...columns].sort(
+      (a, b) => (a.order ?? 999) - (b.order ?? 999)
+    );
 
     sortedColumns.forEach((column, index) => {
       const formIndicator = column.includeInForms ? "📝" : "🔒";
@@ -141,7 +145,9 @@ export class ColumnLogger {
     summary: Record<string, number>;
     parentTabSummary: Record<string, number>;
   } {
-    const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
+    const sortedColumns = [...columns].sort(
+      (a, b) => (a.order ?? 999) - (b.order ?? 999)
+    );
 
     const dataTypeCounts = sortedColumns.reduce((acc, col) => {
       acc[col.dataType] = (acc[col.dataType] || 0) + 1;
@@ -157,7 +163,7 @@ export class ColumnLogger {
     return {
       totalColumns: columns.length,
       columns: sortedColumns.map((col) => ({
-        order: col.order,
+        order: col.order ?? 999,
         name: col.columnName,
         id: col.id,
         parentTab: col.parentTab || "General",
@@ -201,10 +207,10 @@ export class ColumnLogger {
     console.log("=".repeat(30));
 
     const oldOrder = oldColumns
-      .sort((a, b) => a.order - b.order)
+      .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
       .map((col) => col.columnName);
     const newOrder = newColumns
-      .sort((a, b) => a.order - b.order)
+      .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
       .map((col) => col.columnName);
 
     console.log("Before:", oldOrder.join(" → "));

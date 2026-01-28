@@ -7,7 +7,6 @@ export const p3CalendarEventIdColumn: BookingSheetColumn = {
     columnName: "P3 Calendar Event ID",
     dataType: "string",
     parentTab: "Payment Term 3",
-    order: 66,
     includeInForms: false,
     color: "yellow",
     width: 160,

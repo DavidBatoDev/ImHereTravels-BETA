@@ -7,7 +7,6 @@ export const manualCreditColumn: BookingSheetColumn = {
     columnName: 'Manual Credit',
     dataType: 'currency',
     parentTab: 'Payment Setting',
-    order: 38,
     includeInForms: true,
     width: 162,
   },

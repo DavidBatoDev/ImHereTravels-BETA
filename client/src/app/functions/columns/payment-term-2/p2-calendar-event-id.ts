@@ -7,7 +7,6 @@ export const p2CalendarEventIdColumn: BookingSheetColumn = {
     columnName: "P2 Calendar Event ID",
     dataType: "string",
     parentTab: "Payment Term 2",
-    order: 59,
     includeInForms: false,
     color: "yellow",
     width: 160,

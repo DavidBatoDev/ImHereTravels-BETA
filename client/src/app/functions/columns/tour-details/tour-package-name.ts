@@ -7,7 +7,6 @@ export const tourPackageNameColumn: BookingSheetColumn = {
     columnName: "Tour Package Name",
     dataType: "select",
     parentTab: "Tour Details",
-    order: 14,
     includeInForms: true,
     width: 208,
     // Static fallback options

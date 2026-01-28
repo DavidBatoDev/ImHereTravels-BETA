@@ -7,7 +7,6 @@ export const deleteColumn: BookingSheetColumn = {
     columnName: "Delete",
     dataType: "function",
     parentTab: "Identifier",
-    order: 85,
     includeInForms: false,
     color: "red",
     width: 110.666748046875,

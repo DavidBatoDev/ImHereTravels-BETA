@@ -9,7 +9,6 @@ export const tourPackageNameUniqueCounterColumn: BookingSheetColumn = {
     dataType: "function",
     function: "tourPackageUniqueCounterFunction",
     parentTab: "Identifier",
-    order: 5,
     includeInForms: false,
     showColumn: true,
     color: "gray",

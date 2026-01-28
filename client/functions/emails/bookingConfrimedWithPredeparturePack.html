@@ -1,0 +1,272 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmation Email</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+
+<body>
+    <div style="font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 0;">
+
+        <!-- Header with Logo -->
+        <div style="text-align: center; padding: 20px; background-color: #ffffff;">
+            <img
+            src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1768292814673_%F0%9F%9A%A3%20Logo%20Center%20(Row%20For%20Content%20Columns).png?alt=media&token=476fb69b-4cd5-4c56-901a-9190c15685f0"
+            alt="ImHereTravels Logo"
+            style="
+            width: 90%;
+            max-width: 550px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            "
+            />
+        </div>
+
+        <!-- Hero Image -->
+        <div style="width: 100%; margin: 0 auto;">
+            <img
+            src="{% if tourPackageCoverImage %}{{ tourPackageCoverImage }}{% else %}https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1767334951959_b0f582526af6adb523ad1036d0b0a6ff3437ea61.jpg?alt=media&token=c56af73d-0bfa-492d-8680-e1588d72d1b6{% endif %}"
+            alt="ImHereTravels Banner"
+            style="
+            width: 100%;
+            max-width: 636px;
+            height: 300px;
+            object-fit: cover;
+            object-position: 50% 85%;
+            display: block;
+            margin: 0 auto;
+            "
+            />
+        </div>
+
+        <div style="
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        padding: 30px 20px;
+        ">
+
+            <!-- Confirmation Header -->
+            <div style="text-align: center; margin-bottom: 25px;">
+                <h2 style="color: #333333; margin: 0 0 5px 0; font-size: 20px;">
+                    Your booking is fully confirmed and paid!
+                    <span style="display: inline-block; background-color: #4caf50; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; margin-left: 8px; font-size: 16px; font-weight: bold;">✓</span>
+                </h2>
+                <p style="color: #666666; margin: 5px 0 0 0; font-size: 14px;">You're going to the Philippines!</p>
+            </div>
+
+            <!-- Greeting -->
+            <p style="font-size: 15px; color: #666666; margin: 0 0 15px 0;">
+                Hi <strong>{{fullName}}</strong>,
+            </p>
+            <p style="font-size: 15px; color: #666666; margin: 0 0 25px 0;">
+                Thank you for choosing <strong style="color: #e74c3c">ImHereTravels!</strong>
+                We're thrilled to have you join us for <strong>{{tourPackage}}</strong>!
+            </p>
+
+            <!-- Booking Reference -->
+            <div style="
+        background-color: #f5f5f5;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 25px 0;
+        border-left: 5px solid #e74c3c;
+        ">
+                <p style="font-size: 13px; color: #666666; margin: 0 0 10px 0;">Your Booking Reference</p>
+                <p style="font-size: 18px; font-weight: bold; color: #333333; margin: 0;">{{bookingReference}}</p>
+            </div>
+
+            <!-- Booking Details -->
+            <div style="
+        background-color: #f5f5f5;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 25px 0;
+        border-left: 5px solid #e74c3c;
+        ">
+                <h3 style="color: #333333; margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">Booking Details</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 10px 0; color: #666666; font-weight: 500;">Traveler Name</td>
+                        <td style="padding: 10px 0; color: #333333; text-align: right;">{{fullName}}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 10px 0; color: #666666; font-weight: 500;">Tour Name</td>
+                        <td style="padding: 10px 0; color: #333333; text-align: right;">{{tourPackage}}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 10px 0; color: #666666; font-weight: 500;">Tour Date</td>
+                        <td style="padding: 10px 0; color: #333333; text-align: right;">{{tourDate}}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 10px 0; color: #666666; font-weight: 500;">Return Date</td>
+                        <td style="padding: 10px 0; color: #333333; text-align: right;">{{returnDate}}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 10px 0; color: #666666; font-weight: 500;">Tour Duration</td>
+                        <td style="padding: 10px 0; color: #333333; text-align: right;">{{tourDuration}}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 10px 0; color: #666666; font-weight: 500;">Booking Type</td>
+                        <td style="padding: 10px 0; color: #333333; text-align: right;">{{bookingType}}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; color: #666666; font-weight: 500;">Total Amount Paid</td>
+                        <td style="padding: 10px 0; color: #4caf50; font-weight: bold; text-align: right;">£{{paid}}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Payment Summary -->
+            <div style="
+        background-color: #f5f5f5;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 25px 0;
+        border-left: 5px solid #4caf50;
+        ">
+                <h3 style="color: #333333; margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">Payment Summary</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px; border: 1px solid #ddd;">
+                    <thead style="background-color: #f9f9f9;">
+                        <tr>
+                            <th
+                                style="padding: 10px; border: 1px solid #ddd; text-align: left; color: #666666; font-weight: 500;">
+                                Payment Term</th>
+                            <th
+                                style="padding: 10px; border: 1px solid #ddd; text-align: left; color: #666666; font-weight: 500;">
+                                Amount</th>
+                            <th
+                                style="padding: 10px; border: 1px solid #ddd; text-align: left; color: #666666; font-weight: 500;">
+                                Due Date</th>
+                            <th
+                                style="padding: 10px; border: 1px solid #ddd; text-align: left; color: #666666; font-weight: 500;">
+                                Date Paid</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{selectedTerms}}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pre-Departure Pack Notice -->
+            <div style="
+        background-color: #fff9e6;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 25px 0;
+        border-left: 5px solid #ffc107;
+        ">
+                <h3 style="color: #ff9800; margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">📦 Pre-Departure
+                    Pack</h3>
+                <p style="color: #666666; margin: 0 0 10px 0; font-size: 14px;">
+                    Your pre-departure pack has been sent to your email as an attachment. This includes:
+                </p>
+                <ul style="color: #666666; margin: 10px 0 0 20px; font-size: 14px; line-height: 1.6;">
+                    <li>Detailed itinerary</li>
+                    <li>Hotel and contact information</li>
+                    <li>Important travel documents</li>
+                    <li>What to pack and weather guide</li>
+                </ul>
+            </div>
+
+            <!-- Next Steps -->
+            <div style="
+        background-color: #f5f5f5;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 25px 0;
+        border-left: 5px solid #2196F3;
+        ">
+                <h3 style="color: #333333; margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">What's Next?</h3>
+                <ol style="color: #666666; margin: 10px 0 0 20px; font-size: 14px; line-height: 1.8;">
+                    <li style="margin-bottom: 8px;">Review your Pre-Departure Pack attached to this email</li>
+                    <li style="margin-bottom: 8px;">Mark your calendar for <strong>{{tourDate}}</strong></li>
+                    <li style="margin-bottom: 8px;">Prepare your travel documents and items mentioned in the pack</li>
+                    <li style="margin-bottom: 0;">Get excited! Your adventure is about to begin! 🎒✈️</li>
+                </ol>
+            </div>
+
+            <!-- Contact Information -->
+            <div style="
+        background-color: #f5f5f5;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 25px 0;
+        border-left: 5px solid #9c27b0;
+        ">
+                <h3 style="color: #333333; margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">Need Help?</h3>
+                <p style="color: #666666; margin: 0 0 10px 0; font-size: 14px;">
+                    If you have any questions or need assistance, feel free to reach out to us:
+                </p>
+                <ul style="color: #666666; margin: 10px 0 0 20px; font-size: 14px; line-height: 1.6;">
+                    <li>📧 Email: <a href="mailto:info@imheretravels.com"
+                            style="color: #2196F3; text-decoration: none;">bella@imheretravels.com</a></li>
+                    <li>📱 WhatsApp: +63 998 247 6847/li>
+                    <li>🌐 Website: <a href="https://imheretravels.com"
+                            style="color: #2196F3; text-decoration: none;">imheretravels.com</a></li>
+                </ul>
+            </div>
+
+            <!-- Footer -->
+            <div style="
+        background-color: #2c3e50;
+        padding: 30px 20px;
+        border-radius: 12px;
+        margin: 35px 0 0 0;
+        text-align: center;
+        color: #ffffff;
+        ">
+                <p style="margin: 0 0 15px 0; font-size: 14px; line-height: 1.6;">
+                    We can't wait to see you on your adventure!
+                </p>
+                <p style="margin: 0 0 5px 0; font-size: 14px;">Safe travels,</p>
+                <p style="margin: 0 0 20px 0; font-size: 14px; font-weight: bold;">The ImHereTravels Team</p>
+
+                <!-- Social Media Icons -->
+                <div style="margin: 20px 0; padding-top: 15px; border-top: 1px solid #495a6f;">
+                    <p style="margin: 0 0 10px 0; font-size: 12px; color: #bdc3c7;">Follow us on social media:</p>
+                    <div style="text-align: center;">
+                        <a href="https://instagram.com/imheretravels" style="display: inline-block; margin: 0 8px;">
+                            <img src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1769577611985_instagram-icon.png?alt=media&token=26e11a52-4b1b-4323-bca0-8ffb3b8889ab" alt="Instagram" style="width: 20px; height: 20px; display: inline-block;">
+                        </a>
+                        <a href="https://www.facebook.com/profile.php?id=100089932897402" style="display: inline-block; margin: 0 8px;">
+                            <img src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1769578187350_facebook-icon.png?alt=media&token=0d59a081-d764-463a-8949-533dab620dc0" alt="Facebook" style="width: 20px; height: 20px; display: inline-block;">
+                        </a>
+                        <a href="https://www.tiktok.com/@imheretravels" style="display: inline-block; margin: 0 8px;">
+                            <img src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1769577615216_tiktok-icon.png?alt=media&token=2d2d9e95-52c5-4cf7-8906-7377ad7957d8" alt="TikTok" style="width: 20px; height: 20px; display: inline-block;">
+                        </a>
+                        <a href="https://imheretravels.com" style="display: inline-block; margin: 0 8px;">
+                            <img src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1769577613602_link-icon.png?alt=media&token=2a058d58-eaf7-4f53-bdea-845b2409764d" alt="Website" style="width: 20px; height: 20px; display: inline-block;">
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Copyright -->
+                <p style="margin: 20px 0 0 0; font-size: 12px; color: #95a5a6;">
+                    © ImHereTravels. All rights reserved.
+                </p>
+            </div>
+
+            <!-- Disclaimer -->
+            <div style="margin-top: 20px; padding: 15px; border-top: 1px solid #ddd;">
+                <p style="font-size: 12px; color: #999999; line-height: 1.5; margin: 0;">
+                    This is an automated confirmation email. Please do not reply to this message. If you need
+                    assistance, contact us using the information provided above.
+                </p>
+            </div>
+        </div>
+</body>
+
+</html>

@@ -7,7 +7,6 @@ export const p3DatePaidColumn: BookingSheetColumn = {
     columnName: "P3 Date Paid",
     dataType: "date",
     parentTab: "Payment Term 3",
-    order: 70,
     includeInForms: true,
     color: "none",
     width: 120,

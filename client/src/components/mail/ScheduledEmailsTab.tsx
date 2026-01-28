@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Fuse from "fuse.js";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -131,20 +132,21 @@ export default function ScheduledEmailsTab() {
     setIsDeletePaymentRemindersDialogOpen,
   ] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<ScheduledEmail | null>(
-    null
+    null,
   );
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
-    null
+    null,
   );
   const [isDeletingPaymentReminders, setIsDeletingPaymentReminders] =
     useState(false);
   const [newEmailData, setNewEmailData] = useState<Partial<ScheduledEmailData>>(
     {
       maxAttempts: 3,
-    }
+    },
   );
   const [newScheduleDate, setNewScheduleDate] = useState("");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
   const [viewEmailData, setViewEmailData] = useState<{
     to: string;
     cc: string;
@@ -168,7 +170,7 @@ export default function ScheduledEmailsTab() {
       q = query(
         scheduledEmailsRef,
         where("status", "==", statusFilter),
-        orderBy("scheduledFor", "asc")
+        orderBy("scheduledFor", "asc"),
       );
     }
 
@@ -211,7 +213,7 @@ export default function ScheduledEmailsTab() {
           variant: "destructive",
         });
         setIsLoading(false);
-      }
+      },
     );
 
     // Cleanup subscription on unmount
@@ -287,7 +289,7 @@ export default function ScheduledEmailsTab() {
 
       await ScheduledEmailService.rescheduleEmail(
         selectedEmail.id,
-        scheduledDate.toISOString()
+        scheduledDate.toISOString(),
       );
 
       toast({
@@ -439,9 +441,8 @@ export default function ScheduledEmailsTab() {
       setIsDeletingPaymentReminders(true);
       setIsDeletePaymentRemindersDialogOpen(false);
 
-      const result = await ScheduledEmailService.deletePaymentReminders(
-        selectedBookingId
-      );
+      const result =
+        await ScheduledEmailService.deletePaymentReminders(selectedBookingId);
 
       toast({
         title: "Success",
@@ -500,252 +501,247 @@ export default function ScheduledEmailsTab() {
     console.log("Template ID:", email.templateId);
     console.log("Has template variables:", !!email.templateVariables);
 
-    // Re-render template with fresh data for payment reminders ONLY if not sent yet
+    // Re-render template for payment reminders with current template design
+    // Always fetch fresh booking data to show current state (including date paid)
     if (
-      email.status !== "sent" &&
       email.emailType === "payment-reminder" &&
       email.bookingId &&
       email.templateId &&
       email.templateVariables
     ) {
-      console.log("Starting template re-render process for pending email...");
+      console.log(
+        `Starting template re-render for ${email.status} email with fresh booking data...`,
+      );
       try {
-        // Fetch fresh booking data directly from Firestore
+        // Always fetch fresh booking data from Firestore
+        console.log("Fetching fresh booking data from Firestore...");
         const bookingRef = doc(db, "bookings", email.bookingId);
         const bookingDoc = await getDoc(bookingRef);
 
         console.log("Booking doc exists:", bookingDoc.exists());
 
-        if (bookingDoc.exists()) {
-          const bookingData = bookingDoc.data()!;
-          console.log("Fetched booking data:", bookingData);
-
-          // Store the actual bookingId from the booking document
-          actualBookingId = bookingData.bookingId;
-
-          // Update template variables with fresh data
-          const freshVariables: Record<string, any> = {
-            ...email.templateVariables,
-            // Update key fields with fresh data
-            fullName: bookingData.fullName,
-            emailAddress: bookingData.emailAddress,
-            tourPackageName: bookingData.tourPackageName,
-            bookingId: bookingData.bookingId,
-            tourDate: bookingData.tourDate,
-            paid: bookingData.paid,
-            remainingBalance: bookingData.remainingBalance,
-            originalTourCost: bookingData.originalTourCost,
-            discountedTourCost: bookingData.discountedTourCost,
-            // Use the paymentMethod field from booking data
-            paymentMethod: bookingData.paymentMethod || "Other",
-            paymentPlan: bookingData.availablePaymentTerms || "",
-          };
-
-          // Helper function to parse due date for a specific term
-          const parseDueDateForTerm = (
-            dueDateRaw: any,
-            termIndex: number
-          ): string => {
-            if (!dueDateRaw) return "";
-
-            if (typeof dueDateRaw === "string" && dueDateRaw.includes(",")) {
-              const parts = dueDateRaw.split(",").map((p) => p.trim());
-              // Dates are in format: "Month Day", "Year", "Month Day", "Year"
-              // For term index n, we need parts[n*2] + ", " + parts[n*2+1]
-              if (parts.length > termIndex * 2 + 1) {
-                return `${parts[termIndex * 2]}, ${parts[termIndex * 2 + 1]}`;
-              }
-            }
-
-            return dueDateRaw;
-          };
-
-          // Helper function to format currency
-          const formatGBP = (value: any): string => {
-            if (!value) return "£0.00";
-            return `£${Number(value).toFixed(2)}`;
-          };
-
-          // Helper function to format date
-          const formatDate = (dateValue: any): string => {
-            if (!dateValue) return "";
-
-            try {
-              let date: Date | null = null;
-
-              // Handle Firestore Timestamp objects
-              if (dateValue && typeof dateValue === "object") {
-                if (dateValue.seconds) {
-                  date = new Date(dateValue.seconds * 1000);
-                } else if (
-                  dateValue.type === "firestore/timestamp/1.0" &&
-                  dateValue.seconds
-                ) {
-                  date = new Date(dateValue.seconds * 1000);
-                }
-              }
-              // Handle string dates
-              else if (
-                typeof dateValue === "string" &&
-                dateValue.trim() !== ""
-              ) {
-                date = new Date(dateValue);
-              }
-              // Handle Date objects
-              else if (dateValue instanceof Date) {
-                date = dateValue;
-              }
-
-              // Validate and format
-              if (date && !isNaN(date.getTime())) {
-                return date.toISOString().split("T")[0];
-              }
-
-              return "";
-            } catch (error) {
-              console.warn(
-                "Error formatting date:",
-                error,
-                "Value:",
-                dateValue
-              );
-              return "";
-            }
-          };
-
-          // Update payment term data if applicable
-          if (email.templateVariables.paymentTerm) {
-            const term = email.templateVariables.paymentTerm as string;
-            const termLower = term.toLowerCase();
-            const termIndex = parseInt(term.replace("P", "")) - 1;
-
-            // Parse due date for this specific term
-            const dueDateRaw = (bookingData as any)[`${termLower}DueDate`];
-            const parsedDueDate = parseDueDateForTerm(dueDateRaw, termIndex);
-
-            freshVariables[`${termLower}Amount`] = (bookingData as any)[
-              `${termLower}Amount`
-            ];
-            freshVariables[`${termLower}DueDate`] = parsedDueDate;
-            freshVariables[`${termLower}DatePaid`] = (bookingData as any)[
-              `${termLower}DatePaid`
-            ];
-
-            // Update the main dueDate and amount with parsed values
-            freshVariables.dueDate = formatDate(parsedDueDate);
-            freshVariables.amount = formatGBP(
-              (bookingData as any)[`${termLower}Amount`]
-            );
-          }
-
-          // Update term data array if showTable is true
-          if (
-            email.templateVariables.showTable &&
-            email.templateVariables.termData
-          ) {
-            const allTerms = ["P1", "P2", "P3", "P4"];
-
-            // Determine which terms to show based on payment plan
-            // If availablePaymentTerms is "P3", we should show P1, P2, P3
-            const paymentPlanValue =
-              bookingData.availablePaymentTerms ||
-              bookingData.paymentPlan ||
-              "";
-            let maxTermIndex = 0;
-
-            // Extract the highest payment term number
-            if (paymentPlanValue.includes("P4")) {
-              maxTermIndex = 4;
-            } else if (paymentPlanValue.includes("P3")) {
-              maxTermIndex = 3;
-            } else if (paymentPlanValue.includes("P2")) {
-              maxTermIndex = 2;
-            } else if (paymentPlanValue.includes("P1")) {
-              maxTermIndex = 1;
-            }
-
-            // Get all terms up to the max payment plan
-            const availableTerms = allTerms.slice(0, maxTermIndex);
-
-            // Only show terms up to current payment term
-            const currentTerm = email.templateVariables.paymentTerm as string;
-            const currentTermIndex = allTerms.indexOf(currentTerm);
-            const visibleTerms = availableTerms.slice(0, currentTermIndex + 1);
-
-            console.log("Payment plan value:", paymentPlanValue);
-            console.log("Max term index:", maxTermIndex);
-            console.log("Available terms:", availableTerms);
-            console.log("Current term:", currentTerm);
-            console.log("Visible terms:", visibleTerms);
-
-            freshVariables.termData = visibleTerms.map((t) => {
-              const tIndex = parseInt(t.replace("P", "")) - 1;
-              const tLower = t.toLowerCase();
-              const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
-              const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
-
-              return {
-                term: t,
-                amount: formatGBP((bookingData as any)[`${tLower}Amount`]),
-                dueDate: formatDate(parsedDueDate),
-                datePaid: formatDate((bookingData as any)[`${tLower}DatePaid`]),
-              };
-            });
-
-            // Update totals
-            freshVariables.totalAmount = formatGBP(
-              bookingData.discountedTourCost && bookingData.discountedTourCost > 0
-                ? bookingData.discountedTourCost
-                : bookingData.originalTourCost
-            );
-            freshVariables.paid = formatGBP(bookingData.paid);
-            freshVariables.remainingBalance = formatGBP(
-              bookingData.remainingBalance
-            );
-          }
-
-          console.log("Fresh variables prepared:", freshVariables);
-          console.log("Term data:", freshVariables.termData);
-          console.log("Payment Method:", freshVariables.paymentMethod);
-          console.log("Due Date:", freshVariables.dueDate);
-          console.log("Amount:", freshVariables.amount);
-
-          // Fetch the template from the database to ensure we're using the latest version
-          console.log("Fetching template from database:", email.templateId);
-          const templateRef = doc(db, "emailTemplates", email.templateId);
-          const templateDoc = await getDoc(templateRef);
-
-          if (!templateDoc.exists()) {
-            throw new Error(
-              `Template ${email.templateId} not found in database`
-            );
-          }
-
-          const templateData = templateDoc.data();
-          const rawTemplateHtml = templateData.content || "";
-
-          if (!rawTemplateHtml) {
-            throw new Error(`Template ${email.templateId} has no content`);
-          }
-
-          console.log("Successfully fetched template from database");
-
-          // Re-render the template with fresh data using EmailTemplateService
-          htmlContent = EmailTemplateService.processTemplate(
-            rawTemplateHtml,
-            freshVariables
-          );
-
-          console.log("Rendered HTML length:", htmlContent.length);
-          console.log("Rendered HTML preview:", htmlContent.substring(0, 500));
-
-          // Update subject with fresh data
-          subject = `Payment Reminder - ${freshVariables.fullName} - ${
-            email.templateVariables.paymentTerm || "Payment"
-          } Due`;
-
-          console.log("Successfully re-rendered template with fresh data");
+        if (!bookingDoc.exists()) {
+          throw new Error(`Booking ${email.bookingId} not found in database`);
         }
+
+        const bookingData = bookingDoc.data()!;
+        console.log("Fetched booking data:", bookingData);
+
+        // Store the actual bookingId from the booking document
+        actualBookingId = bookingData.bookingId;
+
+        // Update template variables with fresh data
+        const freshVariables: Record<string, any> = {
+          ...email.templateVariables,
+          // Update key fields with fresh data
+          fullName: bookingData.fullName,
+          emailAddress: bookingData.emailAddress,
+          tourPackageName: bookingData.tourPackageName,
+          bookingId: bookingData.bookingId,
+          tourDate: bookingData.tourDate,
+          paid: bookingData.paid,
+          remainingBalance: bookingData.remainingBalance,
+          originalTourCost: bookingData.originalTourCost,
+          discountedTourCost: bookingData.discountedTourCost,
+          // Use the paymentMethod field from booking data
+          paymentMethod: bookingData.paymentMethod || "Other",
+          paymentPlan: bookingData.availablePaymentTerms || "",
+        };
+
+        // Helper function to parse due date for a specific term
+        const parseDueDateForTerm = (
+          dueDateRaw: any,
+          termIndex: number,
+        ): string => {
+          if (!dueDateRaw) return "";
+
+          if (typeof dueDateRaw === "string" && dueDateRaw.includes(",")) {
+            const parts = dueDateRaw.split(",").map((p) => p.trim());
+            // Dates are in format: "Month Day", "Year", "Month Day", "Year"
+            // For term index n, we need parts[n*2] + ", " + parts[n*2+1]
+            if (parts.length > termIndex * 2 + 1) {
+              return `${parts[termIndex * 2]}, ${parts[termIndex * 2 + 1]}`;
+            }
+          }
+
+          return dueDateRaw;
+        };
+
+        // Helper function to format currency
+        const formatGBP = (value: any): string => {
+          if (!value) return "£0.00";
+          return `£${Number(value).toFixed(2)}`;
+        };
+
+        // Helper function to format date
+        const formatDate = (dateValue: any): string => {
+          if (!dateValue) return "";
+
+          try {
+            let date: Date | null = null;
+
+            // Handle Firestore Timestamp objects
+            if (dateValue && typeof dateValue === "object") {
+              if (dateValue.seconds) {
+                date = new Date(dateValue.seconds * 1000);
+              } else if (
+                dateValue.type === "firestore/timestamp/1.0" &&
+                dateValue.seconds
+              ) {
+                date = new Date(dateValue.seconds * 1000);
+              }
+            }
+            // Handle string dates
+            else if (typeof dateValue === "string" && dateValue.trim() !== "") {
+              date = new Date(dateValue);
+            }
+            // Handle Date objects
+            else if (dateValue instanceof Date) {
+              date = dateValue;
+            }
+
+            // Validate and format
+            if (date && !isNaN(date.getTime())) {
+              return date.toISOString().split("T")[0];
+            }
+
+            return "";
+          } catch (error) {
+            console.warn("Error formatting date:", error, "Value:", dateValue);
+            return "";
+          }
+        };
+
+        // Update payment term data if applicable
+        if (email.templateVariables.paymentTerm) {
+          const term = email.templateVariables.paymentTerm as string;
+          const termLower = term.toLowerCase();
+          const termIndex = parseInt(term.replace("P", "")) - 1;
+
+          // Parse due date for this specific term
+          const dueDateRaw = (bookingData as any)[`${termLower}DueDate`];
+          const parsedDueDate = parseDueDateForTerm(dueDateRaw, termIndex);
+
+          freshVariables[`${termLower}Amount`] = (bookingData as any)[
+            `${termLower}Amount`
+          ];
+          freshVariables[`${termLower}DueDate`] = parsedDueDate;
+          freshVariables[`${termLower}DatePaid`] = (bookingData as any)[
+            `${termLower}DatePaid`
+          ];
+
+          // Update the main dueDate and amount with parsed values
+          freshVariables.dueDate = formatDate(parsedDueDate);
+          freshVariables.amount = formatGBP(
+            (bookingData as any)[`${termLower}Amount`],
+          );
+        }
+
+        // Update term data array if showTable is true
+        if (
+          email.templateVariables.showTable &&
+          email.templateVariables.termData
+        ) {
+          const allTerms = ["P1", "P2", "P3", "P4"];
+
+          // Determine which terms to show based on payment plan
+          // If availablePaymentTerms is "P3", we should show P1, P2, P3
+          const paymentPlanValue =
+            bookingData.availablePaymentTerms || bookingData.paymentPlan || "";
+          let maxTermIndex = 0;
+
+          // Extract the highest payment term number
+          if (paymentPlanValue.includes("P4")) {
+            maxTermIndex = 4;
+          } else if (paymentPlanValue.includes("P3")) {
+            maxTermIndex = 3;
+          } else if (paymentPlanValue.includes("P2")) {
+            maxTermIndex = 2;
+          } else if (paymentPlanValue.includes("P1")) {
+            maxTermIndex = 1;
+          }
+
+          // Get all terms up to the max payment plan
+          const availableTerms = allTerms.slice(0, maxTermIndex);
+
+          // Only show terms up to current payment term
+          const currentTerm = email.templateVariables.paymentTerm as string;
+          const currentTermIndex = allTerms.indexOf(currentTerm);
+          const visibleTerms = availableTerms.slice(0, currentTermIndex + 1);
+
+          console.log("Payment plan value:", paymentPlanValue);
+          console.log("Max term index:", maxTermIndex);
+          console.log("Available terms:", availableTerms);
+          console.log("Current term:", currentTerm);
+          console.log("Visible terms:", visibleTerms);
+
+          freshVariables.termData = visibleTerms.map((t) => {
+            const tIndex = parseInt(t.replace("P", "")) - 1;
+            const tLower = t.toLowerCase();
+            const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
+            const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
+
+            return {
+              term: t,
+              amount: formatGBP((bookingData as any)[`${tLower}Amount`]),
+              dueDate: formatDate(parsedDueDate),
+              datePaid: formatDate((bookingData as any)[`${tLower}DatePaid`]),
+            };
+          });
+
+          // Update totals
+          freshVariables.totalAmount = formatGBP(
+            bookingData.useDiscountedTourCost
+              ? bookingData.discountedTourCost
+              : bookingData.originalTourCost,
+          );
+          freshVariables.paid = formatGBP(bookingData.paid);
+          freshVariables.remainingBalance = formatGBP(
+            bookingData.remainingBalance,
+          );
+        }
+
+        console.log("Fresh variables prepared:", freshVariables);
+        console.log("Term data:", freshVariables.termData);
+        console.log("Payment Method:", freshVariables.paymentMethod);
+        console.log("Due Date:", freshVariables.dueDate);
+        console.log("Amount:", freshVariables.amount);
+
+        // Fetch the template from the database to ensure we're using the latest version
+        console.log("Fetching template from database:", email.templateId);
+        const templateRef = doc(db, "emailTemplates", email.templateId);
+        const templateDoc = await getDoc(templateRef);
+
+        if (!templateDoc.exists()) {
+          throw new Error(`Template ${email.templateId} not found in database`);
+        }
+
+        const templateData = templateDoc.data();
+        const rawTemplateHtml = templateData.content || "";
+
+        if (!rawTemplateHtml) {
+          throw new Error(`Template ${email.templateId} has no content`);
+        }
+
+        console.log("Successfully fetched template from database");
+
+        // Re-render the template using EmailTemplateService
+        htmlContent = EmailTemplateService.processTemplate(
+          rawTemplateHtml,
+          freshVariables,
+        );
+
+        console.log("Rendered HTML length:", htmlContent.length);
+        console.log("Rendered HTML preview:", htmlContent.substring(0, 500));
+
+        // Update subject with fresh data
+        subject = `Payment Reminder - ${freshVariables.fullName} - ${
+          email.templateVariables.paymentTerm || "Payment"
+        } Due`;
+
+        console.log(
+          `Successfully re-rendered template with fresh booking data`,
+        );
       } catch (error) {
         console.error("Error re-rendering template:", error);
         // Fall back to original content if re-rendering fails
@@ -904,47 +900,104 @@ export default function ScheduledEmailsTab() {
     });
   };
 
-  // Filter emails based on search and status
-  const filteredEmails = scheduledEmails.filter((email) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.to.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (email.cc &&
-        email.cc.join(", ").toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (email.bcc &&
-        email.bcc
-          .join(", ")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())) ||
-      (email.emailType &&
-        email.emailType.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (email.bookingId &&
-        email.bookingId.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Create Fuse instance for fuzzy search on scheduled emails
+  const fuse = useMemo(() => {
+    if (scheduledEmails.length === 0) return null;
 
-    const matchesStatus =
-      statusFilter === "all" || email.status === statusFilter;
+    return new Fuse(scheduledEmails, {
+      keys: [
+        { name: "subject", weight: 1.0 },
+        { name: "to", weight: 0.9 },
+        {
+          name: "cc",
+          getFn: (email: ScheduledEmail) => {
+            return (email.cc || []).join(", ");
+          },
+          weight: 0.7,
+        },
+        {
+          name: "bcc",
+          getFn: (email: ScheduledEmail) => {
+            return (email.bcc || []).join(", ");
+          },
+          weight: 0.7,
+        },
+        { name: "emailType", weight: 0.8 },
+        { name: "bookingId", weight: 0.9 },
+        {
+          name: "templateVariablesBookingId",
+          getFn: (email: ScheduledEmail) => {
+            return (email.templateVariables as any)?.bookingId || "";
+          },
+          weight: 1.0, // High priority for booking reference
+        },
+      ],
+      threshold: 0.4, // 0 = exact match, 1 = match anything
+      includeScore: true,
+      minMatchCharLength: 2,
+    });
+  }, [scheduledEmails]);
 
-    // Date filter logic
-    let matchesDate = true;
-    if (dateFrom || dateTo) {
-      const emailDate = new Date(email.scheduledFor);
-      if (dateFrom) {
-        const fromDate = new Date(dateFrom);
-        fromDate.setHours(0, 0, 0, 0);
-        if (emailDate < fromDate) matchesDate = false;
-      }
-      if (dateTo) {
-        const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999);
-        if (emailDate > toDate) matchesDate = false;
-      }
+  // Filter emails based on search and status using Fuse for better search
+  const filteredEmails = useMemo(() => {
+    let results = scheduledEmails;
+
+    // Apply Fuse search if search term is provided
+    if (searchTerm !== "" && fuse) {
+      const fuseResults = fuse.search(searchTerm);
+      results = fuseResults.map((result) => result.item);
+    } else if (searchTerm === "") {
+      results = scheduledEmails;
+    } else {
+      // Fallback to basic filtering if Fuse fails
+      results = scheduledEmails.filter((email) => {
+        const lowerSearch = searchTerm.toLowerCase();
+        return (
+          email.subject.toLowerCase().includes(lowerSearch) ||
+          email.to.toLowerCase().includes(lowerSearch) ||
+          (email.cc &&
+            email.cc.join(", ").toLowerCase().includes(lowerSearch)) ||
+          (email.bcc &&
+            email.bcc.join(", ").toLowerCase().includes(lowerSearch)) ||
+          (email.emailType &&
+            email.emailType.toLowerCase().includes(lowerSearch)) ||
+          (email.bookingId &&
+            email.bookingId.toLowerCase().includes(lowerSearch)) ||
+          ((email.templateVariables as any)?.bookingId &&
+            String((email.templateVariables as any).bookingId)
+              .toLowerCase()
+              .includes(lowerSearch))
+        );
+      });
     }
 
-    return matchesSearch && matchesStatus && matchesDate;
-  });
+    // Apply status filter
+    results = results.filter(
+      (email) => statusFilter === "all" || email.status === statusFilter,
+    );
 
-  // Group emails by bookingId
+    // Apply date range filter
+    if (dateFrom || dateTo) {
+      results = results.filter((email) => {
+        const emailDate = new Date(email.scheduledFor);
+        if (dateFrom) {
+          const fromDate = new Date(dateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (emailDate < fromDate) return false;
+        }
+        if (dateTo) {
+          const toDate = new Date(dateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (emailDate > toDate) return false;
+        }
+        return true;
+      });
+    }
+
+    return results;
+  }, [scheduledEmails, searchTerm, statusFilter, dateFrom, dateTo, fuse]);
+
+  // Group emails by bookingId and extract row from first email in each group
   const groupEmailsByBookingId = (emails: ScheduledEmail[]) => {
     const grouped: Record<string, ScheduledEmail[]> = {};
     const ungrouped: ScheduledEmail[] = [];
@@ -965,6 +1018,41 @@ export default function ScheduledEmailsTab() {
 
   const { grouped: groupedEmails, ungrouped: ungroupedEmails } =
     groupEmailsByBookingId(filteredEmails);
+
+  // Track scroll position for scroll buttons
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop =
+        window.pageYOffset || document.documentElement.scrollTop;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+
+      const isAtTop = scrollTop <= 10;
+      const isAtBottom = scrollTop >= documentHeight - windowHeight - 10;
+
+      // Set data attributes for CSS
+      document.body.setAttribute(
+        "data-scroll",
+        isAtTop ? "top" : isAtBottom ? "bottom" : "middle",
+      );
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    handleScroll(); // Initial call
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Scroll functions
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const scrollToBottom = () => {
+    window.scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: "smooth",
+    });
+  };
 
   // Navigate to booking detail
   const handleNavigateToBooking = (bookingId: string) => {
@@ -1146,7 +1234,14 @@ export default function ScheduledEmailsTab() {
       {/* Scheduled Emails List */}
       <div className="space-y-3">
         {/* Grouped Emails by Booking */}
-        {Object.entries(groupedEmails).map(([bookingId, emails]) => {
+        {Object.entries(groupedEmails)
+          .sort(([, emailsA], [, emailsB]) => {
+            // Get row from first email in each group
+            const rowA = emailsA[0]?.row ?? 999999;
+            const rowB = emailsB[0]?.row ?? 999999;
+            return rowA - rowB; // Ascending order
+          })
+          .map(([bookingId, emails]) => {
           const isOpen = openGroups[bookingId] ?? true;
           const allStatuses = emails.map((e) => e.status);
           const hasPending = allStatuses.includes("pending");
@@ -1166,6 +1261,11 @@ export default function ScheduledEmailsTab() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
                       <CardTitle className="text-lg">
+                        {emails[0]?.row && (
+                          <span className="text-muted-foreground font-normal mr-2">
+                            Row {emails[0].row}:
+                          </span>
+                        )}
                         Booking: {actualBookingId}
                       </CardTitle>
                       <Badge
@@ -1308,15 +1408,15 @@ export default function ScheduledEmailsTab() {
                                       typeof email.scheduledFor === "string"
                                         ? email.scheduledFor
                                         : (email.scheduledFor as any)?.toDate
-                                        ? (email.scheduledFor as any)
-                                            .toDate()
-                                            .toISOString()
-                                        : new Date(
-                                            email.scheduledFor as unknown as
-                                              | string
-                                              | number
-                                              | Date
-                                          ).toISOString();
+                                          ? (email.scheduledFor as any)
+                                              .toDate()
+                                              .toISOString()
+                                          : new Date(
+                                              email.scheduledFor as unknown as
+                                                | string
+                                                | number
+                                                | Date,
+                                            ).toISOString();
                                     setNewScheduleDate(isoString.slice(0, 10));
                                     setIsRescheduleDialogOpen(true);
                                   }}
@@ -1444,15 +1544,15 @@ export default function ScheduledEmailsTab() {
                                 typeof email.scheduledFor === "string"
                                   ? email.scheduledFor
                                   : (email.scheduledFor as any)?.toDate
-                                  ? (email.scheduledFor as any)
-                                      .toDate()
-                                      .toISOString()
-                                  : new Date(
-                                      email.scheduledFor as unknown as
-                                        | string
-                                        | number
-                                        | Date
-                                    ).toISOString();
+                                    ? (email.scheduledFor as any)
+                                        .toDate()
+                                        .toISOString()
+                                    : new Date(
+                                        email.scheduledFor as unknown as
+                                          | string
+                                          | number
+                                          | Date,
+                                      ).toISOString();
                               setNewScheduleDate(isoString.slice(0, 10));
                               setIsRescheduleDialogOpen(true);
                             }}
@@ -1985,6 +2085,24 @@ export default function ScheduledEmailsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Fixed Scroll Buttons - CSS-only visibility */}
+      <Button
+        onClick={scrollToTop}
+        size="sm"
+        className="fixed right-6 bottom-20 z-50 h-10 w-10 rounded-full bg-crimson-red hover:bg-crimson-red/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 scroll-to-top-btn"
+        title="Scroll to top"
+      >
+        <ChevronUp className="h-4 w-4" />
+      </Button>
+      <Button
+        onClick={scrollToBottom}
+        size="sm"
+        className="fixed right-6 bottom-6 z-50 h-10 w-10 rounded-full bg-crimson-red hover:bg-crimson-red/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 scroll-to-bottom-btn"
+        title="Scroll to bottom"
+      >
+        <ChevronDown className="h-4 w-4" />
+      </Button>
     </div>
   );
 }

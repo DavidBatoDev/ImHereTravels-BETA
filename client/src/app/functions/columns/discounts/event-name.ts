@@ -7,7 +7,6 @@ export const eventNameColumn: BookingSheetColumn = {
     columnName: "Event Name",
     dataType: "select",
     parentTab: "Discounts",
-    order: 9,
     includeInForms: true,
     width: 180,
     options: [""], // Static fallback if dynamic loading fails

@@ -8,7 +8,6 @@ export const groupIdGroupIdGeneratorColumn: BookingSheetColumn = {
     dataType: "function",
     function: "generateGroupMemberIdFunction",
     parentTab: "If Duo or Group Booking",
-    order: 23,
     includeInForms: false,
     color: "yellow",
     width: 310.6666717529297,

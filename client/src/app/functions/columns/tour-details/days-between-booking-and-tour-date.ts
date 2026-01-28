@@ -8,7 +8,6 @@ export const daysBetweenBookingAndTourDateColumn: BookingSheetColumn = {
     dataType: "function",
     function: "daysBetweenReservationAndTourFunction",
     parentTab: "Tour Details",
-    order: 21,
     includeInForms: false,
     showColumn: true,
     color: "gray",

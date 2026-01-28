@@ -7,7 +7,6 @@ export const reservationDateColumn: BookingSheetColumn = {
     columnName: 'Reservation Date',
     dataType: 'date',
     parentTab: 'Tour Details',
-    order: 12,
     includeInForms: true,
     color: 'none',
     width: 171.333251953125,

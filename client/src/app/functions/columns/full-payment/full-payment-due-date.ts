@@ -8,7 +8,6 @@ export const fullPaymentDueDateColumn: BookingSheetColumn = {
     dataType: "function",
     function: "getFullPaymentDueDateFunction",
     parentTab: "Full Payment",
-    order: 47,
     includeInForms: false,
     color: "yellow",
     width: 160,
@@ -31,37 +30,56 @@ export const fullPaymentDueDateColumn: BookingSheetColumn = {
         isRest: false,
         value: "",
       },
+      {
+        name: "paymentCondition",
+        type: "string",
+        columnReference: "Payment Condition",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
     ],
   },
 };
 
 // Column Function Implementation
 /**
- * Excel equivalent:
- * =IF(
- *   AND(
- *     NOT(ISBLANK($K1003)),
- *     $AM1003 = "Full Payment"
- *   ),
- *   TEXT($K1003 + 2, "mmm d, yyyy"),
- *   ""
- * )
+ * Excel equivalent (updated):
+ * Returns a formatted date (reservationDate + 2 days) if:
+ * - paymentCondition is "Last Minute Booking" (regardless of payment plan), OR
+ * - paymentPlan is "Full Payment"
+ * Returns "" if a payment plan is selected AND it's not "Full Payment"
  *
  * Description:
  * - Returns a formatted date string (e.g., "Apr 25, 2026") if:
- *   • reservationDate ($K1003) is not blank
- *   • paymentPlan ($AM1003) = "Full Payment"
+ *   • reservationDate is not blank, AND
+ *   • paymentCondition = "Last Minute Booking", OR paymentPlan = "Full Payment"
  * - Adds 2 days to reservationDate.
  * - Returns "" otherwise.
  */
 
 export default function getFullPaymentDueDateFunction(
   reservationDate?: Date | string | { seconds: number } | null,
-  paymentPlan?: string | null
+  paymentPlan?: string | null,
+  paymentCondition?: string | null
 ): string {
-  if (!reservationDate || !paymentPlan) return "";
+  if (!reservationDate) return "";
 
-  if (paymentPlan.trim() !== "Full Payment") return "";
+  // If a payment plan is selected and it's not "Full Payment", hide the value
+  if (
+    paymentPlan &&
+    paymentPlan.trim() !== "" &&
+    paymentPlan.trim() !== "Full Payment"
+  ) {
+    return "";
+  }
+
+  // Show value if payment condition is "Last Minute Booking" OR payment plan is "Full Payment"
+  const isLastMinute = paymentCondition?.trim() === "Last Minute Booking";
+  const isFullPayment = paymentPlan?.trim() === "Full Payment";
+
+  if (!isLastMinute && !isFullPayment) return "";
 
   // --- Normalize reservationDate (Firestore timestamp or string) ---
   let date: Date;
