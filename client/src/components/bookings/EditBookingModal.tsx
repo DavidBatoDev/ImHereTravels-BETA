@@ -3520,6 +3520,36 @@ export default function EditBookingModal({
                       : "N/A"}
                   </p>
                 </div>
+                {/* Discount Fields */}
+                {(formData.eventName || formData.discount) && (
+                  <>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Applied Discount
+                      </p>
+                      <p className="font-semibold text-foreground">
+                        {formData.eventName || "Custom Discount"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Discount Amount
+                      </p>
+                      <p className="font-semibold text-foreground">
+                        {formData.discountRate !== null && formData.discountRate !== undefined
+                          ? (formData.discountType as any) === "Percentage"
+                            ? `${formData.discountRate}%`
+                            : `£${Number(formData.discountRate).toFixed(2)}`
+                          : "N/A"}
+                        {formData.discountType && (
+                          <span className="text-xs text-muted-foreground ml-1 font-normal">
+                            ({formData.discountType})
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
 
               {(formData.fullPaymentAmount ||
@@ -3548,21 +3578,21 @@ export default function EditBookingModal({
                         </tr>
                       </thead>
                       <tbody>
-                        {formData.fullPaymentAmount && (
+                        {(formData.fullPaymentAmount || formData.p1Amount) && (
                           <tr className="border-b border-border/50">
                             <td className="py-2 px-2 text-foreground">
-                              P1 – Full payment
+                              {formData.fullPaymentAmount ? "P1 – Full payment" : "P1 – First payment"}
                             </td>
                             <td className="py-2 px-2 text-foreground font-mono">
-                              £{Number(formData.fullPaymentAmount).toFixed(2)}
+                              £{Number(formData.fullPaymentAmount || formData.p1Amount).toFixed(2)}
                             </td>
                             <td className="py-2 px-2 text-foreground">
-                              {formData.fullPaymentDueDate
-                                ? typeof formData.fullPaymentDueDate ===
+                              {formData.fullPaymentDueDate || formData.p1DueDate
+                                ? typeof (formData.fullPaymentDueDate || formData.p1DueDate) ===
                                   "string"
-                                  ? formData.fullPaymentDueDate
-                                  : formData.fullPaymentDueDate instanceof Date
-                                    ? formData.fullPaymentDueDate.toLocaleDateString(
+                                  ? (formData.fullPaymentDueDate || formData.p1DueDate)
+                                  : (formData.fullPaymentDueDate || formData.p1DueDate) instanceof Date
+                                    ? (formData.fullPaymentDueDate || formData.p1DueDate).toLocaleDateString(
                                         "en-US",
                                         {
                                           month: "short",
