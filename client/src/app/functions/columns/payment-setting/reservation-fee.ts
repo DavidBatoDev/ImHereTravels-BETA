@@ -8,7 +8,7 @@ export const reservationFeeColumn: BookingSheetColumn = {
     columnName: "Reservation Fee",
     dataType: "function",
     function: "getTourCurrencyAndDepositFunction",
-    parentTab: "Payment Setting",
+    parentTab: "Tour Details",
     includeInForms: false,
     color: "gray",
     width: 176.666748046875,
