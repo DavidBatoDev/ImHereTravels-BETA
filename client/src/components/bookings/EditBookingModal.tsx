@@ -142,6 +142,12 @@ export default function EditBookingModal({
   const [isCleaningScheduledEmails, setIsCleaningScheduledEmails] =
     useState(false);
 
+  // Confirmation modals
+  const [showSendEmailConfirmation, setShowSendEmailConfirmation] =
+    useState(false);
+  const [showPaymentReminderConfirmation, setShowPaymentReminderConfirmation] =
+    useState(false);
+
   const { toast } = useToast();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const isScrollingProgrammatically = React.useRef(false);
@@ -1111,6 +1117,38 @@ export default function EditBookingModal({
     }
   }, [isOpen, isLoadingColumns, activeTab]);
 
+  // Handle send email confirmation
+  const handleSendEmailConfirm = () => {
+    if (!booking?.id) return;
+
+    setShowSendEmailConfirmation(false);
+
+    // Proceed with sending
+    batchedWriter.queueFieldUpdate(booking.id, "sendEmail", true);
+    setFormData((prev) => ({ ...prev, sendEmail: true }));
+    setIsSaving(true);
+    debouncedSaveIndicator();
+  };
+
+  const handleSendEmailCancel = () => {
+    setShowSendEmailConfirmation(false);
+  };
+
+  const handlePaymentReminderConfirm = () => {
+    if (!booking?.id) return;
+
+    setShowPaymentReminderConfirmation(false);
+
+    batchedWriter.queueFieldUpdate(booking.id, "enablePaymentReminder", true);
+    setFormData((prev) => ({ ...prev, enablePaymentReminder: true }));
+    setIsSaving(true);
+    debouncedSaveIndicator();
+  };
+
+  const handlePaymentReminderCancel = () => {
+    setShowPaymentReminderConfirmation(false);
+  };
+
   // Get icon for parent tab
   const getParentTabIcon = (parentTab: string) => {
     if (parentTab.includes("Identifier") || parentTab.includes("🆔"))
@@ -1745,12 +1783,28 @@ export default function EditBookingModal({
                       return;
                     }
 
+                    // Show confirmation modal for sendEmail
+                    if (column.id === "sendEmail" && checked) {
+                      setShowSendEmailConfirmation(true);
+                      return; // Don't proceed until user confirms
+                    }
+
                     // Prevent toggling "Enable Payment Reminder" on if payment plan or payment method is missing
                     const isEnablePaymentReminderField =
                       column.id === "enablePaymentReminder";
                     if (isEnablePaymentReminderField && checked) {
+                      const paymentPlan = String(formData.paymentPlan || "");
                       const hasPaymentPlan = Boolean(formData.paymentPlan);
                       const hasPaymentMethod = Boolean(formData.paymentMethod);
+
+                      if (paymentPlan.toLowerCase() === "full payment") {
+                        toast({
+                          title: "Payment Reminder Not Required",
+                          description:
+                            "Full Payment plan does not require payment reminders.",
+                        });
+                        return;
+                      }
 
                       if (!hasPaymentPlan || !hasPaymentMethod) {
                         toast({
@@ -1761,6 +1815,9 @@ export default function EditBookingModal({
                         });
                         return;
                       }
+
+                      setShowPaymentReminderConfirmation(true);
+                      return;
                     }
 
                     // Prevent toggling "Generate Email Draft" on if payment plan or payment method exists
@@ -2614,9 +2671,21 @@ export default function EditBookingModal({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={handleClose} modal={true}>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (showSendEmailConfirmation || showPaymentReminderConfirmation)
+            return;
+          if (!open) handleClose();
+        }}
+        modal={true}
+      >
         <DialogContent
-          className="w-[calc(100%-1rem)] sm:w-full max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-xl sm:rounded-2xl overflow-hidden"
+          className={cn(
+            "w-[calc(100%-1rem)] sm:w-full max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-xl sm:rounded-2xl overflow-hidden",
+            (showSendEmailConfirmation || showPaymentReminderConfirmation) &&
+              "pointer-events-none",
+          )}
           onOpenAutoFocus={(e) => {
             // Prevent dialog from auto-focusing on open
             e.preventDefault();
@@ -3036,6 +3105,414 @@ export default function EditBookingModal({
           </div>
         </div>
       )}
+
+      <Dialog
+        open={showSendEmailConfirmation}
+        onOpenChange={(open) => {
+          if (!open) handleSendEmailCancel();
+        }}
+        modal={true}
+      >
+        <DialogContent
+          hideClose
+          className="max-w-2xl w-[calc(100%-2rem)] sm:w-full z-[100000]"
+        >
+          <div className="flex flex-col space-y-6">
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-royal-purple/10 rounded-lg">
+                  <MdEmail className="h-6 w-6 text-royal-purple" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">
+                    Confirm Send Email
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Please review the booking details before sending
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSendEmailCancel}
+                className="h-8 w-8"
+              >
+                <FaTimes className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Traveler Name
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.fullName || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Booking ID</p>
+                  <p className="font-mono font-semibold text-foreground">
+                    {formData.bookingId || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Tour Name</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.tourPackageName || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Booking Type</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.bookingType || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Tour Date</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.tourDate
+                      ? (() => {
+                          const dateVal = formData.tourDate as any;
+                          const date = dateVal?.toDate
+                            ? dateVal.toDate()
+                            : new Date(dateVal);
+                          return date.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          });
+                        })()
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Return Date</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.returnDate
+                      ? (() => {
+                          const dateVal = formData.returnDate as any;
+                          const date = dateVal?.toDate
+                            ? dateVal.toDate()
+                            : new Date(dateVal);
+                          return date.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          });
+                        })()
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Tour Duration</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.tourDuration || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Reservation Fee</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.reservationFee
+                      ? `£${Number(formData.reservationFee).toFixed(2)}`
+                      : "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              {(formData.fullPaymentAmount ||
+                formData.p2Amount ||
+                formData.p3Amount ||
+                formData.p4Amount) && (
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="bg-muted/50 px-4 py-2 border-b border-border">
+                    <p className="text-sm font-semibold text-foreground">
+                      Payment Terms
+                    </p>
+                  </div>
+                  <div className="p-4">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left py-2 px-2 font-semibold text-foreground">
+                            Payment Terms
+                          </th>
+                          <th className="text-left py-2 px-2 font-semibold text-foreground">
+                            Amount
+                          </th>
+                          <th className="text-left py-2 px-2 font-semibold text-foreground">
+                            Due Date(s)
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.fullPaymentAmount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              P1 – Full payment
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.fullPaymentAmount).toFixed(2)}
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.fullPaymentDueDate
+                                ? typeof formData.fullPaymentDueDate === "string"
+                                  ? formData.fullPaymentDueDate
+                                  : formData.fullPaymentDueDate instanceof Date
+                                    ? formData.fullPaymentDueDate.toLocaleDateString(
+                                        "en-US",
+                                        {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        },
+                                      )
+                                    : "N/A"
+                                : "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                        {formData.p2Amount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              P2 – Two payments
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.p2Amount).toFixed(2)} /month
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.p2DueDate || "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                        {formData.p3Amount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              P3 – Three payments
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.p3Amount).toFixed(2)} /month
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.p3DueDate || "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                        {formData.p4Amount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              P4 – Four payments
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.p4Amount).toFixed(2)} /month
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.p4DueDate || "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={handleSendEmailCancel}
+                className="px-6"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendEmailConfirm}
+                className="px-6 bg-royal-purple hover:bg-royal-purple/90 text-white"
+              >
+                <MdEmail className="h-4 w-4 mr-2" />
+                Confirm & Send Email
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showPaymentReminderConfirmation}
+        onOpenChange={(open) => {
+          if (!open) handlePaymentReminderCancel();
+        }}
+        modal={true}
+      >
+        <DialogContent
+          hideClose
+          className="max-w-2xl w-[calc(100%-2rem)] sm:w-full z-[100000]"
+        >
+          <div className="flex flex-col space-y-6">
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-royal-purple/10 rounded-lg">
+                  <FaWallet className="h-6 w-6 text-royal-purple" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">
+                    Confirm Enable Payment Reminder
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Please review the payment reminder details
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handlePaymentReminderCancel}
+                className="h-8 w-8"
+              >
+                <FaTimes className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Tour</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.tourPackageName || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Payment Plan
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.paymentPlan || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Payment Method
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.paymentMethod || "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="bg-muted/50 px-4 py-2 border-b border-border">
+                  <p className="text-sm font-semibold text-foreground">
+                    Payment Terms
+                  </p>
+                </div>
+                <div className="p-4">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2 px-2 font-semibold text-foreground">
+                          Payment Term
+                        </th>
+                        <th className="text-left py-2 px-2 font-semibold text-foreground">
+                          Amount
+                        </th>
+                        <th className="text-left py-2 px-2 font-semibold text-foreground">
+                          Due Date
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formData.p1Amount && (
+                        <tr className="border-b border-border/50">
+                          <td className="py-2 px-2 text-foreground">P1</td>
+                          <td className="py-2 px-2 text-foreground font-mono">
+                            £{Number(formData.p1Amount).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground">
+                            {String(formData.p1DueDate || "N/A")}
+                          </td>
+                        </tr>
+                      )}
+                      {formData.p2Amount && (
+                        <tr className="border-b border-border/50">
+                          <td className="py-2 px-2 text-foreground">P2</td>
+                          <td className="py-2 px-2 text-foreground font-mono">
+                            £{Number(formData.p2Amount).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground">
+                            {String(formData.p2DueDate || "N/A")}
+                          </td>
+                        </tr>
+                      )}
+                      {formData.p3Amount && (
+                        <tr className="border-b border-border/50">
+                          <td className="py-2 px-2 text-foreground">P3</td>
+                          <td className="py-2 px-2 text-foreground font-mono">
+                            £{Number(formData.p3Amount).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground">
+                            {String(formData.p3DueDate || "N/A")}
+                          </td>
+                        </tr>
+                      )}
+                      {formData.p4Amount && (
+                        <tr className="border-b border-border/50">
+                          <td className="py-2 px-2 text-foreground">P4</td>
+                          <td className="py-2 px-2 text-foreground font-mono">
+                            £{Number(formData.p4Amount).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground">
+                            {String(formData.p4DueDate || "N/A")}
+                          </td>
+                        </tr>
+                      )}
+                      {(formData.p1Amount ||
+                        formData.p2Amount ||
+                        formData.p3Amount ||
+                        formData.p4Amount) && (
+                        <tr className="border-t">
+                          <td className="py-2 px-2 text-foreground font-semibold">
+                            Total
+                          </td>
+                          <td className="py-2 px-2 text-foreground font-mono font-semibold">
+                            £
+                            {(
+                              (Number(formData.p1Amount) || 0) +
+                              (Number(formData.p2Amount) || 0) +
+                              (Number(formData.p3Amount) || 0) +
+                              (Number(formData.p4Amount) || 0)
+                            ).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground"></td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={handlePaymentReminderCancel}
+                className="px-6"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handlePaymentReminderConfirm}
+                className="px-6 bg-royal-purple hover:bg-royal-purple/90 text-white"
+              >
+                <FaWallet className="h-4 w-4 mr-2" />
+                Confirm & Enable
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -7,7 +7,7 @@ export const remainingBalanceColumn: BookingSheetColumn = {
     columnName: "Remaining Balance",
     dataType: "function",
     function: "getRemainingBalanceFunction",
-    parentTab: "Payment Setting",
+    parentTab: "Tour Details",
     includeInForms: false,
     color: "yellow",
     width: 191.33331298828125,
