@@ -2064,7 +2064,7 @@ export default function EditBookingModal({
                       if (dateObj) {
                         // Set time to 9:00 AM UTC+8
                         dateObj.setHours(9, 0, 0, 0);
-                        
+
                         // Validate that this date exists in the tour package's travelDates
                         const tourPackageName = formData.tourPackageName;
                         if (tourPackageName) {
