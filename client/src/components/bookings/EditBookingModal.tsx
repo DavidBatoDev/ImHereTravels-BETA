@@ -2062,6 +2062,9 @@ export default function EditBookingModal({
                       // Convert "Month Day Year" string to Date
                       const dateObj = parseMonthDayYear(newValue);
                       if (dateObj) {
+                        // Set time to 9:00 AM UTC+8
+                        dateObj.setHours(9, 0, 0, 0);
+                        
                         // Validate that this date exists in the tour package's travelDates
                         const tourPackageName = formData.tourPackageName;
                         if (tourPackageName) {
@@ -2163,6 +2166,8 @@ export default function EditBookingModal({
 
                     const { Timestamp } = await import("firebase/firestore");
                     const dateObj = new Date(selectedDate);
+                    // Set time to 9:00 AM UTC+8
+                    dateObj.setHours(9, 0, 0, 0);
                     const valueToSave = Timestamp.fromDate(dateObj) as any;
 
                     // For date picker, commit immediately to Firebase
