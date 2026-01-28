@@ -64,36 +64,36 @@ export const COLUMN_ORDERS: Record<string, number> = {
   groupId: 25,
 
   // ============================================================================
-  // RESERVATION EMAIL (26-33)
+  // PAYMENT SETTING (26-41)
   // ============================================================================
-  includeBccReservation: 26,
-  useDiscountedTourCost: 27,
-  generateEmailDraft: 28,
-  emailDraftLink: 29,
-  subjectLineReservation: 30,
-  sendEmail: 31,
-  sentEmailLink: 32,
-  reservationEmailSentDate: 33,
+  originalTourCost: 26,
+  discountedTourCost: 27,
+  reservationFee: 28,
+  adminFee: 29,
+  paid: 30,
+  paidTerms: 31,
+  remainingBalance: 32,
+  manualCredit: 33,
+  creditFrom: 34,
+  paymentPlan: 35,
+  paymentMethod: 36,
+  enablePaymentReminder: 37,
+  sentInitialReminderLink: 38,
+  bookingStatus: 39,
+  paymentProgress: 40,
+  guestInfoEmailSentLink: 41,
 
   // ============================================================================
-  // PAYMENT SETTING (34-49)
+  // RESERVATION EMAIL (42-49)
   // ============================================================================
-  originalTourCost: 34,
-  discountedTourCost: 35,
-  reservationFee: 36,
-  adminFee: 37,
-  paid: 38,
-  paidTerms: 39,
-  remainingBalance: 40,
-  manualCredit: 41,
-  creditFrom: 42,
-  paymentPlan: 43,
-  paymentMethod: 44,
-  enablePaymentReminder: 45,
-  sentInitialReminderLink: 46,
-  bookingStatus: 47,
-  paymentProgress: 48,
-  guestInfoEmailSentLink: 49,
+  includeBccReservation: 42,
+  useDiscountedTourCost: 43,
+  generateEmailDraft: 44,
+  emailDraftLink: 45,
+  subjectLineReservation: 46,
+  sendEmail: 47,
+  sentEmailLink: 48,
+  reservationEmailSentDate: 49,
 
   // ============================================================================
   // FULL PAYMENT (50-52)
