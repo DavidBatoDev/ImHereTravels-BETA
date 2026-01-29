@@ -45,7 +45,9 @@ export default class EmailTemplateService {
         if (!value) return "";
         const date = new Date(value);
         if (isNaN(date.getTime())) return "";
-        return date.toLocaleDateString();
+        return date.toLocaleDateString("en-US", {
+          timeZone: "Asia/Manila",
+        });
       });
 
       // Render the template with Nunjucks

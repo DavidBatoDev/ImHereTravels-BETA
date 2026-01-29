@@ -49,6 +49,7 @@ function formatDate(dateValue: any): string {
         month: "long",
         day: "numeric",
         year: "numeric",
+        timeZone: "Asia/Manila",
       });
     }
 
