@@ -826,47 +826,24 @@ export default function EditBookingModal({
         // Logic to Clear or Auto-Set Event Name
         if (validEvents.length === 0) {
            if (currentEvent) {
-            // Determine if context has changed from original booking (robust check)
-            const isOriginalContext = 
-               booking?.tourPackageName === formData.tourPackageName && 
-               isEqual(booking?.tourDate, formData.tourDate);
-            
-            const contextChanged = !isOriginalContext || hasUserChangedTourDetailsRef.current;
-
-            if (contextChanged) {
-                 console.log("🧹 [DISCOUNT LOGIC] Clearing Event Name (no valid events) due to context change");
+              // Only clear if the user actively changed tour details (preserve history)
+              if (hasUserChangedTourDetailsRef.current) {
+                 console.log("🧹 [DISCOUNT LOGIC] Clearing Event Name (no valid events)");
                  setFormData(prev => ({ ...prev, eventName: "" }));
-                 
-                 // Explicitly update Firebase
-                 if (booking?.id) {
-                    batchedWriter.queueFieldUpdate(booking.id, "eventName", "");
-                 }
-
                  // Ensure dependent fields (discount, type) are also cleared via their own watchers or side-effects
+                 // Explicitly triggering update might be needed if they don't watch 'eventName' directly
                  hasUserChangedEventNameRef.current = true; // Signal that this is a "user-like" change to trigger dependents
               } else {
-                 console.log("🛡️ [DISCOUNT LOGIC] Preserving historical inactive event (no valid options):", currentEvent);
+                 console.log("🛡️ [DISCOUNT LOGIC] Preserving historical inactive event:", currentEvent);
               }
            }
         } else {
            // If current event is invalid, clear it
            if (currentEvent && !validEvents.includes(currentEvent)) {
-              // Determine if context has changed from original booking (robust check)
-              const isOriginalContext = 
-                 booking?.tourPackageName === formData.tourPackageName && 
-                 isEqual(booking?.tourDate, formData.tourDate);
-              
-              const contextChanged = !isOriginalContext || hasUserChangedTourDetailsRef.current;
-
-              if (contextChanged) {
+              // Only clear if the user actively changed tour details (preserve history)
+              if (hasUserChangedTourDetailsRef.current) {
                  console.log("🧹 [DISCOUNT LOGIC] Clearing invalid Event Name due to context change:", currentEvent);
                  setFormData(prev => ({ ...prev, eventName: "" }));
-                 
-                 // Explicitly update Firebase
-                 if (booking?.id) {
-                    batchedWriter.queueFieldUpdate(booking.id, "eventName", "");
-                 }
-
                  hasUserChangedEventNameRef.current = true; 
               } else {
                  console.log("🛡️ [DISCOUNT LOGIC] Preserving historical inactive event:", currentEvent);
@@ -2383,10 +2360,6 @@ export default function EditBookingModal({
                   onChange={async (e) => {
                     const newValue = e.target.value;
 
-                    if (column.id === "tourPackageName" || column.id === "tourDate") {
-                      hasUserChangedTourDetailsRef.current = true;
-                    }
-
                     // Special handling for tourDate - convert Month Day Year back to Timestamp
                     let valueToSave = newValue;
                     if (newValue) {
@@ -2498,9 +2471,6 @@ export default function EditBookingModal({
                   value={dateInputValue}
                   onChange={async (e) => {
                     const selectedDate = e.target.value;
-                    if (column.id === "tourPackageName" || column.id === "tourDate") {
-                      hasUserChangedTourDetailsRef.current = true;
-                    }
                     if (!selectedDate) return;
 
                     const { Timestamp } = await import("firebase/firestore");
@@ -2551,10 +2521,6 @@ export default function EditBookingModal({
               value={currentValue}
               onChange={async (e) => {
                 const newValue = e.target.value;
-
-                if (column.id === "tourPackageName" || column.id === "tourDate") {
-                   hasUserChangedTourDetailsRef.current = true;
-                }
 
                 // Special handling for tourDate - convert dd/mm/yyyy back to Timestamp
                 let valueToSave = newValue;
@@ -3520,36 +3486,6 @@ export default function EditBookingModal({
                       : "N/A"}
                   </p>
                 </div>
-                {/* Discount Fields */}
-                {(formData.eventName || formData.discount) && (
-                  <>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Applied Discount
-                      </p>
-                      <p className="font-semibold text-foreground">
-                        {formData.eventName || "Custom Discount"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Discount Amount
-                      </p>
-                      <p className="font-semibold text-foreground">
-                        {formData.discountRate !== null && formData.discountRate !== undefined
-                          ? (formData.discountType as any) === "Percentage"
-                            ? `${formData.discountRate}%`
-                            : `£${Number(formData.discountRate).toFixed(2)}`
-                          : "N/A"}
-                        {formData.discountType && (
-                          <span className="text-xs text-muted-foreground ml-1 font-normal">
-                            ({formData.discountType})
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  </>
-                )}
               </div>
 
               {(formData.fullPaymentAmount ||
@@ -3578,21 +3514,21 @@ export default function EditBookingModal({
                         </tr>
                       </thead>
                       <tbody>
-                        {(formData.fullPaymentAmount || formData.p1Amount) && (
+                        {formData.fullPaymentAmount && (
                           <tr className="border-b border-border/50">
                             <td className="py-2 px-2 text-foreground">
-                              {formData.fullPaymentAmount ? "P1 – Full payment" : "P1 – First payment"}
+                              P1 – Full payment
                             </td>
                             <td className="py-2 px-2 text-foreground font-mono">
-                              £{Number(formData.fullPaymentAmount || formData.p1Amount).toFixed(2)}
+                              £{Number(formData.fullPaymentAmount).toFixed(2)}
                             </td>
                             <td className="py-2 px-2 text-foreground">
-                              {formData.fullPaymentDueDate || formData.p1DueDate
-                                ? typeof (formData.fullPaymentDueDate || formData.p1DueDate) ===
+                              {formData.fullPaymentDueDate
+                                ? typeof formData.fullPaymentDueDate ===
                                   "string"
-                                  ? (formData.fullPaymentDueDate || formData.p1DueDate)
-                                  : (formData.fullPaymentDueDate || formData.p1DueDate) instanceof Date
-                                    ? (formData.fullPaymentDueDate || formData.p1DueDate).toLocaleDateString(
+                                  ? formData.fullPaymentDueDate
+                                  : formData.fullPaymentDueDate instanceof Date
+                                    ? formData.fullPaymentDueDate.toLocaleDateString(
                                         "en-US",
                                         {
                                           month: "short",
