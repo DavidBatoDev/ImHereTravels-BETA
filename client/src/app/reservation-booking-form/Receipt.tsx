@@ -10,6 +10,8 @@ interface ReceiptProps {
   email: string;
   travelDate: string;
   paymentDate: string;
+  totalAmount?: number;
+  remainingBalance?: number;
 }
 
 export default function Receipt({
@@ -20,6 +22,8 @@ export default function Receipt({
   email,
   travelDate,
   paymentDate,
+  totalAmount,
+  remainingBalance,
 }: ReceiptProps) {
   const currencySymbol = currency === "GBP" ? "£" : currency === "EUR" ? "€" : "$";
 
@@ -60,14 +64,34 @@ export default function Receipt({
           <h3 className="text-xs font-semibold text-muted-foreground print:text-gray-600 mb-3 uppercase tracking-wide">
             Summary
           </h3>
+          {totalAmount !== undefined && (
+            <div className="flex justify-between py-2">
+              <span className="text-sm text-muted-foreground print:text-gray-600">
+                Total Tour Cost
+              </span>
+              <span className="text-sm font-semibold text-foreground print:text-gray-900">
+                {currencySymbol}{totalAmount.toFixed(2)}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between py-2">
             <span className="text-sm text-muted-foreground print:text-gray-600">
-              Pay Balance Instalment
+              Reservation Fee Paid
             </span>
             <span className="text-sm font-semibold text-foreground print:text-gray-900">
               {currencySymbol}{reservationFee.toFixed(2)}
             </span>
           </div>
+          {remainingBalance !== undefined && (
+            <div className="flex justify-between py-2">
+              <span className="text-sm text-muted-foreground print:text-gray-600">
+                Remaining Balance
+              </span>
+              <span className="text-sm font-bold text-crimson-red print:text-red-700">
+                {currencySymbol}{remainingBalance.toFixed(2)}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Reservation Details */}

@@ -314,7 +314,7 @@ export async function POST(req: NextRequest) {
     // Fetch tour package data
     const tourPackage = await getTourPackageData(paymentData.tour?.packageId);
     const tourCode = (tourPackage as any)?.tourCode || "XXX";
-    const originalTourCost = (tourPackage as any)?.pricing?.original || 0;
+    const originalTourCost = paymentData.payment?.originalPrice ?? (tourPackage as any)?.pricing?.original ?? 0;
     const discountedTourCost =
       (tourPackage as any)?.pricing?.discounted || null;
     const tourDuration = (tourPackage as any)?.duration || null;

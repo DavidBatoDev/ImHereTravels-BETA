@@ -198,6 +198,11 @@ const Page = () => {
       region?: string;
       country?: string;
       rating?: number;
+      travelDateDetails?: Array<{
+        date: string;
+        customDeposit?: number;
+        customOriginal?: number;
+      }>;
     }>
   >([]);
   const [tourDates, setTourDates] = useState<string[]>([]);
@@ -409,6 +414,7 @@ const Page = () => {
           currency: "GBP",
           status: "reserve_pending",
           type: "reservationFee",
+          originalPrice: selectedDateDetail?.customOriginal ?? undefined, // Store custom original price if exists
         },
         timestamps: {
           createdAt: serverTimestamp(),
@@ -510,6 +516,7 @@ const Page = () => {
             currency: "GBP",
             status: "reserve_pending",
             type: "reservationFee",
+            originalPrice: selectedDateDetail?.customOriginal ?? undefined, // Store custom original price if exists
           },
           "timestamps.updatedAt": serverTimestamp(),
         });
@@ -1123,7 +1130,12 @@ const Page = () => {
 
   // Get reservation fee from selected package (not the full deposit)
   const selectedPackage = tourPackages.find((p) => p.id === tourPackage);
-  const baseReservationFee = (selectedPackage as any)?.reservationFee ?? 250;
+  
+  // Custom pricing logic
+  const selectedDateDetail = selectedPackage?.travelDateDetails?.find(d => d.date === tourDate);
+  const customDeposit = selectedDateDetail?.customDeposit;
+  
+  const baseReservationFee = customDeposit ?? (selectedPackage as any)?.reservationFee ?? 250;
   
   // Calculate total reservation fee based on booking type
   const numberOfPeople = bookingType === "Group Booking" 
@@ -1380,7 +1392,7 @@ const Page = () => {
   ): Array<{ date: string; amount: number }> => {
     if (!tourDate || !selectedPackage) return [];
 
-    const totalTourPrice = selectedPackage.price * numberOfPeople;
+    const totalTourPrice = ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople;
     const remainingBalance = totalTourPrice - depositAmount;
     const monthlyAmount = remainingBalance / monthsRequired;
     const schedule: Array<{ date: string; amount: number }> = [];
@@ -1447,6 +1459,10 @@ const Page = () => {
 
   // Get available payment plan options based on the calculated term
   const getAvailablePaymentPlans = () => {
+    const { term } = getAvailablePaymentTerm();
+    const remainingBalance =
+      ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople -
+      depositAmount;
     if (!availablePaymentTerm.term || availablePaymentTerm.isInvalid) return [];
     if (availablePaymentTerm.isLastMinute)
       return [
@@ -1846,11 +1862,35 @@ const Page = () => {
             console.log("Tour highlights for", name, ":", highlights);
           }
 
+          // Extract detailed travel date info including custom pricing
+          const travelDateDetails = (payload.travelDates ?? []).map((t: any) => {
+            const sd = t?.startDate;
+            if (!sd) return null;
+
+            let dateObj: Date | null = null;
+            if (sd && typeof sd === "object" && "seconds" in sd && typeof sd.seconds === "number") {
+              dateObj = new Date(sd.seconds * 1000);
+            } else if (sd && typeof sd === "object" && typeof sd.toDate === "function") {
+              try { dateObj = sd.toDate(); } catch { dateObj = null; }
+            } else {
+              dateObj = new Date(sd);
+            }
+
+            if (!dateObj || isNaN(dateObj.getTime())) return null;
+
+            return {
+              date: dateObj.toISOString().slice(0, 10),
+              customDeposit: t.customDeposit,
+              customOriginal: t.customOriginal
+            };
+          }).filter(Boolean);
+
           return {
             id: doc.id,
             name,
             slug: slugFromPayload || (name ? slugify(name) : doc.id),
             travelDates: dates,
+            travelDateDetails: travelDateDetails,
             stripePaymentLink: payload.stripePaymentLink,
             status: payload.status || "active",
             deposit: payload.pricing?.deposit ?? 250,
@@ -5723,12 +5763,12 @@ const Page = () => {
                               {(bookingType === "Duo Booking" || bookingType === "Group Booking") ? (
                                 <span className="flex items-center gap-2">
                                   <span className="text-sm text-foreground/60 font-normal">
-                                    £{selectedPackage.price.toFixed(2)} × {numberOfPeople} =
+                                    £{((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0).toFixed(2)} × {numberOfPeople} =
                                   </span>
-                                  £{(selectedPackage.price * numberOfPeople).toFixed(2)}
+                                  £{(((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople).toFixed(2)}
                                 </span>
                               ) : (
-                                `£${selectedPackage.price.toFixed(2)}`
+                                `£${((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0).toFixed(2)}`
                               )}
                             </span>
                           </div>
@@ -5747,9 +5787,7 @@ const Page = () => {
                             </span>
                             <span className="font-bold text-xl text-crimson-red">
                               £
-                              {((selectedPackage.price * numberOfPeople) - depositAmount).toFixed(
-                                2
-                              )}
+                              {(((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople - depositAmount).toFixed(2)}
                             </span>
                           </div>
                         </div>
@@ -6181,7 +6219,7 @@ const Page = () => {
                       reservationFee={depositAmount}
                       totalAmount={(selectedPackage?.price || 0) * numberOfPeople}
                       remainingBalance={
-                        ((selectedPackage?.price || 0) * numberOfPeople) - depositAmount
+                        ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople - depositAmount
                       }
                       paymentDate={new Date().toLocaleDateString("en-US", {
                         month: "short",
@@ -6333,6 +6371,10 @@ const Page = () => {
                           reservationFee={depositAmount}
                           currency="GBP"
                           email={email}
+                          totalAmount={((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople}
+                          remainingBalance={
+                            ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople - depositAmount
+                          }
                           travelDate={tourDate}
                           paymentDate={new Date().toLocaleDateString("en-US", {
                             month: "short",
