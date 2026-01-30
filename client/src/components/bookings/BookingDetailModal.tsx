@@ -51,6 +51,7 @@ import {
   BsListUl,
 } from "react-icons/bs";
 import { HiTrendingUp } from "react-icons/hi";
+import { ExternalLink, Copy } from "lucide-react";
 import type { Booking } from "@/types/bookings";
 import { SheetColumn } from "@/types/sheet-management";
 import { allBookingSheetColumns } from "@/app/functions/columns";
@@ -767,6 +768,37 @@ export default function BookingDetailModal({
                 <span className="text-base sm:text-2xl font-mono font-semibold text-crimson-red block">
                   {currentBooking?.bookingId || "Invalid Booking"}
                 </span>
+                {/* Booking Status URL */}
+                {currentBooking?.access_token && (
+                   <div className="flex items-center gap-2 mt-1 p-1 bg-muted/50 rounded-md border border-border/50 max-w-fit">
+                      <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Status:</span>
+                       <a 
+                           href={`${process.env.NEXT_PUBLIC_WEBSITE_URL}/booking-status/${currentBooking.access_token}`}
+                           target="_blank"
+                           rel="noreferrer"
+                           className="text-[10px] text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                           title="View Booking Status"
+                           onClick={(e) => e.stopPropagation()}
+                       >
+                           View Page <ExternalLink className="h-2.5 w-2.5" />
+                       </a>
+                       <div className="w-px h-3 bg-border mx-1"></div>
+                       <Button
+                           size="icon"
+                           variant="ghost"
+                           className="h-5 w-5 rounded-full hover:bg-background"
+                           onClick={(e) => {
+                               e.preventDefault();
+                               e.stopPropagation();
+                               navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_WEBSITE_URL}/booking-status/${currentBooking.access_token}`);
+                               toast({ title: "Link copied", description: "Booking status URL copied to clipboard" });
+                           }}
+                           title="Copy Link"
+                       >
+                           <Copy className="h-3 w-3 text-muted-foreground" />
+                       </Button>
+                   </div>
+                )}
               </div>
             </DialogTitle>
             {/* X button for closing modal, always visible */}
