@@ -210,12 +210,16 @@ export default function TransactionsPage() {
     
     // Handle Firestore timestamp object
     if (timestamp.seconds) {
-      return format(new Date(timestamp.seconds * 1000), "MMM dd");
+      // Use toDate() if available, otherwise construct Date from seconds
+      const date = typeof timestamp.toDate === 'function' 
+        ? timestamp.toDate() 
+        : new Date(timestamp.seconds * 1000);
+      return format(date, "MMM dd, h:mm a");
     }
     
     // Handle string ISO date
     if (typeof timestamp === "string") {
-      return format(new Date(timestamp), "MMM dd");
+      return format(new Date(timestamp), "MMM dd, h:mm a");
     }
     
     return "—";

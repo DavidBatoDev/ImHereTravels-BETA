@@ -3006,9 +3006,19 @@ export default function EditBookingModal({
                     <span className="block text-sm sm:text-base">
                       Edit Booking
                     </span>
-                    <span className="text-base sm:text-2xl font-mono font-semibold text-crimson-red block">
-                      {booking.bookingId}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base sm:text-2xl font-mono font-semibold text-crimson-red block">
+                        {booking.bookingId}
+                      </span>
+                      {booking.row && (
+                        <span
+                          className="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200"
+                          title="Spreadsheet Row Number"
+                        >
+                          Row {booking.row}
+                        </span>
+                      )}
+                    </div>
 
                     {/* Live Saving Indicator */}
                     <div className="flex items-center gap-2 mt-1 text-[11px] sm:text-xs">
@@ -3041,7 +3051,7 @@ export default function EditBookingModal({
                                  className="text-[11px] text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
                                  title="View Booking Status"
                              >
-                                 Status Link <ExternalLink className="h-2 w-2" />
+                                 View Booking Status <ExternalLink className="h-2 w-2" />
                              </a>
                              <Button
                                  size="icon"
