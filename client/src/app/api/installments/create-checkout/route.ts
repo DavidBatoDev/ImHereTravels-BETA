@@ -160,6 +160,37 @@ export async function POST(req: NextRequest) {
       console.error("❌ Error fetching tour package:", error);
     }
 
+    // 8. Cleanup: Cancel any existing pending payments for this installment
+    // This prevents "stale" documents from accumulating if the user tries to pay multiple times
+    try {
+      const stalePaymentsQuery = query(
+        collection(db, "stripePayments"),
+        where("booking.documentId", "==", booking.id),
+        where("payment.installmentTerm", "==", installment_id),
+        where("payment.status", "==", "installment_pending")
+      );
+      
+      const stalePaymentsSnap = await getDocs(stalePaymentsQuery);
+      
+      if (!stalePaymentsSnap.empty) {
+        console.log(`🧹 Found ${stalePaymentsSnap.size} stale payment(s) to cleanup...`);
+        
+        const cleanupPromises = stalePaymentsSnap.docs.map(async (docSnap) => {
+          await updateDoc(doc(db, "stripePayments", docSnap.id), {
+            "payment.status": "cancelled",
+            "cancellationReason": "abandoned_for_new_attempt",
+            "timestamps.updatedAt": serverTimestamp(),
+          });
+          console.log(`❌ Cancelled stale payment document: ${docSnap.id}`);
+        });
+        
+        await Promise.all(cleanupPromises);
+      }
+    } catch (error) {
+      console.warn("⚠️ Error cleaning up stale payments:", error);
+      // Non-blocking error, continue with new payment creation
+    }
+
     // 8. Create stripePayments document with full booking context
     const stripePaymentDoc = await addDoc(collection(db, "stripePayments"), {
       // Booking reference
@@ -303,10 +334,7 @@ export async function POST(req: NextRequest) {
       "payment.checkoutSessionId": session.id,
     });
 
-    // 11. Mark as processing
-    await updateDoc(doc(db, "bookings", booking.id), {
-      [`paymentTokens.${installment_id}.status`]: "processing",
-    });
+
 
     console.log(`✅ Payment session ready. Redirecting to Stripe...`);
 

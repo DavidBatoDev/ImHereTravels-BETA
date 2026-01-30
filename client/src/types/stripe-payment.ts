@@ -45,6 +45,7 @@ export interface StripePaymentDocument {
     currency: "GBP" | "USD" | "EUR"; // Currency code
     type: "reservationFee" | "fullPayment" | "installment"; // Payment type
     clientSecret: string; // Stripe client secret for frontend
+    status?: string; // Status of the specific payment attempt
   };
 
   // ========== Payment Plan (Optional, Step 3) ==========
@@ -52,15 +53,6 @@ export interface StripePaymentDocument {
     selected: "full_payment" | "P1" | "P2" | "P3" | "P4"; // Changed from last_minute to full_payment
     details: PaymentPlanDetails | null; // null for full_payment bookings
   };
-
-  // ========== Status & Workflow ==========
-  status:
-    | "reserve_pending" // Step 1: Created, reservation fee not yet paid
-    | "reserve_paid" // Step 2: Reservation fee paid, awaiting plan selection
-    | "terms_selected" // Step 3: Payment plan selected (complete)
-    | "full_payment_pending" // Full payment required
-    | "full_payment_paid" // Full payment completed
-    | "cancelled"; // Booking cancelled
 
   // ========== Notification Tracking (Nested Object) ==========
   notification?: {
@@ -281,7 +273,10 @@ export interface StripePaymentDocumentFlat {
 export function isPaymentPending(
   payment: StripePaymentDocument | StripePaymentDocumentFlat
 ): boolean {
-  return payment.status === "reserve_pending";
+  if ("payment" in payment && payment.payment) {
+      return payment.payment.status === "reserve_pending";
+  }
+  return (payment as StripePaymentDocumentFlat).status === "reserve_pending";
 }
 
 /**
@@ -290,8 +285,9 @@ export function isPaymentPending(
 export function isReservationPaid(
   payment: StripePaymentDocument | StripePaymentDocumentFlat
 ): boolean {
+  const status = "payment" in payment && payment.payment ? payment.payment.status : (payment as StripePaymentDocumentFlat).status;
   return (
-    payment.status === "reserve_paid" || payment.status === "terms_selected"
+    status === "reserve_paid" || status === "terms_selected"
   );
 }
 
@@ -301,7 +297,8 @@ export function isReservationPaid(
 export function isPaymentPlanSelected(
   payment: StripePaymentDocument | StripePaymentDocumentFlat
 ): boolean {
-  return payment.status === "terms_selected";
+  const status = "payment" in payment && payment.payment ? payment.payment.status : (payment as StripePaymentDocumentFlat).status;
+  return status === "terms_selected";
 }
 
 /**
@@ -363,6 +360,7 @@ export function flatToNested(
       currency: flat.currency as "GBP" | "USD" | "EUR",
       type: flat.type as "reservationFee" | "fullPayment" | "installment",
       clientSecret: flat.clientSecret,
+      status: flat.status,
     },
     paymentPlan: flat.selectedPaymentPlan
       ? {
@@ -375,7 +373,6 @@ export function flatToNested(
           details: flat.paymentPlanDetails || null,
         }
       : undefined,
-    status: flat.status as any,
     notification: flat.notificationId
       ? {
           id: flat.notificationId,
@@ -419,7 +416,7 @@ export function nestedToFlat(
     clientSecret: nested.payment.clientSecret,
     selectedPaymentPlan: nested.paymentPlan?.selected,
     paymentPlanDetails: nested.paymentPlan?.details,
-    status: nested.status,
+    status: nested.payment.status || "reserve_pending",
     notificationId: nested.notification?.id,
     notificationSent: nested.notification?.sent,
     notificationSentAt: nested.notification?.sentAt,
@@ -428,3 +425,4 @@ export function nestedToFlat(
     confirmedAt: nested.timestamps.confirmedAt,
   };
 }
+

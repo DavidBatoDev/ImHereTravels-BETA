@@ -166,6 +166,7 @@ export default function TransactionsPage() {
     failed: { label: "Failed", color: "bg-rose-100 text-rose-800", icon: AlertCircle },
     pending: { label: "Pending", color: "bg-amber-100 text-amber-800", icon: Clock },
     installment_pending: { label: "Pending", color: "bg-amber-100 text-amber-800", icon: Clock },
+    cancelled: { label: "Cancelled", color: "bg-red-100 text-red-800", icon: AlertCircle },
   };
 
   const getStatusBadge = (status: string) => {
