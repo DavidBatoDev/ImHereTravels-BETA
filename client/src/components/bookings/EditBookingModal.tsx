@@ -39,7 +39,7 @@ import {
 import { BsListUl, BsCalendarEvent } from "react-icons/bs";
 import { MdEmail } from "react-icons/md";
 import { HiTrendingUp } from "react-icons/hi";
-import { RefreshCw, CalendarIcon, HelpCircle } from "lucide-react";
+import { RefreshCw, CalendarIcon, HelpCircle, Copy, Check, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -3003,6 +3003,7 @@ export default function EditBookingModal({
                     <span className="text-base sm:text-2xl font-mono font-semibold text-crimson-red block">
                       {booking.bookingId}
                     </span>
+
                     {/* Live Saving Indicator */}
                     <div className="flex items-center gap-2 mt-1 text-[11px] sm:text-xs">
                       {isSaving ? (
@@ -3020,6 +3021,37 @@ export default function EditBookingModal({
                           <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                           <span>Auto-save enabled</span>
                         </div>
+                      )}
+
+                      {/* Booking Status URL */}
+                      {booking?.access_token && (
+                         <>
+                           <div className="w-px h-3 bg-border mx-1"></div>
+                           <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border border-border/50">
+                             <a 
+                                 href={`${process.env.NEXT_PUBLIC_WEBSITE_URL}/booking-status/${booking.access_token}`}
+                                 target="_blank"
+                                 rel="noreferrer"
+                                 className="text-[11px] text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                                 title="View Booking Status"
+                             >
+                                 Status Link <ExternalLink className="h-2 w-2" />
+                             </a>
+                             <Button
+                                 size="icon"
+                                 variant="ghost"
+                                 className="h-4 w-4 rounded-full hover:bg-background"
+                                 onClick={(e) => {
+                                     e.preventDefault();
+                                     navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_WEBSITE_URL}/booking-status/${booking.access_token}`);
+                                     toast({ title: "Copied!", description: "Link copied to clipboard", duration: 2000 });
+                                 }}
+                                 title="Copy Link"
+                             >
+                                 <Copy className="h-2.5 w-2.5 text-muted-foreground" />
+                             </Button>
+                           </div>
+                         </>
                       )}
                     </div>
                   </div>
@@ -3114,7 +3146,7 @@ export default function EditBookingModal({
               {/* Main Content */}
               <div
                 ref={scrollContainerRef}
-                className="flex-1 overflow-y-auto h-[95%] pl-3 sm:pl-6 pr-3 sm:pr-0 pb-3 sm:pb-6 scrollbar-hide scroll-optimized"
+                className="flex-1 overflow-y-auto h-[95%] pt-3 pl-3 sm:pl-6 pr-3 sm:pr-0 pb-3 sm:pb-6 scrollbar-hide scroll-optimized"
                 tabIndex={-1}
               >
                 {isLoadingColumns ? (
