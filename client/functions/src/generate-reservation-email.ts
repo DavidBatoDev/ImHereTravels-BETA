@@ -75,6 +75,7 @@ function formatDateLikeSheets(dateValue: any): string {
         month: "short",
         day: "numeric",
         year: "numeric",
+        timeZone: "Asia/Manila",
       });
     }
 
@@ -350,6 +351,7 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
         const bookingType = bookingData.bookingType || "";
         const reservationFee = bookingData.reservationFee || 0;
         const eventName = bookingData.eventName || "";
+        const discountType = bookingData.discountType || "";
         const discountRate = bookingData.discountRate || "";
         const originalTourCost = bookingData.originalTourCost || 0;
         const discountedTourCost = bookingData.discountedTourCost || 0;
@@ -412,6 +414,12 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
         }
 
         // Prepare template variables
+        const parsedDiscountRate = parseDiscountRate(discountRate);
+        const normalizedDiscountType = String(discountType).toLowerCase();
+        const originalCostNumber = Number(originalTourCost) || 0;
+        const discountedCostNumber = Number(discountedTourCost) || 0;
+        const formattedDiscountRate = parsedDiscountRate.toFixed(2);
+
         const templateVariables: Record<string, any> = {
           fullName,
           mainBooker,
@@ -425,7 +433,17 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
           groupId,
           reservationFee: Number(reservationFee).toFixed(2),
           eventName: eventName || "",
-          discountRate: parseDiscountRate(discountRate),
+          discountType: discountType || "",
+          discountRate: parsedDiscountRate,
+          discountDisplayText: normalizedDiscountType.includes("amount")
+            ? `£${formattedDiscountRate}`
+            : `${formattedDiscountRate}%`,
+          hasDiscount: !!(
+            eventName &&
+            parsedDiscountRate > 0 &&
+            (discountedCostNumber === 0 ||
+              originalCostNumber > discountedCostNumber)
+          ),
           originalTourCost: Number(originalTourCost).toFixed(2),
           discountedTourCost: Number(discountedTourCost).toFixed(2),
           discountSavings: Number(

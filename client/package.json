@@ -145,7 +145,7 @@
     "dompurify": "^3.3.0",
     "dotenv": "^17.2.1",
     "embla-carousel-react": "^8.6.0",
-    "firebase": "^12.6.0",
+    "firebase": "^12.7.0",
     "firebase-admin": "^13.6.0",
     "framer-motion": "^12.23.22",
     "fuse.js": "^7.1.0",

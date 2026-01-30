@@ -431,7 +431,7 @@ export default function BookingDetailModal({
     const originalCost = Number(booking.originalTourCost) || 0;
     const discountedCost = Number(booking.discountedTourCost) || 0;
 
-    if (booking.useDiscountedTourCost && discountedCost > 0) {
+    if (discountedCost > 0) {
       return discountedCost;
     }
     return originalCost;
@@ -660,6 +660,28 @@ export default function BookingDetailModal({
 
     if (column.dataType === "boolean") {
       return value ? "Yes" : "No";
+    }
+
+    // For discount rate, return the value as-is (function already formats it with 'off')
+    if (column.id === "discountRate") {
+      // If the value is a string (already formatted), return it
+      if (typeof value === "string" && value.trim()) {
+        return value;
+      }
+      // If numeric and > 0, format based on discount type
+      const numValue = safeNumber(value, 0);
+      if (numValue > 0) {
+        const discountType = (currentBooking as any).discountType || "";
+        if (discountType === "Flat amount") {
+          return `£${numValue.toFixed(2)} off`;
+        }
+        return `${numValue.toFixed(2)}% off`;
+      }
+      // If 0 or empty and we have event name, the booking needs to be re-saved to recalculate
+      if ((currentBooking as any).eventName) {
+        return "Not calculated - Edit & Save to recalculate";
+      }
+      return null;
     }
 
     const stringValue = String(value).trim();

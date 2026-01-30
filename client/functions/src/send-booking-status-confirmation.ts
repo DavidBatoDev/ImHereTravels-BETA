@@ -60,6 +60,7 @@ function formatDateLikeSheets(dateValue: any): string {
         month: "short",
         day: "numeric",
         year: "numeric",
+        timeZone: "Asia/Manila",
       });
     }
 

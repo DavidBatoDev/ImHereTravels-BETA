@@ -49,12 +49,13 @@ export interface Booking {
   tourDuration: string;
 
   // Pricing
-  useDiscountedTourCost: boolean;
+  useDiscountedTourCost?: boolean;
   originalTourCost: number;
   discountedTourCost?: number;
 
   // Discounts
   eventName?: string;
+  discountType?: "percent" | "amount"; // percent or flat amount
   discountRate?: number;
 
   // Email management - Reservation

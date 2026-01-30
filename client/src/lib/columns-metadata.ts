@@ -33,7 +33,6 @@ export const ALL_COLUMN_IDS = [
   "daysBetweenBookingAndTour",
 
   // Payment Setting
-  "useDiscountedTourCost",
   "originalTourCost",
   "discountedTourCost",
   "paymentCondition",
@@ -42,6 +41,11 @@ export const ALL_COLUMN_IDS = [
   "paymentPlan",
   "paymentMethod",
   "enablePaymentReminder",
+
+  // Discounts
+  "eventName",
+  "discountType",
+  "discountRate",
 
   // Full Payment
   "fullPaymentDueDate",

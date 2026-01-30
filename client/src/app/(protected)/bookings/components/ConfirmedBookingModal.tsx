@@ -139,7 +139,7 @@ export default function ConfirmedBookingModal({
     if (!bookingData) return 0;
     const original = safeNumber(bookingData.originalTourCost, 0);
     const discounted = safeNumber(bookingData.discountedTourCost, 0);
-    if (bookingData.useDiscountedTourCost && discounted > 0) return discounted;
+    if (discounted > 0) return discounted;
     return original;
   };
 

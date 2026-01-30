@@ -37,54 +37,54 @@ export const COLUMN_ORDERS: Record<string, number> = {
   fullName: 10,
 
   // ============================================================================
-  // DISCOUNTS (11-12)
+  // TOUR DETAILS (11-24)
   // ============================================================================
-  eventName: 11,
-  discountRate: 12,
+  reservationDate: 11,
+  bookingType: 12,
+  tourPackageName: 13,
+  tourDate: 14,
+  returnDate: 15,
+  tourDuration: 16,
+  paymentCondition: 17,
+  eligible2ndofmonths: 18,
+  availablePaymentTerms: 19,
+  daysBetweenBookingAndTourDate: 20,
+  originalTourCost: 21,
+  discountedTourCost: 22,
+  reservationFee: 23,
+  remainingBalance: 24,
 
   // ============================================================================
-  // TOUR DETAILS (13-22)
+  // DISCOUNTS (25-26)
   // ============================================================================
-  reservationDate: 13,
-  bookingType: 14,
-  tourPackageName: 15,
-  tourDate: 16,
-  returnDate: 17,
-  tourDuration: 18,
-  paymentCondition: 19,
-  eligible2ndofmonths: 20,
-  availablePaymentTerms: 21,
-  daysBetweenBookingAndTourDate: 22,
+  eventName: 25,
+  discountRate: 26,
 
   // ============================================================================
-  // DUO OR GROUP BOOKING (23-25)
+  // DUO OR GROUP BOOKING (27-29)
   // ============================================================================
-  isMainBooker: 23,
-  groupIdGroupIdGenerator: 24,
-  groupId: 25,
+  isMainBooker: 27,
+  groupIdGroupIdGenerator: 28,
+  groupId: 29,
 
   // ============================================================================
-  // RESERVATION EMAIL (26-33)
+  // RESERVATION EMAIL (30-37)
   // ============================================================================
-  includeBccReservation: 26,
-  useDiscountedTourCost: 27,
-  generateEmailDraft: 28,
-  emailDraftLink: 29,
-  subjectLineReservation: 30,
-  sendEmail: 31,
-  sentEmailLink: 32,
-  reservationEmailSentDate: 33,
+  includeBccReservation: 30,
+  useDiscountedTourCost: 31,
+  generateEmailDraft: 32,
+  emailDraftLink: 33,
+  subjectLineReservation: 34,
+  sendEmail: 35,
+  sentEmailLink: 36,
+  reservationEmailSentDate: 37,
 
   // ============================================================================
-  // PAYMENT SETTING (34-49)
+  // PAYMENT SETTING (38-53)
   // ============================================================================
-  originalTourCost: 34,
-  discountedTourCost: 35,
-  reservationFee: 36,
-  adminFee: 37,
-  paid: 38,
-  paidTerms: 39,
-  remainingBalance: 40,
+  adminFee: 38,
+  paid: 39,
+  paidTerms: 40,
   manualCredit: 41,
   creditFrom: 42,
   paymentPlan: 43,
@@ -103,69 +103,69 @@ export const COLUMN_ORDERS: Record<string, number> = {
   fullPaymentDatePaid: 52,
 
   // ============================================================================
-  // PAYMENT TERM 1 - P1 (53-59)
+  // PAYMENT TERM 1 - P1 (54-60)
   // ============================================================================
-  p1ScheduledReminderDate: 53,
-  p1ScheduledEmailLink: 54,
-  p1CalendarEventId: 55,
-  p1CalendarEventLink: 56,
-  p1DueDate: 57,
-  p1Amount: 58,
-  p1DatePaid: 59,
+  p1ScheduledReminderDate: 54,
+  p1ScheduledEmailLink: 55,
+  p1CalendarEventId: 56,
+  p1CalendarEventLink: 57,
+  p1DueDate: 58,
+  p1Amount: 59,
+  p1DatePaid: 60,
 
   // ============================================================================
-  // PAYMENT TERM 2 - P2 (60-66)
+  // PAYMENT TERM 2 - P2 (61-67)
   // ============================================================================
-  p2ScheduledReminderDate: 60,
-  p2ScheduledEmailLink: 61,
-  p2CalendarEventId: 62,
-  p2CalendarEventLink: 63,
-  p2DueDate: 64,
-  p2Amount: 65,
-  p2DatePaid: 66,
+  p2ScheduledReminderDate: 61,
+  p2ScheduledEmailLink: 62,
+  p2CalendarEventId: 63,
+  p2CalendarEventLink: 64,
+  p2DueDate: 65,
+  p2Amount: 66,
+  p2DatePaid: 67,
 
   // ============================================================================
-  // PAYMENT TERM 3 - P3 (67-73)
+  // PAYMENT TERM 3 - P3 (68-74)
   // ============================================================================
-  p3ScheduledReminderDate: 67,
-  p3ScheduledEmailLink: 68,
-  p3CalendarEventId: 69,
-  p3CalendarEventLink: 70,
-  p3DueDate: 71,
-  p3Amount: 72,
-  p3DatePaid: 73,
+  p3ScheduledReminderDate: 68,
+  p3ScheduledEmailLink: 69,
+  p3CalendarEventId: 70,
+  p3CalendarEventLink: 71,
+  p3DueDate: 72,
+  p3Amount: 73,
+  p3DatePaid: 74,
 
   // ============================================================================
-  // PAYMENT TERM 4 - P4 (74-80)
+  // PAYMENT TERM 4 - P4 (75-81)
   // ============================================================================
-  p4ScheduledReminderDate: 74,
-  p4ScheduledEmailLink: 75,
-  p4CalendarEventId: 76,
-  p4CalendarEventLink: 77,
-  p4DueDate: 78,
-  p4Amount: 79,
-  p4DatePaid: 80,
+  p4ScheduledReminderDate: 75,
+  p4ScheduledEmailLink: 76,
+  p4CalendarEventId: 77,
+  p4CalendarEventLink: 78,
+  p4DueDate: 79,
+  p4Amount: 80,
+  p4DatePaid: 81,
 
   // ============================================================================
-  // CANCELLATION (81-92)
+  // CANCELLATION (82-93)
   // ============================================================================
-  reasonForCancellation: 81,
-  cancellationRequestDate: 82,
-  includeBccCancellation: 83,
-  eligibleRefund: 84,
-  nonRefundableAmount: 85,
-  refundableAmount: 86,
-  generateCancellationDraft: 87,
-  cancellationEmailDraftLink: 88,
-  subjectLineCancellation: 89,
-  sendCancellationEmail: 90,
-  sentCancellationEmailLink: 91,
-  cancellationEmailSentDate: 92,
+  reasonForCancellation: 82,
+  cancellationRequestDate: 83,
+  includeBccCancellation: 84,
+  eligibleRefund: 85,
+  nonRefundableAmount: 86,
+  refundableAmount: 87,
+  generateCancellationDraft: 88,
+  cancellationEmailDraftLink: 89,
+  subjectLineCancellation: 90,
+  sendCancellationEmail: 91,
+  sentCancellationEmailLink: 92,
+  cancellationEmailSentDate: 93,
 
   // ============================================================================
-  // DELETE (93) - Delete column at the end
+  // DELETE (94) - Delete column at the end
   // ============================================================================
-  delete: 93,
+  delete: 94,
 };
 
 /**
@@ -259,24 +259,31 @@ export function getOrderRangeForTab(
         .map(([id]) => id),
     },
     "Tour Details": {
-      min: 12,
-      max: 21,
+      min: 11,
+      max: 24,
       columns: Object.entries(COLUMN_ORDERS)
-        .filter(([, order]) => order >= 12 && order <= 21)
+        .filter(([, order]) => order >= 11 && order <= 24)
+        .map(([id]) => id),
+    },
+    Discounts: {
+      min: 25,
+      max: 26,
+      columns: Object.entries(COLUMN_ORDERS)
+        .filter(([, order]) => order >= 25 && order <= 26)
         .map(([id]) => id),
     },
     "Payment Setting": {
-      min: 33,
-      max: 46,
+      min: 38,
+      max: 49,
       columns: Object.entries(COLUMN_ORDERS)
-        .filter(([, order]) => order >= 33 && order <= 46)
+        .filter(([, order]) => order >= 38 && order <= 49)
         .map(([id]) => id),
     },
     Cancellation: {
-      min: 78,
-      max: 85,
+      min: 82,
+      max: 93,
       columns: Object.entries(COLUMN_ORDERS)
-        .filter(([, order]) => order >= 78 && order <= 85)
+        .filter(([, order]) => order >= 82 && order <= 93)
         .map(([id]) => id),
     },
   };

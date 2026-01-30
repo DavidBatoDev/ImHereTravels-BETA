@@ -294,24 +294,24 @@ export default function DiscountedToursTab() {
                           if (evt.discountType === "amount") {
                             // Calculate actual flat amount for each date, then average
                             const avgAmount = item.dateDiscounts && item.dateDiscounts.length > 0
-                              ? Math.round(
+                              ? (
                                   item.dateDiscounts.reduce(
                                     (sum, dd) => sum + Math.round((item.originalCost * dd.discountRate) / 100),
                                     0
                                   ) / item.dateDiscounts.length
-                                )
-                              : 0;
+                                ).toFixed(2)
+                              : "0.00";
                             displayValue = `£${avgAmount}`;
                           } else {
-                            // Calculate average percentage
+                            // Calculate average percentage with 2 decimal places
                             const avgDiscount = item.dateDiscounts && item.dateDiscounts.length > 0
-                              ? Math.round(
+                              ? (
                                   item.dateDiscounts.reduce(
                                     (sum, dd) => sum + dd.discountRate,
                                     0
                                   ) / item.dateDiscounts.length
-                                )
-                              : 0;
+                                ).toFixed(2)
+                              : "0.00";
                             displayValue = `${avgDiscount}%`;
                           }
                           return (
@@ -451,18 +451,18 @@ export default function DiscountedToursTab() {
                         <Badge variant="outline" className="ml-2">
                           Avg{" "}
                           {viewingEvent.discountType === "amount" 
-                            ? `£${Math.round(
+                            ? `£${(
                                 item.dateDiscounts.reduce(
                                   (sum, dd) => sum + Math.round((item.originalCost * dd.discountRate) / 100),
                                   0
                                 ) / item.dateDiscounts.length
-                              )}`
-                            : `${Math.round(
+                              ).toFixed(2)}`
+                            : `${(
                                 item.dateDiscounts.reduce(
                                   (sum, dd) => sum + dd.discountRate,
                                   0
                                 ) / item.dateDiscounts.length
-                              )}%`}{" "}
+                              ).toFixed(2)}%`}{" "}
                           off
                         </Badge>
                       )}
@@ -509,7 +509,9 @@ export default function DiscountedToursTab() {
                                 </div>
                               </div>
                               <Badge variant="secondary" className="ml-2">
-                                {dd.discountRate}% off
+                                {viewingEvent.discountType === "amount" 
+                                  ? `£${Math.round((item.originalCost * dd.discountRate) / 100)} off`
+                                  : `${dd.discountRate.toFixed(2)}% off`}
                               </Badge>
                             </div>
                           ))}

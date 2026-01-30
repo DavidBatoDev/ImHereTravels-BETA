@@ -114,6 +114,8 @@ export default function EditBookingModal({
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
+
+
   // Loading state for email generation and sending
   const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
   const [emailGenerationProgress, setEmailGenerationProgress] = useState<{
@@ -142,12 +144,21 @@ export default function EditBookingModal({
   const [isCleaningScheduledEmails, setIsCleaningScheduledEmails] =
     useState(false);
 
+  // Confirmation modals
+  const [showSendEmailConfirmation, setShowSendEmailConfirmation] =
+    useState(false);
+  const [showPaymentReminderConfirmation, setShowPaymentReminderConfirmation] =
+    useState(false);
+
   const { toast } = useToast();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const isScrollingProgrammatically = React.useRef(false);
 
   // Debounce timer for function execution
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const skipInitialEventNameDependentsRef = React.useRef(true);
+  const hasUserChangedTourDetailsRef = React.useRef(false);
+  const hasUserChangedEventNameRef = React.useRef(false);
 
   // Real-time Firebase listener for booking updates (like BookingsDataGrid)
   useEffect(() => {
@@ -670,10 +681,218 @@ export default function EditBookingModal({
   // Initialize form data when modal opens
   useEffect(() => {
     if (booking && isOpen) {
+      skipInitialEventNameDependentsRef.current = true;
+      hasUserChangedTourDetailsRef.current = false;
+      hasUserChangedEventNameRef.current = false;
       setFormData({ ...booking });
       setFieldErrors({});
     }
   }, [booking, isOpen]);
+
+  // Optimized function to reload Event Name options based on Tour Package and Date
+  const reloadEventNameOptions = useCallback(
+    async (currentTourPackageName: string, currentTourDate: any) => {
+      // If missing required fields, clear options and return empty
+      if (!currentTourPackageName || !currentTourDate) {
+         setDynamicOptions((prev) => ({
+            ...prev,
+            eventName: [""],
+         }));
+         return;
+      }
+
+      console.log("🔄 [DISCOUNT LOGIC] Reloading Event Name options...", {
+        package: currentTourPackageName,
+        date: currentTourDate
+      });
+
+      try {
+        const { collection, query, where, getDocs } =
+          await import("firebase/firestore");
+        const { db } = await import("@/lib/firebase");
+
+        // Query active discount events
+        const discountEventsRef = collection(db, "discountEvents");
+        const activeEventsQuery = query(
+          discountEventsRef,
+          where("active", "==", true),
+        );
+
+         const snapshot = await getDocs(activeEventsQuery);
+         
+         // Helper for date normalization (Local Time) to match tourDate
+         const toLocalISODate = (date: Date) => {
+           const year = date.getFullYear();
+           const month = String(date.getMonth() + 1).padStart(2, "0");
+           const day = String(date.getDate()).padStart(2, "0");
+           return `${year}-${month}-${day}`;
+         };
+
+         // Normalize current tour date
+         let normalizedTourDate = "";
+         const tourDateValue = currentTourDate;
+         
+         if (typeof tourDateValue === "string") {
+            if (tourDateValue.includes("/")) {
+               const parts = tourDateValue.split("/");
+               if (parts.length === 3) {
+                  const [month, day, year] = parts;
+                  normalizedTourDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+               } else normalizedTourDate = tourDateValue;
+            } else normalizedTourDate = tourDateValue; // Assume YYYY-MM-DD
+         } else if (tourDateValue instanceof Date) {
+            normalizedTourDate = toLocalISODate(tourDateValue);
+         } else if (tourDateValue && typeof tourDateValue === "object" && 'toDate' in tourDateValue) {
+             // Firestore Timestamp
+             normalizedTourDate = toLocalISODate(tourDateValue.toDate());
+         }
+
+         const cleanString = (str: string) => str?.trim().toLowerCase() || "";
+         const targetPackageName = cleanString(currentTourPackageName);
+
+         const validEventNames: string[] = [];
+
+         snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            const items = data.items || [];
+            
+            // Check if this event has a matching item config
+            const hasMatch = items.some((item: any) => {
+               // 1. Package Name Match
+               if (cleanString(item.tourPackageName) !== targetPackageName) return false;
+
+               // 2. Date Match
+               const dateDiscounts = item.dateDiscounts || [];
+               return dateDiscounts.some((dd: any) => {
+                  let ddStr = "";
+                  if (dd.date && typeof dd.date.toDate === 'function') ddStr = toLocalISODate(dd.date.toDate());
+                  else if (dd.date instanceof Date) ddStr = toLocalISODate(dd.date);
+                  else if (typeof dd.date === 'string') ddStr = dd.date;
+                  
+                  return ddStr === normalizedTourDate;
+               });
+            });
+
+            if (hasMatch) {
+               validEventNames.push(data.name);
+            }
+         });
+
+         console.log("✅ [DISCOUNT LOGIC] Found valid events:", validEventNames);
+
+         // Update options
+         setDynamicOptions((prev) => ({
+            ...prev,
+            eventName: validEventNames.length > 0 ? ["", ...validEventNames] : [""],
+         }));
+
+         return validEventNames;
+
+      } catch (error) {
+        console.error("🚨 [DISCOUNT LOGIC] Error loading events:", error);
+         setDynamicOptions((prev) => ({
+            ...prev,
+            eventName: [""],
+         }));
+         return [];
+      }
+    },
+    []
+  );
+
+  // Auto-detect/Clear Event Name when dependencies change
+  useEffect(() => {
+     if (!isOpen) return;
+
+     const runLogic = async () => {
+        const pkg = formData.tourPackageName;
+        const date = formData.tourDate;
+        const currentEvent = formData.eventName;
+
+        // Reload options
+        // We await this to get the new valid list
+        let validEvents: string[] = [];
+        if (pkg && date) {
+           // We need to call the function we just defined. 
+           // Since it's async, we can get the result.
+           // However, reloadEventNameOptions updates state, so we should be careful.
+           // Modified reloadEventNameOptions to return the list.
+           validEvents = await reloadEventNameOptions(pkg, date) || [];
+        } else {
+           // If missing dependencies, options are empty
+           setDynamicOptions(prev => ({ ...prev, eventName: [""] }));
+        }
+
+        // Logic to Clear or Auto-Set Event Name
+        if (validEvents.length === 0) {
+           if (currentEvent) {
+              // Only clear if the user actively changed tour details (preserve history)
+              if (hasUserChangedTourDetailsRef.current) {
+                 console.log("🧹 [DISCOUNT LOGIC] Clearing Event Name (no valid events)");
+                 setFormData(prev => ({ ...prev, eventName: "" }));
+                 // Ensure dependent fields (discount, type) are also cleared via their own watchers or side-effects
+                 // Explicitly triggering update might be needed if they don't watch 'eventName' directly
+                 hasUserChangedEventNameRef.current = true; // Signal that this is a "user-like" change to trigger dependents
+              } else {
+                 console.log("🛡️ [DISCOUNT LOGIC] Preserving historical inactive event:", currentEvent);
+              }
+           }
+        } else {
+           // If current event is invalid, clear it
+           if (currentEvent && !validEvents.includes(currentEvent)) {
+              // Only clear if the user actively changed tour details (preserve history)
+              if (hasUserChangedTourDetailsRef.current) {
+                 console.log("🧹 [DISCOUNT LOGIC] Clearing invalid Event Name due to context change:", currentEvent);
+                 setFormData(prev => ({ ...prev, eventName: "" }));
+                 hasUserChangedEventNameRef.current = true; 
+              } else {
+                 console.log("🛡️ [DISCOUNT LOGIC] Preserving historical inactive event:", currentEvent);
+              }
+           }
+
+        }
+     };
+
+     // Debounce slightly to allow typing/updates to settle
+     const timer = setTimeout(runLogic, 300);
+     return () => clearTimeout(timer);
+
+  }, [formData.tourPackageName, formData.tourDate, isOpen, reloadEventNameOptions]);
+
+
+
+  // Trigger dependent functions when eventName changes (including clearing it)
+  useEffect(() => {
+    if (!booking?.id || !isOpen) return;
+
+    if (skipInitialEventNameDependentsRef.current) {
+      skipInitialEventNameDependentsRef.current = false;
+      return;
+    }
+
+
+
+    if (
+      !hasUserChangedEventNameRef.current &&
+      !hasUserChangedTourDetailsRef.current
+    ) {
+      return;
+    }
+
+    const eventName = formData.eventName;
+    console.log("🔄 [EVENT NAME CHANGED] New value:", eventName);
+
+    // Trigger dependents whenever eventName changes (whether empty or set)
+    console.log("📌 [EVENT NAME] Auto-triggering dependent functions...");
+    executeDirectDependents("eventName", formData).then((finalData) => {
+      if (finalData) {
+        console.log("📌 [EVENT NAME] Dependent functions completed");
+        setFormData(finalData);
+      }
+    });
+    hasUserChangedEventNameRef.current = false;
+    hasUserChangedTourDetailsRef.current = false;
+  }, [formData.eventName, booking?.id, isOpen]);
 
   // Load coded booking sheet columns and functions
   useEffect(() => {
@@ -924,6 +1143,34 @@ export default function EditBookingModal({
     [columns],
   );
 
+  // STRICT DEPENDENCY: When Tour Package changes, Clear Tour Date & Reload Options
+  // Use a ref to track previous package name to avoid loops
+  const prevTourPackageRef = React.useRef<string | undefined>(undefined);
+  
+  useEffect(() => {
+     if (!isOpen) { 
+        prevTourPackageRef.current = undefined; 
+        return; 
+     }
+
+     const currentPkg = formData.tourPackageName;
+     const prevPkg = prevTourPackageRef.current;
+
+     if (prevPkg !== undefined && currentPkg !== prevPkg) {
+        console.log("🔄 [DEPENDENCY] Tour Package changed. Clearing Tour Date & Reloading Options.");
+        
+        // 1. Clear Tour Date
+        setFormData(prev => ({ ...prev, tourDate: null }));
+        
+        // 2. Reload Tour Date options
+        reloadTourDateOptions(currentPkg || "");
+     }
+     
+     // Initialize ref on first open if needed, or just update it
+     prevTourPackageRef.current = currentPkg;
+     
+  }, [formData.tourPackageName, isOpen, reloadTourDateOptions]);
+
   // Reactive tracking: reload Payment Plan options when Available Payment Terms changes
   const previousAvailablePaymentTerms = React.useRef<string | undefined>(
     undefined,
@@ -1110,6 +1357,38 @@ export default function EditBookingModal({
       };
     }
   }, [isOpen, isLoadingColumns, activeTab]);
+
+  // Handle send email confirmation
+  const handleSendEmailConfirm = () => {
+    if (!booking?.id) return;
+
+    setShowSendEmailConfirmation(false);
+
+    // Proceed with sending
+    batchedWriter.queueFieldUpdate(booking.id, "sendEmail", true);
+    setFormData((prev) => ({ ...prev, sendEmail: true }));
+    setIsSaving(true);
+    debouncedSaveIndicator();
+  };
+
+  const handleSendEmailCancel = () => {
+    setShowSendEmailConfirmation(false);
+  };
+
+  const handlePaymentReminderConfirm = () => {
+    if (!booking?.id) return;
+
+    setShowPaymentReminderConfirmation(false);
+
+    batchedWriter.queueFieldUpdate(booking.id, "enablePaymentReminder", true);
+    setFormData((prev) => ({ ...prev, enablePaymentReminder: true }));
+    setIsSaving(true);
+    debouncedSaveIndicator();
+  };
+
+  const handlePaymentReminderCancel = () => {
+    setShowPaymentReminderConfirmation(false);
+  };
 
   // Get icon for parent tab
   const getParentTabIcon = (parentTab: string) => {
@@ -1447,6 +1726,13 @@ export default function EditBookingModal({
 
   const handleFieldChange = useCallback(
     (columnId: string, value: any) => {
+      if (columnId === "tourPackageName" || columnId === "tourDate") {
+        hasUserChangedTourDetailsRef.current = true;
+      }
+
+      if (columnId === "eventName") {
+        hasUserChangedEventNameRef.current = true;
+      }
       // LOCAL FIRST: Update all state in one batch to minimize re-renders
       // Only update if these haven't been set yet (first keystroke)
       setActiveEditingFields((prev) => {
@@ -1745,12 +2031,28 @@ export default function EditBookingModal({
                       return;
                     }
 
+                    // Show confirmation modal for sendEmail
+                    if (column.id === "sendEmail" && checked) {
+                      setShowSendEmailConfirmation(true);
+                      return; // Don't proceed until user confirms
+                    }
+
                     // Prevent toggling "Enable Payment Reminder" on if payment plan or payment method is missing
                     const isEnablePaymentReminderField =
                       column.id === "enablePaymentReminder";
                     if (isEnablePaymentReminderField && checked) {
+                      const paymentPlan = String(formData.paymentPlan || "");
                       const hasPaymentPlan = Boolean(formData.paymentPlan);
                       const hasPaymentMethod = Boolean(formData.paymentMethod);
+
+                      if (paymentPlan.toLowerCase() === "full payment") {
+                        toast({
+                          title: "Payment Reminder Not Required",
+                          description:
+                            "Full Payment plan does not require payment reminders.",
+                        });
+                        return;
+                      }
 
                       if (!hasPaymentPlan || !hasPaymentMethod) {
                         toast({
@@ -1761,6 +2063,9 @@ export default function EditBookingModal({
                         });
                         return;
                       }
+
+                      setShowPaymentReminderConfirmation(true);
+                      return;
                     }
 
                     // Prevent toggling "Generate Email Draft" on if payment plan or payment method exists
@@ -1964,6 +2269,8 @@ export default function EditBookingModal({
                   ? new Date(e.target.value)
                   : null;
 
+                hasUserChangedTourDetailsRef.current = true;
+
                 // For date picker, commit immediately to Firebase
                 if (booking?.id) {
                   batchedWriter.queueFieldUpdate(
@@ -1997,6 +2304,8 @@ export default function EditBookingModal({
           );
 
         case "select":
+
+
           // Calculate options inline (lightweight operation, no need for useMemo)
           const options = dynamicOptions[column.id] || column.options || [];
 
@@ -2062,6 +2371,9 @@ export default function EditBookingModal({
                       // Convert "Month Day Year" string to Date
                       const dateObj = parseMonthDayYear(newValue);
                       if (dateObj) {
+                        // Set time to 9:00 AM UTC+8
+                        dateObj.setHours(9, 0, 0, 0);
+
                         // Validate that this date exists in the tour package's travelDates
                         const tourPackageName = formData.tourPackageName;
                         if (tourPackageName) {
@@ -2163,6 +2475,8 @@ export default function EditBookingModal({
 
                     const { Timestamp } = await import("firebase/firestore");
                     const dateObj = new Date(selectedDate);
+                    // Set time to 9:00 AM UTC+8
+                    dateObj.setHours(9, 0, 0, 0);
                     const valueToSave = Timestamp.fromDate(dateObj) as any;
 
                     // For date picker, commit immediately to Firebase
@@ -2609,9 +2923,21 @@ export default function EditBookingModal({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={handleClose} modal={true}>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (showSendEmailConfirmation || showPaymentReminderConfirmation)
+            return;
+          if (!open) handleClose();
+        }}
+        modal={true}
+      >
         <DialogContent
-          className="w-[calc(100%-1rem)] sm:w-full max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-xl sm:rounded-2xl overflow-hidden"
+          className={cn(
+            "w-[calc(100%-1rem)] sm:w-full max-w-5xl max-h-[90vh] min-h-[90vh] bg-background p-0 rounded-xl sm:rounded-2xl overflow-hidden",
+            (showSendEmailConfirmation || showPaymentReminderConfirmation) &&
+              "pointer-events-none",
+          )}
           onOpenAutoFocus={(e) => {
             // Prevent dialog from auto-focusing on open
             e.preventDefault();
@@ -3031,6 +3357,423 @@ export default function EditBookingModal({
           </div>
         </div>
       )}
+
+      <Dialog
+        open={showSendEmailConfirmation}
+        onOpenChange={(open) => {
+          if (!open) handleSendEmailCancel();
+        }}
+        modal={true}
+      >
+        <DialogContent
+          hideClose
+          className="max-w-2xl w-[calc(100%-2rem)] sm:w-full z-[100000]"
+        >
+          <div className="flex flex-col space-y-6">
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-royal-purple/10 rounded-lg">
+                  <MdEmail className="h-6 w-6 text-royal-purple" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">
+                    Confirm Send Email
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Please review the booking details before sending
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSendEmailCancel}
+                className="h-8 w-8"
+              >
+                <FaTimes className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Traveler Name
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.fullName || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Booking ID
+                  </p>
+                  <p className="font-mono font-semibold text-foreground">
+                    {formData.bookingId || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Tour Name
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.tourPackageName || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Booking Type
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.bookingType || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Tour Date
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.tourDate
+                      ? (() => {
+                          const dateVal = formData.tourDate as any;
+                          const date = dateVal?.toDate
+                            ? dateVal.toDate()
+                            : new Date(dateVal);
+                          return date.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          });
+                        })()
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Return Date
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.returnDate
+                      ? (() => {
+                          const dateVal = formData.returnDate as any;
+                          const date = dateVal?.toDate
+                            ? dateVal.toDate()
+                            : new Date(dateVal);
+                          return date.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          });
+                        })()
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Tour Duration
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.tourDuration || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Reservation Fee
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.reservationFee
+                      ? `£${Number(formData.reservationFee).toFixed(2)}`
+                      : "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              {(formData.fullPaymentAmount ||
+                formData.p2Amount ||
+                formData.p3Amount ||
+                formData.p4Amount) && (
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="bg-muted/50 px-4 py-2 border-b border-border">
+                    <p className="text-sm font-semibold text-foreground">
+                      Payment Terms
+                    </p>
+                  </div>
+                  <div className="p-4">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left py-2 px-2 font-semibold text-foreground">
+                            Payment Terms
+                          </th>
+                          <th className="text-left py-2 px-2 font-semibold text-foreground">
+                            Amount
+                          </th>
+                          <th className="text-left py-2 px-2 font-semibold text-foreground">
+                            Due Date(s)
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.fullPaymentAmount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              P1 – Full payment
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.fullPaymentAmount).toFixed(2)}
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.fullPaymentDueDate
+                                ? typeof formData.fullPaymentDueDate ===
+                                  "string"
+                                  ? formData.fullPaymentDueDate
+                                  : formData.fullPaymentDueDate instanceof Date
+                                    ? formData.fullPaymentDueDate.toLocaleDateString(
+                                        "en-US",
+                                        {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        },
+                                      )
+                                    : "N/A"
+                                : "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                        {formData.p2Amount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              P2 – Two payments
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.p2Amount).toFixed(2)} /month
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.p2DueDate || "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                        {formData.p3Amount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              P3 – Three payments
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.p3Amount).toFixed(2)} /month
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.p3DueDate || "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                        {formData.p4Amount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              P4 – Four payments
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.p4Amount).toFixed(2)} /month
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.p4DueDate || "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={handleSendEmailCancel}
+                className="px-6"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendEmailConfirm}
+                className="px-6 bg-royal-purple hover:bg-royal-purple/90 text-white"
+              >
+                <MdEmail className="h-4 w-4 mr-2" />
+                Confirm & Send Email
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showPaymentReminderConfirmation}
+        onOpenChange={(open) => {
+          if (!open) handlePaymentReminderCancel();
+        }}
+        modal={true}
+      >
+        <DialogContent
+          hideClose
+          className="max-w-2xl w-[calc(100%-2rem)] sm:w-full z-[100000]"
+        >
+          <div className="flex flex-col space-y-6">
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-royal-purple/10 rounded-lg">
+                  <FaWallet className="h-6 w-6 text-royal-purple" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">
+                    Confirm Enable Payment Reminder
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Please review the payment reminder details
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handlePaymentReminderCancel}
+                className="h-8 w-8"
+              >
+                <FaTimes className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Tour</p>
+                  <p className="font-semibold text-foreground">
+                    {formData.tourPackageName || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Payment Plan
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.paymentPlan || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Payment Method
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    {formData.paymentMethod || "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="bg-muted/50 px-4 py-2 border-b border-border">
+                  <p className="text-sm font-semibold text-foreground">
+                    Payment Terms
+                  </p>
+                </div>
+                <div className="p-4">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2 px-2 font-semibold text-foreground">
+                          Payment Term
+                        </th>
+                        <th className="text-left py-2 px-2 font-semibold text-foreground">
+                          Amount
+                        </th>
+                        <th className="text-left py-2 px-2 font-semibold text-foreground">
+                          Due Date
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formData.p1Amount && (
+                        <tr className="border-b border-border/50">
+                          <td className="py-2 px-2 text-foreground">P1</td>
+                          <td className="py-2 px-2 text-foreground font-mono">
+                            £{Number(formData.p1Amount).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground">
+                            {String(formData.p1DueDate || "N/A")}
+                          </td>
+                        </tr>
+                      )}
+                      {formData.p2Amount && (
+                        <tr className="border-b border-border/50">
+                          <td className="py-2 px-2 text-foreground">P2</td>
+                          <td className="py-2 px-2 text-foreground font-mono">
+                            £{Number(formData.p2Amount).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground">
+                            {String(formData.p2DueDate || "N/A")}
+                          </td>
+                        </tr>
+                      )}
+                      {formData.p3Amount && (
+                        <tr className="border-b border-border/50">
+                          <td className="py-2 px-2 text-foreground">P3</td>
+                          <td className="py-2 px-2 text-foreground font-mono">
+                            £{Number(formData.p3Amount).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground">
+                            {String(formData.p3DueDate || "N/A")}
+                          </td>
+                        </tr>
+                      )}
+                      {formData.p4Amount && (
+                        <tr className="border-b border-border/50">
+                          <td className="py-2 px-2 text-foreground">P4</td>
+                          <td className="py-2 px-2 text-foreground font-mono">
+                            £{Number(formData.p4Amount).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground">
+                            {String(formData.p4DueDate || "N/A")}
+                          </td>
+                        </tr>
+                      )}
+                      {(formData.p1Amount ||
+                        formData.p2Amount ||
+                        formData.p3Amount ||
+                        formData.p4Amount) && (
+                        <tr className="border-t">
+                          <td className="py-2 px-2 text-foreground font-semibold">
+                            Total
+                          </td>
+                          <td className="py-2 px-2 text-foreground font-mono font-semibold">
+                            £{Number(formData.remainingBalance || 0).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-2 text-foreground"></td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={handlePaymentReminderCancel}
+                className="px-6"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handlePaymentReminderConfirm}
+                className="px-6 bg-royal-purple hover:bg-royal-purple/90 text-white"
+              >
+                <FaWallet className="h-4 w-4 mr-2" />
+                Confirm & Enable
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

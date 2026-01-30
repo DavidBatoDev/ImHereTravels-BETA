@@ -92,9 +92,19 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     order: 9,
   },
   {
-    columnName: "Discount Rate",
+    columnName: "Discount Type",
     dataType: "function",
-    includeInForms: false,
+    includeInForms: true,
+
+    parentTab: "Discounts",
+
+    width: 120,
+    order: 9.5,
+  },
+  {
+    columnName: "Discount",
+    dataType: "function",
+    includeInForms: true,
 
     parentTab: "Discounts",
 
@@ -228,16 +238,6 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
 
     width: 120,
     order: 23,
-  },
-  {
-    columnName: "Use Discounted Tour Cost?",
-    dataType: "boolean",
-    includeInForms: true,
-
-    parentTab: "Pricing",
-
-    width: 180,
-    order: 24,
   },
   {
     columnName: "Original Tour Cost",

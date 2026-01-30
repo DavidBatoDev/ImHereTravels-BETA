@@ -7,7 +7,7 @@ export const remainingBalanceColumn: BookingSheetColumn = {
     columnName: "Remaining Balance",
     dataType: "function",
     function: "getRemainingBalanceFunction",
-    parentTab: "Payment Setting",
+    parentTab: "Tour Details",
     includeInForms: false,
     color: "yellow",
     width: 191.33331298828125,
@@ -236,7 +236,8 @@ export default function getRemainingBalanceFunction(
   const credit = creditAmount ?? 0;
 
   // Determine which total cost to use (discounted or original)
-  const baseCost = useDiscountedCost ? origCost - discCost : origCost;
+  // Automatically use discounted cost if available (from active discount events)
+  const baseCost = (discCost > 0) ? discCost : origCost;
 
   // Subtract reservation fee and any credit from reservation
   const total = baseCost - resFee - (creditFrom === "Reservation" ? credit : 0);
@@ -249,8 +250,8 @@ export default function getRemainingBalanceFunction(
     (p3DatePaid ? p3Amount ?? 0 : 0) +
     (p4DatePaid ? p4Amount ?? 0 : 0);
 
-  // Remaining balance
-  const remaining = total - paid;
+  // Remaining balance - round to 2 decimal places
+  const remaining = Math.round((total - paid) * 100) / 100;
 
   // Special rule for P1 plan
   if (paymentPlan === "P1" && p1DatePaid) {

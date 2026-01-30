@@ -543,7 +543,6 @@ export default function ScheduledEmailsTab() {
           remainingBalance: bookingData.remainingBalance,
           originalTourCost: bookingData.originalTourCost,
           discountedTourCost: bookingData.discountedTourCost,
-          useDiscountedTourCost: bookingData.useDiscountedTourCost,
           // Use the paymentMethod field from booking data
           paymentMethod: bookingData.paymentMethod || "Other",
           paymentPlan: bookingData.availablePaymentTerms || "",

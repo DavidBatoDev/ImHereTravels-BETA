@@ -213,7 +213,9 @@ function formatDate(dateValue: any): string {
 
     // Validate the date before formatting
     if (date && !isNaN(date.getTime())) {
-      return date.toISOString().split("T")[0];
+      return date.toLocaleDateString("en-CA", {
+        timeZone: "Asia/Manila",
+      });
     }
 
     return "";

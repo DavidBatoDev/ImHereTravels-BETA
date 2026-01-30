@@ -195,6 +195,30 @@
           fully paid within 48 hours.
         </p>
 
+        <!-- Discount Highlight -->
+        {% if hasDiscount %}
+        <div
+          style="
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+          "
+        >
+          <p
+            style="
+              font-size: 16px;
+              color: #155724;
+              margin: 0;
+              font-weight: bold;
+            "
+          >
+            {{ eventName }} Discount Applied!
+          </p>
+        </div>
+        {% endif %}
+
         <div style="padding: 20px; border-radius: 5px; margin-bottom: 20px">
           <table
             style="
@@ -233,7 +257,11 @@
                   Full payment
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
-                  £{{ remainingBalance }}
+                  £{{ remainingBalance }} {% if hasDiscount %}
+                  <br /><span style="color: #28a745; font-size: 13px"
+                    >After {{ discountDisplayText }} off</span
+                  >
+                  {% endif %}
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   {{ fullPaymentDueDate }}
@@ -322,6 +350,30 @@
           <strong>{{ p1DueDate }}</strong>.
         </p>
 
+        <!-- Discount Highlight -->
+        {% if hasDiscount %}
+        <div
+          style="
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+          "
+        >
+          <p
+            style="
+              font-size: 16px;
+              color: #155724;
+              margin: 0;
+              font-weight: bold;
+            "
+          >
+            {{ eventName }} Discount Applied!
+          </p>
+        </div>
+        {% endif %}
+
         <div style="padding: 20px; border-radius: 5px; margin-bottom: 20px">
           <table
             style="
@@ -360,7 +412,11 @@
                   P1 – Full payment
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
-                  £{{ p1Amount }}
+                  £{{ p1Amount }} {% if hasDiscount %}
+                  <br /><span style="color: #28a745; font-size: 13px"
+                    >After {{ discountDisplayText }} off</span
+                  >
+                  {% endif %}
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   {{ p1DueDate }}
@@ -448,6 +504,30 @@
           can choose the payment plan that works best for you.
         </p>
 
+        <!-- Discount Highlight -->
+        {% if hasDiscount %}
+        <div
+          style="
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+          "
+        >
+          <p
+            style="
+              font-size: 16px;
+              color: #155724;
+              margin: 0;
+              font-weight: bold;
+            "
+          >
+            {{ eventName }} Discount Applied!
+          </p>
+        </div>
+        {% endif %}
+
         <div style="padding: 20px; border-radius: 5px; margin-bottom: 20px">
           <table
             style="
@@ -486,7 +566,11 @@
                   P1 – Full payment
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
-                  £{{ p1Amount }}
+                  £{{ p1Amount }} {% if hasDiscount %}
+                  <br /><span style="color: #28a745; font-size: 13px"
+                    >After {{ discountDisplayText }} off</span
+                  >
+                  {% endif %}
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   {{ p1DueDate }}
@@ -497,7 +581,11 @@
                   P2 – Two payments
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
-                  £{{ p2Amount }} /month
+                  £{{ p2Amount }} /month {% if hasDiscount %}
+                  <br /><span style="color: #28a745; font-size: 13px"
+                    >After {{ discountDisplayText }} off</span
+                  >
+                  {% endif %}
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   {{ p2DueDate }}
@@ -585,6 +673,30 @@
           can choose the payment plan that works best for you.
         </p>
 
+        <!-- Discount Highlight -->
+        {% if hasDiscount %}
+        <div
+          style="
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+          "
+        >
+          <p
+            style="
+              font-size: 16px;
+              color: #155724;
+              margin: 0;
+              font-weight: bold;
+            "
+          >
+            {{ eventName }} Discount Applied!
+          </p>
+        </div>
+        {% endif %}
+
         <div style="padding: 20px; border-radius: 5px; margin-bottom: 20px">
           <table
             style="
@@ -623,7 +735,11 @@
                   P1 – Full payment
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
-                  £{{ p1Amount }}
+                  £{{ p1Amount }} {% if hasDiscount %}
+                  <br /><span style="color: #28a745; font-size: 13px"
+                    >After {{ discountDisplayText }} off</span
+                  >
+                  {% endif %}
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   {{ p1DueDate }}
@@ -634,7 +750,11 @@
                   P2 – Two payments
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
-                  £{{ p2Amount }} /month
+                  £{{ p2Amount }} /month {% if hasDiscount %}
+                  <br /><span style="color: #28a745; font-size: 13px"
+                    >After {{ discountDisplayText }} off</span
+                  >
+                  {% endif %}
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   {{ p2DueDate }}
@@ -645,7 +765,11 @@
                   P3 – Three payments
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
-                  £{{ p3Amount }} /month
+                  £{{ p3Amount }} /month {% if hasDiscount %}
+                  <br /><span style="color: #28a745; font-size: 13px"
+                    >After {{ discountDisplayText }} off</span
+                  >
+                  {% endif %}
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   {{ p3DueDate }}
@@ -733,6 +857,30 @@
           can choose the payment plan that works best for you.
         </p>
 
+        <!-- Discount Highlight -->
+        {% if hasDiscount %}
+        <div
+          style="
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+          "
+        >
+          <p
+            style="
+              font-size: 16px;
+              color: #155724;
+              margin: 0;
+              font-weight: bold;
+            "
+          >
+            {{ eventName }} Discount Applied!
+          </p>
+        </div>
+        {% endif %}
+
         <div style="padding: 20px; border-radius: 5px; margin-bottom: 20px">
           <table
             style="
@@ -771,7 +919,11 @@
                   P1 – Full payment
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
-                  £{{ p1Amount }}
+                  £{{ p1Amount }} {% if hasDiscount %}
+                  <br /><span style="color: #28a745; font-size: 13px"
+                    >After {{ discountDisplayText }} off</span
+                  >
+                  {% endif %}
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   {{ p1DueDate }}
@@ -782,7 +934,11 @@
                   P2 – Two payments
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
-                  £{{ p2Amount }} /month
+                  £{{ p2Amount }} /month {% if hasDiscount %}
+                  <br /><span style="color: #28a745; font-size: 13px"
+                    >After {{ discountDisplayText }} off</span
+                  >
+                  {% endif %}
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   {{ p2DueDate }}
@@ -793,7 +949,11 @@
                   P3 – Three payments
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
-                  £{{ p3Amount }} /month
+                  £{{ p3Amount }} /month {% if hasDiscount %}
+                  <br /><span style="color: #28a745; font-size: 13px"
+                    >After {{ discountDisplayText }} off</span
+                  >
+                  {% endif %}
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   {{ p3DueDate }}
@@ -804,7 +964,11 @@
                   P4 – Four payments
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
-                  £{{ p4Amount }} /month
+                  £{{ p4Amount }} /month {% if hasDiscount %}
+                  <br /><span style="color: #28a745; font-size: 13px"
+                    >After {{ discountDisplayText }} off</span
+                  >
+                  {% endif %}
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   {{ p4DueDate }}

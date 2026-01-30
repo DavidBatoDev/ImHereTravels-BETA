@@ -8,7 +8,7 @@ export const discountedTourCostColumn: BookingSheetColumn = {
     columnName: "Discounted Tour Cost",
     dataType: "function",
     function: "getTourDiscountedCostFunction",
-    parentTab: "Payment Setting",
+    parentTab: "Tour Details",
     includeInForms: false,
     color: "gray",
     width: 205.3333740234375,
@@ -31,36 +31,62 @@ export const discountedTourCostColumn: BookingSheetColumn = {
         isRest: false,
         value: "",
       },
+      {
+        name: "eventName",
+        type: "string",
+        columnReference: "Event Name",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
+        name: "discountRate",
+        type: "number",
+        columnReference: "Discount",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
+        name: "discountType",
+        type: "string",
+        columnReference: "Discount Type",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
     ],
   },
 };
 
 // Column Function Implementation
 /**
- * Excel equivalent:
- * =IF(M1002="","",INDEX(
- *     '{INDEX} Tour Packages'!$A:$ZQ,
- *     MATCH($M1002, '{INDEX} Tour Packages'!$A:$A, 0),
- *     MATCH(AG$3, '{INDEX} Tour Packages'!$4:$4, 0)
- *   ))
- *
- * Description:
- * - Retrieves the `deposit` amount (pricing.deposit) for a given tour package.
- * - Equivalent to the Excel formula that looks up a value from the `{INDEX} Tour Packages` sheet
- *   using the tour package name (`M1002`) as the key and the column header in `AG3`.
- * - If the tour package name is blank or not found, returns an empty string.
- *
+ * Calculates the discounted tour cost based on original cost and discount rate.
+ * 
+ * For percentage discounts: Applies percentage reduction to original cost
+ * For flat amount discounts: Subtracts the flat amount from original cost
+ * 
  * Parameters:
  * - tourPackageName → string representing the name of the selected tour package.
+ * - tourDate → optional date for matching custom pricing
+ * - eventName → optional string representing the discount event name
+ * - discountRate → optional number (percentage value like 20, or flat amount like 300)
+ * - discountType → optional string indicating "percent" or "amount"
  *
  * Returns:
- * - number → the deposit cost of the tour (pricing.deposit)
+ * - number → the discounted cost (original cost - discount)
  * - "" → if no match or invalid input
  */
 
 export default async function getTourDiscountedCost(
   tourPackageName: string,
-  tourDate?: any
+  tourDate?: any,
+  eventName?: string | null,
+  discountRate?: number | null,
+  discountType?: string | null
 ): Promise<number | ""> {
   if (!tourPackageName) return "";
 
@@ -74,7 +100,10 @@ export default async function getTourDiscountedCost(
       pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim()
   );
 
-  // Check for custom discounted price if tourDate is provided
+  if (!matchedPackage) return "";
+
+  // Get the base cost (original or custom)
+  let baseCost: number | "" = "";
   if (tourDate && (matchedPackage as any)?.travelDates) {
     const travelDateToMatch = new Date(tourDate);
     const matchingTravelDate = (matchedPackage as any).travelDates.find(
@@ -84,16 +113,52 @@ export default async function getTourDiscountedCost(
       }
     );
 
-    // If custom discounted price is set for this date, use it
+    // If custom original price is set for this date, use it
     if (
-      matchingTravelDate?.hasCustomDiscounted &&
-      matchingTravelDate?.customDiscounted !== undefined
+      matchingTravelDate?.hasCustomOriginal &&
+      matchingTravelDate?.customOriginal !== undefined
     ) {
-      return matchingTravelDate.customDiscounted;
+      baseCost = matchingTravelDate.customOriginal;
+    } else {
+      baseCost = (matchedPackage as any)?.pricing?.original ?? "";
     }
+  } else {
+    // No tourDate provided, use default original pricing
+    baseCost = (matchedPackage as any)?.pricing?.original ?? "";
   }
 
-  // Return the default discounted price
-  const discountedCost = (matchedPackage as any)?.pricing?.discounted ?? "";
-  return discountedCost;
+  if (baseCost === "") return "";
+
+  // If a discount is provided, apply it
+  if (
+    eventName &&
+    discountRate !== null &&
+    discountRate !== undefined &&
+    discountRate !== 0
+  ) {
+    let discountedCost: number;
+    
+    // Normalize discountType to lowercase for case-insensitive comparison
+    const normalizedDiscountType = discountType?.toLowerCase().trim();
+    
+    if (normalizedDiscountType === "percent" || normalizedDiscountType === "percentage") {
+      // For percentage discounts: apply percentage reduction
+      // discountRate is like 20 for 20%
+      const discountDecimal = discountRate / 100;
+      discountedCost = Math.round(baseCost * (1 - discountDecimal) * 100) / 100;
+    } else if (normalizedDiscountType === "amount" || normalizedDiscountType?.includes("amount")) {
+      // For flat amount discounts: subtract the flat amount
+      // discountRate is the amount like 300 for £300 off
+      discountedCost = Math.round((baseCost - discountRate) * 100) / 100;
+    } else {
+      // Default: treat as percentage if not specified or unrecognized
+      const discountDecimal = discountRate / 100;
+      discountedCost = Math.round(baseCost * (1 - discountDecimal) * 100) / 100;
+    }
+    
+    return discountedCost;
+  }
+
+  // No discount, return empty string (system should use Original Tour Cost instead)
+  return "";
 }

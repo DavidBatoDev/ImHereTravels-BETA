@@ -554,7 +554,7 @@ export default function SheetConsole({
             {selectedFunctionColumn && selectedRow && (
               <div className="space-y-2">
                 <Label className="text-xs font-medium">Arguments Preview</Label>
-                <div className="bg-muted rounded p-2 text-xs font-mono space-y-1">
+                <div className="bg-muted rounded p-2 text-xs font-mono space-y-1 overflow-x-auto">
                   {selectedFunctionColumn.arguments?.map((arg, index) => {
                     const value = arg.columnReference
                       ? (() => {
@@ -566,11 +566,11 @@ export default function SheetConsole({
                       : arg.value;
 
                     return (
-                      <div key={index} className="flex items-start gap-2">
-                        <span className="text-muted-foreground">
+                      <div key={index} className="flex items-start gap-2 min-w-0">
+                        <span className="text-muted-foreground whitespace-nowrap">
                           {arg.name}:
                         </span>
-                        <span className="flex-1 break-words">
+                        <span className="flex-1 break-words overflow-x-auto">
                           {typeof value === "object"
                             ? JSON.stringify(value)
                             : String(value || "undefined")}
@@ -701,12 +701,12 @@ export default function SheetConsole({
 
                         {/* Function Info */}
                         {result.columnName && (
-                          <div className="text-xs text-muted-foreground mb-2">
-                            <span className="font-medium">
+                          <div className="text-xs text-muted-foreground mb-2 overflow-x-auto">
+                            <span className="font-medium whitespace-nowrap">
                               {result.columnName}
                             </span>
                             {result.rowId && (
-                              <span className="ml-2">(Row {result.rowId})</span>
+                              <span className="ml-2 whitespace-nowrap">(Row {result.rowId})</span>
                             )}
                           </div>
                         )}

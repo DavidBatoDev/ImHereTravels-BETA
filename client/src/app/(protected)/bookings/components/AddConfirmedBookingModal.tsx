@@ -45,7 +45,7 @@ interface BookingWithValidation {
   paid: number;
   originalTourCost: number;
   discountedTourCost: number;
-  useDiscountedTourCost: boolean;
+  useDiscountedTourCost?: boolean;
   paymentPlan?: string;
   isValid: boolean;
   validationErrors: string[];
@@ -99,7 +99,7 @@ export default function AddConfirmedBookingModal({
     if (onlyCompletePayments) {
       results = results.filter((b) => {
         const rawTotal =
-          b.useDiscountedTourCost && b.discountedTourCost > 0
+          b.discountedTourCost && b.discountedTourCost > 0
             ? b.discountedTourCost
             : b.originalTourCost;
         const total = Number(rawTotal);
@@ -145,7 +145,7 @@ export default function AddConfirmedBookingModal({
 
     // Payment validation
     const rawTotalCost =
-      booking.useDiscountedTourCost && booking.discountedTourCost > 0
+      booking.discountedTourCost && booking.discountedTourCost > 0
         ? booking.discountedTourCost
         : booking.originalTourCost;
 
