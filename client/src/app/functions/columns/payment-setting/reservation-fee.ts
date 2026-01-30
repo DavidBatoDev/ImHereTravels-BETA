@@ -83,20 +83,43 @@ export default async function getTourCurrencyAndDeposit(
 
   // Check for custom deposit price if tourDate is provided
   if (tourDate && (matchedPackage as any)?.travelDates) {
-    const travelDateToMatch = new Date(tourDate);
-    const matchingTravelDate = (matchedPackage as any).travelDates.find(
-      (td: any) => {
-        const tdStart = td.startDate?.toDate?.() || new Date(td.startDate);
-        return tdStart.toDateString() === travelDateToMatch.toDateString();
+    // Helper to safely convert to Date
+    const toDate = (d: any): Date | null => {
+      if (!d) return null;
+      if (d instanceof Date) return d;
+      // Handle Firestore Timestamp (has toDate() method)
+      if (d && typeof d.toDate === "function") return d.toDate();
+      // Handle Serialized Timestamp ({ seconds, nanoseconds })
+      if (d && typeof d === "object" && typeof d.seconds === "number") {
+        return new Date(d.seconds * 1000);
       }
-    );
+      return new Date(d);
+    };
 
-    // If custom deposit is set for this date, use it
-    if (
-      matchingTravelDate?.hasCustomDeposit &&
-      matchingTravelDate?.customDeposit !== undefined
-    ) {
-      depositAmount = matchingTravelDate.customDeposit;
+    const travelDateToMatch = toDate(tourDate);
+
+    if (travelDateToMatch && !isNaN(travelDateToMatch.getTime())) {
+      const matchingTravelDate = (matchedPackage as any).travelDates.find(
+        (td: any) => {
+          const tdStart = toDate(td.startDate);
+          if (!tdStart) return false;
+          
+          // Compare using ISO string (YYYY-MM-DD) to avoid timezone issues
+          // Assuming dates are stored as UTC or consistently handled
+          return (
+            tdStart.toISOString().split("T")[0] ===
+            travelDateToMatch.toISOString().split("T")[0]
+          );
+        }
+      );
+
+      // If custom deposit is set for this date, use it
+      if (
+        matchingTravelDate?.hasCustomDeposit &&
+        matchingTravelDate?.customDeposit !== undefined
+      ) {
+        depositAmount = matchingTravelDate.customDeposit;
+      }
     }
   }
 
