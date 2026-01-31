@@ -383,10 +383,6 @@ const Page = () => {
               : bookingType === "Duo Booking"
               ? 2
               : 1,
-          additionalGuests:
-            bookingType === "Duo Booking" || bookingType === "Group Booking"
-              ? additionalGuests
-              : [],
           guestDetails:
             bookingType === "Duo Booking" || bookingType === "Group Booking"
               ? guestDetails.map(guest => ({
@@ -415,7 +411,7 @@ const Page = () => {
           currency: "GBP",
           status: "reserve_pending",
           type: "reservationFee",
-          originalPrice: selectedDateDetail?.customOriginal ?? undefined, // Store custom original price if exists
+          ...(selectedDateDetail?.customOriginal && { originalPrice: selectedDateDetail.customOriginal }), // Only include if exists
         },
         timestamps: {
           createdAt: serverTimestamp(),
@@ -485,10 +481,6 @@ const Page = () => {
                 : bookingType === "Duo Booking"
                 ? 2
                 : 1,
-            additionalGuests:
-              bookingType === "Duo Booking" || bookingType === "Group Booking"
-                ? additionalGuests
-                : [],
             guestDetails:
               bookingType === "Duo Booking" || bookingType === "Group Booking"
                 ? guestDetails.map(guest => ({
@@ -517,7 +509,7 @@ const Page = () => {
             currency: "GBP",
             status: "reserve_pending",
             type: "reservationFee",
-            originalPrice: selectedDateDetail?.customOriginal ?? undefined, // Store custom original price if exists
+            ...(selectedDateDetail?.customOriginal && { originalPrice: selectedDateDetail.customOriginal }), // Only include if exists
           },
           "timestamps.updatedAt": serverTimestamp(),
         });
@@ -1571,10 +1563,6 @@ const Page = () => {
             : bookingType === "Duo Booking"
             ? 2
             : 1,
-        "booking.additionalGuests":
-          bookingType === "Duo Booking" || bookingType === "Group Booking"
-            ? additionalGuests
-            : [],
         "tour.packageId": tourPackage,
         "tour.packageName": selectedPackage?.name || "",
         "tour.date": tourDate,

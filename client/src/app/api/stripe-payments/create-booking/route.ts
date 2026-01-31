@@ -348,8 +348,24 @@ export async function POST(req: NextRequest) {
     );
     console.log("📅 Calculated return date:", calculatedReturnDate);
 
-    // Create booking input
-    const bookingInput: BookingCreationInput = {
+    // Calculate number of people and fee per person
+    const guestDetails = paymentData.booking?.guestDetails || [];
+    const groupSize = paymentData.booking?.groupSize || 1;
+    const totalReservationFee = paymentData.payment?.amount || 250;
+    const feePerPerson = totalReservationFee / groupSize;
+
+    console.log(`💰 Total fee: ${totalReservationFee}, Split among ${groupSize} people = ${feePerPerson} per person`);
+
+    const createdBookingIds: string[] = [];
+    const createdBookingDocIds: string[] = [];
+
+    // Convert dates to Firestore Timestamps for storage
+    const tourDateTimestamp = tourDateParsed
+      ? Timestamp.fromDate(tourDateParsed)
+      : null;
+
+    // 1. Create booking for MAIN BOOKER
+    const mainBookingInput: BookingCreationInput = {
       email: paymentData.customer?.email || "",
       firstName: paymentData.customer?.firstName || "",
       lastName: paymentData.customer?.lastName || "",
@@ -360,8 +376,8 @@ export async function POST(req: NextRequest) {
       tourDate: tourDateParsed || paymentData.tour?.date || "",
       returnDate: paymentData.tour?.returnDate || calculatedReturnDate || "",
       tourDuration,
-      reservationFee: paymentData.payment?.amount || 250,
-      paidAmount: paymentData.payment?.amount || 250,
+      reservationFee: feePerPerson, // Split fee
+      paidAmount: feePerPerson, // Split fee
       originalTourCost,
       discountedTourCost,
       paymentMethod: "Stripe",
@@ -371,79 +387,124 @@ export async function POST(req: NextRequest) {
       totalBookingsCount: totalBookingsCount,
     };
 
-    // Create the booking data
-    const bookingData = await createBookingData(bookingInput);
+    const mainBookingData = await createBookingData(mainBookingInput);
 
-    // Only set isMainBooker and generate group IDs for Duo/Group bookings
+    // Set isMainBooker and generate group member ID for main booker
     if (isGroupBooking) {
-      // Set isMainBooker to true (main booker is the one making the reservation)
-      bookingData.isMainBooker = true;
-
-      // Generate groupIdGroupIdGenerator and groupId for Duo/Group bookings
+      mainBookingData.isMainBooker = true;
       const generatedGroupMemberId = generateGroupMemberIdFunction(
         paymentData.booking?.type || "Single Booking",
         paymentData.tour?.packageName || (tourPackage as any)?.name || "",
         paymentData.customer?.firstName || "",
         paymentData.customer?.lastName || "",
         paymentData.customer?.email || "",
-        true // isMainBooker is always true at this point
+        true
       );
-
-      // Both fields should have the same value (full member ID)
-      bookingData.groupIdGroupIdGenerator = generatedGroupMemberId;
-      bookingData.groupId = generatedGroupMemberId;
-
-      console.log("📝 Creating booking with ID:", bookingData.bookingId);
-      console.log("📝 isMainBooker:", bookingData.isMainBooker);
-      console.log(
-        "📝 groupIdGroupIdGenerator:",
-        bookingData.groupIdGroupIdGenerator
-      );
-      console.log("📝 groupId:", bookingData.groupId);
-    } else {
-      console.log("📝 Creating booking with ID:", bookingData.bookingId);
+      mainBookingData.groupIdGroupIdGenerator = generatedGroupMemberId;
+      mainBookingData.groupId = generatedGroupMemberId;
     }
 
-    // Convert dates to Firestore Timestamps for storage
-    const tourDateTimestamp = tourDateParsed
-      ? Timestamp.fromDate(tourDateParsed)
-      : null;
-    const reservationDateTimestamp = Timestamp.now();
+    // Generate access token for main booker
+    const mainAccessToken = generateAccessToken();
 
-    // Generate access token for the booking
-    const access_token = generateAccessToken();
-    console.log("🔐 Generated access token for booking");
-
-    // Add to bookings collection with proper Timestamps
-    const bookingsRef = collection(db, "bookings");
-    const newBookingRef = await addDoc(bookingsRef, {
-      ...bookingData,
-      access_token,
-      // Override dates - tourDate and reservationDate as Timestamps, returnDate as string
+    // Create main booker booking document
+    const mainBookingRef = await addDoc(collection(db, "bookings"), {
+      ...mainBookingData,
+      access_token: mainAccessToken,
       tourDate: tourDateTimestamp,
-      returnDate: calculatedReturnDate, // Keep as string "yyyy-mm-dd"
-      reservationDate: reservationDateTimestamp,
+      returnDate: calculatedReturnDate,
+      reservationDate: Timestamp.now(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
 
-    console.log("✅ Booking created with document ID:", newBookingRef.id);
+    createdBookingIds.push(mainBookingData.bookingId);
+    createdBookingDocIds.push(mainBookingRef.id);
+    console.log(`✅ Main booker booking created: ${mainBookingRef.id} (${mainBookingData.bookingId})`);
 
-    // Update stripePayments document with booking reference (nested structure)
+    // 2. Create bookings for each GUEST
+    for (let i = 0; i < guestDetails.length; i++) {
+      const guest = guestDetails[i];
+      const guestBookingInput: BookingCreationInput = {
+        email: guest.email || "",
+        firstName: guest.firstName || "",
+        lastName: guest.lastName || "",
+        bookingType: paymentData.booking?.type || "Single Booking",
+        tourPackageName:
+          paymentData.tour?.packageName || (tourPackage as any)?.name || "",
+        tourCode,
+        tourDate: tourDateParsed || paymentData.tour?.date || "",
+        returnDate: paymentData.tour?.returnDate || calculatedReturnDate || "",
+        tourDuration,
+        reservationFee: feePerPerson, // Split fee
+        paidAmount: feePerPerson, // Split fee
+        originalTourCost,
+        discountedTourCost,
+        paymentMethod: "Stripe",
+        groupId,
+        isMainBooking: false,
+        existingBookingsCount: existingCountForTourPackage + i + 1, // Increment counter for each guest
+        totalBookingsCount: totalBookingsCount + i + 1,
+      };
+
+      const guestBookingData = await createBookingData(guestBookingInput);
+
+      // Set isMainBooker to false and generate group member ID for guest
+      if (isGroupBooking) {
+        guestBookingData.isMainBooker = false;
+        (guestBookingData as any).mainBookerId = mainBookingRef.id; // Link to main booker
+        const guestGroupMemberId = generateGroupMemberIdFunction(
+          paymentData.booking?.type || "Single Booking",
+          paymentData.tour?.packageName || (tourPackage as any)?.name || "",
+          guest.firstName || "",
+          guest.lastName || "",
+          guest.email || "",
+          true
+        );
+        guestBookingData.groupIdGroupIdGenerator = guestGroupMemberId;
+        guestBookingData.groupId = guestGroupMemberId;
+      }
+
+      // Generate access token for guest
+      const guestAccessToken = generateAccessToken();
+
+      // Create guest booking document
+      const guestBookingRef = await addDoc(collection(db, "bookings"), {
+        ...guestBookingData,
+        access_token: guestAccessToken,
+        tourDate: tourDateTimestamp,
+        returnDate: calculatedReturnDate,
+        reservationDate: Timestamp.now(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      createdBookingIds.push(guestBookingData.bookingId);
+      createdBookingDocIds.push(guestBookingRef.id);
+      console.log(`✅ Guest ${i + 1} booking created: ${guestBookingRef.id} (${guestBookingData.bookingId})`);
+    }
+
+    console.log(`✅ Created ${createdBookingIds.length} total bookings for payment ${paymentDocId}`);
+
+    // Update stripePayments document with ALL booking references
     try {
       console.log("📝 Updating stripePayments document:", paymentDocId);
-      console.log("📝 Setting booking.documentId to:", newBookingRef.id);
-      console.log("📝 Setting booking.id to:", bookingData.bookingId);
+      console.log("📝 Setting booking.documentId to main booker:", createdBookingDocIds[0]);
+      console.log("📝 Setting booking.id to main booker:", createdBookingIds[0]);
+      console.log("📝 Setting bookingIds array:", createdBookingIds);
+      console.log("📝 Setting bookingDocumentIds array:", createdBookingDocIds);
 
       await updateDoc(paymentDocRef, {
-        "booking.documentId": newBookingRef.id,
-        "booking.id": bookingData.bookingId,
+        "booking.documentId": createdBookingDocIds[0], // Main booker doc ID (for backward compatibility)
+        "booking.id": createdBookingIds[0], // Main booker booking ID (for backward compatibility)
+        bookingIds: createdBookingIds, // Array of all booking IDs
+        bookingDocumentIds: createdBookingDocIds, // Array of all document IDs
         "timestamps.updatedAt": serverTimestamp(),
       });
 
-      console.log("✅ Stripe payment record updated with booking reference");
+      console.log("✅ Stripe payment record updated with all booking references");
 
-      // Verify the update by reading the document
+      // Verify the update
       const verifyDoc = await getDoc(paymentDocRef);
       const verifyData = verifyDoc.data();
       console.log(
@@ -451,6 +512,8 @@ export async function POST(req: NextRequest) {
         verifyData?.booking?.documentId
       );
       console.log("✅ Verified booking.id:", verifyData?.booking?.id);
+      console.log("✅ Verified bookingIds:", verifyData?.bookingIds);
+      console.log("✅ Verified bookingDocumentIds:", verifyData?.bookingDocumentIds);
     } catch (updateError: any) {
       console.error("❌ Error updating stripePayments document:", updateError);
       throw new Error(
@@ -460,9 +523,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      bookingDocumentId: newBookingRef.id,
-      bookingId: bookingData.bookingId,
-      message: "Booking created successfully",
+      bookingDocumentId: createdBookingDocIds[0], // Main booker (for backward compatibility)
+      bookingId: createdBookingIds[0], // Main booker (for backward compatibility)
+      bookingDocumentIds: createdBookingDocIds, // All booking doc IDs
+      bookingIds: createdBookingIds, // All booking IDs
+      totalBookingsCreated: createdBookingIds.length,
+      message: `${createdBookingIds.length} booking(s) created successfully`,
     });
   } catch (err: any) {
     console.error("❌ Create Booking Error:", err.message);
