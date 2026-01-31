@@ -247,6 +247,15 @@ const Page = () => {
 
   // Selected payment plan
   const [selectedPaymentPlan, setSelectedPaymentPlan] = useState<string>("");
+  
+  // Per-person payment plans (for multi-booking)
+  interface PersonPaymentPlan {
+    plan: string; 
+    tourCostShare: number;
+    reservationFeeShare: number;
+  }
+  const [paymentPlans, setPaymentPlans] = useState<PersonPaymentPlan[]>([]);
+  const [activePaymentTab, setActivePaymentTab] = useState(0); // 0 = main booker, 1+ = guests
 
   // animation state for tour date mount/visibility
   const [dateMounted, setDateMounted] = useState(false);
@@ -3128,28 +3137,31 @@ const Page = () => {
     try {
       setConfirmingBooking(true);
 
-      // Check if payment plan is selected (not required for full payment bookings)
-      if (!availablePaymentTerm.isLastMinute && !selectedPaymentPlan) {
-        alert("Please select a payment plan to continue");
-        return;
+      // Check if all payment plans are selected (not required for full payment bookings)
+      if (!availablePaymentTerm.isLastMinute) {
+        const allPlansSelected = paymentPlans.every(p => p?.plan) && paymentPlans.length === numberOfPeople;
+        if (!allPlansSelected) {
+          alert("Please select a payment plan for all travelers to continue");
+          return;
+        }
       }
 
-      // For full payment bookings, use "full_payment" as the payment plan
-      const paymentPlanToSend = availablePaymentTerm.isLastMinute
-        ? "full_payment"
-        : selectedPaymentPlan;
+      // For full payment bookings, create payment plans array with "full_payment" for each person
+      const paymentPlansToSend = availablePaymentTerm.isLastMinute
+        ? Array(numberOfPeople).fill(null).map(() => ({ plan: "full_payment" }))
+        : paymentPlans;
 
       console.log(
-        "🎯 Confirming booking with payment plan:",
-        paymentPlanToSend
+        "🎯 Confirming booking with payment plans:",
+        paymentPlansToSend
       );
 
-      // Get the selected payment plan details
+      // Get the selected payment plan details for logging/reference
       const availablePlans = getAvailablePaymentPlans();
-      const selectedPlan = availablePlans.find(
-        (plan) =>
-          plan.id === selectedPaymentPlan || plan.type === selectedPaymentPlan
-      );
+      const firstPlan = paymentPlans[0];
+      const selectedPlan = firstPlan?.plan 
+        ? availablePlans.find((plan) => plan.id === firstPlan.plan || plan.type === firstPlan.plan)
+        : null;
 
       // Find the payment document by bookingId or paymentDocId
       const { collection, query, where, getDocs } = await import(
@@ -3197,7 +3209,7 @@ const Page = () => {
           },
           body: JSON.stringify({
             paymentDocId: paymentDocIdToUse,
-            selectedPaymentPlan: paymentPlanToSend,
+            paymentPlans: paymentPlansToSend,
             paymentPlanDetails: selectedPlan || null,
           }),
         });
@@ -5285,210 +5297,294 @@ const Page = () => {
                 {/* Choose Payment Plan Card */}
                 <div className="rounded-2xl bg-white dark:bg-card/80 dark:backdrop-blur-md border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
                   <div className="p-6">
-                    <h3 className="text-lg font-bold text-foreground mb-6">
-                      Choose your payment plan
-                    </h3>
-
-                    {/* Tour Details Summary */}
-                    {selectedPackage && (
-                      <div className="bg-muted/10 border-2 border-border rounded-lg p-5 shadow-sm">
-                        <div className="text-sm space-y-3">
-                          <div className="flex justify-between items-center">
-                            <span className="text-foreground/70 font-semibold">
-                              Tour name:
-                            </span>
-                            <span className="font-bold text-foreground">
-                              {selectedPackage.name}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-foreground/70 font-semibold">
-                              Tour date:
-                            </span>
-                            <span className="font-bold text-foreground">
-                              {tourDate}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-foreground/70 font-semibold">
-                              Days until tour:
-                            </span>
-                            <span className="font-bold text-foreground">
-                              {calculateDaysBetween(tourDate)} days
-                            </span>
-                          </div>
-                          <div className="border-t-2 border-border/50 my-3"></div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-foreground/70 font-semibold">
-                              Tour cost:
-                            </span>
-                            <span className="font-bold text-foreground text-base">
-                              {(bookingType === "Duo Booking" || bookingType === "Group Booking") ? (
-                                <span className="flex items-center gap-2">
-                                  <span className="text-sm text-foreground/60 font-normal">
-                                    £{((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0).toFixed(2)} × {numberOfPeople} =
-                                  </span>
-                                  £{(((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople).toFixed(2)}
-                                </span>
-                              ) : (
-                                `£${((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0).toFixed(2)}`
-                              )}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-foreground/70 font-semibold">
-                              Reservation fee paid:
-                            </span>
-                            <span className="font-bold text-spring-green text-base">
-                              -£{depositAmount.toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="border-t-2 border-border/50 my-3"></div>
-                          <div className="flex justify-between items-center pt-1">
-                            <span className="text-foreground font-bold">
-                              Remaining balance:
-                            </span>
-                            <span className="font-bold text-xl text-crimson-red">
-                              £
-                              {(((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople - depositAmount).toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Payment Plan Options */}
-                    {availablePaymentTerm.isLastMinute ? (
-                      <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-md mt-4">
-                        <div className="flex items-start gap-3">
-                          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
-                            <svg
-                              className="h-5 w-5"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              aria-hidden
-                            >
+                    {/* Per-Person Payment Plan Selection */}
+                    <div className="space-y-6">
+                      {/* Tabs for each person */}
+                      <div className="flex gap-2 overflow-x-auto pb-2">
+                        <button
+                          type="button"
+                          onClick={() => setActivePaymentTab(0)}
+                          className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                            activePaymentTab === 0
+                              ? "bg-primary text-primary-foreground shadow-md"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          You (Main Booker)
+                          {paymentPlans[0]?.plan && (
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
                               <path
-                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                d="M20 6L9 17l-5-5"
                                 stroke="currentColor"
-                                strokeWidth="2"
+                                strokeWidth="2.5"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                               />
                             </svg>
-                          </div>
-                          <div>
-                            <div className="font-medium text-foreground">
-                              Full Payment Required
-                            </div>
-                            <div className="text-sm text-muted-foreground mt-1">
-                              Your tour is coming up soon! Full payment of £
-                              {selectedPackage
-                                ? (
-                                    (selectedPackage.price * numberOfPeople) - depositAmount
-                                  ).toFixed(2)
-                                : "0.00"}{" "}
-                              is required within 48 hours to confirm your spot.
-                            </div>
-                          </div>
-                        </div>
+                          )}
+                        </button>
+                        {guestDetails.map((guest, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setActivePaymentTab(idx + 1)}
+                            className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                              activePaymentTab === idx + 1
+                                ? "bg-primary text-primary-foreground shadow-md"
+                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            }`}
+                          >
+                            {guest.firstName} {guest.lastName}
+                            {paymentPlans[idx + 1]?.plan && (
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                                <path
+                                  d="M20 6L9 17l-5-5"
+                                  stroke="currentColor"
+                                  strokeWidth="2.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
                       </div>
-                    ) : (
-                      <>
-                        <p className="text-sm text-muted-foreground mt-6 mb-4">
-                          Great news! You have up to{" "}
-                          <span className="font-medium text-foreground">
-                            {availablePaymentTerm.term}
-                          </span>{" "}
-                          flexible payment options. Pick what works best for
-                          you:
-                        </p>
 
-                        <div className="space-y-3 mt-4">
-                          {getAvailablePaymentPlans().map((plan) => (
-                            <button
-                              key={plan.id}
-                              type="button"
-                              onClick={() => setSelectedPaymentPlan(plan.id)}
-                              className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                                selectedPaymentPlan === plan.id
-                                  ? "border-primary bg-primary/5 shadow-md"
-                                  : "border-border bg-card hover:border-primary/50 hover:bg-muted/50"
-                              }`}
-                            >
+                      {/* Payment Plan Selection for Active Tab */}
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={activePaymentTab}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <h4 className="text-base font-semibold text-foreground mb-4">
+                            {activePaymentTab === 0
+                              ? "Select your payment plan"
+                              : `Select payment plan for ${guestDetails[activePaymentTab - 1]?.firstName}`}
+                          </h4>
+
+                          <div className="bg-muted/20 border border-border rounded-lg p-4 mb-4">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-muted-foreground">Tour cost:</span>
+                              <span className="font-bold text-foreground">
+                                £{((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0).toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm mt-2">
+                              <span className="text-muted-foreground">Reservation fee share (paid):</span>
+                              <span className="font-bold text-spring-green">
+                                -£{(depositAmount / numberOfPeople).toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="border-t border-border my-2"></div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-foreground font-semibold">Remaining balance:</span>
+                              <span className="font-bold text-lg text-crimson-red">
+                                £{(((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) - (depositAmount / numberOfPeople)).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Payment Plan Options */}
+                          {availablePaymentTerm.isLastMinute ? (
+                            <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-md">
                               <div className="flex items-start gap-3">
-                                <div
-                                  className="flex items-center justify-center h-10 w-10 rounded-full text-white font-semibold flex-shrink-0"
-                                  style={{ backgroundColor: plan.color }}
-                                >
-                                  P{plan.monthsRequired}
+                                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
+                                  <svg
+                                    className="h-5 w-5"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    aria-hidden
+                                  >
+                                    <path
+                                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between gap-2 mb-1">
-                                    <div className="font-medium text-foreground">
-                                      {plan.label}
-                                    </div>
-                                    {selectedPaymentPlan === plan.id && (
-                                      <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary text-primary-foreground flex-shrink-0">
-                                        <svg
-                                          className="h-4 w-4"
-                                          viewBox="0 0 24 24"
-                                          fill="none"
-                                          aria-hidden
-                                        >
-                                          <path
-                                            d="M20 6L9 17l-5-5"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                          />
-                                        </svg>
-                                      </div>
-                                    )}
+                                <div>
+                                  <div className="font-medium text-foreground">
+                                    Full Payment Required
                                   </div>
-                                  <div className="text-xs text-muted-foreground mb-3">
-                                    {plan.description}
-                                  </div>
-
-                                  {/* Payment Schedule */}
-                                  <div className="space-y-2 bg-muted/30 rounded-md p-3">
-                                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                                      Payment Schedule
-                                    </div>
-                                    {plan.schedule.map((payment, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="flex items-center justify-between text-sm"
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <div className="h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-xs font-medium">
-                                            {idx + 1}
-                                          </div>
-                                          <span className="text-foreground">
-                                            {new Date(
-                                              payment.date + "T00:00:00Z"
-                                            ).toLocaleDateString("en-US", {
-                                              month: "short",
-                                              day: "numeric",
-                                              year: "numeric",
-                                              timeZone: "UTC",
-                                            })}
-                                          </span>
-                                        </div>
-                                        <span className="font-medium text-foreground">
-                                          £{payment.amount.toFixed(2)}
-                                        </span>
-                                      </div>
-                                    ))}
+                                  <div className="text-sm text-muted-foreground mt-1">
+                                    Tour is coming up soon! Full payment of £
+                                    {(((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) - (depositAmount / numberOfPeople)).toFixed(2)}{" "}
+                                    is required within 48 hours.
                                   </div>
                                 </div>
                               </div>
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
+                            </div>
+                          ) : (
+                            <>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                Great news! You have up to{" "}
+                                <span className="font-medium text-foreground">
+                                  {availablePaymentTerm.term}
+                                </span>{" "}
+                                flexible payment options. Pick what works best:
+                              </p>
+
+                              <div className="space-y-3">
+                                {getAvailablePaymentPlans().map((plan) => {
+                                  const personPlan = paymentPlans[activePaymentTab];
+                                  const isSelected = personPlan?.plan === plan.id;
+                                  
+                                  return (
+                                    <button
+                                      key={plan.id}
+                                      type="button"
+                                      onClick={() => {
+                                        const tourCost = (selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0;
+                                        const reservationFeePerPerson = depositAmount / numberOfPeople;
+                                        
+                                        setPaymentPlans(prev => {
+                                          const updated = [...prev];
+                                          // Ensure array has enough slots
+                                          while (updated.length <= activePaymentTab) {
+                                            updated.push({
+                                              plan: "",
+                                              tourCostShare: tourCost,
+                                              reservationFeeShare: reservationFeePerPerson,
+                                            });
+                                          }
+                                          updated[activePaymentTab] = {
+                                            plan: plan.id,
+                                            tourCostShare: tourCost,
+                                            reservationFeeShare: reservationFeePerPerson,
+                                          };
+                                          return updated;
+                                        });
+                                      }}
+                                      className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                                        isSelected
+                                          ? "border-primary bg-primary/5 shadow-md"
+                                          : "border-border bg-card hover:border-primary/50 hover:bg-muted/50"
+                                      }`}
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        <div
+                                          className="flex items-center justify-center h-10 w-10 rounded-full text-white font-semibold flex-shrink-0"
+                                          style={{ backgroundColor: plan.color }}
+                                        >
+                                          P{plan.monthsRequired}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center justify-between gap-2 mb-1">
+                                            <div className="font-medium text-foreground">
+                                              {plan.label}
+                                            </div>
+                                            {isSelected && (
+                                              <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary text-primary-foreground flex-shrink-0">
+                                                <svg
+                                                  className="h-4 w-4"
+                                                  viewBox="0 0 24 24"
+                                                  fill="none"
+                                                  aria-hidden
+                                                >
+                                                  <path
+                                                    d="M20 6L9 17l-5-5"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                  />
+                                                </svg>
+                                              </div>
+                                            )}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground mb-3">
+                                            {plan.description}
+                                          </div>
+
+                                          {/* Payment Schedule - Calculated per person */}
+                                          <div className="space-y-2 bg-muted/30 rounded-md p-3">
+                                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                                              Payment Schedule
+                                            </div>
+                                            {(() => {
+                                              // Calculate individual remaining balance
+                                              const tourCost = (selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0;
+                                              const reservationFeeShare = depositAmount / numberOfPeople;
+                                              const individualRemainingBalance = tourCost - reservationFeeShare;
+                                              
+                                              // Calculate per-person payment amounts
+                                              const numPayments = plan.schedule.length;
+                                              const paymentAmount = individualRemainingBalance / numPayments;
+                                              
+                                              return plan.schedule.map((payment, idx) => (
+                                                <div
+                                                  key={idx}
+                                                  className="flex items-center justify-between text-sm"
+                                                >
+                                                  <div className="flex items-center gap-2">
+                                                    <div className="h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-xs font-medium">
+                                                      {idx + 1}
+                                                    </div>
+                                                    <span className="text-foreground">
+                                                      {new Date(
+                                                        payment.date + "T00:00:00Z"
+                                                      ).toLocaleDateString("en-US", {
+                                                        month: "short",
+                                                        day: "numeric",
+                                                        year: "numeric",
+                                                        timeZone: "UTC",
+                                                      })}
+                                                    </span>
+                                                  </div>
+                                                  <span className="font-medium text-foreground">
+                                                    £{paymentAmount.toFixed(2)}
+                                                  </span>
+                                                </div>
+                                              ));
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          )}
+
+                          {/* Navigation buttons */}
+                          <div className="flex justify-between mt-6">
+                            {activePaymentTab > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setActivePaymentTab(activePaymentTab - 1)}
+                                className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                ← Previous
+                              </button>
+                            )}
+                            {activePaymentTab < numberOfPeople - 1 ? (
+                              <button
+                                type="button"
+                                onClick={() => setActivePaymentTab(activePaymentTab + 1)}
+                                disabled={!paymentPlans[activePaymentTab]?.plan}
+                                className={`ml-auto px-6 py-2 rounded-lg font-medium transition-all ${
+                                  paymentPlans[activePaymentTab]?.plan
+                                    ? "bg-primary text-primary-foreground hover:shadow-lg"
+                                    : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                                }`}
+                              >
+                                Next →
+                              </button>
+                            ) : (
+                              <div className="ml-auto text-sm text-muted-foreground">
+                                {paymentPlans.filter(p => p?.plan).length} of {numberOfPeople} plans selected
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -5693,13 +5789,13 @@ const Page = () => {
                   type="button"
                   onClick={handleConfirmBooking}
                   className={`group inline-flex items-center gap-2 px-8 py-3.5 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 font-semibold ${
-                    availablePaymentTerm.isLastMinute || selectedPaymentPlan
+                    (availablePaymentTerm.isLastMinute || paymentPlans.every(p => p?.plan)) && paymentPlans.length === numberOfPeople
                       ? "bg-gradient-to-r from-spring-green to-green-500 text-white hover:shadow-xl hover:scale-105 focus:ring-spring-green"
                       : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                   }`}
                   disabled={
                     (!availablePaymentTerm.isLastMinute &&
-                      !selectedPaymentPlan) ||
+                      !(paymentPlans.every(p => p?.plan) && paymentPlans.length === numberOfPeople)) ||
                     confirmingBooking
                   }
                 >

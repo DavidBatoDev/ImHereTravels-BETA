@@ -22,7 +22,7 @@ function extractPaymentPlanType(name: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { paymentDocId, selectedPaymentPlan, paymentPlanDetails } =
+    const { paymentDocId, paymentPlans, paymentPlanDetails } =
       await req.json();
 
     // Validate required fields
@@ -33,16 +33,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!selectedPaymentPlan) {
+    if (!paymentPlans || !Array.isArray(paymentPlans) || paymentPlans.length === 0) {
       return NextResponse.json(
-        { error: "Missing required field: selectedPaymentPlan" },
+        { error: "Missing or invalid required field: paymentPlans (must be non-empty array)" },
         { status: 400 }
       );
     }
 
     console.log("📝 Processing payment plan selection:", {
       paymentDocId,
-      selectedPaymentPlan,
+      paymentPlans,
+      numberOfPlans: paymentPlans.length,
     });
 
     // Fetch the stripePayments document
@@ -58,124 +59,150 @@ export async function POST(req: NextRequest) {
 
     const paymentData = paymentDocSnap.data();
 
-    // Check if booking document exists (check both nested and flat for backward compatibility)
-    const bookingDocumentId =
-      paymentData.booking?.documentId || paymentData.bookingDocumentId;
-    if (!bookingDocumentId) {
+    // Get all booking document IDs (should be an array for group bookings)
+    const bookingDocumentIds = paymentData.bookingDocumentIds || 
+                               (paymentData.booking?.documentId ? [paymentData.booking.documentId] : []) ||
+                               (paymentData.bookingDocumentId ? [paymentData.bookingDocumentId] : []);
+    
+    if (!bookingDocumentIds || bookingDocumentIds.length === 0) {
       console.error("❌ Payment data:", JSON.stringify(paymentData, null, 2));
       return NextResponse.json(
         {
           error:
-            "No booking associated with this payment. Please complete Step 2 first.",
+            "No bookings associated with this payment. Please complete Step 2 first.",
         },
         { status: 400 }
       );
     }
 
-    // Fetch the booking document
-    const bookingDocRef = doc(db, "bookings", bookingDocumentId);
-    const bookingDocSnap = await getDoc(bookingDocRef);
-
-    if (!bookingDocSnap.exists()) {
+    // Validate that we have the same number of payment plans as bookings
+    if (paymentPlans.length !== bookingDocumentIds.length) {
       return NextResponse.json(
-        { error: "Booking document not found" },
-        { status: 404 }
+        { 
+          error: `Payment plan count mismatch: ${paymentPlans.length} plans provided but ${bookingDocumentIds.length} bookings exist` 
+        },
+        { status: 400 }
       );
     }
 
-    const bookingData = bookingDocSnap.data();
+    console.log(`📊 Processing ${bookingDocumentIds.length} bookings with their payment plans`);
 
-    console.log(
-      "📊 Calculating payment plan update for booking:",
-      bookingDocumentId
-    );
+    // Process each booking with its corresponding payment plan
+    const updateResults: Array<{ bookingDocumentId: string; paymentPlan: string }> = [];
+    for (let i = 0; i < bookingDocumentIds.length; i++) {
+      const bookingDocumentId = bookingDocumentIds[i];
+      const personPlan = paymentPlans[i];
+      
+      console.log(`\n--- Processing booking ${i + 1}/${bookingDocumentIds.length} ---`);
+      console.log(`Booking ID: ${bookingDocumentId}`);
+      console.log(`Payment plan:`, personPlan);
 
-    // Fetch the payment term document to get the name
-    // selectedPaymentPlan is the document ID in paymentTerms collection
-    let paymentPlanString = selectedPaymentPlan;
+      // Fetch the booking document
+      const bookingDocRef = doc(db, "bookings", bookingDocumentId);
+      const bookingDocSnap = await getDoc(bookingDocRef);
 
-    try {
-      const paymentTermDocRef = doc(db, "paymentTerms", selectedPaymentPlan);
-      const paymentTermDocSnap = await getDoc(paymentTermDocRef);
+      if (!bookingDocSnap.exists()) {
+        console.error(`❌ Booking ${bookingDocumentId} not found`);
+        continue; // Skip this booking but continue with others
+      }
 
-      if (paymentTermDocSnap.exists()) {
-        const paymentTermData = paymentTermDocSnap.data();
-        const paymentTermName = paymentTermData.name || "";
-        // Extract plan type from name (e.g., "P1 - Single Instalment" → "P1")
-        paymentPlanString = extractPaymentPlanType(paymentTermName);
+      const bookingData = bookingDocSnap.data();
+
+      // Get the selected payment plan ID from the person's plan
+      const selectedPaymentPlan = personPlan.plan;
+      
+      // Fetch the payment term document to get the name
+      let paymentPlanString = selectedPaymentPlan;
+
+      try {
+        const paymentTermDocRef = doc(db, "paymentTerms", selectedPaymentPlan);
+        const paymentTermDocSnap = await getDoc(paymentTermDocRef);
+
+        if (paymentTermDocSnap.exists()) {
+          const paymentTermData = paymentTermDocSnap.data();
+          const paymentTermName = paymentTermData.name || "";
+          // Extract plan type from name (e.g., "P1 - Single Instalment" → "P1")
+          paymentPlanString = extractPaymentPlanType(paymentTermName);
+          console.log(
+            "📋 Payment term name:",
+            paymentTermName,
+            "→ Plan type:",
+            paymentPlanString
+          );
+        } else {
+          console.log(
+            "⚠️ Payment term document not found, using selectedPaymentPlan as-is"
+          );
+        }
+      } catch (err) {
         console.log(
-          "📋 Payment term name:",
-          paymentTermName,
-          "→ Plan type:",
-          paymentPlanString
-        );
-      } else {
-        console.log(
-          "⚠️ Payment term document not found, using selectedPaymentPlan as-is"
+          "⚠️ Error fetching payment term, using selectedPaymentPlan as-is:",
+          err
         );
       }
-    } catch (err) {
-      console.log(
-        "⚠️ Error fetching payment term, using selectedPaymentPlan as-is:",
-        err
-      );
+
+      // Convert "full_payment" to "Full Payment" for calculation functions
+      if (paymentPlanString === "full_payment") {
+        paymentPlanString = "Full Payment";
+      }
+
+      // Prepare input for payment plan calculation
+      const updateInput: PaymentPlanUpdateInput = {
+        paymentPlan: paymentPlanString,
+        reservationDate: bookingData.reservationDate || bookingData.createdAt,
+        tourDate: bookingData.tourDate,
+        paymentCondition: bookingData.paymentCondition || "",
+        originalTourCost: bookingData.originalTourCost || 0,
+        discountedTourCost: bookingData.discountedTourCost || null,
+        reservationFee: bookingData.reservationFee || 250,
+        isMainBooker: bookingData.isMainBooking !== false,
+        creditAmount: bookingData.manualCredit || 0,
+        reminderDaysBefore: 7, // 7 days before due date
+      };
+
+      // Calculate all payment plan fields
+      const paymentUpdate = calculatePaymentPlanUpdate(updateInput);
+
+      console.log("📅 Payment plan calculated:", {
+        bookingId: bookingDocumentId,
+        paymentPlan: paymentUpdate.paymentPlan,
+        fullPaymentDueDate: paymentUpdate.fullPaymentDueDate,
+        p1DueDate: paymentUpdate.p1DueDate,
+        p2DueDate: paymentUpdate.p2DueDate,
+      });
+
+      // Update the booking document
+      await updateDoc(bookingDocRef, {
+        ...paymentUpdate,
+        updatedAt: serverTimestamp(),
+      });
+
+      console.log(`✅ Booking ${bookingDocumentId} updated with payment plan`);
+      
+      updateResults.push({
+        bookingDocumentId,
+        paymentPlan: paymentUpdate.paymentPlan,
+      });
     }
-
-    // Convert "full_payment" to "Full Payment" for calculation functions
-    if (paymentPlanString === "full_payment") {
-      paymentPlanString = "Full Payment";
-    }
-
-    // Prepare input for payment plan calculation
-    const updateInput: PaymentPlanUpdateInput = {
-      paymentPlan: paymentPlanString,
-      reservationDate: bookingData.reservationDate || bookingData.createdAt,
-      tourDate: bookingData.tourDate,
-      paymentCondition: bookingData.paymentCondition || "",
-      originalTourCost: bookingData.originalTourCost || 0,
-      discountedTourCost: bookingData.discountedTourCost || null,
-      reservationFee: bookingData.reservationFee || 250,
-      isMainBooker: bookingData.isMainBooking !== false,
-      creditAmount: bookingData.manualCredit || 0,
-      reminderDaysBefore: 7, // 7 days before due date
-    };
-
-    // Calculate all payment plan fields
-    const paymentUpdate = calculatePaymentPlanUpdate(updateInput);
-
-    console.log("📅 Payment plan calculated:", {
-      paymentPlan: paymentUpdate.paymentPlan,
-      fullPaymentDueDate: paymentUpdate.fullPaymentDueDate,
-      p1DueDate: paymentUpdate.p1DueDate,
-      p2DueDate: paymentUpdate.p2DueDate,
-      p3DueDate: paymentUpdate.p3DueDate,
-      p4DueDate: paymentUpdate.p4DueDate,
-    });
-
-    // Update the booking document
-    await updateDoc(bookingDocRef, {
-      ...paymentUpdate,
-      updatedAt: serverTimestamp(),
-    });
-
-    console.log("✅ Booking updated with payment plan");
 
     // Update the stripePayments document with nested structure
     await updateDoc(paymentDocRef, {
       "payment.status": "terms_selected",
-      "payment.selectedPaymentPlan": selectedPaymentPlan,
+      "payment.paymentPlans": paymentPlans, // Store the array of plans
       "payment.paymentPlanDetails": paymentPlanDetails || null,
       "timestamps.confirmedAt": serverTimestamp(),
       "timestamps.updatedAt": serverTimestamp(),
     });
 
     console.log("✅ Stripe payment record updated to terms_selected");
+    console.log(`✅ Successfully processed ${updateResults.length} bookings`);
 
     return NextResponse.json({
       success: true,
-      bookingDocumentId,
-      paymentPlan: paymentUpdate.paymentPlan,
-      message: "Payment plan selected successfully",
+      bookingDocumentIds: bookingDocumentIds,
+      bookingDocumentId: bookingDocumentIds[0], // For backward compatibility
+      updatedBookings: updateResults,
+      message: "Payment plans selected successfully for all bookings",
     });
   } catch (err: any) {
     console.error("❌ Select Plan Error:", err.message);
