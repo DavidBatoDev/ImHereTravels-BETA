@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -24,6 +24,7 @@ import { db } from "../../lib/firebase";
 import StripePayment from "./StripePayment";
 import BirthdatePicker from "./BirthdatePicker";
 import Select from "./Select";
+import GuestForm from "./GuestForm";
 import TourSelectionModal from "./TourSelectionModal";
 import { getNationalityOptions, getNationalityCountryCode } from "./nationalities";
 import ReactCountryFlag from "react-country-flag";
@@ -1063,69 +1064,6 @@ const Page = () => {
     }
   };
 
-  // Generate booking ID after payment
-  const generateBookingId = async () => {
-    // Use tour date instead of reservation date
-    const tourDateObj = new Date(tourDate);
-    const year = tourDateObj.getFullYear();
-    const month = String(tourDateObj.getMonth() + 1).padStart(2, "0");
-    const day = String(tourDateObj.getDate()).padStart(2, "0");
-    const dateStr = `${year}${month}${day}`;
-
-    // Determine booking type prefix
-    let prefix = "SB"; // Default: Single Booking
-    if (bookingType === "Duo Booking") {
-      prefix = "DB";
-    } else if (bookingType === "Group Booking") {
-      prefix = "GB";
-    }
-
-    // Get tour package abbreviation from name
-    const packageName = selectedPackage?.name || "";
-    const cleanName = packageName.replace(/\([^)]*\)/g, "").trim();
-    const words = cleanName.split(" ").filter((w) => w.length > 0);
-    const packageAbbrev =
-      words
-        .map((w) => w.charAt(0).toUpperCase())
-        .join("")
-        .slice(0, 3) || "XXX";
-
-    // Get initials from full name (first letter of first name + first letter of last name)
-    const firstInitial = firstName.charAt(0).toUpperCase() || "X";
-    const lastInitial = lastName.charAt(0).toUpperCase() || "X";
-    const initials = `${firstInitial}${lastInitial}`;
-
-    // Generate code suffix based on booking type (separated from initials by a dash)
-    let codeSuffix = "";
-
-    if (bookingType === "Single Booking") {
-      // For single bookings: use count from bookings collection
-      try {
-        const { collection, query, where, getDocs } = await import(
-          "firebase/firestore"
-        );
-        const bookingsRef = collection(db, "bookings");
-        const q = query(bookingsRef, where("tourPackageId", "==", tourPackage));
-        const querySnapshot = await getDocs(q);
-        const bookingCount = querySnapshot.size + 1;
-        codeSuffix = String(bookingCount).padStart(3, "0");
-      } catch (error) {
-        console.error("Error counting bookings:", error);
-        // Fallback to random number if query fails
-        const randomNum = Math.floor(Math.random() * 900) + 100;
-        codeSuffix = String(randomNum);
-      }
-    } else {
-      // For duo/group bookings: use random 4-digit code (same for all guests in the group)
-      const randomCode = Math.floor(Math.random() * 9000) + 1000;
-      codeSuffix = String(randomCode);
-    }
-
-    return `${prefix}-${packageAbbrev}-${dateStr}-${initials}-${codeSuffix}`;
-  };
-
-  // computed helpers
-  const canEditStep1 = !paymentConfirmed;
   const progressWidth = step === 1 ? "w-1/3" : step === 2 ? "w-2/3" : "w-full";
 
   // Get reservation fee from selected package (not the full deposit)
@@ -2963,35 +2901,42 @@ const Page = () => {
     }
   };
 
-  const handleGroupSizeChange = async (val: number) => {
+  const handleGroupSizeChange = (val: number) => {
     if (bookingType !== "Group Booking") return;
     const clamped = Math.max(3, Math.min(20, val || 3));
 
-    await animateGuestsContentChange(() => {
-      setGroupSize(clamped);
-      setAdditionalGuests((prev) => {
-        const needed = clamped - 1;
-        const copy = prev.slice(0, needed);
-        while (copy.length < needed) copy.push("");
-        return copy;
-      });
-      // Update guest details array
-      setGuestDetails((prev) => {
-        const needed = clamped - 1;
-        const copy = prev.slice(0, needed);
-        while (copy.length < needed) {
-          copy.push({
-            email: "",
-            firstName: "",
-            lastName: "",
-            birthdate: "",
-            nationality: "",
-            whatsAppNumber: "",
-            whatsAppCountry: "GB",
-          });
-        }
-        return copy;
-      });
+    setGroupSize(clamped);
+    
+    // If the currently active tab (e.g., guest 4) is beyond the new size,
+    // switch back to the main booker tab (1) to avoid showing an empty state.
+    // Tabs are: 1=Main, 2=Guest1, 3=Guest2... 
+    // So if clamped is 3 (Main + G1 + G2), max tab index is 1 + (3-1) = 3.
+    if (activeGuestTab > clamped) {
+      setActiveGuestTab(1);
+    }
+
+    setAdditionalGuests((prev) => {
+      const needed = clamped - 1;
+      const copy = prev.slice(0, needed);
+      while (copy.length < needed) copy.push("");
+      return copy;
+    });
+    // Update guest details array
+    setGuestDetails((prev) => {
+      const needed = clamped - 1;
+      const copy = prev.slice(0, needed);
+      while (copy.length < needed) {
+        copy.push({
+          email: "",
+          firstName: "",
+          lastName: "",
+          birthdate: "",
+          nationality: "",
+          whatsAppNumber: "",
+          whatsAppCountry: "GB",
+        });
+      }
+      return copy;
     });
   };
 
@@ -3000,6 +2945,16 @@ const Page = () => {
     copy[idx] = value;
     setAdditionalGuests(copy);
   };
+
+  const handleGuestDetailsUpdate = useCallback((index: number, data: typeof guestDetails[0]) => {
+    setGuestDetails((prev) => {
+      const newGuests = [...prev];
+      if (index >= 0 && index < newGuests.length) {
+        newGuests[index] = data;
+      }
+      return newGuests;
+    });
+  }, []);
 
   const validate = () => {
     console.log("🔍 Starting validation...");
@@ -4542,7 +4497,7 @@ const Page = () => {
 
                       {/* Group Size Controls - Only show for Group Booking */}
                       {bookingType === "Group Booking" && (
-                        <div className="mt-6 p-6 rounded-lg bg-gradient-to-r from-card/50 to-card/80 border border-border shadow-sm transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
+                        <div className="mt-2 p-3 rounded-lg bg-gradient-to-r from-card/50 to-card/80 border border-border shadow-sm transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
                           <div className="flex items-center justify-between gap-4">
                             <label className="text-sm font-semibold text-foreground flex items-center gap-3">
                               <svg className="w-5 h-5 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -5112,393 +5067,26 @@ const Page = () => {
                 </div>
 
               {/* Guest Forms - Only show for Duo/Group Booking */}
+              {/* Guest Forms - Only show for Duo/Group Booking */}
               {(bookingType === "Duo Booking" || bookingType === "Group Booking") && (
-                <>
-                  {guestDetails.map((guest, guestIndex) => (
-                    <div
-                      key={guestIndex}
-                      className={`transition-all duration-500 ease-in-out ${activeGuestTab !== guestIndex + 2 ? "opacity-0 scale-95 pointer-events-none absolute" : "opacity-100 scale-100"}`}
-                    >
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                        {/* Guest Email */}
-                        <label className="block">
-                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          Email address
-                          <span className="text-destructive text-xs">*</span>
-                        </span>
-                        <div className="relative">
-                          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
-                              />
-                            </svg>
-                          </div>
-                          <input
-                            type="email"
-                            value={guest.email}
-                            onChange={(e) => {
-                              const newGuests = [...guestDetails];
-                              newGuests[guestIndex].email = e.target.value;
-                              setGuestDetails(newGuests);
-                            }}
-                            placeholder="guest.email@example.com"
-                            className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
-                              !!errors[`guest-${guestIndex}-email`]
-                            )} ${
-                              guest.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email) && !errors[`guest-${guestIndex}-email`]
-                                ? "border-green-500"
-                                : ""
-                            } ${fieldFocus}`}
-                            disabled={paymentConfirmed}
-                          />
-                          {guest.email &&
-                            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email) &&
-                            !errors[`guest-${guestIndex}-email`] && (
-                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none">
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                              </div>
-                            )}
-                        </div>
-                        {errors[`guest-${guestIndex}-email`] && (
-                          <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            {errors[`guest-${guestIndex}-email`]}
-                          </p>
-                        )}
-                      </label>
-
-                      {/* Guest Birthdate */}
-                      <label className="block">
-                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          Birthdate
-                          <span className="text-destructive text-xs">*</span>
-                        </span>
-                        <BirthdatePicker
-                          value={guest.birthdate}
-                          onChange={(val) => {
-                            const newGuests = [...guestDetails];
-                            newGuests[guestIndex].birthdate = val;
-                            setGuestDetails(newGuests);
-                          }}
-                          isValid={!!guest.birthdate && !errors[`guest-${guestIndex}-birthdate`]}
-                          disabled={paymentConfirmed}
+                <AnimatePresence mode="wait">
+                  {(() => {
+                    const guestIndex = activeGuestTab - 2;
+                    if (guestIndex >= 0 && guestIndex < guestDetails.length) {
+                      return (
+                        <GuestForm
+                          key={`guest-${guestIndex}`}
+                          index={guestIndex}
+                          initialData={guestDetails[guestIndex]}
+                          onUpdate={handleGuestDetailsUpdate}
+                          errors={errors}
+                          paymentConfirmed={paymentConfirmed}
                         />
-                        {errors[`guest-${guestIndex}-birthdate`] && (
-                          <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            {errors[`guest-${guestIndex}-birthdate`]}
-                          </p>
-                        )}
-                      </label>
-
-                      {/* Guest First Name */}
-                      <label className="block">
-                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          First name
-                          <span className="text-destructive text-xs">*</span>
-                        </span>
-                        <input
-                          type="text"
-                          value={guest.firstName}
-                          onChange={(e) => {
-                            const newGuests = [...guestDetails];
-                            newGuests[guestIndex].firstName = e.target.value;
-                            setGuestDetails(newGuests);
-                          }}
-                          placeholder="John"
-                          className={`${fieldBase} ${fieldBorder(
-                            !!errors[`guest-${guestIndex}-firstName`]
-                          )} ${
-                            guest.firstName ? "border-green-500" : ""
-                          } ${fieldFocus}`}
-                          disabled={paymentConfirmed}
-                        />
-                        {errors[`guest-${guestIndex}-firstName`] && (
-                          <p className="mt-1.5 text-xs text-destructive">
-                            {errors[`guest-${guestIndex}-firstName`]}
-                          </p>
-                        )}
-                      </label>
-
-                      {/* Guest Last Name */}
-                      <label className="block">
-                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          Last name
-                          <span className="text-destructive text-xs">*</span>
-                        </span>
-                        <input
-                          type="text"
-                          value={guest.lastName}
-                          onChange={(e) => {
-                            const newGuests = [...guestDetails];
-                            newGuests[guestIndex].lastName = e.target.value;
-                            setGuestDetails(newGuests);
-                          }}
-                          placeholder="Doe"
-                          className={`${fieldBase} ${fieldBorder(
-                            !!errors[`guest-${guestIndex}-lastName`]
-                          )} ${
-                            guest.lastName ? "border-green-500" : ""
-                          } ${fieldFocus}`}
-                          disabled={paymentConfirmed}
-                        />
-                        {errors[`guest-${guestIndex}-lastName`] && (
-                          <p className="mt-1.5 text-xs text-destructive">
-                            {errors[`guest-${guestIndex}-lastName`]}
-                          </p>
-                        )}
-                      </label>
-
-                      {/* Guest Nationality */}
-                      <label className="block">
-                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          Nationality
-                          <span className="text-destructive text-xs">*</span>
-                        </span>
-                        <Select
-                          value={guest.nationality}
-                          onChange={(val) => {
-                            const newGuests = [...guestDetails];
-                            newGuests[guestIndex].nationality = val;
-                            
-                            // Sync WhatsApp country code with nationality
-                            const countryCode = getNationalityCountryCode(val);
-                            if (countryCode) {
-                              newGuests[guestIndex].whatsAppCountry = countryCode;
-                            }
-                            
-                            setGuestDetails(newGuests);
-                          }}
-                          options={getNationalityOptions()}
-                          placeholder="Select nationality"
-                          ariaLabel="Nationality"
-                          className="mt-1"
-                          disabled={paymentConfirmed}
-                          isValid={!!guest.nationality}
-                        />
-                        {errors[`guest-${guestIndex}-nationality`] && (
-                          <p className="mt-1 text-xs text-destructive">
-                            {errors[`guest-${guestIndex}-nationality`]}
-                          </p>
-                        )}
-                      </label>
-
-                      {/* Guest WhatsApp Number */}
-                      <label className="block relative">
-                        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          WhatsApp number
-                          <span className="text-destructive text-xs">*</span>
-                        </span>
-                        <div className="relative mt-1 flex items-stretch gap-2">
-                          <Select
-                            value={guest.whatsAppCountry}
-                            onChange={(code) => {
-                              const newGuests = [...guestDetails];
-                              newGuests[guestIndex].whatsAppCountry = code;
-                              newGuests[guestIndex].whatsAppNumber = ""; // Clear the number when country changes
-                              setGuestDetails(newGuests);
-                            }}
-                            options={getCountries().map((country) => {
-                              const data = getCountryData(country);
-                              const callingCode = safeGetCountryCallingCode(country);
-                              const countryName = en[country] || country;
-                              return {
-                                label: (
-                                  <span className="inline-flex items-center gap-2">
-                                    <ReactCountryFlag
-                                      countryCode={country}
-                                      svg
-                                      aria-label={countryName}
-                                      style={{
-                                        width: "1rem",
-                                        height: "0.5rem",
-                                        flexShrink: 1,
-                                      }}
-                                    />
-                                    <span>
-                                      {`${data.alpha3} (+${callingCode})`}
-                                    </span>
-                                  </span>
-                                ),
-                                value: country,
-                                searchValue:
-                                  `${data.flag} ${data.alpha3} ${countryName} ${country} ${callingCode}`.toLowerCase(),
-                              };
-                            })}
-                            placeholder="Country"
-                            ariaLabel="Country Code"
-                            disabled={paymentConfirmed}
-                            searchable
-                            className={`w-[160px] flex-shrink-0 ${paymentConfirmed ? "disabled-hover" : ""}`}
-                          />
-                          <div className="flex-1 relative min-w-0">
-                            <div
-                              className={`flex items-center w-full px-4 py-3 rounded-lg transition-all duration-200 shadow-sm border-2 ${
-                                paymentConfirmed
-                                  ? guest.whatsAppNumber &&
-                                    isValidPhoneNumber(
-                                      `+${safeGetCountryCallingCode(
-                                        guest.whatsAppCountry
-                                      )}${guest.whatsAppNumber}`
-                                    )
-                                    ? "opacity-50 bg-muted/40 border-green-500 cursor-not-allowed"
-                                    : "opacity-50 bg-muted/40 border-border cursor-not-allowed"
-                                  : errors[`guest-${guestIndex}-whatsAppNumber`]
-                                  ? "bg-input border-destructive"
-                                  : guest.whatsAppNumber &&
-                                    isValidPhoneNumber(
-                                      `+${safeGetCountryCallingCode(
-                                        guest.whatsAppCountry
-                                      )}${guest.whatsAppNumber}`
-                                    )
-                                  ? "bg-input border-green-500"
-                                  : "bg-input border-border"
-                              } ${
-                                !paymentConfirmed
-                                  ? "focus-within:outline-none focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-md hover:border-primary/50"
-                                  : ""
-                              }`}
-                            >
-                              <span className={`text-muted-foreground mr-2 select-none ${paymentConfirmed ? "opacity-50" : ""}`}>
-                                +
-                                {safeGetCountryCallingCode(guest.whatsAppCountry)}
-                              </span>
-                              <input
-                                type="tel"
-                                value={guest.whatsAppNumber}
-                                onChange={(e) => {
-                                  const value = e.target.value.replace(
-                                    /[^0-9]/g,
-                                    ""
-                                  );
-                                  const maxLen =
-                                    getCountryData(guest.whatsAppCountry).maxLength;
-                                  const limitedValue = value.slice(0, maxLen);
-                                  
-                                  const newGuests = [...guestDetails];
-                                  newGuests[guestIndex].whatsAppNumber = limitedValue;
-                                  setGuestDetails(newGuests);
-
-                                  // Real-time validation
-                                  const fullNumber = `+${safeGetCountryCallingCode(
-                                    guest.whatsAppCountry
-                                  )}${limitedValue}`;
-                                  setErrors((prev) => {
-                                    const clone = { ...prev } as any;
-                                    if (!limitedValue.trim()) {
-                                      clone[`guest-${guestIndex}-whatsAppNumber`] =
-                                        "WhatsApp number is required";
-                                    } else if (
-                                      limitedValue.length > 2 &&
-                                      !isValidPhoneNumber(fullNumber)
-                                    ) {
-                                      clone[`guest-${guestIndex}-whatsAppNumber`] =
-                                        "Enter a valid phone number";
-                                    } else if (isValidPhoneNumber(fullNumber)) {
-                                      delete clone[`guest-${guestIndex}-whatsAppNumber`];
-                                    }
-                                    return clone;
-                                  });
-                                }}
-                                onBlur={() => {
-                                  const fullNumber = guest.whatsAppNumber
-                                    ? `+${safeGetCountryCallingCode(
-                                        guest.whatsAppCountry
-                                      )}${guest.whatsAppNumber}`
-                                    : "";
-                                  setErrors((prev) => {
-                                    const clone = { ...prev } as any;
-                                    if (!guest.whatsAppNumber) {
-                                      clone[`guest-${guestIndex}-whatsAppNumber`] =
-                                        "WhatsApp number is required";
-                                    } else if (!isValidPhoneNumber(fullNumber)) {
-                                      clone[`guest-${guestIndex}-whatsAppNumber`] =
-                                        "Enter a valid phone number";
-                                    } else {
-                                      delete clone[`guest-${guestIndex}-whatsAppNumber`];
-                                    }
-                                    return clone;
-                                  });
-                                }}
-                                disabled={paymentConfirmed}
-                                placeholder="123 456 7890"
-                                maxLength={
-                                  getCountryData(guest.whatsAppCountry).maxLength
-                                }
-                                className={`flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60 ${paymentConfirmed ? "opacity-50 text-muted-foreground cursor-not-allowed" : ""}`}
-                              />
-                            </div>
-                            {guest.whatsAppNumber &&
-                              isValidPhoneNumber(
-                                `+${safeGetCountryCallingCode(
-                                  guest.whatsAppCountry
-                                )}${guest.whatsAppNumber}`
-                              ) &&
-                              !errors[`guest-${guestIndex}-whatsAppNumber`] && (
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none">
-                                  <svg
-                                    className="w-5 h-5"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                </div>
-                              )}
-                          </div>
-                        </div>
-                        {!!errors[`guest-${guestIndex}-whatsAppNumber`] && (
-                          <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
-                            <svg
-                              className="w-3.5 h-3.5"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            {errors[`guest-${guestIndex}-whatsAppNumber`]}
-                          </p>
-                        )}
-                      </label>
-                    </div>
-                  </div>
-                ))}
-                </>
+                      );
+                    }
+                    return null;
+                  })()}
+                </AnimatePresence>
               )}
             </div>
           )}
