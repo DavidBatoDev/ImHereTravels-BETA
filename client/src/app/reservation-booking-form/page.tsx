@@ -3071,19 +3071,6 @@ const Page = () => {
       }
     }
 
-    // Legacy additionalGuests validation (keeping for backward compatibility)
-    if (
-      (bookingType === "Duo Booking" || bookingType === "Group Booking") &&
-      additionalGuests.length
-    ) {
-      additionalGuests.forEach((g, idx) => {
-        if (!g.trim())
-          e[`guest-${idx}`] = `Guest #${idx + 1} email is required`;
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g))
-          e[`guest-${idx}`] = `Guest #${idx + 1} enter a valid email`;
-      });
-    }
-
     console.log("📋 Validation errors:", e);
     console.log("✅ Validation result:", Object.keys(e).length === 0 ? "PASSED" : "FAILED");
 

@@ -131,21 +131,23 @@ const GuestForm = memo(({ index, initialData, onUpdate, errors, paymentConfirmed
   const [localData, setLocalData] = useState<GuestDetails>(initialData);
 
   // Sync local state if initialData changes (e.g. from server refresh or tab switch)
-  // We only do this if the data is *deeply* different to avoid loops if parent passes new object ref
   useEffect(() => {
-    // Simple equality check or JSON stringify to avoid unnecessary resets that might move cursor
     if (JSON.stringify(initialData) !== JSON.stringify(localData)) {
         setLocalData(initialData);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData]);
 
-  // Update parent on blur for text fields
-  const handleBlur = () => {
-    onUpdate(index, localData);
-  };
+  // Debounced update to parent - syncs after 500ms of inactivity
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onUpdate(index, localData);
+    }, 500);
 
-  // Update parent immediately for select fields and others
+    return () => clearTimeout(timer);
+  }, [localData, index, onUpdate]);
+
+  // Update parent immediately for select fields (no need to wait)
   const handleImmediateUpdate = (updates: Partial<GuestDetails>) => {
     const newData = { ...localData, ...updates };
     setLocalData(newData);
@@ -190,7 +192,6 @@ const GuestForm = memo(({ index, initialData, onUpdate, errors, paymentConfirmed
               type="email"
               value={localData.email}
               onChange={(e) => handleChange("email", e.target.value)}
-              onBlur={handleBlur}
               placeholder="guest.email@example.com"
               className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
                 !!errors[`guest-${index}-email`]
@@ -282,7 +283,6 @@ const GuestForm = memo(({ index, initialData, onUpdate, errors, paymentConfirmed
             type="text"
             value={localData.firstName}
             onChange={(e) => handleChange("firstName", e.target.value)}
-            onBlur={handleBlur}
             placeholder="John"
             className={`${fieldBase} ${fieldBorder(
               !!errors[`guest-${index}-firstName`]
@@ -308,7 +308,6 @@ const GuestForm = memo(({ index, initialData, onUpdate, errors, paymentConfirmed
             type="text"
             value={localData.lastName}
             onChange={(e) => handleChange("lastName", e.target.value)}
-            onBlur={handleBlur}
             placeholder="Doe"
             className={`${fieldBase} ${fieldBorder(
               !!errors[`guest-${index}-lastName`]
@@ -454,7 +453,6 @@ const GuestForm = memo(({ index, initialData, onUpdate, errors, paymentConfirmed
                     ).maxLength;
                     handleChange("whatsAppNumber", value.slice(0, maxLen));
                   }}
-                  onBlur={handleBlur}
                   placeholder="123 456 7890"
                   className={`flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60 ${
                     paymentConfirmed
