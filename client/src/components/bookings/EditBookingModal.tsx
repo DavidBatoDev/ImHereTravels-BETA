@@ -1621,6 +1621,11 @@ export default function EditBookingModal({
       return;
     }
 
+    if (!hasUserChangedTourDetailsRef.current && currentValue) {
+      previousTourPackageName.current = currentValue;
+      return;
+    }
+
     // Reload if the value changed and currentValue is not undefined/empty
     if (currentValue !== previousValue && currentValue) {
       console.log("📊 [EDIT BOOKING MODAL] Tour Package Name changed:", {
