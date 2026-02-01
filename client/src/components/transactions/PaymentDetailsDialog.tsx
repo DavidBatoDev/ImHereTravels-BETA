@@ -4,6 +4,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { 
@@ -14,10 +15,14 @@ import {
   Hash,
   Activity,
   DollarSign,
-  Users
+  Users,
+  RefreshCcw
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Transaction {
   id: string;
@@ -71,6 +76,9 @@ export function PaymentDetailsDialog({
   onOpenChange,
   transaction,
 }: PaymentDetailsDialogProps) {
+  const [isRefunding, setIsRefunding] = useState(false);
+  const { toast } = useToast();
+
   if (!transaction) return null;
 
   const formatDate = (timestamp: any) => {
@@ -89,8 +97,62 @@ export function PaymentDetailsDialog({
          return "bg-emerald-100 text-emerald-800";
      }
      if (status === "failed") return "bg-rose-100 text-rose-800";
+     if (status === "refunded") return "bg-gray-100 text-gray-800";
      return "bg-amber-100 text-amber-800";
   };
+
+  const handleRefund = async () => {
+    if (!transaction?.id) return;
+
+    const confirmRefund = confirm(
+      `Are you sure you want to refund this payment of ${transaction.payment.amount?.toFixed(2)} ${transaction.payment.currency}?\n\nThis action cannot be undone.`
+    );
+
+    if (!confirmRefund) return;
+
+    setIsRefunding(true);
+    
+    try {
+      const response = await fetch("/api/stripe-payments/refund", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          paymentDocId: transaction.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to process refund");
+      }
+
+      toast({
+        title: "✅ Refund Successful",
+        description: `Refund of ${data.amount} ${data.currency.toUpperCase()} has been processed successfully.`,
+        variant: "default",
+      });
+
+      // Close the dialog and refresh the page to show updated data
+      onOpenChange(false);
+      window.location.reload();
+    } catch (error: any) {
+      console.error("Refund error:", error);
+      toast({
+        title: "❌ Refund Failed",
+        description: error.message || "Failed to process the refund. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefunding(false);
+    }
+  };
+
+  const canRefund = ["succeeded", "reserve_paid", "reservation_paid", "terms_selected"].includes(
+    transaction.payment.status
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -289,6 +351,29 @@ export function PaymentDetailsDialog({
             </div>
 
         </div>
+
+        {canRefund && (
+          <DialogFooter className="border-t pt-4">
+            <Button
+              onClick={handleRefund}
+              disabled={isRefunding}
+              variant="destructive"
+              className="w-full sm:w-auto"
+            >
+              {isRefunding ? (
+                <>
+                  <RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
+                  Processing Refund...
+                </>
+              ) : (
+                <>
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Issue Refund
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

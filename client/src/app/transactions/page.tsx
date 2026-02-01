@@ -17,11 +17,13 @@ import {
   CreditCard,
   Wallet,
   Hourglass,
-  ArrowUpRight
+  ArrowUpRight,
+  RefreshCcw
 } from "lucide-react";
 import Link from "next/link";
 import { PaymentDetailsDialog } from "@/components/transactions/PaymentDetailsDialog";
 import { TransactionFilterDialog, FilterConfig } from "@/components/transactions/TransactionFilterDialog";
+import { useToast } from "@/hooks/use-toast";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +99,7 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("All");
+  const { toast } = useToast();
 
   // State for actions
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
@@ -104,6 +107,7 @@ export default function TransactionsPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRefunding, setIsRefunding] = useState<string | null>(null);
 
   // Filter State
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
@@ -156,6 +160,57 @@ export default function TransactionsPage() {
     }
   };
 
+  const handleRefund = async (transaction: Transaction) => {
+    const confirmRefund = confirm(
+      `Are you sure you want to refund this payment of ${transaction.payment.amount?.toFixed(2)} ${transaction.payment.currency}?\n\nThis action cannot be undone.`
+    );
+
+    if (!confirmRefund) return;
+
+    setIsRefunding(transaction.id);
+    
+    try {
+      const response = await fetch("/api/stripe-payments/refund", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          paymentDocId: transaction.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to process refund");
+      }
+
+      toast({
+        title: "✅ Refund Successful",
+        description: `Refund of ${data.amount} ${data.currency.toUpperCase()} has been processed successfully.`,
+        variant: "default",
+      });
+
+      // Refresh the transactions list
+      fetchTransactions();
+    } catch (error: any) {
+      console.error("Refund error:", error);
+      toast({
+        title: "❌ Refund Failed",
+        description: error.message || "Failed to process the refund. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefunding(null);
+    }
+  };
+
+  const canRefund = (status: string) => {
+    return ["succeeded", "reserve_paid", "reservation_paid", "terms_selected"].includes(status);
+  };
+
+
   const statusMap: Record<string, { label: string; color: string; icon: any }> = {
     succeeded: { label: "Succeeded", color: "bg-emerald-100 text-emerald-800", icon: CheckCircle2 },
     installment_paid: { label: "Paid", color: "bg-emerald-100 text-emerald-800", icon: CheckCircle2 },
@@ -167,6 +222,7 @@ export default function TransactionsPage() {
     pending: { label: "Pending", color: "bg-amber-100 text-amber-800", icon: Clock },
     installment_pending: { label: "Pending", color: "bg-amber-100 text-amber-800", icon: Clock },
     cancelled: { label: "Cancelled", color: "bg-red-100 text-red-800", icon: AlertCircle },
+    refunded: { label: "Refunded", color: "bg-gray-100 text-gray-800", icon: RefreshCcw },
   };
 
   const getStatusBadge = (status: string) => {
@@ -518,6 +574,15 @@ export default function TransactionsPage() {
                             }}>
                               View details
                             </DropdownMenuItem>
+                            {canRefund(t.payment.status) && (
+                              <DropdownMenuItem 
+                                className="text-orange-600 focus:text-orange-600 focus:bg-orange-50"
+                                onClick={() => handleRefund(t)}
+                                disabled={isRefunding === t.id}
+                              >
+                                {isRefunding === t.id ? 'Processing...' : 'Issue refund'}
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem 
                               className="text-red-600 focus:text-red-600 focus:bg-red-50"
                               onClick={() => {
