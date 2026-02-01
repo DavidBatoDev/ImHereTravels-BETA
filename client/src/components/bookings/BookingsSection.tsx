@@ -88,6 +88,7 @@ import BookingDetailModal from "./BookingDetailModal";
 import BookingVersionHistoryModal from "@/components/version-history/BookingVersionHistoryModal";
 import CSVImport from "../sheet-management/CSVImport";
 import SpreadsheetSync from "../sheet-management/SpreadsheetSync";
+import paymentProgressFunction from "@/app/functions/columns/payment-setting/payment-progress";
 
 // VSCode-style icons for match options
 const MatchCaseIcon = ({ className }: { className?: string }) => (
@@ -708,13 +709,18 @@ export default function BookingsSection() {
 
   // Calculate payment progress dynamically
   const calculatePaymentProgress = (booking: Booking) => {
-    const totalCost = getTotalCost(booking);
-    const paid = safeNumber(booking.paid, 0);
+    const progressStr = paymentProgressFunction(
+      booking.bookingStatus,
+      booking.availablePaymentTerms || booking.paymentPlan,
+      booking.fullPaymentDatePaid,
+      booking.p1DatePaid,
+      booking.p2DatePaid,
+      booking.p3DatePaid,
+      booking.p4DatePaid
+    );
 
-    if (totalCost === 0) return 0;
-
-    const progress = Math.round((paid / totalCost) * 100);
-    return Math.min(progress, 100); // Cap at 100%
+    const progress = parseInt(progressStr.replace("%", "")) || 0;
+    return progress;
   };
 
   // Get active filters count
