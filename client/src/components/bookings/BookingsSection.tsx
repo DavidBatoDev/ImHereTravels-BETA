@@ -725,8 +725,12 @@ export default function BookingsSection() {
 
   // Check if booking has overdue payments
   const checkOverduePayments = (booking: Booking): { hasOverdue: boolean; message: string } => {
+    // Don't show warnings for cancelled bookings
+    if (booking.bookingStatus?.toLowerCase() === 'cancelled') {
+      return { hasOverdue: false, message: "" };
+    }
+
     const now = new Date();
-    const paymentPlan = (booking.availablePaymentTerms || booking.paymentPlan || "").toUpperCase();
 
     // Helper to check if a date is overdue
     const isOverdue = (dueDate: any): boolean => {
@@ -755,6 +759,8 @@ export default function BookingsSection() {
       return false;
     };
 
+    const paymentPlan = (booking.availablePaymentTerms || booking.paymentPlan || "").toUpperCase();
+
     // Check Full Payment
     if (paymentPlan.includes("FULL PAYMENT")) {
       if (isOverdue(booking.fullPaymentDueDate) && !isPaid(booking.fullPaymentDatePaid)) {
@@ -762,29 +768,29 @@ export default function BookingsSection() {
       }
     }
 
-    // Check P1
-    if (paymentPlan.includes("P1")) {
+    // Check P1 - Check if the field exists rather than relying on plan string
+    if (booking.p1DueDate) {
       if (isOverdue(booking.p1DueDate) && !isPaid(booking.p1DatePaid)) {
         return { hasOverdue: true, message: "P1 installment is overdue" };
       }
     }
 
     // Check P2
-    if (paymentPlan.includes("P2")) {
+    if (booking.p2DueDate) {
       if (isOverdue(booking.p2DueDate) && !isPaid(booking.p2DatePaid)) {
         return { hasOverdue: true, message: "P2 installment is overdue" };
       }
     }
 
     // Check P3
-    if (paymentPlan.includes("P3")) {
+    if (booking.p3DueDate) {
       if (isOverdue(booking.p3DueDate) && !isPaid(booking.p3DatePaid)) {
         return { hasOverdue: true, message: "P3 installment is overdue" };
       }
     }
 
     // Check P4
-    if (paymentPlan.includes("P4")) {
+    if (booking.p4DueDate) {
       if (isOverdue(booking.p4DueDate) && !isPaid(booking.p4DatePaid)) {
         return { hasOverdue: true, message: "P4 installment is overdue" };
       }
@@ -2938,9 +2944,41 @@ export default function BookingsSection() {
                             </Badge>
                           )}
                         </div>
-                        <h3 className="font-bold text-xs sm:text-base text-foreground group-hover:text-crimson-red transition-colors truncate font-mono pt-1 sm:pt-1.5">
-                          {booking.bookingId || "Invalid Booking"}
-                        </h3>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-bold text-xs sm:text-base text-foreground group-hover:text-crimson-red transition-colors truncate font-mono pt-1 sm:pt-1.5">
+                            {booking.bookingId || "Invalid Booking"}
+                          </h3>
+                          {(() => {
+                            const overdueStatus = checkOverduePayments(booking);
+                            if (overdueStatus.hasOverdue) {
+                              return (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex-shrink-0 pt-1 sm:pt-1.5">
+                                        <svg
+                                          className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-500"
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path
+                                            fillRule="evenodd"
+                                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                            clipRule="evenodd"
+                                          />
+                                        </svg>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{overdueStatus.message}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
                         <CardDescription className="text-[8px] sm:text-[10px] flex items-center gap-1 mt-0.5 truncate">
                           <MdEmail className="h-2.5 w-2.5 sm:h-3 sm:w-3 flex-shrink-0 text-foreground" />
                           <span className="truncate">
