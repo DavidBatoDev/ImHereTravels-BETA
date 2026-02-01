@@ -723,6 +723,76 @@ export default function BookingsSection() {
     return 0;
   };
 
+  // Check if booking has overdue payments
+  const checkOverduePayments = (booking: Booking): { hasOverdue: boolean; message: string } => {
+    const now = new Date();
+    const paymentPlan = (booking.availablePaymentTerms || booking.paymentPlan || "").toUpperCase();
+
+    // Helper to check if a date is overdue
+    const isOverdue = (dueDate: any): boolean => {
+      if (!dueDate) return false;
+      
+      let date: Date | null = null;
+      // Handle Firestore timestamps
+      if (typeof dueDate === 'object' && dueDate?.toDate && typeof dueDate.toDate === 'function') {
+        date = dueDate.toDate();
+      } else if (dueDate instanceof Date) {
+        date = dueDate;
+      } else if (typeof dueDate === 'string') {
+        date = new Date(dueDate);
+      }
+      
+      if (!date || isNaN(date.getTime())) return false;
+      return date < now;
+    };
+
+    // Helper to check if payment is made
+    const isPaid = (datePaid: any): boolean => {
+      if (!datePaid) return false;
+      if (typeof datePaid === 'object' && datePaid?.toDate) return true;
+      if (datePaid instanceof Date && !isNaN(datePaid.getTime())) return true;
+      if (typeof datePaid === 'string' && datePaid.trim() !== '') return true;
+      return false;
+    };
+
+    // Check Full Payment
+    if (paymentPlan.includes("FULL PAYMENT")) {
+      if (isOverdue(booking.fullPaymentDueDate) && !isPaid(booking.fullPaymentDatePaid)) {
+        return { hasOverdue: true, message: "Full payment is overdue" };
+      }
+    }
+
+    // Check P1
+    if (paymentPlan.includes("P1")) {
+      if (isOverdue(booking.p1DueDate) && !isPaid(booking.p1DatePaid)) {
+        return { hasOverdue: true, message: "P1 installment is overdue" };
+      }
+    }
+
+    // Check P2
+    if (paymentPlan.includes("P2")) {
+      if (isOverdue(booking.p2DueDate) && !isPaid(booking.p2DatePaid)) {
+        return { hasOverdue: true, message: "P2 installment is overdue" };
+      }
+    }
+
+    // Check P3
+    if (paymentPlan.includes("P3")) {
+      if (isOverdue(booking.p3DueDate) && !isPaid(booking.p3DatePaid)) {
+        return { hasOverdue: true, message: "P3 installment is overdue" };
+      }
+    }
+
+    // Check P4
+    if (paymentPlan.includes("P4")) {
+      if (isOverdue(booking.p4DueDate) && !isPaid(booking.p4DatePaid)) {
+        return { hasOverdue: true, message: "P4 installment is overdue" };
+      }
+    }
+
+    return { hasOverdue: false, message: "" };
+  };
+
   // Get active filters count
   const getActiveFiltersCount = () => {
     let count = 0;
@@ -3167,7 +3237,7 @@ export default function BookingsSection() {
                     <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[40px] md:w-auto">
                       Row #
                     </th>
-                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[100px] md:w-auto">
+                    <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[100px] md:min-w-[150px] md:w-auto">
                       Booking ID
                     </th>
                     <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[130px] md:w-auto">
@@ -3222,9 +3292,40 @@ export default function BookingsSection() {
                             </span>
                           </td>
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">
-                            <span className="font-mono text-[7px] md:text-[10px] font-semibold text-crimson-red truncate">
-                              {booking.bookingId || "Invalid Booking"}
-                            </span>
+                            {(() => {
+                              const overdueStatus = checkOverduePayments(booking);
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <span className="font-mono text-[7px] md:text-[10px] font-semibold text-crimson-red truncate">
+                                    {booking.bookingId || "Invalid Booking"}
+                                  </span>
+                                  {overdueStatus.hasOverdue && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className="flex-shrink-0">
+                                            <svg
+                                              className="h-3 w-3 md:h-3.5 md:w-3.5 text-amber-500"
+                                              fill="currentColor"
+                                              viewBox="0 0 20 20"
+                                            >
+                                              <path
+                                                fillRule="evenodd"
+                                                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                                clipRule="evenodd"
+                                              />
+                                            </svg>
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>{overdueStatus.message}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">
                             <div className="flex items-center gap-0.5 md:gap-1">
