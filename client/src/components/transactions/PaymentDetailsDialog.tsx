@@ -13,7 +13,8 @@ import {
   CalendarDays,
   Hash,
   Activity,
-  DollarSign
+  DollarSign,
+  Users
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -36,6 +37,17 @@ interface Transaction {
   booking?: {
     id: string;
     documentId: string;
+    type?: string;
+    groupSize?: number;
+    guestDetails?: Array<{
+      email: string;
+      firstName: string;
+      lastName: string;
+      birthdate: string;
+      nationality: string;
+      whatsAppNumber: string;
+      whatsAppCountry?: string;
+    }>;
   };
   tour?: {
     packageName: string;
@@ -201,6 +213,55 @@ export function PaymentDetailsDialog({
                    </div>
                 </div>
             </div>
+
+            {/* Guest Details (for Duo/Group bookings) */}
+            {transaction.booking?.guestDetails && transaction.booking.guestDetails.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <h4 className="flex items-center gap-2 font-medium text-foreground pb-2 border-b">
+                    <Users className="h-4 w-4" /> Guest Details
+                    <Badge variant="outline" className="ml-2">
+                      {transaction.booking.groupSize || transaction.booking.guestDetails.length} travelers
+                    </Badge>
+                  </h4>
+                  <div className="grid gap-4">
+                    {transaction.booking.guestDetails.map((guest, index) => (
+                      <div key={index} className="p-4 bg-muted/30 rounded-lg border border-border/50">
+                        <div className="flex items-center gap-2 mb-3">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <h5 className="font-medium text-sm">Guest {index + 1}</h5>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                          <div className="grid grid-cols-[100px_1fr]">
+                            <span className="text-muted-foreground">Name:</span>
+                            <span className="font-medium">{guest.firstName} {guest.lastName}</span>
+                          </div>
+                          <div className="grid grid-cols-[100px_1fr]">
+                            <span className="text-muted-foreground">Email:</span>
+                            <span className="font-medium break-all">{guest.email}</span>
+                          </div>
+                          <div className="grid grid-cols-[100px_1fr]">
+                            <span className="text-muted-foreground">Birthdate:</span>
+                            <span className="font-medium">{guest.birthdate ? format(new Date(guest.birthdate), "PPP") : "—"}</span>
+                          </div>
+                          <div className="grid grid-cols-[100px_1fr]">
+                            <span className="text-muted-foreground">Nationality:</span>
+                            <span className="font-medium">{guest.nationality || "—"}</span>
+                          </div>
+                          <div className="grid grid-cols-[100px_1fr] md:col-span-2">
+                            <span className="text-muted-foreground">WhatsApp:</span>
+                            <span className="font-medium font-mono text-xs">
+                              {guest.whatsAppNumber || "—"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
 
             <Separator />
 
