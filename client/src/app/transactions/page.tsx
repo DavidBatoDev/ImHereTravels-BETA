@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { 
-  CheckCircle2, 
+  CheckCircle2,
   Search, 
   Download, 
   Settings2, 
@@ -21,7 +21,9 @@ import {
   RefreshCcw
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PaymentDetailsDialog } from "@/components/transactions/PaymentDetailsDialog";
+import { RefundDialogs } from "@/components/transactions/RefundDialogs";
 import { TransactionFilterDialog, FilterConfig } from "@/components/transactions/TransactionFilterDialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -72,7 +74,13 @@ interface Transaction {
     checkoutSessionId: string;
     type?: string;
     installmentTerm?: string;
+    clientSecret?: string;
+    paymentIntentId?: string;
+    stripePaymentIntentId?: string;
+    stripeIntentId?: string;
   };
+  stripePaymentIntentId?: string;
+  stripeIntentId?: string;
   customer?: {
     email: string;
     firstName: string;
@@ -100,12 +108,18 @@ export default function TransactionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("All");
   const { toast } = useToast();
+  const router = useRouter();
 
   // State for actions
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [transactionToRefund, setTransactionToRefund] = useState<Transaction | null>(null);
+  const [refundedBookingId, setRefundedBookingId] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [refundConfirmOpen, setRefundConfirmOpen] = useState(false);
+  const [refundSuccessOpen, setRefundSuccessOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefunding, setIsRefunding] = useState<string | null>(null);
 
@@ -160,14 +174,11 @@ export default function TransactionsPage() {
     }
   };
 
-  const handleRefund = async (transaction: Transaction) => {
-    const confirmRefund = confirm(
-      `Are you sure you want to refund this payment of ${transaction.payment.amount?.toFixed(2)} ${transaction.payment.currency}?\n\nThis action cannot be undone.`
-    );
+  const handleRefund = async () => {
+    if (!transactionToRefund) return;
 
-    if (!confirmRefund) return;
-
-    setIsRefunding(transaction.id);
+    setRefundConfirmOpen(false);
+    setIsRefunding(transactionToRefund.id);
     
     try {
       const response = await fetch("/api/stripe-payments/refund", {
@@ -176,7 +187,7 @@ export default function TransactionsPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          paymentDocId: transaction.id,
+          paymentDocId: transactionToRefund.id,
         }),
       });
 
@@ -186,14 +197,12 @@ export default function TransactionsPage() {
         throw new Error(data.error || "Failed to process refund");
       }
 
-      toast({
-        title: "✅ Refund Successful",
-        description: `Refund of ${data.amount} ${data.currency.toUpperCase()} has been processed successfully.`,
-        variant: "default",
-      });
-
-      // Refresh the transactions list
-      fetchTransactions();
+      // Store booking ID and payment intent ID for success dialog
+      setRefundedBookingId(transactionToRefund.booking?.documentId || null);
+      setPaymentIntentId(data.paymentIntentId || null);
+      
+      // Show success dialog
+      setRefundSuccessOpen(true);
     } catch (error: any) {
       console.error("Refund error:", error);
       toast({
@@ -204,6 +213,20 @@ export default function TransactionsPage() {
     } finally {
       setIsRefunding(null);
     }
+  };
+
+  const handleNavigateToBooking = () => {
+    if (refundedBookingId) {
+      router.push(`/bookings?tab=bookings&bookingId=${refundedBookingId}`);
+      setRefundSuccessOpen(false);
+    }
+  };
+
+  const handleCloseRefundSuccess = () => {
+    setRefundSuccessOpen(false);
+    setTransactionToRefund(null);
+    setRefundedBookingId(null);
+    fetchTransactions();
   };
 
   const canRefund = (status: string) => {
@@ -577,7 +600,10 @@ export default function TransactionsPage() {
                             {canRefund(t.payment.status) && (
                               <DropdownMenuItem 
                                 className="text-orange-600 focus:text-orange-600 focus:bg-orange-50"
-                                onClick={() => handleRefund(t)}
+                                onClick={() => {
+                                  setTransactionToRefund(t);
+                                  setRefundConfirmOpen(true);
+                                }}
                                 disabled={isRefunding === t.id}
                               >
                                 {isRefunding === t.id ? 'Processing...' : 'Issue refund'}
@@ -661,6 +687,18 @@ export default function TransactionsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <RefundDialogs
+        transaction={transactionToRefund}
+        confirmOpen={refundConfirmOpen}
+        successOpen={refundSuccessOpen}
+        onConfirmChange={setRefundConfirmOpen}
+        onSuccessChange={setRefundSuccessOpen}
+        onConfirm={handleRefund}
+        onNavigateToBooking={handleNavigateToBooking}
+        onClose={handleCloseRefundSuccess}
+        paymentIntentId={paymentIntentId}
+      />
     </DashboardLayout>
   );
 }

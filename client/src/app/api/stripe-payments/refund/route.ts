@@ -127,6 +127,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       refundId: refund.id,
+      paymentIntentId: stripeIntentId,
       amount: refund.amount / 100, // Convert from cents
       currency: refund.currency,
       status: refund.status,
