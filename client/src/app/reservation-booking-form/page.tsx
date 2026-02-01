@@ -2780,6 +2780,101 @@ const Page = () => {
     }
   }, [email, tourPackage, bookingType]);
 
+  // Restore guestDetails from Firestore when page refreshes (works on any step)
+  useEffect(() => {
+    const restoreGuestDetailsFromFirestore = async () => {
+      if (!paymentDocId) return;
+      if (guestDetails.length > 0) return; // Already have guest details
+      if (bookingType !== "Duo Booking" && bookingType !== "Group Booking") return;
+
+      try {
+        console.log('🔄 Restoring guest details from Firestore...');
+        const { doc, getDoc } = await import("firebase/firestore");
+        const paymentDocRef = doc(db, "stripePayments", paymentDocId);
+        const paymentDocSnap = await getDoc(paymentDocRef);
+
+        if (paymentDocSnap.exists()) {
+          const paymentData = paymentDocSnap.data();
+          const storedGuestDetails = paymentData.booking?.guestDetails || [];
+          const storedGroupSize = paymentData.booking?.groupSize || 1;
+
+          if (storedGuestDetails.length > 0) {
+            console.log(`✅ Restored ${storedGuestDetails.length} guest details from Firestore`);
+            
+            // Parse whatsAppNumber to extract country code and number
+            const parsedGuestDetails = storedGuestDetails.map((guest: any) => {
+              // If whatsAppNumber starts with +, parse it to extract country
+              let whatsAppCountry = guest.whatsAppCountry || "PH"; // default to Philippines
+              let whatsAppNumber = guest.whatsAppNumber || "";
+              
+              // Parse phone number to extract country code if not already stored
+              if (whatsAppNumber.startsWith("+") && !guest.whatsAppCountry) {
+                // Simple parsing for common country codes
+                if (whatsAppNumber.startsWith("+63")) {
+                  whatsAppCountry = "PH";
+                  whatsAppNumber = whatsAppNumber.substring(3);
+                } else if (whatsAppNumber.startsWith("+1")) {
+                  whatsAppCountry = "US";
+                  whatsAppNumber = whatsAppNumber.substring(2);
+                } else if (whatsAppNumber.startsWith("+44")) {
+                  whatsAppCountry = "GB";
+                  whatsAppNumber = whatsAppNumber.substring(3);
+                } else if (whatsAppNumber.startsWith("+61")) {
+                  whatsAppCountry = "AU";
+                  whatsAppNumber = whatsAppNumber.substring(3);
+                } else if (whatsAppNumber.startsWith("+81")) {
+                  whatsAppCountry = "JP";
+                  whatsAppNumber = whatsAppNumber.substring(3);
+                } else if (whatsAppNumber.startsWith("+86")) {
+                  whatsAppCountry = "CN";
+                  whatsAppNumber = whatsAppNumber.substring(3);
+                } else if (whatsAppNumber.startsWith("+91")) {
+                  whatsAppCountry = "IN";
+                  whatsAppNumber = whatsAppNumber.substring(3);
+                } else if (whatsAppNumber.startsWith("+65")) {
+                  whatsAppCountry = "SG";
+                  whatsAppNumber = whatsAppNumber.substring(3);
+                } else {
+                  // For other codes, try to extract first 1-3 digits
+                  console.warn("Unknown country code in:", whatsAppNumber);
+                  // Keep the number as-is
+                }
+              }
+              
+              return {
+                ...guest,
+                whatsAppCountry,
+                whatsAppNumber,
+              };
+            });
+            
+            setGuestDetails(parsedGuestDetails);
+            
+            // Update groupSize for Group Bookings (numberOfPeople is derived from it)
+            if (bookingType === "Group Booking" && storedGroupSize > 1) {
+              setGroupSize(storedGroupSize);
+            }
+            
+            // Initialize paymentPlans array if empty (needed for Step 3)
+            if (paymentPlans.length === 0 && step === 3) {
+              const initialPlans = Array(storedGroupSize).fill(null).map(() => ({
+                plan: "",
+                tourCostShare: (selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0,
+                reservationFeeShare: depositAmount / storedGroupSize,
+              }));
+              setPaymentPlans(initialPlans);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to restore guest details from Firestore:", err);
+      }
+    };
+
+    restoreGuestDetailsFromFirestore();
+  }, [paymentDocId, step, guestDetails.length, bookingType, numberOfPeople, paymentPlans.length, selectedDateDetail, selectedPackage, depositAmount]);
+
+
   const handleAddGuest = () => {
     // For group booking, limit guests to groupSize - 1 (booker + others)
     if (bookingType === "Group Booking") {
