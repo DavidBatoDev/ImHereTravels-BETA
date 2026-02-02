@@ -1,9 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { format } from "date-fns";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  onSnapshot,
+  query,
+  where,
+} from "firebase/firestore";
 import {
   Download,
   Calendar,
@@ -20,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { db } from "@/lib/firebase";
 
 interface PaymentTokenData {
   token: string;
@@ -49,7 +60,7 @@ interface BookingData {
   reservationFee?: number;
   paid: number;
   remainingBalance: number;
-  paymentProgress: number;
+  paymentProgress: number | string;
   paymentPlan?: string;
   bookingStatus: string;
   fullPaymentDueDate?: any;
@@ -106,6 +117,10 @@ export default function BookingStatusPage() {
   const [paymentMessage, setPaymentMessage] = useState<{
     type: "success" | "error";
     text: string;
+  } | null>(null);
+  const packCacheRef = useRef<{
+    bookingDocId: string;
+    pack: BookingData["preDeparturePack"] | null;
   } | null>(null);
 
   // Check for payment success/cancel messages in URL
@@ -219,33 +234,188 @@ export default function BookingStatusPage() {
   }, [searchParams, bookingDocumentId, booking]);
 
   useEffect(() => {
-    async function fetchBooking() {
+    let didCancel = false;
+
+    const fetchPreDeparturePack = async (
+      bookingDocId: string,
+    ): Promise<BookingData["preDeparturePack"] | null> => {
       try {
-        setLoading(true);
-        const url = email
-          ? `/api/public/booking/${bookingDocumentId}?email=${encodeURIComponent(
-              email,
-            )}`
-          : `/api/public/booking/${bookingDocumentId}`;
+        const confirmedBookingsQuery = query(
+          collection(db, "confirmedBookings"),
+          where("bookingDocumentId", "==", bookingDocId),
+        );
+        const confirmedBookingsSnap = await getDocs(confirmedBookingsQuery);
 
-        const response = await fetch(url);
-        const result = await response.json();
+        if (confirmedBookingsSnap.empty) return null;
 
-        if (!result.success) {
-          setError(result.error || "Failed to load booking");
+        const confirmedBooking = confirmedBookingsSnap.docs[0].data();
+        if (!confirmedBooking.preDeparturePackId) return null;
+
+        const packRef = doc(
+          db,
+          "fileObjects",
+          confirmedBooking.preDeparturePackId,
+        );
+        const packSnap = await getDoc(packRef);
+
+        if (!packSnap.exists()) return null;
+
+        const packData = packSnap.data();
+        return {
+          id: packSnap.id,
+          fileName: packData.fileName,
+          originalName: packData.originalName,
+          fileDownloadURL: packData.fileDownloadURL,
+          contentType: packData.contentType,
+          size: packData.size,
+          uploadedAt: packData.uploadedAt,
+        };
+      } catch (error) {
+        console.error("Error fetching pre-departure pack:", error);
+        return null;
+      }
+    };
+
+    const buildPublicData = (
+      bookingData: any,
+      preDeparturePack: BookingData["preDeparturePack"] | null,
+    ): BookingData => {
+      const totalCost =
+        (bookingData.isMainBooker && bookingData.discountedTourCost
+          ? bookingData.discountedTourCost
+          : bookingData.originalTourCost) || 0;
+      const paid = bookingData.paid || 0;
+
+      const fallbackProgress =
+        totalCost === 0 ? 0 : Math.round((paid / totalCost) * 100);
+      const paymentProgressValue =
+        typeof bookingData.paymentProgress === "string"
+          ? parseFloat(bookingData.paymentProgress.replace(/%/g, "")) ||
+            fallbackProgress
+          : typeof bookingData.paymentProgress === "number"
+            ? bookingData.paymentProgress
+            : fallbackProgress;
+
+      return {
+        bookingId: bookingData.bookingId,
+        bookingCode: bookingData.bookingCode,
+        tourCode: bookingData.tourCode,
+        fullName: bookingData.fullName,
+        firstName: bookingData.firstName,
+        travellerInitials: bookingData.travellerInitials,
+        tourPackageName: bookingData.tourPackageName,
+        tourDate: bookingData.tourDate,
+        returnDate: bookingData.returnDate,
+        tourDuration: bookingData.tourDuration,
+        formattedDate: bookingData.formattedDate,
+        reservationDate: bookingData.reservationDate,
+        originalTourCost: bookingData.originalTourCost,
+        discountedTourCost: bookingData.discountedTourCost,
+        reservationFee: bookingData.reservationFee,
+        paid,
+        remainingBalance: bookingData.remainingBalance,
+        paymentProgress: paymentProgressValue,
+        paymentPlan: bookingData.paymentPlan,
+        bookingStatus: bookingData.bookingStatus,
+        fullPaymentDueDate: bookingData.fullPaymentDueDate,
+        fullPaymentAmount: bookingData.fullPaymentAmount,
+        fullPaymentDatePaid: bookingData.fullPaymentDatePaid,
+        p1DueDate: bookingData.p1DueDate,
+        p1Amount: bookingData.p1Amount,
+        p1DatePaid: bookingData.p1DatePaid,
+        p2DueDate: bookingData.p2DueDate,
+        p2Amount: bookingData.p2Amount,
+        p2DatePaid: bookingData.p2DatePaid,
+        p3DueDate: bookingData.p3DueDate,
+        p3Amount: bookingData.p3Amount,
+        p3DatePaid: bookingData.p3DatePaid,
+        p4DueDate: bookingData.p4DueDate,
+        p4Amount: bookingData.p4Amount,
+        p4DatePaid: bookingData.p4DatePaid,
+        sentEmailLink: bookingData.sentEmailLink,
+        eventName: bookingData.eventName,
+        discountRate: bookingData.discountRate,
+        bookingType: bookingData.bookingType,
+        isMainBooker: bookingData.isMainBooker,
+        enablePaymentReminder: bookingData.enablePaymentReminder,
+        preDeparturePack,
+        ...(process.env.NEXT_PUBLIC_ENV === "development" && {
+          paymentTokens: bookingData.paymentTokens,
+        }),
+      };
+    };
+
+    setLoading(true);
+    setError(null);
+
+    const bookingsQuery = query(
+      collection(db, "bookings"),
+      where("access_token", "==", bookingDocumentId),
+      limit(1),
+    );
+
+    const unsubscribe = onSnapshot(
+      bookingsQuery,
+      (snapshot) => {
+        if (didCancel) return;
+
+        if (snapshot.empty) {
+          setBooking(null);
+          setError("Booking not found");
+          setLoading(false);
           return;
         }
 
-        setBooking(result.data);
-      } catch (err) {
-        setError("Failed to load booking details");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
+        const bookingDoc = snapshot.docs[0];
+        const bookingData = {
+          id: bookingDoc.id,
+          ...bookingDoc.data(),
+        } as any;
 
-    fetchBooking();
+        if (email) {
+          const bookingEmail = bookingData.emailAddress?.toLowerCase();
+          const providedEmail = email.toLowerCase();
+          if (bookingEmail !== providedEmail) {
+            setBooking(null);
+            setError("Email does not match booking records");
+            setLoading(false);
+            return;
+          }
+        }
+
+        const cachedPack =
+          packCacheRef.current?.bookingDocId === bookingDoc.id
+            ? packCacheRef.current.pack
+            : null;
+
+        setBooking(buildPublicData(bookingData, cachedPack));
+        setLoading(false);
+
+        if (!cachedPack) {
+          void (async () => {
+            const pack = await fetchPreDeparturePack(bookingDoc.id);
+            if (didCancel) return;
+            packCacheRef.current = {
+              bookingDocId: bookingDoc.id,
+              pack,
+            };
+            setBooking((prev) =>
+              prev ? { ...prev, preDeparturePack: pack } : prev,
+            );
+          })();
+        }
+      },
+      (err) => {
+        console.error("Failed to load booking details:", err);
+        setError("Failed to load booking details");
+        setLoading(false);
+      },
+    );
+
+    return () => {
+      didCancel = true;
+      unsubscribe();
+    };
   }, [bookingDocumentId, email]);
 
   // Handle installment payment
@@ -337,6 +507,10 @@ export default function BookingStatusPage() {
   }
 
   const totalCost = booking.discountedTourCost || booking.originalTourCost;
+  const paymentProgressValue =
+    typeof booking.paymentProgress === "string"
+      ? parseFloat(booking.paymentProgress.replace(/%/g, "")) || 0
+      : booking.paymentProgress || 0;
 
   // Build payment terms with status information
   const buildPaymentTerms = () => {
@@ -572,7 +746,7 @@ export default function BookingStatusPage() {
                   {/* Label & Percentage Row */}
                   <div className="flex justify-end mb-1.5">
                     <span className="text-sm font-bold text-gray-900">
-                      {booking.paymentProgress}%
+                      {paymentProgressValue}%
                     </span>
                   </div>
 
@@ -580,7 +754,7 @@ export default function BookingStatusPage() {
                   <div className="relative h-4 w-full rounded-full border border-gray-200 bg-transparent overflow-hidden">
                     <div
                       className="h-full bg-crimson-red transition-all duration-500 rounded-full"
-                      style={{ width: `${booking.paymentProgress}%` }}
+                      style={{ width: `${paymentProgressValue}%` }}
                     />
                   </div>
                 </div>
@@ -833,7 +1007,7 @@ export default function BookingStatusPage() {
                     €{booking.paid.toFixed(2)}
                   </p>
                   <p className="text-xs text-green-700 mt-0.5">
-                    {booking.paymentProgress}% Complete
+                    {paymentProgressValue}% Complete
                   </p>
                 </div>
 

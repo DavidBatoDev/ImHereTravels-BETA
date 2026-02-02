@@ -442,7 +442,6 @@ export async function POST(req: NextRequest) {
 
             // Update flat field for backward compatibility
             [datePaidField]: paidTimestamp,
-            fullPaymentDueDate: "",
 
             // Update totals with recalculated values
             paid: calculatedPaid,
@@ -593,7 +592,7 @@ export async function POST(req: NextRequest) {
 
           // Update flat field for backward compatibility
           [datePaidField]: paidTimestamp,
-          [`${installment_id}DueDate`]: "",
+          [`${installment_id}ScheduledReminderDate`]: "",
 
           // Update totals with recalculated values
           paid: calculatedPaid,
