@@ -1202,6 +1202,24 @@ const Page = () => {
           if (match && !isTourAllDatesTooSoon(match)) {
             setTourPackage(match.id);
 
+            // If tourdate exists and is valid for this package, preselect it
+            try {
+              let tourDateParam = searchParams?.get("tourdate");
+              if (!tourDateParam) {
+                const rawDate = new URLSearchParams(
+                  window.location.search
+                ).get("tourdate");
+                if (rawDate) tourDateParam = rawDate;
+              }
+              if (
+                tourDateParam &&
+                Array.isArray(match.travelDates) &&
+                match.travelDates.includes(tourDateParam)
+              ) {
+                setTourDate(tourDateParam);
+              }
+            } catch {}
+
             // Auto-scroll to tour date section when tour is loaded from URL
             setTimeout(() => {
               const tourDateSection = document.querySelector(
@@ -1263,6 +1281,60 @@ const Page = () => {
       console.debug("Failed to sync tour query param on selection:", err);
     }
   }, [tourPackage, tourPackages, router, isLoadingPackages, paymentDocId]);
+
+  // Preselect tourdate from URL if present and valid
+  useEffect(() => {
+    try {
+      if (isLoadingPackages) return;
+      if (!tourPackage) return;
+      if (tourDate) return;
+
+      let tourDateParam = searchParams?.get("tourdate");
+      if (!tourDateParam) {
+        try {
+          const rawDate = new URLSearchParams(window.location.search).get(
+            "tourdate"
+          );
+          if (rawDate) tourDateParam = rawDate;
+        } catch {}
+      }
+
+      if (!tourDateParam) return;
+      const pkg = tourPackages.find((p) => p.id === tourPackage);
+      if (pkg?.travelDates?.includes(tourDateParam)) {
+        setTourDate(tourDateParam);
+      }
+    } catch (err) {
+      console.debug("Failed to read tourdate query param:", err);
+    }
+  }, [tourPackage, tourPackages, isLoadingPackages, searchParams, tourDate]);
+
+  // Sync `tourdate` query param when the selected tourDate changes
+  useEffect(() => {
+    try {
+      if (isLoadingPackages) return;
+      if (paymentDocId) return;
+
+      // if URL already contains a paymentid param, don't touch it
+      try {
+        const curParams = new URLSearchParams(window.location.search);
+        if (curParams.has("paymentid")) return;
+      } catch {}
+
+      const params = new URLSearchParams(window.location.search);
+      if (tourDate) {
+        params.set("tourdate", String(tourDate));
+      } else {
+        params.delete("tourdate");
+      }
+      const newUrl = params.toString()
+        ? `${window.location.pathname}?${params.toString()}`
+        : window.location.pathname;
+      router.replace(newUrl);
+    } catch (err) {
+      console.debug("Failed to sync tourdate query param:", err);
+    }
+  }, [tourDate, router, isLoadingPackages, paymentDocId]);
 
   // Calculate days between reservation date (today) and tour date
   const calculateDaysBetween = (tourDateStr: string): number => {

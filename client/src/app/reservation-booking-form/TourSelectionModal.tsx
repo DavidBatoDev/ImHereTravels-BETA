@@ -9,7 +9,12 @@ interface TourPackage {
   name: string;
   description?: string;
   location?: string;
-  travelDates: string[];
+  travelDates?: string[];
+  travelDateDetails?: Array<{
+    date?: string;
+    customDeposit?: number;
+    customOriginal?: number;
+  }>;
   status?: "active" | "inactive";
   stripePaymentLink?: string;
   deposit?: number;
@@ -46,7 +51,7 @@ export default function TourSelectionModal({
   isTourAllDatesTooSoon,
 }: TourSelectionModalProps) {
   const [modalImagesLoaded, setModalImagesLoaded] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [allModalImagesLoaded, setAllModalImagesLoaded] = useState(false);
 
@@ -68,6 +73,35 @@ export default function TourSelectionModal({
     if (isTourAllDatesTooSoon(tour)) return;
     onSelectTour(tour.id);
     handleClose();
+  };
+
+  const toDate = (value: any) => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === "number" || typeof value === "string") {
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof value?.toDate === "function") {
+      return value.toDate();
+    }
+    if (typeof value?.seconds === "number") {
+      return new Date(value.seconds * 1000);
+    }
+    if (typeof value?._seconds === "number") {
+      return new Date(value._seconds * 1000);
+    }
+    return null;
+  };
+
+  const formatDateValue = (value?: any) => {
+    const date = toDate(value);
+    if (!date) return "Date TBD";
+    return date.toLocaleDateString("en-GB", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
   if (!isOpen) return null;
@@ -180,7 +214,7 @@ export default function TourSelectionModal({
                           const newSet = new Set(prev);
                           newSet.add(pkg.id);
                           const activeTours = tourPackages.filter(
-                            (p) => p.status === "active" && p.coverImage
+                            (p) => p.status === "active" && p.coverImage,
                           );
                           if (newSet.size === activeTours.length) {
                             setAllModalImagesLoaded(true);
@@ -227,22 +261,42 @@ export default function TourSelectionModal({
                     {modalImagesLoaded.size} /{" "}
                     {
                       tourPackages.filter(
-                        (p) => p.status === "active" && p.coverImage
+                        (p) => p.status === "active" && p.coverImage,
                       ).length
                     }
                   </p>
                 </div>
               ) : (
                 /* Tour Grid - Only show when all images loaded */
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   {tourPackages
                     .filter((pkg) => pkg.status === "active")
                     .map((pkg) => {
                       const isSelected = selectedTourId === pkg.id;
                       const isDisabled = isTourAllDatesTooSoon(pkg);
-                      const currentPrice = pkg.price || 0;
                       const currency = "GBP";
                       const currencySymbol = "£";
+                      const basePrice = pkg.price || 0;
+                      const baseDeposit = pkg.deposit ?? 0;
+                      const dateRows =
+                        pkg.travelDateDetails &&
+                        pkg.travelDateDetails.length > 0
+                          ? pkg.travelDateDetails.map((date) => ({
+                              date: date.date,
+                              price:
+                                typeof date.customOriginal === "number"
+                                  ? date.customOriginal
+                                  : basePrice,
+                              deposit:
+                                typeof date.customDeposit === "number"
+                                  ? date.customDeposit
+                                  : baseDeposit,
+                            }))
+                          : (pkg.travelDates || []).map((date) => ({
+                              date,
+                              price: basePrice,
+                              deposit: baseDeposit,
+                            }));
 
                       return (
                         <button
@@ -250,7 +304,7 @@ export default function TourSelectionModal({
                           onClick={() => handleSelectTour(pkg)}
                           disabled={isDisabled}
                           aria-disabled={isDisabled}
-                          className={`group relative h-full flex flex-col rounded-3xl overflow-hidden bg-card transition-all duration-300 text-left shadow-md ${
+                          className={`group relative flex flex-col rounded-2xl overflow-hidden bg-card transition-all duration-300 text-left shadow-md ${
                             isDisabled
                               ? "opacity-60 cursor-not-allowed"
                               : "transform hover:scale-[1.02] hover:shadow-xl"
@@ -258,10 +312,10 @@ export default function TourSelectionModal({
                             isSelected && !isDisabled
                               ? "ring-4 ring-primary ring-offset-2 ring-offset-background shadow-2xl shadow-primary/20"
                               : ""
-                          } min-h-[480px]`}
+                          }`}
                         >
                           {/* Cover Image */}
-                          <div className="relative h-48 overflow-hidden">
+                          <div className="relative h-36 overflow-hidden">
                             {pkg.coverImage ? (
                               <img
                                 src={pkg.coverImage}
@@ -293,21 +347,21 @@ export default function TourSelectionModal({
                           </div>
 
                           {/* Content */}
-                          <div className="p-4 space-y-2 flex-1 flex flex-col">
+                          <div className="p-3 space-y-1.5 flex-1 flex flex-col">
                             {/* Title */}
-                            <h3 className="font-bold text-lg text-foreground line-clamp-1">
+                            <h3 className="font-bold text-base text-foreground line-clamp-1">
                               {pkg.name}
                             </h3>
 
                             {/* Description */}
                             {pkg.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">
+                              <p className="text-[11px] text-muted-foreground line-clamp-2 leading-snug">
                                 {pkg.description}
                               </p>
                             )}
 
                             {/* Location */}
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                               <svg
                                 className="w-3.5 h-3.5 flex-shrink-0 text-royal-purple"
                                 fill="none"
@@ -337,7 +391,7 @@ export default function TourSelectionModal({
 
                             {/* Duration */}
                             {pkg.duration && (
-                              <div className="flex items-center gap-1.5 text-xs">
+                              <div className="flex items-center gap-1.5 text-[11px]">
                                 <svg
                                   className="w-3.5 h-3.5 text-royal-purple"
                                   fill="none"
@@ -357,27 +411,43 @@ export default function TourSelectionModal({
                               </div>
                             )}
 
-                            {/* Price */}
+                            {/* Pricing by Date */}
                             <div className="pt-1">
-                              <div className="flex items-baseline gap-1.5 mb-0.5">
-                                <span className="text-2xl font-bold text-foreground">
-                                  {currencySymbol}
-                                  {currentPrice.toLocaleString()}
-                                </span>
-                              </div>
-                              {pkg.deposit && (
-                                <p className="text-xs text-muted-foreground">
-                                  Deposit: {currencySymbol}
-                                  {pkg.deposit.toLocaleString()}
+                              {dateRows.length > 0 ? (
+                                <div className="space-y-1">
+                                  {dateRows.map((date, index) => (
+                                    <div
+                                      key={`${pkg.id}-date-${index}`}
+                                      className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground"
+                                    >
+                                      <span className="line-clamp-1">
+                                        {formatDateValue(date.date)}
+                                      </span>
+                                      <span className="flex items-center gap-2 whitespace-nowrap">
+                                        <span className="text-[12px] font-bold text-foreground">
+                                          {currencySymbol}
+                                          {date.price.toLocaleString()}
+                                        </span>
+                                        <span className="text-[12px] font-bold text-muted-foreground">
+                                          ResFee {currencySymbol}
+                                          {date.deposit.toLocaleString()}
+                                        </span>
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-[11px] text-muted-foreground">
+                                  No dates available
                                 </p>
                               )}
                             </div>
 
                             {/* Highlights */}
                             {pkg.highlights && pkg.highlights.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 pt-1 mt-auto">
+                              <div className="flex flex-wrap gap-1 pt-1 mt-auto">
                                 {pkg.highlights
-                                  .slice(0, 3)
+                                  .slice(0, 2)
                                   .map((highlight, index) => {
                                     const highlightText =
                                       typeof highlight === "string"
@@ -388,15 +458,15 @@ export default function TourSelectionModal({
                                     return (
                                       <span
                                         key={index}
-                                        className="px-2 py-0.5 rounded-full text-xs font-medium border border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10"
+                                        className="px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10"
                                       >
                                         {highlightText}
                                       </span>
                                     );
                                   })}
                                 {pkg.highlights.length > 3 && (
-                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium border border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10">
-                                    +{pkg.highlights.length - 3} more
+                                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10">
+                                    +{pkg.highlights.length - 2} more
                                   </span>
                                 )}
                               </div>
