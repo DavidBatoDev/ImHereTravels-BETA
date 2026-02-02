@@ -36,7 +36,7 @@ function generateGroupMemberIdFunction(
   firstName: string,
   lastName: string,
   email: string,
-  isActive: boolean
+  isActive: boolean,
 ): string {
   // Only Duo or Group bookings apply
   if (!(bookingType === "Duo Booking" || bookingType === "Group Booking")) {
@@ -90,13 +90,13 @@ async function getTourPackageData(tourPackageId: string) {
  * Get count of existing bookings for the same tour package (for unique counter)
  */
 async function getExistingBookingsCountForTourPackage(
-  tourPackageName: string
+  tourPackageName: string,
 ): Promise<number> {
   try {
     const bookingsRef = collection(db, "bookings");
     const q = query(
       bookingsRef,
-      where("tourPackageName", "==", tourPackageName)
+      where("tourPackageName", "==", tourPackageName),
     );
     const snapshot = await getDocs(q);
     return snapshot.size;
@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
       const paymentsRef = collection(db, "stripePayments");
       const q = query(
         paymentsRef,
-        where("payment.stripeIntentId", "==", paymentIntent.id)
+        where("payment.stripeIntentId", "==", paymentIntent.id),
       );
       const snapshot = await getDocs(q);
 
@@ -162,12 +162,12 @@ export async function POST(req: NextRequest) {
           paymentData.payment?.status !== "reserve_paid"
         ) {
           console.log(
-            "🎯 Processing reservation fee payment - creating booking"
+            "🎯 Processing reservation fee payment - creating booking",
           );
 
           // Fetch tour package data
           const tourPackage = await getTourPackageData(
-            paymentData.tour?.packageId
+            paymentData.tour?.packageId,
           );
           const tourCode = (tourPackage as any)?.tourCode || "XXX";
           const originalTourCost = (tourPackage as any)?.pricing?.original || 0;
@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
           // Get existing bookings count for unique counter (per tour package)
           const existingCountForTourPackage =
             await getExistingBookingsCountForTourPackage(
-              paymentData.tour?.packageName || (tourPackage as any)?.name || ""
+              paymentData.tour?.packageName || (tourPackage as any)?.name || "",
             );
 
           // Get total bookings count for global row number
@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
               paymentData.customer?.firstName || "",
               paymentData.customer?.lastName || "",
               paymentData.customer?.email || "",
-              true // isMainBooker is always true at this point
+              true, // isMainBooker is always true at this point
             );
 
             // Both fields should have the same value (full member ID)
@@ -241,7 +241,7 @@ export async function POST(req: NextRequest) {
             console.log("📝 isMainBooker:", bookingData.isMainBooker);
             console.log(
               "📝 groupIdGroupIdGenerator:",
-              bookingData.groupIdGroupIdGenerator
+              bookingData.groupIdGroupIdGenerator,
             );
             console.log("📝 groupId:", bookingData.groupId);
           } else {
@@ -266,7 +266,7 @@ export async function POST(req: NextRequest) {
           });
 
           console.log(
-            "✅ Stripe payment record updated with booking reference"
+            "✅ Stripe payment record updated with booking reference",
           );
         } else {
           // For other payment types or already processed, just update status
@@ -280,7 +280,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle Stripe Checkout session completion (for installment payments)
-    if(event.type === "checkout.session.completed") {
+    if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const {
         payment_token,
@@ -290,9 +290,18 @@ export async function POST(req: NextRequest) {
       } = session.metadata || {};
 
       console.log(`💳 Checkout session completed: ${session.id}`);
-      console.log(`📦 Metadata:`, { payment_token: payment_token?.substring(0, 10), installment_id, booking_document_id });
+      console.log(`📦 Metadata:`, {
+        payment_token: payment_token?.substring(0, 10),
+        installment_id,
+        booking_document_id,
+      });
 
-      if (!payment_token || !installment_id || !booking_document_id || !stripe_payment_doc_id) {
+      if (
+        !payment_token ||
+        !installment_id ||
+        !booking_document_id ||
+        !stripe_payment_doc_id
+      ) {
         console.log("⚠️ Missing metadata for installment payment, skipping...");
         return NextResponse.json({ received: true });
       }
@@ -300,7 +309,7 @@ export async function POST(req: NextRequest) {
       try {
         // 1. Validate payment_token
         const stripePaymentDoc = await getDoc(
-          doc(db, "stripePayments", stripe_payment_doc_id)
+          doc(db, "stripePayments", stripe_payment_doc_id),
         );
 
         if (!stripePaymentDoc.exists()) {
@@ -334,7 +343,9 @@ export async function POST(req: NextRequest) {
 
         // Verify this is actually an installment payment
         if (paymentData.payment?.type !== "installment") {
-          console.log(`⚠️ Payment doc type is '${paymentData.payment?.type}', expected 'installment'. Skipping installment processing.`);
+          console.log(
+            `⚠️ Payment doc type is '${paymentData.payment?.type}', expected 'installment'. Skipping installment processing.`,
+          );
           return NextResponse.json({ received: true });
         }
 
@@ -348,30 +359,106 @@ export async function POST(req: NextRequest) {
         // 3. Get booking data
         const bookingRef = doc(db, "bookings", booking_document_id);
         const bookingSnap = await getDoc(bookingRef);
-        
+
         if (!bookingSnap.exists()) {
           console.error("❌ Booking not found");
           return NextResponse.json({ received: true });
         }
-        
+
         const booking = bookingSnap.data();
 
         // 4. Recalculate everything from scratch to prevent double-counting
-        const totalCost = booking.discountedTourCost || booking.originalTourCost || 0;
-        
+        const totalCost =
+          booking.discountedTourCost || booking.originalTourCost || 0;
+
         // Start with reservation fee
         let calculatedPaid = booking.reservationFee || 0;
-        
-        // Check all installments
-        const installments = ["p1", "p2", "p3", "p4"];
+
         let installmentsPaidCount = 0;
-        const totalInstallments = installments.filter((id: string) => booking[`${id}Amount`] > 0).length;
+        let totalInstallments = 0;
+        let newBookingStatus = "";
+
+        // Handle FULL PAYMENT separately
+        if (installment_id === "full_payment") {
+          const isCurrentPayment = installment_id === "full_payment";
+          const isAlreadyPaid =
+            booking.fullPaymentDatePaid ||
+            booking.paymentTokens?.full_payment?.status === "success";
+
+          if (isCurrentPayment || isAlreadyPaid) {
+            const amount = booking.fullPaymentAmount || 0;
+            calculatedPaid += amount;
+          }
+
+          const newRemainingBalance = totalCost - calculatedPaid;
+          const newPaymentProgress =
+            totalCost > 0 ? Math.round((calculatedPaid / totalCost) * 100) : 0;
+
+          // For full payment, status should be "Booking Confirmed" or "Waiting for Full Payment"
+          if (newRemainingBalance <= 0.01) {
+            // Allow small floating point differences
+            newBookingStatus = "Booking Confirmed";
+          } else {
+            newBookingStatus = "Waiting for Full Payment";
+          }
+
+          // Calculate paid terms (reservation fee + full payment)
+          const paidTerms =
+            (booking.reservationFee || 0) +
+            (calculatedPaid - (booking.reservationFee || 0));
+
+          // 5. Map installment_id to flat field names
+          const datePaidFieldMap: Record<string, string> = {
+            full_payment: "fullPaymentDatePaid",
+            p1: "p1DatePaid",
+            p2: "p2DatePaid",
+            p3: "p3DatePaid",
+            p4: "p4DatePaid",
+          };
+
+          const datePaidField = datePaidFieldMap[installment_id];
+          const paidTimestamp = serverTimestamp();
+
+          // 6. Update booking with SUCCESS status and recalculated totals
+          await updateDoc(bookingRef, {
+            // Update nested paymentTokens object
+            [`paymentTokens.${installment_id}.status`]: "success",
+            [`paymentTokens.${installment_id}.paidAt`]: paidTimestamp,
+            [`paymentTokens.${installment_id}.token`]: null, // Invalidate token
+
+            // Update flat field for backward compatibility
+            [datePaidField]: paidTimestamp,
+
+            // Update totals with recalculated values
+            paid: calculatedPaid,
+            paidTerms: paidTerms,
+            remainingBalance: newRemainingBalance,
+            paymentProgress: `${newPaymentProgress}%`,
+            bookingStatus: newBookingStatus,
+          });
+
+          console.log(
+            `✅ Full payment paid successfully for booking ${booking_document_id}`,
+          );
+          console.log(
+            `💰 New totals: Paid ${calculatedPaid}, PaidTerms ${paidTerms}, Remaining ${newRemainingBalance}, Progress ${newPaymentProgress}%`,
+          );
+
+          return NextResponse.json({ received: true });
+        }
+
+        // Handle INSTALLMENT PAYMENTS (P1, P2, P3, P4)
+        const installments = ["p1", "p2", "p3", "p4"];
+        totalInstallments = installments.filter(
+          (id: string) => booking[`${id}Amount`] > 0,
+        ).length;
 
         installments.forEach((id: string) => {
           const isCurrentPayment = id === installment_id;
-          const isAlreadyPaid = booking[`${id}DatePaid`] || 
-                               booking.paymentTokens?.[id]?.status === "success";
-          
+          const isAlreadyPaid =
+            booking[`${id}DatePaid`] ||
+            booking.paymentTokens?.[id]?.status === "success";
+
           if (isCurrentPayment || isAlreadyPaid) {
             const amount = booking[`${id}Amount`] || 0;
             calculatedPaid += amount;
@@ -380,15 +467,28 @@ export async function POST(req: NextRequest) {
         });
 
         const newRemainingBalance = totalCost - calculatedPaid;
-        const newPaymentProgress = totalCost > 0 ? Math.round((calculatedPaid / totalCost) * 100) : 0;
-        
-        // Determine new booking status string
-        let newBookingStatus = booking.bookingStatus;
-        if (newRemainingBalance <= 0) {
-          newBookingStatus = "Paid in Full";
+        const newPaymentProgress =
+          totalCost > 0 ? Math.round((calculatedPaid / totalCost) * 100) : 0;
+
+        // Determine new booking status string for installments
+        if (newRemainingBalance <= 0.01) {
+          // Allow small floating point differences
+          newBookingStatus = "Booking Confirmed";
         } else {
           newBookingStatus = `Installment ${installmentsPaidCount}/${totalInstallments}`;
         }
+
+        // Calculate paid terms (sum of all paid installments)
+        let paidTerms = booking.reservationFee || 0;
+        installments.forEach((id) => {
+          const isPaid =
+            booking[`${id}DatePaid`] ||
+            booking.paymentTokens?.[id]?.status === "success" ||
+            id === installment_id;
+          if (isPaid) {
+            paidTerms += booking[`${id}Amount`] || 0;
+          }
+        });
 
         // 5. Map installment_id to flat field names
         const datePaidFieldMap: Record<string, string> = {
@@ -414,15 +514,18 @@ export async function POST(req: NextRequest) {
 
           // Update totals with recalculated values
           paid: calculatedPaid,
+          paidTerms: paidTerms,
           remainingBalance: newRemainingBalance,
-          paymentProgress: newPaymentProgress,
+          paymentProgress: `${newPaymentProgress}%`,
           bookingStatus: newBookingStatus,
         });
 
         console.log(
-          `✅ Installment ${installment_id} paid successfully for booking ${booking_document_id}`
+          `✅ Installment ${installment_id} paid successfully for booking ${booking_document_id}`,
         );
-        console.log(`💰 New totals: Paid €${calculatedPaid}, Remaining €${newRemainingBalance}, Progress ${newPaymentProgress}%`);
+        console.log(
+          `💰 New totals: Paid ${calculatedPaid}, PaidTerms ${paidTerms}, Remaining ${newRemainingBalance}, Progress ${newPaymentProgress}%`,
+        );
       } catch (error: any) {
         console.error("❌ Webhook processing error:", error);
 
@@ -445,7 +548,7 @@ export async function POST(req: NextRequest) {
 
       if (installment_id && booking_document_id) {
         console.log(`❌ Payment failed for installment ${installment_id}`);
-        
+
         await updateDoc(doc(db, "bookings", booking_document_id), {
           [`paymentTokens.${installment_id}.status`]: "failed",
           [`paymentTokens.${installment_id}.errorMessage`]: "Payment failed",
@@ -460,7 +563,7 @@ export async function POST(req: NextRequest) {
       const paymentsRef = collection(db, "stripePayments");
       const q = query(
         paymentsRef,
-        where("payment.stripeIntentId", "==", paymentIntent.id)
+        where("payment.stripeIntentId", "==", paymentIntent.id),
       );
       const snapshot = await getDocs(q);
 
