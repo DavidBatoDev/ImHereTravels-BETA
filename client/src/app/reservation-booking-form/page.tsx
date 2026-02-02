@@ -6026,8 +6026,11 @@ const Page = () => {
                               </button>
                             ) : (
                               <div className="ml-auto text-sm text-muted-foreground">
-                                {paymentPlans.filter((p) => p?.plan).length} of{" "}
-                                {numberOfPeople} plans selected
+                                {availablePaymentTerm.isLastMinute
+                                  ? numberOfPeople
+                                  : paymentPlans.filter((p) => p?.plan)
+                                      .length}{" "}
+                                of {numberOfPeople} plans selected
                               </div>
                             )}
                           </div>
@@ -6242,9 +6245,9 @@ const Page = () => {
                   type="button"
                   onClick={handleConfirmBooking}
                   className={`group inline-flex items-center gap-2 px-8 py-3.5 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 font-semibold ${
-                    (availablePaymentTerm.isLastMinute ||
-                      paymentPlans.every((p) => p?.plan)) &&
-                    paymentPlans.length === numberOfPeople
+                    availablePaymentTerm.isLastMinute ||
+                    (paymentPlans.every((p) => p?.plan) &&
+                      paymentPlans.length === numberOfPeople)
                       ? "bg-gradient-to-r from-spring-green to-green-500 text-white hover:shadow-xl hover:scale-105 focus:ring-spring-green"
                       : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                   }`}
@@ -6376,6 +6379,12 @@ const Page = () => {
                             </h2>
                             <p className="text-muted-foreground">
                               You're all set for {selectedPackage?.name}
+                              {numberOfPeople > 1 && (
+                                <span className="font-semibold">
+                                  {" "}
+                                  ({numberOfPeople} travelers)
+                                </span>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -6393,6 +6402,19 @@ const Page = () => {
                             </span>
                             <span className="text-sm font-mono font-semibold text-gray-900">
                               {bookingId}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2 border-b border-gray-300">
+                            <span className="text-sm text-gray-600">
+                              Booking Type
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {bookingType}
+                              {numberOfPeople > 1 && (
+                                <span className="text-xs text-gray-600 ml-1">
+                                  ({numberOfPeople} travelers)
+                                </span>
+                              )}
                             </span>
                           </div>
                           <div className="flex justify-between py-2 border-b border-gray-300">
@@ -6442,6 +6464,19 @@ const Page = () => {
                             </span>
                             <span className="text-sm font-mono font-semibold text-foreground">
                               {bookingId}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-2 border-b border-border">
+                            <span className="text-sm text-muted-foreground">
+                              Booking Type
+                            </span>
+                            <span className="text-sm font-medium text-foreground">
+                              {bookingType}
+                              {numberOfPeople > 1 && (
+                                <span className="text-xs text-muted-foreground ml-1">
+                                  ({numberOfPeople} travelers)
+                                </span>
+                              )}
                             </span>
                           </div>
                           <div className="flex justify-between py-2 border-b border-border">
@@ -6512,6 +6547,7 @@ const Page = () => {
                             day: "numeric",
                             year: "numeric",
                           })}
+                          numberOfTravelers={numberOfPeople}
                         />
                       </div>
 
@@ -6635,6 +6671,8 @@ const Page = () => {
                                 year: "numeric",
                               }),
                               "GBP",
+                              numberOfPeople,
+                              bookingType,
                             );
                             pdf.save(
                               `IHT_Reservation-Confirmation_${confirmationId}.pdf`,

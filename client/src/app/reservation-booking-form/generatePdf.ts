@@ -5,7 +5,7 @@ async function loadFont(
   url: string,
   vfsName: string,
   fontName: string,
-  style: "normal" | "bold" | "italic" | "bolditalic" = "normal"
+  style: "normal" | "bold" | "italic" | "bolditalic" = "normal",
 ) {
   try {
     const res = await fetch(url);
@@ -14,7 +14,8 @@ async function loadFont(
     const arrayBuffer = await blob.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     let binary = "";
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    for (let i = 0; i < bytes.length; i++)
+      binary += String.fromCharCode(bytes[i]);
     const base64 = btoa(binary);
     pdf.addFileToVFS(vfsName, base64);
     pdf.addFont(vfsName, fontName, style);
@@ -23,7 +24,12 @@ async function loadFont(
   }
 }
 
-async function rasterizeSvgToPngDataUrl(svgUrl: string, width: number, height: number, scale: number = 8): Promise<string | null> {
+async function rasterizeSvgToPngDataUrl(
+  svgUrl: string,
+  width: number,
+  height: number,
+  scale: number = 8,
+): Promise<string | null> {
   try {
     const svgRes = await fetch(svgUrl);
     if (!svgRes.ok) throw new Error(`Failed to fetch SVG: ${svgUrl}`);
@@ -61,9 +67,12 @@ export async function generateBookingConfirmationPDF(
   totalAmount: number,
   remainingBalance: number,
   paymentDate: string,
-  currency: string = "GBP"
+  currency: string = "GBP",
+  numberOfTravelers: number = 1,
+  bookingType?: string,
 ) {
-  const currencySymbol = currency === "GBP" ? "£" : currency === "EUR" ? "€" : "$";
+  const currencySymbol =
+    currency === "GBP" ? "£" : currency === "EUR" ? "€" : "$";
   const pdf = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -75,9 +84,27 @@ export async function generateBookingConfirmationPDF(
   let yPosition = 20;
 
   // Load HKGrotesk (Regular/Bold/Black) from public and set default font
-  await loadFont(pdf, "/fonts/HKGrotesk/TTF/HKGrotesk-Regular.ttf", "HKGrotesk-Regular.ttf", "HKGrotesk", "normal");
-  await loadFont(pdf, "/fonts/HKGrotesk/TTF/HKGrotesk-Bold.ttf", "HKGrotesk-Bold.ttf", "HKGrotesk", "bold");
-  await loadFont(pdf, "/fonts/HKGrotesk/TTF/HKGrotesk-Black.ttf", "HKGrotesk-Black.ttf", "HKGrotesk-Black", "normal");
+  await loadFont(
+    pdf,
+    "/fonts/HKGrotesk/TTF/HKGrotesk-Regular.ttf",
+    "HKGrotesk-Regular.ttf",
+    "HKGrotesk",
+    "normal",
+  );
+  await loadFont(
+    pdf,
+    "/fonts/HKGrotesk/TTF/HKGrotesk-Bold.ttf",
+    "HKGrotesk-Bold.ttf",
+    "HKGrotesk",
+    "bold",
+  );
+  await loadFont(
+    pdf,
+    "/fonts/HKGrotesk/TTF/HKGrotesk-Black.ttf",
+    "HKGrotesk-Black.ttf",
+    "HKGrotesk-Black",
+    "normal",
+  );
   pdf.setFont("HKGrotesk", "normal");
 
   // PAGE 1: RESERVATION CONFIRMATION
@@ -87,7 +114,12 @@ export async function generateBookingConfirmationPDF(
     const logoHeight = 11;
     const logoX = pageWidth - 15 - logoWidth;
     const logoY = 12;
-    const pngDataUrl = await rasterizeSvgToPngDataUrl("/logos/Digital_Horizontal_Red.svg", logoWidth, logoHeight, 8);
+    const pngDataUrl = await rasterizeSvgToPngDataUrl(
+      "/logos/Digital_Horizontal_Red.svg",
+      logoWidth,
+      logoHeight,
+      8,
+    );
     if (pngDataUrl) {
       pdf.addImage(pngDataUrl, "PNG", logoX, logoY, logoWidth, logoHeight);
     }
@@ -158,6 +190,18 @@ export async function generateBookingConfirmationPDF(
   yPosition += 8;
   const details = [
     { label: "Reservation ID", value: bookingId },
+    ...(bookingType
+      ? [
+          {
+            label: "Booking Type",
+            value:
+              bookingType +
+              (numberOfTravelers > 1
+                ? ` (${numberOfTravelers} travelers)`
+                : ""),
+          },
+        ]
+      : []),
     { label: "Tour Name", value: tourName },
     { label: "Tour Date", value: tourDate },
     { label: "Payment Plan", value: paymentPlan },
@@ -184,11 +228,30 @@ export async function generateBookingConfirmationPDF(
 
   yPosition += 8;
   const summary = [
+    ...(numberOfTravelers > 1
+      ? [{ label: "Number of Travelers", value: `${numberOfTravelers}` }]
+      : []),
     { label: "Tour Cost", value: `${currencySymbol}${totalAmount.toFixed(2)}` },
+    ...(numberOfTravelers > 1
+      ? [
+          {
+            label: "  Per person",
+            value: `${currencySymbol}${(totalAmount / numberOfTravelers).toFixed(2)}`,
+          },
+        ]
+      : []),
     {
       label: "Reservation Fee Paid",
       value: `-${currencySymbol}${reservationFee.toFixed(2)}`,
     },
+    ...(numberOfTravelers > 1
+      ? [
+          {
+            label: "  Per person",
+            value: `-${currencySymbol}${(reservationFee / numberOfTravelers).toFixed(2)}`,
+          },
+        ]
+      : []),
   ];
 
   pdf.setFont("HKGrotesk", "normal");
@@ -212,19 +275,34 @@ export async function generateBookingConfirmationPDF(
   pdf.setFontSize(14);
   pdf.setTextColor(239, 51, 64);
   pdf.text("Remaining Balance:", 15, yPosition);
-  pdf.text(`${currencySymbol}${remainingBalance.toFixed(2)}`, pageWidth - 15, yPosition, {
-    align: "right",
-  });
+  pdf.text(
+    `${currencySymbol}${remainingBalance.toFixed(2)}`,
+    pageWidth - 15,
+    yPosition,
+    {
+      align: "right",
+    },
+  );
 
   // Footer
   yPosition = pageHeight - 20;
   pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(8);
   pdf.setTextColor(120, 120, 120);
-  pdf.text("Thank you for choosing I'm Here Travels!", pageWidth / 2, yPosition, { align: "center" });
+  pdf.text(
+    "Thank you for choosing I'm Here Travels!",
+    pageWidth / 2,
+    yPosition,
+    { align: "center" },
+  );
 
   yPosition += 5;
-  pdf.text("Questions? Contact us at bella@imheretravels.com", pageWidth / 2, yPosition, { align: "center" });
+  pdf.text(
+    "Questions? Contact us at bella@imheretravels.com",
+    pageWidth / 2,
+    yPosition,
+    { align: "center" },
+  );
 
   // PAGE 2: RECEIPT
   pdf.addPage();
@@ -236,7 +314,12 @@ export async function generateBookingConfirmationPDF(
     const logoHeight = 11;
     const logoX = pageWidth - 15 - logoWidth;
     const logoY = 12;
-    const pngDataUrl = await rasterizeSvgToPngDataUrl("/logos/Digital_Horizontal_Red.svg", logoWidth, logoHeight, 8);
+    const pngDataUrl = await rasterizeSvgToPngDataUrl(
+      "/logos/Digital_Horizontal_Red.svg",
+      logoWidth,
+      logoHeight,
+      8,
+    );
     if (pngDataUrl) {
       pdf.addImage(pngDataUrl, "PNG", logoX, logoY, logoWidth, logoHeight);
     }
@@ -278,11 +361,7 @@ export async function generateBookingConfirmationPDF(
   pdf.setFont("HKGrotesk", "bold");
   pdf.setFontSize(28);
   pdf.setTextColor(0, 0, 0);
-  pdf.text(
-    `${currencySymbol}${reservationFee.toFixed(2)}`,
-    15,
-    yPosition
-  );
+  pdf.text(`${currencySymbol}${reservationFee.toFixed(2)}`, 15, yPosition);
 
   yPosition += 12;
   pdf.setFont("HKGrotesk", "normal");
@@ -298,16 +377,35 @@ export async function generateBookingConfirmationPDF(
   pdf.setFont("HKGrotesk", "bold");
   pdf.setFontSize(9);
   pdf.setTextColor(120, 120, 120);
-  pdf.text("SUMMARY", 15, yPosition);
+  const receiptSummary = [
+    ...(numberOfTravelers > 1
+      ? [{ label: "Number of Travelers", value: `${numberOfTravelers}` }]
+      : []),
+    {
+      label: "Reservation Fee",
+      value: `${currencySymbol}${reservationFee.toFixed(2)}`,
+    },
+    ...(numberOfTravelers > 1
+      ? [
+          {
+            label: "  Per person",
+            value: `${currencySymbol}${(reservationFee / numberOfTravelers).toFixed(2)}`,
+          },
+        ]
+      : []),
+  ];
 
-  yPosition += 8;
   pdf.setFont("HKGrotesk", "normal");
   pdf.setFontSize(11);
-  pdf.setTextColor(80, 80, 80);
-  pdf.text("Reservation Fee:", 15, yPosition);
-  pdf.setFont("HKGrotesk", "bold");
-  pdf.setTextColor(0, 0, 0);
-  pdf.text(`${currencySymbol}${reservationFee.toFixed(2)}`, 70, yPosition);
+  receiptSummary.forEach((item) => {
+    pdf.setTextColor(80, 80, 80);
+    pdf.text(item.label + ":", 15, yPosition);
+    pdf.setFont("HKGrotesk", "bold");
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(item.value, 70, yPosition);
+    pdf.setFont("HKGrotesk", "normal");
+    yPosition += 7;
+  });
 
   // Reservation Details Section
   yPosition += 18;
@@ -338,7 +436,7 @@ export async function generateBookingConfirmationPDF(
     "This receipt confirms your payment for the reservation fee.",
     pageWidth / 2,
     yPosition,
-    { align: "center" }
+    { align: "center" },
   );
 
   yPosition += 4;
@@ -347,9 +445,14 @@ export async function generateBookingConfirmationPDF(
   });
 
   yPosition += 4;
-  pdf.text("Questions? Contact us at bella@imheretravels.com", pageWidth / 2, yPosition, {
-    align: "center",
-  });
+  pdf.text(
+    "Questions? Contact us at bella@imheretravels.com",
+    pageWidth / 2,
+    yPosition,
+    {
+      align: "center",
+    },
+  );
 
   return pdf;
 }
