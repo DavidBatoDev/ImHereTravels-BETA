@@ -338,7 +338,7 @@ export default function BookingStatusPage() {
         bookingType: bookingData.bookingType,
         isMainBooker: bookingData.isMainBooker,
         enablePaymentReminder: bookingData.enablePaymentReminder,
-        preDeparturePack,
+        preDeparturePack: preDeparturePack ?? undefined,
         ...(process.env.NEXT_PUBLIC_ENV === "development" && {
           paymentTokens: bookingData.paymentTokens,
         }),
@@ -400,7 +400,7 @@ export default function BookingStatusPage() {
               pack,
             };
             setBooking((prev) =>
-              prev ? { ...prev, preDeparturePack: pack } : prev,
+              prev ? { ...prev, preDeparturePack: pack ?? undefined } : prev,
             );
           })();
         }

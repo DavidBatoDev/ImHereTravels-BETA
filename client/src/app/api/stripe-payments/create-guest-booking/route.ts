@@ -24,9 +24,7 @@ import {
   createBookingData,
   normalizeTourDateToUTCPlus8Nine,
   type BookingCreationInput,
-    const normalizedTourDate =
-      normalizeTourDateToUTCPlus8Nine(tourDateParsed) || tourDateParsed;
-    console.log("📅 Using tour date:", normalizedTourDate);
+} from "@/lib/booking-calculations";
 
 /**
  * Generate a unique booking ID in format "YYMM-XXXX"
@@ -46,7 +44,7 @@ function generateBookingId(
  * Generate Group/Duo Booking Member ID (standalone version, no allRows needed).
  */
 function generateGroupMemberIdFunction(
-      tourDate: normalizedTourDate || "", // Use normalized tour date
+  bookingType: string,
   tourName: string,
   firstName: string,
   lastName: string,
@@ -431,6 +429,9 @@ export async function POST(req: NextRequest) {
     console.log("📅 Payment data tour date:", paymentData.tour?.date);
     console.log("📅 Using tour date:", tourDateParsed);
 
+    const normalizedTourDate =
+      normalizeTourDateToUTCPlus8Nine(tourDateParsed) || tourDateParsed;
+
     // Use parent's return date if available, otherwise calculate
     const calculatedReturnDate =
       parentBookingReturnDate ||
@@ -547,8 +548,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 13. Convert dates to Firestore Timestamps for storage (normalized to 9:00 AM UTC+8)
-    const normalizedTourDate =
-      normalizeTourDateToUTCPlus8Nine(tourDateParsed) || tourDateParsed;
     const tourDateTimestamp = normalizedTourDate
       ? Timestamp.fromDate(normalizedTourDate)
       : null;
