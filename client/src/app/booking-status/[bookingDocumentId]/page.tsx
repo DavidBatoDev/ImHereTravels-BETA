@@ -100,7 +100,9 @@ export default function BookingStatusPage() {
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [paymentProcessing, setPaymentProcessing] = useState<string | null>(null);
+  const [paymentProcessing, setPaymentProcessing] = useState<string | null>(
+    null,
+  );
   const [paymentMessage, setPaymentMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -115,16 +117,18 @@ export default function BookingStatusPage() {
     if (paymentSuccess === "true" && installmentId) {
       // In development, automatically trigger test confirmation
       const isDevelopment = process.env.NEXT_PUBLIC_ENV === "development";
-      
+
       if (isDevelopment) {
-        console.log("🧪 Development mode: Auto-triggering payment confirmation");
+        console.log(
+          "🧪 Development mode: Auto-triggering payment confirmation",
+        );
         console.log("📡 Refetching booking to get latest payment tokens...");
-        
+
         // Refetch booking to get the latest paymentTokens
         const url = email
           ? `/api/public/booking/${bookingDocumentId}?email=${encodeURIComponent(email)}`
           : `/api/public/booking/${bookingDocumentId}`;
-        
+
         fetch(url)
           .then((res) => res.json())
           .then((result) => {
@@ -132,13 +136,19 @@ export default function BookingStatusPage() {
               console.error("❌ Failed to refetch booking:", result.error);
               return;
             }
-            
+
             const freshBooking = result.data;
-            console.log("📦 Fresh booking paymentTokens:", freshBooking.paymentTokens);
-            const stripePaymentDocId = freshBooking.paymentTokens?.[installmentId as keyof typeof freshBooking.paymentTokens]?.stripePaymentDocId;
-            
+            console.log(
+              "📦 Fresh booking paymentTokens:",
+              freshBooking.paymentTokens,
+            );
+            const stripePaymentDocId =
+              freshBooking.paymentTokens?.[
+                installmentId as keyof typeof freshBooking.paymentTokens
+              ]?.stripePaymentDocId;
+
             console.log("📝 stripePaymentDocId:", stripePaymentDocId);
-            
+
             if (stripePaymentDocId) {
               // Automatically confirm the payment in development
               fetch("/api/installments/test-confirm", {
@@ -160,7 +170,10 @@ export default function BookingStatusPage() {
                   console.error("❌ Auto-confirm failed:", error);
                 });
             } else {
-              console.error("❌ No stripePaymentDocId found for installment:", installmentId);
+              console.error(
+                "❌ No stripePaymentDocId found for installment:",
+                installmentId,
+              );
             }
           })
           .catch((error) => {
@@ -211,7 +224,7 @@ export default function BookingStatusPage() {
         setLoading(true);
         const url = email
           ? `/api/public/booking/${bookingDocumentId}?email=${encodeURIComponent(
-              email
+              email,
             )}`
           : `/api/public/booking/${bookingDocumentId}`;
 
@@ -237,7 +250,7 @@ export default function BookingStatusPage() {
 
   // Handle installment payment
   const handlePayInstallment = async (
-    installmentId: "full_payment" | "p1" | "p2" | "p3" | "p4"
+    installmentId: "full_payment" | "p1" | "p2" | "p3" | "p4",
   ) => {
     if (!booking) return;
 
@@ -273,13 +286,11 @@ export default function BookingStatusPage() {
     }
   };
 
-
-
   const handleContactSupport = () => {
     const subject = `Booking Inquiry - ${booking?.bookingId}`;
     const body = `Hello ImHereTravels Team,\n\nI have a question regarding my booking:\n\nBooking ID: ${booking?.bookingId}\nName: ${booking?.fullName}\nTour: ${booking?.tourPackageName}\n\n[Your question here]\n\nThank you!`;
     window.location.href = `mailto:support@imheretravels.com?subject=${encodeURIComponent(
-      subject
+      subject,
     )}&body=${encodeURIComponent(body)}`;
   };
 
@@ -344,11 +355,12 @@ export default function BookingStatusPage() {
       const amount = booking[`${prefix}Amount` as keyof BookingData];
       const datePaid = booking[`${prefix}DatePaid` as keyof BookingData];
 
-      if (!dueDate || !amount) return; // Skip if installment doesn't exist
+      if (!amount) return; // Skip if installment doesn't exist
 
       // Get status from paymentTokens (primary) or flat DatePaid (fallback)
-      const tokenData = booking.paymentTokens?.[id as keyof typeof booking.paymentTokens];
-      
+      const tokenData =
+        booking.paymentTokens?.[id as keyof typeof booking.paymentTokens];
+
       let status = "pending";
       let statusInfo: any = {};
 
@@ -364,14 +376,18 @@ export default function BookingStatusPage() {
         statusInfo = {
           errorMessage: tokenData.errorMessage,
         };
-      } else if (new Date(dueDate as any) < new Date()) {
+      } else if (
+        dueDate &&
+        !isNaN(new Date(dueDate as any).getTime()) &&
+        new Date(dueDate as any) < new Date()
+      ) {
         status = "overdue";
       }
 
       terms.push({
         id,
         term,
-        dueDate,
+        dueDate: dueDate || "",
         amount,
         status,
         ...statusInfo,
@@ -382,7 +398,6 @@ export default function BookingStatusPage() {
   };
 
   const paymentTerms = buildPaymentTerms();
-
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + " B";
@@ -406,7 +421,9 @@ export default function BookingStatusPage() {
               />
             </div>
             <Button
-              onClick={() => (window.location.href = "mailto:bella@imheretravels.com")}
+              onClick={() =>
+                (window.location.href = "mailto:bella@imheretravels.com")
+              }
               variant="default"
               className="bg-crimson-red hover:bg-crimson-red/90 text-white shadow-sm rounded-full px-8 text-base font-medium"
             >
@@ -507,7 +524,9 @@ export default function BookingStatusPage() {
                   <p className="text-base font-semibold text-gray-900">
                     {booking.formattedDate}
                   </p>
-                  <p className="text-xs text-gray-600">{booking.tourDuration}</p>
+                  <p className="text-xs text-gray-600">
+                    {booking.tourDuration}
+                  </p>
                 </div>
 
                 <div>
@@ -548,7 +567,6 @@ export default function BookingStatusPage() {
                   Payment Schedule
                 </h2>
 
-                
                 {/* Progress Bar Container */}
                 <div className="mb-6">
                   {/* Label & Percentage Row */}
@@ -557,7 +575,7 @@ export default function BookingStatusPage() {
                       {booking.paymentProgress}%
                     </span>
                   </div>
-                  
+
                   {/* Bar Track & Fill */}
                   <div className="relative h-4 w-full rounded-full border border-gray-200 bg-transparent overflow-hidden">
                     <div
@@ -590,7 +608,12 @@ export default function BookingStatusPage() {
                     </thead>
                     <tbody>
                       {paymentTerms.map((term, index) => {
-                        const dueDate = new Date(term.dueDate);
+                        const dueDateValue = term.dueDate;
+                        const dueDate = dueDateValue
+                          ? new Date(dueDateValue)
+                          : null;
+                        const hasValidDueDate =
+                          dueDate instanceof Date && !isNaN(dueDate.getTime());
 
                         return (
                           <tr
@@ -601,7 +624,9 @@ export default function BookingStatusPage() {
                               {term.term}
                             </td>
                             <td className="py-3 px-4 text-sm text-gray-700">
-                              {format(dueDate, "MMM dd, yyyy")}
+                              {hasValidDueDate
+                                ? format(dueDate as Date, "MMM dd, yyyy")
+                                : "---"}
                             </td>
                             <td className="py-3 px-4 text-right font-semibold text-gray-900">
                               €{term.amount.toFixed(2)}
@@ -632,7 +657,10 @@ export default function BookingStatusPage() {
                                 </Badge>
                               )}
                               {term.status === "overdue" && (
-                                <Badge variant="destructive" className="text-xs">
+                                <Badge
+                                  variant="destructive"
+                                  className="text-xs"
+                                >
                                   <AlertCircle className="h-3 w-3 mr-1" />
                                   Overdue
                                 </Badge>
@@ -656,9 +684,9 @@ export default function BookingStatusPage() {
                                     new Date(
                                       term.paidAt.seconds
                                         ? term.paidAt.seconds * 1000
-                                        : term.paidAt
+                                        : term.paidAt,
                                     ),
-                                    "MMM dd, yyyy"
+                                    "MMM dd, yyyy",
                                   )}
                                 </span>
                               )}
@@ -666,20 +694,28 @@ export default function BookingStatusPage() {
                               {(() => {
                                 // Find the first unpaid installment
                                 const firstUnpaid = paymentTerms.find(
-                                  (t) => t.status === "pending" || t.status === "overdue" || t.status === "failed"
+                                  (t) =>
+                                    t.status === "pending" ||
+                                    t.status === "overdue" ||
+                                    t.status === "failed",
                                 );
-                                
+
                                 // Only show button if this is the first unpaid OR if it's failed
-                                const showButton = 
-                                  (term.status === "failed") || 
+                                const showButton =
+                                  term.status === "failed" ||
                                   (firstUnpaid && firstUnpaid.id === term.id);
 
-                                if ((term.status === "pending" ||
+                                if (
+                                  (term.status === "pending" ||
                                     term.status === "overdue" ||
-                                    term.status === "failed") && showButton) {
+                                    term.status === "failed") &&
+                                  showButton
+                                ) {
                                   return (
                                     <Button
-                                      onClick={() => handlePayInstallment(term.id)}
+                                      onClick={() =>
+                                        handlePayInstallment(term.id)
+                                      }
                                       disabled={paymentProcessing !== null}
                                       size="sm"
                                       className="bg-crimson-red hover:bg-crimson-red/90 text-white"
@@ -687,21 +723,26 @@ export default function BookingStatusPage() {
                                       {paymentProcessing === term.id
                                         ? "Processing..."
                                         : term.status === "failed"
-                                        ? "Retry Payment"
-                                        : "Pay Now"}
+                                          ? "Retry Payment"
+                                          : "Pay Now"}
                                     </Button>
                                   );
                                 }
-                                
+
                                 // Show message for locked installments
-                                if ((term.status === "pending" || term.status === "overdue") && !showButton && firstUnpaid) {
+                                if (
+                                  (term.status === "pending" ||
+                                    term.status === "overdue") &&
+                                  !showButton &&
+                                  firstUnpaid
+                                ) {
                                   return (
                                     <span className="text-xs text-gray-500 italic">
                                       Pay {firstUnpaid.term} first
                                     </span>
                                   );
                                 }
-                                
+
                                 return null;
                               })()}
 
@@ -748,7 +789,7 @@ export default function BookingStatusPage() {
                           onClick={() =>
                             window.open(
                               booking.preDeparturePack!.fileDownloadURL,
-                              "_blank"
+                              "_blank",
                             )
                           }
                           className="bg-royal-purple hover:bg-royal-purple/90 text-white"
@@ -808,8 +849,6 @@ export default function BookingStatusPage() {
                   )}
                 </div>
               </div>
-
-
             </div>
 
             <Separator />
@@ -952,8 +991,6 @@ export default function BookingStatusPage() {
           </div>
         </div>
       </footer>
-
-
     </div>
   );
 }

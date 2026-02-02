@@ -392,7 +392,7 @@ export async function POST(req: NextRequest) {
 
           const newRemainingBalance = totalCost - calculatedPaid;
           const newPaymentProgress =
-            totalCost > 0 ? Math.round((calculatedPaid / totalCost) * 100) : 0;
+            isCurrentPayment || isAlreadyPaid ? 100 : 0;
 
           // For full payment, status should be "Booking Confirmed" or "Waiting for Full Payment"
           if (newRemainingBalance <= 0.01) {
@@ -402,10 +402,11 @@ export async function POST(req: NextRequest) {
             newBookingStatus = "Waiting for Full Payment";
           }
 
-          // Calculate paid terms (reservation fee + full payment)
+          // Calculate paid terms (full payment only; reservation fee excluded)
           const paidTerms =
-            (booking.reservationFee || 0) +
-            (calculatedPaid - (booking.reservationFee || 0));
+            isCurrentPayment || isAlreadyPaid
+              ? booking.fullPaymentAmount || 0
+              : 0;
 
           // 5. Map installment_id to flat field names
           const datePaidFieldMap: Record<string, string> = {
@@ -419,6 +420,19 @@ export async function POST(req: NextRequest) {
           const datePaidField = datePaidFieldMap[installment_id];
           const paidTimestamp = serverTimestamp();
 
+          const lastPaidDate = new Date();
+          const formatDate = (d: Date): string =>
+            d.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            });
+
+          const bookingStatusWithDate =
+            newRemainingBalance <= 0.01
+              ? `Booking Confirmed — ${formatDate(lastPaidDate)}`
+              : newBookingStatus;
+
           // 6. Update booking with SUCCESS status and recalculated totals
           await updateDoc(bookingRef, {
             // Update nested paymentTokens object
@@ -428,13 +442,14 @@ export async function POST(req: NextRequest) {
 
             // Update flat field for backward compatibility
             [datePaidField]: paidTimestamp,
+            fullPaymentDueDate: "",
 
             // Update totals with recalculated values
             paid: calculatedPaid,
             paidTerms: paidTerms,
             remainingBalance: newRemainingBalance,
             paymentProgress: `${newPaymentProgress}%`,
-            bookingStatus: newBookingStatus,
+            bookingStatus: bookingStatusWithDate,
           });
 
           console.log(
@@ -467,8 +482,61 @@ export async function POST(req: NextRequest) {
         });
 
         const newRemainingBalance = totalCost - calculatedPaid;
+        const paidFlags = {
+          p1: Boolean(
+            booking.p1DatePaid ||
+            booking.paymentTokens?.p1?.status === "success" ||
+            installment_id === "p1",
+          ),
+          p2: Boolean(
+            booking.p2DatePaid ||
+            booking.paymentTokens?.p2?.status === "success" ||
+            installment_id === "p2",
+          ),
+          p3: Boolean(
+            booking.p3DatePaid ||
+            booking.paymentTokens?.p3?.status === "success" ||
+            installment_id === "p3",
+          ),
+          p4: Boolean(
+            booking.p4DatePaid ||
+            booking.paymentTokens?.p4?.status === "success" ||
+            installment_id === "p4",
+          ),
+        };
+
+        const plan = (booking.paymentPlan || "").trim();
+        const planTerms = plan.match(/P(\d)/)
+          ? parseInt(plan.match(/P(\d)/)![1], 10)
+          : 0;
+
         const newPaymentProgress =
-          totalCost > 0 ? Math.round((calculatedPaid / totalCost) * 100) : 0;
+          plan === "P1"
+            ? paidFlags.p1
+              ? 100
+              : 0
+            : plan === "P2"
+              ? Math.round(
+                  ((Number(paidFlags.p1) + Number(paidFlags.p2)) / 2) * 100,
+                )
+              : plan === "P3"
+                ? Math.round(
+                    ((Number(paidFlags.p1) +
+                      Number(paidFlags.p2) +
+                      Number(paidFlags.p3)) /
+                      3) *
+                      100,
+                  )
+                : plan === "P4"
+                  ? Math.round(
+                      ((Number(paidFlags.p1) +
+                        Number(paidFlags.p2) +
+                        Number(paidFlags.p3) +
+                        Number(paidFlags.p4)) /
+                        4) *
+                        100,
+                    )
+                  : 0;
 
         // Determine new booking status string for installments
         if (newRemainingBalance <= 0.01) {
@@ -478,8 +546,8 @@ export async function POST(req: NextRequest) {
           newBookingStatus = `Installment ${installmentsPaidCount}/${totalInstallments}`;
         }
 
-        // Calculate paid terms (sum of all paid installments)
-        let paidTerms = booking.reservationFee || 0;
+        // Calculate paid terms (sum of all paid installments; exclude reservation fee)
+        let paidTerms = 0;
         installments.forEach((id) => {
           const isPaid =
             booking[`${id}DatePaid`] ||
@@ -501,6 +569,20 @@ export async function POST(req: NextRequest) {
 
         const datePaidField = datePaidFieldMap[installment_id];
         const paidTimestamp = serverTimestamp();
+        const lastPaidDate = new Date();
+        const formatDate = (d: Date): string =>
+          d.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+
+        const bookingStatusWithDate =
+          newRemainingBalance <= 0.01
+            ? `Booking Confirmed — ${formatDate(lastPaidDate)}`
+            : planTerms > 0
+              ? `Installment ${installmentsPaidCount}/${totalInstallments} — last paid ${formatDate(lastPaidDate)}`
+              : newBookingStatus;
 
         // 6. Update booking with SUCCESS status and recalculated totals
         await updateDoc(bookingRef, {
@@ -511,13 +593,14 @@ export async function POST(req: NextRequest) {
 
           // Update flat field for backward compatibility
           [datePaidField]: paidTimestamp,
+          [`${installment_id}DueDate`]: "",
 
           // Update totals with recalculated values
           paid: calculatedPaid,
           paidTerms: paidTerms,
           remainingBalance: newRemainingBalance,
           paymentProgress: `${newPaymentProgress}%`,
-          bookingStatus: newBookingStatus,
+          bookingStatus: bookingStatusWithDate,
         });
 
         console.log(
