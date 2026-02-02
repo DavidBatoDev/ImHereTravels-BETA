@@ -26,7 +26,10 @@ import BirthdatePicker from "./BirthdatePicker";
 import Select from "./Select";
 import GuestForm from "./GuestForm";
 import TourSelectionModal from "./TourSelectionModal";
-import { getNationalityOptions, getNationalityCountryCode } from "./nationalities";
+import {
+  getNationalityOptions,
+  getNationalityCountryCode,
+} from "./nationalities";
 import ReactCountryFlag from "react-country-flag";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
@@ -153,18 +156,20 @@ const Page = () => {
   const [tourPackage, setTourPackage] = useState(""); // will store package id
   const [tourDate, setTourDate] = useState("");
   const [additionalGuests, setAdditionalGuests] = useState<string[]>([]); // Keep for backward compatibility
-  
+
   // New state for guest personal details
   const [activeGuestTab, setActiveGuestTab] = useState(1); // Track which guest form is active
-  const [guestDetails, setGuestDetails] = useState<Array<{
-    email: string;
-    firstName: string;
-    lastName: string;
-    birthdate: string;
-    nationality: string;
-    whatsAppNumber: string;
-    whatsAppCountry: string;
-  }>>([]);
+  const [guestDetails, setGuestDetails] = useState<
+    Array<{
+      email: string;
+      firstName: string;
+      lastName: string;
+      birthdate: string;
+      nationality: string;
+      whatsAppNumber: string;
+      whatsAppCountry: string;
+    }>
+  >([]);
 
   // dynamic tour packages and dates loaded from Firestore
   // Auto-update WhatsApp country code when nationality changes
@@ -225,7 +230,7 @@ const Page = () => {
   const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
   const [filteredTours, setFilteredTours] = useState<typeof tourPackages>([]);
   const [popularityData, setPopularityData] = useState<Record<string, number>>(
-    {}
+    {},
   );
   const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
   const [highlightsExpanded, setHighlightsExpanded] = useState(false);
@@ -247,10 +252,10 @@ const Page = () => {
 
   // Selected payment plan
   const [selectedPaymentPlan, setSelectedPaymentPlan] = useState<string>("");
-  
+
   // Per-person payment plans (for multi-booking)
   interface PersonPaymentPlan {
-    plan: string; 
+    plan: string;
     tourCostShare: number;
     reservationFeeShare: number;
   }
@@ -292,7 +297,7 @@ const Page = () => {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [foundStripePayments, setFoundStripePayments] = useState<Array<any>>(
-    []
+    [],
   );
 
   const router = useRouter();
@@ -323,7 +328,7 @@ const Page = () => {
           console.debug(
             "replaceWithPaymentId: history.replaceState failed",
             "",
-            e
+            e,
           );
       }
 
@@ -342,7 +347,7 @@ const Page = () => {
       case 2:
         return selectedPackage
           ? bookingType === "Duo Booking" || bookingType === "Group Booking"
-            ? `Pay £${depositAmount.toFixed(2)} reservation fee (£${baseReservationFee.toFixed(2)} × ${numberOfPeople} ${numberOfPeople === 1 ? 'person' : 'people'}) to secure your spots`
+            ? `Pay £${depositAmount.toFixed(2)} reservation fee (£${baseReservationFee.toFixed(2)} × ${numberOfPeople} ${numberOfPeople === 1 ? "person" : "people"}) to secure your spots`
             : `Pay £${depositAmount.toFixed(2)} reservation fee to secure your spot`
           : "Pay a small reservation fee to secure your spot";
       case 3:
@@ -354,7 +359,7 @@ const Page = () => {
           const daysDiff = tourDate
             ? Math.ceil(
                 (new Date(tourDate).getTime() - new Date().getTime()) /
-                  (1000 * 60 * 60 * 24)
+                  (1000 * 60 * 60 * 24),
               )
             : 0;
           const planCount = getAvailablePaymentPlans().length;
@@ -379,9 +384,7 @@ const Page = () => {
           birthdate,
           nationality,
           whatsAppNumber: whatsAppNumber
-            ? `+${safeGetCountryCallingCode(
-                whatsAppCountry
-              )}${whatsAppNumber}`
+            ? `+${safeGetCountryCallingCode(whatsAppCountry)}${whatsAppNumber}`
             : "",
         },
         booking: {
@@ -390,11 +393,11 @@ const Page = () => {
             bookingType === "Group Booking"
               ? groupSize
               : bookingType === "Duo Booking"
-              ? 2
-              : 1,
+                ? 2
+                : 1,
           guestDetails:
             bookingType === "Duo Booking" || bookingType === "Group Booking"
-              ? guestDetails.map(guest => ({
+              ? guestDetails.map((guest) => ({
                   email: guest.email,
                   firstName: guest.firstName,
                   lastName: guest.lastName,
@@ -402,7 +405,7 @@ const Page = () => {
                   nationality: guest.nationality,
                   whatsAppNumber: guest.whatsAppNumber
                     ? `+${safeGetCountryCallingCode(
-                        guest.whatsAppCountry
+                        guest.whatsAppCountry,
                       )}${guest.whatsAppNumber}`
                     : "",
                 }))
@@ -420,7 +423,9 @@ const Page = () => {
           currency: "GBP",
           status: "reserve_pending",
           type: "reservationFee",
-          ...(selectedDateDetail?.customOriginal && { originalPrice: selectedDateDetail.customOriginal }), // Only include if exists
+          ...(selectedDateDetail?.customOriginal && {
+            originalPrice: selectedDateDetail.customOriginal,
+          }), // Only include if exists
         },
         timestamps: {
           createdAt: serverTimestamp(),
@@ -433,13 +438,13 @@ const Page = () => {
         {
           id: newDoc.id,
         },
-        { merge: true }
+        { merge: true },
       );
       setPaymentDocId(newDoc.id);
       try {
         sessionStorage.setItem(
           `stripe_payment_doc_${email}_${tourPackage}`,
-          newDoc.id
+          newDoc.id,
         );
       } catch {}
       return newDoc.id;
@@ -478,7 +483,7 @@ const Page = () => {
             nationality,
             whatsAppNumber: whatsAppNumber
               ? `+${safeGetCountryCallingCode(
-                  whatsAppCountry
+                  whatsAppCountry,
                 )}${whatsAppNumber}`
               : "",
           },
@@ -488,11 +493,11 @@ const Page = () => {
               bookingType === "Group Booking"
                 ? groupSize
                 : bookingType === "Duo Booking"
-                ? 2
-                : 1,
+                  ? 2
+                  : 1,
             guestDetails:
               bookingType === "Duo Booking" || bookingType === "Group Booking"
-                ? guestDetails.map(guest => ({
+                ? guestDetails.map((guest) => ({
                     email: guest.email,
                     firstName: guest.firstName,
                     lastName: guest.lastName,
@@ -500,7 +505,7 @@ const Page = () => {
                     nationality: guest.nationality,
                     whatsAppNumber: guest.whatsAppNumber
                       ? `+${safeGetCountryCallingCode(
-                          guest.whatsAppCountry
+                          guest.whatsAppCountry,
                         )}${guest.whatsAppNumber}`
                       : "",
                   }))
@@ -518,7 +523,9 @@ const Page = () => {
             currency: "GBP",
             status: "reserve_pending",
             type: "reservationFee",
-            ...(selectedDateDetail?.customOriginal && { originalPrice: selectedDateDetail.customOriginal }), // Only include if exists
+            ...(selectedDateDetail?.customOriginal && {
+              originalPrice: selectedDateDetail.customOriginal,
+            }), // Only include if exists
           },
           "timestamps.updatedAt": serverTimestamp(),
         });
@@ -549,10 +556,10 @@ const Page = () => {
         paymentsRef,
         where("customer.email", "==", email),
         orderBy("timestamps.createdAt", "desc"),
-        limit(5)
+        limit(5),
       );
       const snap = await getDocs(q);
-      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
+      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
 
       // Check for payment plans in reserve_paid documents
       const { doc, getDoc } = await import("firebase/firestore");
@@ -570,7 +577,7 @@ const Page = () => {
           ) {
             try {
               const bookingDoc = await getDoc(
-                doc(db, "bookings", bookingDocId)
+                doc(db, "bookings", bookingDocId),
               );
               if (bookingDoc.exists()) {
                 const bookingData = bookingDoc.data();
@@ -603,7 +610,7 @@ const Page = () => {
         const exactMatch = docs.find(
           (d) =>
             d?.tour?.packageName === (selectedPackage?.name || "") &&
-            d?.tour?.date === tourDate
+            d?.tour?.date === tourDate,
         );
 
         if (exactMatch) {
@@ -615,7 +622,7 @@ const Page = () => {
         } else {
           // Different tour or different date - show modal with all payments
           console.log(
-            "📋 Found existing payments for different tour/date, showing modal"
+            "📋 Found existing payments for different tour/date, showing modal",
           );
           setFoundStripePayments(docs);
           setShowEmailModal(true);
@@ -655,7 +662,7 @@ const Page = () => {
         try {
           console.log("🔍 Verifying payment status with Stripe...");
           const response = await fetch(
-            `/api/stripe-payments/verify-payment?paymentIntentId=${stripeIntentId}`
+            `/api/stripe-payments/verify-payment?paymentIntentId=${stripeIntentId}`,
           );
           const result = await response.json();
 
@@ -667,7 +674,7 @@ const Page = () => {
               "payment.status": "reserve_pending",
             });
             alert(
-              "Payment verification failed. The payment was not completed successfully. Please try again."
+              "Payment verification failed. The payment was not completed successfully. Please try again.",
             );
             // Treat as pending and reload
             window.location.reload();
@@ -695,7 +702,7 @@ const Page = () => {
 
             if (hasPaymentPlan) {
               console.log(
-                "✅ reserve_paid has payment plan, treating as confirmed"
+                "✅ reserve_paid has payment plan, treating as confirmed",
               );
               // Treat as terms_selected - show confirmation page
               setShowEmailModal(false);
@@ -708,7 +715,7 @@ const Page = () => {
               try {
                 sessionStorage.setItem(
                   `stripe_payment_doc_${email}_${tourPackage}`,
-                  rec.id
+                  rec.id,
                 );
               } catch {}
 
@@ -743,7 +750,7 @@ const Page = () => {
       try {
         sessionStorage.setItem(
           `stripe_payment_doc_${email}_${tourPackage}`,
-          rec.id
+          rec.id,
         );
       } catch {}
       try {
@@ -751,7 +758,7 @@ const Page = () => {
       } catch (err) {
         console.debug(
           "Failed to set paymentid query param for reserve_paid:",
-          err
+          err,
         );
       }
       // Extract booking info
@@ -773,17 +780,17 @@ const Page = () => {
     if (status === "reserve_pending" || status === "pending") {
       try {
         setIsCreatingPayment(true);
-        
+
         // Load existing booking data into form fields
         console.log("📋 Loading existing booking data into form:", rec);
-        
+
         // Customer data
         if (rec.customer?.email) setEmail(rec.customer.email);
         if (rec.customer?.firstName) setFirstName(rec.customer.firstName);
         if (rec.customer?.lastName) setLastName(rec.customer.lastName);
         if (rec.customer?.birthdate) setBirthdate(rec.customer.birthdate);
         if (rec.customer?.nationality) setNationality(rec.customer.nationality);
-        
+
         // Parse WhatsApp number
         if (rec.customer?.whatsAppNumber) {
           const whatsAppStr = rec.customer.whatsAppNumber;
@@ -794,7 +801,7 @@ const Page = () => {
             const countries = getCountries();
             let foundCountry: Country | null = null;
             let foundNumber = "";
-            
+
             for (const country of countries) {
               try {
                 const countryCode = safeGetCountryCallingCode(country);
@@ -805,23 +812,26 @@ const Page = () => {
                 }
               } catch {}
             }
-            
+
             if (foundCountry) {
               setWhatsAppCountry(foundCountry);
               setWhatsAppNumber(foundNumber);
             }
           }
         }
-        
+
         // Booking data - set booking type and group size first
         const loadedBookingType = rec.booking?.type || "Single Booking";
         const loadedGroupSize = rec.booking?.groupSize || 3;
-        
+
         if (rec.booking?.type) setBookingType(loadedBookingType);
         if (rec.booking?.groupSize) setGroupSize(loadedGroupSize);
-        
+
         // Set guestsMounted to true for Duo/Group bookings
-        if (loadedBookingType === "Duo Booking" || loadedBookingType === "Group Booking") {
+        if (
+          loadedBookingType === "Duo Booking" ||
+          loadedBookingType === "Group Booking"
+        ) {
           setGuestsMounted(true);
           // Schedule height calculation after state updates
           setTimeout(() => {
@@ -831,9 +841,12 @@ const Page = () => {
             }
           }, 0);
         }
-        
+
         // Handle additional guests based on booking type
-        if (rec.booking?.additionalGuests && Array.isArray(rec.booking.additionalGuests)) {
+        if (
+          rec.booking?.additionalGuests &&
+          Array.isArray(rec.booking.additionalGuests)
+        ) {
           if (loadedBookingType === "Duo Booking") {
             // For Duo Booking, keep 1 additional guest (fill with empty if needed)
             const guest = rec.booking.additionalGuests[0] || "";
@@ -841,7 +854,10 @@ const Page = () => {
           } else if (loadedBookingType === "Group Booking") {
             // For Group Booking, preserve existing guests up to groupSize - 1
             const maxGuests = Math.max(0, loadedGroupSize - 1);
-            const existingGuests = rec.booking.additionalGuests.slice(0, maxGuests);
+            const existingGuests = rec.booking.additionalGuests.slice(
+              0,
+              maxGuests,
+            );
             // Pad with empty strings if needed to match expected count
             while (existingGuests.length < maxGuests) {
               existingGuests.push("");
@@ -862,7 +878,7 @@ const Page = () => {
           // Single Booking
           setAdditionalGuests([]);
         }
-        
+
         // Tour data
         if (rec.tour?.packageId) setTourPackage(rec.tour.packageId);
         if (rec.tour?.date) setTourDate(rec.tour.date);
@@ -874,7 +890,8 @@ const Page = () => {
           body: JSON.stringify({
             email: rec.customer?.email || email,
             tourPackage: rec.tour?.packageId || tourPackage,
-            tourPackageName: rec.tour?.packageName || selectedPackage?.name || "",
+            tourPackageName:
+              rec.tour?.packageName || selectedPackage?.name || "",
             amountGBP: rec.payment?.amount || depositAmount,
             paymentDocId: rec.id,
             meta: {
@@ -891,14 +908,14 @@ const Page = () => {
 
         console.log(
           "✅ Fetched fresh PaymentIntent for existing document:",
-          rec.id
+          rec.id,
         );
         setShowEmailModal(false);
         setPaymentDocId(rec.id);
         try {
           sessionStorage.setItem(
             `stripe_payment_doc_${rec.customer?.email || email}_${rec.tour?.packageId || tourPackage}`,
-            rec.id
+            rec.id,
           );
         } catch {}
         try {
@@ -952,7 +969,7 @@ const Page = () => {
       try {
         sessionStorage.setItem(
           `stripe_payment_doc_${email}_${tourPackage}`,
-          rec.id
+          rec.id,
         );
       } catch {}
 
@@ -981,7 +998,7 @@ const Page = () => {
     try {
       sessionStorage.setItem(
         `stripe_payment_doc_${email}_${tourPackage}`,
-        rec.id
+        rec.id,
       );
     } catch {}
     try {
@@ -1003,7 +1020,7 @@ const Page = () => {
       paymentStatus === "terms_selected"
     ) {
       alert(
-        "Cannot discard a reservation that is already paid or confirmed. If you need help, contact support."
+        "Cannot discard a reservation that is already paid or confirmed. If you need help, contact support.",
       );
       return;
     }
@@ -1069,26 +1086,30 @@ const Page = () => {
 
   // Get reservation fee from selected package (not the full deposit)
   const selectedPackage = tourPackages.find((p) => p.id === tourPackage);
-  
+
   // Custom pricing logic
-  const selectedDateDetail = selectedPackage?.travelDateDetails?.find(d => d.date === tourDate);
+  const selectedDateDetail = selectedPackage?.travelDateDetails?.find(
+    (d) => d.date === tourDate,
+  );
   const customDeposit = selectedDateDetail?.customDeposit;
-  
-  const baseReservationFee = customDeposit ?? (selectedPackage as any)?.reservationFee ?? 250;
-  
+
+  const baseReservationFee =
+    customDeposit ?? (selectedPackage as any)?.reservationFee ?? 250;
+
   // Calculate total reservation fee based on booking type
-  const numberOfPeople = bookingType === "Group Booking" 
-    ? groupSize 
-    : bookingType === "Duo Booking" 
-    ? 2 
-    : 1;
+  const numberOfPeople =
+    bookingType === "Group Booking"
+      ? groupSize
+      : bookingType === "Duo Booking"
+        ? 2
+        : 1;
   const depositAmount = baseReservationFee * numberOfPeople;
 
   // Update payment intent when booking type or group size changes (after payment doc is created)
   useEffect(() => {
     const updatePaymentIntent = async () => {
       if (!paymentDocId || !selectedPackage || step !== 1) return;
-      
+
       try {
         console.log("🔄 Updating payment intent due to booking changes:", {
           bookingType,
@@ -1109,10 +1130,12 @@ const Page = () => {
         });
 
         const data = await response.json();
-        
+
         if (!response.ok) {
           if (data.cannotUpdate) {
-            console.log("ℹ️ Payment intent cannot be updated (already in terminal state)");
+            console.log(
+              "ℹ️ Payment intent cannot be updated (already in terminal state)",
+            );
           } else {
             console.error("Failed to update payment intent:", data.error);
           }
@@ -1125,7 +1148,14 @@ const Page = () => {
     };
 
     updatePaymentIntent();
-  }, [bookingType, groupSize, depositAmount, paymentDocId, selectedPackage, step]);
+  }, [
+    bookingType,
+    groupSize,
+    depositAmount,
+    paymentDocId,
+    selectedPackage,
+    step,
+  ]);
 
   // Set `tour` query param when entering Payment (step 2)
   useEffect(() => {
@@ -1160,7 +1190,7 @@ const Page = () => {
       return;
 
     const highlightsWithImages = selectedPackage.highlights.filter(
-      (h) => typeof h === "object" && h.image
+      (h) => typeof h === "object" && h.image,
     );
 
     if (highlightsWithImages.length <= 1) return;
@@ -1206,9 +1236,9 @@ const Page = () => {
             try {
               let tourDateParam = searchParams?.get("tourdate");
               if (!tourDateParam) {
-                const rawDate = new URLSearchParams(
-                  window.location.search
-                ).get("tourdate");
+                const rawDate = new URLSearchParams(window.location.search).get(
+                  "tourdate",
+                );
                 if (rawDate) tourDateParam = rawDate;
               }
               if (
@@ -1223,7 +1253,7 @@ const Page = () => {
             // Auto-scroll to tour date section when tour is loaded from URL
             setTimeout(() => {
               const tourDateSection = document.querySelector(
-                '[aria-label="Tour Date"]'
+                '[aria-label="Tour Date"]',
               );
               if (tourDateSection) {
                 tourDateSection.scrollIntoView({
@@ -1254,7 +1284,7 @@ const Page = () => {
           const curParams = new URLSearchParams(window.location.search);
           console.debug(
             "tour-sync effect: current params",
-            Object.fromEntries(curParams.entries())
+            Object.fromEntries(curParams.entries()),
           );
         } catch {}
       }
@@ -1293,7 +1323,7 @@ const Page = () => {
       if (!tourDateParam) {
         try {
           const rawDate = new URLSearchParams(window.location.search).get(
-            "tourdate"
+            "tourdate",
           );
           if (rawDate) tourDateParam = rawDate;
         } catch {}
@@ -1399,11 +1429,13 @@ const Page = () => {
   // Generate payment schedule for a given plan
   const generatePaymentSchedule = (
     planType: string,
-    monthsRequired: number
+    monthsRequired: number,
   ): Array<{ date: string; amount: number }> => {
     if (!tourDate || !selectedPackage) return [];
 
-    const totalTourPrice = ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople;
+    const totalTourPrice =
+      ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) *
+      numberOfPeople;
     const remainingBalance = totalTourPrice - depositAmount;
     const monthlyAmount = remainingBalance / monthsRequired;
     const schedule: Array<{ date: string; amount: number }> = [];
@@ -1430,7 +1462,7 @@ const Page = () => {
 
       const dateStr = `${paymentYear}-${String(paymentMonth + 1).padStart(
         2,
-        "0"
+        "0",
       )}-02`;
 
       schedule.push({
@@ -1472,7 +1504,8 @@ const Page = () => {
   const getAvailablePaymentPlans = () => {
     const { term } = getAvailablePaymentTerm();
     const remainingBalance =
-      ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople -
+      ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) *
+        numberOfPeople -
       depositAmount;
     if (!availablePaymentTerm.term || availablePaymentTerm.isInvalid) return [];
     if (availablePaymentTerm.isLastMinute)
@@ -1499,7 +1532,7 @@ const Page = () => {
         color: term.color,
         schedule: generatePaymentSchedule(
           term.paymentPlanType,
-          term.monthsRequired!
+          term.monthsRequired!,
         ),
       }));
   };
@@ -1518,7 +1551,7 @@ const Page = () => {
         wrap.style.height = `${from}px`;
         const anim = wrap.animate(
           [{ height: `${from}px` }, { height: `${to}px` }],
-          { duration: ANIM_DURATION, easing: "cubic-bezier(.2,.8,.2,1)" }
+          { duration: ANIM_DURATION, easing: "cubic-bezier(.2,.8,.2,1)" },
         );
         anim.onfinish = () => {
           wrap.style.height = `${to}px`;
@@ -1613,7 +1646,7 @@ const Page = () => {
   // Payment success handler
   const handlePaymentSuccess = async (
     paymentIntentId?: string,
-    paymentDocId?: string
+    paymentDocId?: string,
   ) => {
     try {
       console.log("🎉 Payment success! Intent ID:", paymentIntentId);
@@ -1642,8 +1675,8 @@ const Page = () => {
           bookingType === "Group Booking"
             ? groupSize
             : bookingType === "Duo Booking"
-            ? 2
-            : 1,
+              ? 2
+              : 1,
         "tour.packageId": tourPackage,
         "tour.packageName": selectedPackage?.name || "",
         "tour.date": tourDate,
@@ -1662,13 +1695,13 @@ const Page = () => {
         console.log("✅ Payment document updated!");
       } else {
         console.warn(
-          "⚠️ No payment document ID provided, falling back to query by stripeIntentId"
+          "⚠️ No payment document ID provided, falling back to query by stripeIntentId",
         );
 
         const paymentsRef = collection(db, "stripePayments");
         const q = query(
           paymentsRef,
-          where("payment.stripeIntentId", "==", paymentIntentId)
+          where("payment.stripeIntentId", "==", paymentIntentId),
         );
         const querySnapshot = await getDocs(q);
 
@@ -1683,7 +1716,7 @@ const Page = () => {
         } else {
           console.error(
             "❌ Payment document not found for paymentIntentId:",
-            paymentIntentId
+            paymentIntentId,
           );
         }
       }
@@ -1709,9 +1742,8 @@ const Page = () => {
 
           // Create notification for Step 2 payment
           try {
-            const { createReservationPaymentNotification } = await import(
-              "@/utils/notification-service"
-            );
+            const { createReservationPaymentNotification } =
+              await import("@/utils/notification-service");
             await createReservationPaymentNotification({
               bookingId: result.bookingId,
               bookingDocumentId: result.bookingDocumentId,
@@ -1735,15 +1767,14 @@ const Page = () => {
             console.log("📧 Sending guest invitations...");
             try {
               // Import Firebase Functions
-              const { getFunctions, httpsCallable } = await import(
-                "firebase/functions"
-              );
+              const { getFunctions, httpsCallable } =
+                await import("firebase/functions");
               const { functions } = await import("@/lib/firebase");
 
               // Call the Cloud Function to send invitations
               const sendGuestInvitations = httpsCallable(
                 functions,
-                "sendGuestInvitationEmails"
+                "sendGuestInvitationEmails",
               );
               const invitationResult = await sendGuestInvitations({
                 paymentDocId: actualPaymentDocId,
@@ -1753,7 +1784,7 @@ const Page = () => {
             } catch (inviteError) {
               console.error(
                 "❌ Failed to send guest invitations:",
-                inviteError
+                inviteError,
               );
               // Don't block the flow - admin can resend later
             }
@@ -1770,7 +1801,7 @@ const Page = () => {
         // remove only the ephemeral client secret entry but keep the
         // payment document id so we can continue to payment-plan step
         sessionStorage.removeItem(sessionKey);
-        
+
         // Also clean up additional guests sessionStorage after payment
         const guestsSessionKey = `additional_guests_${email}_${tourPackage}`;
         sessionStorage.removeItem(guestsSessionKey);
@@ -1789,7 +1820,7 @@ const Page = () => {
       console.error("❌ Error in payment success handler:", error);
       // Do NOT set paymentConfirmed if there was an error - the payment status update failed
       alert(
-        "Payment processing encountered an error. Please refresh the page and verify your payment status."
+        "Payment processing encountered an error. Please refresh the page and verify your payment status.",
       );
     }
   };
@@ -1841,7 +1872,7 @@ const Page = () => {
             console.warn(
               `Tour package "${
                 payload.name ?? payload.title ?? doc.id
-              }" has no valid tour dates.`
+              }" has no valid tour dates.`,
             );
           }
 
@@ -1870,27 +1901,42 @@ const Page = () => {
           }
 
           // Extract detailed travel date info including custom pricing
-          const travelDateDetails = (payload.travelDates ?? []).map((t: any) => {
-            const sd = t?.startDate;
-            if (!sd) return null;
+          const travelDateDetails = (payload.travelDates ?? [])
+            .map((t: any) => {
+              const sd = t?.startDate;
+              if (!sd) return null;
 
-            let dateObj: Date | null = null;
-            if (sd && typeof sd === "object" && "seconds" in sd && typeof sd.seconds === "number") {
-              dateObj = new Date(sd.seconds * 1000);
-            } else if (sd && typeof sd === "object" && typeof sd.toDate === "function") {
-              try { dateObj = sd.toDate(); } catch { dateObj = null; }
-            } else {
-              dateObj = new Date(sd);
-            }
+              let dateObj: Date | null = null;
+              if (
+                sd &&
+                typeof sd === "object" &&
+                "seconds" in sd &&
+                typeof sd.seconds === "number"
+              ) {
+                dateObj = new Date(sd.seconds * 1000);
+              } else if (
+                sd &&
+                typeof sd === "object" &&
+                typeof sd.toDate === "function"
+              ) {
+                try {
+                  dateObj = sd.toDate();
+                } catch {
+                  dateObj = null;
+                }
+              } else {
+                dateObj = new Date(sd);
+              }
 
-            if (!dateObj || isNaN(dateObj.getTime())) return null;
+              if (!dateObj || isNaN(dateObj.getTime())) return null;
 
-            return {
-              date: dateObj.toISOString().slice(0, 10),
-              customDeposit: t.customDeposit,
-              customOriginal: t.customOriginal
-            };
-          }).filter(Boolean);
+              return {
+                date: dateObj.toISOString().slice(0, 10),
+                customDeposit: t.customDeposit,
+                customOriginal: t.customOriginal,
+              };
+            })
+            .filter(Boolean);
 
           return {
             id: doc.id,
@@ -1926,7 +1972,7 @@ const Page = () => {
       (err) => {
         console.error("tourPackages snapshot error", err);
         setIsLoadingPackages(false);
-      }
+      },
     );
 
     return () => unsub();
@@ -1965,7 +2011,7 @@ const Page = () => {
           });
         setPaymentTerms(terms);
       },
-      (err) => console.error("paymentTerms snapshot error", err)
+      (err) => console.error("paymentTerms snapshot error", err),
     );
 
     return () => unsub();
@@ -1998,7 +2044,7 @@ const Page = () => {
               // if firestore check fails, fall back to setting the id conservatively
               console.warn(
                 "Failed to validate payment doc, preserving session id:",
-                err
+                err,
               );
               setPaymentDocId(id);
             }
@@ -2015,7 +2061,7 @@ const Page = () => {
         if (
           key &&
           (key.startsWith("stripe_payment_") ||
-           key.startsWith("additional_guests_")) &&
+            key.startsWith("additional_guests_")) &&
           !key.includes(email) &&
           !key.includes(tourPackage)
         ) {
@@ -2109,7 +2155,7 @@ const Page = () => {
                       if (fullNumber.startsWith(`+${callingCode}`)) {
                         setWhatsAppCountry(country);
                         setWhatsAppNumber(
-                          fullNumber.slice(callingCode.length + 1)
+                          fullNumber.slice(callingCode.length + 1),
                         );
                         foundCountry = true;
                         break;
@@ -2121,25 +2167,30 @@ const Page = () => {
                     }
                   }
                 }
-                const loadedBookingType = data.booking?.type || "Single Booking";
+                const loadedBookingType =
+                  data.booking?.type || "Single Booking";
                 const loadedGroupSize = data.booking?.groupSize || 3;
-                
+
                 if (data.booking?.type) setBookingType(loadedBookingType);
                 if (typeof data.booking?.groupSize === "number")
                   setGroupSize(loadedGroupSize);
-                
+
                 // Set guestsMounted to true for Duo/Group bookings
-                if (loadedBookingType === "Duo Booking" || loadedBookingType === "Group Booking") {
+                if (
+                  loadedBookingType === "Duo Booking" ||
+                  loadedBookingType === "Group Booking"
+                ) {
                   setGuestsMounted(true);
                   // Schedule height calculation after state updates
                   setTimeout(() => {
-                    const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
+                    const contentHeight =
+                      guestsContentRef.current?.scrollHeight ?? 0;
                     if (contentHeight > 0) {
                       setGuestsHeight(`${contentHeight}px`);
                     }
                   }, 0);
                 }
-                
+
                 // Handle additional guests based on booking type
                 if (Array.isArray(data.booking?.additionalGuests)) {
                   if (loadedBookingType === "Duo Booking") {
@@ -2147,7 +2198,10 @@ const Page = () => {
                     setAdditionalGuests([guest]);
                   } else if (loadedBookingType === "Group Booking") {
                     const maxGuests = Math.max(0, loadedGroupSize - 1);
-                    const existingGuests = data.booking.additionalGuests.slice(0, maxGuests);
+                    const existingGuests = data.booking.additionalGuests.slice(
+                      0,
+                      maxGuests,
+                    );
                     while (existingGuests.length < maxGuests) {
                       existingGuests.push("");
                     }
@@ -2224,7 +2278,7 @@ const Page = () => {
               } catch (err) {
                 console.debug(
                   "Failed to set paymentid query param on session restore:",
-                  err
+                  err,
                 );
               }
 
@@ -2248,7 +2302,7 @@ const Page = () => {
                     if (fullNumber.startsWith(`+${callingCode}`)) {
                       setWhatsAppCountry(country);
                       setWhatsAppNumber(
-                        fullNumber.slice(callingCode.length + 1)
+                        fullNumber.slice(callingCode.length + 1),
                       );
                       foundCountry = true;
                       break;
@@ -2262,23 +2316,27 @@ const Page = () => {
               }
               const loadedBookingType = data.booking?.type || "Single Booking";
               const loadedGroupSize = data.booking?.groupSize || 3;
-              
+
               if (data.booking?.type) setBookingType(loadedBookingType);
               if (typeof data.booking?.groupSize === "number")
                 setGroupSize(loadedGroupSize);
-              
+
               // Set guestsMounted to true for Duo/Group bookings
-              if (loadedBookingType === "Duo Booking" || loadedBookingType === "Group Booking") {
+              if (
+                loadedBookingType === "Duo Booking" ||
+                loadedBookingType === "Group Booking"
+              ) {
                 setGuestsMounted(true);
                 // Schedule height calculation after state updates
                 setTimeout(() => {
-                  const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
+                  const contentHeight =
+                    guestsContentRef.current?.scrollHeight ?? 0;
                   if (contentHeight > 0) {
                     setGuestsHeight(`${contentHeight}px`);
                   }
                 }, 0);
               }
-              
+
               // Handle additional guests based on booking type
               if (Array.isArray(data.booking?.additionalGuests)) {
                 if (loadedBookingType === "Duo Booking") {
@@ -2286,7 +2344,10 @@ const Page = () => {
                   setAdditionalGuests([guest]);
                 } else if (loadedBookingType === "Group Booking") {
                   const maxGuests = Math.max(0, loadedGroupSize - 1);
-                  const existingGuests = data.booking.additionalGuests.slice(0, maxGuests);
+                  const existingGuests = data.booking.additionalGuests.slice(
+                    0,
+                    maxGuests,
+                  );
                   while (existingGuests.length < maxGuests) {
                     existingGuests.push("");
                   }
@@ -2308,17 +2369,17 @@ const Page = () => {
               // Advance to the appropriate step based on status
               console.log(
                 "🔍 DEBUG: Session restore - Payment status:",
-                data.payment?.status
+                data.payment?.status,
               );
               console.log(
                 "🔍 DEBUG: Session restore - Payment intent ID:",
-                data.payment?.stripeIntentId
+                data.payment?.stripeIntentId,
               );
               console.log("🔍 DEBUG: Session restore - Document ID:", docId);
 
               if (data.payment?.status === "reserve_pending") {
                 console.log(
-                  "✅ DEBUG: Status is reserve_pending, staying on step 2"
+                  "✅ DEBUG: Status is reserve_pending, staying on step 2",
                 );
                 // mark step 1 completed and go to payment step
                 // update URL to reference this payment doc and remove any `tour` param
@@ -2326,28 +2387,28 @@ const Page = () => {
                   if (DEBUG)
                     console.debug(
                       "session restore: replacing URL with paymentid",
-                      docId
+                      docId,
                     );
                   replaceWithPaymentId(docId);
                   if (DEBUG)
                     console.debug(
                       "session restore: replaceWithPaymentId called for",
-                      docId
+                      docId,
                     );
                 } catch (err) {
                   console.debug(
                     "Failed to set paymentid query param on session restore:",
-                    err
+                    err,
                   );
                 }
                 setStep(2);
                 setCompletedSteps((prev) => Array.from(new Set([...prev, 1])));
                 console.log(
-                  "✅ DEBUG: Set step to 2, paymentConfirmed should be false"
+                  "✅ DEBUG: Set step to 2, paymentConfirmed should be false",
                 );
               } else if (data.payment?.status === "reserve_paid") {
                 console.log(
-                  "⚠️ DEBUG: Status is reserve_paid, verifying payment..."
+                  "⚠️ DEBUG: Status is reserve_paid, verifying payment...",
                 );
                 // Verify payment with Stripe before showing as confirmed
                 const stripeIntentId = data.payment?.stripeIntentId;
@@ -2356,7 +2417,7 @@ const Page = () => {
                   try {
                     console.log("🔍 Verifying payment on page load...");
                     const verifyResponse = await fetch(
-                      `/api/stripe-payments/verify-payment?paymentIntentId=${stripeIntentId}`
+                      `/api/stripe-payments/verify-payment?paymentIntentId=${stripeIntentId}`,
                     );
                     const verifyResult = await verifyResponse.json();
 
@@ -2366,17 +2427,16 @@ const Page = () => {
                     ) {
                       console.error(
                         "❌ Payment verification failed on load:",
-                        verifyResult
+                        verifyResult,
                       );
                       // Payment didn't actually succeed - update status to pending
-                      const { doc: firestoreDoc, updateDoc } = await import(
-                        "firebase/firestore"
-                      );
+                      const { doc: firestoreDoc, updateDoc } =
+                        await import("firebase/firestore");
                       await updateDoc(
                         firestoreDoc(db, "stripePayments", docId),
                         {
                           "payment.status": "reserve_pending",
-                        }
+                        },
                       );
 
                       // Go to payment step instead
@@ -2385,15 +2445,15 @@ const Page = () => {
                       } catch (err) {
                         console.debug(
                           "Failed to set paymentid query param:",
-                          err
+                          err,
                         );
                       }
                       setStep(2);
                       setCompletedSteps((prev) =>
-                        Array.from(new Set([...prev, 1]))
+                        Array.from(new Set([...prev, 1])),
                       );
                       alert(
-                        "Payment verification failed. The payment was not completed. Please try again."
+                        "Payment verification failed. The payment was not completed. Please try again.",
                       );
                       return; // Exit early
                     }
@@ -2406,12 +2466,12 @@ const Page = () => {
                     } catch (err2) {
                       console.debug(
                         "Failed to set paymentid query param:",
-                        err2
+                        err2,
                       );
                     }
                     setStep(2);
                     setCompletedSteps((prev) =>
-                      Array.from(new Set([...prev, 1]))
+                      Array.from(new Set([...prev, 1])),
                     );
                     return;
                   }
@@ -2419,38 +2479,38 @@ const Page = () => {
 
                 // payment completed and verified — go to payment plan
                 console.log(
-                  "✅ DEBUG: Payment verified, setting paymentConfirmed to TRUE"
+                  "✅ DEBUG: Payment verified, setting paymentConfirmed to TRUE",
                 );
                 setPaymentConfirmed(true);
                 try {
                   if (DEBUG)
                     console.debug(
                       "session restore (paid): replacing URL with paymentid",
-                      docId
+                      docId,
                     );
                   replaceWithPaymentId(docId);
                   if (DEBUG)
                     console.debug(
                       "session restore (paid): replaceWithPaymentId called for",
-                      docId
+                      docId,
                     );
                 } catch (err) {
                   console.debug(
                     "Failed to set paymentid query param on session restore:",
-                    err
+                    err,
                   );
                 }
                 setStep(3);
                 // if bookingId present, set it so Confirm Booking can find the record
                 if (data.booking?.id) setBookingId(data.booking.id);
                 setCompletedSteps((prev) =>
-                  Array.from(new Set([...prev, 1, 2]))
+                  Array.from(new Set([...prev, 1, 2])),
                 );
               } else {
                 console.log(
                   "⚠️ DEBUG: Unknown payment status:",
                   data.payment?.status,
-                  "- going to step 2"
+                  "- going to step 2",
                 );
                 setStep(2);
                 setCompletedSteps((prev) => Array.from(new Set([...prev, 1])));
@@ -2593,8 +2653,8 @@ const Page = () => {
           tour.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           tour.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           tour.destinations?.some((d) =>
-            d.toLowerCase().includes(searchQuery.toLowerCase())
-          )
+            d.toLowerCase().includes(searchQuery.toLowerCase()),
+          ),
       );
     }
 
@@ -2614,7 +2674,7 @@ const Page = () => {
       filtered = filtered.filter(
         (tour) =>
           tour.region?.toLowerCase() === activeFilter ||
-          tour.country?.toLowerCase() === activeFilter
+          tour.country?.toLowerCase() === activeFilter,
       );
     }
 
@@ -2647,7 +2707,7 @@ const Page = () => {
     ) {
       const interval = setInterval(() => {
         setCurrentHighlightIndex(
-          (prev) => (prev + 1) % (selectedPackage.highlights?.length || 1)
+          (prev) => (prev + 1) % (selectedPackage.highlights?.length || 1),
         );
       }, 5000);
 
@@ -2685,26 +2745,26 @@ const Page = () => {
         if (pid) {
           console.log(
             "🔍 DEBUG: Found paymentid in URL, verifying payment status:",
-            pid
+            pid,
           );
 
           // Verify payment with Stripe before setting as confirmed
           try {
             const verifyRes = await fetch(
               `/api/stripe-payments/verify-payment?paymentIntentId=${pid}`,
-              { method: "GET" }
+              { method: "GET" },
             );
 
             if (verifyRes.ok) {
               const verifyData = await verifyRes.json();
               console.log(
                 "🔍 DEBUG: Stripe verification result for URL paymentid:",
-                verifyData.status
+                verifyData.status,
               );
 
               if (verifyData.status === "succeeded") {
                 console.log(
-                  "✅ DEBUG: Payment verified from URL, setting paymentConfirmed to true"
+                  "✅ DEBUG: Payment verified from URL, setting paymentConfirmed to true",
                 );
                 // Mark payment as confirmed and ensure steps 1 and 2 are completed
                 setPaymentConfirmed(true);
@@ -2717,7 +2777,7 @@ const Page = () => {
               } else {
                 console.log(
                   "❌ DEBUG: Payment not succeeded, status:",
-                  verifyData.status
+                  verifyData.status,
                 );
               }
             } else {
@@ -2726,7 +2786,7 @@ const Page = () => {
           } catch (verifyErr) {
             console.error(
               "❌ DEBUG: Error verifying payment from URL:",
-              verifyErr
+              verifyErr,
             );
           }
         }
@@ -2774,38 +2834,47 @@ const Page = () => {
 
   // Ensure guests section is visible when loading existing data with guests
   useEffect(() => {
-    if ((bookingType === "Duo Booking" || bookingType === "Group Booking") && 
-        additionalGuests.length > 0) {
-      
+    if (
+      (bookingType === "Duo Booking" || bookingType === "Group Booking") &&
+      additionalGuests.length > 0
+    ) {
       if (!guestsMounted) {
         setGuestsMounted(true);
       }
-      
+
       // Calculate and set the height for the guests section
       // Use multiple retries to ensure DOM is ready
       const calculateHeight = () => {
         requestAnimationFrame(() => {
           setTimeout(() => {
             const contentHeight = guestsContentRef.current?.scrollHeight ?? 0;
-            console.log('📏 Calculating guest section height:', contentHeight, 'guestsMounted:', guestsMounted);
+            console.log(
+              "📏 Calculating guest section height:",
+              contentHeight,
+              "guestsMounted:",
+              guestsMounted,
+            );
             if (contentHeight > 0) {
               setGuestsHeight(`${contentHeight}px`);
-              console.log('✅ Guest section height updated to:', contentHeight);
+              console.log("✅ Guest section height updated to:", contentHeight);
             } else {
               // If height is still 0, try one more time after a longer delay
               setTimeout(() => {
                 const retryHeight = guestsContentRef.current?.scrollHeight ?? 0;
-                console.log('📏 Retry calculating height:', retryHeight);
+                console.log("📏 Retry calculating height:", retryHeight);
                 if (retryHeight > 0) {
                   setGuestsHeight(`${retryHeight}px`);
-                  console.log('✅ Guest section height updated (retry) to:', retryHeight);
+                  console.log(
+                    "✅ Guest section height updated (retry) to:",
+                    retryHeight,
+                  );
                 }
               }, 150);
             }
           }, 100);
         });
       };
-      
+
       calculateHeight();
     }
   }, [bookingType, additionalGuests, guestsMounted]);
@@ -2820,7 +2889,10 @@ const Page = () => {
         const sessionKey = `additional_guests_${email}_${tourPackage}`;
         sessionStorage.setItem(sessionKey, JSON.stringify(additionalGuests));
       } catch (err) {
-        console.warn("Failed to save additional guests to sessionStorage:", err);
+        console.warn(
+          "Failed to save additional guests to sessionStorage:",
+          err,
+        );
       }
     }
   }, [additionalGuests, email, tourPackage, bookingType]);
@@ -2828,27 +2900,34 @@ const Page = () => {
   // Restore additional guests from sessionStorage on mount or when session key changes
   useEffect(() => {
     if (!email || !tourPackage) return;
-    if (bookingType !== "Duo Booking" && bookingType !== "Group Booking") return;
+    if (bookingType !== "Duo Booking" && bookingType !== "Group Booking")
+      return;
     if (sessionRestoredRef.current) return; // Prevent multiple restorations
 
     try {
       const sessionKey = `additional_guests_${email}_${tourPackage}`;
       const savedGuests = sessionStorage.getItem(sessionKey);
-      
+
       if (savedGuests) {
         const parsedGuests = JSON.parse(savedGuests);
         if (Array.isArray(parsedGuests) && parsedGuests.length > 0) {
-          console.log('🔄 Restoring additional guests from sessionStorage:', parsedGuests);
-          
+          console.log(
+            "🔄 Restoring additional guests from sessionStorage:",
+            parsedGuests,
+          );
+
           // Mark that we've restored from session
           sessionRestoredRef.current = true;
-          
+
           // Restore the guest emails - the other useEffect will handle visibility
           setAdditionalGuests(parsedGuests);
         }
       }
     } catch (err) {
-      console.warn("Failed to restore additional guests from sessionStorage:", err);
+      console.warn(
+        "Failed to restore additional guests from sessionStorage:",
+        err,
+      );
     }
   }, [email, tourPackage, bookingType]);
 
@@ -2857,10 +2936,11 @@ const Page = () => {
     const restoreGuestDetailsFromFirestore = async () => {
       if (!paymentDocId) return;
       if (guestDetails.length > 0) return; // Already have guest details
-      if (bookingType !== "Duo Booking" && bookingType !== "Group Booking") return;
+      if (bookingType !== "Duo Booking" && bookingType !== "Group Booking")
+        return;
 
       try {
-        console.log('🔄 Restoring guest details from Firestore...');
+        console.log("🔄 Restoring guest details from Firestore...");
         const { doc, getDoc } = await import("firebase/firestore");
         const paymentDocRef = doc(db, "stripePayments", paymentDocId);
         const paymentDocSnap = await getDoc(paymentDocRef);
@@ -2871,14 +2951,16 @@ const Page = () => {
           const storedGroupSize = paymentData.booking?.groupSize || 1;
 
           if (storedGuestDetails.length > 0) {
-            console.log(`✅ Restored ${storedGuestDetails.length} guest details from Firestore`);
-            
+            console.log(
+              `✅ Restored ${storedGuestDetails.length} guest details from Firestore`,
+            );
+
             // Parse whatsAppNumber to extract country code and number
             const parsedGuestDetails = storedGuestDetails.map((guest: any) => {
               // If whatsAppNumber starts with +, parse it to extract country
               let whatsAppCountry = guest.whatsAppCountry || "PH"; // default to Philippines
               let whatsAppNumber = guest.whatsAppNumber || "";
-              
+
               // Parse phone number to extract country code if not already stored
               if (whatsAppNumber.startsWith("+") && !guest.whatsAppCountry) {
                 // Simple parsing for common country codes
@@ -2912,28 +2994,33 @@ const Page = () => {
                   // Keep the number as-is
                 }
               }
-              
+
               return {
                 ...guest,
                 whatsAppCountry,
                 whatsAppNumber,
               };
             });
-            
+
             setGuestDetails(parsedGuestDetails);
-            
+
             // Update groupSize for Group Bookings (numberOfPeople is derived from it)
             if (bookingType === "Group Booking" && storedGroupSize > 1) {
               setGroupSize(storedGroupSize);
             }
-            
+
             // Initialize paymentPlans array if empty (needed for Step 3)
             if (paymentPlans.length === 0 && step === 3) {
-              const initialPlans = Array(storedGroupSize).fill(null).map(() => ({
-                plan: "",
-                tourCostShare: (selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0,
-                reservationFeeShare: depositAmount / storedGroupSize,
-              }));
+              const initialPlans = Array(storedGroupSize)
+                .fill(null)
+                .map(() => ({
+                  plan: "",
+                  tourCostShare:
+                    (selectedDateDetail?.customOriginal ??
+                      selectedPackage?.price) ||
+                    0,
+                  reservationFeeShare: depositAmount / storedGroupSize,
+                }));
               setPaymentPlans(initialPlans);
             }
           }
@@ -2944,8 +3031,17 @@ const Page = () => {
     };
 
     restoreGuestDetailsFromFirestore();
-  }, [paymentDocId, step, guestDetails.length, bookingType, numberOfPeople, paymentPlans.length, selectedDateDetail, selectedPackage, depositAmount]);
-
+  }, [
+    paymentDocId,
+    step,
+    guestDetails.length,
+    bookingType,
+    numberOfPeople,
+    paymentPlans.length,
+    selectedDateDetail,
+    selectedPackage,
+    depositAmount,
+  ]);
 
   const handleAddGuest = () => {
     // For group booking, limit guests to groupSize - 1 (booker + others)
@@ -2986,15 +3082,17 @@ const Page = () => {
         setGroupSize(2);
         setBookingType("Duo Booking");
         // Initialize 1 guest detail
-        setGuestDetails([{
-          email: guestDetails[0]?.email || "",
-          firstName: guestDetails[0]?.firstName || "",
-          lastName: guestDetails[0]?.lastName || "",
-          birthdate: guestDetails[0]?.birthdate || "",
-          nationality: guestDetails[0]?.nationality || "",
-          whatsAppNumber: guestDetails[0]?.whatsAppNumber || "",
-          whatsAppCountry: guestDetails[0]?.whatsAppCountry || "GB",
-        }]);
+        setGuestDetails([
+          {
+            email: guestDetails[0]?.email || "",
+            firstName: guestDetails[0]?.firstName || "",
+            lastName: guestDetails[0]?.lastName || "",
+            birthdate: guestDetails[0]?.birthdate || "",
+            nationality: guestDetails[0]?.nationality || "",
+            whatsAppNumber: guestDetails[0]?.whatsAppNumber || "",
+            whatsAppCountry: guestDetails[0]?.whatsAppCountry || "GB",
+          },
+        ]);
         setActiveGuestTab(2);
       });
       return;
@@ -3020,15 +3118,17 @@ const Page = () => {
         setAdditionalGuests((prev) => [prev[0] ?? ""]);
         setBookingType("Duo Booking");
         // Initialize 1 guest detail
-        setGuestDetails([{
-          email: guestDetails[0]?.email || "",
-          firstName: guestDetails[0]?.firstName || "",
-          lastName: guestDetails[0]?.lastName || "",
-          birthdate: guestDetails[0]?.birthdate || "",
-          nationality: guestDetails[0]?.nationality || "",
-          whatsAppNumber: guestDetails[0]?.whatsAppNumber || "",
-          whatsAppCountry: guestDetails[0]?.whatsAppCountry || "GB",
-        }]);
+        setGuestDetails([
+          {
+            email: guestDetails[0]?.email || "",
+            firstName: guestDetails[0]?.firstName || "",
+            lastName: guestDetails[0]?.lastName || "",
+            birthdate: guestDetails[0]?.birthdate || "",
+            nationality: guestDetails[0]?.nationality || "",
+            whatsAppNumber: guestDetails[0]?.whatsAppNumber || "",
+            whatsAppCountry: guestDetails[0]?.whatsAppCountry || "GB",
+          },
+        ]);
         setActiveGuestTab(2);
       });
       return;
@@ -3046,7 +3146,15 @@ const Page = () => {
           return copy;
         });
         // Initialize guest details array
-        const newGuestDetails: Array<{email: string; firstName: string; lastName: string; birthdate: string; nationality: string; whatsAppNumber: string; whatsAppCountry: string}> = [];
+        const newGuestDetails: Array<{
+          email: string;
+          firstName: string;
+          lastName: string;
+          birthdate: string;
+          nationality: string;
+          whatsAppNumber: string;
+          whatsAppCountry: string;
+        }> = [];
         for (let i = 0; i < slots; i++) {
           newGuestDetails.push({
             email: guestDetails[i]?.email || "",
@@ -3070,10 +3178,10 @@ const Page = () => {
     const clamped = Math.max(3, Math.min(20, val || 3));
 
     setGroupSize(clamped);
-    
+
     // If the currently active tab (e.g., guest 4) is beyond the new size,
     // switch back to the main booker tab (1) to avoid showing an empty state.
-    // Tabs are: 1=Main, 2=Guest1, 3=Guest2... 
+    // Tabs are: 1=Main, 2=Guest1, 3=Guest2...
     // So if clamped is 3 (Main + G1 + G2), max tab index is 1 + (3-1) = 3.
     if (activeGuestTab > clamped) {
       setActiveGuestTab(1);
@@ -3110,15 +3218,18 @@ const Page = () => {
     setAdditionalGuests(copy);
   };
 
-  const handleGuestDetailsUpdate = useCallback((index: number, data: typeof guestDetails[0]) => {
-    setGuestDetails((prev) => {
-      const newGuests = [...prev];
-      if (index >= 0 && index < newGuests.length) {
-        newGuests[index] = data;
-      }
-      return newGuests;
-    });
-  }, []);
+  const handleGuestDetailsUpdate = useCallback(
+    (index: number, data: (typeof guestDetails)[0]) => {
+      setGuestDetails((prev) => {
+        const newGuests = [...prev];
+        if (index >= 0 && index < newGuests.length) {
+          newGuests[index] = data;
+        }
+        return newGuests;
+      });
+    },
+    [],
+  );
 
   const validate = () => {
     console.log("🔍 Starting validation...");
@@ -3138,7 +3249,10 @@ const Page = () => {
       const today = new Date();
       let age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && today.getDate() < birthDate.getDate())
+      ) {
         age--;
       }
       if (age < 18) e.birthdate = "Must be 18 years or older";
@@ -3146,11 +3260,15 @@ const Page = () => {
     console.log("👤 Validating names:", { firstName, lastName });
     if (!firstName) e.firstName = "First name is required";
     if (!lastName) e.lastName = "Last name is required";
-    
+
     console.log("🌍 Validating nationality:", nationality);
     if (!nationality) e.nationality = "Nationality is required";
-    
-    console.log("🎫 Validating booking details:", { bookingType, tourPackage, tourDate });
+
+    console.log("🎫 Validating booking details:", {
+      bookingType,
+      tourPackage,
+      tourDate,
+    });
     if (!bookingType) e.bookingType = "Booking type is required";
     if (!tourPackage) e.tourPackage = "Tour name is required";
     if (tourPackage && !tourDate) e.tourDate = "Tour date is required";
@@ -3173,13 +3291,15 @@ const Page = () => {
     console.log("👥 Validating guest details:", {
       bookingType,
       guestDetailsLength: guestDetails.length,
-      guestDetails
+      guestDetails,
     });
-    
+
     if (bookingType === "Duo Booking" || bookingType === "Group Booking") {
       const expectedLength = bookingType === "Duo Booking" ? 1 : groupSize - 1;
-      console.log(`👥 Expected ${expectedLength} guests, found ${guestDetails.length}`);
-      
+      console.log(
+        `👥 Expected ${expectedLength} guests, found ${guestDetails.length}`,
+      );
+
       if (guestDetails.length === 0) {
         e.guests = "Guest details are required";
         console.log("❌ No guest details found");
@@ -3190,7 +3310,7 @@ const Page = () => {
         // Validate each guest's details
         guestDetails.forEach((guest, idx) => {
           console.log(`👤 Validating guest ${idx + 1}:`, guest);
-          
+
           if (!guest.email) {
             e[`guest-${idx}-email`] = `Guest ${idx + 1} email is required`;
             console.log(`❌ Guest ${idx + 1} email missing`);
@@ -3198,36 +3318,45 @@ const Page = () => {
             e[`guest-${idx}-email`] = `Guest ${idx + 1} email is invalid`;
             console.log(`❌ Guest ${idx + 1} email invalid`);
           }
-          
+
           if (!guest.firstName) {
-            e[`guest-${idx}-firstName`] = `Guest ${idx + 1} first name is required`;
+            e[`guest-${idx}-firstName`] =
+              `Guest ${idx + 1} first name is required`;
             console.log(`❌ Guest ${idx + 1} firstName missing`);
           }
-          
+
           if (!guest.lastName) {
-            e[`guest-${idx}-lastName`] = `Guest ${idx + 1} last name is required`;
+            e[`guest-${idx}-lastName`] =
+              `Guest ${idx + 1} last name is required`;
             console.log(`❌ Guest ${idx + 1} lastName missing`);
           }
-          
+
           if (!guest.birthdate) {
-            e[`guest-${idx}-birthdate`] = `Guest ${idx + 1} birthdate is required`;
+            e[`guest-${idx}-birthdate`] =
+              `Guest ${idx + 1} birthdate is required`;
             console.log(`❌ Guest ${idx + 1} birthdate missing`);
           }
-          
+
           if (!guest.nationality) {
-            e[`guest-${idx}-nationality`] = `Guest ${idx + 1} nationality is required`;
+            e[`guest-${idx}-nationality`] =
+              `Guest ${idx + 1} nationality is required`;
             console.log(`❌ Guest ${idx + 1} nationality missing`);
           }
-          
+
           if (!guest.whatsAppNumber) {
-            e[`guest-${idx}-whatsAppNumber`] = `Guest ${idx + 1} WhatsApp is required`;
+            e[`guest-${idx}-whatsAppNumber`] =
+              `Guest ${idx + 1} WhatsApp is required`;
             console.log(`❌ Guest ${idx + 1} whatsAppNumber missing`);
           } else {
             const fullNumber = `+${safeGetCountryCallingCode(guest.whatsAppCountry)}${guest.whatsAppNumber}`;
             const isValid = isValidPhoneNumber(fullNumber);
-            console.log(`📱 Guest ${idx + 1} WhatsApp validation:`, { fullNumber, isValid });
+            console.log(`📱 Guest ${idx + 1} WhatsApp validation:`, {
+              fullNumber,
+              isValid,
+            });
             if (!isValid) {
-              e[`guest-${idx}-whatsAppNumber`] = `Guest ${idx + 1} WhatsApp is invalid`;
+              e[`guest-${idx}-whatsAppNumber`] =
+                `Guest ${idx + 1} WhatsApp is invalid`;
               console.log(`❌ Guest ${idx + 1} whatsAppNumber invalid`);
             }
           }
@@ -3236,11 +3365,14 @@ const Page = () => {
     }
 
     console.log("📋 Validation errors:", e);
-    console.log("✅ Validation result:", Object.keys(e).length === 0 ? "PASSED" : "FAILED");
+    console.log(
+      "✅ Validation result:",
+      Object.keys(e).length === 0 ? "PASSED" : "FAILED",
+    );
 
     // Auto-focus the first guest tab that has an error so the user can see missing fields
-    const firstGuestErrorKey = Object.keys(e).find((key) =>
-      key === "guests" || key.startsWith("guest-")
+    const firstGuestErrorKey = Object.keys(e).find(
+      (key) => key === "guests" || key.startsWith("guest-"),
     );
     if (firstGuestErrorKey) {
       const match = firstGuestErrorKey.match(/^guest-(\d+)/);
@@ -3248,7 +3380,11 @@ const Page = () => {
         const guestIdx = Number(match[1]);
         // guestIdx is zero-based; tabs are 1 (main) then 2... for guests
         setActiveGuestTab(guestIdx + 2);
-        console.log("🔎 Focusing guest tab", guestIdx + 2, "due to validation error");
+        console.log(
+          "🔎 Focusing guest tab",
+          guestIdx + 2,
+          "due to validation error",
+        );
       }
     }
 
@@ -3276,7 +3412,7 @@ const Page = () => {
 
     if (isTourAllDatesTooSoon(tour)) {
       alert(
-        "All available dates for this tour are too soon. Please choose another tour."
+        "All available dates for this tour are too soon. Please choose another tour.",
       );
       return;
     }
@@ -3289,7 +3425,7 @@ const Page = () => {
     // Scroll to tour date or next section after selection with smoother animation
     setTimeout(() => {
       const tourDateSection = document.querySelector(
-        '[aria-label="Tour Date"]'
+        '[aria-label="Tour Date"]',
       );
       if (tourDateSection) {
         tourDateSection.scrollIntoView({
@@ -3306,7 +3442,9 @@ const Page = () => {
 
       // Check if all payment plans are selected (not required for full payment bookings)
       if (!availablePaymentTerm.isLastMinute) {
-        const allPlansSelected = paymentPlans.every(p => p?.plan) && paymentPlans.length === numberOfPeople;
+        const allPlansSelected =
+          paymentPlans.every((p) => p?.plan) &&
+          paymentPlans.length === numberOfPeople;
         if (!allPlansSelected) {
           alert("Please select a payment plan for all travelers to continue");
           return;
@@ -3315,25 +3453,29 @@ const Page = () => {
 
       // For full payment bookings, create payment plans array with "full_payment" for each person
       const paymentPlansToSend = availablePaymentTerm.isLastMinute
-        ? Array(numberOfPeople).fill(null).map(() => ({ plan: "full_payment" }))
+        ? Array(numberOfPeople)
+            .fill(null)
+            .map(() => ({ plan: "full_payment" }))
         : paymentPlans;
 
       console.log(
         "🎯 Confirming booking with payment plans:",
-        paymentPlansToSend
+        paymentPlansToSend,
       );
 
       // Get the selected payment plan details for logging/reference
       const availablePlans = getAvailablePaymentPlans();
       const firstPlan = paymentPlans[0];
-      const selectedPlan = firstPlan?.plan 
-        ? availablePlans.find((plan) => plan.id === firstPlan.plan || plan.type === firstPlan.plan)
+      const selectedPlan = firstPlan?.plan
+        ? availablePlans.find(
+            (plan) =>
+              plan.id === firstPlan.plan || plan.type === firstPlan.plan,
+          )
         : null;
 
       // Find the payment document by bookingId or paymentDocId
-      const { collection, query, where, getDocs } = await import(
-        "firebase/firestore"
-      );
+      const { collection, query, where, getDocs } =
+        await import("firebase/firestore");
 
       const paymentsRef = collection(db, "stripePayments");
       let q: any;
@@ -3346,7 +3488,7 @@ const Page = () => {
         console.log("📝 Using paymentDocId directly:", paymentDocId);
       } else {
         throw new Error(
-          "No booking or payment document found. Please complete payment first."
+          "No booking or payment document found. Please complete payment first.",
         );
       }
 
@@ -3365,7 +3507,7 @@ const Page = () => {
 
         console.log(
           "📝 Updating booking with payment plan via API:",
-          paymentDocIdToUse
+          paymentDocIdToUse,
         );
 
         // Call the select-plan API to update both stripePayments and bookings
@@ -3386,7 +3528,7 @@ const Page = () => {
         if (!response.ok) {
           console.error("❌ Select plan API error:", result.error);
           alert(
-            result.error || "Error confirming your booking. Please try again."
+            result.error || "Error confirming your booking. Please try again.",
           );
           return;
         }
@@ -3407,7 +3549,7 @@ const Page = () => {
                 bookingDocumentId: result.bookingDocumentId,
                 email: email,
               }),
-            }
+            },
           );
 
           const emailResult = await emailResponse.json();
@@ -3415,12 +3557,12 @@ const Page = () => {
           if (emailResponse.ok) {
             console.log(
               "✅ Booking status confirmation email sent!",
-              emailResult
+              emailResult,
             );
           } else {
             console.warn(
               "⚠️ Failed to send booking status email:",
-              emailResult.error
+              emailResult.error,
             );
             // Don't block the user flow if email fails
           }
@@ -3438,20 +3580,20 @@ const Page = () => {
         } catch (e) {
           console.warn(
             "Failed to remove session storage after confirmation:",
-            e
+            e,
           );
         }
 
         setBookingConfirmed(true);
       } else {
         throw new Error(
-          "Payment document not found. Please complete payment first."
+          "Payment document not found. Please complete payment first.",
         );
       }
     } catch (error) {
       console.error("❌ Error confirming booking:", error);
       alert(
-        "An error occurred while confirming your booking. Please try again."
+        "An error occurred while confirming your booking. Please try again.",
       );
     } finally {
       setConfirmingBooking(false);
@@ -3581,8 +3723,8 @@ const Page = () => {
                                 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
                                 : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
                               : status === "terms_selected"
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
                           }`}
                         >
                           {status === "reserve_paid"
@@ -3590,8 +3732,8 @@ const Page = () => {
                               ? "Confirmed"
                               : "Awaiting Plan"
                             : status === "terms_selected"
-                            ? "Confirmed"
-                            : "Pending Payment"}
+                              ? "Confirmed"
+                              : "Pending Payment"}
                         </span>
                       </div>
 
@@ -3654,7 +3796,7 @@ const Page = () => {
                       } catch (err) {
                         console.debug(
                           "Failed to set paymentid query param:",
-                          err
+                          err,
                         );
                       }
                     }
@@ -3695,9 +3837,9 @@ const Page = () => {
         <div className="max-w-4xl mx-auto">
           {/* ImHereTravels Logo - Top Left */}
           <div className="mb-8">
-            <img 
-              src="/logos/Digital_Horizontal_Red.svg" 
-              alt="ImHereTravels Logo" 
+            <img
+              src="/logos/Digital_Horizontal_Red.svg"
+              alt="ImHereTravels Logo"
               className="h-10 sm:h-12 md:h-14 w-auto object-contain"
             />
           </div>
@@ -3764,8 +3906,8 @@ const Page = () => {
                     step === 1
                       ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
                       : completedSteps.includes(1)
-                      ? "bg-green-500/20 text-green-600 dark:text-green-400 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
-                      : "bg-muted text-foreground group-hover:scale-105"
+                        ? "bg-green-500/20 text-green-600 dark:text-green-400 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
+                        : "bg-muted text-foreground group-hover:scale-105"
                   }`}
                 >
                   {completedSteps.includes(1) && step !== 1 ? (
@@ -3803,7 +3945,10 @@ const Page = () => {
                 type="button"
                 onClick={() => {
                   // If step 1 is complete and we're not already on step 2, allow navigation
-                  if (completedSteps.includes(1) && !completedSteps.includes(2)) {
+                  if (
+                    completedSteps.includes(1) &&
+                    !completedSteps.includes(2)
+                  ) {
                     // New booking - trigger the existing reservation check
                     checkExistingPaymentsAndMaybeProceed();
                   } else if (completedSteps.includes(2) && step !== 2) {
@@ -3823,10 +3968,10 @@ const Page = () => {
                     step === 2
                       ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
                       : completedSteps.includes(2)
-                      ? "bg-white text-green-600 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
-                      : step === 1
-                      ? "bg-muted/50 text-muted-foreground"
-                      : "bg-muted text-foreground group-hover:scale-105"
+                        ? "bg-white text-green-600 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
+                        : step === 1
+                          ? "bg-muted/50 text-muted-foreground"
+                          : "bg-muted text-foreground group-hover:scale-105"
                   }`}
                 >
                   {completedSteps.includes(2) && step !== 2 ? (
@@ -3870,8 +4015,8 @@ const Page = () => {
                     step === 3
                       ? "bg-gradient-to-br from-[#EF3340] to-[#FF8200] text-white shadow-lg scale-110 ring-2 ring-[#EF3340]/30"
                       : !paymentConfirmed
-                      ? "bg-[#1C1F2A]/10 dark:bg-muted/50 text-[#1C1F2A]/40 dark:text-muted-foreground"
-                      : "bg-[#1C1F2A]/15 dark:bg-muted text-[#1C1F2A] dark:text-foreground group-hover:scale-105"
+                        ? "bg-[#1C1F2A]/10 dark:bg-muted/50 text-[#1C1F2A]/40 dark:text-muted-foreground"
+                        : "bg-[#1C1F2A]/15 dark:bg-muted text-[#1C1F2A] dark:text-foreground group-hover:scale-105"
                   }`}
                 >
                   3
@@ -4165,7 +4310,7 @@ const Page = () => {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setHighlightsExpanded(
-                                          !highlightsExpanded
+                                          !highlightsExpanded,
                                         );
                                       }}
                                       className="absolute -top-2 -right-2 p-2 rounded-full bg-sunglow-yellow text-white shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 z-10"
@@ -4249,7 +4394,8 @@ const Page = () => {
                                           const highlightsWithImages =
                                             selectedPackage.highlights.filter(
                                               (h) =>
-                                                typeof h === "object" && h.image
+                                                typeof h === "object" &&
+                                                h.image,
                                             );
 
                                           if (highlightsWithImages.length > 0) {
@@ -4315,7 +4461,7 @@ const Page = () => {
                                                             prev === 0
                                                               ? highlightsWithImages.length -
                                                                 1
-                                                              : prev - 1
+                                                              : prev - 1,
                                                         );
                                                       }}
                                                       className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all"
@@ -4343,7 +4489,7 @@ const Page = () => {
                                                         setCarouselIndex(
                                                           (prev) =>
                                                             (prev + 1) %
-                                                            highlightsWithImages.length
+                                                            highlightsWithImages.length,
                                                         );
                                                       }}
                                                       className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all"
@@ -4373,7 +4519,7 @@ const Page = () => {
                                                             onClick={(e) => {
                                                               e.stopPropagation();
                                                               setCarouselIndex(
-                                                                idx
+                                                                idx,
                                                               );
                                                             }}
                                                             className={`w-1.5 h-1.5 rounded-full transition-all ${
@@ -4383,7 +4529,7 @@ const Page = () => {
                                                                 : "bg-muted-foreground/50 hover:bg-muted-foreground/75"
                                                             }`}
                                                           />
-                                                        )
+                                                        ),
                                                       )}
                                                     </div>
                                                   </>
@@ -4459,7 +4605,7 @@ const Page = () => {
                                                   </p>
                                                 </motion.div>
                                               );
-                                            }
+                                            },
                                           )}
                                         </div>
                                       </motion.div>
@@ -4595,147 +4741,146 @@ const Page = () => {
                         )}
                       </div>
                     </div>
+                  </div>
+                </div>
 
+                {/* Personal & Reservation Details Section */}
+                <div className="pt-6 border-t-2 border-border/30">
+                  <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border/50">
+                    <div className="p-4 bg-primary rounded-full rounded-br-none">
+                      <svg
+                        className="w-5 h-5 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                      </svg>
                     </div>
+                    <h3 className="text-xl font-bold text-foreground">
+                      Personal & Reservation details
+                    </h3>
                   </div>
 
-                  {/* Personal & Reservation Details Section */}
-                  <div className="pt-6 border-t-2 border-border/30">
-                    <div className="flex items-center gap-3 mb-6 pb-3 border-b-2 border-border/50">
-                      <div className="p-4 bg-primary rounded-full rounded-br-none">
-                        <svg
-                          className="w-5 h-5 text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                          />
-                        </svg>
-                      </div>
-                      <h3 className="text-xl font-bold text-foreground">
-                        Personal & Reservation details
-                      </h3>
-                    </div>
-
-                    {/* Booking Type Field - First field in Personal Details */}
-                    <div className="mb-8 transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
-                      <label className="block">
-                        <span className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
-                          Booking type
-                          <span className="text-destructive text-xs">*</span>
-                        </span>
-                        <Select
-                          value={bookingType}
-                          onChange={(v) => handleBookingTypeChange(v)}
-                          options={bookingTypeOptions}
-                          placeholder="Select booking type"
-                          ariaLabel="Booking Type"
-                          className="mt-1"
-                          disabled={paymentConfirmed}
-                          isValid={!!bookingType && !errors.bookingType}
-                        />
-                        {errors.bookingType && (
-                          <p className="mt-2 text-xs text-destructive flex items-center gap-1 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            {errors.bookingType}
-                          </p>
-                        )}
-                      </label>
-
-                      {/* Group Size Controls - Only show for Group Booking */}
-                      {bookingType === "Group Booking" && (
-                        <div className="mt-2 p-3 rounded-lg bg-gradient-to-r from-card/50 to-card/80 border border-border shadow-sm transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
-                          <div className="flex items-center justify-between gap-4">
-                            <label className="text-sm font-semibold text-foreground flex items-center gap-3">
-                              <svg className="w-5 h-5 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                              </svg>
-                              <span>Group size (including you)</span>
-                            </label>
-                            <div className="flex items-center gap-3">
-                              <button
-                                type="button"
-                                aria-label="Decrease group size"
-                                onClick={() => handleGroupSizeChange(groupSize - 1)}
-                                className="h-11 w-11 rounded-full bg-gradient-to-br from-crimson-red to-crimson-red/80 text-white flex items-center justify-center hover:scale-110 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-crimson-red focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-md transition-all duration-300 ease-out"
-                                disabled={paymentConfirmed || groupSize <= 3}
-                              >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
-                                </svg>
-                              </button>
-
-                              <div className="px-7 py-3 min-w-[5.5rem] text-center rounded-lg bg-background border-2 border-primary/20 shadow-inner transition-all duration-300">
-                                <span className="text-xl font-bold text-foreground tabular-nums">{groupSize}</span>
-                              </div>
-
-                              <button
-                                type="button"
-                                aria-label="Increase group size"
-                                onClick={() => handleGroupSizeChange(groupSize + 1)}
-                                className="h-11 w-11 rounded-full bg-gradient-to-br from-crimson-red to-crimson-red/80 text-white flex items-center justify-center hover:scale-110 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-crimson-red focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-md transition-all duration-300 ease-out"
-                                disabled={paymentConfirmed || groupSize >= 20}
-                              >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-4 flex items-center gap-2">
-                            <svg className="w-4 h-4 text-muted-foreground/70 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                            </svg>
-                            <span>You'll provide details for all <strong className="text-foreground">{groupSize} guests</strong> below</span>
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Guest Tabs - Only show for Duo/Group Booking */}
-                    {(bookingType === "Duo Booking" || bookingType === "Group Booking") && (
-                      <div className="mb-8 transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
-                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                          {/* Main Booker Tab */}
-                          <button
-                            type="button"
-                            onClick={() => setActiveGuestTab(1)}
-                            className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all duration-300 ease-in-out ${
-                              activeGuestTab === 1
-                                ? "bg-crimson-red text-white shadow-md"
-                                : "bg-card border border-border text-foreground hover:border-crimson-red/50"
-                            }`}
-                          >
-                            You (Main Booker)
-                          </button>
-                          
-                          {/* Guest Tabs */}
-                          {Array.from({ length: bookingType === "Duo Booking" ? 1 : groupSize - 1 }).map((_, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => setActiveGuestTab(idx + 2)}
-                              className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all duration-300 ease-in-out ${
-                                activeGuestTab === idx + 2
-                                  ? "bg-crimson-red text-white shadow-md"
-                                  : "bg-card border border-border text-foreground hover:border-crimson-red/50"
-                              }`}
-                            >
-                              Guest {idx + 1}
-                            </button>
-                          ))}
-                        </div>
-                        
-                        <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1.5">
+                  {/* Booking Type Field - First field in Personal Details */}
+                  <div className="mb-8 transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
+                    <label className="block">
+                      <span className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
+                        Booking type
+                        <span className="text-destructive text-xs">*</span>
+                      </span>
+                      <Select
+                        value={bookingType}
+                        onChange={(v) => handleBookingTypeChange(v)}
+                        options={bookingTypeOptions}
+                        placeholder="Select booking type"
+                        ariaLabel="Booking Type"
+                        className="mt-1"
+                        disabled={paymentConfirmed}
+                        isValid={!!bookingType && !errors.bookingType}
+                      />
+                      {errors.bookingType && (
+                        <p className="mt-2 text-xs text-destructive flex items-center gap-1 animate-in fade-in slide-in-from-top-2 duration-300">
                           <svg
-                            className="w-4 h-4 flex-shrink-0"
+                            className="w-3.5 h-3.5"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          {errors.bookingType}
+                        </p>
+                      )}
+                    </label>
+
+                    {/* Group Size Controls - Only show for Group Booking */}
+                    {bookingType === "Group Booking" && (
+                      <div className="mt-2 p-3 rounded-lg bg-gradient-to-r from-card/50 to-card/80 border border-border shadow-sm transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <label className="text-sm font-semibold text-foreground flex items-center gap-3">
+                            <svg
+                              className="w-5 h-5 text-primary flex-shrink-0"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                              />
+                            </svg>
+                            <span>Group size (including you)</span>
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              aria-label="Decrease group size"
+                              onClick={() =>
+                                handleGroupSizeChange(groupSize - 1)
+                              }
+                              className="h-11 w-11 rounded-full bg-gradient-to-br from-crimson-red to-crimson-red/80 text-white flex items-center justify-center hover:scale-110 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-crimson-red focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-md transition-all duration-300 ease-out"
+                              disabled={paymentConfirmed || groupSize <= 3}
+                            >
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={3}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M20 12H4"
+                                />
+                              </svg>
+                            </button>
+
+                            <div className="px-7 py-3 min-w-[5.5rem] text-center rounded-lg bg-background border-2 border-primary/20 shadow-inner transition-all duration-300">
+                              <span className="text-xl font-bold text-foreground tabular-nums">
+                                {groupSize}
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              aria-label="Increase group size"
+                              onClick={() =>
+                                handleGroupSizeChange(groupSize + 1)
+                              }
+                              className="h-11 w-11 rounded-full bg-gradient-to-br from-crimson-red to-crimson-red/80 text-white flex items-center justify-center hover:scale-110 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-crimson-red focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-md transition-all duration-300 ease-out"
+                              disabled={paymentConfirmed || groupSize >= 20}
+                            >
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={3}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M12 4v16m8-8H4"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-4 flex items-center gap-2">
+                          <svg
+                            className="w-4 h-4 text-muted-foreground/70 flex-shrink-0"
                             fill="currentColor"
                             viewBox="0 0 20 20"
                           >
@@ -4746,16 +4891,85 @@ const Page = () => {
                             />
                           </svg>
                           <span>
-                            Fill in details for each guest. All guests will be booked for <strong>{selectedPackage?.name || "the selected tour"}</strong> on <strong>{tourDate || "the selected date"}</strong>.
+                            You'll provide details for all{" "}
+                            <strong className="text-foreground">
+                              {groupSize} guests
+                            </strong>{" "}
+                            below
                           </span>
                         </p>
                       </div>
                     )}
                   </div>
 
-                  {/* Main Booker Form (always visible or when tab 1 is active) */}
-                  <div className={`transition-all duration-500 ease-in-out ${(bookingType === "Duo Booking" || bookingType === "Group Booking") && activeGuestTab !== 1 ? "opacity-0 scale-95 pointer-events-none absolute" : "opacity-100 scale-100"}`}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                  {/* Guest Tabs - Only show for Duo/Group Booking */}
+                  {(bookingType === "Duo Booking" ||
+                    bookingType === "Group Booking") && (
+                    <div className="mb-8 transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-top-4">
+                      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        {/* Main Booker Tab */}
+                        <button
+                          type="button"
+                          onClick={() => setActiveGuestTab(1)}
+                          className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all duration-300 ease-in-out ${
+                            activeGuestTab === 1
+                              ? "bg-crimson-red text-white shadow-md"
+                              : "bg-card border border-border text-foreground hover:border-crimson-red/50"
+                          }`}
+                        >
+                          You (Main Booker)
+                        </button>
+
+                        {/* Guest Tabs */}
+                        {Array.from({
+                          length:
+                            bookingType === "Duo Booking" ? 1 : groupSize - 1,
+                        }).map((_, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setActiveGuestTab(idx + 2)}
+                            className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all duration-300 ease-in-out ${
+                              activeGuestTab === idx + 2
+                                ? "bg-crimson-red text-white shadow-md"
+                                : "bg-card border border-border text-foreground hover:border-crimson-red/50"
+                            }`}
+                          >
+                            Guest {idx + 1}
+                          </button>
+                        ))}
+                      </div>
+
+                      <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1.5">
+                        <svg
+                          className="w-4 h-4 flex-shrink-0"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        <span>
+                          Fill in details for each guest. All guests will be
+                          booked for{" "}
+                          <strong>
+                            {selectedPackage?.name || "the selected tour"}
+                          </strong>{" "}
+                          on <strong>{tourDate || "the selected date"}</strong>.
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Main Booker Form (always visible or when tab 1 is active) */}
+                <div
+                  className={`transition-all duration-500 ease-in-out ${(bookingType === "Duo Booking" || bookingType === "Group Booking") && activeGuestTab !== 1 ? "opacity-0 scale-95 pointer-events-none absolute" : "opacity-100 scale-100"}`}
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Email address
@@ -4785,7 +4999,7 @@ const Page = () => {
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="your.email@example.com"
                           className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
-                            !!errors.email
+                            !!errors.email,
                           )} ${
                             isFieldValid("email", email)
                               ? "border-green-500"
@@ -4856,7 +5070,7 @@ const Page = () => {
                       )}
                     </label>
 
-                  {/* First name */}
+                    {/* First name */}
                     <label className="block relative group">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         First name
@@ -4886,7 +5100,7 @@ const Page = () => {
                           onChange={(e) => setFirstName(e.target.value)}
                           placeholder="e.g. Alex"
                           className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
-                            !!errors.firstName
+                            !!errors.firstName,
                           )} ${
                             isFieldValid("firstName", firstName)
                               ? "border-green-500"
@@ -4963,7 +5177,7 @@ const Page = () => {
                           onChange={(e) => setLastName(e.target.value)}
                           placeholder="e.g. Johnson"
                           className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
-                            !!errors.lastName
+                            !!errors.lastName,
                           )} ${
                             isFieldValid("lastName", lastName)
                               ? "border-green-500"
@@ -5013,7 +5227,7 @@ const Page = () => {
                       )}
                     </label>
 
-                  {/* Nationality */}
+                    {/* Nationality */}
                     <label className="block">
                       <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Nationality
@@ -5052,7 +5266,8 @@ const Page = () => {
                           }}
                           options={getCountries().map((country) => {
                             const data = getCountryData(country);
-                            const callingCode = safeGetCountryCallingCode(country);
+                            const callingCode =
+                              safeGetCountryCallingCode(country);
                             const countryName = en[country] || country;
                             return {
                               label: (
@@ -5090,30 +5305,31 @@ const Page = () => {
                                 ? whatsAppNumber &&
                                   isValidPhoneNumber(
                                     `+${safeGetCountryCallingCode(
-                                      whatsAppCountry
-                                    )}${whatsAppNumber}`
+                                      whatsAppCountry,
+                                    )}${whatsAppNumber}`,
                                   )
                                   ? "opacity-50 bg-muted/40 border-green-500 cursor-not-allowed"
                                   : "opacity-50 bg-muted/40 border-border cursor-not-allowed"
                                 : errors.whatsAppNumber
-                                ? "bg-input border-destructive"
-                                : whatsAppNumber &&
-                                  isValidPhoneNumber(
-                                    `+${safeGetCountryCallingCode(
-                                      whatsAppCountry
-                                    )}${whatsAppNumber}`
-                                  )
-                                ? "bg-input border-green-500"
-                                : "bg-input border-border"
+                                  ? "bg-input border-destructive"
+                                  : whatsAppNumber &&
+                                      isValidPhoneNumber(
+                                        `+${safeGetCountryCallingCode(
+                                          whatsAppCountry,
+                                        )}${whatsAppNumber}`,
+                                      )
+                                    ? "bg-input border-green-500"
+                                    : "bg-input border-border"
                             } ${
                               !paymentConfirmed
                                 ? "focus-within:outline-none focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-md hover:border-primary/50"
                                 : ""
                             }`}
                           >
-                            <span className={`text-muted-foreground mr-2 select-none ${paymentConfirmed ? "opacity-50" : ""}`}>
-                              +
-                              {safeGetCountryCallingCode(whatsAppCountry)}
+                            <span
+                              className={`text-muted-foreground mr-2 select-none ${paymentConfirmed ? "opacity-50" : ""}`}
+                            >
+                              +{safeGetCountryCallingCode(whatsAppCountry)}
                             </span>
                             <input
                               type="tel"
@@ -5121,7 +5337,7 @@ const Page = () => {
                               onChange={(e) => {
                                 const value = e.target.value.replace(
                                   /[^0-9]/g,
-                                  ""
+                                  "",
                                 );
                                 const maxLen =
                                   getCountryData(whatsAppCountry).maxLength;
@@ -5130,7 +5346,7 @@ const Page = () => {
 
                                 // Real-time validation
                                 const fullNumber = `+${safeGetCountryCallingCode(
-                                  whatsAppCountry
+                                  whatsAppCountry,
                                 )}${limitedValue}`;
                                 setErrors((prev) => {
                                   const clone = { ...prev } as any;
@@ -5152,7 +5368,7 @@ const Page = () => {
                               onBlur={() => {
                                 const fullNumber = whatsAppNumber
                                   ? `+${safeGetCountryCallingCode(
-                                      whatsAppCountry
+                                      whatsAppCountry,
                                     )}${whatsAppNumber}`
                                   : "";
                                 setErrors((prev) => {
@@ -5180,8 +5396,8 @@ const Page = () => {
                           {whatsAppNumber &&
                             isValidPhoneNumber(
                               `+${safeGetCountryCallingCode(
-                                whatsAppCountry
-                              )}${whatsAppNumber}`
+                                whatsAppCountry,
+                              )}${whatsAppNumber}`,
                             ) &&
                             !errors.whatsAppNumber && (
                               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none">
@@ -5220,30 +5436,31 @@ const Page = () => {
                   </div>
                 </div>
 
-              {/* Guest Forms - Only show for Duo/Group Booking */}
-              {/* Guest Forms - Only show for Duo/Group Booking */}
-              {(bookingType === "Duo Booking" || bookingType === "Group Booking") && (
-                <AnimatePresence mode="wait">
-                  {(() => {
-                    const guestIndex = activeGuestTab - 2;
-                    if (guestIndex >= 0 && guestIndex < guestDetails.length) {
-                      return (
-                        <GuestForm
-                          key={`guest-${guestIndex}`}
-                          index={guestIndex}
-                          initialData={guestDetails[guestIndex]}
-                          onUpdate={handleGuestDetailsUpdate}
-                          errors={errors}
-                          paymentConfirmed={paymentConfirmed}
-                        />
-                      );
-                    }
-                    return null;
-                  })()}
-                </AnimatePresence>
-              )}
-            </div>
-          )}
+                {/* Guest Forms - Only show for Duo/Group Booking */}
+                {/* Guest Forms - Only show for Duo/Group Booking */}
+                {(bookingType === "Duo Booking" ||
+                  bookingType === "Group Booking") && (
+                  <AnimatePresence mode="wait">
+                    {(() => {
+                      const guestIndex = activeGuestTab - 2;
+                      if (guestIndex >= 0 && guestIndex < guestDetails.length) {
+                        return (
+                          <GuestForm
+                            key={`guest-${guestIndex}`}
+                            index={guestIndex}
+                            initialData={guestDetails[guestIndex]}
+                            onUpdate={handleGuestDetailsUpdate}
+                            errors={errors}
+                            paymentConfirmed={paymentConfirmed}
+                          />
+                        );
+                      }
+                      return null;
+                    })()}
+                  </AnimatePresence>
+                )}
+              </div>
+            )}
 
             {/* STEP 2 - PAYMENT */}
             {step === 2 && (
@@ -5358,7 +5575,8 @@ const Page = () => {
                           {tourPackages.find((p) => p.id === tourPackage)?.name}
                         </span>
                       </div>
-                      {(bookingType === "Duo Booking" || bookingType === "Group Booking") && (
+                      {(bookingType === "Duo Booking" ||
+                        bookingType === "Group Booking") && (
                         <div className="flex justify-between items-center text-sm mt-2">
                           <span className="text-foreground/70 font-semibold">
                             Number of people:
@@ -5373,10 +5591,12 @@ const Page = () => {
                           Reservation fee:
                         </span>
                         <span className="font-bold text-lg text-crimson-red">
-                          {(bookingType === "Duo Booking" || bookingType === "Group Booking") ? (
+                          {bookingType === "Duo Booking" ||
+                          bookingType === "Group Booking" ? (
                             <span className="flex items-center gap-2">
                               <span className="text-sm text-foreground/60 font-normal">
-                                £{baseReservationFee.toFixed(2)} × {numberOfPeople} =
+                                £{baseReservationFee.toFixed(2)} ×{" "}
+                                {numberOfPeople} =
                               </span>
                               £{depositAmount.toFixed(2)}
                             </span>
@@ -5399,14 +5619,14 @@ const Page = () => {
                       onSuccess={(pid, docId) => {
                         setStep2StatusType("success");
                         setStep2StatusMsg(
-                          "Payment succeeded! Securing your reservation..."
+                          "Payment succeeded! Securing your reservation...",
                         );
                         handlePaymentSuccess(pid, docId);
                       }}
                       onError={(msg) => {
                         setStep2StatusType("error");
                         setStep2StatusMsg(
-                          msg || "Payment failed. Please try again."
+                          msg || "Payment failed. Please try again.",
                         );
                       }}
                       onProcessingChange={(p) => setStep2Processing(p)}
@@ -5479,7 +5699,11 @@ const Page = () => {
                         >
                           You (Main Booker)
                           {paymentPlans[0]?.plan && (
-                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                            <svg
+                              className="h-4 w-4"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                            >
                               <path
                                 d="M20 6L9 17l-5-5"
                                 stroke="currentColor"
@@ -5503,7 +5727,11 @@ const Page = () => {
                           >
                             {guest.firstName} {guest.lastName}
                             {paymentPlans[idx + 1]?.plan && (
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                              <svg
+                                className="h-4 w-4"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
                                 <path
                                   d="M20 6L9 17l-5-5"
                                   stroke="currentColor"
@@ -5534,22 +5762,39 @@ const Page = () => {
 
                           <div className="bg-muted/20 border border-border rounded-lg p-4 mb-4">
                             <div className="flex justify-between items-center text-sm">
-                              <span className="text-muted-foreground">Tour cost:</span>
+                              <span className="text-muted-foreground">
+                                Tour cost:
+                              </span>
                               <span className="font-bold text-foreground">
-                                £{((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0).toFixed(2)}
+                                £
+                                {(
+                                  (selectedDateDetail?.customOriginal ??
+                                    selectedPackage?.price) ||
+                                  0
+                                ).toFixed(2)}
                               </span>
                             </div>
                             <div className="flex justify-between items-center text-sm mt-2">
-                              <span className="text-muted-foreground">Reservation fee share (paid):</span>
+                              <span className="text-muted-foreground">
+                                Reservation fee share (paid):
+                              </span>
                               <span className="font-bold text-spring-green">
                                 -£{(depositAmount / numberOfPeople).toFixed(2)}
                               </span>
                             </div>
                             <div className="border-t border-border my-2"></div>
                             <div className="flex justify-between items-center">
-                              <span className="text-foreground font-semibold">Remaining balance:</span>
+                              <span className="text-foreground font-semibold">
+                                Remaining balance:
+                              </span>
                               <span className="font-bold text-lg text-crimson-red">
-                                £{(((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) - (depositAmount / numberOfPeople)).toFixed(2)}
+                                £
+                                {(
+                                  ((selectedDateDetail?.customOriginal ??
+                                    selectedPackage?.price) ||
+                                    0) -
+                                  depositAmount / numberOfPeople
+                                ).toFixed(2)}
                               </span>
                             </div>
                           </div>
@@ -5580,7 +5825,12 @@ const Page = () => {
                                   </div>
                                   <div className="text-sm text-muted-foreground mt-1">
                                     Tour is coming up soon! Full payment of £
-                                    {(((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) - (depositAmount / numberOfPeople)).toFixed(2)}{" "}
+                                    {(
+                                      ((selectedDateDetail?.customOriginal ??
+                                        selectedPackage?.price) ||
+                                        0) -
+                                      depositAmount / numberOfPeople
+                                    ).toFixed(2)}{" "}
                                     is required within 48 hours.
                                   </div>
                                 </div>
@@ -5598,31 +5848,41 @@ const Page = () => {
 
                               <div className="space-y-3">
                                 {getAvailablePaymentPlans().map((plan) => {
-                                  const personPlan = paymentPlans[activePaymentTab];
-                                  const isSelected = personPlan?.plan === plan.id;
-                                  
+                                  const personPlan =
+                                    paymentPlans[activePaymentTab];
+                                  const isSelected =
+                                    personPlan?.plan === plan.id;
+
                                   return (
                                     <button
                                       key={plan.id}
                                       type="button"
                                       onClick={() => {
-                                        const tourCost = (selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0;
-                                        const reservationFeePerPerson = depositAmount / numberOfPeople;
-                                        
-                                        setPaymentPlans(prev => {
+                                        const tourCost =
+                                          (selectedDateDetail?.customOriginal ??
+                                            selectedPackage?.price) ||
+                                          0;
+                                        const reservationFeePerPerson =
+                                          depositAmount / numberOfPeople;
+
+                                        setPaymentPlans((prev) => {
                                           const updated = [...prev];
                                           // Ensure array has enough slots
-                                          while (updated.length <= activePaymentTab) {
+                                          while (
+                                            updated.length <= activePaymentTab
+                                          ) {
                                             updated.push({
                                               plan: "",
                                               tourCostShare: tourCost,
-                                              reservationFeeShare: reservationFeePerPerson,
+                                              reservationFeeShare:
+                                                reservationFeePerPerson,
                                             });
                                           }
                                           updated[activePaymentTab] = {
                                             plan: plan.id,
                                             tourCostShare: tourCost,
-                                            reservationFeeShare: reservationFeePerPerson,
+                                            reservationFeeShare:
+                                              reservationFeePerPerson,
                                           };
                                           return updated;
                                         });
@@ -5636,7 +5896,9 @@ const Page = () => {
                                       <div className="flex items-start gap-3">
                                         <div
                                           className="flex items-center justify-center h-10 w-10 rounded-full text-white font-semibold flex-shrink-0"
-                                          style={{ backgroundColor: plan.color }}
+                                          style={{
+                                            backgroundColor: plan.color,
+                                          }}
                                         >
                                           P{plan.monthsRequired}
                                         </div>
@@ -5675,39 +5937,54 @@ const Page = () => {
                                             </div>
                                             {(() => {
                                               // Calculate individual remaining balance
-                                              const tourCost = (selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0;
-                                              const reservationFeeShare = depositAmount / numberOfPeople;
-                                              const individualRemainingBalance = tourCost - reservationFeeShare;
-                                              
+                                              const tourCost =
+                                                (selectedDateDetail?.customOriginal ??
+                                                  selectedPackage?.price) ||
+                                                0;
+                                              const reservationFeeShare =
+                                                depositAmount / numberOfPeople;
+                                              const individualRemainingBalance =
+                                                tourCost - reservationFeeShare;
+
                                               // Calculate per-person payment amounts
-                                              const numPayments = plan.schedule.length;
-                                              const paymentAmount = individualRemainingBalance / numPayments;
-                                              
-                                              return plan.schedule.map((payment, idx) => (
-                                                <div
-                                                  key={idx}
-                                                  className="flex items-center justify-between text-sm"
-                                                >
-                                                  <div className="flex items-center gap-2">
-                                                    <div className="h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-xs font-medium">
-                                                      {idx + 1}
+                                              const numPayments =
+                                                plan.schedule.length;
+                                              const paymentAmount =
+                                                individualRemainingBalance /
+                                                numPayments;
+
+                                              return plan.schedule.map(
+                                                (payment, idx) => (
+                                                  <div
+                                                    key={idx}
+                                                    className="flex items-center justify-between text-sm"
+                                                  >
+                                                    <div className="flex items-center gap-2">
+                                                      <div className="h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-xs font-medium">
+                                                        {idx + 1}
+                                                      </div>
+                                                      <span className="text-foreground">
+                                                        {new Date(
+                                                          payment.date +
+                                                            "T00:00:00Z",
+                                                        ).toLocaleDateString(
+                                                          "en-US",
+                                                          {
+                                                            month: "short",
+                                                            day: "numeric",
+                                                            year: "numeric",
+                                                            timeZone: "UTC",
+                                                          },
+                                                        )}
+                                                      </span>
                                                     </div>
-                                                    <span className="text-foreground">
-                                                      {new Date(
-                                                        payment.date + "T00:00:00Z"
-                                                      ).toLocaleDateString("en-US", {
-                                                        month: "short",
-                                                        day: "numeric",
-                                                        year: "numeric",
-                                                        timeZone: "UTC",
-                                                      })}
+                                                    <span className="font-medium text-foreground">
+                                                      £
+                                                      {paymentAmount.toFixed(2)}
                                                     </span>
                                                   </div>
-                                                  <span className="font-medium text-foreground">
-                                                    £{paymentAmount.toFixed(2)}
-                                                  </span>
-                                                </div>
-                                              ));
+                                                ),
+                                              );
                                             })()}
                                           </div>
                                         </div>
@@ -5724,7 +6001,9 @@ const Page = () => {
                             {activePaymentTab > 0 && (
                               <button
                                 type="button"
-                                onClick={() => setActivePaymentTab(activePaymentTab - 1)}
+                                onClick={() =>
+                                  setActivePaymentTab(activePaymentTab - 1)
+                                }
                                 className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                               >
                                 ← Previous
@@ -5733,7 +6012,9 @@ const Page = () => {
                             {activePaymentTab < numberOfPeople - 1 ? (
                               <button
                                 type="button"
-                                onClick={() => setActivePaymentTab(activePaymentTab + 1)}
+                                onClick={() =>
+                                  setActivePaymentTab(activePaymentTab + 1)
+                                }
                                 disabled={!paymentPlans[activePaymentTab]?.plan}
                                 className={`ml-auto px-6 py-2 rounded-lg font-medium transition-all ${
                                   paymentPlans[activePaymentTab]?.plan
@@ -5745,7 +6026,8 @@ const Page = () => {
                               </button>
                             ) : (
                               <div className="ml-auto text-sm text-muted-foreground">
-                                {paymentPlans.filter(p => p?.plan).length} of {numberOfPeople} plans selected
+                                {paymentPlans.filter((p) => p?.plan).length} of{" "}
+                                {numberOfPeople} plans selected
                               </div>
                             )}
                           </div>
@@ -5826,15 +6108,18 @@ const Page = () => {
                       firstName: !!firstName,
                       lastName: !!lastName,
                       whatsAppNumber: !!whatsAppNumber,
-                      whatsAppValid: whatsAppNumber ? isValidPhoneNumber(
-                        `+${safeGetCountryCallingCode(whatsAppCountry)}${whatsAppNumber}`
-                      ) : false,
+                      whatsAppValid: whatsAppNumber
+                        ? isValidPhoneNumber(
+                            `+${safeGetCountryCallingCode(whatsAppCountry)}${whatsAppNumber}`,
+                          )
+                        : false,
                       nationality: !!nationality,
                       bookingType,
                       tourPackage: !!tourPackage,
                       tourDate: !!tourDate,
                       guestDetailsLength: guestDetails.length,
-                      expectedGuestLength: bookingType === "Duo Booking" ? 1 : groupSize - 1,
+                      expectedGuestLength:
+                        bookingType === "Duo Booking" ? 1 : groupSize - 1,
                       guestDetailsValid: !guestDetails.some(
                         (guest) =>
                           !guest.email ||
@@ -5846,9 +6131,9 @@ const Page = () => {
                           !guest.whatsAppNumber ||
                           !isValidPhoneNumber(
                             `+${safeGetCountryCallingCode(
-                              guest.whatsAppCountry
-                            )}${guest.whatsAppNumber}`
-                          )
+                              guest.whatsAppCountry,
+                            )}${guest.whatsAppNumber}`,
+                          ),
                       ),
                     });
                     checkExistingPaymentsAndMaybeProceed();
@@ -5864,8 +6149,8 @@ const Page = () => {
                     (whatsAppNumber &&
                       !isValidPhoneNumber(
                         `+${safeGetCountryCallingCode(
-                          whatsAppCountry
-                        )}${whatsAppNumber}`
+                          whatsAppCountry,
+                        )}${whatsAppNumber}`,
                       )) ||
                     !nationality ||
                     !bookingType ||
@@ -5874,7 +6159,8 @@ const Page = () => {
                     ((bookingType === "Duo Booking" ||
                       bookingType === "Group Booking") &&
                       (guestDetails.length === 0 ||
-                        guestDetails.length !== (bookingType === "Duo Booking" ? 1 : groupSize - 1) ||
+                        guestDetails.length !==
+                          (bookingType === "Duo Booking" ? 1 : groupSize - 1) ||
                         guestDetails.some(
                           (guest) =>
                             !guest.email ||
@@ -5886,9 +6172,9 @@ const Page = () => {
                             !guest.whatsAppNumber ||
                             !isValidPhoneNumber(
                               `+${safeGetCountryCallingCode(
-                                guest.whatsAppCountry
-                              )}${guest.whatsAppNumber}`
-                            )
+                                guest.whatsAppCountry,
+                              )}${guest.whatsAppNumber}`,
+                            ),
                         )))
                   }
                   className="group inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary to-crimson-red text-primary-foreground rounded-lg shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg"
@@ -5956,13 +6242,18 @@ const Page = () => {
                   type="button"
                   onClick={handleConfirmBooking}
                   className={`group inline-flex items-center gap-2 px-8 py-3.5 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 font-semibold ${
-                    (availablePaymentTerm.isLastMinute || paymentPlans.every(p => p?.plan)) && paymentPlans.length === numberOfPeople
+                    (availablePaymentTerm.isLastMinute ||
+                      paymentPlans.every((p) => p?.plan)) &&
+                    paymentPlans.length === numberOfPeople
                       ? "bg-gradient-to-r from-spring-green to-green-500 text-white hover:shadow-xl hover:scale-105 focus:ring-spring-green"
                       : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                   }`}
                   disabled={
                     (!availablePaymentTerm.isLastMinute &&
-                      !(paymentPlans.every(p => p?.plan) && paymentPlans.length === numberOfPeople)) ||
+                      !(
+                        paymentPlans.every((p) => p?.plan) &&
+                        paymentPlans.length === numberOfPeople
+                      )) ||
                     confirmingBooking
                   }
                 >
@@ -6038,14 +6329,20 @@ const Page = () => {
                           ? "Full Payment"
                           : fixTermName(
                               paymentTerms.find(
-                                (p) => p.id === selectedPaymentPlan
-                              )?.name || "Selected"
+                                (p) => p.id === selectedPaymentPlan,
+                              )?.name || "Selected",
                             )
                       }
                       reservationFee={depositAmount}
-                      totalAmount={(selectedPackage?.price || 0) * numberOfPeople}
+                      totalAmount={
+                        (selectedPackage?.price || 0) * numberOfPeople
+                      }
                       remainingBalance={
-                        ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople - depositAmount
+                        ((selectedDateDetail?.customOriginal ??
+                          selectedPackage?.price) ||
+                          0) *
+                          numberOfPeople -
+                        depositAmount
                       }
                       paymentDate={new Date().toLocaleDateString("en-US", {
                         month: "short",
@@ -6126,7 +6423,7 @@ const Page = () => {
                               {selectedPaymentPlan === "full_payment"
                                 ? "Full Payment"
                                 : paymentTerms.find(
-                                    (p) => p.id === selectedPaymentPlan
+                                    (p) => p.id === selectedPaymentPlan,
                                   )?.name || "Selected"}
                             </span>
                           </div>
@@ -6179,7 +6476,7 @@ const Page = () => {
                               {selectedPaymentPlan === "full_payment"
                                 ? "Full Payment"
                                 : paymentTerms.find(
-                                    (p) => p.id === selectedPaymentPlan
+                                    (p) => p.id === selectedPaymentPlan,
                                   )?.name || "Selected"}
                             </span>
                           </div>
@@ -6197,9 +6494,17 @@ const Page = () => {
                           reservationFee={depositAmount}
                           currency="GBP"
                           email={email}
-                          totalAmount={((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople}
+                          totalAmount={
+                            ((selectedDateDetail?.customOriginal ??
+                              selectedPackage?.price) ||
+                              0) * numberOfPeople
+                          }
                           remainingBalance={
-                            ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) * numberOfPeople - depositAmount
+                            ((selectedDateDetail?.customOriginal ??
+                              selectedPackage?.price) ||
+                              0) *
+                              numberOfPeople -
+                            depositAmount
                           }
                           travelDate={tourDate}
                           paymentDate={new Date().toLocaleDateString("en-US", {
@@ -6300,15 +6605,15 @@ const Page = () => {
                           try {
                             // Build payment plan label (e.g., "P2 - Two Installment")
                             const selectedPlanTerm = paymentTerms.find(
-                              (p) => p.id === selectedPaymentPlan
+                              (p) => p.id === selectedPaymentPlan,
                             );
                             const paymentPlanLabel =
                               availablePaymentTerm.isLastMinute ||
                               selectedPaymentPlan === "full_payment"
                                 ? "Full Payment"
                                 : selectedPlanTerm
-                                ? fixTermName(selectedPlanTerm.name)
-                                : "Selected";
+                                  ? fixTermName(selectedPlanTerm.name)
+                                  : "Selected";
                             const pdf = await generateBookingConfirmationPDF(
                               confirmationId,
                               selectedPackage?.name || "Tour",
@@ -6318,20 +6623,21 @@ const Page = () => {
                               lastName,
                               paymentPlanLabel.replace(
                                 /^P\d+_[A-Z_]+\s-\s/,
-                                ""
+                                "",
                               ),
                               depositAmount,
                               (selectedPackage?.price || 0) * numberOfPeople,
-                              ((selectedPackage?.price || 0) * numberOfPeople) - depositAmount,
+                              (selectedPackage?.price || 0) * numberOfPeople -
+                                depositAmount,
                               new Date().toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",
                               }),
-                              "GBP"
+                              "GBP",
                             );
                             pdf.save(
-                              `IHT_Reservation-Confirmation_${confirmationId}.pdf`
+                              `IHT_Reservation-Confirmation_${confirmationId}.pdf`,
                             );
                           } catch (error) {
                             console.error("Error generating PDF:", error);
@@ -6367,10 +6673,13 @@ const Page = () => {
                             </svg>
                           </div>
                           <div>
-                            <div className="font-medium">You're on the list</div>
+                            <div className="font-medium">
+                              You're on the list
+                            </div>
                             <div className="text-xs text-muted-foreground">
                               We'll send a confirmation to{" "}
-                              <span className="font-medium">{email}</span> if provided.
+                              <span className="font-medium">{email}</span> if
+                              provided.
                             </div>
                           </div>
                         </div>
@@ -6381,7 +6690,6 @@ const Page = () => {
               )}
             </div>
           </div>
-
         </div>
       </div>
 
@@ -6426,5 +6734,3 @@ export default function ReservationBookingFormPage() {
     </>
   );
 }
-
-
