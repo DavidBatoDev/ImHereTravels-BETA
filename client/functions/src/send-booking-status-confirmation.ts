@@ -166,10 +166,17 @@ export const sendBookingStatusConfirmation = onCall(
         );
       }
 
+      if (!bookingData.access_token) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Booking access token is missing",
+        );
+      }
+
       // Generate booking status URL
       const bookingStatusUrl = `${
         process.env.NEXT_PUBLIC_APP_URL || "https://admin.imheretravels.com/"
-      }/booking-status/${bookingDocumentId}?email=${encodeURIComponent(email)}`;
+      }/booking-status/${bookingData.access_token}`;
 
       // Generate QR code
       logger.info("Generating QR code for URL:", bookingStatusUrl);
