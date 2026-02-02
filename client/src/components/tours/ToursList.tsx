@@ -171,8 +171,8 @@ export default function ToursList() {
             returnDate: data.returnDate?.toDate
               ? data.returnDate.toDate()
               : data.returnDate
-              ? new Date(data.returnDate)
-              : null,
+                ? new Date(data.returnDate)
+                : null,
           };
         }) as Booking[];
 
@@ -224,7 +224,7 @@ export default function ToursList() {
             variant: "destructive",
           });
           setLoading(false);
-        }
+        },
       );
 
       return unsubscribe;
@@ -486,8 +486,50 @@ export default function ToursList() {
     }
   };
 
+  const toDate = (value: any) => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === "number" || typeof value === "string") {
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof value?.toDate === "function") {
+      return value.toDate();
+    }
+    if (typeof value?.seconds === "number") {
+      return new Date(value.seconds * 1000);
+    }
+    if (typeof value?._seconds === "number") {
+      return new Date(value._seconds * 1000);
+    }
+    return null;
+  };
+
+  const formatDateValue = (value?: any) => {
+    const date = toDate(value);
+    if (!date) return "Date TBD";
+    return date.toLocaleDateString("en-GB", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const getCurrencySymbol = (currency: string) => {
+    switch (currency) {
+      case "USD":
+        return "$";
+      case "EUR":
+        return "€";
+      case "GBP":
+        return "£";
+      default:
+        return currency;
+    }
+  };
+
   const formatPrice = (price: number, currency: string) => {
-    return `${currency} ${price.toLocaleString()}`;
+    return `${getCurrencySymbol(currency)}${price.toLocaleString()}`;
   };
 
   if (loading) {
@@ -585,7 +627,7 @@ export default function ToursList() {
                         <span className="text-blue-500 font-bold">
                           {
                             allTours.filter(
-                              (tour) => tour.status === "archived"
+                              (tour) => tour.status === "archived",
                             ).length
                           }
                         </span>
@@ -644,7 +686,7 @@ export default function ToursList() {
                       actualBookingsCount: tourBookingCounts[t.name] || 0,
                     }))
                     .sort(
-                      (a, b) => b.actualBookingsCount - a.actualBookingsCount
+                      (a, b) => b.actualBookingsCount - a.actualBookingsCount,
                     )
                     .slice(0, 3);
 
@@ -778,10 +820,28 @@ export default function ToursList() {
       {/* Tours List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredTours.map((tour) => {
-          const currentPrice = tour.pricing.discounted || tour.pricing.original;
-          const hasDiscount =
-            tour.pricing.discounted &&
-            tour.pricing.discounted < tour.pricing.original;
+          const baseOriginal = tour.pricing.original || 0;
+          const basePrice =
+            typeof tour.pricing.discounted === "number" &&
+            tour.pricing.discounted > 0
+              ? tour.pricing.discounted
+              : baseOriginal;
+          const baseDeposit = tour.pricing.deposit ?? 0;
+          const dateRows = (tour.travelDates || []).map((date) => ({
+            date: date.startDate,
+            price:
+              typeof date.customDiscounted === "number" &&
+              date.customDiscounted > 0
+                ? date.customDiscounted
+                : typeof date.customOriginal === "number" &&
+                    date.customOriginal > 0
+                  ? date.customOriginal
+                  : basePrice,
+            deposit:
+              typeof date.customDeposit === "number" && date.customDeposit > 0
+                ? date.customDeposit
+                : baseDeposit,
+          }));
 
           return (
             <Card
@@ -887,78 +947,73 @@ export default function ToursList() {
                     </div>
                   </div>
 
-                  {/* Pricing */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl font-bold text-foreground">
-                          {formatPrice(currentPrice, tour.pricing.currency)}
-                        </span>
-                        {hasDiscount && (
-                          <span className="text-sm text-muted-foreground line-through">
-                            {formatPrice(
-                              tour.pricing.original,
-                              tour.pricing.currency
-                            )}
-                          </span>
-                        )}
+                  {/* Pricing by Date */}
+                  <div className="pt-1">
+                    {dateRows.length > 0 ? (
+                      <div className="space-y-1">
+                        {dateRows.map((date, index) => (
+                          <div
+                            key={`${tour.id}-date-${index}`}
+                            className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground"
+                          >
+                            <span className="line-clamp-1">
+                              {formatDateValue(date.date)}
+                            </span>
+                            <span className="flex items-center gap-2 whitespace-nowrap">
+                              <span className="text-sm font-bold text-foreground">
+                                {formatPrice(date.price, tour.pricing.currency)}
+                              </span>
+                              <span className="text-sm font-bold text-muted-foreground">
+                                ResFee{" "}
+                                {formatPrice(
+                                  date.deposit,
+                                  tour.pricing.currency,
+                                )}
+                              </span>
+                            </span>
+                          </div>
+                        ))}
                       </div>
+                    ) : (
                       <p className="text-xs text-muted-foreground">
-                        Deposit:{" "}
-                        {formatPrice(
-                          tour.pricing.deposit,
-                          tour.pricing.currency
-                        )}
+                        No dates available
                       </p>
-                    </div>
-                    {hasDiscount && (
-                      <Badge
-                        variant="secondary"
-                        className="bg-spring-green/20 text-spring-green border border-spring-green/30"
-                      >
-                        {Math.round(
-                          ((tour.pricing.original - tour.pricing.discounted!) /
-                            tour.pricing.original) *
-                            100
-                        )}
-                        % OFF
-                      </Badge>
                     )}
                   </div>
+                </div>
 
-                  {/* Highlights Preview */}
-                  <div>
-                    <div className="flex flex-wrap gap-1">
-                      {tour.details.highlights
-                        .slice(0, 3)
-                        .map((highlight, index) => {
-                          // Handle both string and object formats
-                          const highlightText =
-                            typeof highlight === "string"
-                              ? highlight
-                              : (highlight as any)?.text || String(highlight);
+                {/* Highlights Preview */}
+                <div className="pt-2">
+                  <div className="flex flex-wrap gap-1">
+                    {tour.details.highlights
+                      .slice(0, 3)
+                      .map((highlight, index) => {
+                        // Handle both string and object formats
+                        const highlightText =
+                          typeof highlight === "string"
+                            ? highlight
+                            : (highlight as any)?.text || String(highlight);
 
-                          return (
-                            <Badge
-                              key={index}
-                              variant="outline"
-                              className="text-xs border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10"
-                            >
-                              {highlightText.length > 15
-                                ? `${highlightText.slice(0, 15)}...`
-                                : highlightText}
-                            </Badge>
-                          );
-                        })}
-                      {tour.details.highlights.length > 3 && (
-                        <Badge
-                          variant="outline"
-                          className="text-xs border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10"
-                        >
-                          +{tour.details.highlights.length - 3} more
-                        </Badge>
-                      )}
-                    </div>
+                        return (
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            className="text-xs border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10"
+                          >
+                            {highlightText.length > 15
+                              ? `${highlightText.slice(0, 15)}...`
+                              : highlightText}
+                          </Badge>
+                        );
+                      })}
+                    {tour.details.highlights.length > 3 && (
+                      <Badge
+                        variant="outline"
+                        className="text-xs border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10"
+                      >
+                        +{tour.details.highlights.length - 3} more
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
