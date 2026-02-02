@@ -1623,8 +1623,8 @@ export default function EditBookingModal({
 
     // Skip if the user hasn't actively changed tour details (prevents overwriting historical data on load)
     if (!hasUserChangedTourDetailsRef.current && currentValue) {
-       previousTourPackageName.current = currentValue;
-       return;
+      previousTourPackageName.current = currentValue;
+      return;
     }
 
     // Reload if the value changed and currentValue is not undefined/empty
