@@ -22,8 +22,11 @@ import {
 } from "@/lib/guest-booking-utils";
 import {
   createBookingData,
+  normalizeTourDateToUTCPlus8Nine,
   type BookingCreationInput,
-} from "@/lib/booking-calculations";
+    const normalizedTourDate =
+      normalizeTourDateToUTCPlus8Nine(tourDateParsed) || tourDateParsed;
+    console.log("📅 Using tour date:", normalizedTourDate);
 
 /**
  * Generate a unique booking ID in format "YYMM-XXXX"
@@ -31,7 +34,7 @@ import {
  */
 function generateBookingId(
   tourDate: Date,
-  existingCountForTour: number
+  existingCountForTour: number,
 ): string {
   const year = tourDate.getFullYear().toString().slice(-2);
   const month = String(tourDate.getMonth() + 1).padStart(2, "0");
@@ -43,12 +46,12 @@ function generateBookingId(
  * Generate Group/Duo Booking Member ID (standalone version, no allRows needed).
  */
 function generateGroupMemberIdFunction(
-  bookingType: string,
+      tourDate: normalizedTourDate || "", // Use normalized tour date
   tourName: string,
   firstName: string,
   lastName: string,
   email: string,
-  isActive: boolean
+  isActive: boolean,
 ): string {
   // Only Duo or Group bookings apply
   if (!(bookingType === "Duo Booking" || bookingType === "Group Booking")) {
@@ -195,13 +198,13 @@ async function getTourPackageData(tourPackageId: string) {
  * Get count of existing bookings for the same tour package (for unique counter)
  */
 async function getExistingBookingsCountForTourPackage(
-  tourPackageName: string
+  tourPackageName: string,
 ): Promise<number> {
   try {
     const bookingsRef = collection(db, "bookings");
     const q = query(
       bookingsRef,
-      where("tourPackageName", "==", tourPackageName)
+      where("tourPackageName", "==", tourPackageName),
     );
     const snapshot = await getDocs(q);
     return snapshot.size;
@@ -216,7 +219,7 @@ async function getExistingBookingsCountForTourPackage(
  */
 function calculateReturnDate(
   tourDate: unknown,
-  durationDays: string | number | null | undefined
+  durationDays: string | number | null | undefined,
 ): string {
   const start = toDate(tourDate);
   if (!start || isNaN(start.getTime())) return "";
@@ -253,7 +256,7 @@ export async function POST(req: NextRequest) {
     if (!paymentDocId || !parentBookingId || !guestEmail || !guestData) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -267,7 +270,7 @@ export async function POST(req: NextRequest) {
     if (!paymentDocSnap.exists()) {
       return NextResponse.json(
         { error: "Payment document not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -292,13 +295,13 @@ export async function POST(req: NextRequest) {
     // 2. Validate the guest invitation
     const validationResult = await validateGuestInvitation(
       parentBookingId,
-      guestEmail
+      guestEmail,
     );
 
     if (!validationResult.isValid) {
       return NextResponse.json(
         { error: validationResult.error || "Invalid invitation" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -307,13 +310,13 @@ export async function POST(req: NextRequest) {
     // 3. Check for duplicate booking
     const isDuplicate = await checkDuplicateGuestBooking(
       parentBooking.groupId,
-      guestEmail
+      guestEmail,
     );
 
     if (isDuplicate) {
       return NextResponse.json(
         { error: "You have already made a booking for this group" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -413,7 +416,7 @@ export async function POST(req: NextRequest) {
     // 6. Get existing bookings count for unique counter (per tour package)
     const existingCountForTourPackage =
       await getExistingBookingsCountForTourPackage(
-        paymentData.tour?.packageName || (tourPackage as any)?.name || ""
+        paymentData.tour?.packageName || (tourPackage as any)?.name || "",
       );
 
     // 7. Get total bookings count for global row number
@@ -433,7 +436,7 @@ export async function POST(req: NextRequest) {
       parentBookingReturnDate ||
       calculateReturnDate(
         parentBookingTourDate || paymentData.tour?.date,
-        tourDuration
+        tourDuration,
       );
     console.log("📅 Using return date:", calculatedReturnDate);
 
@@ -446,7 +449,7 @@ export async function POST(req: NextRequest) {
       tourPackageName:
         paymentData.tour?.packageName || (tourPackage as any)?.name || "",
       tourCode,
-      tourDate: tourDateParsed || "", // Use inherited tour date from parent
+      tourDate: normalizedTourDate || "", // Use inherited tour date from parent
       returnDate: calculatedReturnDate || "", // Use inherited or calculated return date
       tourDuration,
       reservationFee: paymentData.payment?.amount || 250,
@@ -514,7 +517,7 @@ export async function POST(req: NextRequest) {
       console.log("📝 isMainBooker:", bookingData.isMainBooker);
       console.log(
         "📝 groupIdGroupIdGenerator:",
-        bookingData.groupIdGroupIdGenerator
+        bookingData.groupIdGroupIdGenerator,
       );
       console.log("📝 groupId:", bookingData.groupId);
     } else {
@@ -543,9 +546,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 13. Convert dates to Firestore Timestamps for storage
-    const tourDateTimestamp = tourDateParsed
-      ? Timestamp.fromDate(tourDateParsed)
+    // 13. Convert dates to Firestore Timestamps for storage (normalized to 9:00 AM UTC+8)
+    const normalizedTourDate =
+      normalizeTourDateToUTCPlus8Nine(tourDateParsed) || tourDateParsed;
+    const tourDateTimestamp = normalizedTourDate
+      ? Timestamp.fromDate(normalizedTourDate)
       : null;
     const reservationDateTimestamp = Timestamp.now();
 
@@ -628,7 +633,7 @@ export async function POST(req: NextRequest) {
         error: err.message ?? "Failed to create guest booking",
         details: process.env.NODE_ENV === "development" ? err.stack : undefined,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

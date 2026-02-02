@@ -21,6 +21,7 @@ import {
 import {
   createBookingData,
   generateGroupId,
+  normalizeTourDateToUTCPlus8Nine,
   type BookingCreationInput,
 } from "@/lib/booking-calculations";
 import crypto from "crypto";
@@ -42,7 +43,7 @@ function generateGroupMemberIdFunction(
   firstName: string,
   lastName: string,
   email: string,
-  isActive: boolean
+  isActive: boolean,
 ): string {
   // Only Duo or Group bookings apply
   if (!(bookingType === "Duo Booking" || bookingType === "Group Booking")) {
@@ -130,7 +131,7 @@ function toDate(input: unknown): Date | null {
  */
 function calculateReturnDate(
   tourDate: unknown,
-  durationDays: string | number | null | undefined
+  durationDays: string | number | null | undefined,
 ): string {
   const start = toDate(tourDate);
   if (!start || isNaN(start.getTime())) return "";
@@ -178,13 +179,13 @@ async function getTourPackageData(tourPackageId: string) {
  * Get count of existing bookings for the same tour package (for unique counter)
  */
 async function getExistingBookingsCountForTourPackage(
-  tourPackageName: string
+  tourPackageName: string,
 ): Promise<number> {
   try {
     const bookingsRef = collection(db, "bookings");
     const q = query(
       bookingsRef,
-      where("tourPackageName", "==", tourPackageName)
+      where("tourPackageName", "==", tourPackageName),
     );
     const snapshot = await getDocs(q);
     return snapshot.size;
@@ -234,7 +235,7 @@ async function getTotalBookingsCount(): Promise<number> {
  * Generate a secure, unguessable access token using crypto.randomBytes
  * Uses 32 bytes of cryptographically secure random data encoded as URL-safe base64
  * This provides 256 bits of entropy, making it practically impossible to guess
- * 
+ *
  * @returns {string} A secure access token (43 characters, URL-safe)
  */
 function generateAccessToken(): string {
@@ -253,7 +254,7 @@ export async function POST(req: NextRequest) {
     if (!paymentDocId) {
       return NextResponse.json(
         { error: "Missing required field: paymentDocId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -266,7 +267,7 @@ export async function POST(req: NextRequest) {
     if (!paymentDocSnap.exists()) {
       return NextResponse.json(
         { error: "Payment document not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -292,7 +293,7 @@ export async function POST(req: NextRequest) {
     if (paymentData.payment?.type !== "reservationFee") {
       return NextResponse.json(
         { error: "Invalid payment type. Expected reservationFee." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -305,7 +306,7 @@ export async function POST(req: NextRequest) {
         {
           error: `Payment not confirmed. Current status: ${paymentData.payment?.status}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -314,7 +315,10 @@ export async function POST(req: NextRequest) {
     // Fetch tour package data
     const tourPackage = await getTourPackageData(paymentData.tour?.packageId);
     const tourCode = (tourPackage as any)?.tourCode || "XXX";
-    const originalTourCost = paymentData.payment?.originalPrice ?? (tourPackage as any)?.pricing?.original ?? 0;
+    const originalTourCost =
+      paymentData.payment?.originalPrice ??
+      (tourPackage as any)?.pricing?.original ??
+      0;
     const discountedTourCost =
       (tourPackage as any)?.pricing?.discounted || null;
     const tourDuration = (tourPackage as any)?.duration || null;
@@ -322,7 +326,7 @@ export async function POST(req: NextRequest) {
     // Get existing bookings count for unique counter (per tour package)
     const existingCountForTourPackage =
       await getExistingBookingsCountForTourPackage(
-        paymentData.tour?.packageName || (tourPackage as any)?.name || ""
+        paymentData.tour?.packageName || (tourPackage as any)?.name || "",
       );
 
     // Get total bookings count for global row number
@@ -344,7 +348,7 @@ export async function POST(req: NextRequest) {
     // Calculate return date using proper function
     const calculatedReturnDate = calculateReturnDate(
       paymentData.tour?.date,
-      tourDuration
+      tourDuration,
     );
     console.log("📅 Calculated return date:", calculatedReturnDate);
 
@@ -354,14 +358,18 @@ export async function POST(req: NextRequest) {
     const totalReservationFee = paymentData.payment?.amount || 250;
     const feePerPerson = totalReservationFee / groupSize;
 
-    console.log(`💰 Total fee: ${totalReservationFee}, Split among ${groupSize} people = ${feePerPerson} per person`);
+    console.log(
+      `💰 Total fee: ${totalReservationFee}, Split among ${groupSize} people = ${feePerPerson} per person`,
+    );
 
     const createdBookingIds: string[] = [];
     const createdBookingDocIds: string[] = [];
 
-    // Convert dates to Firestore Timestamps for storage
-    const tourDateTimestamp = tourDateParsed
-      ? Timestamp.fromDate(tourDateParsed)
+    // Convert dates to Firestore Timestamps for storage (normalized to 9:00 AM UTC+8)
+    const normalizedTourDate =
+      normalizeTourDateToUTCPlus8Nine(tourDateParsed) || tourDateParsed;
+    const tourDateTimestamp = normalizedTourDate
+      ? Timestamp.fromDate(normalizedTourDate)
       : null;
 
     // 1. Create booking for MAIN BOOKER
@@ -373,7 +381,7 @@ export async function POST(req: NextRequest) {
       tourPackageName:
         paymentData.tour?.packageName || (tourPackage as any)?.name || "",
       tourCode,
-      tourDate: tourDateParsed || paymentData.tour?.date || "",
+      tourDate: normalizedTourDate || paymentData.tour?.date || "",
       returnDate: paymentData.tour?.returnDate || calculatedReturnDate || "",
       tourDuration,
       reservationFee: feePerPerson, // Split fee
@@ -398,7 +406,7 @@ export async function POST(req: NextRequest) {
         paymentData.customer?.firstName || "",
         paymentData.customer?.lastName || "",
         paymentData.customer?.email || "",
-        true
+        true,
       );
       mainBookingData.groupIdGroupIdGenerator = generatedGroupMemberId;
       mainBookingData.groupId = generatedGroupMemberId;
@@ -420,7 +428,9 @@ export async function POST(req: NextRequest) {
 
     createdBookingIds.push(mainBookingData.bookingId);
     createdBookingDocIds.push(mainBookingRef.id);
-    console.log(`✅ Main booker booking created: ${mainBookingRef.id} (${mainBookingData.bookingId})`);
+    console.log(
+      `✅ Main booker booking created: ${mainBookingRef.id} (${mainBookingData.bookingId})`,
+    );
 
     // 2. Create bookings for each GUEST
     for (let i = 0; i < guestDetails.length; i++) {
@@ -433,7 +443,7 @@ export async function POST(req: NextRequest) {
         tourPackageName:
           paymentData.tour?.packageName || (tourPackage as any)?.name || "",
         tourCode,
-        tourDate: tourDateParsed || paymentData.tour?.date || "",
+        tourDate: normalizedTourDate || paymentData.tour?.date || "",
         returnDate: paymentData.tour?.returnDate || calculatedReturnDate || "",
         tourDuration,
         reservationFee: feePerPerson, // Split fee
@@ -459,7 +469,7 @@ export async function POST(req: NextRequest) {
           guest.firstName || "",
           guest.lastName || "",
           guest.email || "",
-          true
+          true,
         );
         guestBookingData.groupIdGroupIdGenerator = guestGroupMemberId;
         guestBookingData.groupId = guestGroupMemberId;
@@ -481,16 +491,26 @@ export async function POST(req: NextRequest) {
 
       createdBookingIds.push(guestBookingData.bookingId);
       createdBookingDocIds.push(guestBookingRef.id);
-      console.log(`✅ Guest ${i + 1} booking created: ${guestBookingRef.id} (${guestBookingData.bookingId})`);
+      console.log(
+        `✅ Guest ${i + 1} booking created: ${guestBookingRef.id} (${guestBookingData.bookingId})`,
+      );
     }
 
-    console.log(`✅ Created ${createdBookingIds.length} total bookings for payment ${paymentDocId}`);
+    console.log(
+      `✅ Created ${createdBookingIds.length} total bookings for payment ${paymentDocId}`,
+    );
 
     // Update stripePayments document with ALL booking references
     try {
       console.log("📝 Updating stripePayments document:", paymentDocId);
-      console.log("📝 Setting booking.documentId to main booker:", createdBookingDocIds[0]);
-      console.log("📝 Setting booking.id to main booker:", createdBookingIds[0]);
+      console.log(
+        "📝 Setting booking.documentId to main booker:",
+        createdBookingDocIds[0],
+      );
+      console.log(
+        "📝 Setting booking.id to main booker:",
+        createdBookingIds[0],
+      );
       console.log("📝 Setting bookingIds array:", createdBookingIds);
       console.log("📝 Setting bookingDocumentIds array:", createdBookingDocIds);
 
@@ -502,22 +522,27 @@ export async function POST(req: NextRequest) {
         "timestamps.updatedAt": serverTimestamp(),
       });
 
-      console.log("✅ Stripe payment record updated with all booking references");
+      console.log(
+        "✅ Stripe payment record updated with all booking references",
+      );
 
       // Verify the update
       const verifyDoc = await getDoc(paymentDocRef);
       const verifyData = verifyDoc.data();
       console.log(
         "✅ Verified booking.documentId:",
-        verifyData?.booking?.documentId
+        verifyData?.booking?.documentId,
       );
       console.log("✅ Verified booking.id:", verifyData?.booking?.id);
       console.log("✅ Verified bookingIds:", verifyData?.bookingIds);
-      console.log("✅ Verified bookingDocumentIds:", verifyData?.bookingDocumentIds);
+      console.log(
+        "✅ Verified bookingDocumentIds:",
+        verifyData?.bookingDocumentIds,
+      );
     } catch (updateError: any) {
       console.error("❌ Error updating stripePayments document:", updateError);
       throw new Error(
-        `Failed to update payment document: ${updateError.message}`
+        `Failed to update payment document: ${updateError.message}`,
       );
     }
 
@@ -539,7 +564,7 @@ export async function POST(req: NextRequest) {
         error: err.message ?? "Failed to create booking",
         details: process.env.NODE_ENV === "development" ? err.stack : undefined,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
