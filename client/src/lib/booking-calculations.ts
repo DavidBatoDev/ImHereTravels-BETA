@@ -296,8 +296,14 @@ export function getDaysBetweenDates(
 
   if (!res || !tour) return "";
 
+  const normalizeToUTCDate = (d: Date): Date =>
+    new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+
+  const resDate = normalizeToUTCDate(res);
+  const tourDateOnly = normalizeToUTCDate(tour);
+
   const msPerDay = 1000 * 60 * 60 * 24;
-  return Math.round((tour.getTime() - res.getTime()) / msPerDay);
+  return (tourDateOnly.getTime() - resDate.getTime()) / msPerDay;
 }
 
 /**

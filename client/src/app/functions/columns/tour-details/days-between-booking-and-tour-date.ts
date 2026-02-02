@@ -46,7 +46,7 @@ export const daysBetweenBookingAndTourDateColumn: BookingSheetColumn = {
  */
 export default function daysBetweenReservationAndTourFunction(
   reservationDate: unknown,
-  tourDate: unknown
+  tourDate: unknown,
 ): number | "" {
   const toDate = (input: unknown): Date | null => {
     if (input === null || input === undefined) return null;
@@ -99,8 +99,14 @@ export default function daysBetweenReservationAndTourFunction(
 
   if (!res || isNaN(res.getTime()) || !tour || isNaN(tour.getTime())) return "";
 
+  const normalizeToUTCDate = (d: Date): Date =>
+    new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+
+  const resDate = normalizeToUTCDate(res);
+  const tourDateOnly = normalizeToUTCDate(tour);
+
   const msPerDay = 1000 * 60 * 60 * 24;
-  const diff = Math.round((tour.getTime() - res.getTime()) / msPerDay);
+  const diff = (tourDateOnly.getTime() - resDate.getTime()) / msPerDay;
 
   return diff;
 }
