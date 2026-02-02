@@ -22,21 +22,27 @@ function extractPaymentPlanType(name: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { paymentDocId, paymentPlans, paymentPlanDetails } =
-      await req.json();
+    const { paymentDocId, paymentPlans, paymentPlanDetails } = await req.json();
 
     // Validate required fields
     if (!paymentDocId) {
       return NextResponse.json(
         { error: "Missing required field: paymentDocId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    if (!paymentPlans || !Array.isArray(paymentPlans) || paymentPlans.length === 0) {
+    if (
+      !paymentPlans ||
+      !Array.isArray(paymentPlans) ||
+      paymentPlans.length === 0
+    ) {
       return NextResponse.json(
-        { error: "Missing or invalid required field: paymentPlans (must be non-empty array)" },
-        { status: 400 }
+        {
+          error:
+            "Missing or invalid required field: paymentPlans (must be non-empty array)",
+        },
+        { status: 400 },
       );
     }
 
@@ -53,17 +59,20 @@ export async function POST(req: NextRequest) {
     if (!paymentDocSnap.exists()) {
       return NextResponse.json(
         { error: "Payment document not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const paymentData = paymentDocSnap.data();
 
     // Get all booking document IDs (should be an array for group bookings)
-    const bookingDocumentIds = paymentData.bookingDocumentIds || 
-                               (paymentData.booking?.documentId ? [paymentData.booking.documentId] : []) ||
-                               (paymentData.bookingDocumentId ? [paymentData.bookingDocumentId] : []);
-    
+    const bookingDocumentIds =
+      paymentData.bookingDocumentIds ||
+      (paymentData.booking?.documentId
+        ? [paymentData.booking.documentId]
+        : []) ||
+      (paymentData.bookingDocumentId ? [paymentData.bookingDocumentId] : []);
+
     if (!bookingDocumentIds || bookingDocumentIds.length === 0) {
       console.error("❌ Payment data:", JSON.stringify(paymentData, null, 2));
       return NextResponse.json(
@@ -71,29 +80,36 @@ export async function POST(req: NextRequest) {
           error:
             "No bookings associated with this payment. Please complete Step 2 first.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Validate that we have the same number of payment plans as bookings
     if (paymentPlans.length !== bookingDocumentIds.length) {
       return NextResponse.json(
-        { 
-          error: `Payment plan count mismatch: ${paymentPlans.length} plans provided but ${bookingDocumentIds.length} bookings exist` 
+        {
+          error: `Payment plan count mismatch: ${paymentPlans.length} plans provided but ${bookingDocumentIds.length} bookings exist`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    console.log(`📊 Processing ${bookingDocumentIds.length} bookings with their payment plans`);
+    console.log(
+      `📊 Processing ${bookingDocumentIds.length} bookings with their payment plans`,
+    );
 
     // Process each booking with its corresponding payment plan
-    const updateResults: Array<{ bookingDocumentId: string; paymentPlan: string }> = [];
+    const updateResults: Array<{
+      bookingDocumentId: string;
+      paymentPlan: string;
+    }> = [];
     for (let i = 0; i < bookingDocumentIds.length; i++) {
       const bookingDocumentId = bookingDocumentIds[i];
       const personPlan = paymentPlans[i];
-      
-      console.log(`\n--- Processing booking ${i + 1}/${bookingDocumentIds.length} ---`);
+
+      console.log(
+        `\n--- Processing booking ${i + 1}/${bookingDocumentIds.length} ---`,
+      );
       console.log(`Booking ID: ${bookingDocumentId}`);
       console.log(`Payment plan:`, personPlan);
 
@@ -110,7 +126,7 @@ export async function POST(req: NextRequest) {
 
       // Get the selected payment plan ID from the person's plan
       const selectedPaymentPlan = personPlan.plan;
-      
+
       // Fetch the payment term document to get the name
       let paymentPlanString = selectedPaymentPlan;
 
@@ -127,17 +143,17 @@ export async function POST(req: NextRequest) {
             "📋 Payment term name:",
             paymentTermName,
             "→ Plan type:",
-            paymentPlanString
+            paymentPlanString,
           );
         } else {
           console.log(
-            "⚠️ Payment term document not found, using selectedPaymentPlan as-is"
+            "⚠️ Payment term document not found, using selectedPaymentPlan as-is",
           );
         }
       } catch (err) {
         console.log(
           "⚠️ Error fetching payment term, using selectedPaymentPlan as-is:",
-          err
+          err,
         );
       }
 
@@ -174,11 +190,12 @@ export async function POST(req: NextRequest) {
       // Update the booking document
       await updateDoc(bookingDocRef, {
         ...paymentUpdate,
+        paidTerms: 0,
         updatedAt: serverTimestamp(),
       });
 
       console.log(`✅ Booking ${bookingDocumentId} updated with payment plan`);
-      
+
       updateResults.push({
         bookingDocumentId,
         paymentPlan: paymentUpdate.paymentPlan,
@@ -213,7 +230,7 @@ export async function POST(req: NextRequest) {
         error: err.message ?? "Failed to select payment plan",
         details: process.env.NODE_ENV === "development" ? err.stack : undefined,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

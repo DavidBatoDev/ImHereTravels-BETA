@@ -830,15 +830,12 @@ export function calculateInstallmentAmounts(
 /**
  * Calculate scheduled reminder dates (X days before due date)
  */
-export function calculateScheduledReminderDates(
-  dueDates: {
-    p1DueDate: string;
-    p2DueDate: string;
-    p3DueDate: string;
-    p4DueDate: string;
-  },
-  daysBeforeDue: number = 7,
-): {
+export function calculateScheduledReminderDates(dueDates: {
+  p1DueDate: string;
+  p2DueDate: string;
+  p3DueDate: string;
+  p4DueDate: string;
+}): {
   p1ScheduledReminderDate: string;
   p2ScheduledReminderDate: string;
   p3ScheduledReminderDate: string;
@@ -851,32 +848,51 @@ export function calculateScheduledReminderDates(
     p4ScheduledReminderDate: "",
   };
 
-  const calculateReminder = (dueDate: string): string => {
+  const extractFirstDate = (dueDate: string): string => {
     if (!dueDate) return "";
-    // Due dates might be comma-separated (e.g., "Jan 2, 2026, Feb 2, 2026")
-    // Use the first date for the reminder calculation
-    const firstDate = dueDate.split(", ")[0];
+
+    // Match first full date like "Jan 2, 2026"
+    const match = dueDate.match(/[A-Za-z]{3}\s+\d{1,2},\s+\d{4}/);
+    if (match?.[0]) return match[0];
+
+    // Fallback for ISO lists like "2026-01-02, 2026-02-02"
+    if (dueDate.includes(",")) {
+      return dueDate.split(",")[0].trim();
+    }
+
+    return dueDate.trim();
+  };
+
+  const calculateBaseMonday = (dueDate: string): string => {
+    if (!dueDate) return "";
+    const firstDate = extractFirstDate(dueDate);
     const date = toDate(firstDate);
     if (!date) return "";
 
-    const reminderDate = normalizeUTCDate(date);
-    reminderDate.setUTCDate(reminderDate.getUTCDate() - daysBeforeDue);
+    // Spreadsheet formula: EOMONTH(d,-1) => last day of previous month
+    const eomPrev = new Date(date.getFullYear(), date.getMonth(), 0);
 
-    // Don't set reminder if it's in the past (UTC date-only compare)
-    const todayUTC = normalizeUTCDate(new Date());
-    if (reminderDate < todayUTC) return "";
+    // limit = lastDay - 6 (a week before month end)
+    const limit = new Date(eomPrev);
+    limit.setDate(limit.getDate() - 6);
 
-    // Return as yyyy-mm-dd format (UTC)
-    const y = reminderDate.getUTCFullYear();
-    const m = String(reminderDate.getUTCMonth() + 1).padStart(2, "0");
-    const d = String(reminderDate.getUTCDate()).padStart(2, "0");
+    // Find Monday: limit - MOD(WEEKDAY(limit,2)-1, 7)
+    // WEEKDAY(limit, 2) makes Monday = 1, Sunday = 7
+    const weekday = ((limit.getDay() + 6) % 7) + 1; // Convert to ISO weekday
+    const mod = (weekday - 1) % 7;
+    const base = new Date(limit);
+    base.setDate(base.getDate() - mod);
+
+    const y = base.getFullYear();
+    const m = String(base.getMonth() + 1).padStart(2, "0");
+    const d = String(base.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   };
 
-  result.p1ScheduledReminderDate = calculateReminder(dueDates.p1DueDate);
-  result.p2ScheduledReminderDate = calculateReminder(dueDates.p2DueDate);
-  result.p3ScheduledReminderDate = calculateReminder(dueDates.p3DueDate);
-  result.p4ScheduledReminderDate = calculateReminder(dueDates.p4DueDate);
+  result.p1ScheduledReminderDate = calculateBaseMonday(dueDates.p1DueDate);
+  result.p2ScheduledReminderDate = calculateBaseMonday(dueDates.p2DueDate);
+  result.p3ScheduledReminderDate = calculateBaseMonday(dueDates.p3DueDate);
+  result.p4ScheduledReminderDate = calculateBaseMonday(dueDates.p4DueDate);
 
   return result;
 }
@@ -1209,7 +1225,6 @@ export interface PaymentPlanUpdateResult {
 export function calculatePaymentPlanUpdate(
   input: PaymentPlanUpdateInput,
 ): PaymentPlanUpdateResult {
-  const reminderDays = input.reminderDaysBefore ?? 7;
   const normalizedTourDate =
     normalizeTourDateToUTCPlus8Nine(input.tourDate) ?? input.tourDate;
 
@@ -1251,7 +1266,7 @@ export function calculatePaymentPlanUpdate(
   );
 
   // Calculate scheduled reminder dates
-  const reminders = calculateScheduledReminderDates(dueDates, reminderDays);
+  const reminders = calculateScheduledReminderDates(dueDates);
 
   // Clear unused payment term fields based on selected plan
   // If user selects P1, clear P2-P4 fields; if P2, clear P3-P4 fields, etc.
