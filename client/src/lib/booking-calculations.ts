@@ -81,15 +81,29 @@ export function toDate(input: unknown): Date | null {
 }
 
 /**
+ * Normalize a Date to UTC date-only (00:00 UTC).
+ */
+export function normalizeUTCDate(dateInput: Date): Date {
+  return new Date(
+    Date.UTC(
+      dateInput.getUTCFullYear(),
+      dateInput.getUTCMonth(),
+      dateInput.getUTCDate(),
+    ),
+  );
+}
+
+/**
  * Format date as "yyyymmdd"
  */
 export function formatDateYYYYMMDD(dateInput: unknown): string {
   const date = toDate(dateInput);
   if (!date) return "";
 
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
+  const utc = normalizeUTCDate(date);
+  const y = utc.getUTCFullYear();
+  const m = String(utc.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(utc.getUTCDate()).padStart(2, "0");
   return `${y}${m}${d}`;
 }
 
@@ -101,6 +115,7 @@ export function formatDateDisplay(dateInput: unknown): string {
   if (!date) return "";
 
   return date.toLocaleDateString("en-US", {
+    timeZone: "UTC",
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -116,9 +131,10 @@ export function formatTimestampToDDMMYYYY(dateInput: unknown): string {
     const date = toDate(dateInput);
     if (!date) return "";
 
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
+    const utc = normalizeUTCDate(date);
+    const day = String(utc.getUTCDate()).padStart(2, "0");
+    const month = String(utc.getUTCMonth() + 1).padStart(2, "0");
+    const year = utc.getUTCFullYear();
 
     return `${day}/${month}/${year}`;
   } catch (error) {
@@ -154,9 +170,10 @@ export function formatTimestampToMonthDayYear(dateInput: unknown): string {
       "December",
     ];
 
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = monthNames[date.getMonth()];
-    const year = date.getFullYear();
+    const utc = normalizeUTCDate(date);
+    const day = String(utc.getUTCDate()).padStart(2, "0");
+    const month = monthNames[utc.getUTCMonth()];
+    const year = utc.getUTCFullYear();
 
     return `${month} ${day} ${year}`;
   } catch (error) {
@@ -167,6 +184,26 @@ export function formatTimestampToMonthDayYear(dateInput: unknown): string {
     );
     return "";
   }
+}
+
+/**
+ * Normalize tour date to 9:00 AM UTC+8 (01:00 UTC)
+ * Ensures consistent day calculations regardless of input time.
+ */
+export function normalizeTourDateToUTCPlus8Nine(
+  dateInput: unknown,
+): Date | null {
+  const date = toDate(dateInput);
+  if (!date) return null;
+
+  // Shift to UTC+8 to preserve the intended calendar day
+  const shifted = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+  const year = shifted.getUTCFullYear();
+  const month = shifted.getUTCMonth();
+  const day = shifted.getUTCDate();
+
+  // 09:00 in UTC+8 equals 01:00 UTC
+  return new Date(Date.UTC(year, month, day, 1, 0, 0, 0));
 }
 
 /**
@@ -201,7 +238,7 @@ export function parseMonthDayYear(dateString: string): Date | null {
 
     if (isNaN(day) || isNaN(year)) return null;
 
-    return new Date(year, monthIndex, day);
+    return new Date(Date.UTC(year, monthIndex, day));
   } catch (error) {
     console.error("Error parsing Month Day Year:", error, dateString);
     return null;
@@ -291,10 +328,56 @@ export function getDaysBetweenDates(
   reservationDate: unknown,
   tourDate: unknown,
 ): number | "" {
-  const res = toDate(reservationDate);
-  const tour = toDate(tourDate);
+  const localToDate = (input: unknown): Date | null => {
+    if (input === null || input === undefined) return null;
+    if (typeof input === "string" && input.trim() === "") return null;
 
-  if (!res || !tour) return "";
+    try {
+      if (
+        typeof input === "object" &&
+        input !== null &&
+        "toDate" in (input as any) &&
+        typeof (input as any).toDate === "function"
+      ) {
+        return (input as any).toDate();
+      }
+      if (
+        typeof input === "object" &&
+        input !== null &&
+        "seconds" in (input as any) &&
+        typeof (input as any).seconds === "number"
+      ) {
+        const s = (input as any).seconds as number;
+        const ns =
+          typeof (input as any).nanoseconds === "number"
+            ? (input as any).nanoseconds
+            : 0;
+        return new Date(s * 1000 + Math.floor(ns / 1e6));
+      }
+      if (input instanceof Date) return input;
+      if (typeof input === "number") return new Date(input);
+      if (typeof input === "string") {
+        const raw = input.trim();
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+          const [dd, mm, yyyy] = raw.split("/").map(Number);
+          return new Date(yyyy, mm - 1, dd);
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+          const [yyyy, mm, dd] = raw.split("-").map(Number);
+          return new Date(yyyy, mm - 1, dd);
+        }
+        return new Date(raw);
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const res = localToDate(reservationDate);
+  const tour = localToDate(tourDate);
+
+  if (!res || isNaN(res.getTime()) || !tour || isNaN(tour.getTime())) return "";
 
   const normalizeToUTCDate = (d: Date): Date =>
     new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -303,7 +386,9 @@ export function getDaysBetweenDates(
   const tourDateOnly = normalizeToUTCDate(tour);
 
   const msPerDay = 1000 * 60 * 60 * 24;
-  return (tourDateOnly.getTime() - resDate.getTime()) / msPerDay;
+  const diff = (tourDateOnly.getTime() - resDate.getTime()) / msPerDay;
+
+  return diff;
 }
 
 /**
@@ -318,27 +403,32 @@ export function getEligible2ndOfMonths(
 
   if (!res || !tour) return "";
 
+  const resUTC = normalizeUTCDate(res);
+  const tourUTC = normalizeUTCDate(tour);
+
   // Full payment due is 30 days before tour
-  const fullPaymentDue = new Date(tour);
-  fullPaymentDue.setDate(fullPaymentDue.getDate() - 30);
+  const fullPaymentDue = new Date(tourUTC);
+  fullPaymentDue.setUTCDate(fullPaymentDue.getUTCDate() - 30);
 
   // Calculate months between
-  const yearDiff = fullPaymentDue.getFullYear() - res.getFullYear();
-  const monthDiff = fullPaymentDue.getMonth() - res.getMonth();
+  const yearDiff = fullPaymentDue.getUTCFullYear() - resUTC.getUTCFullYear();
+  const monthDiff = fullPaymentDue.getUTCMonth() - resUTC.getUTCMonth();
   let monthCount = Math.max(0, yearDiff * 12 + monthDiff + 1);
 
-  if (fullPaymentDue.getDate() < res.getDate()) {
+  if (fullPaymentDue.getUTCDate() < resUTC.getUTCDate()) {
     monthCount = Math.max(0, monthCount - 1);
   }
 
   // Generate 2nd-of-month dates and filter valid ones
   const validDates: Date[] = [];
   for (let i = 1; i <= monthCount; i++) {
-    const secondOfMonth = new Date(res.getFullYear(), res.getMonth() + i, 2);
+    const secondOfMonth = new Date(
+      Date.UTC(resUTC.getUTCFullYear(), resUTC.getUTCMonth() + i, 2),
+    );
 
     // Valid if: > res + 3 days AND <= fullPaymentDue
-    const minDate = new Date(res);
-    minDate.setDate(minDate.getDate() + 3);
+    const minDate = new Date(resUTC);
+    minDate.setUTCDate(minDate.getUTCDate() + 3);
 
     if (secondOfMonth > minDate && secondOfMonth <= fullPaymentDue) {
       validDates.push(secondOfMonth);
@@ -410,8 +500,8 @@ export function getFullPaymentDueDate(
   const date = toDate(reservationDate);
   if (!date) return "";
 
-  const dueDate = new Date(date);
-  dueDate.setDate(dueDate.getDate() + 2);
+  const dueDate = normalizeUTCDate(date);
+  dueDate.setUTCDate(dueDate.getUTCDate() + 2);
 
   return formatDateDisplay(dueDate);
 }
@@ -464,26 +554,33 @@ export function generateInstallmentDueDates(
   const tour = toDate(tourDate);
   if (!res || !tour) return result;
 
+  const resUTC = normalizeUTCDate(res);
+  const tourUTC = normalizeUTCDate(tour);
+
   // Generate all valid 2nd-of-month dates
   const monthCount =
-    (tour.getFullYear() - res.getFullYear()) * 12 +
-    (tour.getMonth() - res.getMonth()) +
+    (tourUTC.getUTCFullYear() - resUTC.getUTCFullYear()) * 12 +
+    (tourUTC.getUTCMonth() - resUTC.getUTCMonth()) +
     1;
 
   const DAY_MS = 24 * 60 * 60 * 1000;
   const secondDates: Date[] = Array.from(
     { length: monthCount },
-    (_, i) => new Date(res.getFullYear(), res.getMonth() + i + 1, 2),
+    (_, i) =>
+      new Date(
+        Date.UTC(resUTC.getUTCFullYear(), resUTC.getUTCMonth() + i + 1, 2),
+      ),
   );
 
   const validDates = secondDates.filter(
     (d) =>
-      d.getTime() > res.getTime() + 2 * DAY_MS &&
-      d.getTime() <= tour.getTime() - 3 * DAY_MS,
+      d.getTime() > resUTC.getTime() + 2 * DAY_MS &&
+      d.getTime() <= tourUTC.getTime() - 3 * DAY_MS,
   );
 
   const fmt = (d: Date) =>
     d.toLocaleDateString("en-US", {
+      timeZone: "UTC",
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -762,16 +859,17 @@ export function calculateScheduledReminderDates(
     const date = toDate(firstDate);
     if (!date) return "";
 
-    const reminderDate = new Date(date);
-    reminderDate.setDate(reminderDate.getDate() - daysBeforeDue);
+    const reminderDate = normalizeUTCDate(date);
+    reminderDate.setUTCDate(reminderDate.getUTCDate() - daysBeforeDue);
 
-    // Don't set reminder if it's in the past
-    if (reminderDate < new Date()) return "";
+    // Don't set reminder if it's in the past (UTC date-only compare)
+    const todayUTC = normalizeUTCDate(new Date());
+    if (reminderDate < todayUTC) return "";
 
-    // Return as yyyy-mm-dd format
-    const y = reminderDate.getFullYear();
-    const m = String(reminderDate.getMonth() + 1).padStart(2, "0");
-    const d = String(reminderDate.getDate()).padStart(2, "0");
+    // Return as yyyy-mm-dd format (UTC)
+    const y = reminderDate.getUTCFullYear();
+    const m = String(reminderDate.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(reminderDate.getUTCDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   };
 
@@ -906,13 +1004,16 @@ export async function createBookingData(
 ): Promise<CreatedBookingData> {
   const now = new Date();
 
+  const normalizedTourDate =
+    normalizeTourDateToUTCPlus8Nine(input.tourDate) ?? input.tourDate;
+
   // Calculate identifiers
   const bookingCode = getBookingCode(input.bookingType);
   const travellerInitials = getTravellerInitials(
     input.firstName,
     input.lastName,
   );
-  const formattedDate = formatDateYYYYMMDD(input.tourDate);
+  const formattedDate = formatDateYYYYMMDD(normalizedTourDate);
   const uniqueCounter = await getTourPackageUniqueCounter(
     input.tourPackageName,
     input.existingBookingsCount,
@@ -926,10 +1027,10 @@ export async function createBookingData(
   );
 
   // Calculate payment-related fields
-  const daysBetween = getDaysBetweenDates(now, input.tourDate);
-  const eligible2ndOfMonths = getEligible2ndOfMonths(now, input.tourDate);
+  const daysBetween = getDaysBetweenDates(now, normalizedTourDate);
+  const eligible2ndOfMonths = getEligible2ndOfMonths(now, normalizedTourDate);
   const paymentCondition = getPaymentCondition(
-    input.tourDate,
+    normalizedTourDate,
     eligible2ndOfMonths,
     daysBetween,
   );
@@ -959,7 +1060,7 @@ export async function createBookingData(
     ? { p1DueDate: "", p2DueDate: "", p3DueDate: "", p4DueDate: "" }
     : generateInstallmentDueDates(
         now,
-        input.tourDate,
+        normalizedTourDate,
         "", // Empty paymentPlan at step 2 - shows all available dates comma-separated
         paymentCondition,
       );
@@ -1008,7 +1109,7 @@ export async function createBookingData(
     reservationDate: now,
     bookingType: input.bookingType,
     tourPackageName: input.tourPackageName,
-    tourDate: input.tourDate,
+    tourDate: normalizedTourDate,
     returnDate: input.returnDate || "",
     tourDuration: input.tourDuration || "",
 
@@ -1109,6 +1210,8 @@ export function calculatePaymentPlanUpdate(
   input: PaymentPlanUpdateInput,
 ): PaymentPlanUpdateResult {
   const reminderDays = input.reminderDaysBefore ?? 7;
+  const normalizedTourDate =
+    normalizeTourDateToUTCPlus8Nine(input.tourDate) ?? input.tourDate;
 
   // Calculate full payment fields
   const fullPaymentDueDate = getFullPaymentDueDate(
@@ -1127,7 +1230,7 @@ export function calculatePaymentPlanUpdate(
   // Calculate installment due dates
   const dueDates = generateInstallmentDueDates(
     input.reservationDate,
-    input.tourDate,
+    normalizedTourDate,
     input.paymentPlan,
     input.paymentCondition,
   );
