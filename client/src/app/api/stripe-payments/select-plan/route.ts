@@ -124,6 +124,15 @@ export async function POST(req: NextRequest) {
 
       const bookingData = bookingDocSnap.data();
 
+      if (bookingData.paymentPlan) {
+        return NextResponse.json(
+          {
+            error: `Booking ${bookingDocumentId} already has a payment plan`,
+          },
+          { status: 400 },
+        );
+      }
+
       // Get the selected payment plan ID from the person's plan
       const selectedPaymentPlan = personPlan.plan;
 

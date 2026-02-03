@@ -43,6 +43,7 @@ interface PaymentTokenData {
 }
 
 interface BookingData {
+  bookingDocumentId?: string;
   bookingId: string;
   bookingCode: string;
   tourCode: string;
@@ -118,6 +119,22 @@ export default function BookingStatusPage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [paymentTermOptions, setPaymentTermOptions] = useState<
+    Array<{
+      id: string;
+      name: string;
+      description?: string;
+      paymentPlanType: string;
+      monthsRequired?: number;
+      monthlyPercentages?: number[];
+      color?: string;
+    }>
+  >([]);
+  const [paymentDocId, setPaymentDocId] = useState<string | null>(null);
+  const [paymentBookingDocIds, setPaymentBookingDocIds] = useState<string[]>(
+    [],
+  );
+  const [selectingPlanId, setSelectingPlanId] = useState<string | null>(null);
   const packCacheRef = useRef<{
     bookingDocId: string;
     pack: BookingData["preDeparturePack"] | null;
@@ -297,6 +314,7 @@ export default function BookingStatusPage() {
             : fallbackProgress;
 
       return {
+        bookingDocumentId: bookingData.bookingDocumentId,
         bookingId: bookingData.bookingId,
         bookingCode: bookingData.bookingCode,
         tourCode: bookingData.tourCode,
@@ -370,7 +388,34 @@ export default function BookingStatusPage() {
         const bookingData = {
           id: bookingDoc.id,
           ...bookingDoc.data(),
+          bookingDocumentId: bookingDoc.id,
         } as any;
+
+        const requiredFields = [
+          "bookingId",
+          "fullName",
+          "tourPackageName",
+          "tourDate",
+          "formattedDate",
+          "tourDuration",
+          "originalTourCost",
+          "paid",
+          "remainingBalance",
+          "bookingType",
+        ];
+        const hasMissingRequired = requiredFields.some(
+          (field) =>
+            bookingData[field] === undefined || bookingData[field] === null,
+        );
+
+        if (hasMissingRequired) {
+          setBooking(null);
+          setError(
+            "This is an invalid booking. Contact bella@imheretravels.com if this is a mistake.",
+          );
+          setLoading(false);
+          return;
+        }
 
         if (email) {
           const bookingEmail = bookingData.emailAddress?.toLowerCase();
@@ -417,6 +462,121 @@ export default function BookingStatusPage() {
       unsubscribe();
     };
   }, [bookingDocumentId, email]);
+
+  // Fetch payment terms from Firestore (for payment plan options)
+  useEffect(() => {
+    const q = collection(db, "paymentTerms");
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const terms = snap.docs
+          .map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              name: data.name,
+              description: data.description,
+              paymentPlanType: data.paymentPlanType,
+              monthsRequired: data.monthsRequired,
+              monthlyPercentages: data.monthlyPercentages,
+              color: data.color,
+            };
+          })
+          .sort((a, b) => {
+            const order = [
+              "p1_single_installment",
+              "p2_two_installments",
+              "p3_three_installments",
+              "p4_four_installments",
+            ];
+            return (
+              order.indexOf(a.paymentPlanType) -
+              order.indexOf(b.paymentPlanType)
+            );
+          });
+        setPaymentTermOptions(terms);
+      },
+      (err) => console.error("paymentTerms snapshot error", err),
+    );
+
+    return () => unsub();
+  }, []);
+
+  // Resolve stripe payment document for selecting a plan
+  useEffect(() => {
+    let didCancel = false;
+
+    const fetchPaymentDocId = async () => {
+      if (!booking?.bookingDocumentId && !booking?.bookingId) return;
+
+      try {
+        const paymentsRef = collection(db, "stripePayments");
+        let snap = await getDocs(
+          query(
+            paymentsRef,
+            where("booking.documentId", "==", booking.bookingDocumentId),
+            limit(1),
+          ),
+        );
+
+        if (snap.empty && booking.bookingId) {
+          snap = await getDocs(
+            query(
+              paymentsRef,
+              where("booking.id", "==", booking.bookingId),
+              limit(1),
+            ),
+          );
+        }
+
+        if (snap.empty && booking.bookingId) {
+          snap = await getDocs(
+            query(
+              paymentsRef,
+              where("bookingId", "==", booking.bookingId),
+              limit(1),
+            ),
+          );
+        }
+
+        if (snap.empty) {
+          if (!didCancel) {
+            setPaymentDocId(null);
+            setPaymentBookingDocIds([]);
+          }
+          return;
+        }
+
+        const docSnap = snap.docs[0];
+        const paymentData = docSnap.data();
+        const bookingDocumentIds =
+          paymentData.bookingDocumentIds ||
+          (paymentData.booking?.documentId
+            ? [paymentData.booking.documentId]
+            : []) ||
+          (paymentData.bookingDocumentId
+            ? [paymentData.bookingDocumentId]
+            : []);
+
+        if (!didCancel) {
+          setPaymentDocId(docSnap.id);
+          setPaymentBookingDocIds(bookingDocumentIds || []);
+        }
+      } catch (err) {
+        console.error("Error fetching payment document:", err);
+        if (!didCancel) {
+          setPaymentDocId(null);
+          setPaymentBookingDocIds([]);
+        }
+      }
+    };
+
+    fetchPaymentDocId();
+
+    return () => {
+      didCancel = true;
+    };
+  }, [booking?.bookingDocumentId, booking?.bookingId]);
 
   // Handle installment payment
   const handlePayInstallment = async (
@@ -491,9 +651,10 @@ export default function BookingStatusPage() {
         </header>
         <div className="container mx-auto px-4 py-16 text-center">
           <AlertCircle className="h-16 w-16 text-crimson-red mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Booking Not Found</h1>
+          <h1 className="text-2xl font-bold mb-2">Invalid Booking</h1>
           <p className="text-muted-foreground mb-6">
-            {error || "We couldn't find the booking you're looking for."}
+            {error ||
+              "This is an invalid booking. Contact bella@imheretravels.com if this is a mistake."}
           </p>
           <Button
             onClick={() => (window.location.href = "/")}
@@ -511,6 +672,187 @@ export default function BookingStatusPage() {
     typeof booking.paymentProgress === "string"
       ? parseFloat(booking.paymentProgress.replace(/%/g, "")) || 0
       : booking.paymentProgress || 0;
+
+  const getDateFromValue = (value: any): Date | null => {
+    if (!value) return null;
+    if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+    if (typeof value === "string") {
+      const d = new Date(value);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof value === "object") {
+      if ("seconds" in value && typeof value.seconds === "number") {
+        return new Date(value.seconds * 1000);
+      }
+      if ("toDate" in value && typeof value.toDate === "function") {
+        try {
+          const d = value.toDate();
+          return d instanceof Date && !isNaN(d.getTime()) ? d : null;
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  };
+
+  const calculateDaysBetween = (dateValue: any): number => {
+    const tour = getDateFromValue(dateValue);
+    if (!tour) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    tour.setHours(0, 0, 0, 0);
+    const diffTime = tour.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const getAvailablePaymentTerm = () => {
+    const tourDateValue = booking.tourDate;
+    if (!tourDateValue)
+      return { term: "", isLastMinute: false, isInvalid: false };
+
+    const daysBetween = calculateDaysBetween(tourDateValue);
+
+    if (daysBetween < 2) {
+      return { term: "invalid", isLastMinute: false, isInvalid: true };
+    } else if (daysBetween >= 2 && daysBetween < 30) {
+      return { term: "full_payment", isLastMinute: true, isInvalid: false };
+    } else {
+      const today = new Date();
+      const tourDateObj = getDateFromValue(tourDateValue);
+      if (!tourDateObj) {
+        return { term: "", isLastMinute: false, isInvalid: false };
+      }
+      const fullPaymentDue = new Date(tourDateObj);
+      fullPaymentDue.setDate(fullPaymentDue.getDate() - 30);
+
+      const yearDiff = fullPaymentDue.getFullYear() - today.getFullYear();
+      const monthDiff = fullPaymentDue.getMonth() - today.getMonth();
+      const monthCount = Math.max(0, yearDiff * 12 + monthDiff);
+
+      if (monthCount >= 4) {
+        return { term: "P4", isLastMinute: false, isInvalid: false };
+      } else if (monthCount === 3) {
+        return { term: "P3", isLastMinute: false, isInvalid: false };
+      } else if (monthCount === 2) {
+        return { term: "P2", isLastMinute: false, isInvalid: false };
+      } else if (monthCount === 1) {
+        return { term: "P1", isLastMinute: false, isInvalid: false };
+      } else {
+        return { term: "full_payment", isLastMinute: true, isInvalid: false };
+      }
+    }
+  };
+
+  const fixTermName = (name: string) =>
+    name
+      .replace(/Instalment/g, "Installment")
+      .replace(/instalments/g, "installments");
+
+  const generatePaymentSchedule = (
+    monthsRequired: number,
+  ): Array<{ date: string; amount: number }> => {
+    const total = totalCost || 0;
+    const reservationFee = booking.reservationFee || 0;
+    const remainingBalance = Math.max(0, total - reservationFee);
+    const monthlyAmount = monthsRequired
+      ? remainingBalance / monthsRequired
+      : remainingBalance;
+    const schedule: Array<{ date: string; amount: number }> = [];
+
+    const today = new Date();
+    let nextMonth = today.getMonth() + 1;
+    let nextYear = today.getFullYear();
+    if (nextMonth > 11) {
+      nextMonth = 0;
+      nextYear++;
+    }
+
+    for (let i = 0; i < monthsRequired; i++) {
+      let paymentMonth = nextMonth + i;
+      let paymentYear = nextYear;
+
+      while (paymentMonth > 11) {
+        paymentMonth -= 12;
+        paymentYear++;
+      }
+
+      const dateStr = `${paymentYear}-${String(paymentMonth + 1).padStart(
+        2,
+        "0",
+      )}-02`;
+
+      schedule.push({
+        date: dateStr,
+        amount:
+          i === monthsRequired - 1
+            ? remainingBalance - monthlyAmount * (monthsRequired - 1)
+            : monthlyAmount,
+      });
+    }
+
+    return schedule;
+  };
+
+  const getFriendlyDescription = (monthsRequired: number) => {
+    switch (monthsRequired) {
+      case 1:
+        return "Ready to pay in full? Pick me.";
+      case 2:
+        return "Want to split it into two payments? This is it!";
+      case 3:
+        return "If you like, you can make three equal payments, too!";
+      case 4:
+        return "Since you're booking early, take advantage of 4 easy payments. No extra charges!";
+      default:
+        return "";
+    }
+  };
+
+  const getAvailablePaymentPlans = () => {
+    const availablePaymentTerm = getAvailablePaymentTerm();
+    if (!availablePaymentTerm.term || availablePaymentTerm.isInvalid) return [];
+
+    if (availablePaymentTerm.isLastMinute) {
+      const total = totalCost || 0;
+      const reservationFee = booking.reservationFee || 0;
+      const remainingBalance = Math.max(0, total - reservationFee);
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 2);
+
+      return [
+        {
+          id: "full_payment",
+          type: "full_payment",
+          label: "Full Payment Required Within 48hrs",
+          description: "Complete payment of remaining balance within 2 days",
+          monthsRequired: 1,
+          color: "#f59e0b",
+          schedule: [
+            {
+              date: dueDate.toISOString().slice(0, 10),
+              amount: remainingBalance,
+            },
+          ],
+        },
+      ];
+    }
+
+    const termMap: { [key: string]: number } = { P1: 1, P2: 2, P3: 3, P4: 4 };
+    const maxMonths = termMap[availablePaymentTerm.term] || 0;
+
+    return paymentTermOptions
+      .filter((term) => term.monthsRequired && term.monthsRequired <= maxMonths)
+      .map((term) => ({
+        id: term.id,
+        type: term.paymentPlanType,
+        label: fixTermName(term.name),
+        description: getFriendlyDescription(term.monthsRequired || 0),
+        monthsRequired: term.monthsRequired || 0,
+        color: term.color,
+        schedule: generatePaymentSchedule(term.monthsRequired || 0),
+      }));
+  };
 
   // Build payment terms with status information
   const buildPaymentTerms = () => {
@@ -572,6 +914,62 @@ export default function BookingStatusPage() {
   };
 
   const paymentTerms = buildPaymentTerms();
+  const availablePaymentPlans = getAvailablePaymentPlans();
+
+  const handleSelectPaymentPlan = async (plan: {
+    id: string;
+    label: string;
+  }) => {
+    if (!paymentDocId) {
+      setPaymentMessage({
+        type: "error",
+        text: "Unable to find payment record. Please contact support.",
+      });
+      return;
+    }
+
+    setSelectingPlanId(plan.id);
+    setPaymentMessage(null);
+
+    try {
+      const planCount =
+        paymentBookingDocIds.length > 0 ? paymentBookingDocIds.length : 1;
+      const paymentPlans = Array(planCount)
+        .fill(null)
+        .map(() => ({ plan: plan.id }));
+
+      const response = await fetch("/api/stripe-payments/select-plan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          paymentDocId,
+          paymentPlans,
+          paymentPlanDetails: plan,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to select payment plan");
+      }
+
+      setPaymentMessage({
+        type: "success",
+        text: "Payment plan selected successfully. Your schedule will update shortly.",
+      });
+    } catch (err: any) {
+      console.error("Error selecting payment plan:", err);
+      setPaymentMessage({
+        type: "error",
+        text: err.message || "Failed to select payment plan. Please try again.",
+      });
+    } finally {
+      setSelectingPlanId(null);
+    }
+  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + " B";
@@ -733,8 +1131,111 @@ export default function BookingStatusPage() {
 
             <Separator />
 
+            {/* Payment Options (when no payment plan yet) */}
+            {!booking.paymentPlan && availablePaymentPlans.length > 0 && (
+              <div>
+                <h2 className="text-xl font-hk-grotesk font-bold text-gray-900 mb-5 flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-crimson-red" />
+                  Payment Options
+                </h2>
+                <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Choose the plan that fits you best. Once selected, your
+                  payment schedule will be created and shown below.
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
+                          Plan
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
+                          Due Date
+                        </th>
+                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">
+                          Amount
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {availablePaymentPlans.map((plan) =>
+                        plan.schedule.map((payment: any, idx: number) => {
+                          const dueDate = payment.date
+                            ? new Date(`${payment.date}T00:00:00Z`)
+                            : null;
+                          const rowSpan = plan.schedule.length;
+
+                          return (
+                            <tr
+                              key={`${plan.id}-${idx}`}
+                              className="border-t border-gray-200 hover:bg-gray-50"
+                            >
+                              {idx === 0 && (
+                                <td
+                                  className="py-3 px-4 font-semibold text-gray-900 align-top"
+                                  rowSpan={rowSpan}
+                                >
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className="inline-flex h-2.5 w-2.5 rounded-full"
+                                        style={{ backgroundColor: plan.color }}
+                                      />
+                                      <span>{plan.label}</span>
+                                    </div>
+                                    {plan.description && (
+                                      <div className="text-xs text-gray-500">
+                                        {plan.description}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
+                              <td className="py-3 px-4 text-sm text-gray-700">
+                                {dueDate && !isNaN(dueDate.getTime())
+                                  ? format(dueDate, "MMM dd, yyyy")
+                                  : "---"}
+                              </td>
+                              <td className="py-3 px-4 text-right font-semibold text-gray-900">
+                                €{payment.amount.toFixed(2)}
+                              </td>
+                              {idx === 0 && (
+                                <td
+                                  className="py-3 px-4 align-top"
+                                  rowSpan={rowSpan}
+                                >
+                                  <Button
+                                    onClick={() =>
+                                      handleSelectPaymentPlan(plan)
+                                    }
+                                    disabled={
+                                      selectingPlanId !== null || !paymentDocId
+                                    }
+                                    size="sm"
+                                    className="bg-crimson-red hover:bg-crimson-red/90 text-white"
+                                  >
+                                    {selectingPlanId === plan.id
+                                      ? "Selecting..."
+                                      : "Select Plan"}
+                                  </Button>
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        }),
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Payment Schedule */}
-            {paymentTerms.length > 0 && (
+            {booking.paymentPlan && paymentTerms.length > 0 && (
               <div>
                 <h2 className="text-xl font-hk-grotesk font-bold text-gray-900 mb-5 flex items-center gap-2">
                   <Clock className="h-5 w-5 text-crimson-red" />
@@ -982,50 +1483,54 @@ export default function BookingStatusPage() {
           {/* Right Column - Payment Summary & Support */}
           <div className="space-y-8">
             {/* Payment Overview */}
-            <div>
-              <h2 className="text-xl font-hk-grotesk font-bold text-gray-900 mb-5 flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-crimson-red" />
-                Payment Summary
-              </h2>
+            {booking.paymentPlan && (
+              <>
+                <div>
+                  <h2 className="text-xl font-hk-grotesk font-bold text-gray-900 mb-5 flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-crimson-red" />
+                    Payment Summary
+                  </h2>
 
-              <div className="space-y-4 mb-5">
-                <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-gray-300">
-                  <p className="text-xs text-gray-500 mb-1">Total Cost</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    €{totalCost.toFixed(2)}
-                  </p>
-                  {booking.discountedTourCost && (
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Was: €{booking.originalTourCost.toFixed(2)}
-                    </p>
-                  )}
+                  <div className="space-y-4 mb-5">
+                    <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-gray-300">
+                      <p className="text-xs text-gray-500 mb-1">Total Cost</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        €{totalCost.toFixed(2)}
+                      </p>
+                      {booking.discountedTourCost && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Was: €{booking.originalTourCost.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="bg-green-50 rounded-lg p-4 border-l-4 border-spring-green">
+                      <p className="text-xs text-gray-600 mb-1">Amount Paid</p>
+                      <p className="text-2xl font-bold text-spring-green">
+                        €{booking.paid.toFixed(2)}
+                      </p>
+                      <p className="text-xs text-green-700 mt-0.5">
+                        {paymentProgressValue}% Complete
+                      </p>
+                    </div>
+
+                    <div className="bg-red-50 rounded-lg p-4 border-l-4 border-crimson-red">
+                      <p className="text-xs text-gray-600 mb-1">Balance Due</p>
+                      <p className="text-2xl font-bold text-crimson-red">
+                        €{booking.remainingBalance.toFixed(2)}
+                      </p>
+                      {booking.paymentPlan && (
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          {booking.paymentPlan}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="bg-green-50 rounded-lg p-4 border-l-4 border-spring-green">
-                  <p className="text-xs text-gray-600 mb-1">Amount Paid</p>
-                  <p className="text-2xl font-bold text-spring-green">
-                    €{booking.paid.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-green-700 mt-0.5">
-                    {paymentProgressValue}% Complete
-                  </p>
-                </div>
-
-                <div className="bg-red-50 rounded-lg p-4 border-l-4 border-crimson-red">
-                  <p className="text-xs text-gray-600 mb-1">Balance Due</p>
-                  <p className="text-2xl font-bold text-crimson-red">
-                    €{booking.remainingBalance.toFixed(2)}
-                  </p>
-                  {booking.paymentPlan && (
-                    <p className="text-xs text-gray-600 mt-0.5">
-                      {booking.paymentPlan}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <Separator />
+                <Separator />
+              </>
+            )}
 
             {/* Need Assistance */}
             <div>
