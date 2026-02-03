@@ -1427,7 +1427,22 @@ const Page = () => {
     }
   };
 
+  // Helper function to fix spelling in term names
+  const fixTermName = (name: string) => {
+    return name
+      .replace(/Instalment/g, "Installment")
+      .replace(/instalments/g, "installments");
+  };
+
   const availablePaymentTerm = getAvailablePaymentTerm();
+
+  const selectedPaymentPlanLabel =
+    availablePaymentTerm.isLastMinute || selectedPaymentPlan === "full_payment"
+      ? "Full Payment"
+      : fixTermName(
+          paymentTerms.find((p) => p.id === selectedPaymentPlan)?.name ||
+            "Selected",
+        );
 
   // Generate payment schedule for a given plan
   const generatePaymentSchedule = (
@@ -1494,13 +1509,6 @@ const Page = () => {
       default:
         return "";
     }
-  };
-
-  // Helper function to fix spelling in term names
-  const fixTermName = (name: string) => {
-    return name
-      .replace(/Instalment/g, "Installment")
-      .replace(/instalments/g, "installments");
   };
 
   // Get available payment plan options based on the calculated term
@@ -6330,16 +6338,7 @@ const Page = () => {
                       email={email}
                       firstName={firstName}
                       lastName={lastName}
-                      paymentPlan={
-                        availablePaymentTerm.isLastMinute ||
-                        selectedPaymentPlan === "full_payment"
-                          ? "Full Payment"
-                          : fixTermName(
-                              paymentTerms.find(
-                                (p) => p.id === selectedPaymentPlan,
-                              )?.name || "Selected",
-                            )
-                      }
+                      paymentPlan={selectedPaymentPlanLabel}
                       reservationFee={depositAmount}
                       totalAmount={
                         (selectedPackage?.price || 0) * numberOfPeople
@@ -6446,11 +6445,7 @@ const Page = () => {
                               Payment Plan
                             </span>
                             <span className="text-sm font-medium text-gray-900">
-                              {selectedPaymentPlan === "full_payment"
-                                ? "Full Payment"
-                                : paymentTerms.find(
-                                    (p) => p.id === selectedPaymentPlan,
-                                  )?.name || "Selected"}
+                              {selectedPaymentPlanLabel}
                             </span>
                           </div>
                         </div>
@@ -6512,11 +6507,7 @@ const Page = () => {
                               Payment Plan
                             </span>
                             <span className="text-sm font-medium text-foreground">
-                              {selectedPaymentPlan === "full_payment"
-                                ? "Full Payment"
-                                : paymentTerms.find(
-                                    (p) => p.id === selectedPaymentPlan,
-                                  )?.name || "Selected"}
+                              {selectedPaymentPlanLabel}
                             </span>
                           </div>
                         </div>
@@ -6647,13 +6638,7 @@ const Page = () => {
                             const selectedPlanTerm = paymentTerms.find(
                               (p) => p.id === selectedPaymentPlan,
                             );
-                            const paymentPlanLabel =
-                              availablePaymentTerm.isLastMinute ||
-                              selectedPaymentPlan === "full_payment"
-                                ? "Full Payment"
-                                : selectedPlanTerm
-                                  ? fixTermName(selectedPlanTerm.name)
-                                  : "Selected";
+                            const paymentPlanLabel = selectedPaymentPlanLabel;
                             const pdf = await generateBookingConfirmationPDF(
                               confirmationId,
                               selectedPackage?.name || "Tour",

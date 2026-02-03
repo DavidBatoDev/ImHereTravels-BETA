@@ -191,6 +191,7 @@ export async function POST(req: NextRequest) {
       await updateDoc(bookingDocRef, {
         ...paymentUpdate,
         paidTerms: 0,
+        enablePaymentReminder: true,
         updatedAt: serverTimestamp(),
       });
 
