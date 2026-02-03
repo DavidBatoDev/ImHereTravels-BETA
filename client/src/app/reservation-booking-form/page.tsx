@@ -208,6 +208,7 @@ const Page = () => {
         date: string;
         customDeposit?: number;
         customOriginal?: number;
+        hasCustomDeposit?: boolean;
       }>;
     }>
   >([]);
@@ -1092,9 +1093,11 @@ const Page = () => {
     (d) => d.date === tourDate,
   );
   const customDeposit = selectedDateDetail?.customDeposit;
+  const hasCustomDeposit = selectedDateDetail?.hasCustomDeposit === true;
 
-  const baseReservationFee =
-    customDeposit ?? (selectedPackage as any)?.reservationFee ?? 250;
+  const baseReservationFee = hasCustomDeposit
+    ? (customDeposit ?? (selectedPackage as any)?.deposit ?? 250)
+    : ((selectedPackage as any)?.deposit ?? 250);
 
   // Calculate total reservation fee based on booking type
   const numberOfPeople =
@@ -1934,6 +1937,7 @@ const Page = () => {
                 date: dateObj.toISOString().slice(0, 10),
                 customDeposit: t.customDeposit,
                 customOriginal: t.customOriginal,
+                hasCustomDeposit: t.hasCustomDeposit,
               };
             })
             .filter(Boolean);
