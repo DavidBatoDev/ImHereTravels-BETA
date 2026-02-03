@@ -30,6 +30,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { db } from "@/lib/firebase";
 
 interface PaymentTokenData {
@@ -135,6 +145,13 @@ export default function BookingStatusPage() {
     [],
   );
   const [selectingPlanId, setSelectingPlanId] = useState<string | null>(null);
+  const [confirmPlanOpen, setConfirmPlanOpen] = useState(false);
+  const [pendingPlan, setPendingPlan] = useState<{
+    id: string;
+    label: string;
+    description?: string;
+    schedule?: Array<{ date: string; amount: number }>;
+  } | null>(null);
   const packCacheRef = useRef<{
     bookingDocId: string;
     pack: BookingData["preDeparturePack"] | null;
@@ -968,6 +985,7 @@ export default function BookingStatusPage() {
       });
     } finally {
       setSelectingPlanId(null);
+      setPendingPlan(null);
     }
   };
 
@@ -1176,11 +1194,11 @@ export default function BookingStatusPage() {
                             >
                               {idx === 0 && (
                                 <td
-                                  className="py-3 px-4 font-semibold text-gray-900 align-top"
+                                  className="py-3 px-4 font-semibold text-gray-900 align-middle text-center"
                                   rowSpan={rowSpan}
                                 >
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-2">
+                                  <div className="space-y-1 text-center">
+                                    <div className="flex items-center justify-center gap-2">
                                       <span
                                         className="inline-flex h-2.5 w-2.5 rounded-full"
                                         style={{ backgroundColor: plan.color }}
@@ -1205,15 +1223,18 @@ export default function BookingStatusPage() {
                               </td>
                               {idx === 0 && (
                                 <td
-                                  className="py-3 px-4 align-top"
+                                  className="py-3 px-4 align-middle text-center"
                                   rowSpan={rowSpan}
                                 >
                                   <Button
-                                    onClick={() =>
-                                      handleSelectPaymentPlan(plan)
-                                    }
+                                    onClick={() => {
+                                      setPendingPlan(plan);
+                                      setConfirmPlanOpen(true);
+                                    }}
                                     disabled={
-                                      selectingPlanId !== null || !paymentDocId
+                                      (!paymentDocId && !selectingPlanId) ||
+                                      (selectingPlanId !== null &&
+                                        selectingPlanId !== plan.id)
                                     }
                                     size="sm"
                                     className="bg-crimson-red hover:bg-crimson-red/90 text-white"
@@ -1233,6 +1254,51 @@ export default function BookingStatusPage() {
                 </div>
               </div>
             )}
+
+            <AlertDialog
+              open={confirmPlanOpen}
+              onOpenChange={setConfirmPlanOpen}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirm payment plan</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {pendingPlan
+                      ? `You are about to select ${pendingPlan.label}. This will set your payment schedule.`
+                      : "Confirm your selected payment plan."}
+                  </AlertDialogDescription>
+                  {pendingPlan?.schedule?.length ? (
+                    <div className="mt-3 rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
+                      {pendingPlan.schedule.length} payment
+                      {pendingPlan.schedule.length !== 1 ? "s" : ""} will be
+                      scheduled.
+                    </div>
+                  ) : null}
+                  <div className="mt-3 rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+                    Once you select a plan, it cannot be undone.
+                  </div>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel
+                    disabled={selectingPlanId !== null}
+                    onClick={() => setPendingPlan(null)}
+                  >
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      if (!pendingPlan) return;
+                      setConfirmPlanOpen(false);
+                      handleSelectPaymentPlan(pendingPlan);
+                    }}
+                    disabled={selectingPlanId !== null || !pendingPlan}
+                    className="bg-crimson-red hover:bg-crimson-red/90 text-white"
+                  >
+                    {selectingPlanId ? "Selecting..." : "Confirm Plan"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
             {/* Payment Schedule */}
             {booking.paymentPlan && paymentTerms.length > 0 && (
