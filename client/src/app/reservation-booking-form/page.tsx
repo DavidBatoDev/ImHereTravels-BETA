@@ -557,10 +557,16 @@ const Page = () => {
         paymentsRef,
         where("customer.email", "==", email),
         orderBy("timestamps.createdAt", "desc"),
-        limit(5),
+        limit(10),
       );
       const snap = await getDocs(q);
-      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
+      // Filter to only include reservation fee payments (exclude installments)
+      const docs = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }) as any)
+        .filter((payment) => {
+          const paymentType = payment?.payment?.type;
+          return paymentType === "reservationFee" || !paymentType;
+        });
 
       // Check for payment plans in reserve_paid documents
       const { doc, getDoc } = await import("firebase/firestore");
@@ -3707,10 +3713,24 @@ const Page = () => {
                   const tourDate =
                     rec?.tour?.date || rec?.tourDate || "No date set";
                   const amount = rec?.payment?.amount || rec?.amountGBP || 0;
+                  const paymentType = rec?.payment?.type || "reservationFee";
+                  const installmentTerm = rec?.payment?.installmentTerm;
                   const createdAt = rec?.timestamps?.createdAt;
                   let createdDate = "Unknown date";
                   if (createdAt && typeof createdAt.toDate === "function") {
                     createdDate = createdAt.toDate().toLocaleDateString();
+                  }
+
+                  // Determine payment type label
+                  let paymentLabel = "Reservation Fee";
+                  if (paymentType === "installment") {
+                    if (installmentTerm === "full_payment") {
+                      paymentLabel = "Full Payment";
+                    } else if (installmentTerm) {
+                      paymentLabel = `${installmentTerm.toUpperCase()} Installment`;
+                    } else {
+                      paymentLabel = "Installment";
+                    }
                   }
 
                   return (
@@ -3750,7 +3770,7 @@ const Page = () => {
                       </div>
 
                       <p className="text-sm">
-                        Reservation Fee: £{amount.toFixed(2)}
+                        {paymentLabel}: £{amount.toFixed(2)}
                       </p>
 
                       <div className="flex gap-2">
