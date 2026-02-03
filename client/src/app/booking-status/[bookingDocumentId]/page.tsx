@@ -92,6 +92,8 @@ interface BookingData {
   sentEmailLink?: string;
   eventName?: string;
   discountRate?: number;
+  reasonForCancellation?: string | null;
+  cancellationEmailSentDate?: any;
   bookingType: string;
   isMainBooker: boolean;
   enablePaymentReminder: boolean;
@@ -684,7 +686,21 @@ export default function BookingStatusPage() {
     );
   }
 
-  const totalCost = booking.discountedTourCost || booking.originalTourCost;
+  const toNumber = (value: unknown, fallback = 0) => {
+    if (typeof value === "number" && !Number.isNaN(value)) return value;
+    if (typeof value === "string") {
+      const cleaned = value.replace(/[€,\s]/g, "");
+      const parsed = Number(cleaned);
+      return Number.isNaN(parsed) ? fallback : parsed;
+    }
+    return fallback;
+  };
+
+  const originalTourCost = toNumber(booking.originalTourCost);
+  const discountedTourCost = toNumber(booking.discountedTourCost, 0);
+  const totalCost = discountedTourCost || originalTourCost;
+  const paidAmount = toNumber(booking.paid);
+  const remainingBalanceAmount = toNumber(booking.remainingBalance);
   const paymentProgressValue =
     typeof booking.paymentProgress === "string"
       ? parseFloat(booking.paymentProgress.replace(/%/g, "")) || 0
@@ -1050,6 +1066,30 @@ export default function BookingStatusPage() {
                 >
                   {paymentMessage.text}
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancellation Notice */}
+        {(booking.bookingStatus === "Cancelled" ||
+          !!booking.reasonForCancellation) && (
+          <div className="mb-6 border-l-4 border-crimson-red bg-red-50 p-4 rounded-r-lg print:border print:border-red-200">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-crimson-red mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-crimson-red mb-1">
+                  Booking Cancelled
+                </h3>
+                <p className="text-sm text-red-900">
+                  This booking has been cancelled. If you believe this is a
+                  mistake, please contact our support team.
+                </p>
+                {booking.reasonForCancellation && (
+                  <p className="text-sm text-red-900 mt-2">
+                    Reason: {booking.reasonForCancellation}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -1565,7 +1605,7 @@ export default function BookingStatusPage() {
                       </p>
                       {booking.discountedTourCost && (
                         <p className="text-xs text-gray-500 mt-0.5">
-                          Was: €{booking.originalTourCost.toFixed(2)}
+                          Was: €{originalTourCost.toFixed(2)}
                         </p>
                       )}
                     </div>
@@ -1573,7 +1613,7 @@ export default function BookingStatusPage() {
                     <div className="bg-green-50 rounded-lg p-4 border-l-4 border-spring-green">
                       <p className="text-xs text-gray-600 mb-1">Amount Paid</p>
                       <p className="text-2xl font-bold text-spring-green">
-                        €{booking.paid.toFixed(2)}
+                        €{paidAmount.toFixed(2)}
                       </p>
                       <p className="text-xs text-green-700 mt-0.5">
                         {paymentProgressValue}% Complete
@@ -1583,7 +1623,7 @@ export default function BookingStatusPage() {
                     <div className="bg-red-50 rounded-lg p-4 border-l-4 border-crimson-red">
                       <p className="text-xs text-gray-600 mb-1">Balance Due</p>
                       <p className="text-2xl font-bold text-crimson-red">
-                        €{booking.remainingBalance.toFixed(2)}
+                        €{remainingBalanceAmount.toFixed(2)}
                       </p>
                       {booking.paymentPlan && (
                         <p className="text-xs text-gray-600 mt-0.5">
