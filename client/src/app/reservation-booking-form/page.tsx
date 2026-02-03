@@ -1752,7 +1752,7 @@ const Page = () => {
               bookingDocumentId: result.bookingDocumentId,
               travelerName: `${firstName} ${lastName}`,
               tourPackageName: selectedPackage?.name || "",
-              amount: (selectedPackage as any)?.reservationFee || 0,
+              amount: (selectedPackage as any)?.deposit || 0,
               currency: "EUR",
             });
           } catch (error) {
