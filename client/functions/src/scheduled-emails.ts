@@ -116,7 +116,7 @@ function formatDate(dateValue: any): string {
 async function rerenderEmailTemplate(
   bookingId: string,
   templateId: string,
-  templateVariables: Record<string, any>
+  templateVariables: Record<string, any>,
 ): Promise<{ subject: string; htmlContent: string }> {
   try {
     // Fetch fresh booking data
@@ -165,7 +165,7 @@ async function rerenderEmailTemplate(
 
       // Add formatted values for display
       freshVariables.amount = formatGBP(
-        (bookingData as any)[`${termLower}Amount`]
+        (bookingData as any)[`${termLower}Amount`],
       );
       freshVariables.dueDate = formatDate(parsedDueDate);
     }
@@ -215,7 +215,7 @@ async function rerenderEmailTemplate(
       freshVariables.totalAmount = formatGBP(
         bookingData.useDiscountedTourCost
           ? bookingData.discountedTourCost
-          : bookingData.originalTourCost
+          : bookingData.originalTourCost,
       );
       freshVariables.paid = formatGBP(bookingData.paid);
       freshVariables.remainingBalance = formatGBP(bookingData.remainingBalance);
@@ -242,7 +242,7 @@ async function rerenderEmailTemplate(
 
     const htmlContent = await EmailTemplateService.processTemplate(
       rawTemplate,
-      freshVariables
+      freshVariables,
     );
 
     // Generate subject with fresh data
@@ -272,7 +272,7 @@ export const processScheduledEmails = onSchedule(
 
       // Add 1 minute buffer to ensure we catch emails scheduled for exactly 9:00 AM
       const now = Timestamp.fromDate(
-        new Date(Date.now() + 60 * 1000) // Add 1 minute (60,000 milliseconds)
+        new Date(Date.now() + 60 * 1000), // Add 1 minute (60,000 milliseconds)
       );
 
       // Query for pending emails that should be sent now
@@ -314,7 +314,7 @@ export const processScheduledEmails = onSchedule(
 
           if (currentStatus !== "pending") {
             logger.info(
-              `Email ${emailId} status changed to ${currentStatus}, skipping send`
+              `Email ${emailId} status changed to ${currentStatus}, skipping send`,
             );
             return;
           }
@@ -337,26 +337,24 @@ export const processScheduledEmails = onSchedule(
               const paidDateVal = (bookingData as any)[`${termLower}DatePaid`];
 
               if (paidDateVal) {
-                const today = formatDate(new Date());
                 const paidDateStr = formatDate(paidDateVal);
+                logger.info(
+                  `Skipping email ${emailId} - ${term} already paid${paidDateStr ? ` on ${paidDateStr}` : ""}`,
+                );
 
-                if (paidDateStr && paidDateStr <= today) {
-                  logger.info(
-                    `Skipping email ${emailId} - ${term} already paid on ${paidDateStr}`
-                  );
+                // Update email status to skipped since payment is already made
+                await db
+                  .collection("scheduledEmails")
+                  .doc(emailId)
+                  .update({
+                    status: "skipped",
+                    updatedAt: Timestamp.now(),
+                    errorMessage: paidDateStr
+                      ? `Payment already made on ${paidDateStr}`
+                      : "Payment already made",
+                  });
 
-                  // Update email status to cancelled since payment is already made
-                  await db
-                    .collection("scheduledEmails")
-                    .doc(emailId)
-                    .update({
-                      status: "cancelled",
-                      updatedAt: Timestamp.now(),
-                      errorMessage: `Payment already made on ${paidDateStr}`,
-                    });
-
-                  return;
-                }
+                return;
               }
             }
           }
@@ -376,22 +374,22 @@ export const processScheduledEmails = onSchedule(
           ) {
             try {
               logger.info(
-                `Re-rendering template for booking ${emailData.bookingId} with fresh data`
+                `Re-rendering template for booking ${emailData.bookingId} with fresh data`,
               );
               const freshEmail = await rerenderEmailTemplate(
                 emailData.bookingId,
                 emailData.templateId,
-                emailData.templateVariables
+                emailData.templateVariables,
               );
               emailSubject = freshEmail.subject;
               emailHtmlContent = freshEmail.htmlContent;
               logger.info(
-                `Template re-rendered successfully for email ${emailId}`
+                `Template re-rendered successfully for email ${emailId}`,
               );
             } catch (rerenderError) {
               logger.warn(
                 `Failed to re-render template for email ${emailId}, using original content:`,
-                rerenderError
+                rerenderError,
               );
               // Fall back to original content if re-rendering fails
             }
@@ -441,7 +439,7 @@ export const processScheduledEmails = onSchedule(
             });
 
           logger.info(
-            `Successfully sent scheduled email ${emailId} to ${emailData.to}`
+            `Successfully sent scheduled email ${emailId} to ${emailData.to}`,
           );
 
           // If this is a payment reminder, update the booking with the sent email link
@@ -455,7 +453,7 @@ export const processScheduledEmails = onSchedule(
               const term = emailData.templateVariables.paymentTerm as string;
               const emailLink = getGmailSentUrl(result.messageId);
               const scheduledEmailLinkCol = columns.find(
-                (col) => col.columnName === `${term} Scheduled Email Link`
+                (col) => col.columnName === `${term} Scheduled Email Link`,
               );
 
               if (scheduledEmailLinkCol) {
@@ -467,7 +465,7 @@ export const processScheduledEmails = onSchedule(
                   });
 
                 logger.info(
-                  `Updated ${term} Scheduled Email Link for booking ${emailData.bookingId}`
+                  `Updated ${term} Scheduled Email Link for booking ${emailData.bookingId}`,
                 );
               }
 
@@ -497,19 +495,19 @@ export const processScheduledEmails = onSchedule(
                 });
 
                 logger.info(
-                  "✅ Notification created for sent payment reminder"
+                  "✅ Notification created for sent payment reminder",
                 );
               } catch (notificationError) {
                 logger.warn(
                   "Failed to create notification:",
-                  notificationError
+                  notificationError,
                 );
                 // Fail silently - don't block the email sending process
               }
             } catch (bookingUpdateError) {
               logger.error(
                 `Error updating booking with email link:`,
-                bookingUpdateError
+                bookingUpdateError,
               );
               // Don't fail the whole process if booking update fails
             }
@@ -547,7 +545,7 @@ export const processScheduledEmails = onSchedule(
           if (newAttempts >= emailData.maxAttempts) {
             updateData.status = "failed";
             logger.error(
-              `Max attempts reached for email ${emailId}, marking as failed`
+              `Max attempts reached for email ${emailId}, marking as failed`,
             );
           }
 
@@ -563,5 +561,5 @@ export const processScheduledEmails = onSchedule(
     } catch (error) {
       logger.error("Error in processScheduledEmails:", error);
     }
-  }
+  },
 );

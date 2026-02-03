@@ -79,7 +79,7 @@ function formatDate(dateValue: any): string {
 async function rerenderEmailTemplate(
   bookingId: string,
   templateId: string,
-  templateVariables: Record<string, any>
+  templateVariables: Record<string, any>,
 ): Promise<{ subject: string; htmlContent: string }> {
   try {
     // Fetch fresh booking data
@@ -126,7 +126,7 @@ async function rerenderEmailTemplate(
       ];
 
       freshVariables.amount = formatGBP(
-        (bookingData as any)[`${termLower}Amount`]
+        (bookingData as any)[`${termLower}Amount`],
       );
       freshVariables.dueDate = formatDate(parsedDueDate);
     }
@@ -175,7 +175,7 @@ async function rerenderEmailTemplate(
       freshVariables.totalAmount = formatGBP(
         bookingData.useDiscountedTourCost
           ? bookingData.discountedTourCost
-          : bookingData.originalTourCost
+          : bookingData.originalTourCost,
       );
       freshVariables.paid = formatGBP(bookingData.paid);
       freshVariables.remainingBalance = formatGBP(bookingData.remainingBalance);
@@ -197,7 +197,7 @@ async function rerenderEmailTemplate(
 
     const htmlContent = EmailTemplateService.processTemplate(
       rawTemplateHtml,
-      freshVariables
+      freshVariables,
     );
 
     const subject = `Payment Reminder - ${freshVariables.fullName} - ${
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
       collection(db, "scheduledEmails"),
       where("status", "==", "pending"),
       where("scheduledFor", "<=", now),
-      limit(50) // Process max 50 emails per trigger
+      limit(50), // Process max 50 emails per trigger
     );
 
     const snapshot = await getDocs(firestoreQuery);
@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
 
     // Load booking columns once for all emails (for updating booking links)
     const columnsSnapshot = await getDocs(
-      collection(db, "bookingSheetColumns")
+      collection(db, "bookingSheetColumns"),
     );
     const columns = columnsSnapshot.docs.map((doc) => ({
       id: doc.id,
@@ -261,6 +261,41 @@ export async function POST(request: NextRequest) {
           let emailSubject = emailData.subject;
           let emailHtmlContent = emailData.htmlContent;
 
+          // Skip sending if payment term already paid
+          if (
+            emailData.emailType === "payment-reminder" &&
+            emailData.bookingId &&
+            emailData.templateVariables?.paymentTerm
+          ) {
+            const term = emailData.templateVariables.paymentTerm as string;
+            const bookingDoc = await getDoc(
+              doc(db, "bookings", emailData.bookingId),
+            );
+
+            if (bookingDoc.exists()) {
+              const bookingData = bookingDoc.data();
+              const termLower = term.toLowerCase();
+              const paidDateVal = (bookingData as any)[`${termLower}DatePaid`];
+
+              if (paidDateVal) {
+                const paidDateStr = formatDate(paidDateVal);
+                console.log(
+                  `Skipping email ${emailId} - ${term} already paid${paidDateStr ? ` on ${paidDateStr}` : ""}`,
+                );
+
+                await updateDoc(doc(db, "scheduledEmails", emailId), {
+                  status: "skipped",
+                  updatedAt: Timestamp.now(),
+                  errorMessage: paidDateStr
+                    ? `Payment already made on ${paidDateStr}`
+                    : "Payment already made",
+                });
+
+                return { success: true, emailId, skipped: true };
+              }
+            }
+          }
+
           // Re-render template with fresh data for payment reminders
           if (
             emailData.emailType === "payment-reminder" &&
@@ -270,22 +305,22 @@ export async function POST(request: NextRequest) {
           ) {
             try {
               console.log(
-                `Re-rendering template for booking ${emailData.bookingId} with fresh data`
+                `Re-rendering template for booking ${emailData.bookingId} with fresh data`,
               );
               const freshEmail = await rerenderEmailTemplate(
                 emailData.bookingId,
                 emailData.templateId,
-                emailData.templateVariables
+                emailData.templateVariables,
               );
               emailSubject = freshEmail.subject;
               emailHtmlContent = freshEmail.htmlContent;
               console.log(
-                `Template re-rendered successfully for email ${emailId}`
+                `Template re-rendered successfully for email ${emailId}`,
               );
             } catch (rerenderError) {
               console.warn(
                 `Failed to re-render template for email ${emailId}, using original content:`,
-                rerenderError
+                rerenderError,
               );
               // Fall back to original content if re-rendering fails
             }
@@ -324,7 +359,7 @@ export async function POST(request: NextRequest) {
               const term = emailData.templateVariables.paymentTerm as string;
               const emailLink = getGmailSentUrl(result.messageId);
               const scheduledEmailLinkCol = columns.find(
-                (col: any) => col.columnName === `${term} Scheduled Email Link`
+                (col: any) => col.columnName === `${term} Scheduled Email Link`,
               );
 
               if (scheduledEmailLinkCol) {
@@ -333,13 +368,13 @@ export async function POST(request: NextRequest) {
                 });
 
                 console.log(
-                  `Updated ${term} Scheduled Email Link for booking ${emailData.bookingId}`
+                  `Updated ${term} Scheduled Email Link for booking ${emailData.bookingId}`,
                 );
               }
             } catch (bookingUpdateError) {
               console.error(
                 `Error updating booking with email link:`,
-                bookingUpdateError
+                bookingUpdateError,
               );
               // Don't fail the whole process if booking update fails
             }
@@ -363,11 +398,11 @@ export async function POST(request: NextRequest) {
           if (currentAttempts >= maxAttempts) {
             updateData.status = "failed";
             console.log(
-              `Email ${emailId} marked as failed after ${currentAttempts} attempts`
+              `Email ${emailId} marked as failed after ${currentAttempts} attempts`,
             );
           } else {
             console.log(
-              `Email ${emailId} failed, attempt ${currentAttempts}/${maxAttempts}`
+              `Email ${emailId} failed, attempt ${currentAttempts}/${maxAttempts}`,
             );
           }
 
@@ -379,17 +414,17 @@ export async function POST(request: NextRequest) {
             error: error instanceof Error ? error.message : "Unknown error",
           };
         }
-      })
+      }),
     );
 
     // Count successful and failed sends
     const successful = results.filter(
-      (result) => result.status === "fulfilled" && result.value.success
+      (result) => result.status === "fulfilled" && result.value.success,
     ).length;
     const failed = results.length - successful;
 
     console.log(
-      `Scheduled email processing completed: ${successful} sent, ${failed} failed`
+      `Scheduled email processing completed: ${successful} sent, ${failed} failed`,
     );
 
     return NextResponse.json({
@@ -408,7 +443,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to trigger scheduled email processing",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
