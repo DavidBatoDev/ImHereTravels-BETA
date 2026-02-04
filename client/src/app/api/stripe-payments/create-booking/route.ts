@@ -310,6 +310,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const creationLock = paymentData.booking?.creationLock;
+    if (creationLock && creationLock !== "api") {
+      return NextResponse.json(
+        {
+          error: "Booking creation already in progress",
+          creationLock,
+        },
+        { status: 409 },
+      );
+    }
+
+    if (!creationLock) {
+      await updateDoc(paymentDocRef, {
+        "booking.creationLock": "api",
+        "booking.creationStartedAt": serverTimestamp(),
+        "timestamps.updatedAt": serverTimestamp(),
+      });
+    }
+
     console.log("🎯 Processing reservation fee payment - creating booking");
 
     // Fetch tour package data
