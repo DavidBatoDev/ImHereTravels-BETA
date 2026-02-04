@@ -718,6 +718,12 @@ const Page = () => {
               // Treat as terms_selected - show confirmation page
               setShowEmailModal(false);
               setPaymentDocId(rec.id);
+              const reservePaidPlanLabel =
+                rec.payment?.paymentPlanDetails?.label ||
+                rec.paymentPlanDetails?.label;
+              if (reservePaidPlanLabel) {
+                setFetchedPaymentPlanLabel(reservePaidPlanLabel);
+              }
               setBookingId(bookingDocId);
               setPaymentConfirmed(true);
               setBookingConfirmed(true);
@@ -954,8 +960,10 @@ const Page = () => {
       setPaymentDocId(rec.id);
 
       // Extract payment plan details if available from stripePayment document
-      if (rec.paymentPlanDetails?.label) {
-        setFetchedPaymentPlanLabel(rec.paymentPlanDetails.label);
+      const recPaymentPlanLabel =
+        rec.payment?.paymentPlanDetails?.label || rec.paymentPlanDetails?.label;
+      if (recPaymentPlanLabel) {
+        setFetchedPaymentPlanLabel(recPaymentPlanLabel);
       }
 
       // Extract booking info
@@ -2250,8 +2258,11 @@ const Page = () => {
                 if (data.tour?.date) setTourDate(data.tour.date);
 
                 // Extract payment plan details if available
-                if (data.paymentPlanDetails?.label) {
-                  setFetchedPaymentPlanLabel(data.paymentPlanDetails.label);
+                const urlPaymentPlanLabel =
+                  data.payment?.paymentPlanDetails?.label ||
+                  data.paymentPlanDetails?.label;
+                if (urlPaymentPlanLabel) {
+                  setFetchedPaymentPlanLabel(urlPaymentPlanLabel);
                 }
 
                 // Show booking confirmation
@@ -2401,8 +2412,11 @@ const Page = () => {
               if (data.tour?.date) setTourDate(data.tour.date);
 
               // Extract payment plan details if available
-              if (data.paymentPlanDetails?.label) {
-                setFetchedPaymentPlanLabel(data.paymentPlanDetails.label);
+              const sessionPaymentPlanLabel =
+                data.payment?.paymentPlanDetails?.label ||
+                data.paymentPlanDetails?.label;
+              if (sessionPaymentPlanLabel) {
+                setFetchedPaymentPlanLabel(sessionPaymentPlanLabel);
               }
 
               // Advance to the appropriate step based on status
@@ -3573,6 +3587,10 @@ const Page = () => {
         }
 
         console.log("✅ Booking confirmed successfully!", result);
+
+        if (selectedPlan?.label) {
+          setFetchedPaymentPlanLabel(selectedPlan.label);
+        }
 
         // Send booking status confirmation email with QR code
         try {
