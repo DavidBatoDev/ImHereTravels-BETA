@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { db } from "@/lib/firebase";
+import crypto from "crypto";
 import {
   collection,
   query,
@@ -62,6 +63,22 @@ function generateGroupMemberIdFunction(
   const memberNumber = String((Math.abs(hashNum) % 999) + 1).padStart(3, "0");
 
   return `${idPrefix}-${initials}-${hashTag}-${memberNumber}`;
+}
+
+/**
+ * Generate a secure, unguessable access token using crypto.randomBytes
+ * Uses 32 bytes of cryptographically secure random data encoded as URL-safe base64
+ * This provides 256 bits of entropy, making it practically impossible to guess
+ *
+ * @returns {string} A secure access token (43 characters, URL-safe)
+ */
+function generateAccessToken(): string {
+  return crypto
+    .randomBytes(32)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -250,6 +267,7 @@ export async function POST(req: NextRequest) {
           const bookingsRef = collection(db, "bookings");
           const newBookingRef = await addDoc(bookingsRef, {
             ...bookingData,
+            access_token: generateAccessToken(),
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
