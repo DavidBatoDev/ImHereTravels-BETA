@@ -254,6 +254,10 @@ const Page = () => {
   // Selected payment plan
   const [selectedPaymentPlan, setSelectedPaymentPlan] = useState<string>("");
 
+  // Fetched payment plan label from stripePayment document (paymentPlanDetails.label)
+  const [fetchedPaymentPlanLabel, setFetchedPaymentPlanLabel] =
+    useState<string>("");
+
   // Per-person payment plans (for multi-booking)
   interface PersonPaymentPlan {
     plan: string;
@@ -949,6 +953,11 @@ const Page = () => {
       setShowEmailModal(false);
       setPaymentDocId(rec.id);
 
+      // Extract payment plan details if available from stripePayment document
+      if (rec.paymentPlanDetails?.label) {
+        setFetchedPaymentPlanLabel(rec.paymentPlanDetails.label);
+      }
+
       // Extract booking info
       const bookingDocId = rec.booking?.documentId || rec.booking?.id;
       if (bookingDocId && bookingDocId !== "PENDING" && bookingDocId !== "") {
@@ -1442,8 +1451,10 @@ const Page = () => {
 
   const availablePaymentTerm = getAvailablePaymentTerm();
 
-  const selectedPaymentPlanLabel =
-    availablePaymentTerm.isLastMinute || selectedPaymentPlan === "full_payment"
+  const selectedPaymentPlanLabel = fetchedPaymentPlanLabel
+    ? fetchedPaymentPlanLabel
+    : availablePaymentTerm.isLastMinute ||
+        selectedPaymentPlan === "full_payment"
       ? "Full Payment"
       : fixTermName(
           paymentTerms.find((p) => p.id === selectedPaymentPlan)?.name ||
@@ -2238,6 +2249,11 @@ const Page = () => {
                 if (data.tour?.packageId) setTourPackage(data.tour.packageId);
                 if (data.tour?.date) setTourDate(data.tour.date);
 
+                // Extract payment plan details if available
+                if (data.paymentPlanDetails?.label) {
+                  setFetchedPaymentPlanLabel(data.paymentPlanDetails.label);
+                }
+
                 // Show booking confirmation
                 setPaymentConfirmed(true);
                 setBookingConfirmed(true);
@@ -2383,6 +2399,11 @@ const Page = () => {
               }
               if (data.tour?.packageId) setTourPackage(data.tour.packageId);
               if (data.tour?.date) setTourDate(data.tour.date);
+
+              // Extract payment plan details if available
+              if (data.paymentPlanDetails?.label) {
+                setFetchedPaymentPlanLabel(data.paymentPlanDetails.label);
+              }
 
               // Advance to the appropriate step based on status
               console.log(
