@@ -468,8 +468,9 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
         PAYMENT_REMINDER_COLUMNS,
       );
 
-      // Use availablePaymentTerms directly from booking (e.g., "P1", "P1, P2", "P1, P2, P3", "P1, P2, P3, P4")
-      const paymentPlan = booking.availablePaymentTerms || "";
+      // Use paymentPlan from booking as primary source, fallback to availablePaymentTerms
+      const paymentPlan =
+        booking.paymentPlan || booking.availablePaymentTerms || "";
       // Use the paymentMethod field from booking data
       const paymentMethod = booking.paymentMethod || "Other";
 
