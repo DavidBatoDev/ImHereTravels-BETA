@@ -19,7 +19,8 @@ export interface TourPackage {
   media: TourMedia;
   status: "active" | "draft" | "archived";
   // NEW V2 FIELDS
-  pricingHistory: PricingHistoryEntry[];
+  pricingHistory: PricingHistoryEntry[]; // Historical price versions
+  currentVersion?: number; // Current pricing version number
   metadata: TourMetadata;
   // ADDITIONAL FIELDS FROM TABLE
   brochureLink?: string; // Google Drive or other brochure link
@@ -60,9 +61,22 @@ export interface TourPricing {
 }
 
 export interface PricingHistoryEntry {
-  date: Timestamp;
-  price: number;
-  changedBy: string;
+  version: number; // Version number (e.g., 1, 2, 3...)
+  effectiveDate: Timestamp; // When this pricing took effect
+  pricing: {
+    original: number;
+    discounted?: number;
+    deposit: number;
+    currency: string;
+  };
+  travelDates?: Array<{
+    date: string; // ISO date string
+    customOriginal?: number;
+    customDiscounted?: number;
+    customDeposit?: number;
+  }>;
+  changedBy?: string; // Admin user ID
+  reason?: string; // Why prices were updated
 }
 
 export interface Highlight {

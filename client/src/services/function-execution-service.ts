@@ -63,12 +63,12 @@ class FunctionExecutionService {
   invalidateForRowColumn(rowId: string, columnId: string): void {
     const prefix = `${rowId}:${columnId}:`;
     const keysToDelete = Array.from(this.resultCache.keys()).filter((key) =>
-      key.includes(prefix)
+      key.includes(prefix),
     );
     keysToDelete.forEach((key) => this.resultCache.delete(key));
 
     const argsKeysToDelete = Array.from(this.argsCache.keys()).filter((key) =>
-      key.startsWith(prefix)
+      key.startsWith(prefix),
     );
     argsKeysToDelete.forEach((key) => this.argsCache.delete(key));
   }
@@ -99,7 +99,7 @@ class FunctionExecutionService {
   // Clear result cache for a specific function
   clearResultCache(fileId: string): void {
     const keysToDelete = Array.from(this.resultCache.keys()).filter((key) =>
-      key.startsWith(`${fileId}:`)
+      key.startsWith(`${fileId}:`),
     );
     keysToDelete.forEach((key) => this.resultCache.delete(key));
   }
@@ -112,7 +112,7 @@ class FunctionExecutionService {
   // Clear argument cache for a specific function
   clearArgsCache(fileId: string): void {
     const keysToDelete = Array.from(this.argsCache.keys()).filter((key) =>
-      key.startsWith(`${fileId}:`)
+      key.startsWith(`${fileId}:`),
     );
     keysToDelete.forEach((key) => this.argsCache.delete(key));
   }
@@ -171,7 +171,7 @@ class FunctionExecutionService {
     args: any[],
     timeoutMs: number = 10000,
     rowId?: string,
-    columnId?: string
+    columnId?: string,
   ): Promise<{
     success: boolean;
     result?: any;
@@ -188,7 +188,7 @@ class FunctionExecutionService {
 
     if (shouldSkipCache) {
       console.log(
-        `🔄 [DEPENDENCY RECOMPUTE] Forcing recomputation for ${fileId} (row: ${rowId}, col: ${columnId})`
+        `🔄 [DEPENDENCY RECOMPUTE] Forcing recomputation for ${fileId} (row: ${rowId}, col: ${columnId})`,
       );
       // Clear the flag immediately after checking
       if (skipCacheKey) {
@@ -204,8 +204,8 @@ class FunctionExecutionService {
       if (cachedResult && this.isCacheValid(cachedResult.timestamp)) {
         console.log(
           `🚀 [SKIP EXECUTION] Function ${fileId} with unchanged args [${args.join(
-            ", "
-          )}] - returning cached result`
+            ", ",
+          )}] - returning cached result`,
         );
         return {
           success: true,
@@ -223,8 +223,8 @@ class FunctionExecutionService {
       if (cachedResult && this.isCacheValid(cachedResult.timestamp)) {
         console.log(
           `🚀 [CACHE HIT] Function ${fileId} with args [${args.join(
-            ", "
-          )}] executed in ${cachedResult.executionTime}ms (cached)`
+            ", ",
+          )}] executed in ${cachedResult.executionTime}ms (cached)`,
         );
         return {
           success: true,
@@ -276,8 +276,8 @@ class FunctionExecutionService {
 
       console.log(
         `✅ [FUNCTION EXECUTED] Function ${fileId} with args [${args.join(
-          ", "
-        )}] executed in ${executionTime}ms`
+          ", ",
+        )}] executed in ${executionTime}ms`,
       );
 
       return {
@@ -289,9 +289,9 @@ class FunctionExecutionService {
       const executionTime = performance.now() - startTime;
       logFunctionError(
         `❌ [FUNCTION ERROR] Function ${fileId} with args [${args.join(
-          ", "
+          ", ",
         )}] failed after ${executionTime}ms:`,
-        error
+        error,
       );
 
       return {
@@ -308,7 +308,7 @@ class FunctionExecutionService {
   // Execute function with timeout
   private async executeWithTimeout<T>(
     fn: () => T | Promise<T>,
-    timeoutMs: number
+    timeoutMs: number,
   ): Promise<T> {
     return Promise.race([
       Promise.resolve(fn()),
@@ -316,10 +316,10 @@ class FunctionExecutionService {
         setTimeout(
           () =>
             reject(
-              new Error(`Function execution timeout after ${timeoutMs}ms`)
+              new Error(`Function execution timeout after ${timeoutMs}ms`),
             ),
-          timeoutMs
-        )
+          timeoutMs,
+        ),
       ),
     ]);
   }
@@ -346,7 +346,7 @@ class FunctionExecutionService {
 
     if (!fn) {
       throw new Error(
-        `Function not found: ${functionRef} (not in function map)`
+        `Function not found: ${functionRef} (not in function map)`,
       );
     }
 
@@ -366,7 +366,7 @@ class FunctionExecutionService {
   buildArgs(
     column: SheetColumn,
     row: SheetData,
-    allColumns: SheetColumn[]
+    allColumns: SheetColumn[],
   ): any[] {
     const argsMeta = column.arguments || [];
     // Pre-index columns by name to avoid repeated linear scans
@@ -375,7 +375,7 @@ class FunctionExecutionService {
       if (c.columnName) columnsByName.set(c.columnName, c);
     }
 
-    return argsMeta.map((arg) => {
+    const args = argsMeta.map((arg) => {
       const t = (arg.type || "").toLowerCase();
 
       // If multiple column references are supplied (array-like param)
@@ -439,6 +439,29 @@ class FunctionExecutionService {
       // No mapping provided; pass undefined to allow default parameters
       return undefined;
     });
+
+    // NEW: Add booking context for price-related columns
+    // This enables locked pricing to return stored values instead of recalculating
+    const priceColumns = [
+      "originalTourCost",
+      "discountedTourCost",
+      "reservationFee",
+    ];
+
+    if (priceColumns.includes(column.id)) {
+      const bookingContext = {
+        originalTourCost: row.originalTourCost,
+        discountedTourCost: row.discountedTourCost,
+        reservationFee: row.reservationFee,
+        lockPricing: row.lockPricing,
+        priceSource: row.priceSource,
+        tourPackagePricingVersion: row.tourPackagePricingVersion,
+        priceSnapshotDate: row.priceSnapshotDate,
+      };
+      args.push(bookingContext);
+    }
+
+    return args;
   }
 }
 

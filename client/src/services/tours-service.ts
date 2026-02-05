@@ -178,7 +178,7 @@ export async function testFirestoreConnection(): Promise<void> {
 // ============================================================================
 
 export async function createTour(
-  tourData: TourFormDataWithStringDates
+  tourData: TourFormDataWithStringDates,
 ): Promise<string> {
   try {
     const { user } = useAuthStore.getState();
@@ -191,7 +191,7 @@ export async function createTour(
 
     // Convert travelDates from string dates to Timestamps
     const convertedTravelDates = convertTravelDatesToTimestamps(
-      tourData.travelDates
+      tourData.travelDates,
     );
 
     const tourPackage: Omit<TourPackage, "id"> = {
@@ -201,11 +201,14 @@ export async function createTour(
         coverImage: tourData.media?.coverImage || "",
         gallery: tourData.media?.gallery || [],
       },
+      currentVersion: 1,
       pricingHistory: [
         {
-          date: now,
-          price: tourData.pricing.original,
+          version: 1,
+          effectiveDate: now,
+          pricing: tourData.pricing,
           changedBy: currentUserId,
+          reason: "Initial tour package creation",
         },
       ],
       metadata: {
@@ -233,7 +236,7 @@ export async function getTours(
   sortBy: string = "createdAt",
   sortOrder: "asc" | "desc" = "desc",
   pageLimit: number = 10,
-  lastDoc?: DocumentSnapshot
+  lastDoc?: DocumentSnapshot,
 ): Promise<{ tours: TourPackage[]; lastDoc: DocumentSnapshot | null }> {
   try {
     console.log("getTours called with filters:", filters);
@@ -291,7 +294,7 @@ export async function getTours(
         (tour) =>
           tour.name.toLowerCase().includes(searchTerm) ||
           tour.description.toLowerCase().includes(searchTerm) ||
-          tour.location.toLowerCase().includes(searchTerm)
+          tour.location.toLowerCase().includes(searchTerm),
       );
     }
 
@@ -370,7 +373,9 @@ export async function getAllTourPackages(): Promise<void> {
       pricingHistory:
         tour.pricingHistory?.map((ph) => ({
           ...ph,
-          date: ph.date?.toDate?.() || new Date(ph.date.seconds * 1000),
+          effectiveDate:
+            ph.effectiveDate?.toDate?.() ||
+            new Date(ph.effectiveDate.seconds * 1000),
         })) || [],
     }));
 
@@ -389,7 +394,7 @@ export async function getAllTourPackages(): Promise<void> {
       console.log(`   Duration: ${tour.duration} days`);
       console.log(`   Status: ${tour.status}`);
       console.log(
-        `   Price: ${tour.pricing.currency} ${tour.pricing.original}`
+        `   Price: ${tour.pricing.currency} ${tour.pricing.original}`,
       );
       console.log(`   Travel Dates: ${tour.travelDates.length} available`);
       console.log("");
@@ -406,7 +411,7 @@ export async function getAllTourPackages(): Promise<void> {
 
 export async function updateTour(
   id: string,
-  updates: Partial<TourFormDataWithStringDates>
+  updates: Partial<TourFormDataWithStringDates>,
 ): Promise<void> {
   try {
     const { user } = useAuthStore.getState();
@@ -427,30 +432,21 @@ export async function updateTour(
       "metadata.updatedAt": now,
     };
 
+    // Protect server-managed pricing fields from being overwritten
+    delete updateData.pricingHistory;
+    delete updateData.currentVersion;
+
     // Duration is already a string, no conversion needed
 
     // Convert travelDates if they're being updated
     if (updates.travelDates) {
       updateData.travelDates = convertTravelDatesToTimestamps(
-        updates.travelDates
+        updates.travelDates,
       );
     }
 
-    // If price changed, add to pricing history
-    if (
-      updates.pricing?.original &&
-      updates.pricing.original !== currentData.pricing.original
-    ) {
-      const newPricingEntry = {
-        date: now,
-        price: updates.pricing.original,
-        changedBy: currentUserId,
-      };
-      updateData.pricingHistory = [
-        ...(currentData.pricingHistory || []),
-        newPricingEntry,
-      ];
-    }
+    // Price history is now managed automatically by Cloud Function
+    // No longer add pricing history entries inline
 
     // Handle media updates properly
     if (updates.media) {
@@ -470,7 +466,7 @@ export async function updateTour(
 
 export async function updateTourMedia(
   id: string,
-  mediaData: { coverImage?: string; gallery?: string[] }
+  mediaData: { coverImage?: string; gallery?: string[] },
 ): Promise<void> {
   try {
     const docRef = doc(db, TOURS_COLLECTION, id);
@@ -500,12 +496,12 @@ export async function updateTourMedia(
 // Clean up removed gallery images from storage
 export async function cleanupRemovedGalleryImages(
   originalGallery: string[],
-  newGallery: string[]
+  newGallery: string[],
 ): Promise<void> {
   try {
     // Find images that were removed (exist in original but not in new)
     const removedImages = originalGallery.filter(
-      (url) => !newGallery.includes(url)
+      (url) => !newGallery.includes(url),
     );
 
     if (removedImages.length === 0) {
@@ -533,7 +529,7 @@ export async function cleanupRemovedGalleryImages(
     } else {
       console.error(
         "Failed to clean up some gallery images:",
-        deleteResult.error
+        deleteResult.error,
       );
     }
   } catch (error) {
@@ -544,7 +540,7 @@ export async function cleanupRemovedGalleryImages(
 
 export async function updateTourStatus(
   id: string,
-  status: "active" | "draft" | "archived"
+  status: "active" | "draft" | "archived",
 ): Promise<void> {
   try {
     const docRef = doc(db, TOURS_COLLECTION, id);
@@ -587,7 +583,7 @@ export async function archiveTour(id: string): Promise<void> {
 // ============================================================================
 
 export async function batchUpdateTours(
-  updates: { id: string; data: Partial<TourFormDataWithStringDates> }[]
+  updates: { id: string; data: Partial<TourFormDataWithStringDates> }[],
 ): Promise<void> {
   try {
     const batch = writeBatch(db);
@@ -605,7 +601,7 @@ export async function batchUpdateTours(
       // Convert travelDates if they're being updated
       if (data.travelDates) {
         updateData.travelDates = convertTravelDatesToTimestamps(
-          data.travelDates
+          data.travelDates,
         );
       }
 
@@ -700,7 +696,7 @@ export function validateTourData(data: TourFormDataWithStringDates): string[] {
           errors.push(`Travel date ${index + 1}: Invalid date format`);
         } else if (startDate >= endDate) {
           errors.push(
-            `Travel date ${index + 1}: End date must be after start date`
+            `Travel date ${index + 1}: End date must be after start date`,
           );
         }
       }

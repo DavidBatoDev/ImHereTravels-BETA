@@ -385,6 +385,20 @@ export async function POST(req: NextRequest) {
 
         const booking = bookingSnap.data();
 
+        const priceSnapshotUpdates: Record<string, any> = {};
+        if (!booking.priceSnapshotDate) {
+          priceSnapshotUpdates.priceSnapshotDate = serverTimestamp();
+        }
+        if (!booking.tourPackagePricingVersion) {
+          priceSnapshotUpdates.tourPackagePricingVersion = 1;
+        }
+        if (!booking.priceSource) {
+          priceSnapshotUpdates.priceSource = "snapshot";
+        }
+        if (booking.lockPricing === undefined) {
+          priceSnapshotUpdates.lockPricing = true;
+        }
+
         // 4. Recalculate everything from scratch to prevent double-counting
         const totalCost =
           booking.discountedTourCost || booking.originalTourCost || 0;
@@ -618,6 +632,7 @@ export async function POST(req: NextRequest) {
           remainingBalance: newRemainingBalance,
           paymentProgress: `${newPaymentProgress}%`,
           bookingStatus: bookingStatusWithDate,
+          ...priceSnapshotUpdates,
         });
 
         console.log(

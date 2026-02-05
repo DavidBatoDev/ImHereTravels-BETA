@@ -39,7 +39,16 @@ import {
 import { BsListUl, BsCalendarEvent } from "react-icons/bs";
 import { MdEmail } from "react-icons/md";
 import { HiTrendingUp } from "react-icons/hi";
-import { RefreshCw, CalendarIcon, HelpCircle, Copy, Check, ExternalLink } from "lucide-react";
+import {
+  RefreshCw,
+  CalendarIcon,
+  HelpCircle,
+  Copy,
+  Check,
+  ExternalLink,
+  Lock,
+  AlertCircle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -53,7 +62,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 import type { Booking } from "@/types/bookings";
+import type { TourPackage, PricingHistoryEntry } from "@/types/tours";
 import { SheetColumn, TypeScriptFunction } from "@/types/sheet-management";
 import { allBookingSheetColumns } from "@/app/functions/columns";
 import { functionMap } from "@/app/functions/columns/functions-index";
@@ -62,7 +73,13 @@ import { typescriptFunctionsService } from "@/services/typescript-functions-serv
 import { batchedWriter } from "@/services/batched-writer";
 import ScheduledEmailService from "@/services/scheduled-email-service";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot, updateDoc, deleteField } from "firebase/firestore";
+import {
+  doc,
+  onSnapshot,
+  updateDoc,
+  deleteField,
+  serverTimestamp,
+} from "firebase/firestore";
 import { isEqual, debounce } from "lodash";
 
 interface EditBookingModalProps {
@@ -114,8 +131,6 @@ export default function EditBookingModal({
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-
-
   // Loading state for email generation and sending
   const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
   const [emailGenerationProgress, setEmailGenerationProgress] = useState<{
@@ -150,6 +165,17 @@ export default function EditBookingModal({
   const [showPaymentReminderConfirmation, setShowPaymentReminderConfirmation] =
     useState(false);
 
+  // Price history state
+  const [tourPackageData, setTourPackageData] = useState<TourPackage | null>(
+    null,
+  );
+  const [showPricingVersionDialog, setShowPricingVersionDialog] =
+    useState(false);
+  const [selectedPricingVersion, setSelectedPricingVersion] = useState<
+    number | null
+  >(null);
+  const [isLoadingPriceHistory, setIsLoadingPriceHistory] = useState(false);
+
   const { toast } = useToast();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const isScrollingProgrammatically = React.useRef(false);
@@ -159,6 +185,72 @@ export default function EditBookingModal({
   const skipInitialEventNameDependentsRef = React.useRef(true);
   const hasUserChangedTourDetailsRef = React.useRef(false);
   const hasUserChangedEventNameRef = React.useRef(false);
+
+  const getDateKey = useCallback((dateValue: any): string | null => {
+    if (!dateValue) return null;
+    if (typeof dateValue === "string") {
+      return dateValue.split("T")[0] || dateValue;
+    }
+    if (dateValue?.toDate) {
+      return dateValue.toDate().toISOString().split("T")[0];
+    }
+    if (dateValue?.seconds) {
+      return new Date(dateValue.seconds * 1000).toISOString().split("T")[0];
+    }
+    return new Date(dateValue).toISOString().split("T")[0];
+  }, []);
+
+  const pricingVersionOptions = useMemo(() => {
+    if (!tourPackageData)
+      return [] as Array<{
+        version: number;
+        pricing: TourPackage["pricing"];
+        travelDates?: PricingHistoryEntry["travelDates"];
+        effectiveDate?: PricingHistoryEntry["effectiveDate"];
+        isCurrent: boolean;
+      }>;
+
+    const currentVersion = tourPackageData.currentVersion || 1;
+    const currentTravelDates = tourPackageData.travelDates
+      ?.filter(
+        (td: any) =>
+          td?.hasCustomOriginal ||
+          td?.hasCustomDiscounted ||
+          td?.hasCustomDeposit,
+      )
+      .map((td: any) => ({
+        date: getDateKey(td.startDate) || "",
+        customOriginal: td.customOriginal,
+        customDiscounted: td.customDiscounted,
+        customDeposit: td.customDeposit,
+      }))
+      .filter((td: any) => td.date) as PricingHistoryEntry["travelDates"];
+
+    const history = tourPackageData.pricingHistory || [];
+    const historyOptions = history
+      .slice()
+      .sort((a, b) => b.version - a.version)
+      .map((entry) => ({
+        version: entry.version,
+        pricing: entry.pricing,
+        travelDates: entry.travelDates,
+        effectiveDate: entry.effectiveDate,
+        isCurrent: false,
+      }));
+
+    return [
+      {
+        version: currentVersion,
+        pricing: tourPackageData.pricing,
+        travelDates: currentTravelDates?.length
+          ? currentTravelDates
+          : undefined,
+        effectiveDate: undefined,
+        isCurrent: true,
+      },
+      ...historyOptions,
+    ];
+  }, [tourPackageData, getDateKey]);
 
   // Real-time Firebase listener for booking updates (like BookingsDataGrid)
   useEffect(() => {
@@ -694,16 +786,16 @@ export default function EditBookingModal({
     async (currentTourPackageName: string, currentTourDate: any) => {
       // If missing required fields, clear options and return empty
       if (!currentTourPackageName || !currentTourDate) {
-         setDynamicOptions((prev) => ({
-            ...prev,
-            eventName: [""],
-         }));
-         return;
+        setDynamicOptions((prev) => ({
+          ...prev,
+          eventName: [""],
+        }));
+        return;
       }
 
       console.log("🔄 [DISCOUNT LOGIC] Reloading Event Name options...", {
         package: currentTourPackageName,
-        date: currentTourDate
+        date: currentTourDate,
       });
 
       try {
@@ -718,148 +810,166 @@ export default function EditBookingModal({
           where("active", "==", true),
         );
 
-         const snapshot = await getDocs(activeEventsQuery);
-         
-         // Helper for date normalization (Local Time) to match tourDate
-         const toLocalISODate = (date: Date) => {
-           const year = date.getFullYear();
-           const month = String(date.getMonth() + 1).padStart(2, "0");
-           const day = String(date.getDate()).padStart(2, "0");
-           return `${year}-${month}-${day}`;
-         };
+        const snapshot = await getDocs(activeEventsQuery);
 
-         // Normalize current tour date
-         let normalizedTourDate = "";
-         const tourDateValue = currentTourDate;
-         
-         if (typeof tourDateValue === "string") {
-            if (tourDateValue.includes("/")) {
-               const parts = tourDateValue.split("/");
-               if (parts.length === 3) {
-                  const [month, day, year] = parts;
-                  normalizedTourDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-               } else normalizedTourDate = tourDateValue;
-            } else normalizedTourDate = tourDateValue; // Assume YYYY-MM-DD
-         } else if (tourDateValue instanceof Date) {
-            normalizedTourDate = toLocalISODate(tourDateValue);
-         } else if (tourDateValue && typeof tourDateValue === "object" && 'toDate' in tourDateValue) {
-             // Firestore Timestamp
-             normalizedTourDate = toLocalISODate(tourDateValue.toDate());
-         }
+        // Helper for date normalization (Local Time) to match tourDate
+        const toLocalISODate = (date: Date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        };
 
-         const cleanString = (str: string) => str?.trim().toLowerCase() || "";
-         const targetPackageName = cleanString(currentTourPackageName);
+        // Normalize current tour date
+        let normalizedTourDate = "";
+        const tourDateValue = currentTourDate;
 
-         const validEventNames: string[] = [];
+        if (typeof tourDateValue === "string") {
+          if (tourDateValue.includes("/")) {
+            const parts = tourDateValue.split("/");
+            if (parts.length === 3) {
+              const [month, day, year] = parts;
+              normalizedTourDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+            } else normalizedTourDate = tourDateValue;
+          } else normalizedTourDate = tourDateValue; // Assume YYYY-MM-DD
+        } else if (tourDateValue instanceof Date) {
+          normalizedTourDate = toLocalISODate(tourDateValue);
+        } else if (
+          tourDateValue &&
+          typeof tourDateValue === "object" &&
+          "toDate" in tourDateValue
+        ) {
+          // Firestore Timestamp
+          normalizedTourDate = toLocalISODate(tourDateValue.toDate());
+        }
 
-         snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            const items = data.items || [];
-            
-            // Check if this event has a matching item config
-            const hasMatch = items.some((item: any) => {
-               // 1. Package Name Match
-               if (cleanString(item.tourPackageName) !== targetPackageName) return false;
+        const cleanString = (str: string) => str?.trim().toLowerCase() || "";
+        const targetPackageName = cleanString(currentTourPackageName);
 
-               // 2. Date Match
-               const dateDiscounts = item.dateDiscounts || [];
-               return dateDiscounts.some((dd: any) => {
-                  let ddStr = "";
-                  if (dd.date && typeof dd.date.toDate === 'function') ddStr = toLocalISODate(dd.date.toDate());
-                  else if (dd.date instanceof Date) ddStr = toLocalISODate(dd.date);
-                  else if (typeof dd.date === 'string') ddStr = dd.date;
-                  
-                  return ddStr === normalizedTourDate;
-               });
+        const validEventNames: string[] = [];
+
+        snapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          const items = data.items || [];
+
+          // Check if this event has a matching item config
+          const hasMatch = items.some((item: any) => {
+            // 1. Package Name Match
+            if (cleanString(item.tourPackageName) !== targetPackageName)
+              return false;
+
+            // 2. Date Match
+            const dateDiscounts = item.dateDiscounts || [];
+            return dateDiscounts.some((dd: any) => {
+              let ddStr = "";
+              if (dd.date && typeof dd.date.toDate === "function")
+                ddStr = toLocalISODate(dd.date.toDate());
+              else if (dd.date instanceof Date) ddStr = toLocalISODate(dd.date);
+              else if (typeof dd.date === "string") ddStr = dd.date;
+
+              return ddStr === normalizedTourDate;
             });
+          });
 
-            if (hasMatch) {
-               validEventNames.push(data.name);
-            }
-         });
+          if (hasMatch) {
+            validEventNames.push(data.name);
+          }
+        });
 
-         console.log("✅ [DISCOUNT LOGIC] Found valid events:", validEventNames);
+        console.log("✅ [DISCOUNT LOGIC] Found valid events:", validEventNames);
 
-         // Update options
-         setDynamicOptions((prev) => ({
-            ...prev,
-            eventName: validEventNames.length > 0 ? ["", ...validEventNames] : [""],
-         }));
+        // Update options
+        setDynamicOptions((prev) => ({
+          ...prev,
+          eventName:
+            validEventNames.length > 0 ? ["", ...validEventNames] : [""],
+        }));
 
-         return validEventNames;
-
+        return validEventNames;
       } catch (error) {
         console.error("🚨 [DISCOUNT LOGIC] Error loading events:", error);
-         setDynamicOptions((prev) => ({
-            ...prev,
-            eventName: [""],
-         }));
-         return [];
+        setDynamicOptions((prev) => ({
+          ...prev,
+          eventName: [""],
+        }));
+        return [];
       }
     },
-    []
+    [],
   );
 
   // Auto-detect/Clear Event Name when dependencies change
   useEffect(() => {
-     if (!isOpen) return;
+    if (!isOpen) return;
 
-     const runLogic = async () => {
-        const pkg = formData.tourPackageName;
-        const date = formData.tourDate;
-        const currentEvent = formData.eventName;
+    const runLogic = async () => {
+      const pkg = formData.tourPackageName;
+      const date = formData.tourDate;
+      const currentEvent = formData.eventName;
 
-        // Reload options
-        // We await this to get the new valid list
-        let validEvents: string[] = [];
-        if (pkg && date) {
-           // We need to call the function we just defined. 
-           // Since it's async, we can get the result.
-           // However, reloadEventNameOptions updates state, so we should be careful.
-           // Modified reloadEventNameOptions to return the list.
-           validEvents = await reloadEventNameOptions(pkg, date) || [];
-        } else {
-           // If missing dependencies, options are empty
-           setDynamicOptions(prev => ({ ...prev, eventName: [""] }));
+      // Reload options
+      // We await this to get the new valid list
+      let validEvents: string[] = [];
+      if (pkg && date) {
+        // We need to call the function we just defined.
+        // Since it's async, we can get the result.
+        // However, reloadEventNameOptions updates state, so we should be careful.
+        // Modified reloadEventNameOptions to return the list.
+        validEvents = (await reloadEventNameOptions(pkg, date)) || [];
+      } else {
+        // If missing dependencies, options are empty
+        setDynamicOptions((prev) => ({ ...prev, eventName: [""] }));
+      }
+
+      // Logic to Clear or Auto-Set Event Name
+      if (validEvents.length === 0) {
+        if (currentEvent) {
+          // Only clear if the user actively changed tour details (preserve history)
+          if (hasUserChangedTourDetailsRef.current) {
+            console.log(
+              "🧹 [DISCOUNT LOGIC] Clearing Event Name (no valid events)",
+            );
+            setFormData((prev) => ({ ...prev, eventName: "" }));
+            // Ensure dependent fields (discount, type) are also cleared via their own watchers or side-effects
+            // Explicitly triggering update might be needed if they don't watch 'eventName' directly
+            hasUserChangedEventNameRef.current = true; // Signal that this is a "user-like" change to trigger dependents
+          } else {
+            console.log(
+              "🛡️ [DISCOUNT LOGIC] Preserving historical inactive event:",
+              currentEvent,
+            );
+          }
         }
-
-        // Logic to Clear or Auto-Set Event Name
-        if (validEvents.length === 0) {
-           if (currentEvent) {
-              // Only clear if the user actively changed tour details (preserve history)
-              if (hasUserChangedTourDetailsRef.current) {
-                 console.log("🧹 [DISCOUNT LOGIC] Clearing Event Name (no valid events)");
-                 setFormData(prev => ({ ...prev, eventName: "" }));
-                 // Ensure dependent fields (discount, type) are also cleared via their own watchers or side-effects
-                 // Explicitly triggering update might be needed if they don't watch 'eventName' directly
-                 hasUserChangedEventNameRef.current = true; // Signal that this is a "user-like" change to trigger dependents
-              } else {
-                 console.log("🛡️ [DISCOUNT LOGIC] Preserving historical inactive event:", currentEvent);
-              }
-           }
-        } else {
-           // If current event is invalid, clear it
-           if (currentEvent && !validEvents.includes(currentEvent)) {
-              // Only clear if the user actively changed tour details (preserve history)
-              if (hasUserChangedTourDetailsRef.current) {
-                 console.log("🧹 [DISCOUNT LOGIC] Clearing invalid Event Name due to context change:", currentEvent);
-                 setFormData(prev => ({ ...prev, eventName: "" }));
-                 hasUserChangedEventNameRef.current = true; 
-              } else {
-                 console.log("🛡️ [DISCOUNT LOGIC] Preserving historical inactive event:", currentEvent);
-              }
-           }
-
+      } else {
+        // If current event is invalid, clear it
+        if (currentEvent && !validEvents.includes(currentEvent)) {
+          // Only clear if the user actively changed tour details (preserve history)
+          if (hasUserChangedTourDetailsRef.current) {
+            console.log(
+              "🧹 [DISCOUNT LOGIC] Clearing invalid Event Name due to context change:",
+              currentEvent,
+            );
+            setFormData((prev) => ({ ...prev, eventName: "" }));
+            hasUserChangedEventNameRef.current = true;
+          } else {
+            console.log(
+              "🛡️ [DISCOUNT LOGIC] Preserving historical inactive event:",
+              currentEvent,
+            );
+          }
         }
-     };
+      }
+    };
 
-     // Debounce slightly to allow typing/updates to settle
-     const timer = setTimeout(runLogic, 300);
-     return () => clearTimeout(timer);
-
-  }, [formData.tourPackageName, formData.tourDate, isOpen, reloadEventNameOptions]);
-
-
+    // Debounce slightly to allow typing/updates to settle
+    const timer = setTimeout(runLogic, 300);
+    return () => clearTimeout(timer);
+  }, [
+    formData.tourPackageName,
+    formData.tourDate,
+    isOpen,
+    reloadEventNameOptions,
+  ]);
 
   // Trigger dependent functions when eventName changes (including clearing it)
   useEffect(() => {
@@ -869,8 +979,6 @@ export default function EditBookingModal({
       skipInitialEventNameDependentsRef.current = false;
       return;
     }
-
-
 
     if (
       !hasUserChangedEventNameRef.current &&
@@ -1020,6 +1128,49 @@ export default function EditBookingModal({
     loadDynamicOptions();
   }, [isOpen, columns, formData.id]); // Only re-run when modal opens or when we get a new booking (formData.id changes)
 
+  // Load tour package data for price history
+  useEffect(() => {
+    if (!isOpen || !formData.tourPackageName) {
+      setTourPackageData(null);
+      return;
+    }
+
+    const loadTourPackage = async () => {
+      setIsLoadingPriceHistory(true);
+      try {
+        const { collection, query, where, getDocs } =
+          await import("firebase/firestore");
+        const { db } = await import("@/lib/firebase");
+
+        const tourPackagesRef = collection(db, "tourPackages");
+        const q = query(
+          tourPackagesRef,
+          where("name", "==", formData.tourPackageName),
+        );
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+          const packageData = snapshot.docs[0].data() as TourPackage;
+          setTourPackageData(packageData);
+          console.log(
+            "✅ [PRICE HISTORY] Loaded tour package:",
+            packageData.name,
+          );
+        } else {
+          setTourPackageData(null);
+          console.log("⚠️ [PRICE HISTORY] Tour package not found");
+        }
+      } catch (error) {
+        console.error("❌ [PRICE HISTORY] Error loading tour package:", error);
+        setTourPackageData(null);
+      } finally {
+        setIsLoadingPriceHistory(false);
+      }
+    };
+
+    loadTourPackage();
+  }, [isOpen, formData.tourPackageName]);
+
   // Build dependency graph: source columnId -> list of function columns depending on it
   const dependencyGraph = useMemo(() => {
     const map = new Map<string, SheetColumn[]>();
@@ -1146,29 +1297,30 @@ export default function EditBookingModal({
   // STRICT DEPENDENCY: When Tour Package changes, Clear Tour Date & Reload Options
   // Use a ref to track previous package name to avoid loops
   const prevTourPackageRef = React.useRef<string | undefined>(undefined);
-  
+
   useEffect(() => {
-     if (!isOpen) { 
-        prevTourPackageRef.current = undefined; 
-        return; 
-     }
+    if (!isOpen) {
+      prevTourPackageRef.current = undefined;
+      return;
+    }
 
-     const currentPkg = formData.tourPackageName;
-     const prevPkg = prevTourPackageRef.current;
+    const currentPkg = formData.tourPackageName;
+    const prevPkg = prevTourPackageRef.current;
 
-     if (prevPkg !== undefined && currentPkg !== prevPkg) {
-        console.log("🔄 [DEPENDENCY] Tour Package changed. Clearing Tour Date & Reloading Options.");
-        
-        // 1. Clear Tour Date
-        setFormData(prev => ({ ...prev, tourDate: null }));
-        
-        // 2. Reload Tour Date options
-        reloadTourDateOptions(currentPkg || "");
-     }
-     
-     // Initialize ref on first open if needed, or just update it
-     prevTourPackageRef.current = currentPkg;
-     
+    if (prevPkg !== undefined && currentPkg !== prevPkg) {
+      console.log(
+        "🔄 [DEPENDENCY] Tour Package changed. Clearing Tour Date & Reloading Options.",
+      );
+
+      // 1. Clear Tour Date
+      setFormData((prev) => ({ ...prev, tourDate: null }));
+
+      // 2. Reload Tour Date options
+      reloadTourDateOptions(currentPkg || "");
+    }
+
+    // Initialize ref on first open if needed, or just update it
+    prevTourPackageRef.current = currentPkg;
   }, [formData.tourPackageName, isOpen, reloadTourDateOptions]);
 
   // Reactive tracking: reload Payment Plan options when Available Payment Terms changes
@@ -1389,6 +1541,195 @@ export default function EditBookingModal({
   const handlePaymentReminderCancel = () => {
     setShowPaymentReminderConfirmation(false);
   };
+
+  // Handle unlocking pricing and recalculating from current tour package
+  const handleUnlockAndRecalculate = async () => {
+    if (!booking?.id || !tourPackageData) return;
+
+    try {
+      // Unlock pricing
+      await batchedWriter.queueFieldUpdate(booking.id, "lockPricing", false);
+      await batchedWriter.queueFieldUpdate(
+        booking.id,
+        "priceSource",
+        "recalculated",
+      );
+
+      // Update local state
+      setFormData((prev) => ({
+        ...prev,
+        lockPricing: false,
+        priceSource: "recalculated" as "snapshot" | "manual" | "recalculated",
+      }));
+
+      // Force recalculation of price columns by invalidating them
+      const priceColumns = columns.filter((col) =>
+        ["originalTourCost", "discountedTourCost", "reservationFee"].includes(
+          col.id,
+        ),
+      );
+
+      for (const col of priceColumns) {
+        if (booking.id && col.function) {
+          functionExecutionService.invalidateForRowColumn(booking.id, col.id);
+          functionExecutionService.markForRecomputation(booking.id, col.id);
+        }
+      }
+
+      // Execute price columns to get new values
+      let updatedData: Partial<Booking> = {
+        ...formData,
+        lockPricing: false,
+        priceSource: "recalculated" as "snapshot" | "manual" | "recalculated",
+      };
+      for (const col of priceColumns) {
+        const result = await executeFunction(col, updatedData);
+        if (result !== undefined) {
+          updatedData = { ...updatedData, [col.id]: result };
+        }
+      }
+
+      setFormData(updatedData);
+      setShowPricingVersionDialog(false);
+
+      toast({
+        title: "Pricing Updated",
+        description:
+          "Booking prices have been recalculated from current tour package pricing.",
+      });
+    } catch (error) {
+      console.error("Error unlocking pricing:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update pricing. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePricingLockToggle = useCallback(
+    async (checked: boolean) => {
+      if (!booking?.id) return;
+
+      batchedWriter.queueFieldUpdate(booking.id, "lockPricing", checked);
+      batchedWriter.queueFieldUpdate(
+        booking.id,
+        "priceSource",
+        checked ? "snapshot" : "recalculated",
+      );
+
+      if (checked && !formData.priceSnapshotDate) {
+        batchedWriter.queueFieldUpdate(
+          booking.id,
+          "priceSnapshotDate",
+          serverTimestamp(),
+        );
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        lockPricing: checked,
+        priceSource: checked
+          ? ("snapshot" as "snapshot" | "manual" | "recalculated")
+          : ("recalculated" as "snapshot" | "manual" | "recalculated"),
+      }));
+
+      setIsSaving(true);
+      debouncedSaveIndicator();
+    },
+    [booking?.id, formData.priceSnapshotDate],
+  );
+
+  const handleApplyPricingVersion = useCallback(async () => {
+    if (!booking?.id || !tourPackageData || !selectedPricingVersion) return;
+
+    const selectedOption = pricingVersionOptions.find(
+      (option) => option.version === selectedPricingVersion,
+    );
+
+    if (!selectedOption) return;
+
+    let originalTourCost = selectedOption.pricing.original;
+    let discountedTourCost = selectedOption.pricing.discounted;
+    let reservationFee = selectedOption.pricing.deposit;
+
+    const bookingDateKey = getDateKey(formData.tourDate);
+    if (bookingDateKey && selectedOption.travelDates?.length) {
+      const matchingDate = selectedOption.travelDates.find((td) => {
+        const entryKey = td.date?.split("T")[0];
+        return entryKey === bookingDateKey;
+      });
+
+      if (matchingDate) {
+        if (matchingDate.customOriginal !== undefined) {
+          originalTourCost = matchingDate.customOriginal;
+        }
+        if (matchingDate.customDiscounted !== undefined) {
+          discountedTourCost = matchingDate.customDiscounted;
+        }
+        if (matchingDate.customDeposit !== undefined) {
+          reservationFee = matchingDate.customDeposit;
+        }
+      }
+    }
+
+    batchedWriter.queueFieldUpdate(booking.id, "lockPricing", true);
+    batchedWriter.queueFieldUpdate(booking.id, "priceSource", "snapshot");
+    batchedWriter.queueFieldUpdate(
+      booking.id,
+      "tourPackagePricingVersion",
+      selectedPricingVersion,
+    );
+    batchedWriter.queueFieldUpdate(
+      booking.id,
+      "priceSnapshotDate",
+      serverTimestamp(),
+    );
+    batchedWriter.queueFieldUpdate(
+      booking.id,
+      "originalTourCost",
+      originalTourCost,
+    );
+    if (discountedTourCost !== undefined) {
+      batchedWriter.queueFieldUpdate(
+        booking.id,
+        "discountedTourCost",
+        discountedTourCost,
+      );
+    }
+    batchedWriter.queueFieldUpdate(
+      booking.id,
+      "reservationFee",
+      reservationFee,
+    );
+
+    setFormData((prev) => ({
+      ...prev,
+      lockPricing: true,
+      priceSource: "snapshot" as "snapshot" | "manual" | "recalculated",
+      tourPackagePricingVersion: selectedPricingVersion,
+      originalTourCost,
+      discountedTourCost,
+      reservationFee,
+    }));
+
+    setIsSaving(true);
+    debouncedSaveIndicator();
+    setShowPricingVersionDialog(false);
+
+    toast({
+      title: "Pricing Version Applied",
+      description: `Booking updated to pricing version ${selectedPricingVersion}.`,
+    });
+  }, [
+    booking?.id,
+    tourPackageData,
+    selectedPricingVersion,
+    pricingVersionOptions,
+    formData.tourDate,
+    getDateKey,
+    toast,
+  ]);
 
   // Get icon for parent tab
   const getParentTabIcon = (parentTab: string) => {
@@ -2310,8 +2651,6 @@ export default function EditBookingModal({
           );
 
         case "select":
-
-
           // Calculate options inline (lightweight operation, no need for useMemo)
           const options = dynamicOptions[column.id] || column.options || [];
 
@@ -2589,7 +2928,42 @@ export default function EditBookingModal({
                     valueToSave,
                   );
                 }
-                setFormData((prev) => ({ ...prev, [column.id]: valueToSave }));
+                if (column.id === "tourPackageName" && valueToSave) {
+                  if (booking?.id) {
+                    batchedWriter.queueFieldUpdate(
+                      booking.id,
+                      "lockPricing",
+                      true,
+                    );
+                    batchedWriter.queueFieldUpdate(
+                      booking.id,
+                      "priceSource",
+                      "snapshot",
+                    );
+                    if (!formData.priceSnapshotDate) {
+                      batchedWriter.queueFieldUpdate(
+                        booking.id,
+                        "priceSnapshotDate",
+                        serverTimestamp(),
+                      );
+                    }
+                  }
+
+                  setFormData((prev) => ({
+                    ...prev,
+                    [column.id]: valueToSave,
+                    lockPricing: true,
+                    priceSource: "snapshot" as
+                      | "snapshot"
+                      | "manual"
+                      | "recalculated",
+                  }));
+                } else {
+                  setFormData((prev) => ({
+                    ...prev,
+                    [column.id]: valueToSave,
+                  }));
+                }
                 setIsSaving(true);
                 debouncedSaveIndicator();
 
@@ -3041,33 +3415,40 @@ export default function EditBookingModal({
 
                       {/* Booking Status URL */}
                       {booking?.access_token && (
-                         <>
-                           <div className="w-px h-3 bg-border mx-1"></div>
-                           <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border border-border/50">
-                             <a 
-                                 href={`${process.env.NEXT_PUBLIC_WEBSITE_URL}/booking-status/${booking.access_token}`}
-                                 target="_blank"
-                                 rel="noreferrer"
-                                 className="text-[11px] text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
-                                 title="View Booking Status"
-                             >
-                                 View Booking Status <ExternalLink className="h-2 w-2" />
-                             </a>
-                             <Button
-                                 size="icon"
-                                 variant="ghost"
-                                 className="h-4 w-4 rounded-full hover:bg-background"
-                                 onClick={(e) => {
-                                     e.preventDefault();
-                                     navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_WEBSITE_URL}/booking-status/${booking.access_token}`);
-                                     toast({ title: "Copied!", description: "Link copied to clipboard", duration: 2000 });
-                                 }}
-                                 title="Copy Link"
-                             >
-                                 <Copy className="h-2.5 w-2.5 text-muted-foreground" />
-                             </Button>
-                           </div>
-                         </>
+                        <>
+                          <div className="w-px h-3 bg-border mx-1"></div>
+                          <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border border-border/50">
+                            <a
+                              href={`${process.env.NEXT_PUBLIC_WEBSITE_URL}/booking-status/${booking.access_token}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[11px] text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                              title="View Booking Status"
+                            >
+                              View Booking Status{" "}
+                              <ExternalLink className="h-2 w-2" />
+                            </a>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-4 w-4 rounded-full hover:bg-background"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                navigator.clipboard.writeText(
+                                  `${process.env.NEXT_PUBLIC_WEBSITE_URL}/booking-status/${booking.access_token}`,
+                                );
+                                toast({
+                                  title: "Copied!",
+                                  description: "Link copied to clipboard",
+                                  duration: 2000,
+                                });
+                              }}
+                              title="Copy Link"
+                            >
+                              <Copy className="h-2.5 w-2.5 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
@@ -3194,12 +3575,101 @@ export default function EditBookingModal({
                             className="py-2 sm:py-2.5 px-2.5 sm:px-4 bg-crimson-red/10 border-b border-crimson-red/20 dark:border-b dark:border-border/20"
                             tabIndex={-1}
                           >
-                            <CardTitle className="text-[12px] sm:text-sm font-bold text-foreground flex items-center gap-1.5 sm:gap-2">
-                              <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
-                                <IconComponent className="h-3 w-3 sm:h-4 sm:w-4 text-crimson-red" />
-                              </div>
-                              {parentTab}
-                            </CardTitle>
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-[12px] sm:text-sm font-bold text-foreground flex items-center gap-1.5 sm:gap-2">
+                                <div className="p-1 bg-crimson-red/10 rounded-full rounded-br-none">
+                                  <IconComponent className="h-3 w-3 sm:h-4 sm:w-4 text-crimson-red" />
+                                </div>
+                                {parentTab}
+                              </CardTitle>
+
+                              {/* Price History Controls - Show only for Payment Setting or Tour Details tabs */}
+                              {(parentTab.includes("Payment Setting") ||
+                                parentTab.includes("💰") ||
+                                parentTab.includes("Tour Details") ||
+                                parentTab.includes("🗺️")) &&
+                                formData.tourPackageName && (
+                                  <div className="flex items-center gap-2">
+                                    {/* Pricing Lock Toggle */}
+                                    <div className="flex items-center gap-1 px-2 py-1 bg-muted/40 rounded-md border border-border">
+                                      <Lock className="h-3 w-3 text-muted-foreground" />
+                                      <span className="text-[10px] text-muted-foreground font-medium">
+                                        Lock Pricing
+                                      </span>
+                                      <Switch
+                                        checked={!!formData.lockPricing}
+                                        onCheckedChange={
+                                          handlePricingLockToggle
+                                        }
+                                      />
+                                    </div>
+
+                                    {/* Price Source Badge */}
+                                    {formData.lockPricing ? (
+                                      <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-600">
+                                        <Lock className="h-3 w-3 text-gray-600 dark:text-gray-400" />
+                                        <span className="text-[10px] text-gray-700 dark:text-gray-300 font-medium">
+                                          Historical Price
+                                        </span>
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <HelpCircle className="h-3 w-3 text-gray-500 cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                              side="bottom"
+                                              className="max-w-xs"
+                                            >
+                                              <p className="text-xs">
+                                                Locked at{" "}
+                                                {formData.priceSnapshotDate
+                                                  ?.toDate
+                                                  ? formData.priceSnapshotDate
+                                                      .toDate()
+                                                      .toLocaleDateString()
+                                                  : "N/A"}
+                                                . Prices won't change when tour
+                                                package is updated.
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-700">
+                                        <RefreshCw className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                                        <span className="text-[10px] text-blue-700 dark:text-blue-300 font-medium">
+                                          Current Price
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {/* Pricing Version Selector Button */}
+                                    {formData.lockPricing &&
+                                      tourPackageData && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setSelectedPricingVersion(
+                                              formData.tourPackagePricingVersion ||
+                                                tourPackageData.currentVersion ||
+                                                1,
+                                            );
+                                            setShowPricingVersionDialog(true);
+                                          }}
+                                          className="h-7 text-[10px] gap-1"
+                                        >
+                                          <RefreshCw className="h-3 w-3" />
+                                          Version{" "}
+                                          {formData.tourPackagePricingVersion ||
+                                            tourPackageData.currentVersion ||
+                                            "-"}
+                                        </Button>
+                                      )}
+                                  </div>
+                                )}
+                            </div>
                           </CardHeader>
                           <CardContent className="p-0" tabIndex={-1}>
                             <div className="border border-field-border">
@@ -3817,6 +4287,83 @@ export default function EditBookingModal({
               >
                 <FaWallet className="h-4 w-4 mr-2" />
                 Confirm & Enable
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pricing Version Selection Dialog */}
+      <Dialog
+        open={showPricingVersionDialog}
+        onOpenChange={setShowPricingVersionDialog}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              Select Pricing Version
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Choose which tour package pricing version to apply to this
+              booking. The selected version will lock pricing for future
+              changes.
+            </p>
+
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {pricingVersionOptions.map((option) => (
+                <button
+                  key={`pricing-version-${option.version}`}
+                  type="button"
+                  onClick={() => setSelectedPricingVersion(option.version)}
+                  className={cn(
+                    "w-full text-left border rounded-md p-3 transition-colors",
+                    selectedPricingVersion === option.version
+                      ? "border-royal-purple bg-royal-purple/10"
+                      : "border-border hover:bg-muted/40",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm">
+                          Version {option.version}
+                        </span>
+                        {option.isCurrent && (
+                          <Badge variant="outline">Current</Badge>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Original: {option.pricing.currency}{" "}
+                        {option.pricing.original.toLocaleString()} · Deposit:{" "}
+                        {option.pricing.currency}{" "}
+                        {option.pricing.deposit.toLocaleString()}
+                      </div>
+                    </div>
+                    {selectedPricingVersion === option.version && (
+                      <Badge className="bg-royal-purple">Selected</Badge>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowPricingVersionDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleApplyPricingVersion}
+                className="bg-royal-purple hover:bg-royal-purple/90"
+                disabled={!selectedPricingVersion}
+              >
+                Apply Version
               </Button>
             </div>
           </div>

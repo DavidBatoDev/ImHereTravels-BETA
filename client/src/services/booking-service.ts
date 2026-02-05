@@ -31,7 +31,7 @@ const COLLECTION_NAME = "bookings";
  * Generate a secure, unguessable access token using crypto.randomBytes
  * Uses 32 bytes of cryptographically secure random data encoded as URL-safe base64
  * This provides 256 bits of entropy, making it practically impossible to guess
- * 
+ *
  * @returns {string} A secure access token (43 characters, URL-safe)
  */
 function generateAccessToken(): string {
@@ -77,24 +77,24 @@ export interface BookingService {
 
   // Real-time Listeners
   subscribeToBookings(
-    callback: (bookings: DocumentData[]) => void
+    callback: (bookings: DocumentData[]) => void,
   ): Unsubscribe;
   subscribeToBooking(
     bookingId: string,
-    callback: (booking: DocumentData | null) => void
+    callback: (booking: DocumentData | null) => void,
   ): Unsubscribe;
 
   // Utility Methods
   updateBookingField(
     bookingId: string,
     fieldPath: string,
-    value: any
+    value: any,
   ): Promise<void>;
 
   // Create or update a complete booking
   createOrUpdateBooking(
     bookingId: string,
-    bookingData: Record<string, any>
+    bookingData: Record<string, any>,
   ): Promise<void>;
 
   // Row number management
@@ -111,7 +111,7 @@ export interface BookingService {
   getVersionTrackingConfig(): typeof VERSION_TRACKING_CONFIG;
   setVersionTracking(
     trackingType: keyof typeof VERSION_TRACKING_CONFIG.trackingLevels,
-    enabled: boolean
+    enabled: boolean,
   ): void;
 }
 
@@ -129,11 +129,11 @@ class BookingServiceImpl implements BookingService {
 
   async updateBooking(
     bookingId: string,
-    updates: Record<string, any>
+    updates: Record<string, any>,
   ): Promise<void> {
     console.log(
       `🔍 [UPDATE BOOKING DEBUG] Called for ${bookingId}, updates:`,
-      Object.keys(updates)
+      Object.keys(updates),
     );
     try {
       // Get current booking data for version tracking (start async)
@@ -157,7 +157,7 @@ class BookingServiceImpl implements BookingService {
         // Check if this is the first update after an empty creation
         if (this.pendingCreations.has(bookingId)) {
           console.log(
-            `📝 [PENDING CREATION] First update for ${bookingId}, treating as creation`
+            `📝 [PENDING CREATION] First update for ${bookingId}, treating as creation`,
           );
           this.pendingCreations.delete(bookingId);
 
@@ -167,7 +167,7 @@ class BookingServiceImpl implements BookingService {
             Promise.resolve(null), // No previous data for creation
             updates,
             "create",
-            "Initial booking creation"
+            "Initial booking creation",
           );
         } else {
           // Normal update operation
@@ -175,7 +175,7 @@ class BookingServiceImpl implements BookingService {
             bookingId,
             currentBookingPromise,
             updates,
-            "update"
+            "update",
           );
         }
       }
@@ -183,7 +183,7 @@ class BookingServiceImpl implements BookingService {
       console.error(
         `❌ Failed to update booking ${bookingId}: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
       throw error;
     }
@@ -202,7 +202,7 @@ class BookingServiceImpl implements BookingService {
         currentBooking = await this.getBooking(bookingId);
         if (!currentBooking) {
           console.warn(
-            `⚠️ Booking ${bookingId} not found for deletion version tracking`
+            `⚠️ Booking ${bookingId} not found for deletion version tracking`,
           );
         }
       }
@@ -232,15 +232,15 @@ class BookingServiceImpl implements BookingService {
                 changeDescription: "Booking deleted",
                 userId: currentUserId,
                 userName: currentUserName,
-              }
+              },
             );
           console.log(
-            `📝 Created delete version snapshot: ${versionSnapshotId}`
+            `📝 Created delete version snapshot: ${versionSnapshotId}`,
           );
         } catch (versionError) {
           console.error(
             `⚠️ Failed to create version snapshot, proceeding with deletion:`,
-            versionError
+            versionError,
           );
           // Continue with deletion even if version tracking fails
         }
@@ -256,14 +256,14 @@ class BookingServiceImpl implements BookingService {
       console.error(
         `❌ Failed to delete booking ${bookingId}: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
 
       // If deletion failed but we created a version snapshot, we should clean it up
       if (versionSnapshotId) {
         try {
           console.log(
-            `🧹 Cleaning up version snapshot ${versionSnapshotId} due to failed deletion`
+            `🧹 Cleaning up version snapshot ${versionSnapshotId} due to failed deletion`,
           );
           // Note: In a real implementation, you might want to mark the version as "failed" instead of deleting it
           // For now, we'll just log the cleanup attempt
@@ -324,7 +324,7 @@ class BookingServiceImpl implements BookingService {
       console.error(
         `❌ Failed to delete all bookings: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
       throw error;
     }
@@ -336,12 +336,20 @@ class BookingServiceImpl implements BookingService {
     try {
       // Generate access token for new booking
       const access_token = generateAccessToken();
-      
+
+      const priceSnapshotMetadata = {
+        priceSnapshotDate: bookingData.priceSnapshotDate ?? new Date(),
+        tourPackagePricingVersion: bookingData.tourPackagePricingVersion ?? 1,
+        priceSource: bookingData.priceSource ?? "snapshot",
+        lockPricing: bookingData.lockPricing ?? true,
+      };
+
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
         ...bookingData,
         access_token,
         createdAt: new Date(),
         updatedAt: new Date(),
+        ...priceSnapshotMetadata,
       });
       docId = docRef.id;
       console.log(`✅ Created booking with ID: ${docRef.id}`);
@@ -368,7 +376,7 @@ class BookingServiceImpl implements BookingService {
         console.log(
           `📝 [PENDING CREATION] Added ${docRef.id} to pending creations (${
             isEmptyPlaceholder ? "empty" : "needs id field"
-          })`
+          })`,
         );
       }
 
@@ -382,7 +390,7 @@ class BookingServiceImpl implements BookingService {
           docRef.id,
           Promise.resolve(null),
           bookingData,
-          "create"
+          "create",
         );
       }
 
@@ -396,7 +404,7 @@ class BookingServiceImpl implements BookingService {
       console.error(
         `❌ Failed to create booking: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
       throw error;
     }
@@ -416,7 +424,7 @@ class BookingServiceImpl implements BookingService {
       console.error(
         `❌ Failed to get booking ${bookingId}: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
       throw error;
     }
@@ -425,7 +433,7 @@ class BookingServiceImpl implements BookingService {
   async getAllBookings(): Promise<DocumentData[]> {
     try {
       const querySnapshot = await getDocs(
-        query(collection(db, COLLECTION_NAME), orderBy("createdAt", "desc"))
+        query(collection(db, COLLECTION_NAME), orderBy("createdAt", "desc")),
       );
 
       return querySnapshot.docs.map((doc) => ({
@@ -436,7 +444,7 @@ class BookingServiceImpl implements BookingService {
       console.error(
         `❌ Failed to get all bookings: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
       throw error;
     }
@@ -447,7 +455,7 @@ class BookingServiceImpl implements BookingService {
   // ========================================================================
 
   subscribeToBookings(
-    callback: (bookings: DocumentData[]) => void
+    callback: (bookings: DocumentData[]) => void,
   ): Unsubscribe {
     return onSnapshot(
       query(collection(db, COLLECTION_NAME), orderBy("createdAt", "desc")),
@@ -460,13 +468,13 @@ class BookingServiceImpl implements BookingService {
       },
       (error) => {
         console.error(`❌ Error listening to bookings: ${error.message}`);
-      }
+      },
     );
   }
 
   subscribeToBooking(
     bookingId: string,
-    callback: (booking: DocumentData | null) => void
+    callback: (booking: DocumentData | null) => void,
   ): Unsubscribe {
     return onSnapshot(
       doc(db, COLLECTION_NAME, bookingId),
@@ -479,9 +487,9 @@ class BookingServiceImpl implements BookingService {
       },
       (error) => {
         console.error(
-          `❌ Error listening to booking ${bookingId}: ${error.message}`
+          `❌ Error listening to booking ${bookingId}: ${error.message}`,
         );
-      }
+      },
     );
   }
 
@@ -492,11 +500,11 @@ class BookingServiceImpl implements BookingService {
   async updateBookingField(
     bookingId: string,
     fieldPath: string,
-    value: any
+    value: any,
   ): Promise<void> {
     console.log(
       `🔍 [UPDATE FIELD DEBUG] Called for ${bookingId}, field: ${fieldPath}, value:`,
-      value
+      value,
     );
     try {
       const docRef = doc(db, COLLECTION_NAME, bookingId);
@@ -515,7 +523,7 @@ class BookingServiceImpl implements BookingService {
 
         await setDoc(docRef, newBookingData);
         console.log(
-          `✅ Created and updated field ${fieldPath} in new booking ${bookingId}`
+          `✅ Created and updated field ${fieldPath} in new booking ${bookingId}`,
         );
 
         // Create version snapshot for new booking creation
@@ -528,7 +536,7 @@ class BookingServiceImpl implements BookingService {
             Promise.resolve(null),
             newBookingData,
             "create",
-            `Created booking with field ${fieldPath}`
+            `Created booking with field ${fieldPath}`,
           );
         }
       } else {
@@ -543,7 +551,7 @@ class BookingServiceImpl implements BookingService {
 
         await updateDoc(docRef, updateData);
         console.log(
-          `✅ Updated field ${fieldPath} in existing booking ${bookingId}`
+          `✅ Updated field ${fieldPath} in existing booking ${bookingId}`,
         );
 
         // Create version snapshot for field update
@@ -556,7 +564,7 @@ class BookingServiceImpl implements BookingService {
             // If we're setting the 'id' field, this completes the initial creation
             if (fieldPath === "id") {
               console.log(
-                `📝 [PENDING CREATION] Completing initial creation for ${bookingId} with id field`
+                `📝 [PENDING CREATION] Completing initial creation for ${bookingId} with id field`,
               );
               this.pendingCreations.delete(bookingId);
 
@@ -570,11 +578,11 @@ class BookingServiceImpl implements BookingService {
                 Promise.resolve(null), // No previous data for creation
                 completeBookingData,
                 "create",
-                "Initial booking creation"
+                "Initial booking creation",
               );
             } else {
               console.log(
-                `📝 [PENDING CREATION] Skipping field update version for ${bookingId}, part of initial creation`
+                `📝 [PENDING CREATION] Skipping field update version for ${bookingId}, part of initial creation`,
               );
               // Don't create version snapshot for other field updates during initial creation
             }
@@ -584,7 +592,7 @@ class BookingServiceImpl implements BookingService {
               Promise.resolve(currentBookingData),
               updateData,
               "update",
-              `Updated field ${fieldPath}`
+              `Updated field ${fieldPath}`,
             );
           }
         }
@@ -593,7 +601,7 @@ class BookingServiceImpl implements BookingService {
       console.error(
         `❌ Failed to update field ${fieldPath} in booking ${bookingId}: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
       throw error;
     }
@@ -601,7 +609,7 @@ class BookingServiceImpl implements BookingService {
 
   async createOrUpdateBooking(
     bookingId: string,
-    bookingData: Record<string, any>
+    bookingData: Record<string, any>,
   ): Promise<void> {
     try {
       const docRef = doc(db, COLLECTION_NAME, bookingId);
@@ -613,13 +621,21 @@ class BookingServiceImpl implements BookingService {
         // Create new document
         // Generate access token for new booking
         const access_token = generateAccessToken();
-        
+
+        const priceSnapshotMetadata = {
+          priceSnapshotDate: bookingData.priceSnapshotDate ?? new Date(),
+          tourPackagePricingVersion: bookingData.tourPackagePricingVersion ?? 1,
+          priceSource: bookingData.priceSource ?? "snapshot",
+          lockPricing: bookingData.lockPricing ?? true,
+        };
+
         const newBookingData = {
           ...bookingData,
           id: bookingId,
           access_token,
           createdAt: new Date(),
           updatedAt: new Date(),
+          ...priceSnapshotMetadata,
         };
 
         await setDoc(docRef, newBookingData);
@@ -635,7 +651,7 @@ class BookingServiceImpl implements BookingService {
             Promise.resolve(null),
             newBookingData,
             "create",
-            "Created complete booking"
+            "Created complete booking",
           );
         }
       } else {
@@ -661,7 +677,7 @@ class BookingServiceImpl implements BookingService {
             Promise.resolve(currentBookingData),
             updateData,
             "update",
-            "Updated complete booking"
+            "Updated complete booking",
           );
         }
       }
@@ -669,7 +685,7 @@ class BookingServiceImpl implements BookingService {
       console.error(
         `❌ Failed to create/update booking ${bookingId}: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
       throw error;
     }
@@ -705,7 +721,7 @@ class BookingServiceImpl implements BookingService {
       console.error(
         `❌ Failed to get next row number: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
       throw error;
     }
@@ -722,7 +738,7 @@ class BookingServiceImpl implements BookingService {
       console.error(
         `❌ Failed to get row number for ID ${bookingId}: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
       throw error;
     }
@@ -757,8 +773,8 @@ class BookingServiceImpl implements BookingService {
       console.log(
         `🧹 Fields being cleared:`,
         Object.keys(currentData).filter(
-          (key) => key !== "id" && key !== "createdAt" && key !== "updatedAt"
-        )
+          (key) => key !== "id" && key !== "createdAt" && key !== "updatedAt",
+        ),
       );
 
       // Create version snapshot before clearing fields (this is essentially a bulk field deletion)
@@ -772,7 +788,7 @@ class BookingServiceImpl implements BookingService {
           Promise.resolve(currentBookingWithId),
           preservedFields, // The new state after clearing
           "update", // This is an update operation that clears fields
-          `Cleared all fields except id, createdAt, updatedAt`
+          `Cleared all fields except id, createdAt, updatedAt`,
         );
       }
 
@@ -782,13 +798,13 @@ class BookingServiceImpl implements BookingService {
       await setDoc(docRef, preservedFields);
 
       console.log(
-        `✅ Cleared all fields from booking ${bookingId}, preserved essential fields`
+        `✅ Cleared all fields from booking ${bookingId}, preserved essential fields`,
       );
     } catch (error) {
       console.error(
         `❌ Failed to clear booking fields ${bookingId}: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
       throw error;
     }
@@ -805,7 +821,7 @@ class BookingServiceImpl implements BookingService {
   private async cleanupScheduledEmails(bookingId: string): Promise<void> {
     try {
       console.log(
-        `🧹 Cleaning up scheduled emails for booking ${bookingId}...`
+        `🧹 Cleaning up scheduled emails for booking ${bookingId}...`,
       );
 
       // Query for all scheduled payment reminder emails for this booking
@@ -813,7 +829,7 @@ class BookingServiceImpl implements BookingService {
       const q = query(
         scheduledEmailsRef,
         where("bookingId", "==", bookingId),
-        where("emailType", "==", "payment-reminder")
+        where("emailType", "==", "payment-reminder"),
       );
 
       const snapshot = await getDocs(q);
@@ -824,7 +840,7 @@ class BookingServiceImpl implements BookingService {
       }
 
       console.log(
-        `Found ${snapshot.docs.length} scheduled emails to delete for booking ${bookingId}`
+        `Found ${snapshot.docs.length} scheduled emails to delete for booking ${bookingId}`,
       );
 
       // Delete all scheduled emails in a batch
@@ -842,12 +858,12 @@ class BookingServiceImpl implements BookingService {
 
       console.log(
         `✅ Successfully deleted ${snapshot.docs.length} scheduled emails for booking ${bookingId}`,
-        statusCounts
+        statusCounts,
       );
     } catch (error) {
       console.error(
         `⚠️ Error cleaning up scheduled emails for booking ${bookingId}:`,
-        error
+        error,
       );
       // Don't throw - we don't want to fail the booking deletion if cleanup fails
     }
@@ -860,7 +876,7 @@ class BookingServiceImpl implements BookingService {
   async deleteBookingWithRowShift(bookingId: string): Promise<void> {
     try {
       console.log(
-        `🗑️ Starting delete with row shift for booking ${bookingId}...`
+        `🗑️ Starting delete with row shift for booking ${bookingId}...`,
       );
 
       // Get the booking to find its row number
@@ -874,7 +890,7 @@ class BookingServiceImpl implements BookingService {
 
       if (typeof deletedRowNumber !== "number") {
         console.warn(
-          `⚠️ Booking ${bookingId} has no valid row number, deleting without shifting`
+          `⚠️ Booking ${bookingId} has no valid row number, deleting without shifting`,
         );
 
         // Create version snapshot before deletion even without row shifting
@@ -887,7 +903,7 @@ class BookingServiceImpl implements BookingService {
             bookingId,
             Promise.resolve(currentBookingWithId),
             currentBookingWithId,
-            "delete"
+            "delete",
           );
         }
 
@@ -905,7 +921,7 @@ class BookingServiceImpl implements BookingService {
       const q = query(
         bookingsRef,
         where("row", ">", deletedRowNumber),
-        orderBy("row", "asc")
+        orderBy("row", "asc"),
       );
 
       const snapshot = await getDocs(q);
@@ -928,7 +944,7 @@ class BookingServiceImpl implements BookingService {
           Promise.resolve(currentBookingWithId),
           currentBookingWithId,
           "delete",
-          `Deleted booking at row ${deletedRowNumber} with row shifting`
+          `Deleted booking at row ${deletedRowNumber} with row shifting`,
         );
       }
 
@@ -941,7 +957,7 @@ class BookingServiceImpl implements BookingService {
       // If no bookings to shift, we're done
       if (bookingsToUpdate.length === 0) {
         console.log(
-          `✅ Deleted booking at row ${deletedRowNumber}, no rows to shift`
+          `✅ Deleted booking at row ${deletedRowNumber}, no rows to shift`,
         );
         return;
       }
@@ -967,18 +983,18 @@ class BookingServiceImpl implements BookingService {
             slice[0].row
           }-${slice[slice.length - 1].row} → ${slice[0].row - 1}-${
             slice[slice.length - 1].row - 1
-          }`
+          }`,
         );
       }
 
       console.log(
-        `✅ Successfully deleted booking at row ${deletedRowNumber} and shifted ${bookingsToUpdate.length} subsequent rows down`
+        `✅ Successfully deleted booking at row ${deletedRowNumber} and shifted ${bookingsToUpdate.length} subsequent rows down`,
       );
     } catch (error) {
       console.error(
         `❌ Failed to delete booking with row shift ${bookingId}: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
       throw error;
     }
@@ -996,13 +1012,13 @@ class BookingServiceImpl implements BookingService {
     currentBookingPromise: Promise<DocumentData | null>,
     updates: Record<string, any>,
     changeType: "create" | "update" | "delete",
-    customDescription?: string
+    customDescription?: string,
   ): void {
     // Fire-and-forget async operation
     (async () => {
       try {
         console.log(
-          `📝 [ASYNC] Creating version snapshot for booking: ${bookingId}`
+          `📝 [ASYNC] Creating version snapshot for booking: ${bookingId}`,
         );
 
         // Get current user info from auth store
@@ -1049,26 +1065,26 @@ class BookingServiceImpl implements BookingService {
                 changeDescription: description,
                 userId: currentUserId,
                 userName: currentUserName,
-              }
+              },
             );
 
           // Check if version snapshot was skipped (no changes after sanitization)
           if (versionId === "__SKIPPED__") {
             console.log(
-              `⏭️  [ASYNC] Version snapshot skipped for ${bookingId}: update operation with no actual changes`
+              `⏭️  [ASYNC] Version snapshot skipped for ${bookingId}: update operation with no actual changes`,
             );
             return;
           }
 
           console.log(
-            `✅ [ASYNC] Version snapshot created successfully for ${bookingId}`
+            `✅ [ASYNC] Version snapshot created successfully for ${bookingId}`,
           );
         }
       } catch (versionError) {
         // Log error but don't throw - this is fire-and-forget
         console.error(
           `❌ [ASYNC] Failed to create version snapshot for ${bookingId}:`,
-          versionError
+          versionError,
         );
       }
     })();
@@ -1091,7 +1107,7 @@ class BookingServiceImpl implements BookingService {
     (async () => {
       try {
         console.log(
-          `📝 [BULK ASYNC] Creating bulk operation snapshot for ${options.operationType}`
+          `📝 [BULK ASYNC] Creating bulk operation snapshot for ${options.operationType}`,
         );
 
         await bookingVersionHistoryService.createBulkOperationSnapshot({
@@ -1106,12 +1122,12 @@ class BookingServiceImpl implements BookingService {
         });
 
         console.log(
-          `✅ [BULK ASYNC] Bulk operation snapshot created successfully for ${options.operationType}`
+          `✅ [BULK ASYNC] Bulk operation snapshot created successfully for ${options.operationType}`,
         );
       } catch (error) {
         console.error(
           `❌ [BULK ASYNC] Failed to create bulk operation snapshot:`,
-          error
+          error,
         );
       }
     })();
@@ -1127,11 +1143,11 @@ class BookingServiceImpl implements BookingService {
 
   setVersionTracking(
     trackingType: keyof typeof VERSION_TRACKING_CONFIG.trackingLevels,
-    enabled: boolean
+    enabled: boolean,
   ): void {
     VERSION_TRACKING_CONFIG.trackingLevels[trackingType] = enabled;
     console.log(
-      `📝 [VERSION CONFIG] Set ${trackingType} tracking to ${enabled}`
+      `📝 [VERSION CONFIG] Set ${trackingType} tracking to ${enabled}`,
     );
   }
 }

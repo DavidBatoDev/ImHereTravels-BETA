@@ -65,16 +65,18 @@ export const discountedTourCostColumn: BookingSheetColumn = {
 // Column Function Implementation
 /**
  * Calculates the discounted tour cost based on original cost and discount rate.
- * 
+ *
  * For percentage discounts: Applies percentage reduction to original cost
  * For flat amount discounts: Subtracts the flat amount from original cost
- * 
+ * NEW: If booking has locked pricing, returns stored value instead of recalculating.
+ *
  * Parameters:
  * - tourPackageName → string representing the name of the selected tour package.
  * - tourDate → optional date for matching custom pricing
  * - eventName → optional string representing the discount event name
  * - discountRate → optional number (percentage value like 20, or flat amount like 300)
  * - discountType → optional string indicating "percent" or "amount"
+ * - bookingContext → optional booking context containing locked pricing information
  *
  * Returns:
  * - number → the discounted cost (original cost - discount)
@@ -86,8 +88,21 @@ export default async function getTourDiscountedCost(
   tourDate?: any,
   eventName?: string | null,
   discountRate?: number | null,
-  discountType?: string | null
+  discountType?: string | null,
+  bookingContext?: {
+    discountedTourCost?: number;
+    lockPricing?: boolean;
+    priceSource?: string;
+  },
 ): Promise<number | ""> {
+  // If booking has locked pricing, return the stored value
+  if (
+    bookingContext?.lockPricing &&
+    bookingContext?.discountedTourCost !== undefined
+  ) {
+    return bookingContext.discountedTourCost;
+  }
+
   if (!tourPackageName) return "";
 
   // Fetch all tour packages from Firestore
@@ -97,7 +112,7 @@ export default async function getTourDiscountedCost(
   // Find the matching document by tour package name
   const matchedPackage = tourPackages.find(
     (pkg: any) =>
-      pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim()
+      pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim(),
   );
 
   if (!matchedPackage) return "";
@@ -110,7 +125,7 @@ export default async function getTourDiscountedCost(
       (td: any) => {
         const tdStart = td.startDate?.toDate?.() || new Date(td.startDate);
         return tdStart.toDateString() === travelDateToMatch.toDateString();
-      }
+      },
     );
 
     // If custom original price is set for this date, use it
@@ -137,16 +152,22 @@ export default async function getTourDiscountedCost(
     discountRate !== 0
   ) {
     let discountedCost: number;
-    
+
     // Normalize discountType to lowercase for case-insensitive comparison
     const normalizedDiscountType = discountType?.toLowerCase().trim();
-    
-    if (normalizedDiscountType === "percent" || normalizedDiscountType === "percentage") {
+
+    if (
+      normalizedDiscountType === "percent" ||
+      normalizedDiscountType === "percentage"
+    ) {
       // For percentage discounts: apply percentage reduction
       // discountRate is like 20 for 20%
       const discountDecimal = discountRate / 100;
       discountedCost = Math.round(baseCost * (1 - discountDecimal) * 100) / 100;
-    } else if (normalizedDiscountType === "amount" || normalizedDiscountType?.includes("amount")) {
+    } else if (
+      normalizedDiscountType === "amount" ||
+      normalizedDiscountType?.includes("amount")
+    ) {
       // For flat amount discounts: subtract the flat amount
       // discountRate is the amount like 300 for £300 off
       discountedCost = Math.round((baseCost - discountRate) * 100) / 100;
@@ -155,7 +176,7 @@ export default async function getTourDiscountedCost(
       const discountDecimal = discountRate / 100;
       discountedCost = Math.round(baseCost * (1 - discountDecimal) * 100) / 100;
     }
-    
+
     return discountedCost;
   }
 

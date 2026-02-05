@@ -58,6 +58,12 @@ export interface Booking {
   discountType?: "percent" | "amount"; // percent or flat amount
   discountRate?: number;
 
+  // Price snapshot metadata (for historical price tracking)
+  priceSnapshotDate?: Timestamp; // When prices were captured from tourPackage
+  tourPackagePricingVersion?: number; // Version number of tourPackage pricing used
+  priceSource?: "snapshot" | "manual" | "recalculated"; // How prices were determined
+  lockPricing?: boolean; // Prevents recalculation from current tourPackage prices
+
   // Email management - Reservation
   reservationEmail?: string;
   includeBccReservation: boolean;
@@ -105,7 +111,7 @@ export interface Booking {
 
   // Payment tokens for installment tracking
   paymentTokens?: PaymentTokens;
-  
+
   // Access token for public booking status page
   access_token?: string;
 

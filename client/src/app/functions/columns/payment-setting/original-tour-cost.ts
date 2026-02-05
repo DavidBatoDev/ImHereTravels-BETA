@@ -41,10 +41,12 @@ export const originalTourCostColumn: BookingSheetColumn = {
  * - Retrieves the base `originalTourCost` (pricing.original) for a given tour package.
  * - No discounts are applied here; discounts are handled by the discounted-tour-cost column.
  * - If the tour package name is blank or not found, returns an empty string.
+ * - NEW: If booking has locked pricing, returns stored value instead of fetching from tourPackages.
  *
  * Parameters:
  * - tourPackageName → string representing the name of the selected tour package.
  * - tourDate → optional date used to select a custom original price for that travel date.
+ * - bookingContext → optional booking context containing locked pricing information
  *
  * Returns:
  * - number → the original cost for the tour package (or custom date-specific original price)
@@ -52,8 +54,21 @@ export const originalTourCostColumn: BookingSheetColumn = {
  */
 export default async function getOriginalTourCost(
   tourPackageName: string,
-  tourDate?: any
+  tourDate?: any,
+  bookingContext?: {
+    originalTourCost?: number;
+    lockPricing?: boolean;
+    priceSource?: string;
+  },
 ): Promise<number | ""> {
+  // If booking has locked pricing, return the stored value
+  if (
+    bookingContext?.lockPricing &&
+    bookingContext?.originalTourCost !== undefined
+  ) {
+    return bookingContext.originalTourCost;
+  }
+
   if (!tourPackageName) return "";
 
   // Fetch all tour packages

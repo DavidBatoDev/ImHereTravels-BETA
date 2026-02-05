@@ -443,6 +443,11 @@ export async function POST(req: NextRequest) {
       reservationDate: Timestamp.now(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      // Price snapshot metadata for historical pricing
+      priceSnapshotDate: serverTimestamp(),
+      tourPackagePricingVersion: (tourPackage as any)?.currentVersion || 1,
+      priceSource: "snapshot",
+      lockPricing: true,
     });
 
     createdBookingIds.push(mainBookingData.bookingId);
@@ -506,6 +511,11 @@ export async function POST(req: NextRequest) {
         reservationDate: Timestamp.now(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        // Price snapshot metadata for historical pricing
+        priceSnapshotDate: serverTimestamp(),
+        tourPackagePricingVersion: (tourPackage as any)?.currentVersion || 1,
+        priceSource: "snapshot",
+        lockPricing: true,
       });
 
       createdBookingIds.push(guestBookingData.bookingId);

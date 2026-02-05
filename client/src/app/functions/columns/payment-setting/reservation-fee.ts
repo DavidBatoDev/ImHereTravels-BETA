@@ -48,6 +48,7 @@ export const reservationFeeColumn: BookingSheetColumn = {
  * - Retrieves a formatted string combining the tour package's `currency` and `deposit` amount.
  * - Equivalent to returning `${currency}${deposit}` based on the selected tour package name (`M1003`).
  * - If the tour package name is blank or not found, returns an empty string.
+ * - NEW: If booking has locked pricing, returns stored value instead of fetching from tourPackages.
  *
  * Example:
  * - Firestore fields: pricing.currency = "EUR", pricing.deposit = 250
@@ -55,6 +56,8 @@ export const reservationFeeColumn: BookingSheetColumn = {
  *
  * Parameters:
  * - tourPackageName → string representing the name of the selected tour package.
+ * - tourDate → optional date for matching custom deposit pricing
+ * - bookingContext → optional booking context containing locked pricing information
  *
  * Returns:
  * - string → formatted value like "EUR250"
@@ -63,8 +66,21 @@ export const reservationFeeColumn: BookingSheetColumn = {
 
 export default async function getTourCurrencyAndDeposit(
   tourPackageName: string,
-  tourDate?: any
+  tourDate?: any,
+  bookingContext?: {
+    reservationFee?: number;
+    lockPricing?: boolean;
+    priceSource?: string;
+  },
 ): Promise<string | ""> {
+  // If booking has locked pricing, return the stored value
+  if (
+    bookingContext?.lockPricing &&
+    bookingContext?.reservationFee !== undefined
+  ) {
+    return String(bookingContext.reservationFee);
+  }
+
   if (!tourPackageName) return "";
 
   // Fetch tourPackages collection
@@ -74,7 +90,7 @@ export default async function getTourCurrencyAndDeposit(
   // Find matching package by name
   const matchedPackage = tourPackages.find(
     (pkg: any) =>
-      pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim()
+      pkg.name?.toLowerCase().trim() === tourPackageName.toLowerCase().trim(),
   ) as any;
 
   if (!matchedPackage?.pricing) return "";
@@ -103,14 +119,14 @@ export default async function getTourCurrencyAndDeposit(
         (td: any) => {
           const tdStart = toDate(td.startDate);
           if (!tdStart) return false;
-          
+
           // Compare using ISO string (YYYY-MM-DD) to avoid timezone issues
           // Assuming dates are stored as UTC or consistently handled
           return (
             tdStart.toISOString().split("T")[0] ===
             travelDateToMatch.toISOString().split("T")[0]
           );
-        }
+        },
       );
 
       // If custom deposit is set for this date, use it
