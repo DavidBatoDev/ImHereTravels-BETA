@@ -238,19 +238,232 @@ export default function TourDetails({
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {tour.details.highlights.map((highlight, index) => {
-                        const highlightText = typeof highlight === 'string' ? highlight : highlight.text;
-                        const highlightImage = typeof highlight === 'object' && highlight.image ? highlight.image : null;
-                        
+                        const highlightText =
+                          typeof highlight === "string"
+                            ? highlight
+                            : highlight.text;
+                        const highlightImage =
+                          typeof highlight === "object" && highlight.image
+                            ? highlight.image
+                            : null;
+
                         return (
                           <div key={index} className="flex items-start gap-3">
                             <CheckCircle className="w-5 h-5 text-spring-green mt-0.5 flex-shrink-0" />
-                            <span className="text-foreground">{highlightText}</span>
+                            <span className="text-foreground">
+                              {highlightText}
+                            </span>
                           </div>
                         );
                       })}
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Pricing History */}
+                {tour.pricingHistory && tour.pricingHistory.length > 0 && (
+                  <Card className="bg-background border-2 border-border">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-2 text-foreground">
+                        <Banknote className="w-5 h-5 text-royal-purple" />
+                        Pricing History
+                        <Badge variant="outline" className="ml-2">
+                          {tour.pricingHistory.length + 1} Version
+                          {tour.pricingHistory.length + 1 > 1 ? "s" : ""}
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {/* Current Version */}
+                        <div className="p-4 bg-spring-green/10 border-2 border-spring-green rounded-lg">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-foreground">
+                                Version {tour.currentVersion || 1}
+                              </span>
+                              <Badge className="bg-spring-green text-white">
+                                Current
+                              </Badge>
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {format(new Date(), "MMM dd, yyyy")}
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                Original Price:
+                              </span>
+                              <span className="font-semibold">
+                                {tour.pricing.currency}{" "}
+                                {tour.pricing.original.toLocaleString()}
+                              </span>
+                            </div>
+                            {tour.pricing.discounted && (
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  Discounted Price:
+                                </span>
+                                <span className="font-semibold">
+                                  {tour.pricing.currency}{" "}
+                                  {tour.pricing.discounted.toLocaleString()}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                Deposit:
+                              </span>
+                              <span className="font-semibold">
+                                {tour.pricing.currency}{" "}
+                                {tour.pricing.deposit.toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                          {tour.travelDates.some(
+                            (td) =>
+                              td.customOriginal ||
+                              td.customDiscounted ||
+                              td.customDeposit,
+                          ) && (
+                            <div className="mt-3 pt-3 border-t border-spring-green/30">
+                              <p className="text-xs font-semibold text-muted-foreground mb-2">
+                                Custom Date Pricing:
+                              </p>
+                              <div className="space-y-1">
+                                {tour.travelDates
+                                  .filter(
+                                    (td) =>
+                                      td.customOriginal ||
+                                      td.customDiscounted ||
+                                      td.customDeposit,
+                                  )
+                                  .slice(0, 3)
+                                  .map((td, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="text-xs text-muted-foreground flex items-center gap-2"
+                                    >
+                                      <span className="font-medium">
+                                        {td.startDate &&
+                                        typeof td.startDate === "object" &&
+                                        "toDate" in td.startDate
+                                          ? format(
+                                              td.startDate.toDate(),
+                                              "MMM dd, yyyy",
+                                            )
+                                          : "Date"}
+                                      </span>
+                                      <span>
+                                        {tour.pricing.currency}{" "}
+                                        {(
+                                          td.customOriginal ||
+                                          tour.pricing.original
+                                        ).toLocaleString()}
+                                      </span>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Historical Versions */}
+                        {tour.pricingHistory
+                          .slice()
+                          .sort((a, b) => b.version - a.version)
+                          .map((history) => (
+                            <div
+                              key={history.version}
+                              className="p-4 bg-muted/30 border border-border rounded-lg"
+                            >
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="font-semibold text-foreground">
+                                  Version {history.version}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                  {history.effectiveDate &&
+                                  typeof history.effectiveDate === "object" &&
+                                  "toDate" in history.effectiveDate
+                                    ? format(
+                                        history.effectiveDate.toDate(),
+                                        "MMM dd, yyyy",
+                                      )
+                                    : "Historical"}
+                                </span>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-muted-foreground">
+                                    Original Price:
+                                  </span>
+                                  <span className="font-semibold">
+                                    {history.pricing.currency}{" "}
+                                    {history.pricing.original.toLocaleString()}
+                                  </span>
+                                </div>
+                                {history.pricing.discounted && (
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                      Discounted Price:
+                                    </span>
+                                    <span className="font-semibold">
+                                      {history.pricing.currency}{" "}
+                                      {history.pricing.discounted.toLocaleString()}
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-muted-foreground">
+                                    Deposit:
+                                  </span>
+                                  <span className="font-semibold">
+                                    {history.pricing.currency}{" "}
+                                    {history.pricing.deposit.toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                              {history.travelDates &&
+                                history.travelDates.length > 0 && (
+                                  <div className="mt-3 pt-3 border-t border-border">
+                                    <p className="text-xs font-semibold text-muted-foreground mb-2">
+                                      Custom Date Pricing:
+                                    </p>
+                                    <div className="space-y-1">
+                                      {history.travelDates
+                                        .slice(0, 3)
+                                        .map((td, idx) => (
+                                          <div
+                                            key={idx}
+                                            className="text-xs text-muted-foreground flex items-center gap-2"
+                                          >
+                                            <span className="font-medium">
+                                              {td.date
+                                                ? format(
+                                                    new Date(td.date),
+                                                    "MMM dd, yyyy",
+                                                  )
+                                                : "Date"}
+                                            </span>
+                                            <span>
+                                              {history.pricing.currency}{" "}
+                                              {(
+                                                td.customOriginal ||
+                                                history.pricing.original
+                                              ).toLocaleString()}
+                                            </span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  </div>
+                                )}
+                            </div>
+                          ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Itinerary */}
                 <Card className="bg-background border-2 border-border">
@@ -317,7 +530,7 @@ export default function TourDetails({
                                   {requirement}
                                 </span>
                               </div>
-                            )
+                            ),
                           )}
                         </div>
                       </CardContent>
@@ -361,7 +574,7 @@ export default function TourDetails({
                             ) {
                               // Handle Firestore Timestamp with seconds/nanoseconds
                               startDate = new Date(
-                                date.startDate.seconds * 1000
+                                date.startDate.seconds * 1000,
                               );
                             } else {
                               // Fallback
@@ -415,7 +628,7 @@ export default function TourDetails({
                                     {Math.ceil(
                                       (endDate.getTime() -
                                         startDate.getTime()) /
-                                        (1000 * 60 * 60 * 24)
+                                        (1000 * 60 * 60 * 24),
                                     )}{" "}
                                     days
                                   </p>
@@ -505,7 +718,7 @@ export default function TourDetails({
                             if (router && searchParams) {
                               // Update URL to include edit mode
                               const params = new URLSearchParams(
-                                searchParams.toString()
+                                searchParams.toString(),
                               );
                               params.set("mode", "edit");
                               router.push(`/tours?${params.toString()}`, {

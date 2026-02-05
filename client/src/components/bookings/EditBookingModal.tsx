@@ -2819,10 +2819,58 @@ export default function EditBookingModal({
                         valueToSave,
                       );
                     }
-                    setFormData((prev) => ({
-                      ...prev,
-                      [column.id]: valueToSave,
-                    }));
+
+                    // Auto-lock pricing when tourDate is selected (only if tourPackageName exists)
+                    if (
+                      column.id === "tourDate" &&
+                      valueToSave &&
+                      formData.tourPackageName
+                    ) {
+                      if (booking?.id) {
+                        batchedWriter.queueFieldUpdate(
+                          booking.id,
+                          "lockPricing",
+                          true,
+                        );
+                        batchedWriter.queueFieldUpdate(
+                          booking.id,
+                          "priceSource",
+                          "snapshot",
+                        );
+                        if (tourPackageData?.currentVersion) {
+                          batchedWriter.queueFieldUpdate(
+                            booking.id,
+                            "tourPackagePricingVersion",
+                            tourPackageData.currentVersion,
+                          );
+                        }
+                        if (!formData.priceSnapshotDate) {
+                          batchedWriter.queueFieldUpdate(
+                            booking.id,
+                            "priceSnapshotDate",
+                            serverTimestamp(),
+                          );
+                        }
+                      }
+
+                      setFormData((prev) => ({
+                        ...prev,
+                        [column.id]: valueToSave,
+                        lockPricing: true,
+                        priceSource: "snapshot" as
+                          | "snapshot"
+                          | "manual"
+                          | "recalculated",
+                        tourPackagePricingVersion:
+                          tourPackageData?.currentVersion ??
+                          prev.tourPackagePricingVersion,
+                      }));
+                    } else {
+                      setFormData((prev) => ({
+                        ...prev,
+                        [column.id]: valueToSave,
+                      }));
+                    }
                     setIsSaving(true);
                     debouncedSaveIndicator();
 
@@ -2972,52 +3020,10 @@ export default function EditBookingModal({
                     valueToSave,
                   );
                 }
-                if (column.id === "tourPackageName" && valueToSave) {
-                  if (booking?.id) {
-                    batchedWriter.queueFieldUpdate(
-                      booking.id,
-                      "lockPricing",
-                      true,
-                    );
-                    batchedWriter.queueFieldUpdate(
-                      booking.id,
-                      "priceSource",
-                      "snapshot",
-                    );
-                    if (tourPackageData?.currentVersion) {
-                      batchedWriter.queueFieldUpdate(
-                        booking.id,
-                        "tourPackagePricingVersion",
-                        tourPackageData.currentVersion,
-                      );
-                    }
-                    if (!formData.priceSnapshotDate) {
-                      batchedWriter.queueFieldUpdate(
-                        booking.id,
-                        "priceSnapshotDate",
-                        serverTimestamp(),
-                      );
-                    }
-                  }
-
-                  setFormData((prev) => ({
-                    ...prev,
-                    [column.id]: valueToSave,
-                    lockPricing: true,
-                    priceSource: "snapshot" as
-                      | "snapshot"
-                      | "manual"
-                      | "recalculated",
-                    tourPackagePricingVersion:
-                      tourPackageData?.currentVersion ??
-                      prev.tourPackagePricingVersion,
-                  }));
-                } else {
-                  setFormData((prev) => ({
-                    ...prev,
-                    [column.id]: valueToSave,
-                  }));
-                }
+                setFormData((prev) => ({
+                  ...prev,
+                  [column.id]: valueToSave,
+                }));
                 setIsSaving(true);
                 debouncedSaveIndicator();
 
