@@ -203,7 +203,12 @@ export default function TourSelectionModal({
               {/* Preload images in background */}
               <div className="hidden">
                 {tourPackages
-                  .filter((pkg) => pkg.status === "active" && pkg.coverImage)
+                  .filter(
+                    (pkg) =>
+                      pkg.status === "active" &&
+                      !isTourAllDatesTooSoon(pkg) &&
+                      pkg.coverImage,
+                  )
                   .map((pkg) => (
                     <img
                       key={pkg.id}
@@ -214,7 +219,10 @@ export default function TourSelectionModal({
                           const newSet = new Set(prev);
                           newSet.add(pkg.id);
                           const activeTours = tourPackages.filter(
-                            (p) => p.status === "active" && p.coverImage,
+                            (p) =>
+                              p.status === "active" &&
+                              !isTourAllDatesTooSoon(p) &&
+                              p.coverImage,
                           );
                           if (newSet.size === activeTours.length) {
                             setAllModalImagesLoaded(true);
@@ -261,265 +269,344 @@ export default function TourSelectionModal({
                     {modalImagesLoaded.size} /{" "}
                     {
                       tourPackages.filter(
-                        (p) => p.status === "active" && p.coverImage,
+                        (p) =>
+                          p.status === "active" &&
+                          !isTourAllDatesTooSoon(p) &&
+                          p.coverImage,
                       ).length
                     }
                   </p>
                 </div>
               ) : (
                 /* Tour Grid - Only show when all images loaded */
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  {tourPackages
-                    .filter((pkg) => pkg.status === "active")
-                    .map((pkg) => {
-                      const isSelected = selectedTourId === pkg.id;
-                      const isDisabled = isTourAllDatesTooSoon(pkg);
-                      const currency = "GBP";
-                      const currencySymbol = "£";
-                      const basePrice = pkg.price || 0;
-                      const baseDeposit = pkg.deposit ?? 0;
-                      const dateRows =
-                        pkg.travelDateDetails &&
-                        pkg.travelDateDetails.length > 0
-                          ? pkg.travelDateDetails.map((date) => ({
-                              date: date.date,
-                              price:
-                                typeof date.customOriginal === "number"
-                                  ? date.customOriginal
-                                  : basePrice,
-                              deposit:
-                                typeof date.customDeposit === "number"
-                                  ? date.customDeposit
-                                  : baseDeposit,
-                            }))
-                          : (pkg.travelDates || []).map((date) => ({
-                              date,
-                              price: basePrice,
-                              deposit: baseDeposit,
-                            }));
-
-                      return (
-                        <button
-                          key={pkg.id}
-                          onClick={() => handleSelectTour(pkg)}
-                          disabled={isDisabled}
-                          aria-disabled={isDisabled}
-                          className={`group relative flex flex-col rounded-2xl overflow-hidden bg-card transition-all duration-300 text-left shadow-md ${
-                            isDisabled
-                              ? "opacity-60 cursor-not-allowed"
-                              : "transform hover:scale-[1.02] hover:shadow-xl"
-                          } ${
-                            isSelected && !isDisabled
-                              ? "ring-4 ring-primary ring-offset-2 ring-offset-background shadow-2xl shadow-primary/20"
-                              : ""
-                          }`}
+                <>
+                  {tourPackages.filter(
+                    (pkg) =>
+                      pkg.status === "active" && !isTourAllDatesTooSoon(pkg),
+                  ).length === 0 ? (
+                    <div className="text-center py-20">
+                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted/50 mb-4">
+                        <svg
+                          className="w-10 h-10 text-muted-foreground/40"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
                         >
-                          {/* Cover Image */}
-                          <div className="relative h-36 overflow-hidden">
-                            {pkg.coverImage ? (
-                              <img
-                                src={pkg.coverImage}
-                                alt={pkg.name}
-                                className={`block w-full h-full object-cover object-center transition-all duration-500 ${
-                                  isSelected
-                                    ? "scale-105"
-                                    : "group-hover:scale-110"
-                                }`}
-                                loading="eager"
-                              />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                                <svg
-                                  className="w-16 h-16 text-muted-foreground/30"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={1.5}
-                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </div>
+                      <h3 className="text-xl font-semibold text-foreground mb-2">
+                        No Tours Available Right Now
+                      </h3>
+                      <p className="text-muted-foreground">
+                        All tour dates are either in the past or too soon to
+                        book.
+                        <br />
+                        Check back soon for new adventure dates!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                      {tourPackages
+                        .filter(
+                          (pkg) =>
+                            pkg.status === "active" &&
+                            !isTourAllDatesTooSoon(pkg),
+                        )
+                        .map((pkg) => {
+                          const isSelected = selectedTourId === pkg.id;
+                          const isDisabled = false; // Already filtered out tours with all dates too soon
+                          const currency = "GBP";
+                          const currencySymbol = "£";
+                          const basePrice = pkg.price || 0;
+                          const baseDeposit = pkg.deposit ?? 0;
+
+                          // Helper to check if date is in the past (more than 1 day ago)
+                          const isPastDate = (dateStr: any) => {
+                            const date = toDate(dateStr);
+                            if (!date) return false;
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            return date < today;
+                          };
+
+                          const dateRows =
+                            pkg.travelDateDetails &&
+                            pkg.travelDateDetails.length > 0
+                              ? pkg.travelDateDetails
+                                  .filter((date) => !isPastDate(date.date))
+                                  .map((date) => ({
+                                    date: date.date,
+                                    price:
+                                      typeof date.customOriginal === "number"
+                                        ? date.customOriginal
+                                        : basePrice,
+                                    deposit:
+                                      typeof date.customDeposit === "number"
+                                        ? date.customDeposit
+                                        : baseDeposit,
+                                  }))
+                              : (pkg.travelDates || [])
+                                  .filter((date) => !isPastDate(date))
+                                  .map((date) => ({
+                                    date,
+                                    price: basePrice,
+                                    deposit: baseDeposit,
+                                  }));
+
+                          return (
+                            <button
+                              key={pkg.id}
+                              onClick={() => handleSelectTour(pkg)}
+                              disabled={isDisabled}
+                              aria-disabled={isDisabled}
+                              className={`group relative flex flex-col rounded-2xl overflow-hidden bg-card transition-all duration-300 text-left shadow-md ${
+                                isDisabled
+                                  ? "opacity-60 cursor-not-allowed"
+                                  : "transform hover:scale-[1.02] hover:shadow-xl"
+                              } ${
+                                isSelected && !isDisabled
+                                  ? "ring-4 ring-primary ring-offset-2 ring-offset-background shadow-2xl shadow-primary/20"
+                                  : ""
+                              }`}
+                            >
+                              {/* Cover Image */}
+                              <div className="relative h-36 overflow-hidden">
+                                {pkg.coverImage ? (
+                                  <img
+                                    src={pkg.coverImage}
+                                    alt={pkg.name}
+                                    className={`block w-full h-full object-cover object-center transition-all duration-500 ${
+                                      isSelected
+                                        ? "scale-105"
+                                        : "group-hover:scale-110"
+                                    }`}
+                                    loading="eager"
                                   />
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Content */}
-                          <div className="p-3 space-y-1.5 flex-1 flex flex-col">
-                            {/* Title */}
-                            <h3 className="font-bold text-base text-foreground line-clamp-1">
-                              {pkg.name}
-                            </h3>
-
-                            {/* Description */}
-                            {pkg.description && (
-                              <p className="text-[11px] text-muted-foreground line-clamp-2 leading-snug">
-                                {pkg.description}
-                              </p>
-                            )}
-
-                            {/* Location */}
-                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                              <svg
-                                className="w-3.5 h-3.5 flex-shrink-0 text-royal-purple"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                                />
-                              </svg>
-                              <span className="line-clamp-1">
-                                {pkg.destinations?.[0] ||
-                                  pkg.region ||
-                                  pkg.country ||
-                                  "Location Not Yet Configured"}
-                              </span>
-                            </div>
-
-                            {/* Duration */}
-                            {pkg.duration && (
-                              <div className="flex items-center gap-1.5 text-[11px]">
-                                <svg
-                                  className="w-3.5 h-3.5 text-royal-purple"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                  />
-                                </svg>
-                                <span className="font-medium text-foreground">
-                                  {pkg.duration}
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Pricing by Date */}
-                            <div className="pt-1">
-                              {dateRows.length > 0 ? (
-                                <div className="space-y-1">
-                                  {dateRows.map((date, index) => (
-                                    <div
-                                      key={`${pkg.id}-date-${index}`}
-                                      className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground"
+                                ) : (
+                                  <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                                    <svg
+                                      className="w-16 h-16 text-muted-foreground/30"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
                                     >
-                                      <span className="line-clamp-1">
-                                        {formatDateValue(date.date)}
-                                      </span>
-                                      <span className="flex items-center gap-2 whitespace-nowrap">
-                                        <span className="text-[12px] font-bold text-foreground">
-                                          {currencySymbol}
-                                          {date.price.toLocaleString()}
-                                        </span>
-                                        <span className="text-[12px] font-bold text-muted-foreground">
-                                          ResFee {currencySymbol}
-                                          {date.deposit.toLocaleString()}
-                                        </span>
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-[11px] text-muted-foreground">
-                                  No dates available
-                                </p>
-                              )}
-                            </div>
-
-                            {/* Highlights */}
-                            {pkg.highlights && pkg.highlights.length > 0 && (
-                              <div className="flex flex-wrap gap-1 pt-1 mt-auto">
-                                {pkg.highlights
-                                  .slice(0, 2)
-                                  .map((highlight, index) => {
-                                    const highlightText =
-                                      typeof highlight === "string"
-                                        ? highlight
-                                        : (highlight as any)?.text ||
-                                          String(highlight);
-
-                                    return (
-                                      <span
-                                        key={index}
-                                        className="px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10"
-                                      >
-                                        {highlightText}
-                                      </span>
-                                    );
-                                  })}
-                                {pkg.highlights.length > 3 && (
-                                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10">
-                                    +{pkg.highlights.length - 2} more
-                                  </span>
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={1.5}
+                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                      />
+                                    </svg>
+                                  </div>
                                 )}
                               </div>
-                            )}
-                          </div>
 
-                          {/* Selected Checkmark Overlay */}
-                          {isDisabled && (
-                            <div className="absolute inset-0 bg-background/20 flex items-center justify-center">
-                              <div className="bg-white dark:bg-gray-900 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-                                <svg
-                                  className="w-4 h-4 text-destructive"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                                  />
-                                </svg>
-                                <span className="text-sm font-semibold text-destructive">
-                                  All dates are too soon
-                                </span>
-                              </div>
-                            </div>
-                          )}
+                              {/* Content */}
+                              <div className="p-3 space-y-1.5 flex-1 flex flex-col">
+                                {/* Title */}
+                                <h3 className="font-bold text-base text-foreground line-clamp-1">
+                                  {pkg.name}
+                                </h3>
 
-                          {isSelected && !isDisabled && (
-                            <div className="absolute inset-0 bg-primary/5 pointer-events-none">
-                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                                <div className="bg-primary text-primary-foreground p-4 rounded-full shadow-2xl animate-in zoom-in-50 duration-300">
+                                {/* Description */}
+                                {pkg.description && (
+                                  <p className="text-[11px] text-muted-foreground line-clamp-2 leading-snug">
+                                    {pkg.description}
+                                  </p>
+                                )}
+
+                                {/* Location */}
+                                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                                   <svg
-                                    className="w-10 h-10"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
+                                    className="w-3.5 h-3.5 flex-shrink-0 text-royal-purple"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
                                   >
                                     <path
-                                      fillRule="evenodd"
-                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                      clipRule="evenodd"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                                    />
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                                     />
                                   </svg>
+                                  <span className="line-clamp-1">
+                                    {pkg.destinations?.[0] ||
+                                      pkg.region ||
+                                      pkg.country ||
+                                      "Location Not Yet Configured"}
+                                  </span>
                                 </div>
+
+                                {/* Duration */}
+                                {pkg.duration && (
+                                  <div className="flex items-center gap-1.5 text-[11px]">
+                                    <svg
+                                      className="w-3.5 h-3.5 text-royal-purple"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                      />
+                                    </svg>
+                                    <span className="font-medium text-foreground">
+                                      {pkg.duration}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Pricing by Date */}
+                                <div className="pt-1">
+                                  {dateRows.length > 0 ? (
+                                    <div className="space-y-1">
+                                      {dateRows
+                                        .slice(0, 3)
+                                        .map((date, index) => (
+                                          <div
+                                            key={`${pkg.id}-date-${index}`}
+                                            className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground"
+                                          >
+                                            <span className="line-clamp-1">
+                                              {formatDateValue(date.date)}
+                                            </span>
+                                            <span className="flex items-center gap-2 whitespace-nowrap">
+                                              <span className="text-[12px] font-bold text-foreground">
+                                                {currencySymbol}
+                                                {date.price.toLocaleString()}
+                                              </span>
+                                              <span className="text-[12px] font-bold text-muted-foreground">
+                                                ResFee {currencySymbol}
+                                                {date.deposit.toLocaleString()}
+                                              </span>
+                                            </span>
+                                          </div>
+                                        ))}
+                                      {dateRows.length > 3 && (
+                                        <p className="text-[10px] text-royal-purple font-medium">
+                                          +{dateRows.length - 3} more{" "}
+                                          {dateRows.length - 3 === 1
+                                            ? "date"
+                                            : "dates"}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                      <svg
+                                        className="w-3 h-3 flex-shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                        />
+                                      </svg>
+                                      <span>No upcoming dates</span>
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Highlights */}
+                                {pkg.highlights &&
+                                  pkg.highlights.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 pt-1 mt-auto">
+                                      {pkg.highlights
+                                        .slice(0, 2)
+                                        .map((highlight, index) => {
+                                          const highlightText =
+                                            typeof highlight === "string"
+                                              ? highlight
+                                              : (highlight as any)?.text ||
+                                                String(highlight);
+
+                                          return (
+                                            <span
+                                              key={index}
+                                              className="px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10"
+                                            >
+                                              {highlightText}
+                                            </span>
+                                          );
+                                        })}
+                                      {pkg.highlights.length > 3 && (
+                                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10">
+                                          +{pkg.highlights.length - 2} more
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                               </div>
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                </div>
+
+                              {/* Selected Checkmark Overlay */}
+                              {isDisabled && (
+                                <div className="absolute inset-0 bg-background/20 flex items-center justify-center">
+                                  <div className="bg-white dark:bg-gray-900 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+                                    <svg
+                                      className="w-4 h-4 text-destructive"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                                      />
+                                    </svg>
+                                    <span className="text-sm font-semibold text-destructive">
+                                      All dates are too soon
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {isSelected && !isDisabled && (
+                                <div className="absolute inset-0 bg-primary/5 pointer-events-none">
+                                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                                    <div className="bg-primary text-primary-foreground p-4 rounded-full shadow-2xl animate-in zoom-in-50 duration-300">
+                                      <svg
+                                        className="w-10 h-10"
+                                        fill="currentColor"
+                                        viewBox="0 0 20 20"
+                                      >
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                          clipRule="evenodd"
+                                        />
+                                      </svg>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
