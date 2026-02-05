@@ -121,7 +121,7 @@ const tourFormSchema = z.object({
         hasCustomOriginal: z.boolean().optional(),
         hasCustomDiscounted: z.boolean().optional(),
         hasCustomDeposit: z.boolean().optional(),
-      })
+      }),
     )
     .min(1, "At least one travel date is required"),
   pricing: z.object({
@@ -138,14 +138,14 @@ const tourFormSchema = z.object({
           text: z.string().min(1, "Highlight text cannot be empty"),
           image: z.string().optional(),
         }),
-      ])
+      ]),
     ),
     itinerary: z.array(
       z.object({
         day: z.number(),
         title: z.string().min(1, "Day title is required"),
         description: z.string().min(1, "Day description is required"),
-      })
+      }),
     ),
     requirements: z.array(z.string()),
   }),
@@ -351,7 +351,7 @@ export default function TourForm({
 
               const visibleTop = Math.max(
                 rect.top,
-                containerRect.top + headerHeight
+                containerRect.top + headerHeight,
               );
               const visibleBottom = Math.min(rect.bottom, containerRect.bottom);
               const visibleHeight = Math.max(0, visibleBottom - visibleTop);
@@ -402,16 +402,20 @@ export default function TourForm({
   // Helper: compute duration between start/end in days
   const calculateDurationDays = (
     start?: string,
-    end?: string
+    end?: string,
   ): number | null => {
     if (!start || !end) return null;
     const s = new Date(start);
     const e = new Date(end);
     if (isNaN(s.getTime()) || isNaN(e.getTime())) return null;
     const diffDays = Math.round(
-      (e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)
+      (e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24),
     );
     return diffDays > 0 ? diffDays : null;
+  };
+
+  const handleNumberWheel = (event: React.WheelEvent<HTMLInputElement>) => {
+    event.currentTarget.blur();
   };
 
   const form = useForm<TourFormData>({
@@ -595,8 +599,8 @@ export default function TourForm({
           tour.location && presetLocations.includes(tour.location)
             ? tour.location
             : tour.location
-            ? "Other"
-            : "",
+              ? "Other"
+              : "",
         locationOther:
           tour.location && !presetLocations.includes(tour.location)
             ? tour.location
@@ -623,13 +627,13 @@ export default function TourForm({
         details: tour.details
           ? {
               highlights: tour.details.highlights?.filter(
-                (h) => h !== null
+                (h) => h !== null,
               ) || [""],
               itinerary: tour.details.itinerary?.filter((i) => i !== null) || [
                 { day: 1, title: "", description: "" },
               ],
               requirements: tour.details.requirements?.filter(
-                (r) => r !== null
+                (r) => r !== null,
               ) || [""],
             }
           : {
@@ -759,7 +763,7 @@ export default function TourForm({
 
   // Gallery images upload handler
   const handleGalleryUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const files = e.target.files;
 
@@ -776,7 +780,7 @@ export default function TourForm({
       } else {
         console.error(
           `Gallery file validation failed for ${file.name}:`,
-          validation.error
+          validation.error,
         );
         toast({
           title: "Invalid file",
@@ -858,7 +862,7 @@ export default function TourForm({
   // Upload highlight images to storage
   const uploadHighlightImages = async (
     highlights: any[],
-    tourId: string
+    tourId: string,
   ): Promise<any[]> => {
     const processedHighlights = await Promise.all(
       highlights.map(async (highlight, index) => {
@@ -880,7 +884,7 @@ export default function TourForm({
             const uploadResult = await uploadAllBlobsToStorage(
               file,
               [],
-              tourId
+              tourId,
             );
 
             if (
@@ -898,7 +902,7 @@ export default function TourForm({
         }
 
         return highlight;
-      })
+      }),
     );
 
     return processedHighlights;
@@ -926,12 +930,12 @@ export default function TourForm({
         tourIdString &&
         data.details.highlights.some(
           (h: any) =>
-            typeof h === "object" && h.image && h.image.startsWith("blob:")
+            typeof h === "object" && h.image && h.image.startsWith("blob:"),
         )
       ) {
         const processedHighlights = await uploadHighlightImages(
           data.details.highlights,
-          tourIdString
+          tourIdString,
         );
 
         // Update tour with processed highlights
@@ -951,7 +955,7 @@ export default function TourForm({
         const uploadResults = await uploadAllBlobsToStorage(
           coverBlob,
           galleryBlobs,
-          typeof tourId === "string" ? tourId : ""
+          typeof tourId === "string" ? tourId : "",
         );
 
         if (uploadResults.allSuccessful) {
@@ -983,13 +987,13 @@ export default function TourForm({
             if (Object.keys(mediaUpdate).length > 0) {
               await updateTourMedia(
                 typeof tourId === "string" ? tourId : "",
-                mediaUpdate
+                mediaUpdate,
               );
             }
           } catch (updateError) {
             console.error(
               "Failed to update tour with image URLs:",
-              updateError
+              updateError,
             );
           }
 
@@ -1028,13 +1032,13 @@ export default function TourForm({
             if (Object.keys(mediaUpdate).length > 0) {
               await updateTourMedia(
                 typeof tourId === "string" ? tourId : "",
-                mediaUpdate
+                mediaUpdate,
               );
             }
           } catch (updateError) {
             console.error(
               "Failed to update tour with successful image URLs:",
-              updateError
+              updateError,
             );
           }
 
@@ -1081,7 +1085,7 @@ export default function TourForm({
 
       // Check for gallery cleanup even if no new uploads
       const currentGallery = uploadedGallery.filter(
-        (url) => !url.startsWith("blob:")
+        (url) => !url.startsWith("blob:"),
       );
       const hasGalleryChanges =
         currentGallery.length !== originalGallery.length ||
@@ -1100,7 +1104,7 @@ export default function TourForm({
         const uploadResults = await uploadAllBlobsToStorage(
           coverBlob,
           galleryBlobs,
-          tour.id
+          tour.id,
         );
 
         console.log("Upload results:", uploadResults);
@@ -1133,7 +1137,7 @@ export default function TourForm({
               if (newGalleryUrls.length > 0) {
                 // Combine existing gallery with new images
                 const existingGallery = uploadedGallery.filter(
-                  (url) => !url.startsWith("blob:")
+                  (url) => !url.startsWith("blob:"),
                 );
                 const finalGallery = [...existingGallery, ...newGalleryUrls];
                 mediaUpdate.gallery = finalGallery;
@@ -1142,13 +1146,13 @@ export default function TourForm({
                 // Clean up removed images from storage
                 await cleanupRemovedGalleryImages(
                   originalGallery,
-                  finalGallery
+                  finalGallery,
                 );
               }
             } else {
               // No new uploads, but check if any existing images were removed
               const currentGallery = uploadedGallery.filter(
-                (url) => !url.startsWith("blob:")
+                (url) => !url.startsWith("blob:"),
               );
               if (
                 currentGallery.length !== originalGallery.length ||
@@ -1158,7 +1162,7 @@ export default function TourForm({
                 // Clean up removed images from storage
                 await cleanupRemovedGalleryImages(
                   originalGallery,
-                  currentGallery
+                  currentGallery,
                 );
               }
             }
@@ -1171,7 +1175,7 @@ export default function TourForm({
           } catch (updateError) {
             console.error(
               "Failed to update tour with image URLs:",
-              updateError
+              updateError,
             );
           }
 
@@ -1194,11 +1198,11 @@ export default function TourForm({
       } else if (hasGalleryChanges && tour?.id) {
         // No new uploads but gallery has changes (removals)
         console.log(
-          "No new uploads but gallery has changes, cleaning up removed images..."
+          "No new uploads but gallery has changes, cleaning up removed images...",
         );
 
         const currentGallery = uploadedGallery.filter(
-          (url) => !url.startsWith("blob:")
+          (url) => !url.startsWith("blob:"),
         );
 
         // Clean up removed images from storage
@@ -1290,7 +1294,7 @@ export default function TourForm({
             }),
           itinerary: data.details.itinerary,
           requirements: data.details.requirements.filter(
-            (r) => r.trim() !== ""
+            (r) => r.trim() !== "",
           ),
         },
         // Include uploaded images in media field
@@ -1318,7 +1322,7 @@ export default function TourForm({
             if (currentUploadedGallery.length > 0) {
               // Filter out blob URLs from uploaded gallery (they'll be handled by blob upload process)
               const realUrls = currentUploadedGallery.filter(
-                (url) => !url.startsWith("blob:")
+                (url) => !url.startsWith("blob:"),
               );
               return realUrls.length > 0 ? realUrls : existingGallery;
             }
@@ -1919,7 +1923,7 @@ export default function TourForm({
                               title="Duplicate date"
                               onClick={() => {
                                 const values = form.getValues(
-                                  `travelDates.${index}` as any
+                                  `travelDates.${index}` as any,
                                 ) as any;
                                 appendTravelDate({
                                   startDate: values?.startDate || "",
@@ -1973,21 +1977,21 @@ export default function TourForm({
                                       field.onChange(iso);
                                       // Auto-calculate end date when start date changes
                                       const days = form.getValues(
-                                        `travelDates.${index}.tourDays` as any
+                                        `travelDates.${index}.tourDays` as any,
                                       ) as number;
                                       if (iso && days && days > 0) {
                                         const startDate = new Date(iso);
                                         const endDate = new Date(startDate);
                                         // Subtract 1 because the start date counts as day 1
                                         endDate.setDate(
-                                          endDate.getDate() + days - 1
+                                          endDate.getDate() + days - 1,
                                         );
                                         const endDateString = endDate
                                           .toISOString()
                                           .split("T")[0];
                                         form.setValue(
                                           `travelDates.${index}.endDate` as any,
-                                          endDateString
+                                          endDateString,
                                         );
                                       }
                                     }}
@@ -2022,6 +2026,7 @@ export default function TourForm({
                                       step="1"
                                       placeholder="e.g., 9"
                                       value={field.value || ""}
+                                      onWheel={handleNumberWheel}
                                       onChange={(e) => {
                                         const daysValue = e.target.value
                                           ? parseInt(e.target.value, 10)
@@ -2029,7 +2034,7 @@ export default function TourForm({
                                         field.onChange(daysValue || "");
                                         // Auto-calculate end date when days change
                                         const startDate = form.getValues(
-                                          `travelDates.${index}.startDate` as any
+                                          `travelDates.${index}.startDate` as any,
                                         ) as string;
                                         const days = daysValue;
                                         if (startDate && days > 0) {
@@ -2042,7 +2047,7 @@ export default function TourForm({
                                             .split("T")[0];
                                           form.setValue(
                                             `travelDates.${index}.endDate` as any,
-                                            endDateString
+                                            endDateString,
                                           );
                                         }
                                       }}
@@ -2088,10 +2093,10 @@ export default function TourForm({
                           <div className="sm:col-span-2 hidden">
                             {(() => {
                               const start = form.watch(
-                                `travelDates.${index}.startDate` as any
+                                `travelDates.${index}.startDate` as any,
                               ) as string;
                               const end = form.watch(
-                                `travelDates.${index}.endDate` as any
+                                `travelDates.${index}.endDate` as any,
                               ) as string;
                               const days = calculateDurationDays(start, end);
                               return days ? (
@@ -2124,9 +2129,10 @@ export default function TourForm({
                                     step="1"
                                     placeholder="e.g., 12"
                                     {...field}
+                                    onWheel={handleNumberWheel}
                                     onChange={(e) =>
                                       field.onChange(
-                                        parseInt(e.target.value || "0", 10)
+                                        parseInt(e.target.value || "0", 10),
                                       )
                                     }
                                     className="h-9 text-sm border-2 border-border focus:border-spring-green"
@@ -2156,22 +2162,22 @@ export default function TourForm({
                                 onClick={() => {
                                   form.setValue(
                                     `travelDates.${index}.hasCustomOriginal` as any,
-                                    true
+                                    true,
                                   );
                                   if (
                                     form.getValues(
-                                      `travelDates.${index}.customOriginal` as any
+                                      `travelDates.${index}.customOriginal` as any,
                                     ) === undefined
                                   ) {
                                     form.setValue(
                                       `travelDates.${index}.customOriginal` as any,
-                                      ""
+                                      "",
                                     );
                                   }
                                 }}
                                 disabled={
                                   form.watch(
-                                    `travelDates.${index}.hasCustomOriginal`
+                                    `travelDates.${index}.hasCustomOriginal`,
                                   ) === true
                                 }
                               >
@@ -2185,22 +2191,22 @@ export default function TourForm({
                                 onClick={() => {
                                   form.setValue(
                                     `travelDates.${index}.hasCustomDeposit` as any,
-                                    true
+                                    true,
                                   );
                                   if (
                                     form.getValues(
-                                      `travelDates.${index}.customDeposit` as any
+                                      `travelDates.${index}.customDeposit` as any,
                                     ) === undefined
                                   ) {
                                     form.setValue(
                                       `travelDates.${index}.customDeposit` as any,
-                                      ""
+                                      "",
                                     );
                                   }
                                 }}
                                 disabled={
                                   form.watch(
-                                    `travelDates.${index}.hasCustomDeposit`
+                                    `travelDates.${index}.hasCustomDeposit`,
                                   ) === true
                                 }
                               >
@@ -2214,17 +2220,17 @@ export default function TourForm({
                           </div>
 
                           {(form.watch(
-                            `travelDates.${index}.hasCustomOriginal`
+                            `travelDates.${index}.hasCustomOriginal`,
                           ) ||
                             form.watch(
-                              `travelDates.${index}.hasCustomDiscounted`
+                              `travelDates.${index}.hasCustomDiscounted`,
                             ) ||
                             form.watch(
-                              `travelDates.${index}.hasCustomDeposit`
+                              `travelDates.${index}.hasCustomDeposit`,
                             )) && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 p-2.5 bg-muted/20 rounded-lg border border-border">
                               {form.watch(
-                                `travelDates.${index}.hasCustomOriginal`
+                                `travelDates.${index}.hasCustomOriginal`,
                               ) && (
                                 <FormField
                                   control={form.control}
@@ -2249,11 +2255,11 @@ export default function TourForm({
                                           onClick={() => {
                                             form.setValue(
                                               `travelDates.${index}.hasCustomOriginal` as any,
-                                              false
+                                              false,
                                             );
                                             form.setValue(
                                               `travelDates.${index}.customOriginal` as any,
-                                              undefined
+                                              undefined,
                                             );
                                           }}
                                           title="Remove"
@@ -2268,11 +2274,12 @@ export default function TourForm({
                                           step="0.01"
                                           placeholder="e.g., 299.99"
                                           {...field}
+                                          onWheel={handleNumberWheel}
                                           onChange={(e) =>
                                             field.onChange(
                                               e.target.value
                                                 ? parseFloat(e.target.value)
-                                                : ""
+                                                : "",
                                             )
                                           }
                                           className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
@@ -2285,7 +2292,7 @@ export default function TourForm({
                               )}
 
                               {form.watch(
-                                `travelDates.${index}.hasCustomDiscounted`
+                                `travelDates.${index}.hasCustomDiscounted`,
                               ) && (
                                 <FormField
                                   control={form.control}
@@ -2310,11 +2317,11 @@ export default function TourForm({
                                           onClick={() => {
                                             form.setValue(
                                               `travelDates.${index}.hasCustomDiscounted` as any,
-                                              false
+                                              false,
                                             );
                                             form.setValue(
                                               `travelDates.${index}.customDiscounted` as any,
-                                              undefined
+                                              undefined,
                                             );
                                           }}
                                           title="Remove"
@@ -2329,11 +2336,12 @@ export default function TourForm({
                                           step="0.01"
                                           placeholder="e.g., 249.99"
                                           {...field}
+                                          onWheel={handleNumberWheel}
                                           onChange={(e) =>
                                             field.onChange(
                                               e.target.value
                                                 ? parseFloat(e.target.value)
-                                                : ""
+                                                : "",
                                             )
                                           }
                                           className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
@@ -2341,10 +2349,10 @@ export default function TourForm({
                                       </FormControl>
                                       {(() => {
                                         const original = form.watch(
-                                          `pricing.original` as any
+                                          `pricing.original` as any,
                                         ) as number;
                                         const discounted = form.watch(
-                                          `travelDates.${index}.customDiscounted` as any
+                                          `travelDates.${index}.customDiscounted` as any,
                                         ) as number;
                                         if (
                                           original &&
@@ -2354,7 +2362,7 @@ export default function TourForm({
                                           const pct = Math.round(
                                             ((original - discounted) /
                                               original) *
-                                              100
+                                              100,
                                           );
                                           return (
                                             <span className="text-xs text-muted-foreground">
@@ -2371,7 +2379,7 @@ export default function TourForm({
                               )}
 
                               {form.watch(
-                                `travelDates.${index}.hasCustomDeposit`
+                                `travelDates.${index}.hasCustomDeposit`,
                               ) && (
                                 <FormField
                                   control={form.control}
@@ -2396,11 +2404,11 @@ export default function TourForm({
                                           onClick={() => {
                                             form.setValue(
                                               `travelDates.${index}.hasCustomDeposit` as any,
-                                              false
+                                              false,
                                             );
                                             form.setValue(
                                               `travelDates.${index}.customDeposit` as any,
-                                              undefined
+                                              undefined,
                                             );
                                           }}
                                           title="Remove"
@@ -2415,11 +2423,12 @@ export default function TourForm({
                                           step="0.01"
                                           placeholder="e.g., 100.00"
                                           {...field}
+                                          onWheel={handleNumberWheel}
                                           onChange={(e) =>
                                             field.onChange(
                                               e.target.value
                                                 ? parseFloat(e.target.value)
-                                                : ""
+                                                : "",
                                             )
                                           }
                                           className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
@@ -2489,9 +2498,10 @@ export default function TourForm({
                                 min="0"
                                 step="0.01"
                                 {...field}
+                                onWheel={handleNumberWheel}
                                 onChange={(e) =>
                                   field.onChange(
-                                    parseFloat(e.target.value) || 0
+                                    parseFloat(e.target.value) || 0,
                                   )
                                 }
                                 className="border-2 border-border focus:border-vivid-orange"
@@ -2516,9 +2526,10 @@ export default function TourForm({
                                 min="0"
                                 step="0.01"
                                 {...field}
+                                onWheel={handleNumberWheel}
                                 onChange={(e) =>
                                   field.onChange(
-                                    parseFloat(e.target.value) || 0
+                                    parseFloat(e.target.value) || 0,
                                   )
                                 }
                                 className="border-2 border-border focus:border-vivid-orange"
@@ -2669,7 +2680,7 @@ export default function TourForm({
                   <CardContent className="pt-4 space-y-4">
                     {highlightFields.map((field, index) => {
                       const currentValue = form.watch(
-                        `details.highlights.${index}` as any
+                        `details.highlights.${index}` as any,
                       );
                       const isObject =
                         typeof currentValue === "object" &&
@@ -2747,7 +2758,7 @@ export default function TourForm({
                                     checked={highlightImage === ""}
                                     onCheckedChange={(checked) => {
                                       const formField = form.getValues(
-                                        `details.highlights.${index}` as any
+                                        `details.highlights.${index}` as any,
                                       );
                                       const text =
                                         typeof formField === "string"
@@ -2758,7 +2769,7 @@ export default function TourForm({
                                         {
                                           text: text,
                                           image: checked ? "" : undefined,
-                                        }
+                                        },
                                       );
                                     }}
                                   />
@@ -2776,8 +2787,8 @@ export default function TourForm({
                                       {highlightImage === ""
                                         ? "URL Mode"
                                         : highlightImage
-                                        ? "Image Set"
-                                        : "Upload Mode"}
+                                          ? "Image Set"
+                                          : "Upload Mode"}
                                     </Badge>
                                   ) : (
                                     <span className="text-xs opacity-0">
@@ -2802,7 +2813,7 @@ export default function TourForm({
                                   size="sm"
                                   onClick={() => {
                                     const formField = form.getValues(
-                                      `details.highlights.${index}` as any
+                                      `details.highlights.${index}` as any,
                                     );
                                     if (typeof formField === "object") {
                                       form.setValue(
@@ -2810,7 +2821,7 @@ export default function TourForm({
                                         {
                                           text: formField.text,
                                           image: undefined,
-                                        }
+                                        },
                                       );
                                     }
                                   }}
@@ -2829,7 +2840,7 @@ export default function TourForm({
                                       value={highlightImage || ""}
                                       onChange={(e) => {
                                         const currentFormValue = form.getValues(
-                                          `details.highlights.${index}` as any
+                                          `details.highlights.${index}` as any,
                                         );
                                         const text =
                                           typeof currentFormValue === "string"
@@ -2840,7 +2851,7 @@ export default function TourForm({
                                           {
                                             text: text,
                                             image: e.target.value,
-                                          }
+                                          },
                                         );
                                       }}
                                       className="border-2 border-border focus:border-sunglow-yellow"
@@ -2882,7 +2893,7 @@ export default function TourForm({
                                                   createBlobUrl(file);
                                                 const currentFormValue =
                                                   form.getValues(
-                                                    `details.highlights.${index}` as any
+                                                    `details.highlights.${index}` as any,
                                                   );
                                                 const text =
                                                   typeof currentFormValue ===
@@ -2895,7 +2906,7 @@ export default function TourForm({
                                                   {
                                                     text: text,
                                                     image: blobUrl,
-                                                  }
+                                                  },
                                                 );
                                                 toast({
                                                   title: "Image uploaded",
@@ -2905,7 +2916,7 @@ export default function TourForm({
                                               } catch (error) {
                                                 console.error(
                                                   "Error uploading highlight image:",
-                                                  error
+                                                  error,
                                                 );
                                                 toast({
                                                   title: "Upload failed",
@@ -3270,8 +3281,8 @@ export default function TourForm({
                 {isSubmitting
                   ? "Saving..."
                   : tour
-                  ? "Update Tour"
-                  : "Create Tour"}
+                    ? "Update Tour"
+                    : "Create Tour"}
               </Button>
             </div>
           </div>

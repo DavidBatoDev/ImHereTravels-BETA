@@ -32,6 +32,8 @@ export { processScheduledEmails } from "./scheduled-emails";
 export { onPaymentReminderEnabled } from "./payment-reminder-trigger";
 // Export cleanup function for abandoned payments (runs daily at 2 AM UTC)
 export { cleanupAbandonedPayments } from "./scheduled-cleanup-abandoned-payments";
+// Export price history tracking function
+export { onTourPackagePriceUpdate } from "./on-tour-package-price-update";
 
 // export { telegramBot } from "./telegram-bot";
 // export {
