@@ -1177,14 +1177,45 @@ export default function EditBookingModal({
     loadTourPackage();
   }, [isOpen, formData.tourPackageName]);
 
+  // Track previous tourPackageName to detect changes
+  const prevTourPackageNameForVersionRef = React.useRef<string | undefined>(
+    undefined,
+  );
+
   useEffect(() => {
-    if (!booking?.id || !formData.tourPackageName || !tourPackageData) return;
+    if (!booking?.id || !formData.tourPackageName || !tourPackageData) {
+      prevTourPackageNameForVersionRef.current = undefined;
+      return;
+    }
 
     const currentVersion = tourPackageData.currentVersion;
     if (!currentVersion) return;
 
-    // Always update to the latest version when tour package data changes (new tour selected)
-    if (formData.tourPackagePricingVersion !== currentVersion) {
+    // CRITICAL: Ensure tourPackageData matches the current tourPackageName
+    // to avoid using stale data when switching packages
+    if (tourPackageData.name !== formData.tourPackageName) {
+      return;
+    }
+
+    const currentPkgName = formData.tourPackageName;
+    const prevPkgName = prevTourPackageNameForVersionRef.current;
+
+    // Update to current version when:
+    // 1. No pricing version is set yet (new booking)
+    // 2. Tour package name has changed (switching to different tour)
+    const shouldUpdate =
+      !formData.tourPackagePricingVersion ||
+      (prevPkgName !== undefined && currentPkgName !== prevPkgName);
+
+    if (shouldUpdate) {
+      console.log("📦 [PRICING VERSION] Updating to current version:", {
+        package: currentPkgName,
+        version: currentVersion,
+        reason: !formData.tourPackagePricingVersion
+          ? "no version set"
+          : "package changed",
+      });
+
       batchedWriter.queueFieldUpdate(
         booking.id,
         "tourPackagePricingVersion",
@@ -1197,6 +1228,8 @@ export default function EditBookingModal({
       setIsSaving(true);
       debouncedSaveIndicator();
     }
+
+    prevTourPackageNameForVersionRef.current = currentPkgName;
   }, [
     booking?.id,
     formData.tourPackageName,
@@ -1681,97 +1714,6 @@ export default function EditBookingModal({
     [booking?.id, formData.priceSnapshotDate, tourPackageData],
   );
 
-  const handleApplyPricingVersion = useCallback(async () => {
-    if (!booking?.id || !tourPackageData || !selectedPricingVersion) return;
-
-    const selectedOption = pricingVersionOptions.find(
-      (option) => option.version === selectedPricingVersion,
-    );
-
-    if (!selectedOption) return;
-
-    let originalTourCost = selectedOption.pricing.original;
-    let discountedTourCost = selectedOption.pricing.discounted;
-    let reservationFee = selectedOption.pricing.deposit;
-
-    const bookingDateKey = getDateKey(formData.tourDate);
-    if (bookingDateKey && selectedOption.travelDates?.length) {
-      const matchingDate = selectedOption.travelDates.find((td) => {
-        const entryKey = td.date?.split("T")[0];
-        return entryKey === bookingDateKey;
-      });
-
-      if (matchingDate) {
-        if (matchingDate.customOriginal !== undefined) {
-          originalTourCost = matchingDate.customOriginal;
-        }
-        if (matchingDate.customDiscounted !== undefined) {
-          discountedTourCost = matchingDate.customDiscounted;
-        }
-        if (matchingDate.customDeposit !== undefined) {
-          reservationFee = matchingDate.customDeposit;
-        }
-      }
-    }
-
-    batchedWriter.queueFieldUpdate(booking.id, "lockPricing", true);
-    batchedWriter.queueFieldUpdate(booking.id, "priceSource", "snapshot");
-    batchedWriter.queueFieldUpdate(
-      booking.id,
-      "tourPackagePricingVersion",
-      selectedPricingVersion,
-    );
-    batchedWriter.queueFieldUpdate(
-      booking.id,
-      "priceSnapshotDate",
-      serverTimestamp(),
-    );
-    batchedWriter.queueFieldUpdate(
-      booking.id,
-      "originalTourCost",
-      originalTourCost,
-    );
-    if (discountedTourCost !== undefined) {
-      batchedWriter.queueFieldUpdate(
-        booking.id,
-        "discountedTourCost",
-        discountedTourCost,
-      );
-    }
-    batchedWriter.queueFieldUpdate(
-      booking.id,
-      "reservationFee",
-      reservationFee,
-    );
-
-    setFormData((prev) => ({
-      ...prev,
-      lockPricing: true,
-      priceSource: "snapshot" as "snapshot" | "manual" | "recalculated",
-      tourPackagePricingVersion: selectedPricingVersion,
-      originalTourCost,
-      discountedTourCost,
-      reservationFee,
-    }));
-
-    setIsSaving(true);
-    debouncedSaveIndicator();
-    setShowPricingVersionDialog(false);
-
-    toast({
-      title: "Pricing Version Applied",
-      description: `Booking updated to pricing version ${selectedPricingVersion}.`,
-    });
-  }, [
-    booking?.id,
-    tourPackageData,
-    selectedPricingVersion,
-    pricingVersionOptions,
-    formData.tourDate,
-    getDateKey,
-    toast,
-  ]);
-
   // Get icon for parent tab
   const getParentTabIcon = (parentTab: string) => {
     if (parentTab.includes("Identifier") || parentTab.includes("🆔"))
@@ -1987,6 +1929,116 @@ export default function EditBookingModal({
     },
     [dependencyGraph, executeFunction, booking?.id],
   );
+
+  // Handle applying a selected pricing version
+  const handleApplyPricingVersion = useCallback(async () => {
+    if (!booking?.id || !tourPackageData || !selectedPricingVersion) return;
+
+    const selectedOption = pricingVersionOptions.find(
+      (option) => option.version === selectedPricingVersion,
+    );
+
+    if (!selectedOption) return;
+
+    let originalTourCost = selectedOption.pricing.original;
+    let discountedTourCost = selectedOption.pricing.discounted;
+    let reservationFee = selectedOption.pricing.deposit;
+
+    const bookingDateKey = getDateKey(formData.tourDate);
+    if (bookingDateKey && selectedOption.travelDates?.length) {
+      const matchingDate = selectedOption.travelDates.find((td) => {
+        const entryKey = td.date?.split("T")[0];
+        return entryKey === bookingDateKey;
+      });
+
+      if (matchingDate) {
+        if (matchingDate.customOriginal !== undefined) {
+          originalTourCost = matchingDate.customOriginal;
+        }
+        if (matchingDate.customDiscounted !== undefined) {
+          discountedTourCost = matchingDate.customDiscounted;
+        }
+        if (matchingDate.customDeposit !== undefined) {
+          reservationFee = matchingDate.customDeposit;
+        }
+      }
+    }
+
+    batchedWriter.queueFieldUpdate(booking.id, "lockPricing", true);
+    batchedWriter.queueFieldUpdate(booking.id, "priceSource", "snapshot");
+    batchedWriter.queueFieldUpdate(
+      booking.id,
+      "tourPackagePricingVersion",
+      selectedPricingVersion,
+    );
+    batchedWriter.queueFieldUpdate(
+      booking.id,
+      "priceSnapshotDate",
+      serverTimestamp(),
+    );
+    batchedWriter.queueFieldUpdate(
+      booking.id,
+      "originalTourCost",
+      originalTourCost,
+    );
+    if (discountedTourCost !== undefined) {
+      batchedWriter.queueFieldUpdate(
+        booking.id,
+        "discountedTourCost",
+        discountedTourCost,
+      );
+    }
+    batchedWriter.queueFieldUpdate(
+      booking.id,
+      "reservationFee",
+      reservationFee,
+    );
+
+    const updatedFormData: Partial<Booking> = {
+      ...formData,
+      lockPricing: true,
+      priceSource: "snapshot" as "snapshot" | "manual" | "recalculated",
+      tourPackagePricingVersion: selectedPricingVersion,
+      originalTourCost,
+      discountedTourCost,
+      reservationFee,
+    };
+
+    setFormData(updatedFormData);
+
+    // Recalculate dependent functions (payment amounts, balances, etc.)
+    // Execute dependents for each changed pricing field
+    let finalData: Partial<Booking> = updatedFormData;
+    for (const fieldId of [
+      "originalTourCost",
+      "discountedTourCost",
+      "reservationFee",
+    ]) {
+      finalData = await executeDirectDependents(fieldId, finalData);
+    }
+
+    if (finalData !== updatedFormData) {
+      setFormData(finalData);
+    }
+
+    setIsSaving(true);
+    debouncedSaveIndicator();
+    setShowPricingVersionDialog(false);
+
+    toast({
+      title: "Pricing Version Applied",
+      description: `Booking updated to pricing version ${selectedPricingVersion}.`,
+    });
+  }, [
+    booking?.id,
+    tourPackageData,
+    selectedPricingVersion,
+    pricingVersionOptions,
+    formData,
+    getDateKey,
+    toast,
+    executeDirectDependents,
+  ]);
 
   // Reactive tracking: reload Tour Date options when Tour Package Name changes
   const previousTourPackageName = React.useRef<string | undefined>(undefined);
