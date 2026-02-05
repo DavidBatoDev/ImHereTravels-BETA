@@ -2871,6 +2871,19 @@ export default function EditBookingModal({
                         [column.id]: valueToSave,
                       }));
                     }
+
+                    // Special handling: reload eventName options when tourDate changes
+                    if (
+                      column.id === "tourDate" &&
+                      valueToSave &&
+                      formData.tourPackageName
+                    ) {
+                      reloadEventNameOptions(
+                        formData.tourPackageName,
+                        valueToSave,
+                      );
+                    }
+
                     setIsSaving(true);
                     debouncedSaveIndicator();
 
@@ -3024,6 +3037,13 @@ export default function EditBookingModal({
                   ...prev,
                   [column.id]: valueToSave,
                 }));
+
+                // Special handling: reload dependent options when tourPackageName changes
+                if (column.id === "tourPackageName" && valueToSave) {
+                  // Reload tourDate options
+                  reloadTourDateOptions(valueToSave);
+                }
+
                 setIsSaving(true);
                 debouncedSaveIndicator();
 
