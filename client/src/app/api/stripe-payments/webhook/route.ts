@@ -291,6 +291,75 @@ export async function POST(req: NextRequest) {
           console.log(
             "✅ Stripe payment record updated with booking reference",
           );
+
+          // Create notification for reservation payment
+          try {
+            const { createReservationPaymentNotification } =
+              await import("@/utils/notification-service");
+            await createReservationPaymentNotification({
+              bookingId: bookingData.bookingId,
+              bookingDocumentId: newBookingRef.id,
+              travelerName: `${paymentData.customer?.firstName || ""} ${paymentData.customer?.lastName || ""}`,
+              tourPackageName:
+                paymentData.tour?.packageName ||
+                (tourPackage as any)?.name ||
+                "",
+              amount: paymentData.payment?.amount || 250,
+              currency: "EUR",
+            });
+            console.log("✅ Notification created successfully");
+          } catch (notificationError) {
+            console.error(
+              "❌ Failed to create notification:",
+              notificationError,
+            );
+            // Don't block the webhook - continue processing
+          }
+
+          // Send guest invitations for Duo/Group bookings
+          const additionalGuests = paymentData.booking?.additionalGuests || [];
+          if (isGroupBooking && additionalGuests.length > 0) {
+            console.log(
+              "📧 Triggering guest invitations for",
+              additionalGuests.length,
+              "guests...",
+            );
+            try {
+              // Call the Cloud Function via HTTP
+              const functionUrl =
+                process.env.NEXT_PUBLIC_ENV === "production"
+                  ? `https://asia-southeast1-${process.env.FIREBASE_PROJECT_ID}.cloudfunctions.net/sendGuestInvitationEmails`
+                  : `https://asia-southeast1-imheretravels-dev.cloudfunctions.net/sendGuestInvitationEmails`;
+
+              const response = await fetch(functionUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  data: {
+                    paymentDocId: paymentDoc.id,
+                  },
+                }),
+              });
+
+              if (response.ok) {
+                console.log("✅ Guest invitations sent successfully");
+              } else {
+                const errorText = await response.text();
+                console.error(
+                  "❌ Failed to send guest invitations:",
+                  errorText,
+                );
+              }
+            } catch (inviteError) {
+              console.error(
+                "❌ Failed to send guest invitations:",
+                inviteError,
+              );
+              // Don't block the webhook - admin can resend later
+            }
+          }
         } else {
           // For other payment types or already processed, just update status
           await updateDoc(doc(db, "stripePayments", paymentDoc.id), {

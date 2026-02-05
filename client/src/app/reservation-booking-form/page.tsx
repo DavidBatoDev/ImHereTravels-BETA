@@ -1758,7 +1758,11 @@ const Page = () => {
       }
 
       // Now call the create-booking API to create the actual booking document
-      if (actualPaymentDocId) {
+      // In production, skip this call as the webhook will handle booking creation
+      let createdBookingId: string | null = null;
+      let createdBookingDocId: string | null = null;
+
+      if (actualPaymentDocId && process.env.NEXT_PUBLIC_ENV !== "production") {
         console.log("📤 Creating booking via API...");
         const response = await fetch("/api/stripe-payments/create-booking", {
           method: "POST",
@@ -1774,40 +1778,42 @@ const Page = () => {
 
         if (response.ok) {
           console.log("✅ Booking created successfully:", result);
+          createdBookingId = result.bookingId;
+          createdBookingDocId = result.bookingDocumentId;
           setBookingId(result.bookingId);
 
-          // Create notification for Step 2 payment
-          try {
-            const { createReservationPaymentNotification } =
-              await import("@/utils/notification-service");
-            await createReservationPaymentNotification({
-              bookingId: result.bookingId,
-              bookingDocumentId: result.bookingDocumentId,
-              travelerName: `${firstName} ${lastName}`,
-              tourPackageName: selectedPackage?.name || "",
-              amount: (selectedPackage as any)?.deposit || 0,
-              currency: "EUR",
-            });
-          } catch (error) {
-            console.error("Failed to create notification:", error);
-            // Continue anyway - don't block user
+          // Create notification for Step 2 payment (dev only)
+          if (createdBookingId && createdBookingDocId) {
+            try {
+              const { createReservationPaymentNotification } =
+                await import("@/utils/notification-service");
+              await createReservationPaymentNotification({
+                bookingId: createdBookingId,
+                bookingDocumentId: createdBookingDocId,
+                travelerName: `${firstName} ${lastName}`,
+                tourPackageName: selectedPackage?.name || "",
+                amount: (selectedPackage as any)?.deposit || 0,
+                currency: "EUR",
+              });
+              console.log("✅ Notification created successfully");
+            } catch (error) {
+              console.error("Failed to create notification:", error);
+              // Continue anyway - don't block user
+            }
           }
 
-          // Send guest invitations if this is a Duo/Group booking
+          // Send guest invitations if this is a Duo/Group booking (dev only)
           if (
             (bookingType === "Duo Booking" ||
               bookingType === "Group Booking") &&
-            additionalGuests.length > 0 &&
-            actualPaymentDocId
+            additionalGuests.length > 0
           ) {
             console.log("📧 Sending guest invitations...");
             try {
-              // Import Firebase Functions
               const { getFunctions, httpsCallable } =
                 await import("firebase/functions");
               const { functions } = await import("@/lib/firebase");
 
-              // Call the Cloud Function to send invitations
               const sendGuestInvitations = httpsCallable(
                 functions,
                 "sendGuestInvitationEmails",
@@ -1828,6 +1834,56 @@ const Page = () => {
         } else {
           console.error("❌ Failed to create booking:", result.error);
           // Still proceed - booking might be created by webhook later
+        }
+      } else if (
+        actualPaymentDocId &&
+        process.env.NEXT_PUBLIC_ENV === "production"
+      ) {
+        console.log("⏭️ Skipping create-booking API call in production");
+        console.log(
+          "✅ Webhook will handle booking creation, notifications, and guest invitations",
+        );
+
+        // In production, listen for the webhook to create the booking
+        console.log("⏳ Waiting for webhook to create booking...");
+
+        try {
+          // Set up a realtime listener on the payment document
+          const { onSnapshot } = await import("firebase/firestore");
+
+          createdBookingId = await new Promise<string>((resolve, reject) => {
+            const timeoutId = setTimeout(() => {
+              reject(new Error("Timeout waiting for booking creation"));
+            }, 30000); // 30 second timeout
+
+            const unsubscribe = onSnapshot(
+              doc(db, "stripePayments", actualPaymentDocId),
+              (docSnapshot) => {
+                const data = docSnapshot.data();
+                const bookingId = data?.booking?.id;
+                const bookingDocId = data?.booking?.documentId;
+
+                // Check if booking has been created (not "PENDING")
+                if (bookingId && bookingId !== "PENDING" && bookingDocId) {
+                  clearTimeout(timeoutId);
+                  unsubscribe();
+
+                  console.log("✅ Booking created by webhook:", bookingId);
+                  createdBookingDocId = bookingDocId;
+                  setBookingId(bookingId);
+                  resolve(bookingId);
+                }
+              },
+              (error) => {
+                clearTimeout(timeoutId);
+                console.error("❌ Error listening for booking:", error);
+                reject(error);
+              },
+            );
+          });
+        } catch (error) {
+          console.error("❌ Failed to get booking from webhook:", error);
+          // Continue anyway - user can refresh or check later
         }
       }
 
