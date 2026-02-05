@@ -200,6 +200,17 @@ export default function EditBookingModal({
     return new Date(dateValue).toISOString().split("T")[0];
   }, []);
 
+  const formatDateLabel = useCallback((dateValue: string): string => {
+    if (!dateValue) return "";
+    const parsed = new Date(dateValue);
+    if (Number.isNaN(parsed.getTime())) return dateValue;
+    return parsed.toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    });
+  }, []);
+
   const pricingVersionOptions = useMemo(() => {
     if (!tourPackageData)
       return [] as Array<{
@@ -211,14 +222,9 @@ export default function EditBookingModal({
       }>;
 
     const currentVersion = tourPackageData.currentVersion || 1;
+    // Include all travel dates to show current pricing, not just custom ones
     const currentTravelDates = tourPackageData.travelDates
-      ?.filter(
-        (td: any) =>
-          td?.hasCustomOriginal ||
-          td?.hasCustomDiscounted ||
-          td?.hasCustomDeposit,
-      )
-      .map((td: any) => ({
+      ?.map((td: any) => ({
         date: getDateKey(td.startDate) || "",
         customOriginal: td.customOriginal,
         customDiscounted: td.customDiscounted,
@@ -1171,6 +1177,33 @@ export default function EditBookingModal({
     loadTourPackage();
   }, [isOpen, formData.tourPackageName]);
 
+  useEffect(() => {
+    if (!booking?.id || !formData.tourPackageName || !tourPackageData) return;
+
+    const currentVersion = tourPackageData.currentVersion;
+    if (!currentVersion) return;
+
+    // Always update to the latest version when tour package data changes (new tour selected)
+    if (formData.tourPackagePricingVersion !== currentVersion) {
+      batchedWriter.queueFieldUpdate(
+        booking.id,
+        "tourPackagePricingVersion",
+        currentVersion,
+      );
+      setFormData((prev) => ({
+        ...prev,
+        tourPackagePricingVersion: currentVersion,
+      }));
+      setIsSaving(true);
+      debouncedSaveIndicator();
+    }
+  }, [
+    booking?.id,
+    formData.tourPackageName,
+    formData.tourPackagePricingVersion,
+    tourPackageData,
+  ]);
+
   // Build dependency graph: source columnId -> list of function columns depending on it
   const dependencyGraph = useMemo(() => {
     const map = new Map<string, SheetColumn[]>();
@@ -1618,6 +1651,14 @@ export default function EditBookingModal({
         checked ? "snapshot" : "recalculated",
       );
 
+      if (checked && tourPackageData?.currentVersion) {
+        batchedWriter.queueFieldUpdate(
+          booking.id,
+          "tourPackagePricingVersion",
+          tourPackageData.currentVersion,
+        );
+      }
+
       if (checked && !formData.priceSnapshotDate) {
         batchedWriter.queueFieldUpdate(
           booking.id,
@@ -1637,7 +1678,7 @@ export default function EditBookingModal({
       setIsSaving(true);
       debouncedSaveIndicator();
     },
-    [booking?.id, formData.priceSnapshotDate],
+    [booking?.id, formData.priceSnapshotDate, tourPackageData],
   );
 
   const handleApplyPricingVersion = useCallback(async () => {
@@ -2326,8 +2367,11 @@ export default function EditBookingModal({
       const isComputing = computingFields.has(column.id);
       const error = fieldErrors[column.id];
       const isFunction = column.dataType === "function";
-      // Only disable function columns, allow editing of all other fields regardless of includeInForms
-      const isReadOnly = isFunction;
+      // Disable function columns, and also disable tourPackageName/tourDate when booking is locked
+      const isLocked = formData.lockPricing === true;
+      const isPricingField =
+        column.id === "tourPackageName" || column.id === "tourDate";
+      const isReadOnly = isFunction || (isLocked && isPricingField);
 
       const baseClasses = cn(
         "w-full text-[11px] sm:text-xs",
@@ -2940,6 +2984,13 @@ export default function EditBookingModal({
                       "priceSource",
                       "snapshot",
                     );
+                    if (tourPackageData?.currentVersion) {
+                      batchedWriter.queueFieldUpdate(
+                        booking.id,
+                        "tourPackagePricingVersion",
+                        tourPackageData.currentVersion,
+                      );
+                    }
                     if (!formData.priceSnapshotDate) {
                       batchedWriter.queueFieldUpdate(
                         booking.id,
@@ -2957,6 +3008,9 @@ export default function EditBookingModal({
                       | "snapshot"
                       | "manual"
                       | "recalculated",
+                    tourPackagePricingVersion:
+                      tourPackageData?.currentVersion ??
+                      prev.tourPackagePricingVersion,
                   }));
                 } else {
                   setFormData((prev) => ({
@@ -3635,38 +3689,36 @@ export default function EditBookingModal({
                                           </Tooltip>
                                         </TooltipProvider>
                                       </div>
-                                    ) : (
-                                      <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-700">
-                                        <RefreshCw className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                                        <span className="text-[10px] text-blue-700 dark:text-blue-300 font-medium">
-                                          Current Price
-                                        </span>
-                                      </div>
-                                    )}
+                                    ) : null}
 
                                     {/* Pricing Version Selector Button */}
-                                    {formData.lockPricing &&
-                                      tourPackageData && (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => {
-                                            setSelectedPricingVersion(
-                                              formData.tourPackagePricingVersion ||
-                                                tourPackageData.currentVersion ||
-                                                1,
-                                            );
-                                            setShowPricingVersionDialog(true);
-                                          }}
-                                          className="h-7 text-[10px] gap-1"
-                                        >
-                                          <RefreshCw className="h-3 w-3" />
-                                          Version{" "}
-                                          {formData.tourPackagePricingVersion ||
-                                            tourPackageData.currentVersion ||
-                                            "-"}
-                                        </Button>
-                                      )}
+                                    {tourPackageData && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setSelectedPricingVersion(
+                                            formData.tourPackagePricingVersion ||
+                                              tourPackageData.currentVersion ||
+                                              1,
+                                          );
+                                          setShowPricingVersionDialog(true);
+                                        }}
+                                        className="h-7 text-[10px] gap-1"
+                                      >
+                                        <RefreshCw className="h-3 w-3" />
+                                        Version{" "}
+                                        {formData.tourPackagePricingVersion ||
+                                          tourPackageData.currentVersion ||
+                                          "-"}
+                                        {formData.tourPackagePricingVersion &&
+                                        tourPackageData.currentVersion &&
+                                        formData.tourPackagePricingVersion ===
+                                          tourPackageData.currentVersion
+                                          ? " (Current)"
+                                          : ""}
+                                      </Button>
+                                    )}
                                   </div>
                                 )}
                             </div>
@@ -4298,7 +4350,7 @@ export default function EditBookingModal({
         open={showPricingVersionDialog}
         onOpenChange={setShowPricingVersionDialog}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-yellow-600" />
@@ -4313,7 +4365,7 @@ export default function EditBookingModal({
               changes.
             </p>
 
-            <div className="space-y-2 max-h-72 overflow-y-auto">
+            <div className="grid gap-3 sm:grid-cols-2 max-h-72 overflow-y-auto">
               {pricingVersionOptions.map((option) => (
                 <button
                   key={`pricing-version-${option.version}`}
@@ -4336,16 +4388,45 @@ export default function EditBookingModal({
                           <Badge variant="outline">Current</Badge>
                         )}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        Original: {option.pricing.currency}{" "}
-                        {option.pricing.original.toLocaleString()} · Deposit:{" "}
-                        {option.pricing.currency}{" "}
-                        {option.pricing.deposit.toLocaleString()}
-                      </div>
+                      {option.travelDates?.length ? (
+                        <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                          {option.travelDates.map((travelDate) => (
+                            <div
+                              key={`${option.version}-${travelDate.date}`}
+                              className="flex items-center gap-x-3 text-left"
+                            >
+                              <span className="font-medium text-foreground min-w-[90px]">
+                                {formatDateLabel(travelDate.date)}
+                              </span>
+                              <span className="text-muted-foreground whitespace-nowrap">
+                                £
+                                {(typeof travelDate.customOriginal === "number"
+                                  ? travelDate.customOriginal
+                                  : option.pricing?.original
+                                )?.toLocaleString()}
+                              </span>
+                              <span className="text-muted-foreground whitespace-nowrap">
+                                ResFee £
+                                {(typeof travelDate.customDeposit === "number"
+                                  ? travelDate.customDeposit
+                                  : option.pricing?.deposit
+                                )?.toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-                    {selectedPricingVersion === option.version && (
-                      <Badge className="bg-royal-purple">Selected</Badge>
-                    )}
+                    <Badge
+                      className={cn(
+                        "bg-royal-purple",
+                        selectedPricingVersion === option.version
+                          ? "opacity-100"
+                          : "opacity-0",
+                      )}
+                    >
+                      Selected
+                    </Badge>
                   </div>
                 </button>
               ))}

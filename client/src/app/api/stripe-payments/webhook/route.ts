@@ -270,6 +270,11 @@ export async function POST(req: NextRequest) {
             access_token: generateAccessToken(),
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
+            priceSnapshotDate: serverTimestamp(),
+            tourPackagePricingVersion:
+              (tourPackage as any)?.currentVersion || 1,
+            priceSource: "snapshot",
+            lockPricing: true,
           });
 
           console.log("✅ Booking created with document ID:", newBookingRef.id);
@@ -388,9 +393,6 @@ export async function POST(req: NextRequest) {
         const priceSnapshotUpdates: Record<string, any> = {};
         if (!booking.priceSnapshotDate) {
           priceSnapshotUpdates.priceSnapshotDate = serverTimestamp();
-        }
-        if (!booking.tourPackagePricingVersion) {
-          priceSnapshotUpdates.tourPackagePricingVersion = 1;
         }
         if (!booking.priceSource) {
           priceSnapshotUpdates.priceSource = "snapshot";

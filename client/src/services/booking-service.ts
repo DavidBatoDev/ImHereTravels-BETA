@@ -338,10 +338,7 @@ class BookingServiceImpl implements BookingService {
       const access_token = generateAccessToken();
 
       const priceSnapshotMetadata = {
-        priceSnapshotDate: bookingData.priceSnapshotDate ?? new Date(),
-        tourPackagePricingVersion: bookingData.tourPackagePricingVersion ?? 1,
-        priceSource: bookingData.priceSource ?? "snapshot",
-        lockPricing: bookingData.lockPricing ?? true,
+        lockPricing: bookingData.lockPricing ?? false,
       };
 
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
@@ -623,10 +620,7 @@ class BookingServiceImpl implements BookingService {
         const access_token = generateAccessToken();
 
         const priceSnapshotMetadata = {
-          priceSnapshotDate: bookingData.priceSnapshotDate ?? new Date(),
-          tourPackagePricingVersion: bookingData.tourPackagePricingVersion ?? 1,
-          priceSource: bookingData.priceSource ?? "snapshot",
-          lockPricing: bookingData.lockPricing ?? true,
+          lockPricing: bookingData.lockPricing ?? false,
         };
 
         const newBookingData = {
