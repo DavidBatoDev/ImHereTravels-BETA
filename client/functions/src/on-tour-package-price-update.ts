@@ -92,34 +92,30 @@ export const onTourPackagePriceUpdate = onDocumentUpdated(
     const currentVersion = after.currentVersion || 1;
 
     // Extract travel date pricing from before state
+    // Include ALL travel dates to preserve complete pricing history
     const travelDatesPricing: TravelDatePricing[] = [];
     if (before.travelDates && Array.isArray(before.travelDates)) {
       before.travelDates.forEach((td: any) => {
-        if (
-          td.hasCustomOriginal ||
-          td.hasCustomDiscounted ||
-          td.hasCustomDeposit
-        ) {
-          const dateStr = td.startDate?.toDate
-            ? td.startDate.toDate().toISOString()
-            : new Date(td.startDate).toISOString();
+        const dateStr = td.startDate?.toDate
+          ? td.startDate.toDate().toISOString()
+          : new Date(td.startDate).toISOString();
 
-          const travelEntry: TravelDatePricing = {
-            date: dateStr,
-          };
+        const travelEntry: TravelDatePricing = {
+          date: dateStr,
+        };
 
-          if (td.customOriginal !== undefined) {
-            travelEntry.customOriginal = td.customOriginal;
-          }
-          if (td.customDiscounted !== undefined) {
-            travelEntry.customDiscounted = td.customDiscounted;
-          }
-          if (td.customDeposit !== undefined) {
-            travelEntry.customDeposit = td.customDeposit;
-          }
-
-          travelDatesPricing.push(travelEntry);
+        // Include custom pricing if present
+        if (td.customOriginal !== undefined) {
+          travelEntry.customOriginal = td.customOriginal;
         }
+        if (td.customDiscounted !== undefined) {
+          travelEntry.customDiscounted = td.customDiscounted;
+        }
+        if (td.customDeposit !== undefined) {
+          travelEntry.customDeposit = td.customDeposit;
+        }
+
+        travelDatesPricing.push(travelEntry);
       });
     }
 

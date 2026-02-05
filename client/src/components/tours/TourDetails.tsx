@@ -290,58 +290,55 @@ export default function TourDetails({
                               {format(new Date(), "MMM dd, yyyy")}
                             </span>
                           </div>
-                          {tour.travelDates.some(
-                            (td) =>
-                              td.customOriginal ||
-                              td.customDiscounted ||
-                              td.customDeposit,
-                          ) && (
+                          {tour.travelDates && tour.travelDates.length > 0 && (
                             <div className="mt-3 pt-3 border-t border-spring-green/30">
                               <p className="text-xs font-semibold text-muted-foreground mb-2">
-                                Custom Date Pricing:
+                                Date Pricing:
                               </p>
                               <div className="space-y-1">
-                                {tour.travelDates
-                                  .filter(
-                                    (td) =>
-                                      td.customOriginal ||
+                                {tour.travelDates.map((td, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="text-xs text-muted-foreground flex items-center gap-2"
+                                  >
+                                    <span className="font-medium min-w-[100px]">
+                                      {td.startDate &&
+                                      typeof td.startDate === "object" &&
+                                      "toDate" in td.startDate
+                                        ? format(
+                                            td.startDate.toDate(),
+                                            "dd MMM yyyy",
+                                          )
+                                        : "Date"}
+                                    </span>
+                                    <span className="font-semibold">
+                                      {tour.pricing.currency}
+                                      {(
+                                        td.customOriginal ||
+                                        tour.pricing.original
+                                      ).toLocaleString()}
+                                    </span>
+                                    {(td.customOriginal ||
                                       td.customDiscounted ||
-                                      td.customDeposit,
-                                  )
-                                  .map((td, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="text-xs text-muted-foreground flex items-center gap-2"
-                                    >
-                                      <span className="font-medium min-w-[100px]">
-                                        {td.startDate &&
-                                        typeof td.startDate === "object" &&
-                                        "toDate" in td.startDate
-                                          ? format(
-                                              td.startDate.toDate(),
-                                              "dd MMM yyyy",
-                                            )
-                                          : "Date"}
-                                      </span>
-                                      <span className="font-semibold">
-                                        {tour.pricing.currency}
-                                        {(
-                                          td.customOriginal ||
-                                          tour.pricing.original
-                                        ).toLocaleString()}
-                                      </span>
-                                      <span className="text-muted-foreground">
-                                        ResFee
-                                      </span>
-                                      <span className="font-semibold">
-                                        {tour.pricing.currency}
-                                        {(
-                                          td.customDeposit ||
-                                          tour.pricing.deposit
-                                        ).toLocaleString()}
-                                      </span>
-                                    </div>
-                                  ))}
+                                      td.customDeposit) && (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] px-1 py-0 h-4 bg-spring-green/10 text-spring-green border-spring-green/30"
+                                      >
+                                        Custom
+                                      </Badge>
+                                    )}
+                                    <span className="text-muted-foreground">
+                                      ResFee
+                                    </span>
+                                    <span className="font-semibold">
+                                      {tour.pricing.currency}
+                                      {(
+                                        td.customDeposit || tour.pricing.deposit
+                                      ).toLocaleString()}
+                                    </span>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           )}
@@ -375,7 +372,7 @@ export default function TourDetails({
                                 history.travelDates.length > 0 && (
                                   <div className="mt-3 pt-3 border-t border-border">
                                     <p className="text-xs font-semibold text-muted-foreground mb-2">
-                                      Custom Date Pricing:
+                                      Date Pricing:
                                     </p>
                                     <div className="space-y-1">
                                       {history.travelDates.map((td, idx) => (
@@ -398,6 +395,16 @@ export default function TourDetails({
                                               history.pricing.original
                                             ).toLocaleString()}
                                           </span>
+                                          {(td.customOriginal ||
+                                            td.customDiscounted ||
+                                            td.customDeposit) && (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-[10px] px-1 py-0 h-4 bg-muted text-muted-foreground border-border"
+                                            >
+                                              Custom
+                                            </Badge>
+                                          )}
                                           <span className="text-muted-foreground">
                                             ResFee
                                           </span>
