@@ -290,37 +290,6 @@ export default function TourDetails({
                               {format(new Date(), "MMM dd, yyyy")}
                             </span>
                           </div>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">
-                                Original Price:
-                              </span>
-                              <span className="font-semibold">
-                                {tour.pricing.currency}{" "}
-                                {tour.pricing.original.toLocaleString()}
-                              </span>
-                            </div>
-                            {tour.pricing.discounted && (
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                  Discounted Price:
-                                </span>
-                                <span className="font-semibold">
-                                  {tour.pricing.currency}{" "}
-                                  {tour.pricing.discounted.toLocaleString()}
-                                </span>
-                              </div>
-                            )}
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">
-                                Deposit:
-                              </span>
-                              <span className="font-semibold">
-                                {tour.pricing.currency}{" "}
-                                {tour.pricing.deposit.toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
                           {tour.travelDates.some(
                             (td) =>
                               td.customOriginal ||
@@ -339,27 +308,36 @@ export default function TourDetails({
                                       td.customDiscounted ||
                                       td.customDeposit,
                                   )
-                                  .slice(0, 3)
                                   .map((td, idx) => (
                                     <div
                                       key={idx}
                                       className="text-xs text-muted-foreground flex items-center gap-2"
                                     >
-                                      <span className="font-medium">
+                                      <span className="font-medium min-w-[100px]">
                                         {td.startDate &&
                                         typeof td.startDate === "object" &&
                                         "toDate" in td.startDate
                                           ? format(
                                               td.startDate.toDate(),
-                                              "MMM dd, yyyy",
+                                              "dd MMM yyyy",
                                             )
                                           : "Date"}
                                       </span>
-                                      <span>
-                                        {tour.pricing.currency}{" "}
+                                      <span className="font-semibold">
+                                        {tour.pricing.currency}
                                         {(
                                           td.customOriginal ||
                                           tour.pricing.original
+                                        ).toLocaleString()}
+                                      </span>
+                                      <span className="text-muted-foreground">
+                                        ResFee
+                                      </span>
+                                      <span className="font-semibold">
+                                        {tour.pricing.currency}
+                                        {(
+                                          td.customDeposit ||
+                                          tour.pricing.deposit
                                         ).toLocaleString()}
                                       </span>
                                     </div>
@@ -393,37 +371,6 @@ export default function TourDetails({
                                     : "Historical"}
                                 </span>
                               </div>
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-muted-foreground">
-                                    Original Price:
-                                  </span>
-                                  <span className="font-semibold">
-                                    {history.pricing.currency}{" "}
-                                    {history.pricing.original.toLocaleString()}
-                                  </span>
-                                </div>
-                                {history.pricing.discounted && (
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="text-muted-foreground">
-                                      Discounted Price:
-                                    </span>
-                                    <span className="font-semibold">
-                                      {history.pricing.currency}{" "}
-                                      {history.pricing.discounted.toLocaleString()}
-                                    </span>
-                                  </div>
-                                )}
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-muted-foreground">
-                                    Deposit:
-                                  </span>
-                                  <span className="font-semibold">
-                                    {history.pricing.currency}{" "}
-                                    {history.pricing.deposit.toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
                               {history.travelDates &&
                                 history.travelDates.length > 0 && (
                                   <div className="mt-3 pt-3 border-t border-border">
@@ -431,30 +378,38 @@ export default function TourDetails({
                                       Custom Date Pricing:
                                     </p>
                                     <div className="space-y-1">
-                                      {history.travelDates
-                                        .slice(0, 3)
-                                        .map((td, idx) => (
-                                          <div
-                                            key={idx}
-                                            className="text-xs text-muted-foreground flex items-center gap-2"
-                                          >
-                                            <span className="font-medium">
-                                              {td.date
-                                                ? format(
-                                                    new Date(td.date),
-                                                    "MMM dd, yyyy",
-                                                  )
-                                                : "Date"}
-                                            </span>
-                                            <span>
-                                              {history.pricing.currency}{" "}
-                                              {(
-                                                td.customOriginal ||
-                                                history.pricing.original
-                                              ).toLocaleString()}
-                                            </span>
-                                          </div>
-                                        ))}
+                                      {history.travelDates.map((td, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="text-xs text-muted-foreground flex items-center gap-2"
+                                        >
+                                          <span className="font-medium min-w-[100px]">
+                                            {td.date
+                                              ? format(
+                                                  new Date(td.date),
+                                                  "dd MMM yyyy",
+                                                )
+                                              : "Date"}
+                                          </span>
+                                          <span className="font-semibold">
+                                            {history.pricing.currency}
+                                            {(
+                                              td.customOriginal ||
+                                              history.pricing.original
+                                            ).toLocaleString()}
+                                          </span>
+                                          <span className="text-muted-foreground">
+                                            ResFee
+                                          </span>
+                                          <span className="font-semibold">
+                                            {history.pricing.currency}
+                                            {(
+                                              td.customDeposit ||
+                                              history.pricing.deposit
+                                            ).toLocaleString()}
+                                          </span>
+                                        </div>
+                                      ))}
                                     </div>
                                   </div>
                                 )}
