@@ -7,6 +7,7 @@ import { Timestamp } from "firebase/firestore";
 export type NotificationType =
   | "new_booking"
   | "payment_received"
+  | "payment_plan_selected"
   | "booking_cancelled"
   | "payment_reminder"
   | "payment_reminder_created"

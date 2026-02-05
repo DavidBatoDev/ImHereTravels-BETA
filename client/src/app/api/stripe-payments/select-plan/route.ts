@@ -224,6 +224,47 @@ export async function POST(req: NextRequest) {
     console.log("✅ Stripe payment record updated to terms_selected");
     console.log(`✅ Successfully processed ${updateResults.length} bookings`);
 
+    // Create notification for payment plan selection (don't block if it fails)
+    try {
+      const { createNotification } =
+        await import("@/utils/notification-service");
+
+      // Get booking details for notification
+      const firstBookingDocRef = doc(db, "bookings", bookingDocumentIds[0]);
+      const firstBookingSnap = await getDoc(firstBookingDocRef);
+
+      if (firstBookingSnap.exists()) {
+        const firstBookingData = firstBookingSnap.data();
+        const travelerName =
+          `${firstBookingData.firstName || ""} ${firstBookingData.lastName || ""}`.trim();
+        const tourPackageName = firstBookingData.tourPackageName || "Tour";
+        const paymentPlanLabel =
+          paymentPlanDetails?.label ||
+          updateResults[0]?.paymentPlan ||
+          "Payment Plan";
+
+        await createNotification({
+          type: "payment_plan_selected",
+          title: "Payment Plan Selected",
+          body: `${travelerName} selected ${paymentPlanLabel} for ${tourPackageName} (${bookingDocumentIds.length} booking${bookingDocumentIds.length > 1 ? "s" : ""})`,
+          data: {
+            bookingId: firstBookingData.bookingId,
+            bookingDocumentId: bookingDocumentIds[0],
+            travelerName,
+            tourPackageName,
+            paymentPlan: paymentPlanLabel,
+            numberOfBookings: bookingDocumentIds.length,
+            bookingDocumentIds,
+          },
+        });
+
+        console.log("✅ Notification created for payment plan selection");
+      }
+    } catch (notificationError) {
+      console.error("❌ Failed to create notification:", notificationError);
+      // Don't block the response - continue anyway
+    }
+
     return NextResponse.json({
       success: true,
       bookingDocumentIds: bookingDocumentIds,
