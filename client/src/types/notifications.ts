@@ -112,6 +112,11 @@ export const notificationTypeConfig: Record<
     color: "text-blue-600",
     bgColor: "bg-blue-100",
   },
+  payment_plan_selected: {
+    icon: "CreditCard",
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-100",
+  },
   reservation_email: {
     icon: "Mail",
     color: "text-purple-600",

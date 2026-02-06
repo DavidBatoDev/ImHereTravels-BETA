@@ -17,6 +17,7 @@ import {
   CalendarClock,
   PackageCheck,
   Filter,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +32,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -48,6 +51,7 @@ const notificationIcons: Record<NotificationType, React.ElementType> = {
   payment_reminder: Clock,
   payment_reminder_created: CalendarClock,
   payment_reminder_sent: Mail,
+  payment_plan_selected: CreditCard,
   reservation_email: Mail,
   pre_departure_pack: PackageCheck,
   system: Info,
@@ -81,6 +85,10 @@ const notificationColors: Record<
     icon: "text-purple-600 dark:text-purple-400",
     bg: "bg-purple-100 dark:bg-purple-900/30",
   },
+  payment_plan_selected: {
+    icon: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-100 dark:bg-emerald-900/30",
+  },
   reservation_email: {
     icon: "text-purple-600 dark:text-purple-400",
     bg: "bg-purple-100 dark:bg-purple-900/30",
@@ -99,12 +107,14 @@ interface NotificationItemProps {
   notification: NotificationWithReadStatus;
   onSelect: () => void;
   onMarkAsRead: () => void;
+  onDelete: () => void;
 }
 
 function NotificationItem({
   notification,
   onSelect,
   onMarkAsRead,
+  onDelete,
 }: NotificationItemProps) {
   const Icon = notificationIcons[notification.type] || Info;
   const colors =
@@ -126,40 +136,55 @@ function NotificationItem({
     <DropdownMenuItem
       onClick={handleClick}
       className={cn(
-        "flex items-start gap-3 p-3 cursor-pointer focus:bg-muted/50",
-        !notification.isRead && "bg-primary/5"
+        "flex items-start gap-3 p-3 cursor-pointer focus:bg-muted/50 group relative",
+        !notification.isRead && "bg-primary/5",
       )}
     >
       {/* Icon */}
       <div
         className={cn(
           "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-          colors.bg
+          colors.bg,
         )}
       >
         <Icon className={cn("h-4 w-4", colors.icon)} />
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 pr-6">
         <div className="flex items-start justify-between gap-2">
           <p
             className={cn(
               "text-sm font-medium truncate",
-              notification.isRead ? "text-muted-foreground" : "text-foreground"
+              notification.isRead ? "text-muted-foreground" : "text-foreground",
             )}
           >
             {notification.title}
           </p>
-          {!notification.isRead && (
-            <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary mt-1.5" />
-          )}
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
           {notification.body}
         </p>
-        <p className="text-xs text-muted-foreground/70 mt-1">{timeAgo}</p>
+        <div className="flex items-center justify-between mt-1">
+          <p className="text-xs text-muted-foreground/70">{timeAgo}</p>
+          {!notification.isRead && (
+            <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary" />
+          )}
+        </div>
       </div>
+
+      {/* Delete Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+      >
+        <Trash2 className="h-3 w-3 text-destructive" />
+      </Button>
     </DropdownMenuItem>
   );
 }
@@ -171,6 +196,11 @@ export default function NotificationDropdown() {
   const [selectedFilter, setSelectedFilter] = useState<
     NotificationType | "all"
   >("all");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteAllConfirmOpen, setDeleteAllConfirmOpen] = useState(false);
+  const [notificationToDelete, setNotificationToDelete] = useState<
+    string | null
+  >(null);
   const {
     notifications,
     unreadCount,
@@ -179,6 +209,8 @@ export default function NotificationDropdown() {
     loadMore,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
+    deleteAllNotifications,
   } = useNotifications();
 
   // Filter notifications based on selected filter
@@ -208,15 +240,15 @@ export default function NotificationDropdown() {
         notification.data?.bookingDocumentId
       ) {
         router.push(
-          `/bookings?tab=bookings&bookingId=${notification.data.bookingDocumentId}`
+          `/bookings?tab=bookings&bookingId=${notification.data.bookingDocumentId}`,
         );
       } else if (notification.data?.bookingDocumentId) {
         router.push(
-          `/bookings?highlight=${notification.data.bookingDocumentId}`
+          `/bookings?highlight=${notification.data.bookingDocumentId}`,
         );
       }
     },
-    [router]
+    [router],
   );
 
   // Handle scroll for infinite loading
@@ -234,8 +266,41 @@ export default function NotificationDropdown() {
         loadMore();
       }
     },
-    [hasMore, isLoading, loadMore]
+    [hasMore, isLoading, loadMore],
   );
+
+  // Handle delete confirmation
+  const handleDeleteClick = (notificationId: string) => {
+    setNotificationToDelete(notificationId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (notificationToDelete) {
+      deleteNotification(notificationToDelete);
+      setNotificationToDelete(null);
+    }
+    setDeleteConfirmOpen(false);
+  };
+
+  const handleCancelDelete = () => {
+    setNotificationToDelete(null);
+    setDeleteConfirmOpen(false);
+  };
+
+  // Handle delete all confirmation
+  const handleDeleteAllClick = () => {
+    setDeleteAllConfirmOpen(true);
+  };
+
+  const handleConfirmDeleteAll = () => {
+    deleteAllNotifications();
+    setDeleteAllConfirmOpen(false);
+  };
+
+  const handleCancelDeleteAll = () => {
+    setDeleteAllConfirmOpen(false);
+  };
 
   return (
     <>
@@ -314,9 +379,10 @@ export default function NotificationDropdown() {
                     notification={notification}
                     onSelect={() => handleNotificationSelect(notification)}
                     onMarkAsRead={() => markAsRead(notification.id)}
+                    onDelete={() => handleDeleteClick(notification.id)}
                   />
                 ))}
-
+                handleDeleteClick
                 {/* Show indicator if there are more */}
                 {notifications.length > 5 && (
                   <div className="text-center py-2 text-xs text-muted-foreground">
@@ -354,18 +420,32 @@ export default function NotificationDropdown() {
               <DialogTitle className="text-base sm:text-lg">
                 All Notifications
               </DialogTitle>
-              {unreadCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 sm:h-8 text-xs"
-                  onClick={() => markAllAsRead()}
-                >
-                  <Check className="h-3 w-3 mr-1" />
-                  <span className="hidden sm:inline">Mark all read</span>
-                  <span className="sm:hidden">Mark read</span>
-                </Button>
-              )}
+              <div className="flex items-center gap-1 sm:gap-2">
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 sm:h-8 text-xs"
+                    onClick={() => markAllAsRead()}
+                  >
+                    <Check className="h-3 w-3 mr-1" />
+                    <span className="hidden sm:inline">Mark all read</span>
+                    <span className="sm:hidden">Mark read</span>
+                  </Button>
+                )}
+                {notifications.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 sm:h-8 text-xs text-destructive hover:text-destructive"
+                    onClick={handleDeleteAllClick}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    <span className="hidden sm:inline">Delete all</span>
+                    <span className="sm:hidden">Delete</span>
+                  </Button>
+                )}
+              </div>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground">
               {unreadCount > 0
@@ -383,7 +463,7 @@ export default function NotificationDropdown() {
                   "inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium transition-colors",
                   selectedFilter === "all"
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80",
                 )}
               >
                 <Filter className="h-3 w-3" />
@@ -395,7 +475,7 @@ export default function NotificationDropdown() {
                   "inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium transition-colors",
                   selectedFilter === "new_booking"
                     ? "bg-blue-600 text-white dark:bg-blue-500"
-                    : "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                    : "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50",
                 )}
               >
                 <CalendarPlus className="h-3 w-3" />
@@ -403,12 +483,25 @@ export default function NotificationDropdown() {
                 <span className="sm:hidden">Booking</span>
               </button>
               <button
+                onClick={() => setSelectedFilter("payment_plan_selected")}
+                className={cn(
+                  "inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium transition-colors",
+                  selectedFilter === "payment_plan_selected"
+                    ? "bg-emerald-600 text-white dark:bg-emerald-500"
+                    : "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50",
+                )}
+              >
+                <CreditCard className="h-3 w-3" />
+                <span className="hidden sm:inline">Payment Plan</span>
+                <span className="sm:hidden">Plan</span>
+              </button>
+              <button
                 onClick={() => setSelectedFilter("payment_reminder_created")}
                 className={cn(
                   "inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium transition-colors",
                   selectedFilter === "payment_reminder_created"
                     ? "bg-indigo-600 text-white dark:bg-indigo-500"
-                    : "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/50"
+                    : "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/50",
                 )}
               >
                 <CalendarClock className="h-3 w-3" />
@@ -421,7 +514,7 @@ export default function NotificationDropdown() {
                   "inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium transition-colors",
                   selectedFilter === "payment_reminder_sent"
                     ? "bg-purple-600 text-white dark:bg-purple-500"
-                    : "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50"
+                    : "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50",
                 )}
               >
                 <Mail className="h-3 w-3" />
@@ -434,7 +527,7 @@ export default function NotificationDropdown() {
                   "hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
                   selectedFilter === "reservation_email"
                     ? "bg-purple-600 text-white dark:bg-purple-500"
-                    : "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50"
+                    : "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50",
                 )}
               >
                 <Mail className="h-3 w-3" />
@@ -446,7 +539,7 @@ export default function NotificationDropdown() {
                   "hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
                   selectedFilter === "pre_departure_pack"
                     ? "bg-teal-600 text-white dark:bg-teal-500"
-                    : "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 hover:bg-teal-200 dark:hover:bg-teal-900/50"
+                    : "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 hover:bg-teal-200 dark:hover:bg-teal-900/50",
                 )}
               >
                 <PackageCheck className="h-3 w-3" />
@@ -458,7 +551,7 @@ export default function NotificationDropdown() {
                   "hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
                   selectedFilter === "system"
                     ? "bg-gray-600 text-white dark:bg-gray-500"
-                    : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700",
                 )}
               >
                 <Info className="h-3 w-3" />
@@ -505,61 +598,81 @@ export default function NotificationDropdown() {
                   return (
                     <div
                       key={notification.id}
-                      onClick={() => {
-                        if (!notification.isRead) {
-                          markAsRead(notification.id);
-                        }
-                        handleNotificationSelect(notification);
-                        setIsModalOpen(false);
-                      }}
                       className={cn(
-                        "flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50",
-                        !notification.isRead && "bg-primary/5 border-primary/20"
+                        "flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50 group relative",
+                        !notification.isRead &&
+                          "bg-primary/5 border-primary/20",
                       )}
                     >
-                      {/* Icon */}
                       <div
-                        className={cn(
-                          "flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center",
-                          colors.bg
-                        )}
+                        onClick={() => {
+                          if (!notification.isRead) {
+                            markAsRead(notification.id);
+                          }
+                          handleNotificationSelect(notification);
+                          setIsModalOpen(false);
+                        }}
+                        className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0"
                       >
-                        <Icon
-                          className={cn("h-4 w-4 sm:h-5 sm:w-5", colors.icon)}
-                        />
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p
-                            className={cn(
-                              "text-xs sm:text-sm",
-                              notification.isRead
-                                ? "text-muted-foreground font-medium"
-                                : "text-foreground font-bold"
-                            )}
-                          >
-                            {notification.title}
-                          </p>
-                          {!notification.isRead && (
-                            <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary mt-1" />
-                          )}
-                        </div>
-                        <p
+                        {/* Icon */}
+                        <div
                           className={cn(
-                            "text-xs sm:text-sm mt-1",
-                            notification.isRead
-                              ? "text-muted-foreground"
-                              : "text-foreground font-semibold"
+                            "flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center",
+                            colors.bg,
                           )}
                         >
-                          {notification.body}
-                        </p>
-                        <p className="text-[11px] sm:text-xs text-muted-foreground/70 mt-1.5 sm:mt-2">
-                          {timeAgo}
-                        </p>
+                          <Icon
+                            className={cn("h-4 w-4 sm:h-5 sm:w-5", colors.icon)}
+                          />
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0 pr-10">
+                          <div className="flex items-start justify-between gap-2">
+                            <p
+                              className={cn(
+                                "text-xs sm:text-sm",
+                                notification.isRead
+                                  ? "text-muted-foreground font-medium"
+                                  : "text-foreground font-bold",
+                              )}
+                            >
+                              {notification.title}
+                            </p>
+                          </div>
+                          <p
+                            className={cn(
+                              "text-xs sm:text-sm mt-1",
+                              notification.isRead
+                                ? "text-muted-foreground"
+                                : "text-foreground font-semibold",
+                            )}
+                          >
+                            {notification.body}
+                          </p>
+                          <div className="flex items-center justify-between mt-1.5 sm:mt-2">
+                            <p className="text-[11px] sm:text-xs text-muted-foreground/70">
+                              {timeAgo}
+                            </p>
+                            {!notification.isRead && (
+                              <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary" />
+                            )}
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Delete Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute top-2 right-2 h-7 w-7 sm:h-8 sm:w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 z-10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(notification.id);
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
+                      </Button>
                     </div>
                   );
                 })}
@@ -582,6 +695,52 @@ export default function NotificationDropdown() {
               </div>
             )}
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Notification</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this notification? This action
+              cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={handleCancelDelete}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete All Confirmation Dialog */}
+      <Dialog
+        open={deleteAllConfirmOpen}
+        onOpenChange={setDeleteAllConfirmOpen}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete All Notifications</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete all {notifications.length}{" "}
+              notification{notifications.length > 1 ? "s" : ""}? This action
+              cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={handleCancelDeleteAll}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDeleteAll}>
+              Delete All
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

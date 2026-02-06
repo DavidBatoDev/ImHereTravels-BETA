@@ -8,6 +8,7 @@ import {
   onSnapshot,
   doc,
   updateDoc,
+  deleteDoc,
   Timestamp,
   writeBatch,
   limit,
@@ -34,6 +35,8 @@ interface UseNotificationsReturn {
   loadMore: () => Promise<void>;
   markAsRead: (notificationId: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  deleteNotification: (notificationId: string) => Promise<void>;
+  deleteAllNotifications: () => Promise<void>;
 }
 
 export function useNotifications(): UseNotificationsReturn {
@@ -63,7 +66,7 @@ export function useNotifications(): UseNotificationsReturn {
         readAt: readTimestamp,
       };
     },
-    [userId]
+    [userId],
   );
 
   // Real-time listener for notifications
@@ -91,7 +94,7 @@ export function useNotifications(): UseNotificationsReturn {
     const q = query(
       notificationsRef,
       orderBy("createdAt", "desc"),
-      limit(NOTIFICATIONS_PER_PAGE)
+      limit(NOTIFICATIONS_PER_PAGE),
     );
 
     const unsubscribe = onSnapshot(
@@ -130,7 +133,7 @@ export function useNotifications(): UseNotificationsReturn {
         console.error("Error fetching notifications:", err);
         setError("Failed to load notifications");
         setIsLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -149,7 +152,7 @@ export function useNotifications(): UseNotificationsReturn {
         notificationsRef,
         orderBy("createdAt", "desc"),
         startAfter(lastDoc),
-        limit(NOTIFICATIONS_PER_PAGE)
+        limit(NOTIFICATIONS_PER_PAGE),
       );
 
       const snapshot = await getDocs(q);
@@ -200,15 +203,15 @@ export function useNotifications(): UseNotificationsReturn {
           prev.map((n) =>
             n.id === notificationId
               ? { ...n, isRead: true, readAt: Timestamp.now() }
-              : n
-          )
+              : n,
+          ),
         );
       } catch (err) {
         console.error("Error marking notification as read:", err);
         setError("Failed to mark notification as read");
       }
     },
-    [userId]
+    [userId],
   );
 
   // Mark all notifications as read
@@ -234,11 +237,58 @@ export function useNotifications(): UseNotificationsReturn {
 
       // Update local state immediately
       setNotifications((prev) =>
-        prev.map((n) => ({ ...n, isRead: true, readAt: now }))
+        prev.map((n) => ({ ...n, isRead: true, readAt: now })),
       );
     } catch (err) {
       console.error("Error marking all notifications as read:", err);
       setError("Failed to mark all notifications as read");
+    }
+  }, [userId, notifications]);
+
+  // Delete a single notification
+  const deleteNotification = useCallback(
+    async (notificationId: string) => {
+      if (!userId) return;
+
+      try {
+        // Optimistically update UI
+        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+
+        // Delete from Firestore
+        const notificationRef = doc(db, "notifications", notificationId);
+        await deleteDoc(notificationRef);
+      } catch (err) {
+        console.error("Error deleting notification:", err);
+        setError("Failed to delete notification");
+        // Revert optimistic update on error - refetch would happen via snapshot
+      }
+    },
+    [userId],
+  );
+
+  // Delete all notifications
+  const deleteAllNotifications = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      if (notifications.length === 0) return;
+
+      // Optimistically update UI
+      const notificationsCopy = [...notifications];
+      setNotifications([]);
+
+      // Delete all in batch
+      const batch = writeBatch(db);
+
+      notificationsCopy.forEach((notification) => {
+        const notificationRef = doc(db, "notifications", notification.id);
+        batch.delete(notificationRef);
+      });
+
+      await batch.commit();
+    } catch (err) {
+      console.error("Error deleting all notifications:", err);
+      setError("Failed to delete all notifications");
     }
   }, [userId, notifications]);
 
@@ -251,5 +301,7 @@ export function useNotifications(): UseNotificationsReturn {
     loadMore,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
+    deleteAllNotifications,
   };
 }
