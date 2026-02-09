@@ -3846,6 +3846,74 @@ export default function EditBookingModal({
                                           </Tooltip>
                                         </TooltipProvider>
                                       )}
+                                      {column.id ===
+                                        "cancellationInitiatedBy" && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                              side="right"
+                                              className="max-w-xs"
+                                            >
+                                              <p className="text-xs">
+                                                Who initiated the cancellation?
+                                                Select "Guest" if the traveler
+                                                requested cancellation, or "IHT"
+                                                if we cancelled the tour. This
+                                                affects refund eligibility -
+                                                only IHT cancellations can
+                                                refund the Reservation Fee.
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
+                                      {column.id ===
+                                        "supplierCostsCommitted" && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                              side="right"
+                                              className="max-w-xs"
+                                            >
+                                              <p className="text-xs">
+                                                Enter any non-refundable costs
+                                                we've already paid to suppliers
+                                                (hotels, guides, etc.). These
+                                                costs will be deducted from the
+                                                guest's refund amount. Leave at
+                                                0 if no costs were committed.
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
+                                      {column.id === "isNoShow" && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                              side="right"
+                                              className="max-w-xs"
+                                            >
+                                              <p className="text-xs">
+                                                Check this box if the guest
+                                                failed to show up for the tour
+                                                without prior notice. No-shows
+                                                are not eligible for any
+                                                refunds.
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
                                     </div>
                                     <div className="w-[60%] px-2.5 sm:px-3 py-1.5 sm:py-2">
                                       <div className="space-y-1.5 sm:space-y-2">

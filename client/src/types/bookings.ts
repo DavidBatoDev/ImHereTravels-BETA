@@ -101,6 +101,12 @@ export interface Booking {
 
   // Cancellation management
   reasonForCancellation?: string;
+  cancellationRequestDate?: Date;
+  cancellationInitiatedBy?: "Guest" | "IHT";
+  supplierCostsCommitted?: number;
+  travelCreditIssued?: number;
+  cancellationScenario?: string;
+  isNoShow?: boolean;
   includeBccCancellation: boolean;
   generateCancellationEmailDraft: boolean;
   cancellationEmailDraftLink?: string;
@@ -108,6 +114,10 @@ export interface Booking {
   sendCancellationEmail: boolean;
   sentCancellationEmailLink?: string;
   cancellationEmailSentDate?: Date;
+  eligibleRefund?: string;
+  nonRefundableAmount?: number;
+  refundableAmount?: number;
+  adminFee?: number;
 
   // Payment tokens for installment tracking
   paymentTokens?: PaymentTokens;

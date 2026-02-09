@@ -13,6 +13,15 @@ export const nonRefundableAmountColumn: BookingSheetColumn = {
     width: 200,
     arguments: [
       {
+        name: "cancellationInitiatedBy",
+        type: "string",
+        columnReference: "Cancellation Initiated By",
+        isOptional: false,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
         name: "cancellationRequestDate",
         type: "date | string",
         columnReference: "Cancellation Request Date",
@@ -31,27 +40,18 @@ export const nonRefundableAmountColumn: BookingSheetColumn = {
         value: "",
       },
       {
-        name: "reservationFee",
+        name: "paid",
         type: "number | string",
-        columnReference: "Reservation Fee",
+        columnReference: "Paid",
         isOptional: false,
         hasDefault: false,
         isRest: false,
         value: "",
       },
       {
-        name: "paidTerms",
+        name: "refundableAmount",
         type: "number | string",
-        columnReference: "Paid Terms",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-      {
-        name: "adminFee",
-        type: "number | string",
-        columnReference: "Admin Fee",
+        columnReference: "Refundable Amount",
         isOptional: false,
         hasDefault: false,
         isRest: false,
@@ -63,54 +63,28 @@ export const nonRefundableAmountColumn: BookingSheetColumn = {
 
 // Column Function Implementation
 /**
- * Excel equivalent:
- * =LET(
- *   hdr, $3:$3,
- *   m, LAMBDA(n, MATCH(n, hdr, 0)),
+ * Calculates non-refundable amount based on cancellation scenario
  *
- *   cancellationDate, INDEX(1003:1003,, m("Cancellation Request Date")),
- *   eligibleRefund,   INDEX(1003:1003,, m("Eligible Refund")),
- *   reservationFee,   TO_PURE_NUMBER(INDEX(1003:1003,, m("Reservation Fee"))),
- *   paidTerms,        TO_PURE_NUMBER(INDEX(1003:1003,, m("Paid Terms"))),
- *   adminFee, TO_PURE_NUMBER(INDEX(1003:1003, , m("Admin Fee"))),
+ * Key Principle: refundable + nonRefundable = totalPaid
  *
- *   refundRate,
- *     IF(eligibleRefund="50% refund minus Admin Fee", 0.5,
- *       IF(eligibleRefund="Refund Ineligible", 1,
- *         0
- *       )
- *     ),
+ * This ensures accounting accuracy regardless of scenario complexity.
  *
- *   nonRefundableAmount,
- *     IF(ISBLANK(cancellationDate),"",
- *       IF(eligibleRefund="100% refund minus Admin Fee",
- *         reservationFee + adminFee,
- *         IF(OR(eligibleRefund="50% refund minus Admin Fee", eligibleRefund="Refund Ineligible"),
- *           (paidTerms * refundRate) + reservationFee + adminFee,
- *           ""
- *         )
- *       )
- *     ),
+ * Special Cases:
+ * - IHT cancellations: nonRefundable = 0 (everything refundable)
+ * - Guest no-show: nonRefundable = totalPaid (nothing refundable)
+ * - Guest late cancellation: nonRefundable = totalPaid
+ * - Guest early/mid cancellation: nonRefundable = totalPaid - refundable
  *
- *   nonRefundableAmount
- * )
- *
- * Description:
- * - Calculates the amount that cannot be refunded to the customer
- * - Based on refund eligibility status and payment amounts
- * - Always includes reservation fee and admin fee in non-refundable amount
- *
- * Calculation Logic:
- * - "100% refund minus Admin Fee": reservation fee + admin fee
- * - "50% refund minus Admin Fee": (paid terms × 0.5) + reservation fee + admin fee
- * - "Refund Ineligible": (paid terms × 1) + reservation fee + admin fee
+ * The refundable amount calculation handles all the complexity
+ * (RF treatment, NRA split, admin fees, supplier costs), so we
+ * simply subtract it from total paid to get non-refundable.
  *
  * Parameters:
+ * - cancellationInitiatedBy → Who cancelled ("Guest" | "IHT")
  * - cancellationRequestDate → Date cancellation was requested
  * - eligibleRefund → Refund eligibility status
- * - reservationFee → Reservation fee amount
- * - paidTerms → Total amount paid
- * - adminFee → Admin fee (10% of paid terms)
+ * - paid → Total amount paid
+ * - refundableAmount → Calculated refundable amount
  *
  * Returns:
  * - number → Non-refundable amount
@@ -118,11 +92,11 @@ export const nonRefundableAmountColumn: BookingSheetColumn = {
  */
 
 export default async function getNonRefundableAmount(
+  cancellationInitiatedBy: string | null | undefined,
   cancellationRequestDate: Date | string,
   eligibleRefund: string,
-  reservationFee: number | string,
-  paidTerms: number | string,
-  adminFee: number | string,
+  paid: number | string,
+  refundableAmount: number | string,
 ): Promise<number | string> {
   // Return empty if no cancellation date
   if (!cancellationRequestDate) {
@@ -139,30 +113,13 @@ export default async function getNonRefundableAmount(
     return 0;
   };
 
-  const resFee = toNumber(reservationFee);
-  const paid = toNumber(paidTerms);
-  const admin = toNumber(adminFee);
+  const totalPaid = toNumber(paid);
+  const refundable = toNumber(refundableAmount);
 
-  // Determine refund rate based on eligible refund status
-  let refundRate = 0;
-  if (eligibleRefund === "50% refund minus Admin Fee") {
-    refundRate = 0.5;
-  } else if (eligibleRefund === "Refund Ineligible") {
-    refundRate = 1;
-  }
+  // Simple calculation: non-refundable = total paid - refundable
+  // This ensures the amounts always balance
+  const nonRefundable = totalPaid - refundable;
 
-  // Calculate non-refundable amount
-  if (eligibleRefund === "100% refund minus Admin Fee") {
-    // Only reservation fee and admin fee are non-refundable
-    return resFee + admin;
-  } else if (
-    eligibleRefund === "50% refund minus Admin Fee" ||
-    eligibleRefund === "Refund Ineligible"
-  ) {
-    // Percentage of paid terms + reservation fee + admin fee
-    return paid * refundRate + resFee + admin;
-  }
-
-  // Return empty for other cases
-  return "";
+  // Ensure non-negative (should not happen, but safety check)
+  return Math.max(0, nonRefundable);
 }

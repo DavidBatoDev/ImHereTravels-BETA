@@ -1,15 +1,16 @@
 import { BookingSheetColumn } from "@/types/booking-sheet-column";
 
-export const eligibleRefundColumn: BookingSheetColumn = {
-  id: "eligibleRefund",
+export const cancellationScenarioColumn: BookingSheetColumn = {
+  id: "cancellationScenario",
   data: {
-    id: "eligibleRefund",
-    columnName: "Eligible Refund",
+    id: "cancellationScenario",
+    columnName: "Cancellation Scenario",
     dataType: "function",
-    function: "getEligibleRefundFunction",
+    function: "getCancellationScenarioFunction",
     parentTab: "Cancellation",
     includeInForms: false,
-    color: "none",
+    showColumn: true,
+    color: "purple",
     width: 300,
     arguments: [
       {
@@ -23,7 +24,7 @@ export const eligibleRefundColumn: BookingSheetColumn = {
       },
       {
         name: "cancellationRequestDate",
-        type: "date | string",
+        type: "date",
         columnReference: "Cancellation Request Date",
         isOptional: false,
         hasDefault: false,
@@ -32,17 +33,8 @@ export const eligibleRefundColumn: BookingSheetColumn = {
       },
       {
         name: "tourDate",
-        type: "date | string",
+        type: "date",
         columnReference: "Tour Date",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-      {
-        name: "reasonForCancellation",
-        type: "string",
-        columnReference: "Reason for Cancellation",
         isOptional: false,
         hasDefault: false,
         isRest: false,
@@ -59,7 +51,7 @@ export const eligibleRefundColumn: BookingSheetColumn = {
       },
       {
         name: "paidTerms",
-        type: "number | string",
+        type: "number",
         columnReference: "Paid Terms",
         isOptional: false,
         hasDefault: false,
@@ -93,61 +85,38 @@ export const eligibleRefundColumn: BookingSheetColumn = {
         isRest: false,
         value: "false",
       },
+      {
+        name: "reasonForCancellation",
+        type: "string",
+        columnReference: "Reason for Cancellation",
+        isOptional: false,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
     ],
   },
 };
 
 // Column Function Implementation
 /**
- * Determines refund eligibility based on cancellation scenario
+ * Determines which cancellation scenario applies based on various factors
  *
- * Implements comprehensive refund logic for all scenarios:
- *
- * Guest Cancellations (Full Payment):
- * - ≥100 days: "100% of NRA minus admin fee"
- * - 60-99 days: "50% of NRA minus admin fee"
- * - ≤59 days: "No refund"
- *
- * Guest Cancellations (Installment):
- * - ≥100 days: "100% of paid terms minus admin fee"
- * - 60-99 days: "50% of paid terms minus admin fee"
- * - ≤59 days: "No refund"
- *
- * Special Cases:
- * - Supplier costs: "Refund minus supplier costs and admin fee"
- * - No-show: "No refund"
- * - IHT cancels (before): "100% refund including RF OR travel credit"
- * - IHT cancels (after): "Partial refund OR travel credit"
- * - Force majeure: "Case-by-case (refund OR TC)"
- *
- * Parameters:
- * - cancellationInitiatedBy → Who cancelled ("Guest" | "IHT")
- * - cancellationRequestDate → Date cancellation was requested
- * - tourDate → Date of the tour
- * - reasonForCancellation → Reason provided for cancellation
- * - paymentPlan → Selected payment plan
- * - paidTerms → Total amount paid (installments only)
- * - fullPaymentDatePaid → Date full payment was made (optional)
- * - supplierCostsCommitted → Supplier costs incurred (default 0)
- * - isNoShow → Whether guest marked as no-show (default false)
- *
- * Returns:
- * - string → Refund eligibility status
- * - "" → if not cancelled or no reason provided
+ * Returns a human-readable description of the scenario with timing information
+ * Example: "Guest Cancel Early (125 days before tour)"
  */
-
-export default async function getEligibleRefund(
+export default function getCancellationScenarioFunction(
   cancellationInitiatedBy: string | null | undefined,
-  cancellationRequestDate: Date | string,
-  tourDate: Date | string,
-  reasonForCancellation: string,
-  paymentPlan: string,
-  paidTerms: number | string,
-  fullPaymentDatePaid: Date | any | null | undefined = null,
+  cancellationRequestDate: Date | any,
+  tourDate: Date | any,
+  paymentPlan: string | null | undefined,
+  paidTerms: number,
+  fullPaymentDatePaid: Date | any | null | undefined,
   supplierCostsCommitted: number = 0,
   isNoShow: boolean = false,
-): Promise<string> {
-  // Import scenario detection
+  reasonForCancellation: string | null | undefined,
+): string {
+  // Import detection function
   const {
     detectCancellationScenario,
     calculateDaysBeforeTour,
@@ -157,16 +126,6 @@ export default async function getEligibleRefund(
   if (!reasonForCancellation || !cancellationRequestDate) {
     return "";
   }
-
-  // Valid payment plans
-  const validPlans = ["Full Payment", "P1", "P2", "P3", "P4"];
-  if (!validPlans.includes(paymentPlan)) {
-    return "";
-  }
-
-  // Convert paidTerms to number
-  const paidAmount =
-    typeof paidTerms === "string" ? parseFloat(paidTerms) : paidTerms;
 
   // Calculate days before tour
   const daysBeforeTour = calculateDaysBeforeTour(
@@ -179,7 +138,7 @@ export default async function getEligibleRefund(
     initiatedBy: cancellationInitiatedBy,
     daysBeforeTour,
     paymentPlan,
-    paidTerms: paidAmount,
+    paidTerms,
     fullPaymentDatePaid,
     supplierCosts: supplierCostsCommitted,
     tourDate,
@@ -192,6 +151,10 @@ export default async function getEligibleRefund(
     return "";
   }
 
-  // Return the refund policy from the scenario
-  return scenario.refundPolicy;
+  // Format output with timing info
+  if (scenario.timing === "n/a" || scenario.daysBeforeTour === 0) {
+    return scenario.description;
+  }
+
+  return `${scenario.description} (${scenario.daysBeforeTour} days before tour)`;
 }

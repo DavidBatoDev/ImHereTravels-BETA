@@ -13,9 +13,9 @@ export const adminFeeColumn: BookingSheetColumn = {
     width: 150,
     arguments: [
       {
-        name: "bookingStatus",
+        name: "cancellationInitiatedBy",
         type: "string",
-        columnReference: "Booking Status",
+        columnReference: "Cancellation Initiated By",
         isOptional: false,
         hasDefault: false,
         isRest: false,
@@ -39,63 +39,139 @@ export const adminFeeColumn: BookingSheetColumn = {
         isRest: false,
         value: "",
       },
+      {
+        name: "fullPaymentAmount",
+        type: "number | string",
+        columnReference: "Full Payment Amount",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
+        name: "reservationFee",
+        type: "number | string",
+        columnReference: "Reservation Fee",
+        isOptional: false,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
+        name: "supplierCostsCommitted",
+        type: "number",
+        columnReference: "Supplier Costs Committed",
+        isOptional: false,
+        hasDefault: true,
+        isRest: false,
+        value: "0",
+      },
+      {
+        name: "reasonForCancellation",
+        type: "string",
+        columnReference: "Reason for Cancellation",
+        isOptional: false,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
     ],
   },
 };
 
 // Column Function Implementation
 /**
- * Excel equivalent:
- * =IF(
- *   ISNUMBER(SEARCH("Cancelled", INDEX(1003:1003, , MATCH("Booking Status", $3:$3, 0)))),
- *   IF(
- *     INDEX(1003:1003, , MATCH("Eligible Refund", $3:$3, 0)) = "Refund Ineligible",
- *     0,
- *     IF(AM1003 = "", "", 0.1 * AM1003)
- *   ),
- *   ""
- * )
+ * Calculates admin fee (10% of refundable amount) for cancelled bookings
  *
- * Description:
- * - Calculates admin fee (10% of paid terms) for cancelled bookings
- * - Returns 0 if refund is ineligible
- * - Returns empty string if not cancelled or no paid terms
+ * Admin Fee Rules:
+ * 1. Admin fee = 0 when IHT cancels (IHT covers all costs)
+ * 2. Admin fee = 0 when supplier costs involved (supplier takes the cost)
+ * 3. Admin fee = 0 when no refund eligible
+ * 4. For full payments: 10% of NRA (Full Payment Amount - Reservation Fee)
+ * 5. For installments: 10% of paid terms
+ *
+ * The admin fee is deducted from the customer's refund to cover
+ * processing and administrative costs of the cancellation.
  *
  * Parameters:
- * - bookingStatus → Current booking status (e.g., "Cancelled", "Confirmed")
+ * - cancellationInitiatedBy → Who cancelled ("Guest" | "IHT")
  * - eligibleRefund → Refund eligibility status
- * - paidTerms → Total amount paid across all payment terms
+ * - paidTerms → Total installment payments (excludes RF)
+ * - fullPaymentAmount → Full payment amount (if applicable)
+ * - reservationFee → Reservation fee amount
+ * - supplierCostsCommitted → Supplier costs (default 0)
+ * - reasonForCancellation → Cancellation reason
  *
  * Returns:
- * - number → 10% of paidTerms if cancelled and eligible for refund
- * - 0 → if cancelled but refund ineligible
- * - "" → if not cancelled or no paid terms
+ * - number → 10% of applicable amount
+ * - 0 → when admin fee doesn't apply
+ * - "" → if not cancelled
  */
 
 export default async function getAdminFee(
-  bookingStatus: string,
+  cancellationInitiatedBy: string | null | undefined,
   eligibleRefund: string,
   paidTerms: number | string,
+  fullPaymentAmount: number | string | null | undefined,
+  reservationFee: number | string,
+  supplierCostsCommitted: number = 0,
+  reasonForCancellation: string,
 ): Promise<number | string> {
-  // Check if booking is cancelled
-  if (!bookingStatus || !bookingStatus.toLowerCase().includes("cancelled")) {
+  // Return empty if not cancelled
+  if (!reasonForCancellation) {
     return "";
   }
 
-  // If refund is ineligible, admin fee is 0
-  if (eligibleRefund === "Refund Ineligible") {
+  // Helper to convert to number
+  const toNumber = (value: any): number => {
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  };
+
+  // IHT cancellations: No admin fee
+  if (cancellationInitiatedBy === "IHT") {
     return 0;
   }
 
-  // Convert paidTerms to number
-  const paidAmount =
-    typeof paidTerms === "string" ? parseFloat(paidTerms) : paidTerms;
+  // Supplier costs override: No admin fee (supplier bears the cost)
+  if (supplierCostsCommitted > 0) {
+    return 0;
+  }
 
-  // If no paid terms or invalid, return empty
-  if (!paidAmount || isNaN(paidAmount)) {
-    return "";
+  // If refund is ineligible or no refund, admin fee is 0
+  if (
+    eligibleRefund.includes("No refund") ||
+    eligibleRefund === "Refund Ineligible" ||
+    eligibleRefund === "0 Paid Terms, no refund"
+  ) {
+    return 0;
+  }
+
+  // Determine if full payment or installment
+  const fullPayment = toNumber(fullPaymentAmount);
+  const paidInstallments = toNumber(paidTerms);
+  const rf = toNumber(reservationFee);
+
+  let baseAmount = 0;
+
+  if (fullPayment > 0) {
+    // Full Payment: Calculate on NRA (Full Payment - Reservation Fee)
+    const nra = fullPayment - rf;
+    baseAmount = nra;
+  } else {
+    // Installment: Calculate on paid terms
+    baseAmount = paidInstallments;
+  }
+
+  // If no base amount, return 0
+  if (baseAmount <= 0) {
+    return 0;
   }
 
   // Calculate 10% admin fee
-  return 0.1 * paidAmount;
+  return 0.1 * baseAmount;
 }
