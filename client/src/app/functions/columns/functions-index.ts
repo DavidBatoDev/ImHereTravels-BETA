@@ -62,6 +62,7 @@ import getSentDateCancellationFunction from "./cancellation/cancellation-email-s
 import getEligibleRefundFunction from "./cancellation/eligible-refund";
 import getNonRefundableAmountFunction from "./cancellation/non-refundable-amount";
 import getRefundableAmountFunction from "./cancellation/refundable-amount";
+import getCancellationScenarioFunction from "./cancellation/cancellation-scenario";
 
 // Payment Setting Functions
 import getOriginalTourCostFunction from "./payment-setting/original-tour-cost";
@@ -122,6 +123,7 @@ export {
   getEligibleRefundFunction,
   getNonRefundableAmountFunction,
   getRefundableAmountFunction,
+  getCancellationScenarioFunction,
   // Payment Setting
   getOriginalTourCostFunction,
   getTourDiscountedCostFunction,
@@ -226,6 +228,7 @@ export const functionMap: Record<string, Function> = {
   getEligibleRefundFunction,
   getNonRefundableAmountFunction,
   getRefundableAmountFunction,
+  getCancellationScenarioFunction,
 
   // Payment Setting functions
   getOriginalTourCostFunction,
