@@ -3847,7 +3847,7 @@ export default function EditBookingModal({
                                         </TooltipProvider>
                                       )}
                                       {column.id ===
-                                        "cancellationInitiatedBy" && (
+                                        "reasonForCancellation" && (
                                         <TooltipProvider>
                                           <Tooltip>
                                             <TooltipTrigger asChild>
@@ -3858,11 +3858,13 @@ export default function EditBookingModal({
                                               className="max-w-xs"
                                             >
                                               <p className="text-xs">
-                                                Who initiated the cancellation?
-                                                Select "Guest" if the traveler
-                                                requested cancellation, or "IHT"
-                                                if we cancelled the tour. This
-                                                affects refund eligibility -
+                                                Select the reason for
+                                                cancellation. Options starting
+                                                with "Guest -" indicate
+                                                guest-initiated cancellations,
+                                                while "IHT -" indicates we
+                                                cancelled the tour. The prefix
+                                                determines refund eligibility -
                                                 only IHT cancellations can
                                                 refund the Reservation Fee.
                                               </p>

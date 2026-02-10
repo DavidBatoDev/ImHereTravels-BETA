@@ -102,7 +102,6 @@ export interface Booking {
   // Cancellation management
   reasonForCancellation?: string;
   cancellationRequestDate?: Date;
-  cancellationInitiatedBy?: "Guest" | "IHT";
   supplierCostsCommitted?: number;
   travelCreditIssued?: number;
   cancellationScenario?: string;

@@ -14,15 +14,6 @@ export const travelCreditIssuedColumn: BookingSheetColumn = {
     width: 200,
     arguments: [
       {
-        name: "cancellationInitiatedBy",
-        type: "string",
-        columnReference: "Cancellation Initiated By",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-      {
         name: "paid",
         type: "number",
         columnReference: "Paid",
@@ -44,6 +35,31 @@ export const travelCreditIssuedColumn: BookingSheetColumn = {
   },
 };
 
+/**
+ * Extract who initiated cancellation from reason string
+ * Looks for "Guest -" or "IHT -" prefix in reason
+ */
+function extractInitiator(
+  reasonForCancellation: string | null | undefined,
+): "Guest" | "IHT" | null {
+  if (!reasonForCancellation) return null;
+
+  const reason = reasonForCancellation.trim();
+  if (reason.startsWith("Guest -") || reason.startsWith("Guest-")) {
+    return "Guest";
+  }
+  if (reason.startsWith("IHT -") || reason.startsWith("IHT-")) {
+    return "IHT";
+  }
+
+  // Fallback: check if it contains the words anywhere
+  const lowerReason = reason.toLowerCase();
+  if (lowerReason.includes("iht")) return "IHT";
+  if (lowerReason.includes("guest")) return "Guest";
+
+  return null;
+}
+
 // Column Function Implementation
 /**
  * Calculates travel credit amount when IHT cancels
@@ -54,12 +70,14 @@ export const travelCreditIssuedColumn: BookingSheetColumn = {
  * Returns: "TC: £{amount} (not yet implemented)" or "" if not applicable
  */
 export default function getTravelCreditIssuedFunction(
-  cancellationInitiatedBy: string | null | undefined,
   paid: number,
   reasonForCancellation: string | null | undefined,
 ): string {
+  // Extract who initiated from reason
+  const initiatedBy = extractInitiator(reasonForCancellation);
+
   // Only applicable when IHT cancels
-  if (cancellationInitiatedBy !== "IHT" || !reasonForCancellation) {
+  if (initiatedBy !== "IHT" || !reasonForCancellation) {
     return "";
   }
 

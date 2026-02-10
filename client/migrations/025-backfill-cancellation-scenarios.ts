@@ -7,7 +7,7 @@
  * Update existing cancelled bookings with new cancellation scenario fields
  *
  * Changes:
- * 1. Set cancellationInitiatedBy = "Guest" (default assumption for existing cancellations)
+ * 1. Prefix reasonForCancellation with "Guest -" for existing cancellations (default assumption)
  * 2. Set supplierCostsCommitted = 0 (default)
  * 3. Set travelCreditIssued = 0 (default)
  * 4. Set isNoShow = false (default)
@@ -148,15 +148,26 @@ export async function migrate() {
         const bookingRef = doc(db, COLLECTION_NAME, bookingDoc.id);
 
         // Check if already has new fields (skip if migrated)
-        if (booking.cancellationInitiatedBy !== undefined) {
+        // We check for supplierCostsCommitted since we removed cancellationInitiatedBy field
+        if (booking.supplierCostsCommitted !== undefined) {
           console.log(`  ⏭️  Skipping ${booking.bookingId} - already migrated`);
           totalSkipped++;
           continue;
         }
 
+        // Prefix reasonForCancellation with "Guest -" if it doesn't have a prefix
+        let reason = booking.reasonForCancellation || "";
+        if (
+          reason &&
+          !reason.startsWith("Guest -") &&
+          !reason.startsWith("IHT -")
+        ) {
+          reason = `Guest - ${reason}`;
+        }
+
         // Prepare updates
         const updates: any = {
-          cancellationInitiatedBy: "Guest", // Default assumption
+          reasonForCancellation: reason, // Add "Guest -" prefix to existing reasons
           supplierCostsCommitted: 0,
           travelCreditIssued: 0,
           isNoShow: false,
@@ -230,13 +241,16 @@ export async function rollback() {
 
   console.log("⚠️  WARNING: This will remove the new cancellation fields.");
   console.log(
+    "⚠️  WARNING: This will remove 'Guest -' prefix from reasonForCancellation.",
+  );
+  console.log(
     "⚠️  Calculated fields (refunds, admin fees) will NOT be reverted.\n",
   );
 
   try {
-    // Query all bookings with the new fields
+    // Query all bookings with the new fields (check for supplierCostsCommitted)
     const bookingsRef = collection(db, COLLECTION_NAME);
-    const q = query(bookingsRef, where("cancellationInitiatedBy", "!=", null));
+    const q = query(bookingsRef, where("supplierCostsCommitted", "!=", null));
     const snapshot = await getDocs(q);
 
     console.log(`✅ Found ${snapshot.size} bookings to rollback\n`);
@@ -255,11 +269,18 @@ export async function rollback() {
       const batchDocs = bookings.slice(i, i + BATCH_SIZE);
 
       for (const bookingDoc of batchDocs) {
+        const booking = bookingDoc.data();
         const bookingRef = doc(db, COLLECTION_NAME, bookingDoc.id);
+
+        // Remove "Guest -" prefix from reasonForCancellation
+        let reason = booking.reasonForCancellation || "";
+        if (reason.startsWith("Guest - ")) {
+          reason = reason.replace("Guest - ", "");
+        }
 
         // Remove the new fields
         batch.update(bookingRef, {
-          cancellationInitiatedBy: null,
+          reasonForCancellation: reason,
           supplierCostsCommitted: 0,
           travelCreditIssued: 0,
           isNoShow: false,

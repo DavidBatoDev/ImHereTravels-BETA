@@ -1,7 +1,6 @@
 import { withOrder } from "../column-orders";
 import { cancellationEmailDraftLinkColumn as _cancellationEmailDraftLinkColumn } from "./cancellation-email-draft-link";
 import { cancellationEmailSentDateColumn as _cancellationEmailSentDateColumn } from "./cancellation-email-sent-date";
-import { cancellationInitiatedByColumn as _cancellationInitiatedByColumn } from "./cancellation-initiated-by";
 import { cancellationRequestDateColumn as _cancellationRequestDateColumn } from "./cancellation-request-date";
 import { cancellationScenarioColumn as _cancellationScenarioColumn } from "./cancellation-scenario";
 import { eligibleRefundColumn as _eligibleRefundColumn } from "./eligible-refund";
@@ -23,9 +22,6 @@ export const cancellationEmailDraftLinkColumn = withOrder(
 );
 export const cancellationEmailSentDateColumn = withOrder(
   _cancellationEmailSentDateColumn,
-);
-export const cancellationInitiatedByColumn = withOrder(
-  _cancellationInitiatedByColumn,
 );
 export const cancellationRequestDateColumn = withOrder(
   _cancellationRequestDateColumn,

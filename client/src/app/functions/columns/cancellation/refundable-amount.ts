@@ -13,9 +13,9 @@ export const refundableAmountColumn: BookingSheetColumn = {
     width: 200,
     arguments: [
       {
-        name: "cancellationInitiatedBy",
+        name: "reasonForCancellation",
         type: "string",
-        columnReference: "Cancellation Initiated By",
+        columnReference: "Reason for Cancellation",
         isOptional: false,
         hasDefault: false,
         isRest: false,
@@ -120,7 +120,7 @@ export const refundableAmountColumn: BookingSheetColumn = {
  * - No-show: 0
  *
  * Parameters:
- * - cancellationInitiatedBy → Who cancelled ("Guest" | "IHT")
+ * - reasonForCancellation → Reason with "Guest -" or "IHT -" prefix
  * - adminFee → Admin fee amount
  * - paid → Total amount paid (RF + installments or full payment)
  * - paidTerms → Installment payments only (excludes RF)
@@ -135,8 +135,32 @@ export const refundableAmountColumn: BookingSheetColumn = {
  * - "" → if no cancellation date
  */
 
+/**
+ * Extract who initiated cancellation from reason string
+ */
+function extractInitiator(
+  reasonForCancellation: string | null | undefined,
+): "Guest" | "IHT" | null {
+  if (!reasonForCancellation) return null;
+
+  const reason = reasonForCancellation.trim();
+  if (reason.startsWith("Guest -") || reason.startsWith("Guest-")) {
+    return "Guest";
+  }
+  if (reason.startsWith("IHT -") || reason.startsWith("IHT-")) {
+    return "IHT";
+  }
+
+  // Fallback: check if it contains the words anywhere
+  const lowerReason = reason.toLowerCase();
+  if (lowerReason.includes("iht")) return "IHT";
+  if (lowerReason.includes("guest")) return "Guest";
+
+  return null;
+}
+
 export default async function getRefundableAmount(
-  cancellationInitiatedBy: string | null | undefined,
+  reasonForCancellation: string | null | undefined,
   adminFee: number | string,
   paid: number | string,
   paidTerms: number | string,
@@ -150,6 +174,9 @@ export default async function getRefundableAmount(
   if (!cancellationRequestDate) {
     return "";
   }
+
+  // Extract who initiated from reason
+  const cancellationInitiatedBy = extractInitiator(reasonForCancellation);
 
   // Helper to convert to number
   const toNumber = (value: any): number => {

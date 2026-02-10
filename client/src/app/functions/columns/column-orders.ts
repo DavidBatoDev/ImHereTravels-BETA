@@ -147,30 +147,29 @@ export const COLUMN_ORDERS: Record<string, number> = {
   p4DatePaid: 81,
 
   // ============================================================================
-  // CANCELLATION (82-99)
+  // CANCELLATION (82-98)
   // ============================================================================
   reasonForCancellation: 82,
   cancellationRequestDate: 83,
-  cancellationInitiatedBy: 84,
-  cancellationScenario: 85,
-  supplierCostsCommitted: 86,
-  isNoShow: 87,
-  includeBccCancellation: 88,
-  eligibleRefund: 89,
-  nonRefundableAmount: 90,
-  refundableAmount: 91,
-  travelCreditIssued: 92,
-  generateCancellationDraft: 93,
-  cancellationEmailDraftLink: 94,
-  subjectLineCancellation: 95,
-  sendCancellationEmail: 96,
-  sentCancellationEmailLink: 97,
-  cancellationEmailSentDate: 98,
+  cancellationScenario: 84,
+  supplierCostsCommitted: 85,
+  isNoShow: 86,
+  includeBccCancellation: 87,
+  eligibleRefund: 88,
+  nonRefundableAmount: 89,
+  refundableAmount: 90,
+  travelCreditIssued: 91,
+  generateCancellationDraft: 92,
+  cancellationEmailDraftLink: 93,
+  subjectLineCancellation: 94,
+  sendCancellationEmail: 95,
+  sentCancellationEmailLink: 96,
+  cancellationEmailSentDate: 97,
 
   // ============================================================================
-  // DELETE (99) - Delete column at the end
+  // DELETE (98) - Delete column at the end
   // ============================================================================
-  delete: 99,
+  delete: 98,
 };
 
 /**

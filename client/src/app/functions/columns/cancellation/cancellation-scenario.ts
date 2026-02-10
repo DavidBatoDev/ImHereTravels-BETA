@@ -14,15 +14,6 @@ export const cancellationScenarioColumn: BookingSheetColumn = {
     width: 300,
     arguments: [
       {
-        name: "cancellationInitiatedBy",
-        type: "string",
-        columnReference: "Cancellation Initiated By",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-      {
         name: "cancellationRequestDate",
         type: "date",
         columnReference: "Cancellation Request Date",
@@ -106,7 +97,6 @@ export const cancellationScenarioColumn: BookingSheetColumn = {
  * Example: "Guest Cancel Early (125 days before tour)"
  */
 export default function getCancellationScenarioFunction(
-  cancellationInitiatedBy: string | null | undefined,
   cancellationRequestDate: Date | any,
   tourDate: Date | any,
   paymentPlan: string | null | undefined,
@@ -135,7 +125,6 @@ export default function getCancellationScenarioFunction(
 
   // Detect scenario
   const scenario = detectCancellationScenario({
-    initiatedBy: cancellationInitiatedBy,
     daysBeforeTour,
     paymentPlan,
     paidTerms,

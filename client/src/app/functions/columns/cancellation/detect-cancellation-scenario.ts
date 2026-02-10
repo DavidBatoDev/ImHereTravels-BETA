@@ -8,7 +8,7 @@
  * 1. Guest cancels early (full payment) - ≥100 days
  * 2. Guest cancels mid-range (full payment) - 60-99 days
  * 3. Guest cancels late (full payment) - ≤59 days
- * 4. Guest cancels early (install ment) - ≥100 days
+ * 4. Guest cancels early (installment) - ≥100 days
  * 5. Guest cancels mid-range (installment) - 60-99 days
  * 6. Guest cancels late (installment) - ≤59 days
  * 7. Installment default early - ≥100 days
@@ -29,8 +29,32 @@ export interface CancellationScenario {
   daysBeforeTour: number;
 }
 
+/**
+ * Extract who initiated cancellation from reason string
+ * Looks for "Guest -" or "IHT -" prefix in reason
+ */
+export function extractInitiator(
+  reasonForCancellation: string | null | undefined,
+): "Guest" | "IHT" | null {
+  if (!reasonForCancellation) return null;
+
+  const reason = reasonForCancellation.trim();
+  if (reason.startsWith("Guest -") || reason.startsWith("Guest-")) {
+    return "Guest";
+  }
+  if (reason.startsWith("IHT -") || reason.startsWith("IHT-")) {
+    return "IHT";
+  }
+
+  // Fallback: check if it contains the words anywhere
+  const lowerReason = reason.toLowerCase();
+  if (lowerReason.includes("iht")) return "IHT";
+  if (lowerReason.includes("guest")) return "Guest";
+
+  return null;
+}
+
 interface DetectScenarioParams {
-  initiatedBy: string | null | undefined;
   daysBeforeTour: number;
   paymentPlan: string | null | undefined;
   paidTerms: number;
@@ -46,7 +70,6 @@ export function detectCancellationScenario(
   params: DetectScenarioParams,
 ): CancellationScenario | null {
   const {
-    initiatedBy,
     daysBeforeTour,
     paymentPlan,
     paidTerms,
@@ -62,6 +85,9 @@ export function detectCancellationScenario(
   if (!reasonForCancellation || !cancellationDate) {
     return null;
   }
+
+  // Extract who initiated from reason string
+  const initiatedBy = extractInitiator(reasonForCancellation);
 
   // Determine payment type
   const isFullPayment =

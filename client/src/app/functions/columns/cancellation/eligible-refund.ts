@@ -13,15 +13,6 @@ export const eligibleRefundColumn: BookingSheetColumn = {
     width: 300,
     arguments: [
       {
-        name: "cancellationInitiatedBy",
-        type: "string",
-        columnReference: "Cancellation Initiated By",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
-      {
         name: "cancellationRequestDate",
         type: "date | string",
         columnReference: "Cancellation Request Date",
@@ -121,10 +112,9 @@ export const eligibleRefundColumn: BookingSheetColumn = {
  * - Force majeure: "Case-by-case (refund OR TC)"
  *
  * Parameters:
- * - cancellationInitiatedBy → Who cancelled ("Guest" | "IHT")
  * - cancellationRequestDate → Date cancellation was requested
  * - tourDate → Date of the tour
- * - reasonForCancellation → Reason provided for cancellation
+ * - reasonForCancellation → Reason provided (with "Guest -" or "IHT -" prefix)
  * - paymentPlan → Selected payment plan
  * - paidTerms → Total amount paid (installments only)
  * - fullPaymentDatePaid → Date full payment was made (optional)
@@ -137,7 +127,6 @@ export const eligibleRefundColumn: BookingSheetColumn = {
  */
 
 export default async function getEligibleRefund(
-  cancellationInitiatedBy: string | null | undefined,
   cancellationRequestDate: Date | string,
   tourDate: Date | string,
   reasonForCancellation: string,
@@ -176,7 +165,6 @@ export default async function getEligibleRefund(
 
   // Detect scenario
   const scenario = detectCancellationScenario({
-    initiatedBy: cancellationInitiatedBy,
     daysBeforeTour,
     paymentPlan,
     paidTerms: paidAmount,
