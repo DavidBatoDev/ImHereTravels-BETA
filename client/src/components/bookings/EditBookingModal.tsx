@@ -3149,18 +3149,19 @@ export default function EditBookingModal({
 
         case "function":
           return (
-            <div className="flex items-center gap-2">
-              <Input
+            <div className="flex items-start gap-2">
+              <Textarea
                 id={fieldId}
                 value={String(value || "")}
                 className={cn(
-                  "w-full font-mono bg-background text-[11px] sm:text-xs",
+                  "w-full font-mono bg-background text-[11px] sm:text-xs resize-y min-h-[2.5rem]",
                   error && "border-red-500",
                   isComputing && "opacity-50",
                 )}
                 disabled={true}
                 placeholder={isComputing ? "Computing..." : ""}
                 autoComplete="off"
+                rows={1}
               />
               {isComputing && (
                 <RefreshCw className="h-4 w-4 animate-spin text-royal-purple" />
