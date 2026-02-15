@@ -30,7 +30,7 @@ export default function AdminLoginPage() {
   React.useEffect(() => {
     if (isAuthenticated && userProfile) {
       console.log(
-        "🔐 LoginPage: User already authenticated, redirecting to dashboard..."
+        "🔐 LoginPage: User already authenticated, redirecting to dashboard...",
       );
       router.push("/dashboard");
     }
@@ -110,7 +110,10 @@ export default function AdminLoginPage() {
               Admin
             </span>
           </div>
-          <button className="text-grey hover:text-black font-dm-sans text-sm transition-colors flex items-center space-x-1">
+          <button
+            onClick={() => router.push("/")}
+            className="text-grey hover:text-black font-dm-sans text-sm transition-colors flex items-center space-x-1"
+          >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Site</span>
           </button>
