@@ -12,12 +12,20 @@ export const reasonForCancellationColumn: BookingSheetColumn = {
     width: 200,
     options: [
       "",
-      "Tour Date is too close from Reservation Date.",
-      "The Tour is fully booked.",
-      "The Tour has been cancelled.",
-      "Guest personal reason",
-      "Operational / logistical issue",
-      "Unforeseen events (e.g., weather, government restrictions, safety concerns)",
+      // Guest-initiated reasons
+      "Guest - Personal/medical reasons",
+      "Guest - Change of plans",
+      "Guest - Financial reasons",
+      "Guest - Payment default/missed deadline",
+      "Guest - Travel restrictions/visa issues",
+      "Guest - Dissatisfaction with itinerary",
+
+      // IHT-initiated reasons
+      "IHT - Tour cancelled/unavailable",
+      "IHT - Operational/logistical issues",
+      "IHT - Force majeure (weather, safety, government restrictions)",
+      "IHT - Insufficient bookings",
+      "IHT - Safety concerns",
     ],
   },
 };

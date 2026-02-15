@@ -3149,18 +3149,19 @@ export default function EditBookingModal({
 
         case "function":
           return (
-            <div className="flex items-center gap-2">
-              <Input
+            <div className="flex items-start gap-2">
+              <Textarea
                 id={fieldId}
                 value={String(value || "")}
                 className={cn(
-                  "w-full font-mono bg-background text-[11px] sm:text-xs",
+                  "w-full font-mono bg-background text-[11px] sm:text-xs resize-y min-h-[2.5rem]",
                   error && "border-red-500",
                   isComputing && "opacity-50",
                 )}
                 disabled={true}
                 placeholder={isComputing ? "Computing..." : ""}
                 autoComplete="off"
+                rows={1}
               />
               {isComputing && (
                 <RefreshCw className="h-4 w-4 animate-spin text-royal-purple" />
@@ -3841,6 +3842,76 @@ export default function EditBookingModal({
                                                 explicitly in the dropdown, edit
                                                 the tour dates in the Tour
                                                 Packages page
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
+                                      {column.id ===
+                                        "reasonForCancellation" && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                              side="right"
+                                              className="max-w-xs"
+                                            >
+                                              <p className="text-xs">
+                                                Select the reason for
+                                                cancellation. Options starting
+                                                with "Guest -" indicate
+                                                guest-initiated cancellations,
+                                                while "IHT -" indicates we
+                                                cancelled the tour. The prefix
+                                                determines refund eligibility -
+                                                only IHT cancellations can
+                                                refund the Reservation Fee.
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
+                                      {column.id ===
+                                        "supplierCostsCommitted" && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                              side="right"
+                                              className="max-w-xs"
+                                            >
+                                              <p className="text-xs">
+                                                Enter any non-refundable costs
+                                                we've already paid to suppliers
+                                                (hotels, guides, etc.). These
+                                                costs will be deducted from the
+                                                guest's refund amount. Leave at
+                                                0 if no costs were committed.
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
+                                      {column.id === "isNoShow" && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                              side="right"
+                                              className="max-w-xs"
+                                            >
+                                              <p className="text-xs">
+                                                Check this box if the guest
+                                                failed to show up for the tour
+                                                without prior notice. No-shows
+                                                are not eligible for any
+                                                refunds.
                                               </p>
                                             </TooltipContent>
                                           </Tooltip>

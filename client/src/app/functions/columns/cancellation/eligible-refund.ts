@@ -10,17 +10,8 @@ export const eligibleRefundColumn: BookingSheetColumn = {
     parentTab: "Cancellation",
     includeInForms: false,
     color: "none",
-    width: 250,
+    width: 300,
     arguments: [
-      {
-        name: "bookingStatus",
-        type: "string",
-        columnReference: "Booking Status",
-        isOptional: false,
-        hasDefault: false,
-        isRest: false,
-        value: "",
-      },
       {
         name: "cancellationRequestDate",
         type: "date | string",
@@ -66,60 +57,69 @@ export const eligibleRefundColumn: BookingSheetColumn = {
         isRest: false,
         value: "",
       },
+      {
+        name: "fullPaymentDatePaid",
+        type: "date",
+        columnReference: "Full Payment Date Paid",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
+        name: "supplierCostsCommitted",
+        type: "number",
+        columnReference: "Supplier Costs Committed",
+        isOptional: false,
+        hasDefault: true,
+        isRest: false,
+        value: "0",
+      },
+      {
+        name: "isNoShow",
+        type: "boolean",
+        columnReference: "No-Show",
+        isOptional: false,
+        hasDefault: true,
+        isRest: false,
+        value: "false",
+      },
     ],
   },
 };
 
 // Column Function Implementation
 /**
- * Excel equivalent:
- * =LET(
- *   hdr, $3:$3,
- *   m, LAMBDA(n, MATCH(n, hdr, 0)),
+ * Determines refund eligibility based on cancellation scenario
  *
- *   bookingStatus, INDEX(1003:1003, , m("Booking Status")),
- *   cancellationDate, INDEX(1003:1003, , m("Cancellation Request Date")),
- *   daysBeforeTour, INDEX(1003:1003, , m("Days before Tour Date")),
- *   reason, INDEX(1003:1003, , m("Reason for Cancellation")),
- *   plan, INDEX(1003:1003, , m("Payment Plan")),
- *   paidTerms, TO_PURE_NUMBER(INDEX(1003:1003, , m("Paid Terms"))),
+ * Implements comprehensive refund logic for all scenarios:
  *
- *   refundRate,
- *     IF(AND(ISNUMBER(SEARCH("Cancelled", bookingStatus)), ISNUMBER(cancellationDate)),
- *       IF(OR(plan="Full Payment", plan="P1", plan="P2", plan="P3", plan="P4"),
- *         IF(paidTerms = 0, "0 Paid Terms, no refund",
- *           IF(daysBeforeTour >= 100, "100% refund minus Admin Fee",
- *             IF(daysBeforeTour >= 60, "50% refund minus Admin Fee",
- *               "Refund Ineligible"
- *             )
- *           )
- *         ),
- *       ""),
- *     ""
- *   ),
+ * Guest Cancellations (Full Payment):
+ * - ≥100 days: "100% of NRA minus admin fee"
+ * - 60-99 days: "50% of NRA minus admin fee"
+ * - ≤59 days: "No refund"
  *
- *   IF(reason<>"", refundRate, "")
- * )
+ * Guest Cancellations (Installment):
+ * - ≥100 days: "100% of paid terms minus admin fee"
+ * - 60-99 days: "50% of paid terms minus admin fee"
+ * - ≤59 days: "No refund"
  *
- * Description:
- * - Evaluates refund eligibility based on cancellation timing and payment status
- * - Calculates days before tour internally from cancellation date and tour date
- * - Returns refund status string based on days before tour date
- * - Requires both booking to be cancelled and a cancellation reason
- *
- * Refund Logic:
- * - >= 100 days before tour: "100% refund minus Admin Fee"
- * - >= 60 days before tour: "50% refund minus Admin Fee"
- * - < 60 days before tour: "Refund Ineligible"
- * - 0 paid terms: "0 Paid Terms, no refund"
+ * Special Cases:
+ * - Supplier costs: "Refund minus supplier costs and admin fee"
+ * - No-show: "No refund"
+ * - IHT cancels (before): "100% refund including RF OR travel credit"
+ * - IHT cancels (after): "Partial refund OR travel credit"
+ * - Force majeure: "Case-by-case (refund OR TC)"
  *
  * Parameters:
- * - bookingStatus → Current booking status
  * - cancellationRequestDate → Date cancellation was requested
  * - tourDate → Date of the tour
- * - reasonForCancellation → Reason provided for cancellation
+ * - reasonForCancellation → Reason provided (with "Guest -" or "IHT -" prefix)
  * - paymentPlan → Selected payment plan
- * - paidTerms → Total amount paid
+ * - paidTerms → Total amount paid (installments only)
+ * - fullPaymentDatePaid → Date full payment was made (optional)
+ * - supplierCostsCommitted → Supplier costs incurred (default 0)
+ * - isNoShow → Whether guest marked as no-show (default false)
  *
  * Returns:
  * - string → Refund eligibility status
@@ -127,24 +127,27 @@ export const eligibleRefundColumn: BookingSheetColumn = {
  */
 
 export default async function getEligibleRefund(
-  bookingStatus: string,
   cancellationRequestDate: Date | string,
   tourDate: Date | string,
   reasonForCancellation: string,
   paymentPlan: string,
   paidTerms: number | string,
+  fullPaymentDatePaid: Date | any | null | undefined = null,
+  supplierCostsCommitted: number = 0,
+  isNoShow: boolean = false,
 ): Promise<string> {
-  // Check if booking is cancelled and has a cancellation date
-  const isCancelled =
-    bookingStatus && bookingStatus.toLowerCase().includes("cancelled");
-  const hasCancellationDate = !!cancellationRequestDate;
+  // Import scenario detection
+  const {
+    detectCancellationScenario,
+    calculateDaysBeforeTour,
+  } = require("./detect-cancellation-scenario");
 
-  // Return empty if not cancelled or no cancellation date
-  if (!isCancelled || !hasCancellationDate) {
+  // Return empty if not cancelled
+  if (!reasonForCancellation || !cancellationRequestDate) {
     return "";
   }
 
-  // Valid payment plans that are eligible for refund evaluation
+  // Valid payment plans
   const validPlans = ["Full Payment", "P1", "P2", "P3", "P4"];
   if (!validPlans.includes(paymentPlan)) {
     return "";
@@ -154,46 +157,29 @@ export default async function getEligibleRefund(
   const paidAmount =
     typeof paidTerms === "string" ? parseFloat(paidTerms) : paidTerms;
 
-  // Check if paid terms is 0
-  if (paidAmount === 0) {
-    return "0 Paid Terms, no refund";
+  // Calculate days before tour
+  const daysBeforeTour = calculateDaysBeforeTour(
+    cancellationRequestDate,
+    tourDate,
+  );
+
+  // Detect scenario
+  const scenario = detectCancellationScenario({
+    daysBeforeTour,
+    paymentPlan,
+    paidTerms: paidAmount,
+    fullPaymentDatePaid,
+    supplierCosts: supplierCostsCommitted,
+    tourDate,
+    cancellationDate: cancellationRequestDate,
+    isNoShow,
+    reasonForCancellation,
+  });
+
+  if (!scenario) {
+    return "";
   }
 
-  // Calculate days before tour date
-  // Helper to convert Firestore Timestamp or Date to Date object
-  const toDate = (value: any): Date => {
-    if (value instanceof Date) {
-      return value;
-    }
-    // Handle Firestore Timestamp objects with seconds property
-    if (value && typeof value === "object" && "seconds" in value) {
-      return new Date(value.seconds * 1000);
-    }
-    // Handle Firestore Timestamp objects with toDate method
-    if (value && typeof value.toDate === "function") {
-      return value.toDate();
-    }
-    // Handle string dates
-    return new Date(value);
-  };
-
-  const cancellationDateObj = toDate(cancellationRequestDate);
-  const tourDateObj = toDate(tourDate);
-
-  // Calculate difference in days
-  const diffTime = tourDateObj.getTime() - cancellationDateObj.getTime();
-  const daysBeforeTourNum = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  // Determine refund rate based on days before tour
-  let refundRate = "";
-  if (daysBeforeTourNum >= 100) {
-    refundRate = "100% refund minus Admin Fee";
-  } else if (daysBeforeTourNum >= 60) {
-    refundRate = "50% refund minus Admin Fee";
-  } else {
-    refundRate = "Refund Ineligible";
-  }
-
-  // Only return refund rate if reason is provided
-  return reasonForCancellation ? refundRate : "";
+  // Return the refund policy from the scenario
+  return scenario.refundPolicy;
 }

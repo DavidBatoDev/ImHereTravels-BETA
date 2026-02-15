@@ -147,25 +147,29 @@ export const COLUMN_ORDERS: Record<string, number> = {
   p4DatePaid: 81,
 
   // ============================================================================
-  // CANCELLATION (82-93)
+  // CANCELLATION (82-98)
   // ============================================================================
   reasonForCancellation: 82,
   cancellationRequestDate: 83,
-  includeBccCancellation: 84,
-  eligibleRefund: 85,
-  nonRefundableAmount: 86,
-  refundableAmount: 87,
-  generateCancellationDraft: 88,
-  cancellationEmailDraftLink: 89,
-  subjectLineCancellation: 90,
-  sendCancellationEmail: 91,
-  sentCancellationEmailLink: 92,
-  cancellationEmailSentDate: 93,
+  cancellationScenario: 84,
+  supplierCostsCommitted: 85,
+  isNoShow: 86,
+  includeBccCancellation: 87,
+  eligibleRefund: 88,
+  nonRefundableAmount: 89,
+  refundableAmount: 90,
+  travelCreditIssued: 91,
+  generateCancellationDraft: 92,
+  cancellationEmailDraftLink: 93,
+  subjectLineCancellation: 94,
+  sendCancellationEmail: 95,
+  sentCancellationEmailLink: 96,
+  cancellationEmailSentDate: 97,
 
   // ============================================================================
-  // DELETE (94) - Delete column at the end
+  // DELETE (98) - Delete column at the end
   // ============================================================================
-  delete: 94,
+  delete: 98,
 };
 
 /**
@@ -281,9 +285,9 @@ export function getOrderRangeForTab(
     },
     Cancellation: {
       min: 82,
-      max: 93,
+      max: 98,
       columns: Object.entries(COLUMN_ORDERS)
-        .filter(([, order]) => order >= 82 && order <= 93)
+        .filter(([, order]) => order >= 82 && order <= 98)
         .map(([id]) => id),
     },
   };
