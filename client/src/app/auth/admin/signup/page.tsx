@@ -253,7 +253,7 @@ export default function AdminSignupPage() {
         if (accountCheck.hasAgreed) {
           console.log(
             "accountCheck for account already exists and terms agreed",
-            accountCheck
+            accountCheck,
           );
           // Account exists and terms agreed - throw error
           toast({
@@ -268,7 +268,7 @@ export default function AdminSignupPage() {
           // Account exists but terms not agreed - ask for password
           console.log(
             "accountCheck for account already exists and terms not agreed",
-            accountCheck
+            accountCheck,
           );
           setExistingAccount(accountCheck);
           setStep1State("existing-password");
@@ -362,7 +362,7 @@ export default function AdminSignupPage() {
         // Email verification is now handled automatically by polling
         // This case should not be reached since the button is removed
         console.log(
-          "Step 2 nextStep called - this should not happen with polling"
+          "Step 2 nextStep called - this should not happen with polling",
         );
         break;
       case 3:
@@ -502,11 +502,11 @@ export default function AdminSignupPage() {
             </span>
           </div>
           <button
-            onClick={() => router.push("/auth/admin/login")}
+            onClick={() => router.push("/")}
             className="text-grey hover:text-black font-dm-sans text-sm transition-colors flex items-center space-x-1"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Login</span>
+            <span>Back to Site</span>
           </button>
         </div>
 
@@ -731,7 +731,7 @@ export default function AdminSignupPage() {
                                 onChange={(e) =>
                                   handleInputChange(
                                     "confirmPassword",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 className={`w-full px-3.5 py-2.5 pr-12 bg-light-grey border rounded-lg text-black placeholder-grey font-dm-sans text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red focus:border-transparent transition-all ${
@@ -773,8 +773,8 @@ export default function AdminSignupPage() {
                           {isSubmitting
                             ? "Processing..."
                             : step1State === "password"
-                            ? "Create Account"
-                            : "Next"}
+                              ? "Create Account"
+                              : "Next"}
                         </button>
                       </>
                     )}
@@ -859,18 +859,18 @@ export default function AdminSignupPage() {
                                 try {
                                   const isVerified =
                                     await checkEmailVerification(
-                                      userCredential
+                                      userCredential,
                                     );
                                   if (isVerified) {
                                     // Mark email as verified in the database
                                     try {
                                       await markEmailAsVerified(
-                                        userCredential.uid
+                                        userCredential.uid,
                                       );
                                     } catch (error) {
                                       console.error(
                                         "Failed to mark email as verified:",
-                                        error
+                                        error,
                                       );
                                       // Continue with the flow even if database update fails
                                     }
@@ -1087,12 +1087,12 @@ export default function AdminSignupPage() {
                         {isSubmitting
                           ? "Creating Account..."
                           : isSuccess
-                          ? "Account Created!"
-                          : `Create ${
-                              formData.role === "admin"
-                                ? "Administrator"
-                                : "Agent"
-                            } Account`}
+                            ? "Account Created!"
+                            : `Create ${
+                                formData.role === "admin"
+                                  ? "Administrator"
+                                  : "Agent"
+                              } Account`}
                       </button>
                     </div>
                   </>

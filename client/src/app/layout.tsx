@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { DM_Sans, Work_Sans } from "next/font/google";
+import { DM_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import "@/lib/suppress-warnings";
 import { Toaster } from "@/components/ui/toaster";
@@ -15,10 +16,30 @@ const dmSans = DM_Sans({
   display: "swap",
 });
 
-// Configure Work Sans as better HK Grotesk alternative (more similar geometric style)
-const workSans = Work_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+// Configure HK Grotesk as heading font
+const hkGrotesk = localFont({
+  src: [
+    {
+      path: "../../public/fonts/HKGrotesk/WEB/HKGrotesk-Regular.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../../public/fonts/HKGrotesk/WEB/HKGrotesk-Medium.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../../public/fonts/HKGrotesk/WEB/HKGrotesk-SemiBold.woff2",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "../../public/fonts/HKGrotesk/WEB/HKGrotesk-Bold.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-hk-grotesk",
   display: "swap",
 });
@@ -62,7 +83,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${workSans.variable}`}
+      className={`${dmSans.variable} ${hkGrotesk.variable}`}
       suppressHydrationWarning
     >
       <body>
