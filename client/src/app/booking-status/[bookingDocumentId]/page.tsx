@@ -92,6 +92,7 @@ interface BookingData {
   sentEmailLink?: string;
   eventName?: string;
   discountRate?: number;
+  discountType?: string;
   reasonForCancellation?: string | null;
   cancellationEmailSentDate?: any;
   bookingType: string;
@@ -372,6 +373,7 @@ export default function BookingStatusPage() {
         sentEmailLink: bookingData.sentEmailLink,
         eventName: bookingData.eventName,
         discountRate: bookingData.discountRate,
+        discountType: bookingData.discountType,
         bookingType: bookingData.bookingType,
         isMainBooker: bookingData.isMainBooker,
         enablePaymentReminder: bookingData.enablePaymentReminder,
@@ -689,7 +691,7 @@ export default function BookingStatusPage() {
   const toNumber = (value: unknown, fallback = 0) => {
     if (typeof value === "number" && !Number.isNaN(value)) return value;
     if (typeof value === "string") {
-      const cleaned = value.replace(/[€,\s]/g, "");
+      const cleaned = value.replace(/[£,\s]/g, "");
       const parsed = Number(cleaned);
       return Number.isNaN(parsed) ? fallback : parsed;
     }
@@ -1180,7 +1182,12 @@ export default function BookingStatusPage() {
                 {booking.eventName && (
                   <div className="md:col-span-2">
                     <Badge className="bg-vivid-orange text-white px-3 py-1">
-                      {booking.eventName} - {booking.discountRate}% OFF
+                      {booking.eventName} - {
+                        booking.discountType?.toLowerCase() === "flat amount" || 
+                        booking.discountType?.toLowerCase()?.includes("amount")
+                          ? `£${booking.discountRate} OFF`
+                          : `${booking.discountRate}% OFF`
+                      }
                     </Badge>
                   </div>
                 )}
@@ -1259,7 +1266,7 @@ export default function BookingStatusPage() {
                                   : "---"}
                               </td>
                               <td className="py-3 px-4 text-right font-semibold text-gray-900">
-                                €{payment.amount.toFixed(2)}
+                                £{payment.amount.toFixed(2)}
                               </td>
                               {idx === 0 && (
                                 <td
@@ -1410,7 +1417,7 @@ export default function BookingStatusPage() {
                                 : "---"}
                             </td>
                             <td className="py-3 px-4 text-right font-semibold text-gray-900">
-                              €{term.amount.toFixed(2)}
+                              £{term.amount.toFixed(2)}
                             </td>
 
                             {/* Status Badge */}
@@ -1601,11 +1608,11 @@ export default function BookingStatusPage() {
                     <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-gray-300">
                       <p className="text-xs text-gray-500 mb-1">Total Cost</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        €{totalCost.toFixed(2)}
+                        £{totalCost.toFixed(2)}
                       </p>
                       {booking.discountedTourCost && (
                         <p className="text-xs text-gray-500 mt-0.5">
-                          Was: €{originalTourCost.toFixed(2)}
+                          Was: £{originalTourCost.toFixed(2)}
                         </p>
                       )}
                     </div>
@@ -1613,7 +1620,7 @@ export default function BookingStatusPage() {
                     <div className="bg-green-50 rounded-lg p-4 border-l-4 border-spring-green">
                       <p className="text-xs text-gray-600 mb-1">Amount Paid</p>
                       <p className="text-2xl font-bold text-spring-green">
-                        €{paidAmount.toFixed(2)}
+                        £{paidAmount.toFixed(2)}
                       </p>
                       <p className="text-xs text-green-700 mt-0.5">
                         {paymentProgressValue}% Complete
@@ -1623,7 +1630,7 @@ export default function BookingStatusPage() {
                     <div className="bg-red-50 rounded-lg p-4 border-l-4 border-crimson-red">
                       <p className="text-xs text-gray-600 mb-1">Balance Due</p>
                       <p className="text-2xl font-bold text-crimson-red">
-                        €{remainingBalanceAmount.toFixed(2)}
+                        £{remainingBalanceAmount.toFixed(2)}
                       </p>
                       {booking.paymentPlan && (
                         <p className="text-xs text-gray-600 mt-0.5">
