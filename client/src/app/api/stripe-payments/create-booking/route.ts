@@ -437,6 +437,7 @@ export async function POST(req: NextRequest) {
     // Create main booker booking document
     const mainBookingRef = await addDoc(collection(db, "bookings"), {
       ...mainBookingData,
+      emailAddress: paymentData.customer?.email || "", // Add for compatibility with Firebase Functions
       access_token: mainAccessToken,
       tourDate: tourDateTimestamp,
       returnDate: calculatedReturnDate,
@@ -505,6 +506,7 @@ export async function POST(req: NextRequest) {
       // Create guest booking document
       const guestBookingRef = await addDoc(collection(db, "bookings"), {
         ...guestBookingData,
+        emailAddress: guest.email || "", // Add for compatibility with Firebase Functions
         access_token: guestAccessToken,
         tourDate: tourDateTimestamp,
         returnDate: calculatedReturnDate,

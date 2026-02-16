@@ -557,6 +557,7 @@ export async function POST(req: NextRequest) {
     const bookingsRef = collection(db, "bookings");
     const newBookingRef = await addDoc(bookingsRef, {
       ...bookingData,
+      emailAddress: guestEmail || "", // Add for compatibility with Firebase Functions
       // Override dates
       tourDate: tourDateTimestamp,
       returnDate: calculatedReturnDate,

@@ -47,26 +47,26 @@ export async function POST(req: NextRequest) {
     if (!access_token || !installment_id) {
       return NextResponse.json(
         { error: "Missing access_token or installment_id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!INSTALLMENT_FIELD_MAP[installment_id as InstallmentId]) {
       return NextResponse.json(
         { error: "Invalid installment_id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     console.log(
-      `🔍 Creating checkout for installment: ${installment_id}, access_token: ${access_token.substring(0, 10)}...`
+      `🔍 Creating checkout for installment: ${installment_id}, access_token: ${access_token.substring(0, 10)}...`,
     );
 
     // 1. Validate access_token and get booking
     const bookingsQuery = query(
       collection(db, "bookings"),
       where("access_token", "==", access_token),
-      limit(1)
+      limit(1),
     );
     const bookingsSnap = await getDocs(bookingsQuery);
 
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       console.log("❌ Invalid access token");
       return NextResponse.json(
         { error: "Invalid access token" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -82,11 +82,23 @@ export async function POST(req: NextRequest) {
     const booking = { id: bookingDoc.id, ...bookingDoc.data() } as any;
 
     console.log(`✅ Found booking: ${booking.bookingId}`);
-    console.log(`📧 Customer data:`, {
-      customer: booking.customer,
-      customerEmail: booking.customerEmail,
-      email: booking.email,
-    });
+
+    // Support both email field names for backward compatibility
+    const customerEmail = booking.emailAddress || booking.email;
+    console.log(`📧 Customer email:`, customerEmail);
+
+    // Validate email exists and is valid
+    if (
+      !customerEmail ||
+      typeof customerEmail !== "string" ||
+      !customerEmail.includes("@")
+    ) {
+      console.log(`❌ Invalid or missing email address: ${customerEmail}`);
+      return NextResponse.json(
+        { error: `Invalid email address: ${customerEmail}` },
+        { status: 400 },
+      );
+    }
 
     // 2. Get installment details from flat fields
     const fields = INSTALLMENT_FIELD_MAP[installment_id as InstallmentId];
@@ -99,13 +111,11 @@ export async function POST(req: NextRequest) {
       console.log(`❌ Installment ${installment_id} not found in booking`);
       return NextResponse.json(
         { error: "Installment not found for this booking" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    console.log(
-      `📅 Installment details: Due ${dueDate}, Amount: €${amount}`
-    );
+    console.log(`📅 Installment details: Due ${dueDate}, Amount: €${amount}`);
 
     // 4. Check if already paid (check both sources)
     const tokenStatus = booking.paymentTokens?.[installment_id]?.status;
@@ -113,31 +123,31 @@ export async function POST(req: NextRequest) {
       console.log(`❌ Installment ${installment_id} already paid`);
       return NextResponse.json(
         { error: "Installment already paid" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // 5. Check if payment is currently processing
     if (tokenStatus === "processing") {
       console.log(
-        `⏳ Payment for ${installment_id} is currently being processed`
+        `⏳ Payment for ${installment_id} is currently being processed`,
       );
       return NextResponse.json(
         {
           error: "Payment is currently being processed. Please wait.",
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
     // 6. Generate payment_token (short-lived, one-time)
     const payment_token = crypto.randomBytes(32).toString("base64url");
     const payment_token_expires_at = Timestamp.fromMillis(
-      Date.now() + 24 * 60 * 60 * 1000
+      Date.now() + 24 * 60 * 60 * 1000,
     ); // 24 hours
 
     console.log(
-      `🔐 Generated payment token: ${payment_token.substring(0, 10)}...`
+      `🔐 Generated payment token: ${payment_token.substring(0, 10)}...`,
     );
 
     // 7. Fetch tour package ID from tourPackages collection
@@ -146,15 +156,17 @@ export async function POST(req: NextRequest) {
       const tourPackagesQuery = query(
         collection(db, "tourPackages"),
         where("name", "==", booking.tourPackageName),
-        limit(1)
+        limit(1),
       );
       const tourPackagesSnap = await getDocs(tourPackagesQuery);
-      
+
       if (!tourPackagesSnap.empty) {
         tourPackageId = tourPackagesSnap.docs[0].id;
         console.log(`📦 Found tour package ID: ${tourPackageId}`);
       } else {
-        console.log(`⚠️ Tour package not found for: ${booking.tourPackageName}`);
+        console.log(
+          `⚠️ Tour package not found for: ${booking.tourPackageName}`,
+        );
       }
     } catch (error) {
       console.error("❌ Error fetching tour package:", error);
@@ -167,23 +179,25 @@ export async function POST(req: NextRequest) {
         collection(db, "stripePayments"),
         where("booking.documentId", "==", booking.id),
         where("payment.installmentTerm", "==", installment_id),
-        where("payment.status", "==", "installment_pending")
+        where("payment.status", "==", "installment_pending"),
       );
-      
+
       const stalePaymentsSnap = await getDocs(stalePaymentsQuery);
-      
+
       if (!stalePaymentsSnap.empty) {
-        console.log(`🧹 Found ${stalePaymentsSnap.size} stale payment(s) to cleanup...`);
-        
+        console.log(
+          `🧹 Found ${stalePaymentsSnap.size} stale payment(s) to cleanup...`,
+        );
+
         const cleanupPromises = stalePaymentsSnap.docs.map(async (docSnap) => {
           await updateDoc(doc(db, "stripePayments", docSnap.id), {
             "payment.status": "cancelled",
-            "cancellationReason": "abandoned_for_new_attempt",
+            cancellationReason: "abandoned_for_new_attempt",
             "timestamps.updatedAt": serverTimestamp(),
           });
           console.log(`❌ Cancelled stale payment document: ${docSnap.id}`);
         });
-        
+
         await Promise.all(cleanupPromises);
       }
     } catch (error) {
@@ -195,22 +209,24 @@ export async function POST(req: NextRequest) {
     const stripePaymentDoc = await addDoc(collection(db, "stripePayments"), {
       // Booking reference
       bookingDocumentId: booking.id,
-      
+
       // Payment token for security
       payment_token: payment_token,
       payment_token_expires_at: payment_token_expires_at,
-      
+
       // Customer information
       customer: {
         firstName: booking.firstName || "",
         lastName: booking.lastName || "",
-        email: booking.emailAddress || "",
+        email: customerEmail || "",
         // Add additional fields if available in booking
         ...(booking.birthdate && { birthdate: booking.birthdate }),
         ...(booking.nationality && { nationality: booking.nationality }),
-        ...(booking.whatsAppNumber && { whatsAppNumber: booking.whatsAppNumber }),
+        ...(booking.whatsAppNumber && {
+          whatsAppNumber: booking.whatsAppNumber,
+        }),
       },
-      
+
       // Booking details
       booking: {
         id: booking.bookingId,
@@ -219,23 +235,31 @@ export async function POST(req: NextRequest) {
         groupSize: 1, // Can be enhanced based on booking type
         ...(booking.groupId && { groupId: booking.groupId }),
       },
-      
+
       // Tour information
       tour: {
         packageName: booking.tourPackageName,
         packageId: tourPackageId,
-        date: booking.tourDate ? 
-          (typeof booking.tourDate === 'string' ? booking.tourDate : 
-           booking.tourDate.toDate ? booking.tourDate.toDate().toISOString().split('T')[0] : 
-           new Date(booking.tourDate.seconds * 1000).toISOString().split('T')[0]) : "",
-        ...(booking.returnDate && { 
-          returnDate: typeof booking.returnDate === 'string' ? booking.returnDate : 
-                     booking.returnDate.toDate ? booking.returnDate.toDate().toISOString().split('T')[0] : 
-                     new Date(booking.returnDate).toISOString().split('T')[0]
+        date: booking.tourDate
+          ? typeof booking.tourDate === "string"
+            ? booking.tourDate
+            : booking.tourDate.toDate
+              ? booking.tourDate.toDate().toISOString().split("T")[0]
+              : new Date(booking.tourDate.seconds * 1000)
+                  .toISOString()
+                  .split("T")[0]
+          : "",
+        ...(booking.returnDate && {
+          returnDate:
+            typeof booking.returnDate === "string"
+              ? booking.returnDate
+              : booking.returnDate.toDate
+                ? booking.returnDate.toDate().toISOString().split("T")[0]
+                : new Date(booking.returnDate).toISOString().split("T")[0],
         }),
         ...(booking.tourDuration && { duration: booking.tourDuration }),
       },
-      
+
       // Payment details
       payment: {
         type: "installment",
@@ -244,7 +268,7 @@ export async function POST(req: NextRequest) {
         currency: "GBP",
         status: "installment_pending",
       },
-      
+
       // Payment plan context
       paymentPlan: {
         condition: booking.paymentCondition || "",
@@ -253,7 +277,7 @@ export async function POST(req: NextRequest) {
         paid: booking.paid || 0,
         remainingBalance: booking.remainingBalance || 0,
       },
-      
+
       // Timestamps
       timestamps: {
         createdAt: serverTimestamp(),
@@ -261,9 +285,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log(
-      `📝 Created stripePayments document: ${stripePaymentDoc.id}`
-    );
+    console.log(`📝 Created stripePayments document: ${stripePaymentDoc.id}`);
 
     // 8. Update booking.paymentTokens with nested object
     await updateDoc(doc(db, "bookings", booking.id), {
@@ -285,14 +307,15 @@ export async function POST(req: NextRequest) {
         : installment_id.toUpperCase();
 
     // Use environment variable for base URL (works in both dev and production)
-    const baseUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
+    const baseUrl =
+      process.env.NEXT_PUBLIC_WEBSITE_URL || "http://localhost:3000";
 
     console.log(`🌐 Using base URL: ${baseUrl}`);
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card", "revolut_pay"],
-      customer_email: booking.emailAddress || undefined,
+      customer_email: customerEmail || undefined,
       line_items: [
         {
           price_data: {
@@ -334,8 +357,6 @@ export async function POST(req: NextRequest) {
       "payment.checkoutSessionId": session.id,
     });
 
-
-
     console.log(`✅ Payment session ready. Redirecting to Stripe...`);
 
     return NextResponse.json({
@@ -348,7 +369,7 @@ export async function POST(req: NextRequest) {
       {
         error: error.message || "Failed to create checkout session",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
