@@ -1699,28 +1699,6 @@ export default function BookingStatusPage() {
                   </div>
                 </div>
 
-                {booking.sentEmailLink && (
-                  <div className="bg-white border rounded-lg p-3 sm:p-4 flex items-start gap-3 sm:gap-4 min-w-0 max-w-full overflow-hidden">
-                    <div className="bg-crimson-red/10 rounded-lg p-2 sm:p-2.5">
-                      <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5 text-crimson-red" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-0.5">
-                        Confirmation Email
-                      </p>
-                      <a
-                        href={booking.sentEmailLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs sm:text-sm font-semibold text-crimson-red hover:underline flex items-center gap-1"
-                      >
-                        View Email
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  </div>
-                )}
-
                 <Button
                   onClick={handleContactSupport}
                   variant="outline"
