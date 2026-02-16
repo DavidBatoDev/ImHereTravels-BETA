@@ -25,7 +25,6 @@
           "
         />
       </div>
-
       <div
         class="email-container"
         style="
@@ -40,7 +39,6 @@
         <p style="font-size: 16px; color: #333333">
           Hi <strong>{{ fullName }}</strong>,
         </p>
-
         <!-- Refund Details (for Invalid bookings) -->
         {% if availablePaymentTerms == "Invalid" %}
         <!-- Custom Thank You Message for Invalid Booking -->
@@ -49,10 +47,8 @@
           interest in our
           <strong>{{ tourPackage }}</strong>.
         </p>
-
         <!-- Refund Details Section -->
         <h3 style="color: red">Refund Details for Your Booking</h3>
-
         <p style="font-size: 16px">
           Unfortunately, we're unable to process your booking because the tour
           is scheduled to begin within 48 hours. Due to the limited time, we're
@@ -74,7 +70,6 @@
           Thank you for your understanding, and we hope to assist you on your
           next adventure.
         </p>
-
         <p style="font-size: 16px; color: #333333">Best regards,</p>
         <p style="font-size: 16px; color: #333333">
           <strong>The ImHereTravels Team</strong>
@@ -87,7 +82,6 @@
           />
         </div>
         {% endif %}
-
         <!-- Payment Terms Rendering: generic thank-you when none of the special cases apply -->
         {% if availablePaymentTerms != "Invalid" and availablePaymentTerms !=
         "Full payment required within 48hrs" and availablePaymentTerms != "P1"
@@ -99,12 +93,13 @@
         </p>
         <p style="font-size: 16px; color: #333333">
           Your deposit of
-          <span style="color: red"><strong>£{{ reservationFee }}</strong></span>
+          <span style="color: red">
+            <strong>£{{ reservationFee }}</strong>
+          </span>
           has been received, and we're thrilled to have you join us for an
           unforgettable adventure!
         </p>
         {% endif %}
-
         <!-- Final Payment Scenario -->
         {% if availablePaymentTerms == "Full payment required within 48hrs" %}
         <p style="font-size: 16px; color: #333333">
@@ -115,7 +110,6 @@
           We're holding your spot for <strong>{{ tourPackage }}</strong>, but
           your reservation isn't confirmed yet.
         </p>
-
         <!-- Booking Details -->
         <h2 style="color: red; font-size: 24px; margin-top: 0">
           Booking Details
@@ -131,61 +125,76 @@
           "
         >
           <tr>
-            <td><strong>Traveler Name:</strong></td>
+            <td>
+              <strong>Traveler Name:</strong>
+            </td>
             <td>{{ fullName }}</td>
           </tr>
-
           <!-- Conditional rendering for Main Booker -->
           {% if bookingType == "Group Booking" or bookingType == "Duo Booking"
           %}
           <tr>
-            <td><strong>Main Booker:</strong></td>
+            <td>
+              <strong>Main Booker:</strong>
+            </td>
             <td>{{ mainBooker }}</td>
           </tr>
           {% endif %}
-
           <tr>
-            <td><strong>Tour Name:</strong></td>
+            <td>
+              <strong>Tour Name:</strong>
+            </td>
             <td>{{ tourPackage }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Date:</strong></td>
+            <td>
+              <strong>Tour Date:</strong>
+            </td>
             <td>{{ tourDate }}</td>
           </tr>
           <tr>
-            <td><strong>Return Date:</strong></td>
+            <td>
+              <strong>Return Date:</strong>
+            </td>
             <td>{{ returnDate }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Duration:</strong></td>
+            <td>
+              <strong>Tour Duration:</strong>
+            </td>
             <td>{{ tourDuration }}</td>
           </tr>
           <tr>
-            <td><strong>Booking Type:</strong></td>
+            <td>
+              <strong>Booking Type:</strong>
+            </td>
             <td>{{ bookingType }}</td>
           </tr>
-
           <!-- Conditional rendering for Booking ID and Group ID -->
           {% if bookingType == "Group Booking" or bookingType == "Duo Booking"
           %}
           <tr>
-            <td><strong>Booking ID:</strong></td>
+            <td>
+              <strong>Booking ID:</strong>
+            </td>
             <td>{{ bookingId }}</td>
           </tr>
           <tr>
-            <td><strong>Group ID:</strong></td>
+            <td>
+              <strong>Group ID:</strong>
+            </td>
             <td>{{ groupId }}</td>
           </tr>
           {% endif %}
         </table>
-
         <p style="font-size: 16px; color: #333333">
           We've received your deposit of
-          <span style="color: red"><strong>£{{ reservationFee }}</strong></span>
+          <span style="color: red">
+            <strong>£{{ reservationFee }}</strong>
+          </span>
           — thank you! You're now ready for the next step to finalize your
           booking.
         </p>
-
         <h3 style="font-size: 18px; color: red; margin-top: 20px">
           ⚠️ Final Payment Required Within 48 Hours
         </h3>
@@ -194,7 +203,6 @@
           longer available. To secure your spot, the remaining balance must be
           fully paid within 48 hours.
         </p>
-
         <!-- Discount Highlight -->
         {% if hasDiscount %}
         <div
@@ -218,7 +226,6 @@
           </p>
         </div>
         {% endif %}
-
         <div style="padding: 20px; border-radius: 5px; margin-bottom: 20px">
           <table
             style="
@@ -258,7 +265,8 @@
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ remainingBalance }} {% if hasDiscount %}
-                  <br /><span style="color: #28a745; font-size: 13px"
+                  <br />
+                  <span style="color: #28a745; font-size: 13px"
                     >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
@@ -277,7 +285,6 @@
           </p>
         </div>
         {% endif %}
-
         <!-- P1 Payment Scenario -->
         {% if availablePaymentTerms == "P1" %}
         <p style="font-size: 16px; color: #333333">
@@ -286,11 +293,12 @@
         </p>
         <p style="font-size: 16px; color: #333333">
           We've received your deposit of
-          <span style="color: red"><strong>£{{ reservationFee }}</strong></span>
+          <span style="color: red">
+            <strong>£{{ reservationFee }}</strong>
+          </span>
           — and your spot is nearly secured! We just need the remaining balance
           to finalize your booking.
         </p>
-
         <!-- Booking Details for P1 -->
         <h2 style="color: red; font-size: 24px; margin-top: 0">
           Booking Details
@@ -306,42 +314,57 @@
           "
         >
           <tr>
-            <td><strong>Traveler Name:</strong></td>
+            <td>
+              <strong>Traveler Name:</strong>
+            </td>
             <td>{{ fullName }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Name:</strong></td>
+            <td>
+              <strong>Tour Name:</strong>
+            </td>
             <td>{{ tourPackage }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Date:</strong></td>
+            <td>
+              <strong>Tour Date:</strong>
+            </td>
             <td>{{ tourDate }}</td>
           </tr>
           <tr>
-            <td><strong>Return Date:</strong></td>
+            <td>
+              <strong>Return Date:</strong>
+            </td>
             <td>{{ returnDate }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Duration:</strong></td>
+            <td>
+              <strong>Tour Duration:</strong>
+            </td>
             <td>{{ tourDuration }}</td>
           </tr>
           <tr>
-            <td><strong>Booking Type:</strong></td>
+            <td>
+              <strong>Booking Type:</strong>
+            </td>
             <td>{{ bookingType }}</td>
           </tr>
           <tr>
-            <td><strong>Booking ID:</strong></td>
+            <td>
+              <strong>Booking ID:</strong>
+            </td>
             <td>{{ bookingId }}</td>
           </tr>
           {% if bookingType == "Group Booking" or bookingType == "Duo Booking"
           %}
           <tr>
-            <td><strong>Group ID:</strong></td>
+            <td>
+              <strong>Group ID:</strong>
+            </td>
             <td>{{ groupId }}</td>
           </tr>
           {% endif %}
         </table>
-
         <!-- Payment Terms for P1 -->
         <h3 style="font-size: 20px; color: red">Final Payment Due Soon</h3>
         <p style="font-size: 16px; color: #333333">
@@ -349,7 +372,6 @@
           remaining balance must be paid in full on
           <strong>{{ p1DueDate }}</strong>.
         </p>
-
         <!-- Discount Highlight -->
         {% if hasDiscount %}
         <div
@@ -373,7 +395,6 @@
           </p>
         </div>
         {% endif %}
-
         <div style="padding: 20px; border-radius: 5px; margin-bottom: 20px">
           <table
             style="
@@ -413,7 +434,8 @@
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p1Amount }} {% if hasDiscount %}
-                  <br /><span style="color: #28a745; font-size: 13px"
+                  <br />
+                  <span style="color: #28a745; font-size: 13px"
                     >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
@@ -432,7 +454,6 @@
           </p>
         </div>
         {% endif %}
-
         <!-- P2 Payment Scenario -->
         {% if availablePaymentTerms == "P2" %}
         <p style="font-size: 16px; color: #333333">
@@ -441,11 +462,11 @@
         </p>
         <p style="font-size: 16px; color: #333333">
           We've received your deposit of
-          <span style="color: red"><strong>£{{ reservationFee }}</strong></span
+          <span style="color: red">
+            <strong>£{{ reservationFee }}</strong> </span
           >, and your spot is almost confirmed. You now have the option to pay
           the balance in full or in two monthly payments.
         </p>
-
         <!-- Booking Details for P2 -->
         <h2 style="color: red; font-size: 24px; margin-top: 0">
           Booking Details
@@ -461,49 +482,63 @@
           "
         >
           <tr>
-            <td><strong>Traveler Name:</strong></td>
+            <td>
+              <strong>Traveler Name:</strong>
+            </td>
             <td>{{ fullName }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Name:</strong></td>
+            <td>
+              <strong>Tour Name:</strong>
+            </td>
             <td>{{ tourPackage }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Date:</strong></td>
+            <td>
+              <strong>Tour Date:</strong>
+            </td>
             <td>{{ tourDate }}</td>
           </tr>
           <tr>
-            <td><strong>Return Date:</strong></td>
+            <td>
+              <strong>Return Date:</strong>
+            </td>
             <td>{{ returnDate }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Duration:</strong></td>
+            <td>
+              <strong>Tour Duration:</strong>
+            </td>
             <td>{{ tourDuration }}</td>
           </tr>
           <tr>
-            <td><strong>Booking Type:</strong></td>
+            <td>
+              <strong>Booking Type:</strong>
+            </td>
             <td>{{ bookingType }}</td>
           </tr>
           <tr>
-            <td><strong>Booking ID:</strong></td>
+            <td>
+              <strong>Booking ID:</strong>
+            </td>
             <td>{{ bookingId }}</td>
           </tr>
           {% if bookingType == "Group Booking" or bookingType == "Duo Booking"
           %}
           <tr>
-            <td><strong>Group ID:</strong></td>
+            <td>
+              <strong>Group ID:</strong>
+            </td>
             <td>{{ groupId }}</td>
           </tr>
           {% endif %}
         </table>
-
         <!-- Payment Plan Details for P2 -->
         <h3 style="font-size: 20px; color: red">Choose Your Payment Plan</h3>
         <p style="font-size: 16px; color: #333333">
           Based on your tour schedule, you have 2 available payment plans. You
           can choose the payment plan that works best for you.
         </p>
-
         <!-- Discount Highlight -->
         {% if hasDiscount %}
         <div
@@ -527,7 +562,6 @@
           </p>
         </div>
         {% endif %}
-
         <div style="padding: 20px; border-radius: 5px; margin-bottom: 20px">
           <table
             style="
@@ -567,7 +601,8 @@
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p1Amount }} {% if hasDiscount %}
-                  <br /><span style="color: #28a745; font-size: 13px"
+                  <br />
+                  <span style="color: #28a745; font-size: 13px"
                     >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
@@ -582,7 +617,8 @@
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p2Amount }} /month {% if hasDiscount %}
-                  <br /><span style="color: #28a745; font-size: 13px"
+                  <br />
+                  <span style="color: #28a745; font-size: 13px"
                     >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
@@ -601,7 +637,6 @@
           </p>
         </div>
         {% endif %}
-
         <!-- P3 Payment Scenario -->
         {% if availablePaymentTerms == "P3" %}
         <p style="font-size: 16px; color: #333333">
@@ -610,11 +645,11 @@
         </p>
         <p style="font-size: 16px; color: #333333">
           We've received your deposit of
-          <span style="color: red"><strong>£{{ reservationFee }}</strong></span
+          <span style="color: red">
+            <strong>£{{ reservationFee }}</strong> </span
           >, and your spot is almost confirmed. You now have the option to pay
           the balance in full or in three monthly payments.
         </p>
-
         <!-- Booking Details for P3 -->
         <h2 style="color: red; font-size: 24px; margin-top: 0">
           Booking Details
@@ -630,49 +665,63 @@
           "
         >
           <tr>
-            <td><strong>Traveler Name:</strong></td>
+            <td>
+              <strong>Traveler Name:</strong>
+            </td>
             <td>{{ fullName }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Name:</strong></td>
+            <td>
+              <strong>Tour Name:</strong>
+            </td>
             <td>{{ tourPackage }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Date:</strong></td>
+            <td>
+              <strong>Tour Date:</strong>
+            </td>
             <td>{{ tourDate }}</td>
           </tr>
           <tr>
-            <td><strong>Return Date:</strong></td>
+            <td>
+              <strong>Return Date:</strong>
+            </td>
             <td>{{ returnDate }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Duration:</strong></td>
+            <td>
+              <strong>Tour Duration:</strong>
+            </td>
             <td>{{ tourDuration }}</td>
           </tr>
           <tr>
-            <td><strong>Booking Type:</strong></td>
+            <td>
+              <strong>Booking Type:</strong>
+            </td>
             <td>{{ bookingType }}</td>
           </tr>
           <tr>
-            <td><strong>Booking ID:</strong></td>
+            <td>
+              <strong>Booking ID:</strong>
+            </td>
             <td>{{ bookingId }}</td>
           </tr>
           {% if bookingType == "Group Booking" or bookingType == "Duo Booking"
           %}
           <tr>
-            <td><strong>Group ID:</strong></td>
+            <td>
+              <strong>Group ID:</strong>
+            </td>
             <td>{{ groupId }}</td>
           </tr>
           {% endif %}
         </table>
-
         <!-- Payment Plan Details for P3 -->
         <h3 style="font-size: 20px; color: red">Choose Your Payment Plan</h3>
         <p style="font-size: 16px; color: #333333">
           Based on your tour schedule, you have 3 available payment plans. You
           can choose the payment plan that works best for you.
         </p>
-
         <!-- Discount Highlight -->
         {% if hasDiscount %}
         <div
@@ -696,7 +745,6 @@
           </p>
         </div>
         {% endif %}
-
         <div style="padding: 20px; border-radius: 5px; margin-bottom: 20px">
           <table
             style="
@@ -736,7 +784,8 @@
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p1Amount }} {% if hasDiscount %}
-                  <br /><span style="color: #28a745; font-size: 13px"
+                  <br />
+                  <span style="color: #28a745; font-size: 13px"
                     >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
@@ -751,7 +800,8 @@
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p2Amount }} /month {% if hasDiscount %}
-                  <br /><span style="color: #28a745; font-size: 13px"
+                  <br />
+                  <span style="color: #28a745; font-size: 13px"
                     >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
@@ -766,7 +816,8 @@
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p3Amount }} /month {% if hasDiscount %}
-                  <br /><span style="color: #28a745; font-size: 13px"
+                  <br />
+                  <span style="color: #28a745; font-size: 13px"
                     >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
@@ -785,7 +836,6 @@
           </p>
         </div>
         {% endif %}
-
         <!-- P4 Payment Scenario -->
         {% if availablePaymentTerms == "P4" %}
         <p style="font-size: 16px; color: #333333">
@@ -794,11 +844,11 @@
         </p>
         <p style="font-size: 16px; color: #333333">
           We've received your deposit of
-          <span style="color: red"><strong>£{{ reservationFee }}</strong></span
+          <span style="color: red">
+            <strong>£{{ reservationFee }}</strong> </span
           >, and your spot is almost confirmed. You now have the option to pay
           the balance in full or in four monthly payments.
         </p>
-
         <!-- Booking Details for P4 -->
         <h2 style="color: red; font-size: 24px; margin-top: 0">
           Booking Details
@@ -814,49 +864,63 @@
           "
         >
           <tr>
-            <td><strong>Traveler Name:</strong></td>
+            <td>
+              <strong>Traveler Name:</strong>
+            </td>
             <td>{{ fullName }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Name:</strong></td>
+            <td>
+              <strong>Tour Name:</strong>
+            </td>
             <td>{{ tourPackage }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Date:</strong></td>
+            <td>
+              <strong>Tour Date:</strong>
+            </td>
             <td>{{ tourDate }}</td>
           </tr>
           <tr>
-            <td><strong>Return Date:</strong></td>
+            <td>
+              <strong>Return Date:</strong>
+            </td>
             <td>{{ returnDate }}</td>
           </tr>
           <tr>
-            <td><strong>Tour Duration:</strong></td>
+            <td>
+              <strong>Tour Duration:</strong>
+            </td>
             <td>{{ tourDuration }}</td>
           </tr>
           <tr>
-            <td><strong>Booking Type:</strong></td>
+            <td>
+              <strong>Booking Type:</strong>
+            </td>
             <td>{{ bookingType }}</td>
           </tr>
           <tr>
-            <td><strong>Booking ID:</strong></td>
+            <td>
+              <strong>Booking ID:</strong>
+            </td>
             <td>{{ bookingId }}</td>
           </tr>
           {% if bookingType == "Group Booking" or bookingType == "Duo Booking"
           %}
           <tr>
-            <td><strong>Group ID:</strong></td>
+            <td>
+              <strong>Group ID:</strong>
+            </td>
             <td>{{ groupId }}</td>
           </tr>
           {% endif %}
         </table>
-
         <!-- Payment Plan Details for P4 -->
         <h3 style="font-size: 20px; color: red">Choose Your Payment Plan</h3>
         <p style="font-size: 16px; color: #333333">
           Based on your tour schedule, you have 4 available payment plans. You
           can choose the payment plan that works best for you.
         </p>
-
         <!-- Discount Highlight -->
         {% if hasDiscount %}
         <div
@@ -880,7 +944,6 @@
           </p>
         </div>
         {% endif %}
-
         <div style="padding: 20px; border-radius: 5px; margin-bottom: 20px">
           <table
             style="
@@ -920,7 +983,8 @@
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p1Amount }} {% if hasDiscount %}
-                  <br /><span style="color: #28a745; font-size: 13px"
+                  <br />
+                  <span style="color: #28a745; font-size: 13px"
                     >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
@@ -935,7 +999,8 @@
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p2Amount }} /month {% if hasDiscount %}
-                  <br /><span style="color: #28a745; font-size: 13px"
+                  <br />
+                  <span style="color: #28a745; font-size: 13px"
                     >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
@@ -950,7 +1015,8 @@
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p3Amount }} /month {% if hasDiscount %}
-                  <br /><span style="color: #28a745; font-size: 13px"
+                  <br />
+                  <span style="color: #28a745; font-size: 13px"
                     >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
@@ -965,7 +1031,8 @@
                 </td>
                 <td style="padding: 10px; border: 1px solid black">
                   £{{ p4Amount }} /month {% if hasDiscount %}
-                  <br /><span style="color: #28a745; font-size: 13px"
+                  <br />
+                  <span style="color: #28a745; font-size: 13px"
                     >After {{ discountDisplayText }} off</span
                   >
                   {% endif %}
@@ -984,7 +1051,6 @@
           </p>
         </div>
         {% endif %}
-
         <!-- Payment Methods (shown for any non-Invalid scenario) -->
         {% if availablePaymentTerms != "Invalid" %}
         <h3 style="font-size: 20px; color: red">Choose Your Payment Method</h3>
@@ -1043,8 +1109,38 @@
               </a>
             </li>
           </ul>
+          {% if accessToken %}
+          <p
+            style="
+              font-size: 16px;
+              color: #333333;
+              margin-top: 15px;
+              padding-top: 15px;
+              border-top: 1px solid #ddd;
+            "
+          >
+            Or you can Select your desired plan here, view booking status and
+            pay with this link:
+            <br />
+            <a
+              href="https://admin.imheretravels.com/booking-status/{{ accessToken }}"
+              target="_blank"
+              style="
+                background-color: #e74c3c;
+                color: white;
+                text-decoration: none;
+                font-weight: bold;
+                padding: 10px 20px;
+                border-radius: 4px;
+                display: inline-block;
+                margin-top: 10px;
+              "
+            >
+              View Booking Status & Pay Online
+            </a>
+          </p>
+          {% endif %}
         </div>
-
         <p style="font-size: 16px; color: #333333">
           We can't wait to welcome you to {{ tourPackage }} — it's going to be
           an unforgettable adventure!
@@ -1053,7 +1149,6 @@
         <p style="font-size: 16px; color: #333333">
           <strong>The ImHereTravels Team</strong>
         </p>
-
         <div style="text-align: left; margin-top: 20px">
           <img
             src="https://imheretravels.com/wp-content/uploads/2025/04/ImHereTravels-Logo.png"
@@ -1062,28 +1157,25 @@
           />
         </div>
         {% endif %}
-
         <p style="font-size: 12px; color: #666666; text-align: center">
           You can reply to this email if you have any questions — we'll get back
           to you soon.
         </p>
-
         <!-- Optional action buttons kept commented for later use -->
         <!--
-        <div style="text-align: center; margin-top: 20px;">
-          <a href="https://imheretravels.com/pre-departure-information/"
-             style="display: inline-block; background-color: #f13340; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 50px; font-size: 16px; font-weight: bold;">
-            Check Pre-departure Info
-          </a>
-        </div>
-
-        <div style="text-align: center; margin-top: 20px;">
-          <a href="mailto:bella@imhere@gmail.com?subject=Re:%20My%20ImHereTravels%20Booking"
-             style="display: inline-block; background-color: #f13340; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 50px; font-size: 16px; font-weight: bold;">
-            Reply to This Email
-          </a>
-        </div>
-        -->
+                                                                                <div style="text-align: center; margin-top: 20px;">
+                                                                                    <a href="https://imheretravels.com/pre-departure-information/"
+                                                                                    style="display: inline-block; background-color: #f13340; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 50px; font-size: 16px; font-weight: bold;">
+                                                                                    Check Pre-departure Info
+                                                                                    </a>
+                                                                                </div>
+                                                                            <div style="text-align: center; margin-top: 20px;">
+                                                                                <a href="mailto:bella@imhere@gmail.com?subject=Re:%20My%20ImHereTravels%20Booking"
+                                                                                style="display: inline-block; background-color: #f13340; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 50px; font-size: 16px; font-weight: bold;">
+                                                                                Reply to This Email
+                                                                                </a>
+                                                                            </div>
+                                                                        -->
       </div>
     </div>
   </body>

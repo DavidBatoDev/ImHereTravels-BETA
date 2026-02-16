@@ -106,6 +106,7 @@ async function rerenderEmailTemplate(
       useDiscountedTourCost: bookingData.useDiscountedTourCost,
       paymentMethod: bookingData.paymentMethod || "Other",
       paymentPlan: bookingData.availablePaymentTerms || "",
+      accessToken: bookingData.access_token || "",
     };
 
     // Update payment term data if applicable

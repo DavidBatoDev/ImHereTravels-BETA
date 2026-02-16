@@ -83,6 +83,7 @@ export interface Booking {
   enablePaymentReminder: boolean;
   sentInitialReminderLink?: string;
   paymentProgress: number;
+  selectedPlanAt?: Timestamp | Date; // When the payment plan was selected by the customer
 
   // Payment details
   fullPayment?: number;

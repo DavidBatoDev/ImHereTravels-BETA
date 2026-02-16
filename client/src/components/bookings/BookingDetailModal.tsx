@@ -768,7 +768,6 @@ export default function BookingDetailModal({
                 <span className="text-base sm:text-2xl font-mono font-semibold text-crimson-red block">
                   {currentBooking?.bookingId || "Invalid Booking"}
                 </span>
-                
               </div>
             </DialogTitle>
             {/* X button for closing modal, always visible */}
@@ -923,42 +922,47 @@ export default function BookingDetailModal({
                 <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                   {currentBooking?.emailAddress}
                 </p>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-5 w-5 rounded-full hover:bg-background"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_WEBSITE_URL}/booking-status/${currentBooking.access_token}`);
-                        toast({ title: "Link copied", description: "Booking status URL copied to clipboard" });
-                    }}
-                    title="Copy Link"
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-5 w-5 rounded-full hover:bg-background"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(
+                      `${process.env.NEXT_PUBLIC_WEBSITE_URL}/booking-status/${currentBooking.access_token}`,
+                    );
+                    toast({
+                      title: "Link copied",
+                      description: "Booking status URL copied to clipboard",
+                    });
+                  }}
+                  title="Copy Link"
                 >
-                    <Copy className="h-3 w-3 text-muted-foreground" />
+                  <Copy className="h-3 w-3 text-muted-foreground" />
                 </Button>
                 {/* Booking Status URL */}
                 {currentBooking?.access_token && (
-                   <div className="flex items-center gap-2 mt-1 p-1 bg-muted/50 rounded-md border border-border/50 max-w-fit">
-                       <a 
-                           href={`${process.env.NEXT_PUBLIC_WEBSITE_URL}/booking-status/${currentBooking.access_token}`}
-                           target="_blank"
-                           rel="noreferrer"
-                           className="text-[10px] text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
-                           title="View Booking Status"
-                           onClick={(e) => e.stopPropagation()}
-                       >
-                           View Booking Status <ExternalLink className="h-2.5 w-2.5" />
-                       </a>
-                       <div className="w-px h-3 bg-border mx-1"></div>
-                   </div>
+                  <div className="flex items-center gap-2 mt-1 p-1 bg-muted/50 rounded-md border border-border/50 max-w-fit">
+                    <a
+                      href={`${process.env.NEXT_PUBLIC_WEBSITE_URL}/booking-status/${currentBooking.access_token}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                      title="View Booking Status"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      View Booking Status{" "}
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                    <div className="w-px h-3 bg-border mx-1"></div>
+                  </div>
                 )}
                 <button
                   onClick={copyEmailToClipboard}
                   className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
                   title="Copy email"
-                >
-                </button>
+                ></button>
               </div>
               <p className="text-[10px] sm:text-xs text-muted-foreground">
                 Row #:{" "}
@@ -1126,6 +1130,31 @@ export default function BookingDetailModal({
                             "N/A"}
                         </p>
                       </div>
+
+                      {/* Plan Selected Date */}
+                      {currentBooking?.selectedPlanAt && (
+                        <div>
+                          <p className="text-[9px] sm:text-xs text-muted-foreground font-medium mb-1 uppercase">
+                            Plan Selected
+                          </p>
+                          <div className="text-[11px] sm:text-sm">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <FaClock className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-crimson-red flex-shrink-0" />
+                              <span className="font-bold">
+                                {safeDate(
+                                  currentBooking?.selectedPlanAt,
+                                ).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Payment Progress */}
                       <div className="col-span-1 sm:col-span-2">

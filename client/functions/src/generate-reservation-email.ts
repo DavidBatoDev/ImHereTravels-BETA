@@ -368,6 +368,7 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
         const p4DueDate = bookingData.p4DueDate;
         const availablePaymentTerms = bookingData.availablePaymentTerms || "";
         const reasonForCancellation = bookingData.reasonForCancellation || "";
+        const accessToken = bookingData.access_token || "";
 
         // Determine if this is a cancellation email
         const isCancelled =
@@ -465,6 +466,7 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
             ? Number(reservationFee).toFixed(2)
             : "",
           tourPackageCoverImage,
+          accessToken,
         };
 
         // Process template content

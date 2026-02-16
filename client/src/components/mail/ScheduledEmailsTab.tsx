@@ -546,6 +546,7 @@ export default function ScheduledEmailsTab() {
           // Use the paymentMethod field from booking data
           paymentMethod: bookingData.paymentMethod || "Other",
           paymentPlan: bookingData.availablePaymentTerms || "",
+          accessToken: bookingData.access_token || "",
         };
 
         // Helper function to parse due date for a specific term
@@ -1242,230 +1243,232 @@ export default function ScheduledEmailsTab() {
             return rowA - rowB; // Ascending order
           })
           .map(([bookingId, emails]) => {
-          const isOpen = openGroups[bookingId] ?? true;
-          const allStatuses = emails.map((e) => e.status);
-          const hasPending = allStatuses.includes("pending");
-          const hasFailed = allStatuses.includes("failed");
-          const allSent = allStatuses.every((s) => s === "sent");
-          // Get the actual bookingId from templateVariables if available
-          const actualBookingId =
-            emails[0]?.templateVariables?.bookingId || bookingId;
+            const isOpen = openGroups[bookingId] ?? true;
+            const allStatuses = emails.map((e) => e.status);
+            const hasPending = allStatuses.includes("pending");
+            const hasFailed = allStatuses.includes("failed");
+            const allSent = allStatuses.every((s) => s === "sent");
+            // Get the actual bookingId from templateVariables if available
+            const actualBookingId =
+              emails[0]?.templateVariables?.bookingId || bookingId;
 
-          return (
-            <Card
-              key={bookingId}
-              className="border-l-4 border-l-crimson-red hover:shadow-lg transition-shadow"
-            >
-              <CardHeader className="p-4 pb-2">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <CardTitle className="text-lg">
-                        {emails[0]?.row && (
-                          <span className="text-muted-foreground font-normal mr-2">
-                            Row {emails[0].row}:
-                          </span>
-                        )}
-                        Booking: {actualBookingId}
-                      </CardTitle>
-                      <Badge
-                        variant="outline"
-                        className="bg-red-50 text-crimson-red border-crimson-red"
-                      >
-                        {emails.length} email{emails.length > 1 ? "s" : ""}
-                      </Badge>
-                      {allSent && (
-                        <Badge className="bg-green-100 text-green-800 border border-green-200">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          All Sent
-                        </Badge>
-                      )}
-                      {hasPending && (
-                        <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-200">
-                          <Clock className="w-3 h-3 mr-1" />
-                          Pending
-                        </Badge>
-                      )}
-                      {hasFailed && (
-                        <Badge className="bg-red-100 text-red-800 border border-red-200">
-                          <AlertCircle className="w-3 h-3 mr-1" />
-                          Failed
-                        </Badge>
-                      )}
-                    </div>
-                    <CardDescription>
-                      {emails[0].to} • Payment reminder emails
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleNavigateToBooking(bookingId)}
-                      className="gap-2"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      View Booking
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedBookingId(bookingId);
-                        setIsDeletePaymentRemindersDialogOpen(true);
-                      }}
-                      className="gap-2"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete All
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleGroup(bookingId)}
-                    >
-                      {isOpen ? (
-                        <ChevronUp className="w-5 h-5" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-
-              <Collapsible
-                open={isOpen}
-                onOpenChange={() => toggleGroup(bookingId)}
+            return (
+              <Card
+                key={bookingId}
+                className="border-l-4 border-l-crimson-red hover:shadow-lg transition-shadow"
               >
-                <CollapsibleContent>
-                  <CardContent className="pt-0 space-y-2">
-                    {emails.map((email) => (
-                      <div
-                        key={email.id}
-                        className="border border-field-border rounded-lg p-3 bg-muted/20 hover:bg-muted/30 transition-colors"
+                <CardHeader className="p-4 pb-2">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <CardTitle className="text-lg">
+                          {emails[0]?.row && (
+                            <span className="text-muted-foreground font-normal mr-2">
+                              Row {emails[0].row}:
+                            </span>
+                          )}
+                          Booking: {actualBookingId}
+                        </CardTitle>
+                        <Badge
+                          variant="outline"
+                          className="bg-red-50 text-crimson-red border-crimson-red"
+                        >
+                          {emails.length} email{emails.length > 1 ? "s" : ""}
+                        </Badge>
+                        {allSent && (
+                          <Badge className="bg-green-100 text-green-800 border border-green-200">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            All Sent
+                          </Badge>
+                        )}
+                        {hasPending && (
+                          <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-200">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Pending
+                          </Badge>
+                        )}
+                        {hasFailed && (
+                          <Badge className="bg-red-100 text-red-800 border border-red-200">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            Failed
+                          </Badge>
+                        )}
+                      </div>
+                      <CardDescription>
+                        {emails[0].to} • Payment reminder emails
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleNavigateToBooking(bookingId)}
+                        className="gap-2"
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge className={statusStyles[email.status]}>
-                                {statusIcons[email.status]}
-                                <span className="ml-1 capitalize">
-                                  {email.status}
-                                </span>
-                              </Badge>
-                              {email.emailType && (
-                                <Badge variant="outline">
-                                  {email.emailType}
+                        <ExternalLink className="w-4 h-4" />
+                        View Booking
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedBookingId(bookingId);
+                          setIsDeletePaymentRemindersDialogOpen(true);
+                        }}
+                        className="gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete All
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleGroup(bookingId)}
+                      >
+                        {isOpen ? (
+                          <ChevronUp className="w-5 h-5" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <Collapsible
+                  open={isOpen}
+                  onOpenChange={() => toggleGroup(bookingId)}
+                >
+                  <CollapsibleContent>
+                    <CardContent className="pt-0 space-y-2">
+                      {emails.map((email) => (
+                        <div
+                          key={email.id}
+                          className="border border-field-border rounded-lg p-3 bg-muted/20 hover:bg-muted/30 transition-colors"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge className={statusStyles[email.status]}>
+                                  {statusIcons[email.status]}
+                                  <span className="ml-1 capitalize">
+                                    {email.status}
+                                  </span>
                                 </Badge>
+                                {email.emailType && (
+                                  <Badge variant="outline">
+                                    {email.emailType}
+                                  </Badge>
+                                )}
+                                <span className="text-sm text-muted-foreground">
+                                  Attempt {email.attempts}/{email.maxAttempts}
+                                </span>
+                              </div>
+
+                              <h4 className="font-medium text-foreground mb-0.5 truncate">
+                                {email.subject}
+                              </h4>
+
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground mb-1">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-4 h-4" />
+                                  Scheduled: {formatDate(email.scheduledFor)}
+                                </span>
+                              </div>
+
+                              {email.errorMessage && (
+                                <p className="text-sm text-red-600 mt-2">
+                                  Error: {email.errorMessage}
+                                </p>
                               )}
-                              <span className="text-sm text-muted-foreground">
-                                Attempt {email.attempts}/{email.maxAttempts}
-                              </span>
+
+                              {email.sentAt && (
+                                <p className="text-sm text-green-600 mt-2">
+                                  Sent: {formatDate(email.sentAt)}
+                                </p>
+                              )}
                             </div>
 
-                            <h4 className="font-medium text-foreground mb-0.5 truncate">
-                              {email.subject}
-                            </h4>
-
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-1">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-4 h-4" />
-                                Scheduled: {formatDate(email.scheduledFor)}
-                              </span>
-                            </div>
-
-                            {email.errorMessage && (
-                              <p className="text-sm text-red-600 mt-2">
-                                Error: {email.errorMessage}
-                              </p>
-                            )}
-
-                            {email.sentAt && (
-                              <p className="text-sm text-green-600 mt-2">
-                                Sent: {formatDate(email.sentAt)}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-2 ml-4">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewEmail(email)}
-                              title="View Email"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            {email.status === "pending" && (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedEmail(email);
-                                    const isoString =
-                                      typeof email.scheduledFor === "string"
-                                        ? email.scheduledFor
-                                        : (email.scheduledFor as any)?.toDate
-                                          ? (email.scheduledFor as any)
-                                              .toDate()
-                                              .toISOString()
-                                          : new Date(
-                                              email.scheduledFor as unknown as
-                                                | string
-                                                | number
-                                                | Date,
-                                            ).toISOString();
-                                    setNewScheduleDate(isoString.slice(0, 10));
-                                    setIsRescheduleDialogOpen(true);
-                                  }}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedEmail(email);
-                                    setIsSkipDialogOpen(true);
-                                  }}
-                                  title="Skip this email"
-                                >
-                                  <Pause className="w-4 h-4" />
-                                </Button>
-                              </>
-                            )}
-                            {email.status === "skipped" && (
+                            <div className="flex items-center gap-2 ml-4">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleUnskipEmail(email.id)}
-                                title="Unskip this email"
-                                disabled={isUnskippingEmail}
+                                onClick={() => handleViewEmail(email)}
+                                title="View Email"
                               >
-                                <Play className="w-4 h-4" />
+                                <Eye className="w-4 h-4" />
                               </Button>
-                            )}
-                            {email.status === "failed" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleRetryEmail(email.id)}
-                              >
-                                <RefreshCw className="w-4 h-4" />
-                              </Button>
-                            )}
+                              {email.status === "pending" && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedEmail(email);
+                                      const isoString =
+                                        typeof email.scheduledFor === "string"
+                                          ? email.scheduledFor
+                                          : (email.scheduledFor as any)?.toDate
+                                            ? (email.scheduledFor as any)
+                                                .toDate()
+                                                .toISOString()
+                                            : new Date(
+                                                email.scheduledFor as unknown as
+                                                  | string
+                                                  | number
+                                                  | Date,
+                                              ).toISOString();
+                                      setNewScheduleDate(
+                                        isoString.slice(0, 10),
+                                      );
+                                      setIsRescheduleDialogOpen(true);
+                                    }}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedEmail(email);
+                                      setIsSkipDialogOpen(true);
+                                    }}
+                                    title="Skip this email"
+                                  >
+                                    <Pause className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
+                              {email.status === "skipped" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleUnskipEmail(email.id)}
+                                  title="Unskip this email"
+                                  disabled={isUnskippingEmail}
+                                >
+                                  <Play className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {email.status === "failed" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleRetryEmail(email.id)}
+                                >
+                                  <RefreshCw className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </CollapsibleContent>
-              </Collapsible>
-            </Card>
-          );
-        })}
+                      ))}
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            );
+          })}
 
         {/* Ungrouped Emails (no bookingId) */}
         {ungroupedEmails.length > 0 && (

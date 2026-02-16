@@ -143,10 +143,6 @@ export default function BookingStatusPage() {
       color?: string;
     }>
   >([]);
-  const [paymentDocId, setPaymentDocId] = useState<string | null>(null);
-  const [paymentBookingDocIds, setPaymentBookingDocIds] = useState<string[]>(
-    [],
-  );
   const [selectingPlanId, setSelectingPlanId] = useState<string | null>(null);
   const [confirmPlanOpen, setConfirmPlanOpen] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<{
@@ -523,82 +519,6 @@ export default function BookingStatusPage() {
     return () => unsub();
   }, []);
 
-  // Resolve stripe payment document for selecting a plan
-  useEffect(() => {
-    let didCancel = false;
-
-    const fetchPaymentDocId = async () => {
-      if (!booking?.bookingDocumentId && !booking?.bookingId) return;
-
-      try {
-        const paymentsRef = collection(db, "stripePayments");
-        let snap = await getDocs(
-          query(
-            paymentsRef,
-            where("booking.documentId", "==", booking.bookingDocumentId),
-            limit(1),
-          ),
-        );
-
-        if (snap.empty && booking.bookingId) {
-          snap = await getDocs(
-            query(
-              paymentsRef,
-              where("booking.id", "==", booking.bookingId),
-              limit(1),
-            ),
-          );
-        }
-
-        if (snap.empty && booking.bookingId) {
-          snap = await getDocs(
-            query(
-              paymentsRef,
-              where("bookingId", "==", booking.bookingId),
-              limit(1),
-            ),
-          );
-        }
-
-        if (snap.empty) {
-          if (!didCancel) {
-            setPaymentDocId(null);
-            setPaymentBookingDocIds([]);
-          }
-          return;
-        }
-
-        const docSnap = snap.docs[0];
-        const paymentData = docSnap.data();
-        const bookingDocumentIds =
-          paymentData.bookingDocumentIds ||
-          (paymentData.booking?.documentId
-            ? [paymentData.booking.documentId]
-            : []) ||
-          (paymentData.bookingDocumentId
-            ? [paymentData.bookingDocumentId]
-            : []);
-
-        if (!didCancel) {
-          setPaymentDocId(docSnap.id);
-          setPaymentBookingDocIds(bookingDocumentIds || []);
-        }
-      } catch (err) {
-        console.error("Error fetching payment document:", err);
-        if (!didCancel) {
-          setPaymentDocId(null);
-          setPaymentBookingDocIds([]);
-        }
-      }
-    };
-
-    fetchPaymentDocId();
-
-    return () => {
-      didCancel = true;
-    };
-  }, [booking?.bookingDocumentId, booking?.bookingId]);
-
   // Handle installment payment
   const handlePayInstallment = async (
     installmentId: "full_payment" | "p1" | "p2" | "p3" | "p4",
@@ -643,6 +563,56 @@ export default function BookingStatusPage() {
     window.location.href = `mailto:support@imheretravels.com?subject=${encodeURIComponent(
       subject,
     )}&body=${encodeURIComponent(body)}`;
+  };
+
+  const handleSelectPaymentPlan = async (plan: {
+    id: string;
+    label: string;
+  }) => {
+    if (!booking?.bookingDocumentId) {
+      setPaymentMessage({
+        type: "error",
+        text: "Unable to load booking information. Please try again or contact support.",
+      });
+      return;
+    }
+
+    setSelectingPlanId(plan.id);
+    setPaymentMessage(null);
+
+    try {
+      const response = await fetch("/api/stripe-payments/select-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingDocumentId: booking.bookingDocumentId,
+          paymentPlanId: plan.id,
+          paymentPlanDetails: {
+            id: plan.id,
+            label: plan.label,
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to select payment plan");
+      }
+
+      setPaymentMessage({
+        type: "success",
+        text: `Successfully selected ${plan.label}. Your payment schedule is now active.`,
+      });
+    } catch (err: any) {
+      console.error("Error selecting payment plan:", err);
+      setPaymentMessage({
+        type: "error",
+        text: err.message || "Failed to select payment plan. Please try again.",
+      });
+    } finally {
+      setSelectingPlanId(null);
+    }
   };
 
   if (loading) {
@@ -967,62 +937,6 @@ export default function BookingStatusPage() {
   const paymentTerms = buildPaymentTerms();
   const availablePaymentPlans = getAvailablePaymentPlans();
 
-  const handleSelectPaymentPlan = async (plan: {
-    id: string;
-    label: string;
-  }) => {
-    if (!paymentDocId) {
-      setPaymentMessage({
-        type: "error",
-        text: "Unable to find payment record. Please contact support.",
-      });
-      return;
-    }
-
-    setSelectingPlanId(plan.id);
-    setPaymentMessage(null);
-
-    try {
-      const planCount =
-        paymentBookingDocIds.length > 0 ? paymentBookingDocIds.length : 1;
-      const paymentPlans = Array(planCount)
-        .fill(null)
-        .map(() => ({ plan: plan.id }));
-
-      const response = await fetch("/api/stripe-payments/select-plan", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          paymentDocId,
-          paymentPlans,
-          paymentPlanDetails: plan,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to select payment plan");
-      }
-
-      setPaymentMessage({
-        type: "success",
-        text: "Payment plan selected successfully. Your schedule will update shortly.",
-      });
-    } catch (err: any) {
-      console.error("Error selecting payment plan:", err);
-      setPaymentMessage({
-        type: "error",
-        text: err.message || "Failed to select payment plan. Please try again.",
-      });
-    } finally {
-      setSelectingPlanId(null);
-      setPendingPlan(null);
-    }
-  };
-
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
@@ -1198,12 +1112,11 @@ export default function BookingStatusPage() {
                 {booking.eventName && (
                   <div className="sm:col-span-2">
                     <Badge className="bg-vivid-orange text-white px-3 py-1 text-xs sm:text-sm">
-                      {booking.eventName} - {
-                        booking.discountType?.toLowerCase() === "flat amount" || 
-                        booking.discountType?.toLowerCase()?.includes("amount")
-                          ? `£${booking.discountRate} OFF`
-                          : `${booking.discountRate}% OFF`
-                      }
+                      {booking.eventName} -{" "}
+                      {booking.discountType?.toLowerCase() === "flat amount" ||
+                      booking.discountType?.toLowerCase()?.includes("amount")
+                        ? `£${booking.discountRate} OFF`
+                        : `${booking.discountRate}% OFF`}
                     </Badge>
                   </div>
                 )}
@@ -1243,77 +1156,80 @@ export default function BookingStatusPage() {
                           </th>
                         </tr>
                       </thead>
-                    <tbody>
-                      {availablePaymentPlans.map((plan) =>
-                        plan.schedule.map((payment: any, idx: number) => {
-                          const dueDate = payment.date
-                            ? new Date(`${payment.date}T00:00:00Z`)
-                            : null;
-                          const rowSpan = plan.schedule.length;
+                      <tbody>
+                        {availablePaymentPlans.map((plan) =>
+                          plan.schedule.map((payment: any, idx: number) => {
+                            const dueDate = payment.date
+                              ? new Date(`${payment.date}T00:00:00Z`)
+                              : null;
+                            const rowSpan = plan.schedule.length;
 
-                          return (
-                            <tr
-                              key={`${plan.id}-${idx}`}
-                              className="border-t border-gray-200 hover:bg-gray-50"
-                            >
-                              {idx === 0 && (
-                                <td
-                                  className="py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-900 align-middle text-center"
-                                  rowSpan={rowSpan}
-                                >
-                                  <div className="space-y-1 text-center">
-                                    <div className="flex items-center justify-center gap-1 sm:gap-2">
-                                      <span
-                                        className="inline-flex h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full"
-                                        style={{ backgroundColor: plan.color }}
-                                      />
-                                      <span className="text-xs sm:text-sm">{plan.label}</span>
-                                    </div>
-                                    {plan.description && (
-                                      <div className="text-[10px] sm:text-xs text-gray-500">
-                                        {plan.description}
-                                      </div>
-                                    )}
-                                  </div>
-                                </td>
-                              )}
-                              <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 whitespace-nowrap">
-                                {dueDate && !isNaN(dueDate.getTime())
-                                  ? format(dueDate, "MMM dd, yyyy")
-                                  : "---"}
-                              </td>
-                              <td className="py-2 sm:py-3 px-2 sm:px-4 text-right font-semibold text-xs sm:text-sm text-gray-900 whitespace-nowrap">
-                                £{payment.amount.toFixed(2)}
-                              </td>
-                              {idx === 0 && (
-                                <td
-                                  className="py-2 sm:py-3 px-2 sm:px-4 align-middle text-center"
-                                  rowSpan={rowSpan}
-                                >
-                                  <Button
-                                    onClick={() => {
-                                      setPendingPlan(plan);
-                                      setConfirmPlanOpen(true);
-                                    }}
-                                    disabled={
-                                      (!paymentDocId && !selectingPlanId) ||
-                                      (selectingPlanId !== null &&
-                                        selectingPlanId !== plan.id)
-                                    }
-                                    size="sm"
-                                    className="bg-crimson-red hover:bg-crimson-red/90 text-white text-xs sm:text-sm px-2 sm:px-3"
+                            return (
+                              <tr
+                                key={`${plan.id}-${idx}`}
+                                className="border-t border-gray-200 hover:bg-gray-50"
+                              >
+                                {idx === 0 && (
+                                  <td
+                                    className="py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-900 align-middle text-center"
+                                    rowSpan={rowSpan}
                                   >
-                                    {selectingPlanId === plan.id
-                                      ? "Selecting..."
-                                      : "Select Plan"}
-                                  </Button>
+                                    <div className="space-y-1 text-center">
+                                      <div className="flex items-center justify-center gap-1 sm:gap-2">
+                                        <span
+                                          className="inline-flex h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full"
+                                          style={{
+                                            backgroundColor: plan.color,
+                                          }}
+                                        />
+                                        <span className="text-xs sm:text-sm">
+                                          {plan.label}
+                                        </span>
+                                      </div>
+                                      {plan.description && (
+                                        <div className="text-[10px] sm:text-xs text-gray-500">
+                                          {plan.description}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                )}
+                                <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 whitespace-nowrap">
+                                  {dueDate && !isNaN(dueDate.getTime())
+                                    ? format(dueDate, "MMM dd, yyyy")
+                                    : "---"}
                                 </td>
-                              )}
-                            </tr>
-                          );
-                        }),
-                      )}
-                    </tbody>
+                                <td className="py-2 sm:py-3 px-2 sm:px-4 text-right font-semibold text-xs sm:text-sm text-gray-900 whitespace-nowrap">
+                                  £{payment.amount.toFixed(2)}
+                                </td>
+                                {idx === 0 && (
+                                  <td
+                                    className="py-2 sm:py-3 px-2 sm:px-4 align-middle text-center"
+                                    rowSpan={rowSpan}
+                                  >
+                                    <Button
+                                      onClick={() => {
+                                        setPendingPlan(plan);
+                                        setConfirmPlanOpen(true);
+                                      }}
+                                      disabled={
+                                        selectingPlanId !== null &&
+                                        selectingPlanId !== plan.id
+                                      }
+                                      size="sm"
+                                      className="bg-crimson-red hover:bg-crimson-red/90 text-white text-xs sm:text-sm px-2 sm:px-3"
+                                    >
+                                      {selectingPlanId === plan.id
+                                        ? "Selecting..."
+                                        : "Select Plan"}
+                                    </Button>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          }),
+                        )}
+                      </tbody>
                     </table>
                   </div>
                 </div>
@@ -1413,157 +1329,160 @@ export default function BookingStatusPage() {
                           </th>
                         </tr>
                       </thead>
-                    <tbody>
-                      {paymentTerms.map((term, index) => {
-                        const dueDateValue = term.dueDate;
-                        const dueDate = dueDateValue
-                          ? new Date(dueDateValue)
-                          : null;
-                        const hasValidDueDate =
-                          dueDate instanceof Date && !isNaN(dueDate.getTime());
+                      <tbody>
+                        {paymentTerms.map((term, index) => {
+                          const dueDateValue = term.dueDate;
+                          const dueDate = dueDateValue
+                            ? new Date(dueDateValue)
+                            : null;
+                          const hasValidDueDate =
+                            dueDate instanceof Date &&
+                            !isNaN(dueDate.getTime());
 
-                        return (
-                          <tr
-                            key={index}
-                            className="border-t border-gray-200 hover:bg-gray-50"
-                          >
-                            <td className="py-2 sm:py-3 px-2 sm:px-4 font-semibold text-xs sm:text-sm text-gray-900 whitespace-nowrap">
-                              {term.term}
-                            </td>
-                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 whitespace-nowrap">
-                              {hasValidDueDate
-                                ? format(dueDate as Date, "MMM dd, yyyy")
-                                : "---"}
-                            </td>
-                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-right font-semibold text-xs sm:text-sm text-gray-900 whitespace-nowrap">
-                              £{term.amount.toFixed(2)}
-                            </td>
+                          return (
+                            <tr
+                              key={index}
+                              className="border-t border-gray-200 hover:bg-gray-50"
+                            >
+                              <td className="py-2 sm:py-3 px-2 sm:px-4 font-semibold text-xs sm:text-sm text-gray-900 whitespace-nowrap">
+                                {term.term}
+                              </td>
+                              <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-700 whitespace-nowrap">
+                                {hasValidDueDate
+                                  ? format(dueDate as Date, "MMM dd, yyyy")
+                                  : "---"}
+                              </td>
+                              <td className="py-2 sm:py-3 px-2 sm:px-4 text-right font-semibold text-xs sm:text-sm text-gray-900 whitespace-nowrap">
+                                £{term.amount.toFixed(2)}
+                              </td>
 
-                            {/* Status Badge */}
-                            <td className="py-2 sm:py-3 px-2 sm:px-4 text-center">
-                              {term.status === "paid" && (
-                                <Badge className="bg-spring-green text-white text-[10px] sm:text-xs px-2 py-0.5">
-                                  <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                                  Paid
-                                </Badge>
-                              )}
-                              {term.status === "processing" && (
-                                <Badge className="bg-blue-500 text-white text-[10px] sm:text-xs px-2 py-0.5">
-                                  <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 animate-spin" />
-                                  Processing
-                                </Badge>
-                              )}
-                              {term.status === "failed" && (
-                                <Badge
-                                  variant="destructive"
-                                  className="text-[10px] sm:text-xs px-2 py-0.5"
-                                  title={term.errorMessage || "Payment failed"}
-                                >
-                                  <AlertCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                                  Failed
-                                </Badge>
-                              )}
-                              {term.status === "overdue" && (
-                                <Badge
-                                  variant="destructive"
-                                  className="text-[10px] sm:text-xs px-2 py-0.5"
-                                >
-                                  <AlertCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                                  Overdue
-                                </Badge>
-                              )}
-                              {term.status === "pending" && (
-                                <Badge
-                                  variant="outline"
-                                  className="border-gray-300 text-gray-700 text-[10px] sm:text-xs px-2 py-0.5"
-                                >
-                                  <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                                  Pending
-                                </Badge>
-                              )}
-                            </td>
+                              {/* Status Badge */}
+                              <td className="py-2 sm:py-3 px-2 sm:px-4 text-center">
+                                {term.status === "paid" && (
+                                  <Badge className="bg-spring-green text-white text-[10px] sm:text-xs px-2 py-0.5">
+                                    <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                                    Paid
+                                  </Badge>
+                                )}
+                                {term.status === "processing" && (
+                                  <Badge className="bg-blue-500 text-white text-[10px] sm:text-xs px-2 py-0.5">
+                                    <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 animate-spin" />
+                                    Processing
+                                  </Badge>
+                                )}
+                                {term.status === "failed" && (
+                                  <Badge
+                                    variant="destructive"
+                                    className="text-[10px] sm:text-xs px-2 py-0.5"
+                                    title={
+                                      term.errorMessage || "Payment failed"
+                                    }
+                                  >
+                                    <AlertCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                                    Failed
+                                  </Badge>
+                                )}
+                                {term.status === "overdue" && (
+                                  <Badge
+                                    variant="destructive"
+                                    className="text-[10px] sm:text-xs px-2 py-0.5"
+                                  >
+                                    <AlertCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                                    Overdue
+                                  </Badge>
+                                )}
+                                {term.status === "pending" && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-gray-300 text-gray-700 text-[10px] sm:text-xs px-2 py-0.5"
+                                  >
+                                    <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                                    Pending
+                                  </Badge>
+                                )}
+                              </td>
 
-                            {/* Action Column */}
-                            <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap">
-                              {term.status === "paid" && term.paidAt && (
-                                <span className="text-xs sm:text-sm text-gray-500">
-                                  {format(
-                                    new Date(
-                                      term.paidAt.seconds
-                                        ? term.paidAt.seconds * 1000
-                                        : term.paidAt,
-                                    ),
-                                    "MMM dd, yyyy",
-                                  )}
-                                </span>
-                              )}
+                              {/* Action Column */}
+                              <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap">
+                                {term.status === "paid" && term.paidAt && (
+                                  <span className="text-xs sm:text-sm text-gray-500">
+                                    {format(
+                                      new Date(
+                                        term.paidAt.seconds
+                                          ? term.paidAt.seconds * 1000
+                                          : term.paidAt,
+                                      ),
+                                      "MMM dd, yyyy",
+                                    )}
+                                  </span>
+                                )}
 
-                              {(() => {
-                                // Find the first unpaid installment
-                                const firstUnpaid = paymentTerms.find(
-                                  (t) =>
-                                    t.status === "pending" ||
-                                    t.status === "overdue" ||
-                                    t.status === "failed",
-                                );
-
-                                // Only show button if this is the first unpaid OR if it's failed
-                                const showButton =
-                                  term.status === "failed" ||
-                                  (firstUnpaid && firstUnpaid.id === term.id);
-
-                                if (
-                                  (term.status === "pending" ||
-                                    term.status === "overdue" ||
-                                    term.status === "failed") &&
-                                  showButton
-                                ) {
-                                  return (
-                                    <Button
-                                      onClick={() =>
-                                        handlePayInstallment(term.id)
-                                      }
-                                      disabled={paymentProcessing !== null}
-                                      size="sm"
-                                      className="bg-crimson-red hover:bg-crimson-red/90 text-white text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
-                                    >
-                                      {paymentProcessing === term.id
-                                        ? "Processing..."
-                                        : term.status === "failed"
-                                          ? "Retry Payment"
-                                          : "Pay Now"}
-                                    </Button>
+                                {(() => {
+                                  // Find the first unpaid installment
+                                  const firstUnpaid = paymentTerms.find(
+                                    (t) =>
+                                      t.status === "pending" ||
+                                      t.status === "overdue" ||
+                                      t.status === "failed",
                                   );
-                                }
 
-                                // Show message for locked installments
-                                if (
-                                  (term.status === "pending" ||
-                                    term.status === "overdue") &&
-                                  !showButton &&
-                                  firstUnpaid
-                                ) {
-                                  return (
-                                    <span className="text-xs text-gray-500 italic">
-                                      Pay {firstUnpaid.term} first
-                                    </span>
-                                  );
-                                }
+                                  // Only show button if this is the first unpaid OR if it's failed
+                                  const showButton =
+                                    term.status === "failed" ||
+                                    (firstUnpaid && firstUnpaid.id === term.id);
 
-                                return null;
-                              })()}
+                                  if (
+                                    (term.status === "pending" ||
+                                      term.status === "overdue" ||
+                                      term.status === "failed") &&
+                                    showButton
+                                  ) {
+                                    return (
+                                      <Button
+                                        onClick={() =>
+                                          handlePayInstallment(term.id)
+                                        }
+                                        disabled={paymentProcessing !== null}
+                                        size="sm"
+                                        className="bg-crimson-red hover:bg-crimson-red/90 text-white text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
+                                      >
+                                        {paymentProcessing === term.id
+                                          ? "Processing..."
+                                          : term.status === "failed"
+                                            ? "Retry Payment"
+                                            : "Pay Now"}
+                                      </Button>
+                                    );
+                                  }
 
-                              {term.status === "processing" && (
-                                <span className="text-xs sm:text-sm text-blue-600 flex items-center gap-1">
-                                  <Clock className="h-3 w-3 animate-spin" />
-                                  Processing...
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
+                                  // Show message for locked installments
+                                  if (
+                                    (term.status === "pending" ||
+                                      term.status === "overdue") &&
+                                    !showButton &&
+                                    firstUnpaid
+                                  ) {
+                                    return (
+                                      <span className="text-xs text-gray-500 italic">
+                                        Pay {firstUnpaid.term} first
+                                      </span>
+                                    );
+                                  }
+
+                                  return null;
+                                })()}
+
+                                {term.status === "processing" && (
+                                  <span className="text-xs sm:text-sm text-blue-600 flex items-center gap-1">
+                                    <Clock className="h-3 w-3 animate-spin" />
+                                    Processing...
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
                     </table>
                   </div>
                 </div>
@@ -1706,8 +1625,12 @@ export default function BookingStatusPage() {
                 >
                   <Mail className="h-4 w-4 mr-2" />
                   <div className="text-left">
-                    <p className="text-xs sm:text-sm font-semibold">Contact Support</p>
-                    <p className="text-[10px] sm:text-xs text-gray-500">Send us a message</p>
+                    <p className="text-xs sm:text-sm font-semibold">
+                      Contact Support
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-gray-500">
+                      Send us a message
+                    </p>
                   </div>
                 </Button>
               </div>
@@ -1733,7 +1656,9 @@ export default function BookingStatusPage() {
               </p>
             </div>
             <div>
-              <h4 className="font-semibold text-sm sm:text-base mb-2 sm:mb-3">Quick Links</h4>
+              <h4 className="font-semibold text-sm sm:text-base mb-2 sm:mb-3">
+                Quick Links
+              </h4>
               <ul className="space-y-1 sm:space-y-1.5 text-xs sm:text-sm text-white/70">
                 <li>
                   <a href="/" className="hover:text-white transition-colors">
@@ -1767,7 +1692,9 @@ export default function BookingStatusPage() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-sm sm:text-base mb-2 sm:mb-3">Follow Us</h4>
+              <h4 className="font-semibold text-sm sm:text-base mb-2 sm:mb-3">
+                Follow Us
+              </h4>
               <p className="text-xs sm:text-sm text-white/70">
                 Stay connected for updates and special offers
               </p>

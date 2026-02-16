@@ -481,6 +481,52 @@
           <strong>The I'm Here Travels Team</strong>
         </p>
 
+        {% if accessToken %}
+        <!-- Booking Status Link -->
+        <div
+          style="
+            background-color: #f0f8ff;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 25px 0;
+            border-left: 5px solid #4caf50;
+            text-align: center;
+          "
+        >
+          <h4
+            style="
+              color: #333333;
+              margin: 0 0 12px 0;
+              font-size: 14px;
+              font-weight: bold;
+            "
+          >
+            View Booking Status & Pay Online
+          </h4>
+          <p style="font-size: 13px; color: #666666; margin: 0 0 15px 0">
+            You can view your complete booking details and make payments
+            securely online.
+          </p>
+          <a
+            href="https://admin.imheretravels.com/booking-status/{{ accessToken }}"
+            target="_blank"
+            style="
+              display: inline-block;
+              background-color: #e74c3c;
+              color: white;
+              text-decoration: none;
+              font-weight: bold;
+              padding: 12px 30px;
+              border-radius: 25px;
+              font-size: 14px;
+              text-align: center;
+            "
+          >
+            View Booking & Pay
+          </a>
+        </div>
+        {% endif %}
+
         <!-- Need Help Section -->
         <div
           style="
