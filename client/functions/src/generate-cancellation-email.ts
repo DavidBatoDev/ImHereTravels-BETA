@@ -286,6 +286,52 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
         const tourDateRaw = bookingData.tourDate;
         const reservationFee = bookingData.reservationFee || 0;
 
+        // Extract cancellation-related fields
+        const cancellationScenario = bookingData.cancellationScenario || "N/A";
+        const cancellationRequestDate =
+          bookingData.cancellationRequestDate || "";
+        const eligibleRefund = bookingData.eligibleRefund || "N/A";
+        const refundableAmount = bookingData.refundableAmount || 0;
+        const nonRefundableAmount = bookingData.nonRefundableAmount || 0;
+        const adminFee = bookingData.adminFee || 0;
+        const supplierCostsCommitted = bookingData.supplierCostsCommitted || 0;
+        const paymentPlan = bookingData.paymentPlan || "";
+        const reasonForCancellation = bookingData.reasonForCancellation || "";
+
+        // Extract days before tour from cancellationScenario
+        // Format: "Guest Cancel Early (Full Payment) (125 days before tour)"
+        let daysBeforeTour = 0;
+        const daysMatch = cancellationScenario.match(
+          /(\d+)\s+days\s+before\s+tour/,
+        );
+        if (daysMatch) {
+          daysBeforeTour = parseInt(daysMatch[1]);
+        }
+
+        // Determine timing window
+        let timingWindow = "N/A";
+        if (daysBeforeTour >= 100) {
+          timingWindow = "Early";
+        } else if (daysBeforeTour >= 60) {
+          timingWindow = "Mid-Range";
+        } else if (daysBeforeTour > 0) {
+          timingWindow = "Late";
+        }
+
+        // Determine who initiated cancellation
+        let initiatedBy = "Guest"; // default
+        if (
+          reasonForCancellation.startsWith("IHT -") ||
+          reasonForCancellation.startsWith("IHT-")
+        ) {
+          initiatedBy = "IHT";
+        } else if (
+          reasonForCancellation.startsWith("Guest -") ||
+          reasonForCancellation.startsWith("Guest-")
+        ) {
+          initiatedBy = "Guest";
+        }
+
         // Fetch tour package to get cover image
         let tourPackageCoverImage = "";
         try {
@@ -318,6 +364,22 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
           tourDate: formatDateLikeSheets(tourDateRaw),
           cancelledRefundAmount: Number(reservationFee).toFixed(2),
           tourPackageCoverImage,
+          // Cancellation details
+          cancellationScenario,
+          cancellationRequestDate: formatDateLikeSheets(
+            cancellationRequestDate,
+          ),
+          eligibleRefund,
+          refundableAmount: Number(refundableAmount).toFixed(2),
+          nonRefundableAmount: Number(nonRefundableAmount).toFixed(2),
+          adminFee: Number(adminFee).toFixed(2),
+          supplierCostsCommitted: Number(supplierCostsCommitted).toFixed(2),
+          // Contextual variables
+          daysBeforeTour,
+          timingWindow,
+          initiatedBy,
+          paymentPlan,
+          reasonForCancellation,
         };
 
         // Process template content

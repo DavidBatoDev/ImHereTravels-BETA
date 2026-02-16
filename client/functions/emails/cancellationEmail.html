@@ -62,6 +62,8 @@
                 Dear <strong>{{ fullName }}</strong>,
             </p>
 
+            <!-- Contextual cancellation message based on who cancelled -->
+            {% if initiatedBy == "IHT" %}
             <p style="font-size: 15px; color: #666666; margin: 0 0 15px 0;">
                 We're reaching out with unfortunate news regarding your upcoming
                 <strong style="color: #e74c3c;">{{ tourPackage }}</strong> scheduled for
@@ -69,13 +71,140 @@
             </p>
 
             <p style="font-size: 15px; color: #666666; margin: 0 0 25px 0;">
-                Due to unforeseen circumstances, we regret to inform you that this tour has been
+                Due to <strong>{{ reasonForCancellation }}</strong>, we regret to inform you that this tour has been
                 <strong style="color: #e74c3c;">cancelled</strong>. We understand how disappointing this may be and
                 sincerely apologize for the inconvenience.
             </p>
+            {% else %}
+            <p style="font-size: 15px; color: #666666; margin: 0 0 15px 0;">
+                This email confirms the cancellation of your upcoming
+                <strong style="color: #e74c3c;">{{ tourPackage }}</strong> scheduled for
+                <strong style="color: #e74c3c;">{{ tourDate }}</strong>.
+            </p>
 
+            <p style="font-size: 15px; color: #666666; margin: 0 0 25px 0;">
+                You requested to cancel your booking on <strong>{{ cancellationRequestDate }}</strong>, 
+                which was <strong>{{ daysBeforeTour }} days before your tour date</strong>. 
+                Based on our cancellation timeline, your booking falls under the 
+                <strong style="color: #e74c3c;">{{ timingWindow }}</strong> cancellation window.
+            </p>
+            {% endif %}
+
+            <!-- Financial Breakdown Section -->
+            <div style="
+                background-color: #fff8f0;
+                padding: 20px;
+                border-radius: 12px;
+                margin: 25px 0;
+                border-left: 5px solid #ff9800;
+            ">
+                <h3 style="color: #ff9800; margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">
+                    💰 Refund Breakdown
+                </h3>
+                
+                <!-- Show timing context -->
+                <div style="background-color: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <div style="margin-bottom: 8px;">
+                        <strong style="color: #333;">Cancellation Date:</strong>
+                        <span style="color: #666;">{{ cancellationRequestDate }}</span>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <strong style="color: #333;">Tour Date:</strong>
+                        <span style="color: #666;">{{ tourDate }}</span>
+                    </div>
+                    {% if daysBeforeTour > 0 %}
+                    <div>
+                        <strong style="color: #333;">Notice Period:</strong>
+                        <span style="color: #666;">{{ daysBeforeTour }} days before tour</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Policy explanation in plain English -->
+                <p style="color: #666; margin: 0 0 15px 0; font-size: 14px; line-height: 1.6;">
+                    {% if initiatedBy == "IHT" %}
+                        <strong>Policy Applied:</strong> When I'm Here Travels cancels a tour, 
+                        we provide a <strong style="color: #4caf50;">full refund including your reservation fee</strong>. 
+                        This is our commitment to you when we cannot fulfill the tour.
+                    {% elif daysBeforeTour >= 100 %}
+                        <strong>Policy Applied:</strong> Cancellations made 100+ days in advance receive 
+                        a full refund of your {% if paymentPlan != "Full Payment" %}paid installments{% else %}non-reservation payment{% endif %}, 
+                        minus a 10% administrative fee.
+                        <br><br>
+                        <strong style="color: #e74c3c;">Important:</strong> Your reservation fee of £{{ cancelledRefundAmount }} 
+                        is <strong>non-refundable</strong> for guest-initiated cancellations. This fee secures your booking 
+                        and covers initial administrative costs.
+                    {% elif daysBeforeTour >= 60 %}
+                        <strong>Policy Applied:</strong> Cancellations made 60-99 days in advance receive 
+                        a 50% refund of your {% if paymentPlan != "Full Payment" %}paid installments{% else %}non-reservation payment{% endif %}, 
+                        minus a 10% administrative fee.
+                        <br><br>
+                        <strong style="color: #e74c3c;">Important:</strong> Your reservation fee of £{{ cancelledRefundAmount }} 
+                        is <strong>non-refundable</strong> for guest-initiated cancellations. This fee secures your booking 
+                        and covers initial administrative costs.
+                    {% elif daysBeforeTour > 0 %}
+                        <strong>Policy Applied:</strong> Cancellations made less than 60 days in advance 
+                        are non-refundable as per our cancellation policy. This includes your reservation fee 
+                        (£{{ cancelledRefundAmount }}) and all payments made.
+                    {% endif %}
+                    
+                    {% if supplierCostsCommitted != "0.00" %}
+                        <br><br><em style="color: #d35400;">⚠️ Additional Deduction: Supplier costs of £{{ supplierCostsCommitted }} 
+                        have been deducted as they were already committed for your booking (e.g., hotel deposits, permits, etc.).</em>
+                    {% endif %}
+                </p>
+                
+                <!-- Financial numbers -->
+                <div style="border-top: 1px solid #e0e0e0; margin: 15px 0; padding-top: 15px;">
+                    <div style="margin-bottom: 10px;">
+                        <strong style="color: #333;">Refundable Amount:</strong>
+                        <span style="color: #4caf50; font-size: 18px; font-weight: bold;">£{{ refundableAmount }}</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <strong style="color: #333;">Non-Refundable Amount:</strong>
+                        <span style="color: #e74c3c;">£{{ nonRefundableAmount }}</span>
+                    </div>
+                    
+                    {% if adminFee != "0.00" %}
+                    <div style="margin-bottom: 10px; font-size: 13px; color: #999;">
+                        (Includes £{{ adminFee }} administrative fee)
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Conditional Refund Instructions -->
+            {% if refundableAmount != "0.00" %}
+            <div style="
+                background-color: #f0f8ff;
+                padding: 20px;
+                border-radius: 12px;
+                margin: 25px 0;
+                border-left: 5px solid #2196F3;
+            ">
+                <h3 style="color: #2196F3; margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">
+                    💳 Next Steps: Receiving Your Refund
+                </h3>
+                <p style="color: #666; margin: 0 0 10px 0; font-size: 14px;">
+                    To process your refund of <strong style="color: #4caf50;">£{{ refundableAmount }}</strong>, 
+                    please reply to this email with your bank account details:
+                </p>
+                <ul style="color: #666; margin: 0 0 10px 0; font-size: 14px; line-height: 1.8;">
+                    <li>Account Holder Name</li>
+                    <li>Bank Name</li>
+                    <li>Account Number</li>
+                    <li>Sort Code (UK) or IBAN/SWIFT (International)</li>
+                </ul>
+                <p style="color: #666; margin: 0; font-size: 13px; font-style: italic;">
+                    ⏱️ Processing time: 5-7 business days after receiving your bank details.
+                </p>
+            </div>
+            {% endif %}
+
+            <!-- Options moving forward -->
             <p style="font-size: 15px; color: #666666; margin: 0 0 15px 0; font-weight: 600;">
-                You have a couple of options moving forward:
+                {% if refundableAmount != "0.00" %}You have a couple of{% else %}We'd like to offer you an{% endif %} option{% if refundableAmount != "0.00" %}s{% endif %} moving forward:
             </p>
 
             <!-- Options List -->
@@ -84,11 +213,12 @@
                     <strong>Reschedule:</strong> We'd be happy to help you rebook the same tour for a future date or
                     explore other travel packages that may suit your schedule.
                 </li>
+                {% if refundableAmount != "0.00" %}
                 <li>
-                    <strong>Refund:</strong> If you prefer a full refund of
-                    <strong style="color: #e74c3c;">{{ cancelledRefundAmount }}</strong>, please send us your bank
-                    details and we'll process it promptly.
+                    <strong>Refund:</strong> Receive your refund of
+                    <strong style="color: #4caf50;">£{{ refundableAmount }}</strong> by sending us your bank details (see instructions above).
                 </li>
+                {% endif %}
             </ul>
 
             <p style="font-size: 15px; color: #666666; margin: 0 0 20px 0;">
@@ -101,6 +231,33 @@
             <p style="font-size: 15px; color: #666666; margin: 0 0 5px 0;">Warm regards,</p>
             <p style="font-size: 15px; color: #666666; margin: 0 0 35px 0;"><strong>The I'm Here Travels Team</strong>
             </p>
+
+            <!-- Cancellation Policy Explanation -->
+            <div style="
+                background-color: #f9f9f9;
+                padding: 20px;
+                border-radius: 12px;
+                margin: 25px 0;
+                border-left: 5px solid #9e9e9e;
+            ">
+                <h3 style="color: #555; margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">
+                    📖 Our Cancellation Policy
+                </h3>
+                <p style="color: #666; margin: 0 0 10px 0; font-size: 13px; line-height: 1.6;">
+                    <strong>Reservation Fee:</strong> Non-refundable when guest cancels. Refundable only when I'm Here Travels cancels.
+                </p>
+                <p style="color: #666; margin: 0 0 10px 0; font-size: 13px; line-height: 1.6;">
+                    <strong>Timeline-Based Refunds:</strong>
+                </p>
+                <ul style="color: #666; margin: 0 0 10px 0; font-size: 13px; line-height: 1.8; padding-left: 20px;">
+                    <li><strong>100+ days before:</strong> 100% refund (minus 10% admin fee)</li>
+                    <li><strong>60-99 days before:</strong> 50% refund (minus 10% admin fee)</li>
+                    <li><strong>59 days or less:</strong> No refund</li>
+                </ul>
+                <p style="color: #666; margin: 0; font-size: 13px; line-height: 1.6;">
+                    <strong>Note:</strong> If supplier costs have been committed, they will be deducted from the refundable amount.
+                </p>
+            </div>
 
             <!-- Need Help Section -->
             <div style="
@@ -125,7 +282,8 @@
                     <a href="https://instagram.com/imheretravels" style="display: inline-block; margin: 0 8px;">
                         <img src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1769577611985_instagram-icon.png?alt=media&token=26e11a52-4b1b-4323-bca0-8ffb3b8889ab" alt="Instagram" style="width: 24px; height: 24px; display: inline-block;">
                     </a>
-                    <a href="https://www.facebook.com/profile.php?id=100089932897402" style="display: inline-block; margin: 0 8px;">
+                    <a href="https://www.facebook.com/profile.php?id=100089932897402"
+                        style="display: inline-block; margin: 0 8px;">
                         <img src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1769578187350_facebook-icon.png?alt=media&token=0d59a081-d764-463a-8949-533dab620dc0" alt="Facebook" style="width: 24px; height: 24px; display: inline-block;">
                     </a>
                     <a href="https://www.tiktok.com/@imheretravels" style="display: inline-block; margin: 0 8px;">
