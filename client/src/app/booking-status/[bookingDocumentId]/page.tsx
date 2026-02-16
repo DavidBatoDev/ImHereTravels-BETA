@@ -1694,7 +1694,7 @@ export default function BookingStatusPage() {
                   <div>
                     <p className="text-xs text-gray-500 mb-0.5">Phone</p>
                     <p className="text-xs sm:text-sm font-semibold text-gray-900">
-                      +1 (555) 123-4567
+                      +63 998 247 6847
                     </p>
                   </div>
                 </div>
