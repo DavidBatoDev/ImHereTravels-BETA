@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { SheetColumn, SheetData, SheetConfig } from "@/types/sheet-management";
-import { defaultBookingColumns } from "@/lib/default-booking-columns";
-import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
+import { defaultBookingColumns } from "@/lib/default-booking-columns";;
 import { bookingService } from "@/services/booking-service";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
@@ -169,92 +168,6 @@ export function useSheetManagement() {
   }, []);
 
   // ============================================================================
-  // COLUMN MANAGEMENT METHODS
-  // ============================================================================
-
-  const updateColumn = useCallback(async (updatedColumn: SheetColumn) => {
-    try {
-      setError(null);
-      await bookingSheetColumnService.updateColumn(
-        updatedColumn.id,
-        updatedColumn
-      );
-
-      // Local state will be updated via real-time subscription
-      // console.log(`✅ Column ${updatedColumn.columnName} updated successfully`);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(`❌ Failed to update column: ${errorMessage}`);
-      setError(`Failed to update column: ${errorMessage}`);
-    }
-  }, []);
-
-  const deleteColumn = useCallback(async (columnId: string) => {
-    try {
-      setError(null);
-
-      // Check for dependent columns first
-      const dependentColumns =
-        await bookingSheetColumnService.getDependentColumnsForColumn(columnId);
-
-      if (dependentColumns.length > 1) {
-        // More than 1 means there are dependencies (excluding the column itself)
-        // Show warning modal - this will be handled by the component
-        throw new Error(
-          `DEPENDENCIES_FOUND:${JSON.stringify(dependentColumns)}`
-        );
-      }
-
-      await bookingSheetColumnService.deleteColumn(columnId);
-
-      // Local state will be updated via real-time subscription
-      console.log(`✅ Column ${columnId} deleted successfully`);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-
-      if (errorMessage.startsWith("DEPENDENCIES_FOUND:")) {
-        // Re-throw the dependencies error to be handled by the component
-        throw error;
-      }
-
-      console.error(`❌ Failed to delete column: ${errorMessage}`);
-      setError(`Failed to delete column: ${errorMessage}`);
-    }
-  }, []);
-
-  const addColumn = useCallback(async (newColumn: Omit<SheetColumn, "id">) => {
-    try {
-      setError(null);
-      const columnId = await bookingSheetColumnService.createColumn(newColumn);
-
-      // Local state will be updated via real-time subscription
-      console.log(`✅ Column created successfully with ID: ${columnId}`);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(`❌ Failed to create column: ${errorMessage}`);
-      setError(`Failed to create column: ${errorMessage}`);
-    }
-  }, []);
-
-  const reorderColumns = useCallback(async (columnIds: string[]) => {
-    try {
-      setError(null);
-      await bookingSheetColumnService.reorderColumns(columnIds);
-
-      // Local state will be updated via real-time subscription
-      console.log("✅ Columns reordered successfully");
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(`❌ Failed to reorder columns: ${errorMessage}`);
-      setError(`Failed to reorder columns: ${errorMessage}`);
-    }
-  }, []);
-
-  // ============================================================================
   // DATA MANAGEMENT METHODS
   // ============================================================================
 
@@ -321,55 +234,7 @@ export function useSheetManagement() {
   // UTILITY METHODS
   // ============================================================================
 
-  const resetToDefaults = useCallback(async () => {
-    try {
-      setError(null);
-      setIsLoading(true);
 
-      // Fetch default columns from service
-      const defaultColumns =
-        await bookingSheetColumnService.getDefaultColumns();
-      setColumns(defaultColumns);
-      setConfig({
-        id: "bookings-sheet",
-        name: "Bookings Sheet",
-        columns: defaultColumns,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        version: 1,
-      });
-
-      console.log("✅ Reset to default columns");
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(`❌ Failed to reset to defaults: ${errorMessage}`);
-      setError(`Failed to reset to defaults: ${errorMessage}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const refreshData = useCallback(async () => {
-    try {
-      setError(null);
-      setIsLoading(true);
-
-      // Fetch fresh columns and data
-      const freshColumns = await bookingSheetColumnService.getAllColumns();
-      setColumns(freshColumns);
-
-      // Data will be refreshed via real-time subscription
-      console.log("✅ Data refreshed successfully");
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(`❌ Failed to refresh data: ${errorMessage}`);
-      setError(`Failed to refresh data: ${errorMessage}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   return {
     // State
@@ -379,20 +244,10 @@ export function useSheetManagement() {
     isLoading,
     error,
 
-    // Column management
-    updateColumn,
-    deleteColumn,
-    addColumn,
-    reorderColumns,
-
     // Data management
     updateData,
     addRow,
     updateRow,
     deleteRow,
-
-    // Utility methods
-    resetToDefaults,
-    refreshData,
   };
 }

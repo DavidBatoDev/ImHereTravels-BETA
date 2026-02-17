@@ -157,10 +157,8 @@ const isEqual = (a: any, b: any): boolean => {
   }
   return true;
 };
-import ColumnSettingsModal from "./ColumnSettingsModal";
 import SheetConsole from "./SheetConsole";
-import CSVImport from "./CSVImport";
-import SpreadsheetSync from "./SpreadsheetSync";
+// import SpreadsheetSync from "./SpreadsheetSync";
 import BookingVersionHistoryModal from "../version-history/BookingVersionHistoryModal";
 
 // Toggle to control error logging from function recomputation paths
@@ -495,10 +493,6 @@ export default function BookingsDataGrid({
     };
   }, []);
 
-  const [columnSettingsModal, setColumnSettingsModal] = useState<{
-    isOpen: boolean;
-    column: SheetColumn | null;
-  }>({ isOpen: false, column: null });
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [sortColumns, setSortColumns] = useState<readonly SortColumn[]>([]);
   const [localData, setLocalData] = useState<SheetData[]>([]);
@@ -4084,10 +4078,6 @@ export default function BookingsDataGrid({
     }
   };
 
-  const openColumnSettings = (column: SheetColumn) => {
-    setColumnSettingsModal({ isOpen: true, column });
-  };
-
   const handleColumnSave = (updatedColumn: SheetColumn) => {
     updateColumn(updatedColumn);
   };
@@ -4159,7 +4149,7 @@ export default function BookingsDataGrid({
                 Add Booking
               </Button>
 
-              <DropdownMenu>
+              {/* <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Download className="w-4 h-4 mr-2" />
@@ -4179,7 +4169,8 @@ export default function BookingsDataGrid({
                       </DropdownMenuItem>
                     }
                   />
-                  <CSVImport
+
+                  {/* <CSVImport
                     onImportComplete={handleCSVImportComplete}
                     trigger={
                       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
@@ -4187,9 +4178,9 @@ export default function BookingsDataGrid({
                         Upload CSV File
                       </DropdownMenuItem>
                     }
-                  />
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  /> */}
+                {/* </DropdownMenuContent>
+              </DropdownMenu> */} 
             </div>
           </div>
 
@@ -5012,15 +5003,6 @@ export default function BookingsDataGrid({
         </div>
       )}
 
-      {/* Modals */}
-      <ColumnSettingsModal
-        column={columnSettingsModal.column}
-        isOpen={columnSettingsModal.isOpen}
-        onClose={() => setColumnSettingsModal({ isOpen: false, column: null })}
-        onSave={handleColumnSave}
-        onDelete={handleColumnDelete}
-        existingColumns={columns}
-      />
 
       {/* Loading Modal for Adding Row */}
       {isAddingRow && (
