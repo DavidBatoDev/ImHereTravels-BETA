@@ -1,17 +1,3 @@
-import {
-  collection,
-  doc,
-  getDocs,
-  getDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  orderBy,
-  where,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import type {
   PaymentTermConfiguration,
   PaymentTermFormData,
@@ -22,55 +8,26 @@ import type {
 } from "@/types/payment-terms";
 import { DEFAULT_PAYMENT_TERMS } from "@/types/payment-terms";
 
-const COLLECTION_NAME = "paymentTerms"; // Core payment types used throughout the booking system
+const API_BASE = "/api/payment-terms";
 
 // ============================================================================
-// PAYMENT TERMS CRUD OPERATIONS
+// PAYMENT TERMS CRUD OPERATIONS (HTTP API CLIENT)
 // ============================================================================
 
 export class PaymentTermsService {
-  /**
-   * Remove undefined values from object to prevent Firestore errors
-   */
-  private static sanitizeData(obj: any): any {
-    const sanitized: any = {};
-
-    for (const [key, value] of Object.entries(obj)) {
-      if (value !== undefined) {
-        if (
-          typeof value === "object" &&
-          value !== null &&
-          !Array.isArray(value)
-        ) {
-          // Recursively sanitize nested objects
-          const nestedSanitized = this.sanitizeData(value);
-          if (Object.keys(nestedSanitized).length > 0) {
-            sanitized[key] = nestedSanitized;
-          }
-        } else {
-          sanitized[key] = value;
-        }
-      }
-    }
-
-    return sanitized;
-  }
-
   /**
    * Get all payment terms ordered by sortOrder
    */
   static async getAllPaymentTerms(): Promise<PaymentTermConfiguration[]> {
     try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        orderBy("sortOrder", "asc")
-      );
-      const querySnapshot = await getDocs(q);
+      const response = await fetch(API_BASE);
+      const result = await response.json();
 
-      return querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as PaymentTermConfiguration[];
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to fetch payment terms");
+      }
+
+      return result.paymentTerms;
     } catch (error) {
       console.error("Error fetching payment terms:", error);
       throw new Error("Failed to fetch payment terms");
@@ -82,17 +39,14 @@ export class PaymentTermsService {
    */
   static async getActivePaymentTerms(): Promise<PaymentTermConfiguration[]> {
     try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        where("isActive", "==", true),
-        orderBy("sortOrder", "asc")
-      );
-      const querySnapshot = await getDocs(q);
+      const response = await fetch(`${API_BASE}/active`);
+      const result = await response.json();
 
-      return querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as PaymentTermConfiguration[];
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to fetch active payment terms");
+      }
+
+      return result.paymentTerms;
     } catch (error) {
       console.error("Error fetching active payment terms:", error);
       throw new Error("Failed to fetch active payment terms");
@@ -111,13 +65,16 @@ export class PaymentTermsService {
     }[]
   > {
     try {
-      const activeTerms = await this.getActivePaymentTerms();
-      return activeTerms.map((term) => ({
-        value: term.id,
-        label: term.name,
-        description: term.description,
-        planType: term.paymentPlanType,
-      }));
+      const response = await fetch(`${API_BASE}/active`);
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error || "Failed to fetch payment types for selection"
+        );
+      }
+
+      return result.selectionOptions;
     } catch (error) {
       console.error("Error fetching payment types for selection:", error);
       throw new Error("Failed to fetch payment types for selection");
@@ -131,17 +88,19 @@ export class PaymentTermsService {
     id: string
   ): Promise<PaymentTermConfiguration | null> {
     try {
-      const docRef = doc(db, COLLECTION_NAME, id);
-      const docSnap = await getDoc(docRef);
+      const response = await fetch(`${API_BASE}/${id}`);
 
-      if (!docSnap.exists()) {
+      if (response.status === 404) {
         return null;
       }
 
-      return {
-        id: docSnap.id,
-        ...docSnap.data(),
-      } as PaymentTermConfiguration;
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to fetch payment term");
+      }
+
+      return result.paymentTerm;
     } catch (error) {
       console.error("Error fetching payment term:", error);
       throw new Error("Failed to fetch payment term");
@@ -156,24 +115,19 @@ export class PaymentTermsService {
     userId: string
   ): Promise<string> {
     try {
-      const now = Timestamp.now();
-      const paymentTermData: Omit<PaymentTermConfiguration, "id"> = {
-        ...data,
-        metadata: {
-          createdAt: now,
-          updatedAt: now,
-          createdBy: userId,
-        },
-      };
+      const response = await fetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
 
-      // Sanitize data to remove undefined values
-      const sanitizedData = this.sanitizeData(paymentTermData);
+      const result = await response.json();
 
-      const docRef = await addDoc(
-        collection(db, COLLECTION_NAME),
-        sanitizedData
-      );
-      return docRef.id;
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to create payment term");
+      }
+
+      return result.id;
     } catch (error) {
       console.error("Error creating payment term:", error);
       throw new Error("Failed to create payment term");
@@ -189,20 +143,18 @@ export class PaymentTermsService {
   ): Promise<void> {
     try {
       const { id, ...updateData } = data;
-      const docRef = doc(db, COLLECTION_NAME, id);
 
-      const updatePayload = {
-        ...updateData,
-        metadata: {
-          updatedAt: Timestamp.now(),
-          createdBy: userId, // This should ideally preserve the original createdBy
-        },
-      };
+      const response = await fetch(`${API_BASE}/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updateData),
+      });
 
-      // Sanitize data to remove undefined values
-      const sanitizedPayload = this.sanitizeData(updatePayload);
+      const result = await response.json();
 
-      await updateDoc(docRef, sanitizedPayload);
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to update payment term");
+      }
     } catch (error) {
       console.error("Error updating payment term:", error);
       throw new Error("Failed to update payment term");
@@ -214,8 +166,15 @@ export class PaymentTermsService {
    */
   static async deletePaymentTerm(id: string): Promise<void> {
     try {
-      const docRef = doc(db, COLLECTION_NAME, id);
-      await deleteDoc(docRef);
+      const response = await fetch(`${API_BASE}/${id}`, {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to delete payment term");
+      }
     } catch (error) {
       console.error("Error deleting payment term:", error);
       throw new Error("Failed to delete payment term");
@@ -231,11 +190,19 @@ export class PaymentTermsService {
     userId: string
   ): Promise<void> {
     try {
-      const docRef = doc(db, COLLECTION_NAME, id);
-      await updateDoc(docRef, {
-        isActive,
-        "metadata.updatedAt": Timestamp.now(),
+      const response = await fetch(`${API_BASE}/${id}/toggle-status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
       });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error || "Failed to toggle payment term status"
+        );
+      }
     } catch (error) {
       console.error("Error toggling payment term status:", error);
       throw new Error("Failed to toggle payment term status");
@@ -250,15 +217,17 @@ export class PaymentTermsService {
     userId: string
   ): Promise<void> {
     try {
-      const batch = updates.map(async ({ id, sortOrder }) => {
-        const docRef = doc(db, COLLECTION_NAME, id);
-        return updateDoc(docRef, {
-          sortOrder,
-          "metadata.updatedAt": Timestamp.now(),
-        });
+      const response = await fetch(`${API_BASE}/sort-order`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates }),
       });
 
-      await Promise.all(batch);
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to update sort order");
+      }
     } catch (error) {
       console.error("Error updating sort order:", error);
       throw new Error("Failed to update sort order");
@@ -267,7 +236,7 @@ export class PaymentTermsService {
 }
 
 // ============================================================================
-// PAYMENT TERMS CALCULATION UTILITIES
+// PAYMENT TERMS CALCULATION UTILITIES (PURE CLIENT-SIDE LOGIC)
 // ============================================================================
 
 export class PaymentTermsCalculator {
@@ -464,7 +433,7 @@ export class PaymentTermsCalculator {
 }
 
 // ============================================================================
-// INITIALIZATION UTILITIES
+// INITIALIZATION UTILITIES (HTTP API CLIENT)
 // ============================================================================
 
 export class PaymentTermsInitializer {
@@ -473,17 +442,19 @@ export class PaymentTermsInitializer {
    */
   static async initializeDefaultPaymentTerms(userId: string): Promise<void> {
     try {
-      const existingTerms = await PaymentTermsService.getAllPaymentTerms();
+      const response = await fetch(`${API_BASE}/initialize-defaults`, {
+        method: "POST",
+      });
 
-      if (existingTerms.length === 0) {
-        console.log("No payment terms found. Initializing default terms...");
+      const result = await response.json();
 
-        for (const defaultTerm of DEFAULT_PAYMENT_TERMS) {
-          await PaymentTermsService.createPaymentTerm(defaultTerm, userId);
-        }
-
-        console.log("Default payment terms initialized successfully");
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error || "Failed to initialize default payment terms"
+        );
       }
+
+      console.log(result.message);
     } catch (error) {
       console.error("Error initializing default payment terms:", error);
       throw new Error("Failed to initialize default payment terms");
