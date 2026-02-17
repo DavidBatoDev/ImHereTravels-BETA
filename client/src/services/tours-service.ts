@@ -1,36 +1,15 @@
-import {
-  collection,
-  doc,
-  getDocs,
-  getDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  startAfter,
-  DocumentSnapshot,
-  Timestamp,
-  writeBatch,
-} from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { Timestamp } from "firebase/firestore";
 import {
   TourPackage,
-  TourPackageFormData,
   TourFilters,
-  TourSearchParams,
-  TravelDate,
 } from "@/types/tours";
-import { useAuthStore } from "@/store/auth-store";
 import {
   deleteMultipleFiles,
   extractFilePathFromUrl,
   STORAGE_BUCKET,
 } from "@/utils/file-upload";
 
-const TOURS_COLLECTION = "tourPackages";
+const API_BASE = "/api/tours";
 
 // ============================================================================
 // FORM DATA TYPES (what the form actually sends)
@@ -77,150 +56,27 @@ interface TourFormDataWithStringDates {
 }
 
 // ============================================================================
-// DATA CONVERSION HELPERS
-// ============================================================================
-
-// Convert string dates to Firestore Timestamps for travelDates
-function convertTravelDatesToTimestamps(travelDates: any[]): TravelDate[] {
-  return travelDates.map((td) => {
-    const converted: any = {
-      startDate: Timestamp.fromDate(new Date(td.startDate)),
-      endDate: Timestamp.fromDate(new Date(td.endDate)),
-      isAvailable: td.isAvailable,
-      maxCapacity: td.maxCapacity || 0,
-      currentBookings: td.currentBookings || 0,
-    };
-
-    // Only include optional fields if they have values
-    if (td.tourDays !== undefined && td.tourDays !== null) {
-      converted.tourDays = td.tourDays;
-    }
-
-    if (td.hasCustomPricing !== undefined) {
-      converted.hasCustomPricing = td.hasCustomPricing;
-    }
-
-    if (td.customOriginal !== undefined && td.customOriginal !== null) {
-      converted.customOriginal = td.customOriginal;
-    }
-
-    if (td.customDiscounted !== undefined && td.customDiscounted !== null) {
-      converted.customDiscounted = td.customDiscounted;
-    }
-
-    if (td.customDeposit !== undefined && td.customDeposit !== null) {
-      converted.customDeposit = td.customDeposit;
-    }
-
-    if (td.hasCustomOriginal !== undefined) {
-      converted.hasCustomOriginal = td.hasCustomOriginal;
-    }
-
-    if (td.hasCustomDiscounted !== undefined) {
-      converted.hasCustomDiscounted = td.hasCustomDiscounted;
-    }
-
-    if (td.hasCustomDeposit !== undefined) {
-      converted.hasCustomDeposit = td.hasCustomDeposit;
-    }
-
-    return converted;
-  });
-}
-
-// Convert Firestore Timestamps to Date objects for display
-function convertTimestampsToDates(travelDates: TravelDate[]): any[] {
-  return travelDates.map((td) => ({
-    startDate:
-      td.startDate?.toDate?.() || new Date(td.startDate.seconds * 1000),
-    endDate: td.endDate?.toDate?.() || new Date(td.endDate.seconds * 1000),
-    isAvailable: td.isAvailable,
-    maxCapacity: td.maxCapacity,
-    currentBookings: td.currentBookings,
-  }));
-}
-
-// ============================================================================
-// TEST FUNCTION - Add this temporarily to test database connection
-export async function testFirestoreConnection(): Promise<void> {
-  try {
-    console.log("Testing Firestore connection...");
-    console.log("Firebase config check:", {
-      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "SET" : "NOT SET",
-      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-        ? "SET"
-        : "NOT SET",
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
-        ? "SET"
-        : "NOT SET",
-    });
-
-    const collectionRef = collection(db, TOURS_COLLECTION);
-    const snapshot = await getDocs(collectionRef);
-    console.log("Total documents in collection:", snapshot.size);
-
-    snapshot.forEach((doc) => {
-      console.log("Document ID:", doc.id);
-      console.log("Document data:", doc.data());
-    });
-
-    // Also try to get a simple count using a different approach
-    const simpleQuery = query(collectionRef);
-    const simpleSnapshot = await getDocs(simpleQuery);
-    console.log("Simple query result count:", simpleSnapshot.size);
-  } catch (error) {
-    console.error("Firestore connection test failed:", error);
-  }
-}
-
-// ============================================================================
 // CREATE OPERATIONS
 // ============================================================================
 
 export async function createTour(
-  tourData: TourFormDataWithStringDates,
+  tourData: TourFormDataWithStringDates
 ): Promise<string> {
   try {
-    const { user } = useAuthStore.getState();
-    const currentUserId = user?.uid || "anonymous";
+    const response = await fetch(API_BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(tourData),
+    });
 
-    console.log("Creating tour with user ID:", currentUserId);
-    console.log("User data:", user);
+    const data = await response.json();
 
-    const now = Timestamp.now();
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to create tour");
+    }
 
-    // Convert travelDates from string dates to Timestamps
-    const convertedTravelDates = convertTravelDatesToTimestamps(
-      tourData.travelDates,
-    );
-
-    const tourPackage: Omit<TourPackage, "id"> = {
-      ...tourData,
-      travelDates: convertedTravelDates,
-      media: {
-        coverImage: tourData.media?.coverImage || "",
-        gallery: tourData.media?.gallery || [],
-      },
-      currentVersion: 1,
-      pricingHistory: [
-        {
-          version: 1,
-          effectiveDate: now,
-          pricing: tourData.pricing,
-          changedBy: currentUserId,
-          reason: "Initial tour package creation",
-        },
-      ],
-      metadata: {
-        createdAt: now,
-        updatedAt: now,
-        createdBy: currentUserId,
-        bookingsCount: 0,
-      },
-    };
-
-    const docRef = await addDoc(collection(db, TOURS_COLLECTION), tourPackage);
-    return docRef.id;
+    console.log(`✅ Created tour with ID: ${data.tourId}`);
+    return data.tourId;
   } catch (error) {
     console.error("Error creating tour:", error);
     throw new Error("Failed to create tour");
@@ -235,70 +91,33 @@ export async function getTours(
   filters?: TourFilters,
   sortBy: string = "createdAt",
   sortOrder: "asc" | "desc" = "desc",
-  pageLimit: number = 10,
-  lastDoc?: DocumentSnapshot,
-): Promise<{ tours: TourPackage[]; lastDoc: DocumentSnapshot | null }> {
+  pageLimit: number = 10
+): Promise<{ tours: TourPackage[]; lastDoc: any | null }> {
   try {
-    console.log("getTours called with filters:", filters);
-    console.log("Collection name:", TOURS_COLLECTION);
+    const params = new URLSearchParams();
 
-    // Start with a simple query to see if we can get any documents
-    let q = query(collection(db, TOURS_COLLECTION));
+    // Add filters to query params
+    if (filters?.status) params.append("status", filters.status);
+    if (filters?.location) params.append("location", filters.location);
+    if (filters?.priceRange?.min)
+      params.append("priceMin", filters.priceRange.min.toString());
+    if (filters?.priceRange?.max)
+      params.append("priceMax", filters.priceRange.max.toString());
+    if (filters?.search) params.append("search", filters.search);
 
-    // Apply filters
-    if (filters?.status) {
-      console.log("Applying status filter:", filters.status);
-      q = query(q, where("status", "==", filters.status));
+    // Add sorting and pagination
+    params.append("sortBy", sortBy);
+    params.append("sortOrder", sortOrder);
+    params.append("limit", pageLimit.toString());
+
+    const response = await fetch(`${API_BASE}?${params.toString()}`);
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to fetch tours");
     }
 
-    if (filters?.location) {
-      console.log("Applying location filter:", filters.location);
-      q = query(q, where("location", "==", filters.location));
-    }
-
-    if (filters?.priceRange) {
-      console.log("Applying price range filter:", filters.priceRange);
-      q = query(q, where("pricing.original", ">=", filters.priceRange.min));
-      q = query(q, where("pricing.original", "<=", filters.priceRange.max));
-    }
-
-    // Apply sorting
-    console.log("Applying sort:", sortBy, sortOrder);
-    const sortField = sortBy === "createdAt" ? "metadata.createdAt" : sortBy;
-    q = query(q, orderBy(sortField, sortOrder));
-
-    // Apply pagination
-    q = query(q, limit(pageLimit));
-
-    if (lastDoc) {
-      q = query(q, startAfter(lastDoc));
-    }
-
-    console.log("Executing Firestore query...");
-    const querySnapshot = await getDocs(q);
-    console.log("Query snapshot size:", querySnapshot.size);
-    const tours: TourPackage[] = [];
-    let newLastDoc: DocumentSnapshot | null = null;
-
-    querySnapshot.forEach((doc) => {
-      console.log("Processing document:", doc.id, doc.data());
-      tours.push({ id: doc.id, ...doc.data() } as TourPackage);
-      newLastDoc = doc;
-    });
-
-    // Apply text search client-side (Firestore doesn't support full-text search)
-    let filteredTours = tours;
-    if (filters?.search) {
-      const searchTerm = filters.search.toLowerCase();
-      filteredTours = tours.filter(
-        (tour) =>
-          tour.name.toLowerCase().includes(searchTerm) ||
-          tour.description.toLowerCase().includes(searchTerm) ||
-          tour.location.toLowerCase().includes(searchTerm),
-      );
-    }
-
-    return { tours: filteredTours, lastDoc: newLastDoc };
+    return { tours: data.tours, lastDoc: null };
   } catch (error) {
     console.error("Error getting tours:", error);
     throw new Error("Failed to fetch tours");
@@ -307,14 +126,19 @@ export async function getTours(
 
 export async function getTourById(id: string): Promise<TourPackage | null> {
   try {
-    const docRef = doc(db, TOURS_COLLECTION, id);
-    const docSnap = await getDoc(docRef);
+    const response = await fetch(`${API_BASE}/${id}`);
 
-    if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() } as TourPackage;
-    } else {
+    if (response.status === 404) {
       return null;
     }
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to fetch tour");
+    }
+
+    return data.tour;
   } catch (error) {
     console.error("Error getting tour:", error);
     throw new Error("Failed to fetch tour");
@@ -323,14 +147,14 @@ export async function getTourById(id: string): Promise<TourPackage | null> {
 
 export async function getAllTours(): Promise<TourPackage[]> {
   try {
-    const querySnapshot = await getDocs(collection(db, TOURS_COLLECTION));
-    const tours: TourPackage[] = [];
+    const response = await fetch(`${API_BASE}?limit=1000`);
+    const data = await response.json();
 
-    querySnapshot.forEach((doc) => {
-      tours.push({ id: doc.id, ...doc.data() } as TourPackage);
-    });
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to fetch all tours");
+    }
 
-    return tours;
+    return data.tours;
   } catch (error) {
     console.error("Error getting all tours:", error);
     throw new Error("Failed to fetch all tours");
@@ -341,13 +165,7 @@ export async function getAllTourPackages(): Promise<void> {
   try {
     console.log("🏖️ Fetching all tour packages...");
 
-    const querySnapshot = await getDocs(collection(db, TOURS_COLLECTION));
-    const tours: TourPackage[] = [];
-
-    querySnapshot.forEach((doc) => {
-      const tourData = { id: doc.id, ...doc.data() } as TourPackage;
-      tours.push(tourData);
-    });
+    const tours = await getAllTours();
 
     console.log(`📊 Found ${tours.length} tour packages`);
     console.log("=".repeat(60));
@@ -355,7 +173,7 @@ export async function getAllTourPackages(): Promise<void> {
     // Convert Firestore Timestamps to readable dates for JSON output
     const toursWithReadableDates = tours.map((tour) => ({
       ...tour,
-      travelDates: tour.travelDates.map((td) => ({
+      travelDates: tour.travelDates.map((td: any) => ({
         ...td,
         startDate:
           td.startDate?.toDate?.() || new Date(td.startDate.seconds * 1000),
@@ -371,7 +189,7 @@ export async function getAllTourPackages(): Promise<void> {
           new Date(tour.metadata.updatedAt.seconds * 1000),
       },
       pricingHistory:
-        tour.pricingHistory?.map((ph) => ({
+        tour.pricingHistory?.map((ph: any) => ({
           ...ph,
           effectiveDate:
             ph.effectiveDate?.toDate?.() ||
@@ -394,7 +212,7 @@ export async function getAllTourPackages(): Promise<void> {
       console.log(`   Duration: ${tour.duration} days`);
       console.log(`   Status: ${tour.status}`);
       console.log(
-        `   Price: ${tour.pricing.currency} ${tour.pricing.original}`,
+        `   Price: ${tour.pricing.currency} ${tour.pricing.original}`
       );
       console.log(`   Travel Dates: ${tour.travelDates.length} available`);
       console.log("");
@@ -411,53 +229,22 @@ export async function getAllTourPackages(): Promise<void> {
 
 export async function updateTour(
   id: string,
-  updates: Partial<TourFormDataWithStringDates>,
+  updates: Partial<TourFormDataWithStringDates>
 ): Promise<void> {
   try {
-    const { user } = useAuthStore.getState();
-    const currentUserId = user?.uid || "anonymous";
+    const response = await fetch(`${API_BASE}/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
 
-    console.log("Updating tour with user ID:", currentUserId);
-    console.log("User data:", user);
+    const data = await response.json();
 
-    const docRef = doc(db, TOURS_COLLECTION, id);
-    const now = Timestamp.now();
-
-    // Get current tour data to check if price changed
-    const currentDoc = await getDoc(docRef);
-    const currentData = currentDoc.data() as TourPackage;
-
-    const updateData: any = {
-      ...updates,
-      "metadata.updatedAt": now,
-    };
-
-    // Protect server-managed pricing fields from being overwritten
-    delete updateData.pricingHistory;
-    delete updateData.currentVersion;
-
-    // Duration is already a string, no conversion needed
-
-    // Convert travelDates if they're being updated
-    if (updates.travelDates) {
-      updateData.travelDates = convertTravelDatesToTimestamps(
-        updates.travelDates,
-      );
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to update tour");
     }
 
-    // Price history is now managed automatically by Cloud Function
-    // No longer add pricing history entries inline
-
-    // Handle media updates properly
-    if (updates.media) {
-      updateData.media = {
-        coverImage:
-          updates.media.coverImage || currentData.media?.coverImage || "",
-        gallery: updates.media.gallery || currentData.media?.gallery || [],
-      };
-    }
-
-    await updateDoc(docRef, updateData);
+    console.log(`✅ Updated tour ${id}`);
   } catch (error) {
     console.error("Error updating tour:", error);
     throw new Error("Failed to update tour");
@@ -466,27 +253,22 @@ export async function updateTour(
 
 export async function updateTourMedia(
   id: string,
-  mediaData: { coverImage?: string; gallery?: string[] },
+  mediaData: { coverImage?: string; gallery?: string[] }
 ): Promise<void> {
   try {
-    const docRef = doc(db, TOURS_COLLECTION, id);
-    const now = Timestamp.now();
+    const response = await fetch(`${API_BASE}/${id}/media`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mediaData),
+    });
 
-    const updateData: any = {
-      "metadata.updatedAt": now,
-    };
+    const data = await response.json();
 
-    // Update media fields
-    if (mediaData.coverImage !== undefined) {
-      updateData["media.coverImage"] = mediaData.coverImage;
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to update tour media");
     }
 
-    if (mediaData.gallery !== undefined) {
-      updateData["media.gallery"] = mediaData.gallery;
-    }
-
-    await updateDoc(docRef, updateData);
-    console.log(`Updated tour ${id} with new media URLs`);
+    console.log(`✅ Updated tour ${id} media`);
   } catch (error) {
     console.error("Error updating tour media:", error);
     throw new Error("Failed to update tour media");
@@ -496,12 +278,12 @@ export async function updateTourMedia(
 // Clean up removed gallery images from storage
 export async function cleanupRemovedGalleryImages(
   originalGallery: string[],
-  newGallery: string[],
+  newGallery: string[]
 ): Promise<void> {
   try {
     // Find images that were removed (exist in original but not in new)
     const removedImages = originalGallery.filter(
-      (url) => !newGallery.includes(url),
+      (url) => !newGallery.includes(url)
     );
 
     if (removedImages.length === 0) {
@@ -529,7 +311,7 @@ export async function cleanupRemovedGalleryImages(
     } else {
       console.error(
         "Failed to clean up some gallery images:",
-        deleteResult.error,
+        deleteResult.error
       );
     }
   } catch (error) {
@@ -540,14 +322,22 @@ export async function cleanupRemovedGalleryImages(
 
 export async function updateTourStatus(
   id: string,
-  status: "active" | "draft" | "archived",
+  status: "active" | "draft" | "archived"
 ): Promise<void> {
   try {
-    const docRef = doc(db, TOURS_COLLECTION, id);
-    await updateDoc(docRef, {
-      status,
-      "metadata.updatedAt": Timestamp.now(),
+    const response = await fetch(`${API_BASE}/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
     });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to update tour status");
+    }
+
+    console.log(`✅ Updated tour ${id} status to ${status}`);
   } catch (error) {
     console.error("Error updating tour status:", error);
     throw new Error("Failed to update tour status");
@@ -560,8 +350,17 @@ export async function updateTourStatus(
 
 export async function deleteTour(id: string): Promise<void> {
   try {
-    const docRef = doc(db, TOURS_COLLECTION, id);
-    await deleteDoc(docRef);
+    const response = await fetch(`${API_BASE}/${id}`, {
+      method: "DELETE",
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to delete tour");
+    }
+
+    console.log(`✅ Deleted tour ${id}`);
   } catch (error) {
     console.error("Error deleting tour:", error);
     throw new Error("Failed to delete tour");
@@ -571,7 +370,17 @@ export async function deleteTour(id: string): Promise<void> {
 // Soft delete - mark as archived instead of deleting
 export async function archiveTour(id: string): Promise<void> {
   try {
-    await updateTourStatus(id, "archived");
+    const response = await fetch(`${API_BASE}/${id}/archive`, {
+      method: "POST",
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to archive tour");
+    }
+
+    console.log(`✅ Archived tour ${id}`);
   } catch (error) {
     console.error("Error archiving tour:", error);
     throw new Error("Failed to archive tour");
@@ -583,32 +392,22 @@ export async function archiveTour(id: string): Promise<void> {
 // ============================================================================
 
 export async function batchUpdateTours(
-  updates: { id: string; data: Partial<TourFormDataWithStringDates> }[],
+  updates: { id: string; data: Partial<TourFormDataWithStringDates> }[]
 ): Promise<void> {
   try {
-    const batch = writeBatch(db);
-
-    updates.forEach(({ id, data }) => {
-      const docRef = doc(db, TOURS_COLLECTION, id);
-
-      const updateData: any = {
-        ...data,
-        "metadata.updatedAt": Timestamp.now(),
-      };
-
-      // Duration is already a string, no conversion needed
-
-      // Convert travelDates if they're being updated
-      if (data.travelDates) {
-        updateData.travelDates = convertTravelDatesToTimestamps(
-          data.travelDates,
-        );
-      }
-
-      batch.update(docRef, updateData);
+    const response = await fetch(`${API_BASE}/batch/update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates }),
     });
 
-    await batch.commit();
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to batch update tours");
+    }
+
+    console.log(`✅ Batch updated ${data.count} tours`);
   } catch (error) {
     console.error("Error batch updating tours:", error);
     throw new Error("Failed to batch update tours");
@@ -617,14 +416,19 @@ export async function batchUpdateTours(
 
 export async function batchDeleteTours(ids: string[]): Promise<void> {
   try {
-    const batch = writeBatch(db);
-
-    ids.forEach((id) => {
-      const docRef = doc(db, TOURS_COLLECTION, id);
-      batch.delete(docRef);
+    const response = await fetch(`${API_BASE}/batch/delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
     });
 
-    await batch.commit();
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to batch delete tours");
+    }
+
+    console.log(`✅ Batch deleted ${data.count} tours`);
   } catch (error) {
     console.error("Error batch deleting tours:", error);
     throw new Error("Failed to batch delete tours");
@@ -632,7 +436,7 @@ export async function batchDeleteTours(ids: string[]): Promise<void> {
 }
 
 // ============================================================================
-// SEARCH AND FILTER HELPERS
+// SEARCH AND FILTER HELPERS (Client-side)
 // ============================================================================
 
 export function generateSlug(name: string): string {
@@ -696,7 +500,7 @@ export function validateTourData(data: TourFormDataWithStringDates): string[] {
           errors.push(`Travel date ${index + 1}: Invalid date format`);
         } else if (startDate >= endDate) {
           errors.push(
-            `Travel date ${index + 1}: End date must be after start date`,
+            `Travel date ${index + 1}: End date must be after start date`
           );
         }
       }
@@ -753,5 +557,22 @@ function isValidUrl(string: string): boolean {
     return true;
   } catch (_) {
     return false;
+  }
+}
+
+// ============================================================================
+// TEST FUNCTION - For debugging database connection
+// ============================================================================
+export async function testFirestoreConnection(): Promise<void> {
+  console.log("Testing via API route - fetching all tours");
+  try {
+    const tours = await getAllTours();
+    console.log(`Total tours: ${tours.length}`);
+    tours.forEach((tour) => {
+      console.log("Tour ID:", tour.id);
+      console.log("Tour data:", tour);
+    });
+  } catch (error) {
+    console.error("API test failed:", error);
   }
 }
