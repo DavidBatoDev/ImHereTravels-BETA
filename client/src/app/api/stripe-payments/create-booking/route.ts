@@ -475,7 +475,7 @@ export async function POST(req: NextRequest) {
         paidAmount: feePerPerson, // Split fee
         originalTourCost,
         discountedTourCost,
-        paymentMethod: "Stripe",
+        paymentMethod: "Revolut",
         groupId,
         isMainBooking: false,
         existingBookingsCount: existingCountForTourPackage + i + 1, // Increment counter for each guest

@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
       enablePaymentReminder: true,
       selectedPlanAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      ...(!bookingData.paymentMethod && { paymentMethod: "Stripe" }),
+      ...(!bookingData.paymentMethod && { paymentMethod: "Revolut" }),
     });
 
     console.log(`✅ Booking ${bookingDocumentId} updated with payment plan`);
