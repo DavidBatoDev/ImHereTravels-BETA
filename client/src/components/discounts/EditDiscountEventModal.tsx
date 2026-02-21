@@ -148,13 +148,16 @@ export default function EditDiscountEventModal({
         dates: (t.travelDates || [])
           .filter((d) => d.isAvailable)
           .map((d) => {
-            // Convert Timestamp to ISO string
-            if (typeof d.startDate === "string") {
-              return d.startDate;
-            } else if (typeof d.startDate?.toDate === "function") {
-              return d.startDate.toDate().toISOString().split("T")[0];
-            } else if (d.startDate instanceof Date) {
-              return d.startDate.toISOString().split("T")[0];
+            const startDate: any = d.startDate;
+            // Convert Timestamp or serialized Timestamp to ISO string
+            if (typeof startDate === "string") {
+              return startDate.split("T")[0];
+            } else if (typeof startDate?.toDate === "function") {
+              return startDate.toDate().toISOString().split("T")[0];
+            } else if (startDate instanceof Date) {
+              return startDate.toISOString().split("T")[0];
+            } else if (startDate && typeof startDate === "object" && "seconds" in startDate) {
+              return new Date(startDate.seconds * 1000).toISOString().split("T")[0];
             }
             return "";
           })
