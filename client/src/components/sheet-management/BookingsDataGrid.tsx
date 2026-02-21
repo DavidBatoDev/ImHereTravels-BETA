@@ -126,7 +126,6 @@ import { useAuthStore } from "@/store/auth-store";
 import { functionExecutionService } from "@/services/function-execution-service";
 import { batchedWriter } from "@/services/batched-writer";
 import { bookingService } from "@/services/booking-service";
-import { isImporting } from "@/services/import-state";
 import { useRouter } from "next/navigation";
 import { ScheduledEmailService } from "@/services/scheduled-email-service";
 import {
@@ -829,10 +828,7 @@ export default function BookingsDataGrid({
       funcCol: SheetColumn,
       skipInitialCheck = false,
     ): Promise<any> => {
-      // Do not execute functions during CSV import
-      if (isImporting()) {
-        return row[funcCol.id];
-      }
+
 
       // Skip automatic computation for this function if override is enabled
       // BUT this function will still be computed if it's a dependent of another changed column
@@ -1196,8 +1192,6 @@ export default function BookingsDataGrid({
       updatedValue: any,
       rowSnapshot?: SheetData,
     ) => {
-      // Block during CSV import to preserve imported values
-      if (isImporting()) return;
 
       // Build a working snapshot of the row values if not provided
       let workingSnapshot = rowSnapshot;
@@ -1725,7 +1719,6 @@ export default function BookingsDataGrid({
   // Recompute for columns bound to a specific function id (and their dependents)
   const recomputeForFunction = useCallback(
     async (funcId: string) => {
-      if (isImporting()) return;
       const impactedColumns = columns.filter(
         (c) => c.dataType === "function" && c.function === funcId,
       );
@@ -1754,7 +1747,7 @@ export default function BookingsDataGrid({
 
   // Recompute selected column with retry logic
   const recomputeSelectedColumn = useCallback(async () => {
-    if (!selectedColumnId || isImporting() || isRecomputingAll) return;
+    if (!selectedColumnId || isRecomputingAll) return;
 
     const selectedCol = columns.find((c) => c.id === selectedColumnId);
     if (!selectedCol || selectedCol.dataType !== "function") {
@@ -1869,7 +1862,6 @@ export default function BookingsDataGrid({
   // Backoff strategy: 2s, 4s, 8s, 16s, 30s, then 30s for remaining attempts
   const recomputeAllFunctionColumns = useCallback(
     async (isRetry = false, retryAttempt = 1) => {
-      if (isImporting()) return;
       try {
         // Safety check to prevent infinite recursion
         if (retryAttempt > MAX_RECOMPUTE_ATTEMPTS) {
