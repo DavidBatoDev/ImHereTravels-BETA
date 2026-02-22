@@ -121,6 +121,8 @@ export default function ScheduledEmailsTab() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isResendDialogOpen, setIsResendDialogOpen] = useState(false);
+  const [isResendingEmail, setIsResendingEmail] = useState(false);
   const [isSkipDialogOpen, setIsSkipDialogOpen] = useState(false);
   const [isSkippingEmail, setIsSkippingEmail] = useState(false);
   const [isUnskippingEmail, setIsUnskippingEmail] = useState(false);
@@ -331,6 +333,33 @@ export default function ScheduledEmailsTab() {
         description: "Failed to cancel email",
         variant: "destructive",
       });
+    }
+  };
+
+  // Resend email
+  const handleResendEmail = async () => {
+    if (!selectedEmail) return;
+
+    setIsResendingEmail(true);
+    try {
+      await ScheduledEmailService.resendSentEmail(selectedEmail.id);
+
+      toast({
+        title: "Success",
+        description: "Email resent successfully",
+      });
+
+      setIsResendDialogOpen(false);
+      // Real-time listener will auto-update
+    } catch (error) {
+      console.error("Error resending email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to resend email",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResendingEmail(false);
     }
   };
 
@@ -1398,6 +1427,19 @@ export default function ScheduledEmailsTab() {
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
+                              {(email.status === "sent" || email.status === "skipped" || email.status === "pending") && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedEmail(email);
+                                    setIsResendDialogOpen(true);
+                                  }}
+                                  title={email.status === "pending" ? "Send this email now" : "Resend this email"}
+                                >
+                                  <Send className="w-4 h-4" />
+                                </Button>
+                              )}
                               {email.status === "pending" && (
                                 <>
                                   <Button
@@ -1536,6 +1578,19 @@ export default function ScheduledEmailsTab() {
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
+                      {(email.status === "sent" || email.status === "skipped" || email.status === "pending") && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedEmail(email);
+                            setIsResendDialogOpen(true);
+                          }}
+                          title={email.status === "pending" ? "Send this email now" : "Resend this email"}
+                        >
+                          <Send className="w-4 h-4" />
+                        </Button>
+                      )}
                       {email.status === "pending" && (
                         <>
                           <Button
@@ -2088,6 +2143,46 @@ export default function ScheduledEmailsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Resend Email Confirmation */}
+      <AlertDialog
+        open={isResendDialogOpen}
+        onOpenChange={setIsResendDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {selectedEmail?.status === "pending" ? "Send Email Now?" : "Resend Email?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to {selectedEmail?.status === "pending" ? "send" : "resend"} this message to{" "}
+              <span className="font-semibold text-foreground">
+                {selectedEmail?.to}
+              </span>
+              ? {selectedEmail?.status === "pending"
+                  ? <>This is originally scheduled for {selectedEmail.scheduledFor ? formatDate(selectedEmail.scheduledFor) : "later"}. The email will be sent immediately.</>
+                  : "This action cannot be undone and the email will be sent immediately."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isResendingEmail}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={(e) => {
+                e.preventDefault();
+                handleResendEmail();
+              }}
+              disabled={isResendingEmail}
+            >
+              {isResendingEmail 
+                ? (selectedEmail?.status === "pending" ? "Sending..." : "Resending...") 
+                : (selectedEmail?.status === "pending" ? "Yes, Send Email Now" : "Yes, Resend Email")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Fixed Scroll Buttons - CSS-only visibility */}
       <Button
