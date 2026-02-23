@@ -157,13 +157,12 @@ export default function PayNowModal({
 
       // Step 2: Create revolut payment document
       const revolutPaymentDocId = await revolutPaymentService.createPayment({
-        bookingId,
-        bookingDocumentId,
-        userId: customerEmail,
-        amount,
-        currency: currency || "GBP",
-        status: "pending",
-        installmentTerm,
+        payment: {
+          amount,
+          currency: currency || "GBP",
+          status: "pending",
+          installmentTerm,
+        },
         paymentScreenshot: {
           ...screenshotData,
           uploadedAt: new Date(),

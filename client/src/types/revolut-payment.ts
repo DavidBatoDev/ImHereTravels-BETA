@@ -14,17 +14,21 @@ export interface RevolutPaymentScreenshot {
 
 export interface RevolutPaymentDocument {
   id?: string;
-  bookingId: string;
-  bookingDocumentId: string;
-  userId: string;
-  amount: number;
-  currency: string;
-  status: "pending" | "approved" | "rejected";
-  installmentTerm: "full_payment" | "p1" | "p2" | "p3" | "p4";
-  createdAt: any; // Firestore Timestamp
-  updatedAt: any; // Firestore Timestamp
+  payment: {
+    amount: number;
+    currency: string;
+    status: "pending" | "approved" | "rejected";
+    installmentTerm: "full_payment" | "p1" | "p2" | "p3" | "p4";
+    type?: string; 
+  };
+  timestamps: {
+    createdAt: any; // Firestore Timestamp
+    updatedAt: any; // Firestore Timestamp
+    approvedAt?: any;
+    rejectedAt?: any;
+  };
   paymentScreenshot: RevolutPaymentScreenshot;
-  customer?: {
+  customer: {
     email: string;
     firstName: string;
     lastName: string;
@@ -32,10 +36,20 @@ export interface RevolutPaymentDocument {
   tour?: {
     packageName: string;
   };
-  booking?: {
-    id: string;
-    documentId: string;
+  booking: {
+    id: string; // Display ID e.g., SB-TXP-123
+    documentId: string; // Firestore document ID
   };
+  // Legacy fields for backward compatibility during migration
+  bookingId?: string;
+  bookingDocumentId?: string;
+  userId?: string;
+  amount?: number;
+  currency?: string;
+  status?: "pending" | "approved" | "rejected";
+  installmentTerm?: "full_payment" | "p1" | "p2" | "p3" | "p4";
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 // Bank details for Revolut transfer
