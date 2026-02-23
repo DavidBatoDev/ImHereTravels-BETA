@@ -288,7 +288,7 @@
                     color: #333333;
                   "
                 >
-                  Payment Term
+                  No. of Installment(s)
                 </th>
                 <th
                   style="
@@ -335,7 +335,7 @@
                     color: #666666;
                   "
                 >
-                  {{ item.term }}
+                  {{ item.term | replace("P", "") }}
                 </td>
                 <td
                   style="
@@ -365,37 +365,12 @@
                   <span style="color: #4caf50; font-weight: bold;">Paid ({{ item.datePaid }})</span>
                   {% elif item.isLate %}
                   <span style="color: #e74c3c; font-weight: bold;">Unpaid, Late</span>
-                  {% elif item.isUpcoming %}
-                  <span style="color: #2196f3; font-weight: bold;">Upcoming</span>
                   {% else %}
-                  <span style="color: #ff9800; font-weight: bold;">Pending</span>
+                  <span style="color: #ff9800; font-weight: bold;">Upcoming</span>
                   {% endif %}
                 </td>
               </tr>
               {% endfor %}
-              <tr style="background-color: #f9f9f9">
-                <td
-                  style="
-                    border: 1px solid #e0e0e0;
-                    padding: 12px;
-                    font-weight: bold;
-                    color: #333333;
-                  "
-                >
-                  Total
-                </td>
-                <td
-                  style="
-                    border: 1px solid #e0e0e0;
-                    padding: 12px;
-                    font-weight: bold;
-                    color: #333333;
-                  "
-                  colspan="3"
-                >
-                  {{ totalAmount }}
-                </td>
-              </tr>
               <tr style="background-color: #f9f9f9">
                 <td
                   style="
@@ -428,7 +403,30 @@
                     color: #333333;
                   "
                 >
-                  Paid Terms
+                  Total Fees
+                </td>
+                <td
+                  style="
+                    border: 1px solid #e0e0e0;
+                    padding: 12px;
+                    font-weight: bold;
+                    color: #333333;
+                  "
+                  colspan="3"
+                >
+                  {{ totalAmount }}
+                </td>
+              </tr>
+              <tr style="background-color: #f9f9f9">
+                <td
+                  style="
+                    border: 1px solid #e0e0e0;
+                    padding: 12px;
+                    font-weight: bold;
+                    color: #333333;
+                  "
+                >
+                  Paid Installments
                 </td>
                 <td
                   style="
@@ -474,14 +472,14 @@
                     color: #333333;
                   "
                 >
-                  Remaining Balance
+                  Total Unpaid
                 </td>
                 <td
                   style="
                     border: 1px solid #e0e0e0;
                     padding: 12px;
                     font-weight: bold;
-                    color: #4caf50;
+                    color: #e74c3c;
                   "
                   colspan="3"
                 >

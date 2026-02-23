@@ -719,11 +719,6 @@ export default function ScheduledEmailsTab() {
             const datePaidStr = formatDate((bookingData as any)[`${tLower}DatePaid`]);
             const isLate =
               !datePaidStr && !!dueDateStr && new Date(dueDateStr) < viewDate;
-            const currentTermIdx = allTerms.indexOf(
-              email.templateVariables!.paymentTerm as string,
-            );
-            const tIdx = allTerms.indexOf(t);
-            const isUpcoming = !datePaidStr && !isLate && tIdx > currentTermIdx;
 
             return {
               term: t,
@@ -731,7 +726,6 @@ export default function ScheduledEmailsTab() {
               dueDate: dueDateStr,
               datePaid: datePaidStr,
               isLate,
-              isUpcoming,
             };
           });
 

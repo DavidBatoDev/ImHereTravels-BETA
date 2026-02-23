@@ -125,10 +125,6 @@ async function rerenderEmailTemplate(
 
       // Re-render time is the resend time, so use now to determine Late status
       const sendDate = new Date();
-      // Index of the term this email is reminding about
-      const currentTermIdx = allTerms.indexOf(
-        templateVariables.paymentTerm as string,
-      );
 
       freshVariables.termData = visibleTerms.map((t) => {
         const tIndex = parseInt(t.replace("P", "")) - 1;
@@ -138,8 +134,6 @@ async function rerenderEmailTemplate(
         const dueDateStr = formatDate(parsedDueDate);
         const datePaidStr = formatDate((bookingData as any)[`${tLower}DatePaid`] || "");
         const isLate = !datePaidStr && !!dueDateStr && new Date(dueDateStr) < sendDate;
-        const tIdx = allTerms.indexOf(t);
-        const isUpcoming = !datePaidStr && !isLate && tIdx > currentTermIdx;
 
         return {
           term: t,
@@ -147,7 +141,6 @@ async function rerenderEmailTemplate(
           dueDate: dueDateStr,
           datePaid: datePaidStr,
           isLate,
-          isUpcoming,
         };
       });
 

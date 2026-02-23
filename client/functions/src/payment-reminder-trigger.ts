@@ -862,8 +862,6 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
 
           // The email send date - used to determine if a past-due unpaid term is "Late"
           const emailSendDate = scheduledFor.toDate();
-          // Index of the term this email is reminding about
-          const currentTermIdx = terms.indexOf(term);
 
           const termData = visibleTerms.map((t) => {
             const tDueDateRaw = getColumnValue(
@@ -897,10 +895,6 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
               !!dueDateFormatted &&
               new Date(dueDateFormatted) < emailSendDate;
 
-            // A term is "Upcoming" if it comes after the term this email is reminding about
-            const tIdx = terms.indexOf(t);
-            const isUpcoming = !datePaidFormatted && !isLate && tIdx > currentTermIdx;
-
             return {
               term: t,
               amount: formatGBP(
@@ -913,7 +907,6 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
               dueDate: dueDateFormatted,
               datePaid: datePaidFormatted,
               isLate,
-              isUpcoming,
             };
           });
 
