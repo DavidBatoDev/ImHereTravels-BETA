@@ -225,7 +225,7 @@ export async function POST(req: NextRequest) {
             paidAmount: paymentData.payment?.amount || 250,
             originalTourCost,
             discountedTourCost,
-            paymentMethod: "Stripe",
+            paymentMethod: "Revolut",
             groupId,
             isMainBooking: true,
             existingBookingsCount: existingCountForTourPackage,

@@ -56,6 +56,7 @@ const AVAILABLE_FIELDS = [
   { id: "payment.status", label: "Status", type: "select", options: ["succeeded", "pending", "failed", "refunded", "reservation_pending", "installment_pending", "installment_paid", "reserve_paid"], icon: Clock },
   { id: "payment.type", label: "Type", type: "select", options: ["reservationFee", "installment", "full_payment"], icon: CreditCard },
   { id: "payment.installmentTerm", label: "Installment Term", type: "string", icon: Hash },
+  { id: "type", label: "Method", type: "select", options: ["stripe", "revolut"], icon: CreditCard },
   { id: "tour.packageName", label: "Tour Package", type: "string", icon: MapPin },
   { id: "customer.email", label: "Email", type: "string", icon: User },
   { id: "booking.id", label: "Booking ID", type: "string", icon: Hash },

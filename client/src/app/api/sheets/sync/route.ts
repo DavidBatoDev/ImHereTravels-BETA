@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { googleSheetsServerService } from "@/lib/google-sheets/google-sheets-server-service";
 import Papa from "papaparse";
 import { Timestamp, doc, setDoc } from "firebase/firestore";
-import { bookingSheetColumnService } from "@/services/booking-sheet-columns-service";
+import { allBookingSheetColumns } from "@/app/functions/columns";
 import { bookingService } from "@/services/booking-service";
 import { bookingVersionHistoryService } from "@/services/booking-version-history-service";
-import { useAuthStore } from "@/store/auth-store";
-import { setImporting } from "@/services/import-state";
 import { db } from "@/lib/firebase";
 
 export async function POST(request: NextRequest) {
@@ -17,12 +15,9 @@ export async function POST(request: NextRequest) {
     if (!spreadsheetId) {
       return NextResponse.json(
         { success: false, message: "Spreadsheet ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
-
-    // Mark as importing to prevent function executions
-    setImporting(true);
 
     // Set config flag to skip Cloud Function triggers
     await setDoc(
@@ -32,14 +27,14 @@ export async function POST(request: NextRequest) {
         operation: "sheets-sync",
         startedAt: Timestamp.now(),
       },
-      { merge: true }
+      { merge: true },
     );
 
     try {
       // Step 1: Download CSV content from Google Sheets
       const csvContent = await googleSheetsServerService.downloadCSVContent(
         spreadsheetId,
-        sheetName || "Main Dashboard"
+        sheetName || "Main Dashboard",
       );
 
       // Step 2: Parse CSV content
@@ -49,27 +44,25 @@ export async function POST(request: NextRequest) {
       });
 
       if (parseResult.errors && parseResult.errors.length > 0) {
-        setImporting(false);
         return NextResponse.json(
           {
             success: false,
             message: "Failed to parse CSV data",
             error: parseResult.errors[0].message,
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       const rawData = parseResult.data as string[][];
 
       if (rawData.length < 4) {
-        setImporting(false);
         return NextResponse.json(
           {
             success: false,
             message: "CSV file must have at least 4 rows (header on row 3)",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -77,13 +70,12 @@ export async function POST(request: NextRequest) {
       const headers = rawData[2];
 
       if (!headers || headers.length === 0) {
-        setImporting(false);
         return NextResponse.json(
           {
             success: false,
             message: "Header row (row 3) is empty",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -96,15 +88,19 @@ export async function POST(request: NextRequest) {
         return columnA && columnA.toString().trim() !== "";
       });
 
-      // Step 3: Get column definitions from Firestore
-      const allColumns = await bookingSheetColumnService.getAllColumns();
+      // Step 3: Get column definitions from code
+      const allColumns = allBookingSheetColumns.map((col) => ({
+        id: col.id,
+        columnName: col.data.columnName,
+        dataType: col.data.dataType,
+      }));
 
       // Separate non-function and function columns (same as CSV import)
       const nonFunctionColumns = allColumns.filter(
-        (col) => col.dataType !== "function"
+        (col) => col.dataType !== "function",
       );
       const functionColumns = allColumns.filter(
-        (col) => col.dataType === "function"
+        (col) => col.dataType === "function",
       );
 
       // Create column mapping for non-function columns
@@ -118,7 +114,7 @@ export async function POST(request: NextRequest) {
           (header) =>
             header &&
             header.toLowerCase().trim() ===
-              column.columnName.toLowerCase().trim()
+              column.columnName.toLowerCase().trim(),
         );
 
         if (headerIndex !== -1) {
@@ -140,7 +136,7 @@ export async function POST(request: NextRequest) {
           (header) =>
             header &&
             header.toLowerCase().trim() ===
-              column.columnName.toLowerCase().trim()
+              column.columnName.toLowerCase().trim(),
         );
 
         if (headerIndex !== -1) {
@@ -207,28 +203,9 @@ export async function POST(request: NextRequest) {
 
       await bookingService.deleteAllBookings();
 
-      // Disable version tracking during bulk import (same as CSV import)
-      const config = bookingService.getVersionTrackingConfig();
-      const shouldSkipIndividualTracking =
-        config.performance.skipVersioningForBulkImports;
-
-      let originalCreateTracking: boolean | undefined;
-      let originalUpdateTracking: boolean | undefined;
-
-      if (shouldSkipIndividualTracking) {
-        originalCreateTracking = config.trackingLevels.create;
-        originalUpdateTracking = config.trackingLevels.update;
-
-        bookingService.setVersionTracking("create", false);
-        bookingService.setVersionTracking("update", false);
-        console.log(
-          "📝 [SHEETS SYNC] Temporarily disabled individual version tracking"
-        );
-      }
-
+      // Step 6: Create new bookings in batches (exact same as CSV import)
+      const BATCH_SIZE = 400;
       try {
-        // Step 6: Create new bookings in batches (exact same as CSV import)
-        const BATCH_SIZE = 400;
         for (let i = 0; i < documents.length; i += BATCH_SIZE) {
           const slice = documents.slice(i, i + BATCH_SIZE);
           await Promise.all(
@@ -239,7 +216,7 @@ export async function POST(request: NextRequest) {
               // Ensure we have a valid ID
               if (!newId) {
                 throw new Error(
-                  `Failed to generate ID for document at index ${i + index}`
+                  `Failed to generate ID for document at index ${i + index}`,
                 );
               }
 
@@ -251,30 +228,24 @@ export async function POST(request: NextRequest) {
 
               // Update the document with all the data including the id field
               await bookingService.updateBooking(newId, documentWithId);
-            })
+            }),
           );
         }
-      } finally {
-        // Restore tracking settings
-        if (
-          shouldSkipIndividualTracking &&
-          originalCreateTracking !== undefined &&
-          originalUpdateTracking !== undefined
-        ) {
-          bookingService.setVersionTracking("create", originalCreateTracking);
-          bookingService.setVersionTracking("update", originalUpdateTracking);
-          console.log("📝 [SHEETS SYNC] Restored version tracking settings");
-        }
+
+        console.log(`✅ [SHEETS SYNC] Created ${documents.length} bookings`);
+      } catch (batchError) {
+        console.error(
+          "❌ [SHEETS SYNC] Failed to create bookings:",
+          batchError,
+        );
+        throw batchError;
       }
 
       // Step 7: Create bulk operation version snapshot (same as CSV import)
       try {
-        const { user, userProfile } = useAuthStore.getState();
-        const currentUserId = user?.uid || "system";
-        const currentUserName =
-          userProfile?.profile?.firstName && userProfile?.profile?.lastName
-            ? `${userProfile.profile.firstName} ${userProfile.profile.lastName}`
-            : userProfile?.email || user?.email || "System";
+        // Use system user for server-side operations
+        const currentUserId = "system";
+        const currentUserName = "System (Sheets Sync)";
 
         const newBookings = await bookingService.getAllBookings();
         const newBookingIds = newBookings.map((booking) => booking.id);
@@ -294,11 +265,9 @@ export async function POST(request: NextRequest) {
       } catch (versionError) {
         console.error(
           "❌ [SHEETS SYNC] Failed to create version snapshot:",
-          versionError
+          versionError,
         );
       }
-
-      setImporting(false);
 
       return NextResponse.json(
         {
@@ -309,26 +278,22 @@ export async function POST(request: NextRequest) {
             validRows: documents.length,
           },
         },
-        { status: 200 }
+        { status: 200 },
       );
     } catch (importError) {
-      setImporting(false);
       throw importError;
     }
   } catch (error) {
     console.error("Error in sync API route:", error);
-    setImporting(false);
     return NextResponse.json(
       {
         success: false,
         message: "Failed to sync from Google Sheets",
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
-    setImporting(false);
-
     // Clear config flag to re-enable triggers
     try {
       await setDoc(
@@ -338,7 +303,7 @@ export async function POST(request: NextRequest) {
           operation: null,
           completedAt: Timestamp.now(),
         },
-        { merge: true }
+        { merge: true },
       );
     } catch (flagError) {
       console.error("[SHEETS SYNC] Failed to clear skip flag:", flagError);

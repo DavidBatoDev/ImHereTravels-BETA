@@ -86,8 +86,8 @@ import { bookingService } from "@/services/booking-service";
 import { useToast } from "@/hooks/use-toast";
 import BookingDetailModal from "./BookingDetailModal";
 import BookingVersionHistoryModal from "@/components/version-history/BookingVersionHistoryModal";
-import CSVImport from "../sheet-management/CSVImport";
-import SpreadsheetSync from "../sheet-management/SpreadsheetSync";
+// import CSVImport from "../sheet-management/CSVImport";
+// import SpreadsheetSync from "../sheet-management/SpreadsheetSync";
 
 // VSCode-style icons for match options
 const MatchCaseIcon = ({ className }: { className?: string }) => (
@@ -1410,27 +1410,6 @@ export default function BookingsSection() {
         {/* Mobile Quick Actions */}
         <div className="sm:hidden w-full">
           <div className="grid grid-cols-2 gap-2">
-            {/* Sync from Google Sheets - Mobile (Left) */}
-            <SpreadsheetSync
-              onSyncComplete={() => {
-                toast({
-                  title: "✅ Sync Complete",
-                  description: "Bookings synced from Google Sheets",
-                  variant: "default",
-                });
-              }}
-              trigger={
-                <button
-                  type="button"
-                  className="flex flex-col items-center justify-center rounded-xl border border-border bg-card p-3 text-[11px] text-foreground shadow-sm hover:border-royal-purple/40 hover:shadow-md transition-all duration-200"
-                >
-                  <div className="bg-royal-purple mb-2 flex h-10 w-10 items-center justify-center rounded-full text-white">
-                    <RefreshCw className="h-5 w-5" />
-                  </div>
-                  <span className="text-center leading-tight">Sync Sheets</span>
-                </button>
-              }
-            />
 
             {/* Add Booking Button - Mobile (Right) */}
             <button
@@ -1566,56 +1545,6 @@ export default function BookingsSection() {
               ADD BOOKING
             </span>
           </Button>
-
-          {/* Import Data Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                disabled
-                className="group h-20 w-20 rounded-full rounded-br-none bg-royal-purple hover:bg-crimson-red text-white transition-all duration-300 hover:scale-105 shadow-lg relative opacity-50 cursor-not-allowed"
-                title="Import Data"
-              >
-                <Download className="h-10 w-10 absolute group-hover:opacity-0 group-hover:scale-0 transition-all duration-300" />
-                <span className="text-[9px] font-medium opacity-0 scale-0 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 whitespace-nowrap font-hk-grotesk">
-                  IMPORT DATA
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Import Options</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <SpreadsheetSync
-                onSyncComplete={() => {
-                  toast({
-                    title: "✅ Sync Complete",
-                    description: "Bookings synced from Google Sheets",
-                    variant: "default",
-                  });
-                }}
-                trigger={
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Sync from Google Sheets
-                  </DropdownMenuItem>
-                }
-              />
-              <CSVImport
-                onImportComplete={() => {
-                  toast({
-                    title: "✅ Import Complete",
-                    description: "Bookings imported from CSV",
-                    variant: "default",
-                  });
-                }}
-                trigger={
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload CSV File
-                  </DropdownMenuItem>
-                }
-              />
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 

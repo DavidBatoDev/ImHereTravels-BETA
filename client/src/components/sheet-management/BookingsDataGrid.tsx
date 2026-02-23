@@ -126,7 +126,6 @@ import { useAuthStore } from "@/store/auth-store";
 import { functionExecutionService } from "@/services/function-execution-service";
 import { batchedWriter } from "@/services/batched-writer";
 import { bookingService } from "@/services/booking-service";
-import { isImporting } from "@/services/import-state";
 import { useRouter } from "next/navigation";
 import { ScheduledEmailService } from "@/services/scheduled-email-service";
 import {
@@ -157,10 +156,8 @@ const isEqual = (a: any, b: any): boolean => {
   }
   return true;
 };
-import ColumnSettingsModal from "./ColumnSettingsModal";
 import SheetConsole from "./SheetConsole";
-import CSVImport from "./CSVImport";
-import SpreadsheetSync from "./SpreadsheetSync";
+// import SpreadsheetSync from "./SpreadsheetSync";
 import BookingVersionHistoryModal from "../version-history/BookingVersionHistoryModal";
 
 // Toggle to control error logging from function recomputation paths
@@ -495,10 +492,6 @@ export default function BookingsDataGrid({
     };
   }, []);
 
-  const [columnSettingsModal, setColumnSettingsModal] = useState<{
-    isOpen: boolean;
-    column: SheetColumn | null;
-  }>({ isOpen: false, column: null });
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [sortColumns, setSortColumns] = useState<readonly SortColumn[]>([]);
   const [localData, setLocalData] = useState<SheetData[]>([]);
@@ -835,10 +828,7 @@ export default function BookingsDataGrid({
       funcCol: SheetColumn,
       skipInitialCheck = false,
     ): Promise<any> => {
-      // Do not execute functions during CSV import
-      if (isImporting()) {
-        return row[funcCol.id];
-      }
+
 
       // Skip automatic computation for this function if override is enabled
       // BUT this function will still be computed if it's a dependent of another changed column
@@ -1202,8 +1192,6 @@ export default function BookingsDataGrid({
       updatedValue: any,
       rowSnapshot?: SheetData,
     ) => {
-      // Block during CSV import to preserve imported values
-      if (isImporting()) return;
 
       // Build a working snapshot of the row values if not provided
       let workingSnapshot = rowSnapshot;
@@ -1731,7 +1719,6 @@ export default function BookingsDataGrid({
   // Recompute for columns bound to a specific function id (and their dependents)
   const recomputeForFunction = useCallback(
     async (funcId: string) => {
-      if (isImporting()) return;
       const impactedColumns = columns.filter(
         (c) => c.dataType === "function" && c.function === funcId,
       );
@@ -1760,7 +1747,7 @@ export default function BookingsDataGrid({
 
   // Recompute selected column with retry logic
   const recomputeSelectedColumn = useCallback(async () => {
-    if (!selectedColumnId || isImporting() || isRecomputingAll) return;
+    if (!selectedColumnId || isRecomputingAll) return;
 
     const selectedCol = columns.find((c) => c.id === selectedColumnId);
     if (!selectedCol || selectedCol.dataType !== "function") {
@@ -1875,7 +1862,6 @@ export default function BookingsDataGrid({
   // Backoff strategy: 2s, 4s, 8s, 16s, 30s, then 30s for remaining attempts
   const recomputeAllFunctionColumns = useCallback(
     async (isRetry = false, retryAttempt = 1) => {
-      if (isImporting()) return;
       try {
         // Safety check to prevent infinite recursion
         if (retryAttempt > MAX_RECOMPUTE_ATTEMPTS) {
@@ -4084,10 +4070,6 @@ export default function BookingsDataGrid({
     }
   };
 
-  const openColumnSettings = (column: SheetColumn) => {
-    setColumnSettingsModal({ isOpen: true, column });
-  };
-
   const handleColumnSave = (updatedColumn: SheetColumn) => {
     updateColumn(updatedColumn);
   };
@@ -4159,7 +4141,7 @@ export default function BookingsDataGrid({
                 Add Booking
               </Button>
 
-              <DropdownMenu>
+              {/* <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Download className="w-4 h-4 mr-2" />
@@ -4179,7 +4161,8 @@ export default function BookingsDataGrid({
                       </DropdownMenuItem>
                     }
                   />
-                  <CSVImport
+
+                  {/* <CSVImport
                     onImportComplete={handleCSVImportComplete}
                     trigger={
                       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
@@ -4187,9 +4170,9 @@ export default function BookingsDataGrid({
                         Upload CSV File
                       </DropdownMenuItem>
                     }
-                  />
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  /> */}
+                {/* </DropdownMenuContent>
+              </DropdownMenu> */} 
             </div>
           </div>
 
@@ -5012,15 +4995,6 @@ export default function BookingsDataGrid({
         </div>
       )}
 
-      {/* Modals */}
-      <ColumnSettingsModal
-        column={columnSettingsModal.column}
-        isOpen={columnSettingsModal.isOpen}
-        onClose={() => setColumnSettingsModal({ isOpen: false, column: null })}
-        onSave={handleColumnSave}
-        onDelete={handleColumnDelete}
-        existingColumns={columns}
-      />
 
       {/* Loading Modal for Adding Row */}
       {isAddingRow && (

@@ -362,6 +362,7 @@ export const onGenerateCancellationDraftChanged = onDocumentUpdated(
           fullName,
           tourPackage,
           tourDate: formatDateLikeSheets(tourDateRaw),
+          reservationFee: Number(reservationFee).toFixed(2),
           cancelledRefundAmount: Number(reservationFee).toFixed(2),
           tourPackageCoverImage,
           // Cancellation details

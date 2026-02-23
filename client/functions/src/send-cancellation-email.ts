@@ -116,7 +116,7 @@ export const onSendCancellationEmailChanged = onDocumentUpdated(
       }
 
       logger.info(
-        `📧 Checking sendCancellationEmail for booking: ${bookingId}`
+        `📧 Checking sendCancellationEmail for booking: ${bookingId}`,
       );
 
       // Check if sendCancellationEmail changed from false to true
@@ -133,7 +133,7 @@ export const onSendCancellationEmailChanged = onDocumentUpdated(
       // Only proceed if changed from false to true (toggled ON)
       if (!wasEnabled && isNowEnabled) {
         logger.info(
-          "✅ Send cancellation email toggled ON - sending cancellation email"
+          "✅ Send cancellation email toggled ON - sending cancellation email",
         );
 
         const bookingData = afterData;
@@ -149,7 +149,7 @@ export const onSendCancellationEmailChanged = onDocumentUpdated(
 
         if (!messageId) {
           logger.error(
-            "Could not extract message ID from cancellation draft URL"
+            "Could not extract message ID from cancellation draft URL",
           );
           return;
         }
@@ -164,7 +164,7 @@ export const onSendCancellationEmailChanged = onDocumentUpdated(
 
         if (!draftId) {
           logger.error(
-            "Cancellation draft not found with the given message ID"
+            "Cancellation draft not found with the given message ID",
           );
           return;
         }
@@ -176,7 +176,7 @@ export const onSendCancellationEmailChanged = onDocumentUpdated(
           const result = await gmailService.sendDraft(draftId);
           logger.info(
             "Cancellation draft sent successfully:",
-            result.messageId
+            result.messageId,
           );
 
           // Generate the sent email URL
@@ -192,14 +192,16 @@ export const onSendCancellationEmailChanged = onDocumentUpdated(
           });
 
           logger.info(
-            `✅ Cancellation email sent successfully and booking updated with sent URL and date`
+            `✅ Cancellation email sent successfully and booking updated with sent URL and date`,
           );
 
           // Create notification for sent cancellation email
           try {
-            const travelerName = bookingData.travelerName || "Customer";
+            const travelerName =
+              bookingData.fullName || bookingData.travelerName || "Customer";
             const tourPackageName = bookingData.tourPackageName || "Tour";
-            const recipientEmail = bookingData.email || "customer";
+            const recipientEmail =
+              bookingData.emailAddress || bookingData.email || "customer";
 
             await db.collection("notifications").add({
               type: "reservation_email",
@@ -230,12 +232,12 @@ export const onSendCancellationEmailChanged = onDocumentUpdated(
         }
       } else {
         logger.info(
-          "No action needed - sendCancellationEmail not toggled from false to true"
+          "No action needed - sendCancellationEmail not toggled from false to true",
         );
       }
     } catch (error) {
       logger.error("❌ Error in onSendCancellationEmailChanged:", error);
       // Don't throw error to prevent retries
     }
-  }
+  },
 );

@@ -19,8 +19,6 @@ import {
   Lock,
 } from "lucide-react";
 import { useState } from "react";
-import bookingSheetColumnService from "@/services/booking-sheet-columns-service";
-import { LockColumnModal } from "@/components/sheet-management/LockColumnModal";
 
 export default function TestSheetManagementPage() {
   const {
@@ -29,37 +27,11 @@ export default function TestSheetManagementPage() {
     config,
     isLoading,
     error,
-    updateColumn,
-    deleteColumn,
-    addColumn,
-    reorderColumns,
     updateData,
     addRow,
     updateRow,
     deleteRow,
-    resetToDefaults,
-    refreshData,
   } = useSheetManagement();
-
-  const [showAddColumnForm, setShowAddColumnForm] = useState(false);
-  const [lockColumnModal, setLockColumnModal] = useState<{
-    isOpen: boolean;
-    columnName: string;
-  }>({ isOpen: false, columnName: "" });
-
-  const handleAddTestColumn = async () => {
-    try {
-      await addColumn({
-        columnName: `Test Column ${Date.now()}`,
-        dataType: "string",
-        includeInForms: true,
-        width: 150,
-        order: 0, // Will be auto-calculated
-      });
-    } catch (error) {
-      console.error("Failed to add test column:", error);
-    }
-  };
 
   const handleAddTestRow = () => {
     const testRow = {
@@ -95,14 +67,9 @@ export default function TestSheetManagementPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Sheet Management Test</h1>
         <div className="flex gap-2">
-          <Button onClick={refreshData} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-          <Button onClick={resetToDefaults} variant="outline">
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Reset to Defaults
-          </Button>
+          <p className="text-sm text-muted-foreground">
+            Columns are now read-only from code
+          </p>
         </div>
       </div>
 
@@ -148,13 +115,9 @@ export default function TestSheetManagementPage() {
             <div>
               <CardTitle>Columns ({columns.length})</CardTitle>
               <CardDescription>
-                Real-time columns from bookingSheetColumns collection
+                Columns defined in code and loaded from functions/columns
               </CardDescription>
             </div>
-            <Button onClick={handleAddTestColumn} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Test Column
-            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -183,29 +146,6 @@ export default function TestSheetManagementPage() {
                     {column.includeInForms ? "In Forms" : "Not in Forms"}
                   </Badge>
                   <Badge variant="outline">{column.dataType}</Badge>
-                  {bookingSheetColumnService.isDefaultColumn(column.id) ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setLockColumnModal({
-                          isOpen: true,
-                          columnName: column.columnName,
-                        });
-                      }}
-                      className="hover:bg-amber-100 dark:hover:bg-amber-900/20"
-                    >
-                      <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => deleteColumn(column.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
                 </div>
               </div>
             ))}
@@ -223,10 +163,6 @@ export default function TestSheetManagementPage() {
                 Real-time booking data from Firestore
               </CardDescription>
             </div>
-            <Button onClick={handleAddTestRow} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Test Row
-            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -239,9 +175,12 @@ export default function TestSheetManagementPage() {
                 <div className="flex items-center gap-3">
                   <Badge variant="outline">{row.id}</Badge>
                   <div>
-                    <p className="font-medium">{row.bookingId || row.id}</p>
+                    <p className="font-medium">
+                      {(row as any).bookingId || row.id}
+                    </p>
                     <p className="text-sm text-gray-500">
-                      {row.firstName} {row.lastName} • {row.bookingStatus}
+                      {(row as any).firstName} {(row as any).lastName} •{" "}
+                      {(row as any).bookingStatus}
                     </p>
                   </div>
                 </div>
@@ -292,18 +231,6 @@ export default function TestSheetManagementPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Lock Column Modal */}
-      <LockColumnModal
-        isOpen={lockColumnModal.isOpen}
-        onClose={() =>
-          setLockColumnModal({
-            isOpen: false,
-            columnName: "",
-          })
-        }
-        columnName={lockColumnModal.columnName}
-      />
     </div>
   );
 }

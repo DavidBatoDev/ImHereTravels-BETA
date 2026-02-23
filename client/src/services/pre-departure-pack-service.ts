@@ -1,34 +1,14 @@
 import {
-  collection,
-  doc,
-  getDocs,
-  getDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  Timestamp,
-  writeBatch,
-} from "firebase/firestore";
-import { ref, deleteObject } from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
-import {
   PreDeparturePack,
   TourPackageAssignment,
   PreDeparturePackFormData,
   PreDepartureConfig,
 } from "@/types/pre-departure-pack";
-import { uploadFile, deleteFile, STORAGE_BUCKET } from "@/utils/file-upload";
-import { useAuthStore } from "@/store/auth-store";
 
-const PRE_DEPARTURE_PACK_COLLECTION = "preDeparturePack";
-const CONFIG_COLLECTION = "config";
-const PRE_DEPARTURE_CONFIG_DOC = "pre-departure";
+const API_BASE = "/api/pre-departure-packs";
 
 // ============================================================================
-// PRE-DEPARTURE PACK CRUD OPERATIONS
+// PRE-DEPARTURE PACK CRUD OPERATIONS (HTTP API CLIENT)
 // ============================================================================
 
 /**
@@ -36,16 +16,14 @@ const PRE_DEPARTURE_CONFIG_DOC = "pre-departure";
  */
 export async function getAllPreDeparturePacks(): Promise<PreDeparturePack[]> {
   try {
-    const q = query(
-      collection(db, PRE_DEPARTURE_PACK_COLLECTION),
-      orderBy("uploadedAt", "desc")
-    );
-    const querySnapshot = await getDocs(q);
+    const response = await fetch(API_BASE);
+    const result = await response.json();
 
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as PreDeparturePack[];
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Failed to fetch pre-departure packs");
+    }
+
+    return result.packs;
   } catch (error) {
     console.error("Error fetching pre-departure packs:", error);
     throw new Error("Failed to fetch pre-departure packs");
@@ -59,14 +37,19 @@ export async function getPreDeparturePackById(
   id: string
 ): Promise<PreDeparturePack | null> {
   try {
-    const docRef = doc(db, PRE_DEPARTURE_PACK_COLLECTION, id);
-    const docSnap = await getDoc(docRef);
+    const response = await fetch(`${API_BASE}/${id}`);
 
-    if (!docSnap.exists()) {
+    if (response.status === 404) {
       return null;
     }
 
-    return { id: docSnap.id, ...docSnap.data() } as PreDeparturePack;
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Failed to fetch pre-departure pack");
+    }
+
+    return result.pack;
   } catch (error) {
     console.error("Error fetching pre-departure pack:", error);
     throw new Error("Failed to fetch pre-departure pack");
@@ -80,17 +63,21 @@ export async function findPackByTourPackageName(
   tourPackageName: string
 ): Promise<PreDeparturePack | null> {
   try {
-    const allPacks = await getAllPreDeparturePacks();
-
-    const pack = allPacks.find((pack) =>
-      pack.tourPackages.some(
-        (tp) =>
-          tp.tourPackageName.toLowerCase().trim() ===
-          tourPackageName.toLowerCase().trim()
-      )
+    const response = await fetch(
+      `${API_BASE}/by-tour/${encodeURIComponent(tourPackageName)}`
     );
 
-    return pack || null;
+    if (response.status === 404) {
+      return null;
+    }
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Failed to find pre-departure pack");
+    }
+
+    return result.pack;
   } catch (error) {
     console.error("Error finding pack by tour package:", error);
     throw new Error("Failed to find pre-departure pack");
@@ -106,30 +93,21 @@ export async function checkTourPackageAvailability(
   excludePackId?: string
 ): Promise<string[]> {
   try {
-    const allPacks = await getAllPreDeparturePacks();
-    const assignedPackages: string[] = [];
+    const response = await fetch(`${API_BASE}/check-availability`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tourPackages, excludePackId }),
+    });
 
-    for (const pack of allPacks) {
-      // Skip the pack we're updating
-      if (excludePackId && pack.id === excludePackId) {
-        continue;
-      }
+    const result = await response.json();
 
-      for (const tourPackage of tourPackages) {
-        const isAssigned = pack.tourPackages.some(
-          (tp) => tp.tourPackageId === tourPackage.tourPackageId
-        );
-
-        if (
-          isAssigned &&
-          !assignedPackages.includes(tourPackage.tourPackageName)
-        ) {
-          assignedPackages.push(tourPackage.tourPackageName);
-        }
-      }
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.error || "Failed to check tour package availability"
+      );
     }
 
-    return assignedPackages;
+    return result.assignedPackages;
   } catch (error) {
     console.error("Error checking tour package availability:", error);
     throw new Error("Failed to check tour package availability");
@@ -143,11 +121,6 @@ export async function createPreDeparturePack(
   formData: PreDeparturePackFormData
 ): Promise<string> {
   try {
-    const currentUser = useAuthStore.getState().user;
-    if (!currentUser) {
-      throw new Error("User not authenticated");
-    }
-
     // Check if tour packages are already assigned
     const assignedPackages = await checkTourPackageAvailability(
       formData.tourPackages
@@ -159,48 +132,27 @@ export async function createPreDeparturePack(
       );
     }
 
-    // Upload file to Firebase Storage
-    const uploadResult = await uploadFile(formData.file, {
-      bucket: STORAGE_BUCKET,
-      folder: "pre-departure-packs",
-      maxSize: 100 * 1024 * 1024, // 100MB max
-      allowedTypes: [
-        "application/pdf",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application/msword",
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/webp",
-      ],
-      generateUniqueName: true,
-    });
-
-    if (!uploadResult.success || !uploadResult.data) {
-      throw new Error(uploadResult.error || "Failed to upload file");
+    // Create FormData for file upload
+    const uploadFormData = new FormData();
+    uploadFormData.append("file", formData.file);
+    uploadFormData.append("tourPackages", JSON.stringify(formData.tourPackages));
+    if (formData.metadata) {
+      uploadFormData.append("metadata", JSON.stringify(formData.metadata));
     }
 
-    // Create pre-departure pack document
-    const packData: Omit<PreDeparturePack, "id"> = {
-      tourPackages: formData.tourPackages,
-      fileName: formData.file.name,
-      originalName: formData.file.name,
-      fileDownloadURL: uploadResult.data.publicUrl,
-      contentType: formData.file.type,
-      storagePath: uploadResult.data.path,
-      size: formData.file.size,
-      uploadedAt: Timestamp.now(),
-      uploadedBy: currentUser.uid,
-      metadata: formData.metadata || {},
-    };
+    const response = await fetch(API_BASE, {
+      method: "POST",
+      body: uploadFormData,
+    });
 
-    const docRef = await addDoc(
-      collection(db, PRE_DEPARTURE_PACK_COLLECTION),
-      packData
-    );
+    const result = await response.json();
 
-    console.log("Pre-departure pack created:", docRef.id);
-    return docRef.id;
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Failed to create pre-departure pack");
+    }
+
+    console.log("Pre-departure pack created:", result.id);
+    return result.id;
   } catch (error) {
     console.error("Error creating pre-departure pack:", error);
     throw error;
@@ -227,10 +179,17 @@ export async function updatePackTourPackages(
       );
     }
 
-    const docRef = doc(db, PRE_DEPARTURE_PACK_COLLECTION, packId);
-    await updateDoc(docRef, {
-      tourPackages,
+    const response = await fetch(`${API_BASE}/${packId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tourPackages }),
     });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Failed to update pack tour packages");
+    }
 
     console.log("Tour packages updated for pack:", packId);
   } catch (error) {
@@ -247,52 +206,20 @@ export async function replacePackFile(
   newFile: File
 ): Promise<void> {
   try {
-    const pack = await getPreDeparturePackById(packId);
-    if (!pack) {
-      throw new Error("Pre-departure pack not found");
-    }
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append("file", newFile);
 
-    // Delete old file from storage
-    if (pack.storagePath) {
-      try {
-        await deleteFile(pack.storagePath, STORAGE_BUCKET);
-      } catch (error) {
-        console.warn("Failed to delete old file:", error);
-      }
-    }
-
-    // Upload new file
-    const uploadResult = await uploadFile(newFile, {
-      bucket: STORAGE_BUCKET,
-      folder: "pre-departure-packs",
-      maxSize: 100 * 1024 * 1024,
-      allowedTypes: [
-        "application/pdf",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application/msword",
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/webp",
-      ],
-      generateUniqueName: true,
+    const response = await fetch(`${API_BASE}/${packId}/replace-file`, {
+      method: "PATCH",
+      body: formData,
     });
 
-    if (!uploadResult.success || !uploadResult.data) {
-      throw new Error(uploadResult.error || "Failed to upload new file");
-    }
+    const result = await response.json();
 
-    // Update pack document
-    const docRef = doc(db, PRE_DEPARTURE_PACK_COLLECTION, packId);
-    await updateDoc(docRef, {
-      fileName: newFile.name,
-      originalName: newFile.name,
-      fileDownloadURL: uploadResult.data.publicUrl,
-      contentType: newFile.type,
-      storagePath: uploadResult.data.path,
-      size: newFile.size,
-      uploadedAt: Timestamp.now(),
-    });
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Failed to replace pack file");
+    }
 
     console.log("File replaced for pack:", packId);
   } catch (error) {
@@ -306,23 +233,15 @@ export async function replacePackFile(
  */
 export async function deletePreDeparturePack(packId: string): Promise<void> {
   try {
-    const pack = await getPreDeparturePackById(packId);
-    if (!pack) {
-      throw new Error("Pre-departure pack not found");
-    }
+    const response = await fetch(`${API_BASE}/${packId}`, {
+      method: "DELETE",
+    });
 
-    // Delete file from storage
-    if (pack.storagePath) {
-      try {
-        await deleteFile(pack.storagePath, STORAGE_BUCKET);
-      } catch (error) {
-        console.warn("Failed to delete file from storage:", error);
-      }
-    }
+    const result = await response.json();
 
-    // Delete document
-    const docRef = doc(db, PRE_DEPARTURE_PACK_COLLECTION, packId);
-    await deleteDoc(docRef);
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Failed to delete pre-departure pack");
+    }
 
     console.log("Pre-departure pack deleted:", packId);
   } catch (error) {
@@ -332,7 +251,7 @@ export async function deletePreDeparturePack(packId: string): Promise<void> {
 }
 
 // ============================================================================
-// CONFIGURATION OPERATIONS
+// CONFIGURATION OPERATIONS (HTTP API CLIENT)
 // ============================================================================
 
 /**
@@ -340,17 +259,14 @@ export async function deletePreDeparturePack(packId: string): Promise<void> {
  */
 export async function getPreDepartureConfig(): Promise<PreDepartureConfig> {
   try {
-    const docRef = doc(db, CONFIG_COLLECTION, PRE_DEPARTURE_CONFIG_DOC);
-    const docSnap = await getDoc(docRef);
+    const response = await fetch(`${API_BASE}/config`);
+    const result = await response.json();
 
-    if (!docSnap.exists()) {
-      // Return default config
-      return {
-        automaticSends: false,
-      };
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Failed to fetch configuration");
     }
 
-    return docSnap.data() as PreDepartureConfig;
+    return result.config;
   } catch (error) {
     console.error("Error fetching pre-departure config:", error);
     throw new Error("Failed to fetch configuration");
@@ -364,17 +280,17 @@ export async function updatePreDepartureConfig(
   automaticSends: boolean
 ): Promise<void> {
   try {
-    const currentUser = useAuthStore.getState().user;
-    if (!currentUser) {
-      throw new Error("User not authenticated");
-    }
-
-    const docRef = doc(db, CONFIG_COLLECTION, PRE_DEPARTURE_CONFIG_DOC);
-    await updateDoc(docRef, {
-      automaticSends,
-      lastUpdated: Timestamp.now(),
-      updatedBy: currentUser.uid,
+    const response = await fetch(`${API_BASE}/config`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ automaticSends }),
     });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Failed to update configuration");
+    }
 
     console.log("Pre-departure config updated");
   } catch (error) {
