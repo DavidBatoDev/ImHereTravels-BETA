@@ -861,6 +861,9 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           const currentTermIndex = terms.indexOf(term);
           const visibleTerms = terms.slice(0, currentTermIndex + 1);
 
+          // The email send date - used to determine if a past-due unpaid term is "Late"
+          const emailSendDate = scheduledFor.toDate();
+
           const termData = visibleTerms.map((t) => {
             const tDueDateRaw = getColumnValue(
               booking,
@@ -878,6 +881,22 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
               }
             }
 
+            const dueDateFormatted = formatDate(tDueDate);
+            const datePaidFormatted = formatDate(
+              getColumnValue(
+                booking,
+                `${t} Date Paid`,
+                PAYMENT_REMINDER_COLUMNS,
+              ),
+            );
+
+            // A term is "Late" if it has no datePaid and its due date has already
+            // passed relative to the date this email is scheduled to be sent
+            const isLate =
+              !datePaidFormatted &&
+              !!dueDateFormatted &&
+              new Date(dueDateFormatted) < emailSendDate;
+
             return {
               term: t,
               amount: formatGBP(
@@ -887,14 +906,9 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
                   PAYMENT_REMINDER_COLUMNS,
                 ),
               ),
-              dueDate: formatDate(tDueDate),
-              datePaid: formatDate(
-                getColumnValue(
-                  booking,
-                  `${t} Date Paid`,
-                  PAYMENT_REMINDER_COLUMNS,
-                ),
-              ),
+              dueDate: dueDateFormatted,
+              datePaid: datePaidFormatted,
+              isLate,
             };
           });
 

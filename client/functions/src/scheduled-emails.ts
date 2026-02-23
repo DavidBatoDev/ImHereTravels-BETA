@@ -198,17 +198,24 @@ async function rerenderEmailTemplate(
       const currentTermIndex = allTerms.indexOf(currentTerm);
       const visibleTerms = availableTerms.slice(0, currentTermIndex + 1);
 
+      // Re-render time is the send time, so use now to determine Late status
+      const sendDate = new Date();
+
       freshVariables.termData = visibleTerms.map((t) => {
         const tIndex = parseInt(t.replace("P", "")) - 1;
         const tLower = t.toLowerCase();
         const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
         const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
+        const dueDateStr = formatDate(parsedDueDate);
+        const datePaidStr = formatDate((bookingData as any)[`${tLower}DatePaid`] || "");
+        const isLate = !datePaidStr && !!dueDateStr && new Date(dueDateStr) < sendDate;
 
         return {
           term: t,
           amount: formatGBP((bookingData as any)[`${tLower}Amount`] || 0),
-          dueDate: formatDate(parsedDueDate),
-          datePaid: formatDate((bookingData as any)[`${tLower}DatePaid`] || ""),
+          dueDate: dueDateStr,
+          datePaid: datePaidStr,
+          isLate,
         };
       });
 

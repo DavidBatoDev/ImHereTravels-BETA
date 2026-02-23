@@ -321,7 +321,7 @@
                     color: #333333;
                   "
                 >
-                  Date Paid
+                  Status
                 </th>
               </tr>
             </thead>
@@ -359,10 +359,15 @@
                   style="
                     border: 1px solid #e0e0e0;
                     padding: 12px;
-                    color: #666666;
                   "
                 >
-                  {{ item.datePaid }}
+                  {% if item.datePaid %}
+                  <span style="color: #4caf50; font-weight: bold;">Paid ({{ item.datePaid }})</span>
+                  {% elif item.isLate %}
+                  <span style="color: #e74c3c; font-weight: bold;">Unpaid, Late</span>
+                  {% else %}
+                  <span style="color: #ff9800; font-weight: bold;">Pending</span>
+                  {% endif %}
                 </td>
               </tr>
               {% endfor %}

@@ -630,9 +630,9 @@ export default function ScheduledEmailsTab() {
               date = dateValue;
             }
 
-            // Validate and format
+            // Validate and format with Manila timezone to avoid UTC midnight off-by-one
             if (date && !isNaN(date.getTime())) {
-              return date.toISOString().split("T")[0];
+              return date.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
             }
 
             return "";
@@ -705,17 +705,31 @@ export default function ScheduledEmailsTab() {
           console.log("Current term:", currentTerm);
           console.log("Visible terms:", visibleTerms);
 
+          // Determine the reference date for Late status:
+          // - For sent emails: use sentAt (reflects the state when actually delivered)
+          // - For pending/skipped/failed: use today, since we're previewing what
+          //   it would look like if sent right now
+          const viewDate =
+            email.status === "sent" && email.sentAt
+              ? new Date(email.sentAt)
+              : new Date();
+
           freshVariables.termData = visibleTerms.map((t) => {
             const tIndex = parseInt(t.replace("P", "")) - 1;
             const tLower = t.toLowerCase();
             const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
             const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
+            const dueDateStr = formatDate(parsedDueDate);
+            const datePaidStr = formatDate((bookingData as any)[`${tLower}DatePaid`]);
+            const isLate =
+              !datePaidStr && !!dueDateStr && new Date(dueDateStr) < viewDate;
 
             return {
               term: t,
               amount: formatGBP((bookingData as any)[`${tLower}Amount`]),
-              dueDate: formatDate(parsedDueDate),
-              datePaid: formatDate((bookingData as any)[`${tLower}DatePaid`]),
+              dueDate: dueDateStr,
+              datePaid: datePaidStr,
+              isLate,
             };
           });
 
