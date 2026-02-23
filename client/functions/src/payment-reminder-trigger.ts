@@ -857,12 +857,13 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             logger.warn("Could not fetch tour package for cover image:", error);
           }
 
-          // Build term data for template - only show terms up to current payment plan
-          const currentTermIndex = terms.indexOf(term);
-          const visibleTerms = terms.slice(0, currentTermIndex + 1);
+          // Always show all terms up to the payment plan (not just up to current term)
+          const visibleTerms = terms;
 
           // The email send date - used to determine if a past-due unpaid term is "Late"
           const emailSendDate = scheduledFor.toDate();
+          // Index of the term this email is reminding about
+          const currentTermIdx = terms.indexOf(term);
 
           const termData = visibleTerms.map((t) => {
             const tDueDateRaw = getColumnValue(
@@ -890,12 +891,15 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
               ),
             );
 
-            // A term is "Late" if it has no datePaid and its due date has already
-            // passed relative to the date this email is scheduled to be sent
+            // A term is "Late" if unpaid and its due date passed before this email was sent
             const isLate =
               !datePaidFormatted &&
               !!dueDateFormatted &&
               new Date(dueDateFormatted) < emailSendDate;
+
+            // A term is "Upcoming" if it comes after the term this email is reminding about
+            const tIdx = terms.indexOf(t);
+            const isUpcoming = !datePaidFormatted && !isLate && tIdx > currentTermIdx;
 
             return {
               term: t,
@@ -909,6 +913,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
               dueDate: dueDateFormatted,
               datePaid: datePaidFormatted,
               isLate,
+              isUpcoming,
             };
           });
 
@@ -925,6 +930,16 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
               "",
             tourDate: formatDate(
               getColumnValue(booking, "Tour Date", PAYMENT_REMINDER_COLUMNS),
+            ),
+            reservationFee: formatGBP(
+              getColumnValue(
+                booking,
+                "Reservation Fee",
+                PAYMENT_REMINDER_COLUMNS,
+              ),
+            ),
+            paidTerms: formatGBP(
+              getColumnValue(booking, "Paid Terms", PAYMENT_REMINDER_COLUMNS),
             ),
             paid: formatGBP(
               getColumnValue(booking, "Paid", PAYMENT_REMINDER_COLUMNS),
@@ -953,7 +968,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
                     PAYMENT_REMINDER_COLUMNS,
                   ),
             ),
-            showTable: term !== "P1",
+            showTable: true,
             termData: termData,
             tourPackageCoverImage,
           };

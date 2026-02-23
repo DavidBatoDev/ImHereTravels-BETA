@@ -193,13 +193,15 @@ async function rerenderEmailTemplate(
       // Get all terms up to the max payment plan
       const availableTerms = allTerms.slice(0, maxTermIndex);
 
-      // Only show terms up to current payment term
-      const currentTerm = templateVariables.paymentTerm as string;
-      const currentTermIndex = allTerms.indexOf(currentTerm);
-      const visibleTerms = availableTerms.slice(0, currentTermIndex + 1);
+      // Always show all terms up to the payment plan
+      const visibleTerms = availableTerms;
 
       // Re-render time is the send time, so use now to determine Late status
       const sendDate = new Date();
+      // Index of the term this email is reminding about
+      const currentTermIdx = allTerms.indexOf(
+        templateVariables.paymentTerm as string,
+      );
 
       freshVariables.termData = visibleTerms.map((t) => {
         const tIndex = parseInt(t.replace("P", "")) - 1;
@@ -209,6 +211,8 @@ async function rerenderEmailTemplate(
         const dueDateStr = formatDate(parsedDueDate);
         const datePaidStr = formatDate((bookingData as any)[`${tLower}DatePaid`] || "");
         const isLate = !datePaidStr && !!dueDateStr && new Date(dueDateStr) < sendDate;
+        const tIdx = allTerms.indexOf(t);
+        const isUpcoming = !datePaidStr && !isLate && tIdx > currentTermIdx;
 
         return {
           term: t,
@@ -216,6 +220,7 @@ async function rerenderEmailTemplate(
           dueDate: dueDateStr,
           datePaid: datePaidStr,
           isLate,
+          isUpcoming,
         };
       });
 
@@ -225,6 +230,8 @@ async function rerenderEmailTemplate(
           ? bookingData.discountedTourCost
           : bookingData.originalTourCost,
       );
+      freshVariables.reservationFee = formatGBP(bookingData.reservationFee);
+      freshVariables.paidTerms = formatGBP(bookingData.paidTerms);
       freshVariables.paid = formatGBP(bookingData.paid);
       freshVariables.remainingBalance = formatGBP(bookingData.remainingBalance);
     }

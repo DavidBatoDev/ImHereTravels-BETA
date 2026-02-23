@@ -694,15 +694,11 @@ export default function ScheduledEmailsTab() {
           // Get all terms up to the max payment plan
           const availableTerms = allTerms.slice(0, maxTermIndex);
 
-          // Only show terms up to current payment term
-          const currentTerm = email.templateVariables.paymentTerm as string;
-          const currentTermIndex = allTerms.indexOf(currentTerm);
-          const visibleTerms = availableTerms.slice(0, currentTermIndex + 1);
+          // Always show all terms up to the payment plan (not just up to current term)
+          const visibleTerms = availableTerms;
 
           console.log("Payment plan value:", paymentPlanValue);
           console.log("Max term index:", maxTermIndex);
-          console.log("Available terms:", availableTerms);
-          console.log("Current term:", currentTerm);
           console.log("Visible terms:", visibleTerms);
 
           // Determine the reference date for Late status:
@@ -723,6 +719,11 @@ export default function ScheduledEmailsTab() {
             const datePaidStr = formatDate((bookingData as any)[`${tLower}DatePaid`]);
             const isLate =
               !datePaidStr && !!dueDateStr && new Date(dueDateStr) < viewDate;
+            const currentTermIdx = allTerms.indexOf(
+              email.templateVariables!.paymentTerm as string,
+            );
+            const tIdx = allTerms.indexOf(t);
+            const isUpcoming = !datePaidStr && !isLate && tIdx > currentTermIdx;
 
             return {
               term: t,
@@ -730,6 +731,7 @@ export default function ScheduledEmailsTab() {
               dueDate: dueDateStr,
               datePaid: datePaidStr,
               isLate,
+              isUpcoming,
             };
           });
 
@@ -739,6 +741,8 @@ export default function ScheduledEmailsTab() {
               ? bookingData.discountedTourCost
               : bookingData.originalTourCost,
           );
+          freshVariables.reservationFee = formatGBP(bookingData.reservationFee);
+          freshVariables.paidTerms = formatGBP(bookingData.paidTerms);
           freshVariables.paid = formatGBP(bookingData.paid);
           freshVariables.remainingBalance = formatGBP(
             bookingData.remainingBalance,
