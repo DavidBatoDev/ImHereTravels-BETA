@@ -190,7 +190,7 @@ export default function getP1DueDateFunction(
   reservationDate?: unknown,
   tourDate?: unknown,
   paymentPlan?: string,
-  paymentCondition?: string
+  paymentCondition?: string,
 ): string | "" | "ERROR" {
   // Same guard as Excel: if payment plan is Full Payment or reservation blank => ""
   if (paymentPlan === "Full Payment") return "";
@@ -227,18 +227,19 @@ export default function getP1DueDateFunction(
 
   if (monthCount <= 0) return "";
 
-  // generate the 2nd day of each month between res and tour (1..monthCount)
-  const secondDates: Date[] = Array.from(
+  // generate the last day of each month between res and tour (1..monthCount)
+  // Using day 0 of the next month gives us the last day of the current month
+  const lastDayDates: Date[] = Array.from(
     { length: monthCount },
-    (_, i) => new Date(res.getFullYear(), res.getMonth() + i + 1, 2)
+    (_, i) => new Date(res.getFullYear(), res.getMonth() + i + 1, 0),
   );
 
-  // validDates: (secondDates > res + 2) * (secondDates <= tour - 3)
+  // validDates: (lastDayDates > res + 2) * (lastDayDates <= tour - 3)
   const DAY_MS = 24 * 60 * 60 * 1000;
-  const validDates = secondDates.filter(
+  const validDates = lastDayDates.filter(
     (d) =>
       d.getTime() > res.getTime() + 2 * DAY_MS &&
-      d.getTime() <= tour.getTime() - 3 * DAY_MS
+      d.getTime() <= tour.getTime() - 3 * DAY_MS,
   );
 
   if (validDates.length < 1) return "";

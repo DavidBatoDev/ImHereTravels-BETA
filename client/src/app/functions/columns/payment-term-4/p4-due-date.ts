@@ -93,7 +93,7 @@ export function tourDateToYyyymmdd(tourDate: unknown): string {
     if (!date || isNaN(date.getTime())) return "ERROR";
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
       2,
-      "0"
+      "0",
     )}-${String(date.getDate()).padStart(2, "0")}`;
   } catch {
     return "ERROR";
@@ -104,7 +104,7 @@ export default function getP4DueDateFunction(
   reservationDate?: unknown,
   tourDate?: unknown,
   paymentPlan?: string,
-  paymentCondition?: string
+  paymentCondition?: string,
 ): string | "" | "ERROR" {
   if (["Full Payment", "P1", "P2", "P3"].includes(paymentPlan ?? "")) return "";
   if (paymentCondition !== "Standard Booking, P4") return "";
@@ -123,14 +123,15 @@ export default function getP4DueDateFunction(
     1;
 
   const DAY_MS = 86400000;
-  const secondDates = Array.from(
+  // Generate the last day of each month (using day 0 of next month)
+  const lastDayDates = Array.from(
     { length: monthCount },
-    (_, i) => new Date(res.getFullYear(), res.getMonth() + i + 1, 2)
+    (_, i) => new Date(res.getFullYear(), res.getMonth() + i + 1, 0),
   );
-  const validDates = secondDates.filter(
+  const validDates = lastDayDates.filter(
     (d) =>
       d.getTime() > res.getTime() + 2 * DAY_MS &&
-      d.getTime() <= tour.getTime() - 3 * DAY_MS
+      d.getTime() <= tour.getTime() - 3 * DAY_MS,
   );
 
   if (validDates.length < 4) return "";
