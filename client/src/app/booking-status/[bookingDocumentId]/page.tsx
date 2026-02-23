@@ -41,6 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { db } from "@/lib/firebase";
+import PayNowModal from "@/components/booking-status/PayNowModal";
 
 interface PaymentTokenData {
   token: string;
@@ -57,6 +58,7 @@ interface BookingData {
   bookingId: string;
   bookingCode: string;
   tourCode: string;
+  emailAddress?: string;
   fullName: string;
   firstName: string;
   travellerInitials: string;
@@ -104,6 +106,15 @@ interface BookingData {
     p2?: PaymentTokenData;
     p3?: PaymentTokenData;
     p4?: PaymentTokenData;
+  };
+  revolutPayments?: {
+    [key: string]: {
+      revolutPaymentDocId: string;
+      status: "pending" | "approved" | "rejected";
+      submittedAt?: any;
+      approvedAt?: any;
+      rejectedAt?: any;
+    };
   };
   preDeparturePack?: {
     id: string;
@@ -154,6 +165,13 @@ export default function BookingStatusPage() {
   const packCacheRef = useRef<{
     bookingDocId: string;
     pack: BookingData["preDeparturePack"] | null;
+  } | null>(null);
+
+  // Pay Now Modal state
+  const [payNowModalOpen, setPayNowModalOpen] = useState(false);
+  const [payNowInstallment, setPayNowInstallment] = useState<{
+    id: "full_payment" | "p1" | "p2" | "p3" | "p4";
+    amount: number;
   } | null>(null);
 
   // Check for payment success/cancel messages in URL
@@ -334,6 +352,7 @@ export default function BookingStatusPage() {
         bookingId: bookingData.bookingId,
         bookingCode: bookingData.bookingCode,
         tourCode: bookingData.tourCode,
+        emailAddress: bookingData.emailAddress,
         fullName: bookingData.fullName,
         firstName: bookingData.firstName,
         travellerInitials: bookingData.travellerInitials,
@@ -374,6 +393,7 @@ export default function BookingStatusPage() {
         isMainBooker: bookingData.isMainBooker,
         enablePaymentReminder: bookingData.enablePaymentReminder,
         preDeparturePack: preDeparturePack ?? undefined,
+        revolutPayments: bookingData.revolutPayments,
         ...(process.env.NEXT_PUBLIC_ENV === "development" && {
           paymentTokens: bookingData.paymentTokens,
         }),
@@ -555,6 +575,31 @@ export default function BookingStatusPage() {
       });
       setPaymentProcessing(null);
     }
+  };
+
+  // Open Pay Now modal instead of direct Stripe redirect
+  const handleOpenPayNowModal = (
+    installmentId: "full_payment" | "p1" | "p2" | "p3" | "p4",
+    installmentAmount: number,
+  ) => {
+    setPayNowInstallment({ id: installmentId, amount: installmentAmount });
+    setPayNowModalOpen(true);
+  };
+
+  // Handle Stripe checkout from modal
+  const handleStripeCheckoutFromModal = () => {
+    if (!payNowInstallment) return;
+    handlePayInstallment(payNowInstallment.id);
+  };
+
+  // Handle successful Revolut payment submission
+  const handleRevolutSubmitted = () => {
+    setPaymentMessage({
+      type: "success",
+      text: "Your Revolut payment has been submitted and is pending verification by our admin team. You'll be notified once it's approved.",
+    });
+    setPayNowModalOpen(false);
+    setPayNowInstallment(null);
   };
 
   const handleContactSupport = () => {
@@ -898,6 +943,9 @@ export default function BookingStatusPage() {
       const tokenData =
         booking.paymentTokens?.[id as keyof typeof booking.paymentTokens];
 
+      // Check for Revolut payment status
+      const revolutData = booking.revolutPayments?.[id];
+
       let status = "pending";
       let statusInfo: any = {};
 
@@ -906,6 +954,13 @@ export default function BookingStatusPage() {
         statusInfo = {
           paidAt: tokenData?.paidAt || datePaid,
         };
+      } else if (revolutData?.status === "approved") {
+        status = "paid";
+        statusInfo = {
+          paidAt: revolutData.approvedAt,
+        };
+      } else if (revolutData?.status === "pending") {
+        status = "for_verification";
       } else if (tokenData?.status === "processing") {
         status = "processing";
       } else if (tokenData?.status === "failed") {
@@ -1400,6 +1455,12 @@ export default function BookingStatusPage() {
                                     Pending
                                   </Badge>
                                 )}
+                                {term.status === "for_verification" && (
+                                  <Badge className="bg-amber-500 text-white text-[10px] sm:text-xs px-2 py-0.5">
+                                    <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                                    For Verification
+                                  </Badge>
+                                )}
                               </td>
 
                               {/* Action Column */}
@@ -1440,7 +1501,7 @@ export default function BookingStatusPage() {
                                     return (
                                       <Button
                                         onClick={() =>
-                                          handlePayInstallment(term.id)
+                                          handleOpenPayNowModal(term.id, term.amount)
                                         }
                                         disabled={paymentProcessing !== null}
                                         size="sm"
@@ -1476,6 +1537,13 @@ export default function BookingStatusPage() {
                                   <span className="text-xs sm:text-sm text-blue-600 flex items-center gap-1">
                                     <Clock className="h-3 w-3 animate-spin" />
                                     Processing...
+                                  </span>
+                                )}
+
+                                {term.status === "for_verification" && (
+                                  <span className="text-xs sm:text-sm text-amber-600 flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    Awaiting Verification
                                   </span>
                                 )}
                               </td>
@@ -1708,6 +1776,25 @@ export default function BookingStatusPage() {
           </div>
         </div>
       </footer>
+
+      {/* Pay Now Modal */}
+      {booking && payNowInstallment && (
+        <PayNowModal
+          open={payNowModalOpen}
+          onOpenChange={setPayNowModalOpen}
+          bookingId={booking.bookingId}
+          bookingDocumentId={booking.bookingDocumentId || bookingDocumentId}
+          installmentTerm={payNowInstallment.id}
+          amount={payNowInstallment.amount}
+          currency="GBP"
+          customerEmail={booking.emailAddress || email || ""}
+          customerName={booking.fullName}
+          tourPackageName={booking.tourPackageName}
+          onStripeCheckout={handleStripeCheckoutFromModal}
+          stripeProcessing={paymentProcessing !== null}
+          onRevolutSubmitted={handleRevolutSubmitted}
+        />
+      )}
     </div>
   );
 }

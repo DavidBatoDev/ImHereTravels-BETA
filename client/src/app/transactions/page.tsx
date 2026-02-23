@@ -19,11 +19,13 @@ import {
   Hourglass,
   ArrowUpRight,
   RefreshCcw,
+  Building2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PaymentDetailsDialog } from "@/components/transactions/PaymentDetailsDialog";
 import { RefundDialogs } from "@/components/transactions/RefundDialogs";
+import RevolutVerificationTab from "@/components/transactions/RevolutVerificationTab";
 import {
   TransactionFilterDialog,
   FilterConfig,
@@ -31,6 +33,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { RevolutPaymentDocument } from "@/types/revolut-payment";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
@@ -108,11 +111,14 @@ interface Transaction {
 
 export default function TransactionsPage() {
   const [data, setData] = useState<Transaction[]>([]);
+  const [revolutPayments, setRevolutPayments] = useState<RevolutPaymentDocument[]>([]);
+  const [revolutLoading, setRevolutLoading] = useState(true);
   const [stats, setStats] = useState({
     all: 0,
     reservationFee: 0,
     installment: 0,
     pending: 0,
+    revolut: 0,
   });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -174,9 +180,10 @@ export default function TransactionsPage() {
               "installment_pending",
             ].includes(p.payment?.status),
           ).length,
+          revolut: 0, // Will be updated by revolut listener
         };
 
-        setStats(calculatedStats);
+        setStats((prev) => ({ ...prev, ...calculatedStats }));
         setLoading(false);
       },
       (error) => {
@@ -191,8 +198,35 @@ export default function TransactionsPage() {
       },
     );
 
-    // Cleanup listener on unmount
-    return () => unsubscribe();
+    // Revolut payments listener
+    const revolutRef = collection(db, "revolutPayments");
+    const revolutQuery = query(revolutRef, orderBy("createdAt", "desc"));
+
+    const unsubRevolt = onSnapshot(
+      revolutQuery,
+      (snapshot) => {
+        const payments = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as RevolutPaymentDocument[];
+        setRevolutPayments(payments);
+        setStats((prev) => ({
+          ...prev,
+          revolut: payments.filter((p) => p.status === "pending").length,
+        }));
+        setRevolutLoading(false);
+      },
+      (error) => {
+        console.error("Error listening to revolut payments:", error);
+        setRevolutLoading(false);
+      },
+    );
+
+    // Cleanup listeners on unmount
+    return () => {
+      unsubscribe();
+      unsubRevolt();
+    };
   }, [toast]);
 
   const handleDelete = async () => {
@@ -427,6 +461,11 @@ export default function TransactionsPage() {
     return path.split(".").reduce((acc, part) => acc && acc[part], obj);
   };
 
+  // Approved Revolut payments for the "All" combined view
+  const approvedRevolutPayments = revolutPayments.filter(
+    (p) => p.status === "approved"
+  );
+
   const filteredData = data.filter((t) => {
     // Text Search
     if (searchQuery) {
@@ -560,9 +599,9 @@ export default function TransactionsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           {loading
-            ? Array.from({ length: 4 }).map((_, i) => (
+            ? Array.from({ length: 5 }).map((_, i) => (
                 <Card key={i} className="border-border">
                   <CardContent className="p-5 flex justify-between items-start">
                     <div className="space-y-2">
@@ -605,6 +644,14 @@ export default function TransactionsPage() {
                   onClick: () => setActiveTab("Pending"),
                   icon: Hourglass,
                   bgColor: "bg-amber-100",
+                },
+                {
+                  label: "Revolut",
+                  value: stats.revolut,
+                  active: activeTab === "Revolut",
+                  onClick: () => setActiveTab("Revolut"),
+                  icon: Building2,
+                  bgColor: "bg-indigo-100",
                 },
               ].map((stat) => {
                 const Icon = stat.icon;
@@ -670,15 +717,24 @@ export default function TransactionsPage() {
           </div>
         </div>
 
+        {/* Revolut Verification Tab */}
+        {activeTab === "Revolut" ? (
+          <RevolutVerificationTab
+            payments={revolutPayments}
+            loading={revolutLoading}
+          />
+        ) : (
+        <>
         {/* Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col">
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent pb-2">
-            <Table className="min-w-[1000px]">
+            <Table className="min-w-[1100px]">
               <TableHeader className="bg-gray-50/50">
                 <TableRow>
                   <TableHead className="pl-6">Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Type</TableHead>
+                  {activeTab === "All" && <TableHead>Method</TableHead>}
                   <TableHead>Tour</TableHead>
                   <TableHead>Email Address</TableHead>
                   <TableHead>Date</TableHead>
@@ -719,7 +775,7 @@ export default function TransactionsPage() {
                 ) : filteredData.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={activeTab === "All" ? 9 : 8}
                       className="h-24 text-center text-muted-foreground"
                     >
                       No transactions found
@@ -752,6 +808,17 @@ export default function TransactionsPage() {
                           {getTypeLabel(t)}
                         </span>
                       </TableCell>
+                      {activeTab === "All" && (
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className="text-xs font-medium border-blue-200 text-blue-700 bg-blue-50 whitespace-nowrap"
+                          >
+                            <CreditCard className="h-3 w-3 mr-1" />
+                            Stripe
+                          </Badge>
+                        </TableCell>
+                      )}
                       <TableCell>
                         <span className="text-sm text-foreground whitespace-nowrap">
                           {t.tour?.packageName || "—"}
@@ -830,6 +897,82 @@ export default function TransactionsPage() {
                     </TableRow>
                   ))
                 )}
+                {/* Approved Revolut payments in All tab */}
+                {activeTab === "All" &&
+                  !loading &&
+                  approvedRevolutPayments.map((rp) => (
+                    <TableRow
+                      key={`revolut-${rp.id}`}
+                      className="hover:bg-muted/50 transition-colors"
+                    >
+                      <TableCell className="pl-6">
+                        <div className="flex items-center gap-1 font-medium font-hk-grotesk text-foreground">
+                          <span className="text-muted-foreground">
+                            {getCurrencySymbol(rp.currency || "GBP")}
+                          </span>
+                          <span>
+                            {rp.amount !== undefined
+                              ? rp.amount.toFixed(2)
+                              : "—"}
+                          </span>
+                          <span className="text-xs text-muted-foreground uppercase ml-1">
+                            {rp.currency || "GBP"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className="bg-emerald-100 text-emerald-800 border-0 flex items-center gap-1 w-fit rounded-md px-2 py-0.5">
+                          Approved <CheckCircle2 className="h-3 w-3" />
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm font-medium text-foreground whitespace-nowrap">
+                          {rp.installmentTerm === "full_payment"
+                            ? "Full Payment"
+                            : `${rp.installmentTerm?.toUpperCase()} - Installment`}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-medium border-indigo-200 text-indigo-700 bg-indigo-50 whitespace-nowrap"
+                        >
+                          <Building2 className="h-3 w-3 mr-1" />
+                          Revolut
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-foreground whitespace-nowrap">
+                          {rp.tour?.packageName || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">
+                          {rp.customer?.email || rp.userId || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {formatDate(rp.updatedAt || rp.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded whitespace-nowrap">
+                            {rp.booking?.id || rp.bookingId || "—"}
+                          </span>
+                          {rp.bookingDocumentId && (
+                            <Link
+                              href={`/bookings?tab=bookings&bookingId=${rp.bookingDocumentId}`}
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              title="View Booking"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Link>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
           </div>
@@ -848,6 +991,8 @@ export default function TransactionsPage() {
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
 
       {/* View Details Dialog */}
