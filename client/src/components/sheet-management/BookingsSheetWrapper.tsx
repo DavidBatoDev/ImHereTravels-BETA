@@ -29,15 +29,21 @@ export default function BookingsSheetWrapper({}: BookingsSheetWrapperProps) {
   >([]);
   const [isLoadingFunctions, setIsLoadingFunctions] = useState(false);
 
-  const {
-    columns,
-    data,
-    updateColumn,
-    deleteColumn,
-    updateData,
-    updateRow,
-    deleteRow,
-  } = useSheetManagement();
+  const { columns, data, updateData, updateRow, deleteRow } =
+    useSheetManagement();
+
+  // Stub functions for column management (columns are now read-only from code)
+  const updateColumn = async (column: any) => {
+    console.log(
+      "Column updates are disabled - columns are now defined in code",
+    );
+  };
+
+  const deleteColumn = async (columnId: string) => {
+    console.log(
+      "Column deletion is disabled - columns are now defined in code",
+    );
+  };
 
   // Fetch TypeScript functions
   useEffect(() => {

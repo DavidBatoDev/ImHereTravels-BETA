@@ -27,15 +27,8 @@ import BookingsDataGrid from "@/components/sheet-management/BookingsDataGrid";
 
 export default function BookingsFullscreenPage() {
   const router = useRouter();
-  const {
-    columns,
-    data,
-    updateColumn,
-    deleteColumn,
-    updateData,
-    updateRow,
-    deleteRow,
-  } = useSheetManagement();
+  const { columns, data, updateData, updateRow, deleteRow } =
+    useSheetManagement();
 
   const [globalFilter, setGlobalFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -83,25 +76,18 @@ export default function BookingsFullscreenPage() {
     return count;
   }, [globalFilter, columnFilters, dateRangeFilters, currencyRangeFilters]);
 
-  // Toggle column visibility
-  const toggleColumnVisibility = useCallback(
-    async (columnId: string) => {
-      const column = columns.find((col) => col.id === columnId);
-      if (!column) return;
+  // Stub functions for column management (columns are now read-only from code)
+  const updateColumn = useCallback(async (column: any) => {
+    console.log(
+      "Column updates are disabled - columns are now defined in code",
+    );
+  }, []);
 
-      const updatedColumn = {
-        ...column,
-        showColumn: column.showColumn === false ? true : false,
-      };
-
-      try {
-        await updateColumn(updatedColumn);
-      } catch (error) {
-        console.error("Failed to toggle column visibility:", error);
-      }
-    },
-    [columns, updateColumn]
-  );
+  const deleteColumn = useCallback(async (columnId: string) => {
+    console.log(
+      "Column deletion is disabled - columns are now defined in code",
+    );
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -387,10 +373,9 @@ export default function BookingsFullscreenPage() {
                   {columns.map((col) => {
                     const isVisible = col.showColumn !== false;
                     return (
-                      <button
+                      <div
                         key={col.id}
-                        onClick={() => toggleColumnVisibility(col.id)}
-                        className="w-full flex items-center justify-between p-2 rounded-md hover:bg-royal-purple/10 transition-colors text-left"
+                        className="w-full flex items-center justify-between p-2 rounded-md text-left"
                       >
                         <span className="text-sm font-medium text-foreground">
                           {col.columnName}
@@ -400,7 +385,7 @@ export default function BookingsFullscreenPage() {
                         ) : (
                           <EyeOff className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>

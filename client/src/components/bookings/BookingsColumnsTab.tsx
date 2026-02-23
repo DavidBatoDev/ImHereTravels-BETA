@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, memo } from "react";
 import type { SheetColumn, TypeScriptFunction } from "@/types/sheet-management";
-import bookingSheetColumnService from "@/services/booking-sheet-columns-service";
+import { allBookingSheetColumns } from "@/app/functions/columns";
 import { typescriptFunctionsService } from "@/services/typescript-functions-service";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -45,7 +45,7 @@ import { CSS } from "@dnd-kit/utilities";
 
 // Color utility function
 const getColumnColorClasses = (
-  color: SheetColumn["color"] | undefined
+  color: SheetColumn["color"] | undefined,
 ): string => {
   const colorMap: Record<string, string> = {
     purple: "bg-royal-purple/15 border-royal-purple/30",
@@ -85,7 +85,7 @@ const ColumnRow = memo(
   }: ColumnRowProps) {
     const isDefaultColumn = useMemo(
       () => bookingSheetColumnService.isDefaultColumn(col.id),
-      [col.id]
+      [col.id],
     );
     const {
       attributes,
@@ -103,12 +103,12 @@ const ColumnRow = memo(
         opacity: isDragging ? 0.7 : undefined,
         willChange: isDragging ? "transform" : undefined,
       }),
-      [transform, transition, isDragging]
+      [transform, transition, isDragging],
     );
 
     const colorClasses = useMemo(
       () => getColumnColorClasses(col.color),
-      [col.color]
+      [col.color],
     );
 
     return (
@@ -239,7 +239,7 @@ const ColumnRow = memo(
       prevProps.onDeleteColumn === nextProps.onDeleteColumn &&
       prevProps.onShowLockModal === nextProps.onShowLockModal
     );
-  }
+  },
 );
 
 export default function BookingsColumnsTab() {
@@ -250,7 +250,7 @@ export default function BookingsColumnsTab() {
   const [isReordering, setIsReordering] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedColumn, setSelectedColumn] = useState<SheetColumn | null>(
-    null
+    null,
   );
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [deleteColumnWarningModal, setDeleteColumnWarningModal] = useState<{
@@ -287,12 +287,12 @@ export default function BookingsColumnsTab() {
         setAvailableFunctions(functions);
         console.log(
           "🔍 Loaded functions in BookingsColumnsTab:",
-          functions.length
+          functions.length,
         );
       } catch (error) {
         console.error(
           "❌ Failed to load functions in BookingsColumnsTab:",
-          error
+          error,
         );
       }
     };
@@ -308,14 +308,14 @@ export default function BookingsColumnsTab() {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const ids = useMemo(() => columns.map((c) => c.id), [columns]);
 
   const activeColumn = useMemo(
     () => columns.find((col) => col.id === activeId),
-    [activeId, columns]
+    [activeId, columns],
   );
 
   const onDragStart = useCallback((event: DragStartEvent) => {
@@ -360,7 +360,7 @@ export default function BookingsColumnsTab() {
         setIsReordering(false);
       }
     },
-    [ids, columns, toast]
+    [ids, columns, toast],
   );
 
   const onDragCancel = useCallback(() => {
@@ -401,7 +401,7 @@ export default function BookingsColumnsTab() {
         // Check for dependent columns
         const dependentColumns =
           await bookingSheetColumnService.getDependentColumnsForColumn(
-            columnId
+            columnId,
           );
 
         if (dependentColumns.length > 1) {
@@ -432,7 +432,7 @@ export default function BookingsColumnsTab() {
         });
       }
     },
-    [columns, toast]
+    [columns, toast],
   );
 
   const handleConfirmDeleteColumn = async () => {
@@ -498,7 +498,7 @@ export default function BookingsColumnsTab() {
         });
       }
     },
-    [toast]
+    [toast],
   );
 
   const handleAddColumn = useCallback(() => {
@@ -526,7 +526,7 @@ export default function BookingsColumnsTab() {
         });
       }
     },
-    [toast]
+    [toast],
   );
 
   const handleShowLockModal = useCallback((columnName: string) => {
@@ -640,7 +640,7 @@ export default function BookingsColumnsTab() {
                   <div className="p-3 flex items-center border-r border-royal-purple/20 dark:border-border">
                     <div
                       className={`w-6 h-6 rounded-full border-2 ${getColumnColorClasses(
-                        activeColumn.color
+                        activeColumn.color,
                       )}`}
                     />
                   </div>
@@ -667,7 +667,7 @@ export default function BookingsColumnsTab() {
               // Editing existing column
               await bookingSheetColumnService.updateColumn(
                 selectedColumn.id,
-                updatedColumn
+                updatedColumn,
               );
               toast({
                 title: "Column Updated",
