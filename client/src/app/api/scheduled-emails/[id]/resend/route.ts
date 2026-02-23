@@ -54,7 +54,7 @@ async function rerenderEmailTemplate(
   bookingId: string,
   templateId: string,
   templateVariables: Record<string, any>,
-): Promise<{ subject: string; htmlContent: string }> {
+): Promise<{ subject: string; htmlContent: string; bcc?: string[] }> {
   try {
     const bookingDoc = await getDoc(doc(db, "bookings", bookingId));
 
@@ -163,7 +163,50 @@ async function rerenderEmailTemplate(
       templateVariables.paymentTerm || "Payment"
     } Due`;
 
-    return { subject, htmlContent };
+    let resolvedBcc: string[] = [];
+    if (templateData.bccGroups && Array.isArray(templateData.bccGroups) && templateData.bccGroups.length > 0) {
+      try {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        
+        // 1. Literal emails
+        const literalEmails = templateData.bccGroups.filter((g: any) => typeof g === "string" && emailRegex.test(g));
+        resolvedBcc.push(...literalEmails);
+        
+        // 2. References to bcc-users (by ID or bccId)
+        const refIds = templateData.bccGroups.filter((g: any) => typeof g === "string" && !emailRegex.test(g));
+        
+        if (refIds.length > 0) {
+          // Chunk to handle Firestore "in" query limit of 10
+          for (let i = 0; i < refIds.length; i += 10) {
+            const chunk = refIds.slice(i, i + 10);
+            
+            // By bccId
+            const bccIdQuery = query(collection(db, "bcc-users"), where("bccId", "in", chunk));
+            const bccIdSnap = await getDocs(bccIdQuery);
+            bccIdSnap.forEach(doc => {
+              if (doc.data().email) resolvedBcc.push(doc.data().email);
+            });
+            
+            // By document ID
+            try {
+              for (const id of chunk) {
+                const docRef = doc(db, "bcc-users", id);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists() && docSnap.data().email) {
+                  resolvedBcc.push(docSnap.data().email);
+                }
+              }
+            } catch (e) {
+              console.warn("Failed querying bcc-users by document ID", e);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error resolving bcc groups:", e);
+      }
+    }
+
+    return { subject, htmlContent, bcc: resolvedBcc };
   } catch (error) {
     console.error("Error re-rendering email template:", error);
     throw error;
@@ -201,6 +244,7 @@ export async function POST(
     
     let emailSubject = emailData.subject;
     let emailHtmlContent = emailData.htmlContent;
+    let emailBcc = emailData.bcc || [];
     
     // Re-render template if payment reminder
     if (emailData.emailType === "payment-reminder" && emailData.bookingId && emailData.templateId && emailData.templateVariables) {
@@ -208,6 +252,9 @@ export async function POST(
         const freshEmail = await rerenderEmailTemplate(emailData.bookingId, emailData.templateId, emailData.templateVariables);
         emailSubject = freshEmail.subject;
         emailHtmlContent = freshEmail.htmlContent;
+        if (freshEmail.bcc && freshEmail.bcc.length > 0) {
+          emailBcc = [...new Set([...emailBcc, ...freshEmail.bcc])];
+        }
       } catch (e) {
         console.warn("Failed to re-render template, using original content", e);
       }
@@ -217,7 +264,7 @@ export async function POST(
       to: emailData.to,
       subject: emailSubject,
       htmlContent: emailHtmlContent,
-      bcc: emailData.bcc,
+      bcc: emailBcc,
       cc: emailData.cc,
       from: emailData.from,
       replyTo: emailData.replyTo,
