@@ -4088,6 +4088,7 @@ export default function EditBookingModal({
           hideClose
           className="max-w-2xl w-[calc(100%-2rem)] sm:w-full z-[100000]"
         >
+          <DialogTitle className="sr-only">Confirm Send Email</DialogTitle>
           <div className="flex flex-col space-y-6">
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-3">
@@ -4207,7 +4208,8 @@ export default function EditBookingModal({
                 </div>
               </div>
 
-              {(formData.fullPaymentAmount ||
+              {(formData.p1Amount ||
+                formData.fullPaymentAmount ||
                 formData.p2Amount ||
                 formData.p3Amount ||
                 formData.p4Amount) && (
@@ -4233,28 +4235,37 @@ export default function EditBookingModal({
                         </tr>
                       </thead>
                       <tbody>
-                        {formData.fullPaymentAmount && (
+                        {formData.p1Amount && (
                           <tr className="border-b border-border/50">
                             <td className="py-2 px-2 text-foreground">
                               P1 – Full payment
+                            </td>
+                            <td className="py-2 px-2 text-foreground font-mono">
+                              £{Number(formData.p1Amount).toFixed(2)}
+                            </td>
+                            <td className="py-2 px-2 text-foreground">
+                              {formData.p1DueDate || "N/A"}
+                            </td>
+                          </tr>
+                        )}
+                        {formData.fullPaymentAmount && (
+                          <tr className="border-b border-border/50">
+                            <td className="py-2 px-2 text-foreground">
+                              Full Payment (Last Minute)
                             </td>
                             <td className="py-2 px-2 text-foreground font-mono">
                               £{Number(formData.fullPaymentAmount).toFixed(2)}
                             </td>
                             <td className="py-2 px-2 text-foreground">
                               {formData.fullPaymentDueDate
-                                ? typeof formData.fullPaymentDueDate ===
-                                  "string"
+                                ? typeof formData.fullPaymentDueDate === "string"
                                   ? formData.fullPaymentDueDate
                                   : formData.fullPaymentDueDate instanceof Date
-                                    ? formData.fullPaymentDueDate.toLocaleDateString(
-                                        "en-US",
-                                        {
-                                          month: "short",
-                                          day: "numeric",
-                                          year: "numeric",
-                                        },
-                                      )
+                                    ? formData.fullPaymentDueDate.toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      })
                                     : "N/A"
                                 : "N/A"}
                             </td>
