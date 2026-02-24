@@ -207,6 +207,47 @@ export default function DashboardOverview() {
       (booking) =>
         getBookingStatusCategory(booking.bookingStatus) === "Completed"
     ).length,
+    totalPendingPayments: bookings.reduce(
+      (sum, booking) => sum + (booking.remainingBalance || 0),
+      0
+    ),
+    averageMonthlyRevenue: (() => {
+      const monthlyTrendsData = [];
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        const monthBookings = bookings.filter((booking) => {
+          try {
+            if (!booking.reservationDate) return false;
+            let bookingDate;
+            if (booking.reservationDate instanceof Date) {
+              bookingDate = booking.reservationDate;
+            } else {
+              bookingDate = new Date(booking.reservationDate);
+            }
+            if (isNaN(bookingDate.getTime())) return false;
+            return bookingDate >= monthStart && bookingDate <= monthEnd;
+          } catch (error) {
+            return false;
+          }
+        });
+        const monthRevenue = monthBookings.reduce(
+          (sum, booking) => sum + (booking.paid || 0),
+          0
+        );
+        monthlyTrendsData.push(monthRevenue);
+      }
+      const totalRevenue = monthlyTrendsData.reduce((sum, rev) => sum + rev, 0);
+      return monthlyTrendsData.length > 0 ? totalRevenue / monthlyTrendsData.length : 0;
+    })(),
+    cancelledRevenueLoss: bookings
+      .filter(
+        (booking) =>
+          getBookingStatusCategory(booking.bookingStatus) === "Cancelled"
+      )
+      .reduce((sum, booking) => sum + (booking.paid || 0), 0),
   };
 
   // Prepare chart data with fallback for empty data
@@ -516,7 +557,7 @@ export default function DashboardOverview() {
       </div>
 
       {/* Enhanced Metrics Grid */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4 lg:gap-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 sm:gap-4 lg:gap-6">
         {/* Total Bookings */}
         <Card className="relative overflow-hidden border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
           <CardContent className="p-5">
@@ -582,7 +623,7 @@ export default function DashboardOverview() {
                   <Skeleton className="h-8 w-32 mb-2" />
                 ) : (
                   <p className="text-2xl sm:text-3xl font-bold text-foreground">
-                    €{metrics.totalRevenue.toLocaleString()}
+                    £{metrics.totalRevenue.toLocaleString()}
                   </p>
                 )}
                 {isLoading ? (
@@ -592,7 +633,7 @@ export default function DashboardOverview() {
                     <div className="flex items-center gap-1">
                       <FiTrendingUp className="h-3 w-3 text-spring-green" />
                       <p className="text-xs text-spring-green font-bold">
-                        This month: €{metrics.revenueThisMonth.toLocaleString()}
+                        This month: £{metrics.revenueThisMonth.toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -705,6 +746,126 @@ export default function DashboardOverview() {
             </div>
             <div className="pointer-events-none absolute -bottom-4 -right-4 h-16 w-16 rounded-full bg-gradient-to-br from-vivid-orange/20 to-vivid-orange/10 p-4 sm:hidden">
               <FiCreditCard className="h-full w-full text-foreground opacity-80" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Metrics Grid */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4 lg:gap-6">
+        {/* Average Monthly Revenue */}
+        <Card className="relative overflow-hidden border border-border hover:border-sunglow-yellow transition-all duration-300 hover:shadow-md">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 pr-6">
+                <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
+                  Avg Monthly Revenue
+                </p>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-32 mb-2" />
+                ) : (
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">
+                    £{Math.round(metrics.averageMonthlyRevenue).toLocaleString()}
+                  </p>
+                )}
+                {isLoading ? (
+                  <Skeleton className="h-4 w-40 mt-2" />
+                ) : (
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-1">
+                      <FiTrendingUp className="h-3 w-3 text-sunglow-yellow" />
+                      <p className="text-xs text-muted-foreground">
+                        Last 6 months average
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-sunglow-yellow/20 to-sunglow-yellow/10 rounded-full rounded-br-none">
+                <FiDollarSign className="h-6 w-6 text-foreground" />
+              </div>
+            </div>
+            <div className="pointer-events-none absolute -bottom-4 -right-4 h-16 w-16 rounded-full bg-gradient-to-br from-sunglow-yellow/20 to-sunglow-yellow/10 p-4 sm:hidden">
+              <FiDollarSign className="h-full w-full text-foreground opacity-80" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cancelled Bookings */}
+        <Card className="relative overflow-hidden border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 pr-6">
+                <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
+                  Cancelled Bookings
+                </p>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-16 mb-2" />
+                ) : (
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">
+                    {metrics.cancelledBookings}
+                  </p>
+                )}
+                {isLoading ? (
+                  <Skeleton className="h-4 w-40 mt-2" />
+                ) : (
+                  <div className="flex items-center gap-3 mt-2 flex-wrap text-[11px] sm:text-xs">
+                    <div className="flex items-center gap-1">
+                      <FiXCircle className="h-3 w-3 text-crimson-red" />
+                      <p className="text-xs text-muted-foreground">
+                        Lost revenue:{" "}
+                        <span className="text-crimson-red font-bold">
+                          £{metrics.cancelledRevenueLoss.toLocaleString()}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-crimson-red/20 to-crimson-red/10 rounded-full rounded-br-none">
+                <FiXCircle className="h-6 w-6 text-foreground" />
+              </div>
+            </div>
+            <div className="pointer-events-none absolute -bottom-4 -right-4 h-16 w-16 rounded-full bg-gradient-to-br from-crimson-red/20 to-crimson-red/10 p-4 sm:hidden">
+              <FiXCircle className="h-full w-full text-foreground opacity-80" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pending Payments */}
+        <Card className="relative overflow-hidden border border-border hover:border-vivid-orange transition-all duration-300 hover:shadow-md">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 pr-6">
+                <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
+                  Pending Payments
+                </p>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-32 mb-2" />
+                ) : (
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">
+                    £{metrics.totalPendingPayments.toLocaleString()}
+                  </p>
+                )}
+                {isLoading ? (
+                  <Skeleton className="h-4 w-40 mt-2" />
+                ) : (
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-1">
+                      <FiClock className="h-3 w-3 text-vivid-orange" />
+                      <p className="text-xs text-muted-foreground">
+                        From {metrics.pendingBookings} pending bookings
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-vivid-orange/20 to-vivid-orange/10 rounded-full rounded-br-none">
+                <FiClock className="h-6 w-6 text-foreground" />
+              </div>
+            </div>
+            <div className="pointer-events-none absolute -bottom-4 -right-4 h-16 w-16 rounded-full bg-gradient-to-br from-vivid-orange/20 to-vivid-orange/10 p-4 sm:hidden">
+              <FiClock className="h-full w-full text-foreground opacity-80" />
             </div>
           </CardContent>
         </Card>
@@ -917,7 +1078,7 @@ export default function DashboardOverview() {
                       }}
                       formatter={(value: any, name: string) => {
                         if (name?.includes("Revenue")) {
-                          return [`€${value.toLocaleString()}`, "Revenue (€)"];
+                          return [`£${value.toLocaleString()}`, "Revenue (£)"];
                         }
                         return [value, "Bookings"];
                       }}
@@ -937,7 +1098,7 @@ export default function DashboardOverview() {
                       stroke="#685BC7"
                       strokeWidth={3}
                       dot={{ fill: "#685BC7", strokeWidth: 2, r: 4 }}
-                      name="Revenue (€)"
+                      name="Revenue (£)"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -1097,8 +1258,8 @@ export default function DashboardOverview() {
                   <div className="flex-shrink-0">
                     <span className="inline-block text-[10px] sm:text-xs text-muted-foreground/80 bg-background px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full border border-border whitespace-nowrap">
                       {booking.remainingBalance > 0
-                        ? `€${booking.remainingBalance} due`
-                        : `€${booking.paid} paid`}
+                        ? `£${booking.remainingBalance} due`
+                        : `£${booking.paid} paid`}
                     </span>
                   </div>
                 </div>
