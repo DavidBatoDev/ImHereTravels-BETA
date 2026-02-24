@@ -557,7 +557,8 @@ export function generateInstallmentDueDates(
   const resUTC = normalizeUTCDate(res);
   const tourUTC = normalizeUTCDate(tour);
 
-  // Generate all valid 2nd-of-month dates
+  // Generate all valid last-day-of-month dates
+  // Day 0 of (month + 1) = last day of (month), matching p1–p4DueDate.ts logic
   const monthCount =
     (tourUTC.getUTCFullYear() - resUTC.getUTCFullYear()) * 12 +
     (tourUTC.getUTCMonth() - resUTC.getUTCMonth()) +
@@ -568,7 +569,7 @@ export function generateInstallmentDueDates(
     { length: monthCount },
     (_, i) =>
       new Date(
-        Date.UTC(resUTC.getUTCFullYear(), resUTC.getUTCMonth() + i + 1, 2),
+        Date.UTC(resUTC.getUTCFullYear(), resUTC.getUTCMonth() + i + 1, 0),
       ),
   );
 
