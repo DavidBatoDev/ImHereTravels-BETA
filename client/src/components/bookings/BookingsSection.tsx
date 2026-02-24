@@ -255,7 +255,8 @@ export default function BookingsSection() {
         (col) =>
           col.dataType === "string" ||
           col.dataType === "email" ||
-          col.dataType === "select",
+          col.dataType === "select" ||
+          col.dataType === "function",
       )
       .map((col) => ({
         name: col.id,
@@ -266,13 +267,33 @@ export default function BookingsSection() {
         },
       }));
 
+    // Explicitly include key identifier/function fields that are excluded by the
+    // dataType filter above (bookingId is dataType "function" but produces a string).
+    const explicitKeys = [
+      {
+        name: "bookingId",
+        getFn: (booking: any) => String(booking.bookingId || ""),
+        weight: 1.0, // highest priority — exact ID search must always work
+      },
+      {
+        name: "fullName",
+        getFn: (booking: any) => String(booking.fullName || ""),
+        weight: 0.9,
+      },
+    ];
+
     return new Fuse(bookings, {
-      keys: searchableFields.map((field) => ({
-        name: field.name,
-        getFn: field.getFn,
-        weight: 0.7,
-      })),
-      threshold: 0.4, // 0 = exact match, 1 = match anything
+      keys: [
+        ...explicitKeys,
+        ...searchableFields
+          .filter((f) => f.name !== "bookingId" && f.name !== "fullName") // avoid duplicates
+          .map((field) => ({
+            name: field.name,
+            getFn: field.getFn,
+            weight: 0.7,
+          })),
+      ],
+      threshold: 0.3, // slightly tighter — reduces false positives for ID searches
       includeScore: true,
       minMatchCharLength: 2,
     });
