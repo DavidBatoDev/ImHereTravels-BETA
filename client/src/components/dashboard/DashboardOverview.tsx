@@ -212,7 +212,7 @@ export default function DashboardOverview() {
       0
     ),
     averageMonthlyRevenue: (() => {
-      const monthlyTrendsData = [];
+      const monthlyTrendsData: number[] = [];
       for (let i = 5; i >= 0; i--) {
         const date = new Date();
         date.setMonth(date.getMonth() - i);

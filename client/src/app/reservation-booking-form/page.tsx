@@ -5044,7 +5044,7 @@ const Page = () => {
                               : "bg-card border border-border text-foreground hover:border-crimson-red/50"
                           }`}
                         >
-                          You (Main Booker)
+                          Guest 1 (YOU)
                         </button>
 
                         {/* Guest Tabs */}
@@ -5824,7 +5824,7 @@ const Page = () => {
                               : "bg-muted text-muted-foreground hover:bg-muted/80"
                           }`}
                         >
-                          You (Main Booker)
+                          Guest 1 (YOU)
                           {paymentPlans[0]?.plan && (
                             <svg
                               className="h-4 w-4"
