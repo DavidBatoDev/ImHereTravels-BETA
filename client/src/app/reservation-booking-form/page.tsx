@@ -3202,7 +3202,7 @@ const Page = () => {
             whatsAppCountry: guestDetails[0]?.whatsAppCountry || "GB",
           },
         ]);
-        setActiveGuestTab(2);
+        setActiveGuestTab(1);
       });
       return;
     }
@@ -3238,7 +3238,7 @@ const Page = () => {
             whatsAppCountry: guestDetails[0]?.whatsAppCountry || "GB",
           },
         ]);
-        setActiveGuestTab(2);
+        setActiveGuestTab(1);
       });
       return;
     }
@@ -3276,7 +3276,7 @@ const Page = () => {
           });
         }
         setGuestDetails(newGuestDetails);
-        setActiveGuestTab(2);
+        setActiveGuestTab(1);
       });
       return;
     }
