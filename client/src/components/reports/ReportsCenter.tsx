@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -9,47 +10,72 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Download,
-  Calendar,
   Banknote,
   TrendingUp,
   BarChart3,
-  PieChart,
   Users,
-  MapPin,
   Clock,
-  FileText,
   AlertCircle,
   History,
+  XCircle,
   RefreshCw,
+  FileText,
+  Calendar,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { bookingVersionHistoryService } from "@/services/booking-version-history-service";
 import { BookingVersionSnapshot } from "@/types/version-history";
 import { useToast } from "@/hooks/use-toast";
+import { financialReportsService } from "@/services/financial-reports-service";
+import {
+  FinancialReport,
+  DateRangeFilter,
+} from "@/types/financial-reports";
+import { useSessionDateRange } from "@/hooks/useSessionDateRange";
+import { DateRangePicker } from "@/components/reports/DateRangePicker";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  Legend,
+} from "recharts";
 
-// Mock data - replace with real data from your backend
-const mockFinancialData = {
-  totalRevenue: 45600,
-  monthlyGrowth: 12.5,
-  outstandingBalances: 8900,
-  averageBookingValue: 1520,
-  revenueByTour: [
-    { tour: "Bali Adventure Tour", revenue: 18000, bookings: 15 },
-    { tour: "Thailand Cultural Experience", revenue: 14400, bookings: 8 },
-    { tour: "Vietnam Discovery", revenue: 10800, bookings: 12 },
-  ],
+/** Format a currency amount with a symbol prefix */
+function formatCurrency(amount: number, currency = "£"): string {
+  return `${currency}${Math.abs(amount).toLocaleString("en-GB", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+/** Metric tooltip definitions */
+const METRIC_DEFINITIONS: Record<string, string> = {
+  "Net Revenue":
+    "Gross Revenue minus total Refunded Amounts. Represents actual money retained.",
+  "Gross Revenue":
+    "Sum of all Reservation Fees and Px payments (P1–P4) actually received within the date range.",
+  "Outstanding Balances":
+    "Truly unpaid overdue installments (past due date + 1 day, no payment received). Paid-late amounts are excluded.",
+  "Expected Revenue":
+    "Future scheduled installment amounts based on Px Due Dates falling within the date range.",
+  "Total Refunded":
+    "Sum of refundable amounts issued on Cancellation Request Dates within the date range.",
+  "Cancelled Bookings":
+    "Number of bookings with a Cancellation Request Date within the date range.",
+  "Avg. Booking Value":
+    "Net Revenue divided by the number of non-cancelled bookings in the date range.",
 };
 
+// Placeholder mock data for non-financial tabs (to be replaced in UI phase)
 const mockBookingData = {
   totalBookings: 35,
   conversionRate: 68.5,
@@ -80,25 +106,52 @@ const mockOperationalData = {
 };
 
 export default function ReportsCenter() {
-  const [dateRange, setDateRange] = useState("30");
-  const [reportType, setReportType] = useState("financial");
-  const [activityLogs, setActivityLogs] = useState<BookingVersionSnapshot[]>(
-    []
-  );
+  const [dateRange, setDateRange] = useSessionDateRange();
+
+  // Financial report state
+  const [financialReport, setFinancialReport] = useState<FinancialReport | null>(null);
+  const [isLoadingFinancial, setIsLoadingFinancial] = useState(false);
+  const [financialError, setFinancialError] = useState<string | null>(null);
+
+  const [activityLogs, setActivityLogs] = useState<BookingVersionSnapshot[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const { toast } = useToast();
+
+  // Load financial report
+  const loadFinancialReport = useCallback(
+    async (range: DateRangeFilter) => {
+      setIsLoadingFinancial(true);
+      setFinancialError(null);
+      try {
+        const report = await financialReportsService.generateReport(range);
+        setFinancialReport(report);
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : "Failed to load financial report";
+        setFinancialError(msg);
+        toast({ title: "Error", description: msg, variant: "destructive" });
+      } finally {
+        setIsLoadingFinancial(false);
+      }
+    },
+    [toast]
+  );
+
+  // Load financial report whenever date range changes
+  useEffect(() => {
+    loadFinancialReport(dateRange);
+  }, [dateRange, loadFinancialReport]);
 
   // Load activity logs from booking version history
   useEffect(() => {
     loadActivityLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange]);
 
   const loadActivityLogs = async () => {
     setIsLoadingLogs(true);
     try {
-      const days = parseInt(dateRange);
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      const startDate = new Date(dateRange.startDate);
 
       const versions = await bookingVersionHistoryService.getAllVersions({
         orderBy: "createdAt",
@@ -182,10 +235,21 @@ export default function ReportsCenter() {
     }
   };
 
+  const metrics = financialReport?.metrics;
+  const router = useRouter();
+
+  const toTransactionsUrl = (status?: "paid" | "overdue" | "pending") => {
+    const base = `/reports/transactions?start=${dateRange.startDate}&end=${dateRange.endDate}`;
+    if (status) return `${base}&status=${status}&scrollTo=paymentSchedule`;
+    return base;
+  };
+  const toCancellationsUrl = () =>
+    `/reports/cancellations?start=${dateRange.startDate}&end=${dateRange.endDate}`;
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
             Reports & Analytics
@@ -194,21 +258,22 @@ export default function ReportsCenter() {
             Comprehensive insights into your business performance
           </p>
         </div>
-        <div className="flex space-x-2">
-          <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Last 7 days</SelectItem>
-              <SelectItem value="30">Last 30 days</SelectItem>
-              <SelectItem value="90">Last 90 days</SelectItem>
-              <SelectItem value="365">Last year</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadFinancialReport(dateRange)}
+            disabled={isLoadingFinancial}
+            className="h-[34px]"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isLoadingFinancial ? "animate-spin" : ""}`}
+            />
+          </Button>
+          <Button size="sm" className="h-[34px]">
             <Download className="mr-2 h-4 w-4" />
-            Export Report
+            Export
           </Button>
         </div>
       </div>
@@ -234,133 +299,378 @@ export default function ReportsCenter() {
         </TabsList>
 
         <TabsContent value="financial" className="space-y-6">
-          {/* Financial Overview */}
+          {/* Loading / Error states */}
+          {isLoadingFinancial && (
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              Loading financial data…
+            </div>
+          )}
+          {financialError && (
+            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-3">
+              <XCircle className="h-4 w-4" />
+              {financialError}
+            </div>
+          )}
+
+          {/* 7 Financial Metric Cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card>
+            {/* Net Revenue */}
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => router.push(toTransactionsUrl("paid"))}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Revenue
-                </CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium">Net Revenue</CardTitle>
+                  <span
+                    title={METRIC_DEFINITIONS["Net Revenue"]}
+                    className="text-gray-400 cursor-help text-xs select-none"
+                  >
+                    ⓘ
+                  </span>
+                </div>
                 <Banknote className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  €{mockFinancialData.totalRevenue.toLocaleString()}
+                  {metrics ? formatCurrency(metrics.totalNetRevenue) : "—"}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  +{mockFinancialData.monthlyGrowth}% from last month
-                </p>
+                <p className="text-xs text-muted-foreground">Gross minus refunds</p>
               </CardContent>
             </Card>
 
-            <Card>
+            {/* Gross Revenue */}
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => router.push(toTransactionsUrl("paid"))}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Outstanding Balances
-                </CardTitle>
-                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  ${mockFinancialData.outstandingBalances.toLocaleString()}
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium">Gross Revenue</CardTitle>
+                  <span
+                    title={METRIC_DEFINITIONS["Gross Revenue"]}
+                    className="text-gray-400 cursor-help text-xs select-none"
+                  >
+                    ⓘ
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Requires attention
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Avg. Booking Value
-                </CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  ${mockFinancialData.averageBookingValue}
+                  {metrics ? formatCurrency(metrics.totalGrossRevenue) : "—"}
                 </div>
-                <p className="text-xs text-muted-foreground">Per booking</p>
+                <p className="text-xs text-muted-foreground">All payments received</p>
               </CardContent>
             </Card>
 
-            <Card>
+            {/* Outstanding Balances */}
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => router.push(toTransactionsUrl("overdue"))}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Monthly Growth
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium">Outstanding Balances</CardTitle>
+                  <span
+                    title={METRIC_DEFINITIONS["Outstanding Balances"]}
+                    className="text-gray-400 cursor-help text-xs select-none"
+                  >
+                    ⓘ
+                  </span>
+                </div>
+                <AlertCircle className="h-4 w-4 text-orange-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">
+                  {metrics
+                    ? metrics.totalOverdueUnpaid > 0
+                      ? formatCurrency(metrics.totalOverdueUnpaid)
+                      : "—"
+                    : "—"}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {metrics && metrics.totalOverdueUnpaid > 0
+                    ? "Requires attention"
+                    : "All payments current"}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Expected Revenue */}
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => router.push(toTransactionsUrl("pending"))}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium">Expected Revenue</CardTitle>
+                  <span
+                    title={METRIC_DEFINITIONS["Expected Revenue"]}
+                    className="text-gray-400 cursor-help text-xs select-none"
+                  >
+                    ⓘ
+                  </span>
+                </div>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  +{mockFinancialData.monthlyGrowth}%
+                  {metrics ? formatCurrency(metrics.totalExpectedRevenue) : "—"}
                 </div>
-                <p className="text-xs text-muted-foreground">Revenue growth</p>
+                <p className="text-xs text-muted-foreground">Scheduled future payments</p>
               </CardContent>
             </Card>
+
+            {/* Total Refunded */}
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => router.push(toCancellationsUrl())}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium">Total Refunded</CardTitle>
+                  <span
+                    title={METRIC_DEFINITIONS["Total Refunded"]}
+                    className="text-gray-400 cursor-help text-xs select-none"
+                  >
+                    ⓘ
+                  </span>
+                </div>
+                <XCircle className="h-4 w-4 text-red-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  {metrics
+                    ? metrics.totalRefunded > 0
+                      ? `−${formatCurrency(metrics.totalRefunded)}`
+                      : "—"
+                    : "—"}
+                </div>
+                <p className="text-xs text-muted-foreground">Cancellation refunds</p>
+              </CardContent>
+            </Card>
+
+            {/* Cancelled Bookings */}
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => router.push(toCancellationsUrl())}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium">Cancelled Bookings</CardTitle>
+                  <span
+                    title={METRIC_DEFINITIONS["Cancelled Bookings"]}
+                    className="text-gray-400 cursor-help text-xs select-none"
+                  >
+                    ⓘ
+                  </span>
+                </div>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {metrics ? metrics.cancelledBookingsCount : "—"}
+                </div>
+                <p className="text-xs text-muted-foreground">Within date range</p>
+              </CardContent>
+            </Card>
+
           </div>
 
-          {/* Revenue by Tour */}
+          {/* Revenue Trends */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Revenue Trends</CardTitle>
+              <CardDescription>Revenue over time — hover for details</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {metrics && metrics.revenueTrend.length > 0 ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  <LineChart
+                    data={metrics.revenueTrend}
+                    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: "#6b7280" }}
+                      tickLine={false}
+                      axisLine={{ stroke: "#e5e7eb" }}
+                    />
+                    <YAxis
+                      tickFormatter={(v) =>
+                        `£${(v as number).toLocaleString("en-GB", {
+                          notation: "compact",
+                        })}`
+                      }
+                      tick={{ fontSize: 11, fill: "#6b7280" }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={72}
+                    />
+                    <RechartsTooltip
+                      content={(props: any) => {
+                        const { active, payload, label } = props;
+                        if (!active || !payload?.length) return null;
+                        return (
+                          <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
+                            <p className="font-semibold text-gray-700 mb-2">{label}</p>
+                            {payload.map((entry: any) => (
+                              <div
+                                key={entry.name}
+                                className="flex items-center gap-3 justify-between"
+                              >
+                                <span
+                                  style={{ color: entry.color }}
+                                  className="font-medium"
+                                >
+                                  {entry.name}:
+                                </span>
+                                <span className="font-bold">
+                                  {formatCurrency(entry.value as number)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }}
+                    />
+                    <Legend
+                      iconType="circle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: "12px" }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="grossRevenue"
+                      name="Gross Revenue"
+                      stroke="#22c55e"
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{ r: 5 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="expectedRevenue"
+                      name="Expected Revenue"
+                      stroke="#3b82f6"
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{ r: 5 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="refundedAmount"
+                      name="Refunded"
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                      strokeDasharray="4 2"
+                      dot={false}
+                      activeDot={{ r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-48 flex items-center justify-center bg-gray-50 rounded-lg">
+                  <div className="text-center">
+                    <TrendingUp className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-400 text-sm">
+                      No trend data for this period
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Revenue by Tour Package */}
           <Card>
             <CardHeader>
               <CardTitle>Revenue by Tour Package</CardTitle>
               <CardDescription>
-                Revenue breakdown by tour package
+                Net revenue and booking count per tour
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {mockFinancialData.revenueByTour.map((tour) => (
-                  <div
-                    key={tour.tour}
-                    className="flex items-center justify-between"
+              {!metrics || metrics.revenueByTour.length === 0 ? (
+                <p className="text-sm text-gray-400">
+                  No revenue data for this period.
+                </p>
+              ) : (
+                <ResponsiveContainer
+                  width="100%"
+                  height={Math.max(250, metrics.revenueByTour.length * 52 + 60)}
+                >
+                  <BarChart
+                    data={metrics.revenueByTour}
+                    layout="vertical"
+                    margin={{ top: 5, right: 80, left: 10, bottom: 5 }}
+                    barCategoryGap="35%"
                   >
-                    <div className="flex items-center space-x-3">
-                      <MapPin className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <p className="font-medium">{tour.tour}</p>
-                        <p className="text-sm text-gray-500">
-                          {tour.bookings} bookings
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">
-                        ${tour.revenue.toLocaleString()}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {(
-                          (tour.revenue / mockFinancialData.totalRevenue) *
-                          100
-                        ).toFixed(1)}
-                        %
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      horizontal={false}
+                      stroke="#f0f0f0"
+                    />
+                    <XAxis
+                      type="number"
+                      tickFormatter={(v) =>
+                        `£${(v as number).toLocaleString("en-GB", {
+                          notation: "compact",
+                        })}`
+                      }
+                      tick={{ fontSize: 11, fill: "#6b7280" }}
+                      tickLine={false}
+                      axisLine={{ stroke: "#e5e7eb" }}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="tourName"
+                      width={175}
+                      tick={{ fontSize: 11, fill: "#374151" }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <RechartsTooltip
+                      cursor={{ fill: "#f9fafb" }}
+                      content={(props: any) => {
+                        const { active, payload } = props;
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0].payload;
+                        return (
+                          <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
+                            <p className="font-semibold text-gray-700 mb-1 max-w-[200px] break-words">
+                              {d.tourName}
+                            </p>
+                            <p className="text-blue-600 font-bold">
+                              Net: {formatCurrency(d.netRevenue)}
+                            </p>
+                            <p className="text-gray-500">
+                              Gross: {formatCurrency(d.grossRevenue)}
+                            </p>
+                            <p className="text-gray-500">
+                              {d.bookingCount} booking
+                              {d.bookingCount !== 1 ? "s" : ""} &middot;{" "}
+                              {d.percentage}%
+                            </p>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Bar
+                      dataKey="netRevenue"
+                      name="Net Revenue"
+                      fill="#3b82f6"
+                      radius={[0, 4, 4, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
-          {/* Chart Placeholder */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Revenue Trends</CardTitle>
-              <CardDescription>Revenue over time visualization</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-                <div className="text-center">
-                  <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">Chart placeholder</p>
-                  <p className="text-sm text-gray-400">
-                    Revenue trends chart will be implemented here
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="bookings" className="space-y-6">

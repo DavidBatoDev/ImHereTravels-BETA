@@ -489,7 +489,7 @@ export default function AddConfirmedBookingModal({
                     <div className="text-right flex-shrink-0">
                       <p className="text-xs text-muted-foreground">Payment</p>
                       <p className="font-semibold">
-                        €{booking.paid.toFixed(2)}
+                        £{booking.paid.toFixed(2)}
                       </p>
                     </div>
                   </div>

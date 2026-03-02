@@ -485,7 +485,9 @@ export default function BookingsSection() {
     const mode = searchParams?.get("mode");
 
     if (bookingId && bookings.length > 0) {
-      const booking = bookings.find((b) => b.id === bookingId);
+      const booking = bookings.find(
+        (b) => b.id === bookingId || b.bookingId === bookingId
+      );
       if (booking) {
         setSelectedBooking(booking);
         setIsDetailModalOpen(true);
@@ -679,6 +681,9 @@ export default function BookingsSection() {
 
   const getStatusBgColor = (booking: Booking) => {
     const category = getBookingStatusCategory(booking.bookingStatus);
+    if (category === "Pending" && checkOverduePayments(booking).hasOverdue) {
+      return "bg-orange-500/20";
+    }
     switch (category) {
       case "Confirmed":
         return "bg-spring-green/20";
@@ -691,6 +696,14 @@ export default function BookingsSection() {
       default:
         return "bg-gray-200";
     }
+  };
+
+  const getDisplayStatus = (booking: Booking): string => {
+    const category = getBookingStatusCategory(booking.bookingStatus);
+    if (category === "Pending" && checkOverduePayments(booking).hasOverdue) {
+      return "Overdue";
+    }
+    return category;
   };
 
   const getBookingTypeBgColor = (type: string) => {
@@ -721,9 +734,9 @@ export default function BookingsSection() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-GB", {
       style: "currency",
-      currency: "EUR",
+      currency: "GBP",
     }).format(amount);
   };
 
@@ -967,7 +980,7 @@ export default function BookingsSection() {
 
     // Return appropriate sample based on data type
     if (column.dataType === "date") return "Jan 15, 2024";
-    if (column.dataType === "currency") return "€1,250";
+    if (column.dataType === "currency") return "£1,250";
     if (column.dataType === "boolean") return "Yes";
     if (columnId === "bookingId") return "BOOK-001";
     if (columnId === "emailAddress") return "traveler@example.com";
@@ -2880,7 +2893,7 @@ export default function BookingsSection() {
                             )}`}
                             title={booking.bookingStatus || "Pending"}
                           >
-                            {getBookingStatusCategory(booking.bookingStatus)}
+                            {getDisplayStatus(booking)}
                           </Badge>
                           {booking.bookingType !== "Individual" && (
                             <Badge
@@ -3244,7 +3257,7 @@ export default function BookingsSection() {
                       {getColumnLabel(cardFieldMappings.field3_right)}
                     </th>
                     <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[70px] md:w-auto">
-                      Status
+                      Booking Status
                     </th>
                     <th className="text-left py-0.5 px-0.5 md:py-2 md:px-3 font-semibold text-foreground text-[7px] md:text-[10px] min-w-[60px] md:w-auto">
                       Payment
@@ -3407,7 +3420,7 @@ export default function BookingsSection() {
                               )}`}
                               title={booking.bookingStatus || "Pending"}
                             >
-                              {getBookingStatusCategory(booking.bookingStatus)}
+                              {getDisplayStatus(booking)}
                             </Badge>
                           </td>
                           <td className="py-0.5 px-0.5 md:py-2 md:px-3">
