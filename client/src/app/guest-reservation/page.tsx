@@ -1555,7 +1555,7 @@ const GuestReservationPage = () => {
                         Reservation Fee:
                       </span>
                       <span className="font-bold text-lg text-crimson-red">
-                        €{depositAmount?.toFixed(2) || "0.00"}
+                        £{depositAmount?.toFixed(2) || "0.00"}
                       </span>
                     </div>
                   </div>
