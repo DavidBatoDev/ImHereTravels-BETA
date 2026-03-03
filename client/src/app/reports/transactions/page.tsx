@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
@@ -281,7 +281,7 @@ function SortHeader({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function TransactionsDetailPage() {
+function TransactionsDetailPageContent() {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -988,5 +988,19 @@ export default function TransactionsDetailPage() {
         </Card>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function TransactionsDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="p-6 text-sm text-gray-500">Loading report…</div>
+        </DashboardLayout>
+      }
+    >
+      <TransactionsDetailPageContent />
+    </Suspense>
   );
 }

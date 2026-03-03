@@ -83,6 +83,7 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { Timestamp } from "firebase/firestore";
 import { bookingService } from "@/services/booking-service";
+import { financialReportsService } from "@/services/financial-reports-service";
 import { useToast } from "@/hooks/use-toast";
 import BookingDetailModal from "./BookingDetailModal";
 import BookingVersionHistoryModal from "@/components/version-history/BookingVersionHistoryModal";
@@ -239,6 +240,11 @@ export default function BookingsSection() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreatingBooking, setIsCreatingBooking] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [reportMetrics, setReportMetrics] = useState<{
+    netRevenue: number;
+    outstandingBalances: number;
+    expectedRevenue: number;
+  } | null>(null);
 
   // Ref for the bookings container to enable scrolling after adding a booking
   const bookingsContainerRef = useRef<HTMLDivElement>(null);
@@ -646,26 +652,12 @@ export default function BookingsSection() {
       (b) => getBookingStatusCategory(b.bookingStatus) === "Completed",
     ).length;
 
-    const totalRevenue = bookings.reduce((sum, booking) => {
-      const paid = safeNumber(booking.paid, 0);
-      return sum + paid;
-    }, 0);
-
-    const pendingPayments = bookings.reduce((sum, booking) => {
-      const totalCost = getTotalCost(booking);
-      const paid = safeNumber(booking.paid, 0);
-      const remaining = Math.max(0, totalCost - paid);
-      return sum + remaining;
-    }, 0);
-
     return {
       totalBookings,
       confirmedBookings,
       pendingBookings,
       cancelledBookings,
       completedBookings,
-      totalRevenue,
-      pendingPayments,
     };
   }, [bookings]);
 
@@ -675,9 +667,37 @@ export default function BookingsSection() {
     pendingBookings,
     cancelledBookings,
     completedBookings,
-    totalRevenue,
-    pendingPayments,
   } = statistics;
+
+  useEffect(() => {
+    let active = true;
+
+    const loadFinancialMetrics = async () => {
+      try {
+        const bounds = await financialReportsService.getDataBounds();
+        const report = await financialReportsService.generateReport({
+          preset: "all_time",
+          startDate: bounds.startDate,
+          endDate: bounds.endDate,
+        });
+
+        if (!active) return;
+        setReportMetrics({
+          netRevenue: report.metrics.totalNetRevenue,
+          outstandingBalances: report.metrics.totalOverdueUnpaid,
+          expectedRevenue: report.metrics.totalExpectedRevenue,
+        });
+      } catch (error) {
+        console.error("Failed to load financial metrics for bookings:", error);
+      }
+    };
+
+    loadFinancialMetrics();
+
+    return () => {
+      active = false;
+    };
+  }, [bookings]);
 
   const getStatusBgColor = (booking: Booking) => {
     const category = getBookingStatusCategory(booking.bookingStatus);
@@ -1407,28 +1427,35 @@ export default function BookingsSection() {
             </CardContent>
           </Card>
 
-          {/* Revenue & Pending */}
+          {/* Net Revenue, Outstanding Balances & Expected Revenue */}
           <Card className="relative overflow-hidden border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div className="flex-1 pr-6">
                   <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
-                    Revenue
+                    Net Revenue
                   </p>
                   <p className="text-2xl sm:text-3xl font-bold text-spring-green">
-                    {formatCurrency(totalRevenue)}
+                    {formatCurrency(reportMetrics?.netRevenue ?? 0)}
                   </p>
-                  {pendingPayments > 0 && (
-                    <div className="flex items-center gap-1.5 mt-2">
-                      <div className="w-2 h-2 rounded-full bg-crimson-red"></div>
-                      <p className="text-xs text-muted-foreground">
-                        Pending:{" "}
-                        <span className="text-crimson-red font-bold">
-                          {formatCurrency(pendingPayments)}
-                        </span>
-                      </p>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
+                    <p className="text-xs text-muted-foreground">
+                      Outstanding Balances:{" "}
+                      <span className="text-vivid-orange font-bold">
+                        {formatCurrency(reportMetrics?.outstandingBalances ?? 0)}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <div className="w-2 h-2 rounded-full bg-crimson-red"></div>
+                    <p className="text-xs text-muted-foreground">
+                      Expected Revenue:{" "}
+                      <span className="text-crimson-red font-bold">
+                        {formatCurrency(reportMetrics?.expectedRevenue ?? 0)}
+                      </span>
+                    </p>
+                  </div>
                 </div>
                 <div className="hidden sm:flex items-center justify-center p-4 bg-gradient-to-br from-crimson-red/20 to-crimson-red/10 rounded-full rounded-br-none">
                   <HiTrendingUp className="h-6 w-6 text-foreground" />

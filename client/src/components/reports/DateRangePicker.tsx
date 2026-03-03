@@ -25,6 +25,7 @@ interface Preset {
 // ---------------------------------------------------------------------------
 
 const SIDEBAR_PRESETS: Preset[] = [
+  { label: "All time", value: "all_time" },
   { label: "Today", value: "today" },
   { label: "Last 7 days", value: "last_7_days" },
   { label: "Last 30 days", value: "last_30_days" },
@@ -58,8 +59,36 @@ function parseISO(str: string): Date {
   return new Date(y, m - 1, d);
 }
 
+function parseTypedDate(value: string): string | null {
+  const raw = value.trim();
+  if (!raw) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const d = parseISO(raw);
+    if (!isNaN(d.getTime())) return toLocalISO(d);
+  }
+
+  const mmddyyyy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (mmddyyyy) {
+    const month = Number(mmddyyyy[1]);
+    const day = Number(mmddyyyy[2]);
+    const year = Number(mmddyyyy[3]);
+    const d = new Date(year, month - 1, day);
+    if (
+      d.getFullYear() === year &&
+      d.getMonth() === month - 1 &&
+      d.getDate() === day
+    ) {
+      return toLocalISO(d);
+    }
+  }
+
+  return null;
+}
+
 /** Format a DateRangeFilter into its human label for the trigger button */
 function formatRangeLabel(range: DateRangeFilter): string {
+  if (range.preset === "all_time") return "All time";
   if (range.preset !== "custom") {
     const found = SIDEBAR_PRESETS.find((p) => p.value === range.preset);
     if (found && found.value !== "custom") return found.label;
@@ -252,9 +281,12 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   const [pickingEnd, setPickingEnd] = useState(false); // true = next click is endDate
   const [hovered, setHovered] = useState<string | null>(null);
 
-  // Input fields (typed date)
+  // Manual typed input fields
   const [inputStart, setInputStart] = useState(value.startDate);
   const [inputEnd, setInputEnd] = useState(value.endDate);
+
+  // Loading state while fetching "All time" data bounds
+  const [loadingBounds, setLoadingBounds] = useState(false);
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -287,12 +319,37 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
     setHovered(null);
     const d = parseISO(value.startDate);
     setLeftCal({ year: d.getFullYear(), month: d.getMonth() });
+    // If currently showing all_time with sentinel values, refetch real bounds
+    if (value.preset === "all_time") {
+      setLoadingBounds(true);
+      financialReportsService.getDataBounds().then((bounds) => {
+        setDraftStart(bounds.startDate);
+        setDraftEnd(bounds.endDate);
+        setInputStart(bounds.startDate);
+        setInputEnd(bounds.endDate);
+        const d2 = parseISO(bounds.startDate);
+        setLeftCal({ year: d2.getFullYear(), month: d2.getMonth() });
+      }).finally(() => setLoadingBounds(false));
+    }
     setOpen(true);
   };
 
   const selectPreset = (preset: DateRangePreset) => {
     if (preset === "custom") {
       setDraftPreset("custom");
+      return;
+    }
+    if (preset === "all_time") {
+      setDraftPreset("all_time");
+      setLoadingBounds(true);
+      financialReportsService.getDataBounds().then((bounds) => {
+        setDraftStart(bounds.startDate);
+        setDraftEnd(bounds.endDate);
+        setInputStart(bounds.startDate);
+        setInputEnd(bounds.endDate);
+        const d = parseISO(bounds.startDate);
+        setLeftCal({ year: d.getFullYear(), month: d.getMonth() });
+      }).finally(() => setLoadingBounds(false));
       return;
     }
     const resolved = financialReportsService.resolveDateRange(preset);
@@ -329,8 +386,31 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
     }
   };
 
+  const handleInputStartBlur = () => {
+    const parsed = parseTypedDate(inputStart);
+    if (!parsed) return;
+    setInputStart(parsed);
+    setDraftStart(parsed);
+    setDraftPreset("custom");
+    const d = parseISO(parsed);
+    setLeftCal({ year: d.getFullYear(), month: d.getMonth() });
+  };
+
+  const handleInputEndBlur = () => {
+    const parsed = parseTypedDate(inputEnd);
+    if (!parsed) return;
+    setInputEnd(parsed);
+    setDraftEnd(parsed);
+    setDraftPreset("custom");
+  };
+
   const handleApply = () => {
     if (!draftStart || !draftEnd) return;
+    if (draftPreset === "all_time") {
+      onChange({ preset: "all_time", startDate: draftStart, endDate: draftEnd });
+      setOpen(false);
+      return;
+    }
     const resolved = financialReportsService.resolveDateRange(
       draftPreset,
       draftStart,
@@ -344,24 +424,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
     setOpen(false);
   };
 
-  // Validate typed input fields
-  const handleInputStartBlur = () => {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(inputStart)) {
-      setDraftStart(inputStart);
-      setDraftPreset("custom");
-      const d = parseISO(inputStart);
-      setLeftCal({ year: d.getFullYear(), month: d.getMonth() });
-    }
-  };
-
-  const handleInputEndBlur = () => {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(inputEnd)) {
-      setDraftEnd(inputEnd);
-      setDraftPreset("custom");
-    }
-  };
-
-  const canApply = !!draftStart && !!draftEnd;
+  const canApply = !!draftStart && !!draftEnd && !loadingBounds;
 
   return (
     <div className="relative">
@@ -408,14 +471,16 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
             })}
           </div>
 
-          {/* Right side: calendar + inputs */}
+          {/* Right side: calendar */}
           <div className="flex flex-col flex-1">
             {/* Date input row */}
             <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-gray-100">
               <div className="flex-1">
                 <label className="text-xs text-gray-500 block mb-1">Start date</label>
                 <input
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="YYYY-MM-DD"
                   value={inputStart}
                   onChange={(e) => setInputStart(e.target.value)}
                   onBlur={handleInputStartBlur}
@@ -426,7 +491,9 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
               <div className="flex-1">
                 <label className="text-xs text-gray-500 block mb-1">End date</label>
                 <input
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="YYYY-MM-DD"
                   value={inputEnd}
                   onChange={(e) => setInputEnd(e.target.value)}
                   onBlur={handleInputEndBlur}
@@ -437,9 +504,15 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
 
             {/* Dual calendar */}
             <div
-              className="flex gap-6 px-5 py-4"
+              className="flex gap-6 px-5 py-4 min-h-[240px]"
               onMouseLeave={() => setHovered(null)}
             >
+              {loadingBounds ? (
+                <div className="flex flex-1 items-center justify-center text-sm text-gray-500">
+                  Loading date range…
+                </div>
+              ) : (
+                <>
               <MiniCalendar
                 year={leftCal.year}
                 month={leftCal.month}
@@ -467,6 +540,8 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
                 showPrev={false}
                 showNext={true}
               />
+                </>
+              )}
             </div>
 
             {/* Footer */}

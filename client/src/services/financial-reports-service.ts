@@ -90,6 +90,9 @@ export function resolveDateRangePreset(
   const sub = (days: number) => toISODate(new Date(today.getTime() - days * 86400000));
 
   switch (preset) {
+    case "all_time":
+      return { preset, startDate: "2000-01-01", endDate: "2099-12-31" };
+
     case "today":
       return { preset, startDate: todayStr, endDate: todayStr };
 
@@ -346,6 +349,11 @@ function buildBookingSummary(
   let totalRefunded = 0;
   let isCancelled = false;
 
+  // Check bookingStatus field directly so bookings cancelled without a
+  // cancellationRequestDate are still counted in the cancellations report.
+  const rawStatus = (booking.bookingStatus as string) ?? "";
+  if (rawStatus.toLowerCase() === "cancelled") isCancelled = true;
+
   for (const e of events) {
     totalGross += e.grossRevenue;
     totalExpected += e.expectedRevenue;
@@ -544,6 +552,59 @@ function aggregateMetrics(
 }
 
 // ---------------------------------------------------------------------------
+// Data Bounds Helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Scans all bookings to find the earliest reservation date and the latest
+ * payment due date (so "All time" captures expected future revenues).
+ */
+async function fetchDataBounds(): Promise<{ startDate: string; endDate: string }> {
+  const rawBookings = await bookingService.getAllBookings();
+
+  let earliest: string | null = null;
+  let latest: string | null = null;
+
+  for (const b of rawBookings) {
+    const booking = b as Record<string, unknown>;
+
+    // Earliest start: reservation date
+    const reservationDate = toDate(booking.reservationDate);
+    if (reservationDate) {
+      const str = toISODate(reservationDate);
+      if (!earliest || str < earliest) earliest = str;
+    }
+
+    // Also consider tour/travel date as a potential start
+    const tourDate = toDate(booking.tourDate ?? booking.travelDate ?? booking.startDate);
+    if (tourDate) {
+      const str = toISODate(tourDate);
+      if (!earliest || str < earliest) earliest = str;
+    }
+
+    // Latest end: all payment due dates (captures expected future revenues)
+    for (const n of [1, 2, 3, 4] as const) {
+      const dd = toDate((booking as Record<string, unknown>)[`p${n}DueDate`]);
+      if (dd) {
+        const s = toISODate(dd);
+        if (!latest || s > latest) latest = s;
+      }
+    }
+    const fullDue = toDate(booking.fullPaymentDueDate);
+    if (fullDue) {
+      const s = toISODate(fullDue);
+      if (!latest || s > latest) latest = s;
+    }
+  }
+
+  const today = new Date();
+  return {
+    startDate: earliest ?? toISODate(new Date(today.getFullYear() - 3, 0, 1)),
+    endDate: latest ?? toISODate(new Date(today.getFullYear() + 2, 11, 31)),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -602,4 +663,11 @@ export const financialReportsService = {
    * Helper: resolve a preset label + optional custom dates into a DateRangeFilter.
    */
   resolveDateRange: resolveDateRangePreset,
+
+  /**
+   * Scan all bookings to find the actual earliest reservation date and the
+   * latest payment due date. Used by "All time" to produce a meaningful range
+   * instead of hardcoded sentinels.
+   */
+  getDataBounds: fetchDataBounds,
 };

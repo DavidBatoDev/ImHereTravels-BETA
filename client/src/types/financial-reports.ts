@@ -131,6 +131,7 @@ export interface RevenueTrendBucket {
 // ---------------------------------------------------------------------------
 
 export type DateRangePreset =
+  | "all_time"
   | "today"
   | "last_7_days"
   | "last_30_days"
