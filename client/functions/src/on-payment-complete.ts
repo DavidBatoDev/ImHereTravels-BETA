@@ -23,7 +23,7 @@ const storage = getStorage();
  */
 async function generateBookingReference(
   tourPackageName: string,
-  tourDate: Timestamp
+  tourDate: Timestamp,
 ): Promise<string> {
   try {
     // Get tour code from tourPackages collection
@@ -67,7 +67,7 @@ async function generateBookingReference(
  * Find pre-departure pack by tour package name
  */
 async function findPreDeparturePackByTourPackage(
-  tourPackageName: string
+  tourPackageName: string,
 ): Promise<{ id: string; data: any } | null> {
   try {
     const packsSnap = await db.collection("preDeparturePack").get();
@@ -79,7 +79,7 @@ async function findPreDeparturePackByTourPackage(
       const found = tourPackages.some(
         (tp: any) =>
           tp.tourPackageName.toLowerCase().trim() ===
-          tourPackageName.toLowerCase().trim()
+          tourPackageName.toLowerCase().trim(),
       );
 
       if (found) {
@@ -122,7 +122,7 @@ function formatDateLikeSheets(dateValue: any): string {
         "Dec",
       ];
       const hasMonthName = monthNames.some((month) =>
-        trimmedValue.includes(month)
+        trimmedValue.includes(month),
       );
 
       if (hasMonthName) {
@@ -177,7 +177,7 @@ async function getBCCList(): Promise<string[]> {
  */
 async function sendBookingConfirmationEmail(
   bookingData: any,
-  preDeparturePackData: any | null
+  preDeparturePackData: any | null,
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const gmailService = new GmailApiService();
@@ -209,7 +209,7 @@ async function sendBookingConfirmationEmail(
       term: string,
       amount: string,
       dueDate: string,
-      datePaid: string
+      datePaid: string,
     ) => {
       return `<tr>
         <td style="padding: 10px; border: 1px solid black;">${term}</td>
@@ -226,8 +226,8 @@ async function sendBookingConfirmationEmail(
           "Full Payment",
           Number(bookingData.fullPaymentAmount || 0).toFixed(2),
           formatDateLikeSheets(bookingData.fullPaymentDueDate),
-          formatDateLikeSheets(bookingData.fullPaymentDatePaid)
-        )
+          formatDateLikeSheets(bookingData.fullPaymentDatePaid),
+        ),
       );
     } else {
       // Add P1 if exists
@@ -237,8 +237,8 @@ async function sendBookingConfirmationEmail(
             "P1",
             Number(bookingData.p1Amount || 0).toFixed(2),
             formatDateLikeSheets(bookingData.p1DueDate),
-            formatDateLikeSheets(bookingData.p1DatePaid)
-          )
+            formatDateLikeSheets(bookingData.p1DatePaid),
+          ),
         );
       }
       // Add P2 if exists
@@ -248,8 +248,8 @@ async function sendBookingConfirmationEmail(
             "P2",
             Number(bookingData.p2Amount || 0).toFixed(2),
             formatDateLikeSheets(bookingData.p2DueDate),
-            formatDateLikeSheets(bookingData.p2DatePaid)
-          )
+            formatDateLikeSheets(bookingData.p2DatePaid),
+          ),
         );
       }
       // Add P3 if exists
@@ -259,8 +259,8 @@ async function sendBookingConfirmationEmail(
             "P3",
             Number(bookingData.p3Amount || 0).toFixed(2),
             formatDateLikeSheets(bookingData.p3DueDate),
-            formatDateLikeSheets(bookingData.p3DatePaid)
-          )
+            formatDateLikeSheets(bookingData.p3DatePaid),
+          ),
         );
       }
       // Add P4 if exists
@@ -270,8 +270,8 @@ async function sendBookingConfirmationEmail(
             "P4",
             Number(bookingData.p4Amount || 0).toFixed(2),
             formatDateLikeSheets(bookingData.p4DueDate),
-            formatDateLikeSheets(bookingData.p4DatePaid)
-          )
+            formatDateLikeSheets(bookingData.p4DatePaid),
+          ),
         );
       }
     }
@@ -290,7 +290,7 @@ async function sendBookingConfirmationEmail(
       fullPaymentAmount: Number(bookingData.fullPaymentAmount || 0).toFixed(2),
       fullPaymentDueDate: formatDateLikeSheets(bookingData.fullPaymentDueDate),
       fullPaymentDatePaid: formatDateLikeSheets(
-        bookingData.fullPaymentDatePaid
+        bookingData.fullPaymentDatePaid,
       ),
       p1Amount: Number(bookingData.p1Amount || 0).toFixed(2),
       p1DueDate: formatDateLikeSheets(bookingData.p1DueDate),
@@ -309,7 +309,7 @@ async function sendBookingConfirmationEmail(
     // Process template
     const processedHtml = EmailTemplateService.processTemplate(
       templateData.content,
-      templateVariables
+      templateVariables,
     );
 
     const subject = `Booking Confirmed for ${bookingData.tourPackageName}: ${bookingData.bookingReference}`;
@@ -330,7 +330,7 @@ async function sendBookingConfirmationEmail(
     if (preDeparturePackData && preDeparturePackData.fileDownloadURL) {
       logger.info(
         "Attaching pre-departure pack:",
-        preDeparturePackData.fileName
+        preDeparturePackData.fileName,
       );
 
       // Download file from Firebase Storage
@@ -407,21 +407,6 @@ export const onPaymentComplete = onDocumentUpdated(
         return;
       }
 
-      // Check if we should skip triggers (during CSV import or Sheets sync)
-      const importSyncDoc = await db
-        .collection("config")
-        .doc("import-sync")
-        .get();
-      const skipTriggers =
-        importSyncDoc.exists && importSyncDoc.data()?.skipTriggers === true;
-      if (skipTriggers) {
-        logger.info("⏭️ Skipping trigger - import/sync operation in progress", {
-          operation: importSyncDoc.data()?.operation,
-          startedAt: importSyncDoc.data()?.startedAt,
-        });
-        return;
-      }
-
       logger.info("✅ Payment completed - processing confirmed booking");
 
       // Check if confirmed booking already exists
@@ -451,17 +436,17 @@ export const onPaymentComplete = onDocumentUpdated(
 
       // Find pre-departure pack
       const preDeparturePack = await findPreDeparturePackByTourPackage(
-        afterData.tourPackageName
+        afterData.tourPackageName,
       );
 
       if (preDeparturePack) {
         logger.info(
           "Found pre-departure pack:",
-          preDeparturePack.data.fileName
+          preDeparturePack.data.fileName,
         );
       } else {
         logger.info(
-          "No pre-departure pack found for this tour package - skipping confirmed booking creation"
+          "No pre-departure pack found for this tour package - skipping confirmed booking creation",
         );
         return;
       }
@@ -469,7 +454,7 @@ export const onPaymentComplete = onDocumentUpdated(
       // Generate booking reference
       const bookingReference = await generateBookingReference(
         afterData.tourPackageName,
-        afterData.tourDate
+        afterData.tourDate,
       );
 
       logger.info("Generated booking reference:", bookingReference);
@@ -496,12 +481,12 @@ export const onPaymentComplete = onDocumentUpdated(
           {
             hasPreDeparturePack: !!preDeparturePack,
             packName: preDeparturePack?.data.fileName || "N/A",
-          }
+          },
         );
 
         const emailResult = await sendBookingConfirmationEmail(
           { ...afterData, bookingReference },
-          preDeparturePack?.data || null
+          preDeparturePack?.data || null,
         );
 
         if (emailResult.success && emailResult.messageId) {
@@ -548,7 +533,7 @@ export const onPaymentComplete = onDocumentUpdated(
         }
       } else {
         logger.info(
-          "📝 Automatic sends disabled - booking created with 'created' status"
+          "📝 Automatic sends disabled - booking created with 'created' status",
         );
       }
 
@@ -558,11 +543,11 @@ export const onPaymentComplete = onDocumentUpdated(
         .add(confirmedBookingData);
 
       logger.info(
-        `✅ Confirmed booking created: ${confirmedBookingRef.id} (${confirmedBookingData.status})`
+        `✅ Confirmed booking created: ${confirmedBookingRef.id} (${confirmedBookingData.status})`,
       );
     } catch (error) {
       logger.error("❌ Error in onPaymentComplete:", error);
       // Don't throw error to prevent retries
     }
-  }
+  },
 );

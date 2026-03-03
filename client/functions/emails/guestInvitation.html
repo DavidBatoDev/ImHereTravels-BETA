@@ -1,198 +1,80 @@
+<!DOCTYPE html>
 <html>
 
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>You're Invited to Join Our Tour!</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-        }
-    </style>
+    <title>Complete Your Guest Information</title>
 </head>
 
-<body>
-    <div style="font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 0;">
-        <!-- Header with Logo -->
-        <div style="text-align: center; padding: 20px; background-color: #ffffff;">
-            <img
-            src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1768292814673_%F0%9F%9A%A3%20Logo%20Center%20(Row%20For%20Content%20Columns).png?alt=media&token=476fb69b-4cd5-4c56-901a-9190c15685f0"
-            alt="ImHereTravels Logo"
-            style="width: 90%; max-width: 550px; height: auto; display: block; margin: 0 auto;"
-            />
+<body style="margin:0;padding:20px;background-color:#f8f9fa;font-family:'DM Sans','HK Grotesk',Arial,sans-serif;">
+    <div
+        style="max-width:600px;margin:auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+
+        <!-- Header -->
+        <div style="background-color:#EF3340;padding:30px 40px;text-align:center;">
+            <div style="
+          display:inline-block;
+          width:150px;
+          height:40px;
+          background:url('https://drive.google.com/uc?export=view&id=1SpTtyplwlnDh2f-ubpYCHCOcDbilVgWa') no-repeat center;
+          background-size:contain;
+          font-size:0;line-height:0;">
+                &nbsp;
+            </div>
         </div>
 
-        <!-- Hero Image -->
-        <div style="width: 100%; margin: 0 auto;">
-            <img
-                    src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1767334951959_b0f582526af6adb523ad1036d0b0a6ff3437ea61.jpg?alt=media&token=c56af73d-0bfa-492d-8680-e1588d72d1b6"
-                    alt="ImHereTravels Banner"
-                    style="
-                    width: 100%;
-                    max-width: 636px;
-                    height: 300px;
-                    object-fit: cover;
-                    object-position: 50% 85%;
-                    display: block;
-                    margin: 0 auto;
-                    "
-                    />
-        </div>
-
-        <div style="
-        max-width: 600px;
-        margin: 0 auto;
-        background-color: #ffffff;
-        padding: 30px 20px;
-        ">
-
-            <!-- Confirmation Header -->
-            <div style="text-align: center; margin-bottom: 25px;">
-                <h2 style="color: #333333; margin: 0 0 5px 0; font-size: 20px;">You're invited! 🎉</h2>
-                <p style="color: #666666; margin: 5px 0 0 0; font-size: 14px;">You're going to the Philippines!</p>
-            </div>
-
-            <!-- Greeting -->
-            <p style="font-size: 15px; color: #666666; margin: 0 0 15px 0;">
-                Hi {{ mainBookerName }},
+        <!-- Main content -->
+        <div style="padding:40px;">
+            <p style="margin:0 0 16px 0;">
+                Hi {{ fullName }},
             </p>
 
-            <p style="font-size: 15px; color: #666666; margin: 0 0 25px 0;">
-                <strong>{{ mainBookerName }}</strong> has invited you to join their group booking for an exciting tour
-                with <strong style="color: #e74c3c">ImHereTravels!</strong>
+            <p style="margin:0 0 20px 0;">
+                Hope you’re well!<br><br>
+        Help us make sure your travel arrangements are complete for
+                <strong style="color:#EF3340;">{{ tourPackage }}</strong> with Booking ID:
+                <strong style="color:#EF3340;">{{ bookingId }}</strong>.
             </p>
 
-            <!-- Tour Details -->
-            <div style="
-        background-color: #f5f5f5;
-        padding: 20px;
-        border-radius: 12px;
-        margin: 25px 0;
-        border-left: 5px solid #e74c3c;
-        ">
-                <h3 style="color: #333333; margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">Tour Details</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                    <tr style="border-bottom: 1px solid #e0e0e0;">
-                        <td style="padding: 10px 0; color: #666666; font-weight: 500;">Tour Name</td>
-                        <td style="padding: 10px 0; color: #333333; text-align: right;">{{ tourName }}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid #e0e0e0;">
-                        <td style="padding: 10px 0; color: #666666; font-weight: 500;">Tour Date</td>
-                        <td style="padding: 10px 0; color: #333333; text-align: right;">{{ tourDate }}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 10px 0; color: #666666; font-weight: 500;">Initial Deposit</td>
-                        <td style="padding: 10px 0; color: #e74c3c; font-weight: bold; text-align: right;">€{{
-                            depositAmount }}</td>
-                    </tr>
-                </table>
-            </div>
-
-            <!-- Important Notice -->
-            <div style="
-        background-color: #fff9e6;
-        padding: 20px;
-        border-radius: 12px;
-        margin: 25px 0;
-        border-left: 5px solid #ffc107;
-        ">
-                <h3 style="color: #ff9800; margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">Important</h3>
-                <p style="color: #666666; margin: 0; font-size: 14px;">
-                    This invitation expires on <strong style="color: #e74c3c;">{{ expiresAt }}</strong>. Complete your
-                    booking before then to secure your spot!
-                </p>
-            </div>
-
-            <p style="font-size: 15px; color: #666666; margin: 0 0 20px 0;">
-                To complete your reservation, simply click the button below and follow the steps to provide your details
-                and make your initial deposit payment.
+            <p style="margin:0 0 24px 0;">
+                Please fill out our <strong>Guest Information Form</strong>.
             </p>
 
-            <!-- CTA Button -->
-            <div style="text-align: center; margin: 30px 0;">
-                <a href="{{ invitationLink }}" style="
-            display: inline-block;
-            background-color: #e74c3c;
-            color: #ffffff;
-            text-decoration: none;
-            padding: 12px 35px;
-            border-radius: 25px;
-            font-size: 16px;
-            font-weight: bold;
-            ">
-                    Complete my booking
+            <div style="text-align:center;margin:28px 0 18px 0;">
+                <a href="{{ formLink }}"
+                    style="display:inline-block;background:#EF3340;color:#fff;text-decoration:none;font-weight:700;font-size:18px;padding:16px 32px;border-radius:50px;">
+                    Complete Guest Information Form
                 </a>
             </div>
 
-            <p style="
-        font-size: 14px;
-        color: #666666;
-        text-align: center;
-        margin-top: 20px;
-        ">
-                Or copy and paste this link into your browser:<br />
-                <a href="{{ invitationLink }}" style="color: #e74c3c; word-break: break-all; text-decoration: none;">
-                    {{ invitationLink }}
-                </a>
+            <p style="text-align:center;margin:10px 0 0 0;color:#555;line-height:1.6;">
+                If you’ve already submitted it, feel free to ignore this message.<br>
+        We’ll send your Adventure Kit next, stay tuned!
             </p>
 
-            <!-- Need Help Section -->
-            <div style="
-        background-color: #f5f5f5;
-        padding: 20px;
-        border-radius: 12px;
-        margin: 25px 0;
-        border-left: 5px solid #e74c3c;
-        ">
-                <h3 style="color: #e74c3c; margin: 0 0 15px 0; font-size: 16px; font-weight: bold; text-align: center;">
-                    Need help?</h3>
-                <p style="color: #666666; margin: 0 0 10px 0; font-size: 14px; text-align: center;">
-                    Email us at <a href="mailto:bella@imheretravels.com"
-                        style="color: #2196F3; text-decoration: none;">bella@imheretravels.com</a>
-                </p>
-                <p style="color: #666666; margin: 0 0 15px 0; font-size: 14px; text-align: center;">
-                    or call us at +63 998 247 6847
-                </p>
-                <p style="color: #666666; margin: 0; font-size: 14px; text-align: center; font-weight: bold;">Connect
-                </p>
-                <div style="margin: 15px 0 0 0; text-align: center;">
-                    <a href="https://instagram.com/imheretravels" style="display: inline-block; margin: 0 8px;">
-                        <img src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1769577611985_instagram-icon.png?alt=media&token=26e11a52-4b1b-4323-bca0-8ffb3b8889ab" alt="Instagram" style="width: 24px; height: 24px; display: inline-block;">
-                    </a>
-                    <a href="https://www.facebook.com/profile.php?id=100089932897402" style="display: inline-block; margin: 0 8px;">
-                        <img src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1769578187350_facebook-icon.png?alt=media&token=0d59a081-d764-463a-8949-533dab620dc0" alt="Facebook" style="width: 24px; height: 24px; display: inline-block;">
-                    </a>
-                    <a href="https://www.tiktok.com/@imheretravels" style="display: inline-block; margin: 0 8px;">
-                        <img src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1769577615216_tiktok-icon.png?alt=media&token=2d2d9e95-52c5-4cf7-8906-7377ad7957d8" alt="TikTok" style="width: 24px; height: 24px; display: inline-block;">
-                    </a>
-                    <a href="https://imheretravels.com" style="display: inline-block; margin: 0 8px;">
-                        <img src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1769577613602_link-icon.png?alt=media&token=2a058d58-eaf7-4f53-bdea-845b2409764d" alt="Website" style="width: 24px; height: 24px; display: inline-block;">
-                    </a>
-                </div>
-            </div>
+            <p style="margin:28px 0 0 0;font-weight:600;color:#1C1F2A;">
+                Bella | ImHereTravels
+            </p>
+        </div>
 
-            <!-- Footer -->
+        <!-- Footer -->
+        <div style="background-color:#1C1F2A;padding:30px 40px;text-align:center;">
+            <p style="color:#fff;margin:0 0 6px 0;font-weight:600;">Need help?</p>
+            <p style="color:#B397F7;margin:0 0 16px 0;">
+                Feel free to reply to this email. We’re HERE for you!
+            </p>
             <div style="
-        background-color: #2c3e50;
-        padding: 30px 20px;
-        border-radius: 12px;
-        margin: 35px 0 0 0;
-        text-align: center;
-        color: #ffffff;
-        ">
-                <img
-            src="https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1768292814673_%F0%9F%9A%A3%20Logo%20Center%20(Row%20For%20Content%20Columns).png?alt=media&token=476fb69b-4cd5-4c56-901a-9190c15685f0"
-            alt="ImHereTravels Logo"
-            style="width: 150px; height: auto; display: block; margin: 0 auto 15px;"
-            />
-                <p style="margin: 0; font-size: 12px; color: #bdc3c7;">
-                    © 2025 I'm Here Travels. All rights reserved.
-                </p>
+          display:inline-block;
+          width:120px;
+          height:32px;
+          background:url('https://drive.google.com/uc?export=view&id=1jtvAGcFW6MoPTOlRLvUt6aZAsplKC4sL') no-repeat center;
+          background-size:contain;
+          font-size:0;line-height:0;">
+                &nbsp;
             </div>
         </div>
+    </div>
 </body>
 
 </html>

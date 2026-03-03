@@ -15,7 +15,9 @@ import BookingsSection from "./BookingsSection";
 import BookingsSheet from "../sheet-management/BookingsSheet";
 import PreDeparturePackSection from "@/app/(protected)/bookings/components/PreDeparturePackSection";
 import ConfirmedBookingsSection from "@/app/(protected)/bookings/components/ConfirmedBookingsSection";
+import GuestInvitationsSection from "@/app/(protected)/bookings/components/GuestInvitationsSection";
 import { getUnsentConfirmedBookingsCount } from "@/services/confirmed-bookings-service";
+import { getUnsentGuestInvitationsCount } from "@/services/guest-invitations-service";
 
 // Tab mapping utilities
 const urlToInternalTab = (urlTab: string | null): string => {
@@ -26,6 +28,8 @@ const urlToInternalTab = (urlTab: string | null): string => {
       return "list";
     case "confirmed-bookings":
       return "confirmed";
+    case "guest-invitations":
+      return "guest-invitations";
     case "bookings-sheet":
       return "sheet";
     case "sheet-management-tab": // Backward compatibility
@@ -41,6 +45,8 @@ const internalTabToUrl = (internalTab: string): string => {
       return "bookings";
     case "confirmed":
       return "confirmed-bookings";
+    case "guest-invitations":
+      return "guest-invitations";
     case "sheet":
       return "bookings-sheet";
     default:
@@ -53,21 +59,26 @@ export default function BookingsTabs() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("list");
   const [unsentCount, setUnsentCount] = useState<number>(0);
+  const [unsentGuestInvitationsCount, setUnsentGuestInvitationsCount] =
+    useState<number>(0);
 
-  // Fetch unsent count for confirmed bookings badge
+  // Fetch unsent counts for tab badges
   useEffect(() => {
-    const fetchUnsentCount = async () => {
+    const fetchCounts = async () => {
       try {
-        const count = await getUnsentConfirmedBookingsCount();
-        setUnsentCount(count);
+        const [confirmedCount, guestCount] = await Promise.all([
+          getUnsentConfirmedBookingsCount(),
+          getUnsentGuestInvitationsCount(),
+        ]);
+        setUnsentCount(confirmedCount);
+        setUnsentGuestInvitationsCount(guestCount);
       } catch (error) {
-        console.error("Error fetching unsent count:", error);
+        console.error("Error fetching unsent counts:", error);
       }
     };
 
-    fetchUnsentCount();
-    // Set up interval to refresh count every 30 seconds
-    const interval = setInterval(fetchUnsentCount, 30000);
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -80,7 +91,7 @@ export default function BookingsTabs() {
     // If no tab parameter or invalid tab, update URL to show default
     if (!urlTab || urlTab !== internalTabToUrl(initialTab)) {
       const newSearchParams = new URLSearchParams(
-        searchParams?.toString() ?? ""
+        searchParams?.toString() ?? "",
       );
       newSearchParams.set("tab", internalTabToUrl(initialTab));
       router.replace(`/bookings?${newSearchParams.toString()}`);
@@ -126,6 +137,20 @@ export default function BookingsTabs() {
                     Bookings
                   </span>
                 )}
+                {activeTab === "guest-invitations" && (
+                  <span className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    Guest Invitations
+                    {unsentGuestInvitationsCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="h-5 min-w-5 px-1.5 text-xs shadow-sm"
+                      >
+                        {unsentGuestInvitationsCount}
+                      </Badge>
+                    )}
+                  </span>
+                )}
                 {activeTab === "confirmed" && (
                   <span className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
@@ -158,6 +183,27 @@ export default function BookingsTabs() {
                     <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
                   )}
                   Bookings
+                </span>
+              </SelectItem>
+              <SelectItem
+                value="guest-invitations"
+                className="rounded-lg hover:bg-royal-purple/10 focus:bg-royal-purple/10 cursor-pointer"
+              >
+                <span className="flex items-center justify-between w-full gap-2">
+                  <span className="flex items-center gap-2">
+                    {activeTab === "guest-invitations" && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    )}
+                    Guest Invitations
+                  </span>
+                  {unsentGuestInvitationsCount > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="ml-2 h-5 min-w-5 px-1.5 text-xs shadow-sm"
+                    >
+                      {unsentGuestInvitationsCount}
+                    </Badge>
+                  )}
                 </span>
               </SelectItem>
               <SelectItem
@@ -197,12 +243,26 @@ export default function BookingsTabs() {
         </div>
 
         {/* Desktop: Horizontal Tabs */}
-        <TabsList className="hidden md:grid w-full grid-cols-3 bg-muted border border-border">
+        <TabsList className="hidden md:grid w-full grid-cols-4 bg-muted border border-border">
           <TabsTrigger
             value="list"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
           >
             Bookings
+          </TabsTrigger>
+          <TabsTrigger
+            value="guest-invitations"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            <span>Guest Invitations</span>
+            {unsentGuestInvitationsCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="ml-2 h-5 min-w-5 px-1.5 text-xs"
+              >
+                {unsentGuestInvitationsCount}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger
             value="confirmed"
@@ -235,6 +295,10 @@ export default function BookingsTabs() {
             <PreDeparturePackSection />
             <ConfirmedBookingsSection />
           </div>
+        </TabsContent>
+
+        <TabsContent value="guest-invitations" className="mt-6">
+          <GuestInvitationsSection />
         </TabsContent>
 
         <TabsContent value="sheet" className="mt-6">

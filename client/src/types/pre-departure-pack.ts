@@ -63,6 +63,45 @@ export interface PreDepartureConfig {
 }
 
 /**
+ * Guest Invitation Interface
+ * Represents a document in the guestInvitations collection
+ */
+export interface GuestInvitation {
+  id: string;
+  bookingDocumentId: string; // Reference to bookings collection document id
+  bookingId: string; // The booking.bookingId field
+  tourPackageName: string;
+  tourDate: Timestamp;
+  recipientEmail: string; // bookingData.emailAddress
+  recipientName: string; // bookingData.fullName
+  status: "created" | "sent";
+  createdAt: Timestamp;
+  sentEmailLink?: string; // https://mail.google.com/mail/u/0/#sent/<messageId>
+  sentAt?: Timestamp;
+  lastModified: Timestamp;
+}
+
+/**
+ * Guest Invitation Configuration
+ * Document at config/guest-invitation
+ */
+export interface GuestInvitationConfig {
+  automaticSends: boolean;
+  description: string;
+  lastUpdated?: Timestamp;
+  updatedBy?: string;
+}
+
+/**
+ * Form data for updating guest invitation status
+ */
+export interface GuestInvitationUpdateData {
+  status: "created" | "sent";
+  sentEmailLink?: string;
+  sentAt?: Date;
+}
+
+/**
  * Form data for creating a pre-departure pack
  */
 export interface PreDeparturePackFormData {

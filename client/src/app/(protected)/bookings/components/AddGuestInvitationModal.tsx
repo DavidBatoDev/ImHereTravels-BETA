@@ -14,22 +14,16 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, AlertCircle, CheckCircle2, X, Mail } from "lucide-react";
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  Timestamp,
-} from "firebase/firestore";
+import { collection, getDocs, query, doc, getDoc } from "firebase/firestore";
 import { db, functions } from "@/lib/firebase";
 import { httpsCallable } from "firebase/functions";
 import {
-  createConfirmedBooking,
-  getConfirmedBookingByBookingId,
-} from "@/services/confirmed-bookings-service";
-import { findPackByTourPackageName } from "@/services/pre-departure-pack-service";
+  createGuestInvitation,
+  getGuestInvitationByBookingId,
+} from "@/services/guest-invitations-service";
+import { Timestamp } from "firebase/firestore";
 
-interface AddConfirmedBookingModalProps {
+interface AddGuestInvitationModalProps {
   open: boolean;
   onClose: () => void;
 }
@@ -41,30 +35,27 @@ interface BookingWithValidation {
   emailAddress: string;
   tourPackageName: string;
   tourDate: any;
-  returnDate: any;
   paid: number;
   originalTourCost: number;
   discountedTourCost: number;
-  useDiscountedTourCost?: boolean;
-  paymentPlan?: string;
+  paymentProgress: string | number;
+  computedProgress: number;
   isValid: boolean;
   validationErrors: string[];
-  alreadyConfirmed: boolean;
-  hasPreDeparturePack: boolean;
+  alreadyInvited: boolean;
 }
 
-export default function AddConfirmedBookingModal({
+export default function AddGuestInvitationModal({
   open,
   onClose,
-}: AddConfirmedBookingModalProps) {
+}: AddGuestInvitationModalProps) {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [bookings, setBookings] = useState<BookingWithValidation[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<
     BookingWithValidation[]
   >([]);
-  const [onlyCompletePayments, setOnlyCompletePayments] = useState(false);
-  const [onlyWithPack, setOnlyWithPack] = useState(false);
+  const [onlyAt50Percent, setOnlyAt50Percent] = useState(true);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -75,14 +66,12 @@ export default function AddConfirmedBookingModal({
     if (open) {
       loadBookings();
     } else {
-      // Reset on close
       setSearchTerm("");
       setSelectedBooking(null);
     }
   }, [open]);
 
   useEffect(() => {
-    // Filter bookings based on search term and optional 'only complete payments'
     const term = searchTerm.trim().toLowerCase();
     let results = bookings;
 
@@ -96,34 +85,40 @@ export default function AddConfirmedBookingModal({
       );
     }
 
-    if (onlyCompletePayments) {
-      results = results.filter((b) => {
-        const rawTotal =
-          b.discountedTourCost && b.discountedTourCost > 0
-            ? b.discountedTourCost
-            : b.originalTourCost;
-        const total = Number(rawTotal);
-        const paid = Number(b.paid || 0);
-        if (!isFinite(total)) return false;
-        return paid >= total;
-      });
-    }
-
-    if (onlyWithPack) {
-      results = results.filter((b) => !!b.hasPreDeparturePack);
+    if (onlyAt50Percent) {
+      results = results.filter((b) => b.computedProgress >= 50);
     }
 
     setFilteredBookings(results);
-  }, [searchTerm, bookings, onlyCompletePayments]);
+  }, [searchTerm, bookings, onlyAt50Percent]);
+
+  const computePaymentProgress = (booking: any): number => {
+    // Use stored paymentProgress field first
+    const stored = booking.paymentProgress;
+    if (stored !== undefined && stored !== null) {
+      if (typeof stored === "string") {
+        const parsed = parseInt(stored.replace("%", ""));
+        if (!isNaN(parsed)) return parsed;
+      }
+      if (typeof stored === "number") return Math.min(Math.max(stored, 0), 100);
+    }
+    // Fallback: calculate from paid vs total cost
+    const rawTotal =
+      booking.discountedTourCost && booking.discountedTourCost > 0
+        ? booking.discountedTourCost
+        : booking.originalTourCost;
+    const total = Number(rawTotal);
+    const paid = Number(booking.paid || 0);
+    if (!isFinite(total) || total === 0) return 0;
+    return Math.round((paid / total) * 100);
+  };
 
   const validateBooking = async (
     booking: any,
-    packAvailabilityMap?: Map<string, boolean>,
   ): Promise<BookingWithValidation> => {
     const errors: string[] = [];
     let isValid = true;
 
-    // Required fields validation
     if (!booking.fullName || booking.fullName.trim() === "") {
       errors.push("Missing customer name");
       isValid = false;
@@ -144,54 +139,22 @@ export default function AddConfirmedBookingModal({
       isValid = false;
     }
 
-    // Payment validation
-    const rawTotalCost =
-      booking.discountedTourCost && booking.discountedTourCost > 0
-        ? booking.discountedTourCost
-        : booking.originalTourCost;
+    const computedProgress = computePaymentProgress(booking);
 
-    const totalCost = Number(rawTotalCost);
-    const paid = Number(booking.paid || 0);
-
-    if (!isFinite(totalCost)) {
-      errors.push(`Invalid total cost (${String(rawTotalCost)})`);
-      isValid = false;
-    } else if (paid < totalCost) {
-      errors.push(
-        `Payment incomplete (${paid.toFixed(2)} / ${totalCost.toFixed(2)})`,
-      );
-      isValid = false;
-    }
-
-    // Check if already confirmed
-    let alreadyConfirmed = false;
+    // Check if already has a guest invitation
+    let alreadyInvited = false;
     try {
-      const existing = await getConfirmedBookingByBookingId(booking.id);
+      const existing = await getGuestInvitationByBookingId(booking.id);
       if (existing) {
-        alreadyConfirmed = true;
-        errors.push("Already has confirmed booking");
+        alreadyInvited = true;
+        errors.push("Already has a guest invitation");
         isValid = false;
       }
     } catch (error) {
-      console.error("Error checking existing confirmed booking:", error);
+      console.error("Error checking existing guest invitation:", error);
     }
 
-    // Check if tour package has pre-departure pack
-    let hasPreDeparturePack = false;
-    try {
-      const normalizedTourName = String(booking.tourPackageName || "")
-        .toLowerCase()
-        .trim();
-
-      if (packAvailabilityMap && packAvailabilityMap.has(normalizedTourName)) {
-        hasPreDeparturePack = !!packAvailabilityMap.get(normalizedTourName);
-      } else {
-        const pack = await findPackByTourPackageName(booking.tourPackageName);
-        hasPreDeparturePack = !!pack;
-      }
-    } catch (error) {
-      console.error("Error checking pre-departure pack:", error);
-    }
+    const paid = Number(booking.paid || 0);
 
     return {
       id: booking.id,
@@ -200,16 +163,14 @@ export default function AddConfirmedBookingModal({
       emailAddress: booking.emailAddress || "",
       tourPackageName: booking.tourPackageName || "",
       tourDate: booking.tourDate,
-      returnDate: booking.returnDate,
-      paid: paid,
+      paid,
       originalTourCost: booking.originalTourCost || 0,
       discountedTourCost: booking.discountedTourCost || 0,
-      useDiscountedTourCost: booking.useDiscountedTourCost || false,
-      paymentPlan: booking.paymentPlan || "",
+      paymentProgress: booking.paymentProgress || 0,
+      computedProgress,
       isValid,
       validationErrors: errors,
-      alreadyConfirmed,
-      hasPreDeparturePack,
+      alreadyInvited,
     };
   };
 
@@ -224,44 +185,24 @@ export default function AddConfirmedBookingModal({
         ...doc.data(),
       }));
 
-      const uniqueTourNames = Array.from(
-        new Set(
-          bookingsData
-            .map((b: any) => String(b.tourPackageName || "").trim())
-            .filter((name: string) => name.length > 0),
-        ),
-      );
-
-      const packAvailabilityEntries = await Promise.all(
-        uniqueTourNames.map(async (tourName) => {
-          try {
-            const pack = await findPackByTourPackageName(tourName);
-            return [tourName.toLowerCase().trim(), !!pack] as const;
-          } catch {
-            return [tourName.toLowerCase().trim(), false] as const;
-          }
-        }),
-      );
-
-      const packAvailabilityMap = new Map<string, boolean>(
-        packAvailabilityEntries,
-      );
-
-      // Validate each booking
       const validatedBookings = await Promise.all(
-        bookingsData.map((b) => validateBooking(b, packAvailabilityMap)),
+        bookingsData.map((b) => validateBooking(b)),
       );
 
-      // Sort: valid bookings first, then by booking ID
+      // Sort: valid first, then by payment progress desc, then by bookingId
       validatedBookings.sort((a, b) => {
-        if (a.isValid !== b.isValid) {
-          return a.isValid ? -1 : 1;
-        }
+        if (a.isValid !== b.isValid) return a.isValid ? -1 : 1;
+        if (b.computedProgress !== a.computedProgress)
+          return b.computedProgress - a.computedProgress;
         return b.bookingId.localeCompare(a.bookingId);
       });
 
       setBookings(validatedBookings);
-      setFilteredBookings(validatedBookings);
+      setFilteredBookings(
+        onlyAt50Percent
+          ? validatedBookings.filter((b) => b.computedProgress >= 50)
+          : validatedBookings,
+      );
     } catch (error) {
       console.error("Error loading bookings:", error);
       toast({
@@ -279,37 +220,32 @@ export default function AddConfirmedBookingModal({
 
     setCreating(true);
     try {
-      // Get pre-departure pack
-      const pack = await findPackByTourPackageName(
-        selectedBooking.tourPackageName,
-      );
-
       const tourDate = selectedBooking.tourDate?.toDate
         ? selectedBooking.tourDate.toDate()
         : new Date(selectedBooking.tourDate);
 
-      await createConfirmedBooking(
+      await createGuestInvitation(
         selectedBooking.id,
         selectedBooking.bookingId,
         selectedBooking.tourPackageName,
         Timestamp.fromDate(tourDate),
-        pack?.id || null,
-        pack?.fileName || null,
+        selectedBooking.emailAddress,
+        selectedBooking.fullName,
         "created",
       );
 
       toast({
         title: "✅ Success",
-        description: "Confirmed booking created successfully",
+        description: "Guest invitation created successfully",
         variant: "default",
       });
 
       onClose();
     } catch (error: any) {
-      console.error("Error creating confirmed booking:", error);
+      console.error("Error creating guest invitation:", error);
       toast({
         title: "❌ Failed",
-        description: error.message || "Failed to create confirmed booking",
+        description: error.message || "Failed to create guest invitation",
         variant: "destructive",
       });
     } finally {
@@ -322,32 +258,27 @@ export default function AddConfirmedBookingModal({
 
     setSendingEmail(true);
     try {
-      // Get pre-departure pack
-      const pack = await findPackByTourPackageName(
-        selectedBooking.tourPackageName,
-      );
-
       const tourDate = selectedBooking.tourDate?.toDate
         ? selectedBooking.tourDate.toDate()
         : new Date(selectedBooking.tourDate);
 
-      // Create confirmed booking
-      const confirmedBookingId = await createConfirmedBooking(
+      // Create guest invitation
+      const guestInvitationId = await createGuestInvitation(
         selectedBooking.id,
         selectedBooking.bookingId,
         selectedBooking.tourPackageName,
         Timestamp.fromDate(tourDate),
-        pack?.id || null,
-        pack?.fileName || null,
+        selectedBooking.emailAddress,
+        selectedBooking.fullName,
         "created",
       );
 
-      // Send email
-      const sendEmail = httpsCallable(
+      // Send email via cloud function
+      const sendInvitation = httpsCallable(
         functions,
-        "sendBookingConfirmationEmail",
+        "sendGuestInvitationEmails",
       );
-      const result = await sendEmail({ confirmedBookingId });
+      const result = await sendInvitation({ guestInvitationId });
       const data = result.data as {
         success: boolean;
         messageId?: string;
@@ -357,23 +288,23 @@ export default function AddConfirmedBookingModal({
       if (data.success) {
         toast({
           title: "✅ Success",
-          description: "Confirmed booking created and email sent successfully",
+          description: "Guest invitation created and email sent successfully",
           variant: "default",
         });
       } else {
         toast({
           title: "⚠️ Partial Success",
-          description: "Confirmed booking created but email failed to send",
+          description: "Guest invitation created but email failed to send",
           variant: "default",
         });
       }
 
       onClose();
     } catch (error: any) {
-      console.error("Error creating confirmed booking:", error);
+      console.error("Error creating guest invitation:", error);
       toast({
         title: "❌ Failed",
-        description: error.message || "Failed to create confirmed booking",
+        description: error.message || "Failed to create guest invitation",
         variant: "destructive",
       });
     } finally {
@@ -395,19 +326,19 @@ export default function AddConfirmedBookingModal({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Add Confirmed Booking</DialogTitle>
+          <DialogTitle>Add Guest Invitation</DialogTitle>
           <DialogDescription>
-            Select a booking to create a confirmed booking record. Only bookings
-            with 100% payment and required fields can be selected.
+            Select a booking to create a guest invitation. All bookings can be
+            selected regardless of payment progress.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Search */}
+        {/* Search & Filters */}
         <div className="relative flex items-center gap-3">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <div className="flex-1 relative">
             <Input
-              placeholder="Search across all fields ..."
+              placeholder="Search across all fields..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 border-border focus:border-crimson-red focus:ring-crimson-red/20"
@@ -424,27 +355,15 @@ export default function AddConfirmedBookingModal({
             )}
           </div>
 
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={onlyCompletePayments}
-                onChange={(e) => setOnlyCompletePayments(e.target.checked)}
-                className="h-4 w-4"
-              />
-              Only complete payments
-            </label>
-
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={onlyWithPack}
-                onChange={(e) => setOnlyWithPack(e.target.checked)}
-                className="h-4 w-4"
-              />
-              Has Pack
-            </label>
-          </div>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={onlyAt50Percent}
+              onChange={(e) => setOnlyAt50Percent(e.target.checked)}
+              className="h-4 w-4"
+            />
+            Only 50%+ progress
+          </label>
         </div>
 
         {/* Bookings List */}
@@ -457,7 +376,9 @@ export default function AddConfirmedBookingModal({
             <div className="p-8 text-center text-muted-foreground">
               {searchTerm
                 ? "No bookings match your search"
-                : "No bookings found"}
+                : onlyAt50Percent
+                  ? "No bookings at 50% or higher payment progress"
+                  : "No bookings found"}
             </div>
           ) : (
             <div className="divide-y">
@@ -497,11 +418,20 @@ export default function AddConfirmedBookingModal({
                         <span className="text-xs text-muted-foreground">
                           {formatDate(booking.tourDate)}
                         </span>
-                        {booking.hasPreDeparturePack && (
-                          <Badge variant="secondary" className="text-xs">
-                            Has Pack
-                          </Badge>
-                        )}
+                        <Badge
+                          variant={
+                            booking.computedProgress === 50
+                              ? "secondary"
+                              : "outline"
+                          }
+                          className={`text-xs ${
+                            booking.computedProgress === 50
+                              ? "bg-amber-100 text-amber-700 border-amber-200"
+                              : ""
+                          }`}
+                        >
+                          {booking.computedProgress}% paid
+                        </Badge>
                       </div>
                       {!booking.isValid &&
                         booking.validationErrors.length > 0 && (
@@ -519,7 +449,7 @@ export default function AddConfirmedBookingModal({
                         )}
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-xs text-muted-foreground">Payment</p>
+                      <p className="text-xs text-muted-foreground">Paid</p>
                       <p className="font-semibold">
                         €{booking.paid.toFixed(2)}
                       </p>

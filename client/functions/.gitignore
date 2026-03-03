@@ -10,3 +10,4 @@ node_modules/
 *.local
 /.env
 /.env.local
+firebase-debug.log*

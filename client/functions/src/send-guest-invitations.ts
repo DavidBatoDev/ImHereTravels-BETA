@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+﻿import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import GmailApiService from "./gmail-api-service";
@@ -6,57 +6,26 @@ import EmailTemplateService from "./email-template-service";
 
 const db = getFirestore();
 
-/**
- * Generate guest invitation link
- */
-function generateGuestInvitationLink(
-  parentBookingId: string,
-  guestEmail: string
-): string {
-  // Use NEXT_PUBLIC_WEBSITE_URL from environment or fallback
-  const baseUrl =
-    process.env.NEXT_PUBLIC_WEBSITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "https://admin.imheretravels.com/";
-  const params = new URLSearchParams({
-    booking: parentBookingId,
-    email: guestEmail,
-  });
-  return `${baseUrl}/guest-reservation?${params.toString()}`;
-}
+const FORM_LINK =
+  "https://docs.google.com/forms/d/e/1FAIpQLSdwCccoJRIcxpBQYxjs1fZPpqsMpzXDFyQfLdIKr3g-lPvwEg/viewform";
 
 /**
- * Format date for display
+ * Get BCC list from bcc-users collection
  */
-function formatDate(dateValue: any): string {
-  if (!dateValue) return "";
-
+async function getBCCList(): Promise<string[]> {
   try {
-    let date: Date | null = null;
+    const bccUsersSnap = await db.collection("bcc-users").get();
+    const bccList = bccUsersSnap.docs
+      .map((doc) => doc.data())
+      .filter((user: any) => user.isActive === true)
+      .map((user: any) => user.email)
+      .filter((email: string) => email && email.trim() !== "");
 
-    if (dateValue && typeof dateValue === "object" && dateValue._seconds) {
-      date = new Date(dateValue._seconds * 1000);
-    } else if (dateValue.toDate) {
-      date = dateValue.toDate();
-    } else if (typeof dateValue === "string") {
-      date = new Date(dateValue);
-    } else if (dateValue instanceof Date) {
-      date = dateValue;
-    }
-
-    if (date && !isNaN(date.getTime())) {
-      return date.toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        timeZone: "Asia/Manila",
-      });
-    }
-
-    return "";
+    logger.info(`Found ${bccList.length} active BCC users`);
+    return bccList;
   } catch (error) {
-    logger.warn("Error formatting date:", error);
-    return "";
+    logger.error("Error fetching BCC users:", error);
+    return [];
   }
 }
 
@@ -64,32 +33,27 @@ function formatDate(dateValue: any): string {
  * Load and process guest invitation email template
  */
 async function generateGuestInvitationEmailHtml(data: {
-  guestEmail: string;
-  mainBookerName: string;
-  tourName: string;
-  tourDate: string;
-  invitationLink: string;
-  expiresAt: string;
-  depositAmount: string;
+  fullName: string;
+  tourPackage: string;
+  bookingId: string;
+  formLink: string;
 }): Promise<string> {
   try {
     // Try to fetch template from Firestore emailTemplates collection
-    // You'll need to create a template document for guest invitations
     const templateDoc = await db
       .collection("emailTemplates")
-      .doc("5FZyQvXECyl3a2poPW2g") // You can change this ID
+      .doc("5FZyQvXECyl3a2poPW2g")
       .get();
 
     let templateHtml: string;
 
     if (templateDoc.exists) {
-      // Use template from Firestore - template is stored in 'content' field
       templateHtml = templateDoc.data()?.content || "";
       logger.info("Using guest invitation template from Firestore");
     } else {
-      // Fallback: load from file system (for local development)
+      // Fallback: load from file system
       logger.warn(
-        "Guest invitation template not found in Firestore, attempting file system fallback"
+        "Guest invitation template not found in Firestore, falling back to file"
       );
       const fs = await import("fs");
       const path = await import("path");
@@ -100,26 +64,24 @@ async function generateGuestInvitationEmailHtml(data: {
       templateHtml = fs.readFileSync(templatePath, "utf-8");
     }
 
-    // Process template with variables
-    const currentYear = new Date().getFullYear().toString();
     const processedHtml = EmailTemplateService.processTemplate(templateHtml, {
       ...data,
-      currentYear,
+      currentYear: new Date().getFullYear().toString(),
     });
 
     return processedHtml;
   } catch (error) {
     logger.error("Error loading guest invitation template:", error);
-    // Return a basic fallback HTML if template loading fails
+    // Inline fallback
     return `
       <html>
         <body style="font-family: Arial, sans-serif; padding: 20px;">
-          <h1>You're Invited!</h1>
-          <p>Hi there! ${data.mainBookerName} has invited you to join their group booking for ${data.tourName}.</p>
-          <p><strong>Tour Date:</strong> ${data.tourDate}</p>
-          <p><strong>Initial Deposit:</strong> €${data.depositAmount}</p>
-          <p><a href="${data.invitationLink}" style="display: inline-block; background-color: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Complete My Booking</a></p>
-          <p><small>This invitation expires on ${data.expiresAt}</small></p>
+          <h1>Complete Your Guest Information</h1>
+          <p>Hi ${data.fullName},</p>
+          <p>Help us make sure your travel arrangements are complete for <strong>${data.tourPackage}</strong> with Booking ID: <strong>${data.bookingId}</strong>.</p>
+          <p>Please fill out our <strong>Guest Information Form</strong>.</p>
+          <p><a href="${data.formLink}" style="display:inline-block;background:#EF3340;color:#fff;padding:12px 24px;text-decoration:none;border-radius:50px;font-weight:700;">Complete Guest Information Form</a></p>
+          <p>Bella | ImHereTravels</p>
         </body>
       </html>
     `;
@@ -127,8 +89,8 @@ async function generateGuestInvitationEmailHtml(data: {
 }
 
 /**
- * Callable function to send guest invitation emails
- * Called after main booker completes their payment
+ * Callable function to send guest invitation email
+ * Takes a guestInvitationId and sends the invitation email to the recipient
  */
 export const sendGuestInvitationEmails = onCall(
   {
@@ -139,167 +101,110 @@ export const sendGuestInvitationEmails = onCall(
   },
   async (request) => {
     try {
-      const { paymentDocId } = request.data;
+      const { guestInvitationId } = request.data;
 
-      if (!paymentDocId) {
-        throw new HttpsError("invalid-argument", "Missing paymentDocId");
+      if (!guestInvitationId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "guestInvitationId is required"
+        );
       }
 
       logger.info(
-        `Sending guest invitation emails for payment: ${paymentDocId}`
+        `📧 Sending guest invitation email for: ${guestInvitationId}`
       );
 
-      // 1. Fetch the payment document
-      const paymentDocRef = db.collection("stripePayments").doc(paymentDocId);
-      const paymentDoc = await paymentDocRef.get();
+      // 1. Get guest invitation document
+      const guestInvitationDoc = await db
+        .collection("guestInvitations")
+        .doc(guestInvitationId)
+        .get();
 
-      if (!paymentDoc.exists) {
-        throw new HttpsError("not-found", "Payment document not found");
+      if (!guestInvitationDoc.exists) {
+        throw new HttpsError("not-found", "Guest invitation not found");
       }
 
-      const paymentData = paymentDoc.data();
+      const guestInvitation = guestInvitationDoc.data();
 
-      // 2. Verify this is a group/duo booking
-      const bookingType = paymentData?.booking?.type || "";
-      if (bookingType !== "Duo Booking" && bookingType !== "Group Booking") {
-        logger.info("Not a group booking, skipping guest invitations");
-        return { success: true, message: "Not a group booking" };
+      if (!guestInvitation) {
+        throw new HttpsError("not-found", "Guest invitation data is empty");
       }
 
-      // 3. Get guest emails from additionalGuests
-      const additionalGuests = paymentData?.booking?.additionalGuests || [];
+      // 2. Get booking data
+      const bookingDoc = await db
+        .collection("bookings")
+        .doc(guestInvitation.bookingDocumentId)
+        .get();
 
-      if (additionalGuests.length === 0) {
-        logger.info("No additional guests found");
-        return { success: true, message: "No guests to invite" };
+      if (!bookingDoc.exists) {
+        throw new HttpsError("not-found", "Booking not found");
       }
 
-      // 4. Prepare invitation data
-      const invitationExpiryDays = 7;
-      const invitedAt = Timestamp.now();
-      const expiresAt = Timestamp.fromDate(
-        new Date(Date.now() + invitationExpiryDays * 24 * 60 * 60 * 1000)
+      const bookingData = bookingDoc.data();
+
+      if (!bookingData) {
+        throw new HttpsError("not-found", "Booking data is empty");
+      }
+
+      // 3. Build template variables matching guestInvitation.html
+      const templateVariables = {
+        fullName: guestInvitation.recipientName || bookingData.fullName || "",
+        tourPackage:
+          guestInvitation.tourPackageName || bookingData.tourPackageName || "",
+        bookingId: guestInvitation.bookingId || "",
+        formLink: FORM_LINK,
+      };
+
+      // 4. Generate email HTML
+      const emailHtml = await generateGuestInvitationEmailHtml(
+        templateVariables
       );
 
-      const mainBookerName = `${paymentData?.customer?.firstName || ""} ${
-        paymentData?.customer?.lastName || ""
-      }`.trim();
-      const tourName = paymentData?.tour?.packageName || "your tour";
-      const tourDate = formatDate(paymentData?.tour?.date);
+      const subject = `Complete Your Guest Information for ${templateVariables.tourPackage}`;
 
-      // Fetch reservation fee from the main booker's booking document
-      let depositAmount = "0.00";
-      try {
-        const mainBookingDocId = paymentData?.booking?.documentId;
-        if (mainBookingDocId) {
-          const bookingDocRef = db.collection("bookings").doc(mainBookingDocId);
-          const bookingDoc = await bookingDocRef.get();
-          if (bookingDoc.exists) {
-            const bookingData = bookingDoc.data();
-            // Use the reservationFee field instead of payment plan deposit
-            const amount = bookingData?.reservationFee;
-            if (amount) {
-              depositAmount =
-                typeof amount === "number" ? amount.toFixed(2) : String(amount);
-            }
-          }
-        }
-      } catch (error) {
-        logger.warn("Error fetching reservation fee from booking:", error);
-        // Continue with 0.00 fallback
-      }
+      // 5. Get BCC list
+      const bccList = await getBCCList();
 
-      // 5. Initialize Gmail API
+      // 6. Send email
       const gmailService = new GmailApiService();
 
-      // 6. Send invitations to each guest
-      const invitations: any[] = [];
-      const sendResults = [];
-
-      for (const guestEmail of additionalGuests) {
-        try {
-          // Generate invitation link
-          const invitationLink = generateGuestInvitationLink(
-            paymentDocId,
-            guestEmail
-          );
-
-          // Generate email HTML using template
-          const emailHtml = await generateGuestInvitationEmailHtml({
-            guestEmail,
-            mainBookerName,
-            tourName,
-            tourDate,
-            invitationLink,
-            expiresAt: formatDate(expiresAt),
-            depositAmount,
-          });
-
-          // Send email via Gmail API
-          const emailSubject = `You're Invited to Join ${mainBookerName} on ${tourName}`;
-
-          await gmailService.sendEmail({
-            to: guestEmail,
-            subject: emailSubject,
-            htmlContent: emailHtml,
-          });
-
-          logger.info(`✅ Sent invitation to ${guestEmail}`);
-
-          // Track invitation
-          invitations.push({
-            email: guestEmail,
-            invitedAt,
-            expiresAt,
-            status: "pending",
-          });
-
-          sendResults.push({
-            email: guestEmail,
-            success: true,
-          });
-        } catch (emailError: any) {
-          logger.error(
-            `❌ Failed to send invitation to ${guestEmail}:`,
-            emailError
-          );
-
-          invitations.push({
-            email: guestEmail,
-            invitedAt,
-            expiresAt,
-            status: "failed",
-            error: emailError.message,
-          });
-
-          sendResults.push({
-            email: guestEmail,
-            success: false,
-            error: emailError.message,
-          });
-        }
-      }
-
-      // 7. Update payment document with invitation records
-      await paymentDocRef.update({
-        guestInvitations: invitations,
-        "timestamps.guestInvitationsSentAt": Timestamp.now(),
-        "timestamps.updatedAt": Timestamp.now(),
+      const result = await gmailService.sendEmail({
+        to: guestInvitation.recipientEmail,
+        subject,
+        htmlContent: emailHtml,
+        bcc: bccList,
+        from: "Bella | ImHereTravels <bella@imheretravels.com>",
       });
 
-      logger.info(`✅ Guest invitations sent for ${paymentDocId}`);
+      logger.info("Guest invitation email sent:", result.messageId);
+
+      // 7. Update guest invitation status
+      const sentEmailLink = `https://mail.google.com/mail/u/0/#sent/${result.messageId}`;
+
+      await db.collection("guestInvitations").doc(guestInvitationId).update({
+        status: "sent",
+        sentEmailLink,
+        sentAt: Timestamp.now(),
+        lastModified: Timestamp.now(),
+      });
+
+      logger.info(`✅ Guest invitation updated: ${guestInvitationId}`);
 
       return {
         success: true,
-        invitationsSent: sendResults.filter((r) => r.success).length,
-        invitationsFailed: sendResults.filter((r) => !r.success).length,
-        results: sendResults,
+        messageId: result.messageId,
+        sentEmailLink,
       };
     } catch (error: any) {
-      logger.error("Error sending guest invitations:", error);
+      logger.error("❌ Error sending guest invitation email:", error);
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
       throw new HttpsError(
         "internal",
-        error.message || "Failed to send invitations"
+        error.message || "Failed to send guest invitation email"
       );
     }
   }

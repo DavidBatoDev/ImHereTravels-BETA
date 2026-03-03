@@ -10,7 +10,7 @@ const COLLECTION_NAME = "preDeparturePack";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ tourPackageName: string }> }
+  { params }: { params: Promise<{ tourPackageName: string }> },
 ) {
   try {
     const { tourPackageName } = await params;
@@ -21,7 +21,7 @@ export async function GET(
     // Get all packs (Firestore doesn't support querying array contents easily)
     const q = query(
       collection(db, COLLECTION_NAME),
-      orderBy("uploadedAt", "desc")
+      orderBy("uploadedAt", "desc"),
     );
     const querySnapshot = await getDocs(q);
 
@@ -35,18 +35,15 @@ export async function GET(
       pack.tourPackages.some(
         (tp) =>
           tp.tourPackageName.toLowerCase().trim() ===
-          decodedName.toLowerCase().trim()
-      )
+          decodedName.toLowerCase().trim(),
+      ),
     );
 
     if (!pack) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "No pack found for this tour package",
-        },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        success: true,
+        pack: null,
+      });
     }
 
     console.log(`✅ Found pack for tour package: ${pack.id}`);
@@ -60,7 +57,7 @@ export async function GET(
         error: "Failed to find pre-departure pack",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

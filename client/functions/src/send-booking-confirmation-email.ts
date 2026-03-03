@@ -43,7 +43,19 @@ function formatDateLikeSheets(dateValue: any): string {
         return trimmedValue;
       }
 
-      date = new Date(trimmedValue);
+      // Parse date at noon Manila time to avoid midnight trap
+      const parsed = new Date(trimmedValue);
+      if (!isNaN(parsed.getTime())) {
+        // Create date at noon Manila time (UTC+8)
+        date = new Date(
+          parsed.getFullYear(),
+          parsed.getMonth(),
+          parsed.getDate(),
+          12,
+          0,
+          0,
+        );
+      }
     } else if (dateValue instanceof Date) {
       date = dateValue;
     } else if (dateValue.toDate) {

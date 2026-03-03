@@ -1801,36 +1801,6 @@ const Page = () => {
               // Continue anyway - don't block user
             }
           }
-
-          // Send guest invitations if this is a Duo/Group booking (dev only)
-          if (
-            (bookingType === "Duo Booking" ||
-              bookingType === "Group Booking") &&
-            additionalGuests.length > 0
-          ) {
-            console.log("📧 Sending guest invitations...");
-            try {
-              const { getFunctions, httpsCallable } =
-                await import("firebase/functions");
-              const { functions } = await import("@/lib/firebase");
-
-              const sendGuestInvitations = httpsCallable(
-                functions,
-                "sendGuestInvitationEmails",
-              );
-              const invitationResult = await sendGuestInvitations({
-                paymentDocId: actualPaymentDocId,
-              });
-
-              console.log("✅ Guest invitations sent:", invitationResult.data);
-            } catch (inviteError) {
-              console.error(
-                "❌ Failed to send guest invitations:",
-                inviteError,
-              );
-              // Don't block the flow - admin can resend later
-            }
-          }
         } else {
           console.error("❌ Failed to create booking:", result.error);
           // Still proceed - booking might be created by webhook later
