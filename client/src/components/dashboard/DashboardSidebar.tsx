@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
@@ -114,10 +114,38 @@ export default function DashboardSidebar({
   sidebarCollapsed,
   setSidebarCollapsed,
 }: DashboardSidebarProps) {
+  const MOBILE_SIDEBAR_SCROLL_KEY = "dashboardSidebarScroll:mobile";
+  const DESKTOP_SIDEBAR_SCROLL_KEY = "dashboardSidebarScroll:desktop";
+
   const pathname = usePathname();
   const { userProfile, signOut, isLoading } = useAuthStore();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [pendingRevolutCount, setPendingRevolutCount] = useState(0);
+  const mobileNavRef = useRef<HTMLElement>(null);
+  const desktopNavRef = useRef<HTMLElement>(null);
+
+  const persistSidebarScroll = (
+    ref: React.RefObject<HTMLElement | null>,
+    key: string,
+  ) => {
+    if (typeof window === "undefined") return;
+    if (!ref.current) return;
+    sessionStorage.setItem(key, String(ref.current.scrollTop));
+  };
+
+  const restoreSidebarScroll = (
+    ref: React.RefObject<HTMLElement | null>,
+    key: string,
+  ) => {
+    if (typeof window === "undefined") return;
+    if (!ref.current) return;
+    const savedScroll = sessionStorage.getItem(key);
+    if (!savedScroll) return;
+    const scrollTop = Number(savedScroll);
+    if (!Number.isNaN(scrollTop)) {
+      ref.current.scrollTop = scrollTop;
+    }
+  };
 
   useEffect(() => {
     // Listen for pending Revolut payments
@@ -126,12 +154,19 @@ export default function DashboardSidebar({
 
     const unsubscribe = onSnapshot(revolutQuery, (snapshot) => {
       const payments = snapshot.docs.map((doc) => doc.data());
-      const pendingCount = payments.filter((p: any) => (p.payment?.status || p.status) === "pending").length;
+      const pendingCount = payments.filter(
+        (p: any) => (p.payment?.status || p.status) === "pending",
+      ).length;
       setPendingRevolutCount(pendingCount);
     });
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    restoreSidebarScroll(mobileNavRef, MOBILE_SIDEBAR_SCROLL_KEY);
+    restoreSidebarScroll(desktopNavRef, DESKTOP_SIDEBAR_SCROLL_KEY);
+  }, [pathname]);
 
   const handleLogout = async () => {
     console.log("🚀 Starting logout process...");
@@ -158,7 +193,7 @@ export default function DashboardSidebar({
           "fixed inset-0 z-50 lg:hidden transition-opacity duration-300",
           sidebarOpen
             ? "pointer-events-auto opacity-100"
-            : "pointer-events-none opacity-0"
+            : "pointer-events-none opacity-0",
         )}
       >
         <div
@@ -169,7 +204,7 @@ export default function DashboardSidebar({
         <div
           className={cn(
             "fixed inset-y-0 left-0 flex flex-col border-r border-border shadow-2xl transition-transform duration-300 w-72",
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            sidebarOpen ? "translate-x-0" : "-translate-x-full",
           )}
           style={{ backgroundColor: "hsl(var(--card-surface))" }}
         >
@@ -201,7 +236,18 @@ export default function DashboardSidebar({
               </Button>
             </div>
           </div>
-          <nav className="flex-1 space-y-2 px-4 py-6 overflow-y-auto scrollbar-hide">
+          <nav
+            ref={mobileNavRef}
+            className="flex-1 space-y-2 px-4 py-6 overflow-y-auto scrollbar-hide"
+            onScroll={() =>
+              persistSidebarScroll(mobileNavRef, MOBILE_SIDEBAR_SCROLL_KEY)
+            }
+            onClickCapture={(event) => {
+              if ((event.target as HTMLElement).closest("a")) {
+                persistSidebarScroll(mobileNavRef, MOBILE_SIDEBAR_SCROLL_KEY);
+              }
+            }}
+          >
             <TooltipProvider>
               {navigation.map((item, index) => {
                 if (item.type === "separator") {
@@ -230,7 +276,7 @@ export default function DashboardSidebar({
                       "group relative flex items-center text-sm font-medium rounded-xl transition-all duration-200 ease-in-out px-4 py-3",
                       isActive
                         ? "bg-primary text-white shadow-lg shadow-primary/25"
-                        : "text-foreground hover:bg-royal-purple/10 hover:text-royal-purple hover:shadow-md"
+                        : "text-foreground hover:bg-royal-purple/10 hover:text-royal-purple hover:shadow-md",
                     )}
                     onClick={() => setSidebarOpen(false)}
                   >
@@ -239,7 +285,7 @@ export default function DashboardSidebar({
                         "p-2 rounded-lg transition-all duration-200 mr-3",
                         isActive
                           ? "bg-white/20 backdrop-blur-sm"
-                          : "bg-royal-purple/10 group-hover:bg-royal-purple/20"
+                          : "bg-royal-purple/10 group-hover:bg-royal-purple/20",
                       )}
                     >
                       {(() => {
@@ -250,7 +296,7 @@ export default function DashboardSidebar({
                               "h-5 w-5 flex-shrink-0 transition-colors duration-200",
                               isActive
                                 ? "text-white"
-                                : "text-royal-purple group-hover:text-royal-purple"
+                                : "text-royal-purple group-hover:text-royal-purple",
                             )}
                           />
                         ) : null;
@@ -262,21 +308,24 @@ export default function DashboardSidebar({
                         <div
                           className={cn(
                             "text-xs opacity-75 transition-opacity duration-200",
-                            isActive ? "text-white/80" : "text-muted-foreground"
+                            isActive
+                              ? "text-white/80"
+                              : "text-muted-foreground",
                           )}
                         >
                           {item.description}
                         </div>
                       </div>
-                      
-                      {item.name === "Transactions" && pendingRevolutCount > 0 && (
-                        <Badge
-                          variant="destructive"
-                          className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] rounded-full"
-                        >
-                          {pendingRevolutCount}
-                        </Badge>
-                      )}
+
+                      {item.name === "Transactions" &&
+                        pendingRevolutCount > 0 && (
+                          <Badge
+                            variant="destructive"
+                            className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] rounded-full"
+                          >
+                            {pendingRevolutCount}
+                          </Badge>
+                        )}
                     </div>
                     {isActive && (
                       <div className="absolute right-2 w-2 h-2 bg-white rounded-full" />
@@ -332,7 +381,7 @@ export default function DashboardSidebar({
       <div
         className={cn(
           "hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col transition-all duration-300",
-          sidebarCollapsed ? "lg:w-20" : "lg:w-72"
+          sidebarCollapsed ? "lg:w-20" : "lg:w-72",
         )}
       >
         <div
@@ -367,7 +416,18 @@ export default function DashboardSidebar({
               </Button>
             )}
           </div>
-          <nav className="flex-1 space-y-2 px-4 py-6 overflow-y-auto scrollbar-hide">
+          <nav
+            ref={desktopNavRef}
+            className="flex-1 space-y-2 px-4 py-6 overflow-y-auto scrollbar-hide"
+            onScroll={() =>
+              persistSidebarScroll(desktopNavRef, DESKTOP_SIDEBAR_SCROLL_KEY)
+            }
+            onClickCapture={(event) => {
+              if ((event.target as HTMLElement).closest("a")) {
+                persistSidebarScroll(desktopNavRef, DESKTOP_SIDEBAR_SCROLL_KEY);
+              }
+            }}
+          >
             <TooltipProvider>
               {navigation.map((item, index) => {
                 if (item.type === "separator") {
@@ -401,7 +461,7 @@ export default function DashboardSidebar({
                         : "px-4 py-3",
                       isActive
                         ? "bg-primary text-white shadow-lg shadow-primary/25"
-                        : "text-foreground hover:bg-royal-purple/10 hover:text-royal-purple hover:shadow-md"
+                        : "text-foreground hover:bg-royal-purple/10 hover:text-royal-purple hover:shadow-md",
                     )}
                   >
                     <div
@@ -410,7 +470,7 @@ export default function DashboardSidebar({
                         !sidebarCollapsed && "mr-3",
                         isActive
                           ? "bg-white/20 backdrop-blur-sm"
-                          : "bg-royal-purple/10 group-hover:bg-royal-purple/20"
+                          : "bg-royal-purple/10 group-hover:bg-royal-purple/20",
                       )}
                     >
                       {(() => {
@@ -421,7 +481,7 @@ export default function DashboardSidebar({
                               "h-5 w-5 flex-shrink-0 transition-colors duration-200",
                               isActive
                                 ? "text-white"
-                                : "text-royal-purple group-hover:text-royal-purple"
+                                : "text-royal-purple group-hover:text-royal-purple",
                             )}
                           />
                         ) : null;
@@ -437,21 +497,22 @@ export default function DashboardSidebar({
                                 "text-xs opacity-75 transition-opacity duration-200",
                                 isActive
                                   ? "text-white/80"
-                                  : "text-muted-foreground"
+                                  : "text-muted-foreground",
                               )}
                             >
                               {item.description}
                             </div>
                           </div>
-                          
-                          {item.name === "Transactions" && pendingRevolutCount > 0 && (
-                            <Badge
-                              variant="destructive"
-                              className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] rounded-full"
-                            >
-                              {pendingRevolutCount}
-                            </Badge>
-                          )}
+
+                          {item.name === "Transactions" &&
+                            pendingRevolutCount > 0 && (
+                              <Badge
+                                variant="destructive"
+                                className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] rounded-full"
+                              >
+                                {pendingRevolutCount}
+                              </Badge>
+                            )}
                         </div>
                         {isActive && (
                           <div className="absolute right-2 w-2 h-2 bg-white rounded-full" />
@@ -466,24 +527,32 @@ export default function DashboardSidebar({
                     <Tooltip key={`desktop-nav-${index}-${item.name}`}>
                       <TooltipTrigger asChild>
                         <div className="relative">
-                           {navItem}
-                           {item.name === "Transactions" && pendingRevolutCount > 0 && (
-                             <div className="absolute top-1 right-2 w-2.5 h-2.5 bg-destructive rounded-full border-2 border-card-surface"></div>
-                           )}
+                          {navItem}
+                          {item.name === "Transactions" &&
+                            pendingRevolutCount > 0 && (
+                              <div className="absolute top-1 right-2 w-2.5 h-2.5 bg-destructive rounded-full border-2 border-card-surface"></div>
+                            )}
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent side="right" className="ml-2 flex items-center justify-between gap-4">
+                      <TooltipContent
+                        side="right"
+                        className="ml-2 flex items-center justify-between gap-4"
+                      >
                         <div>
                           <div className="font-semibold">{item.name}</div>
                           <div className="text-xs text-muted-foreground">
                             {item.description}
                           </div>
                         </div>
-                        {item.name === "Transactions" && pendingRevolutCount > 0 && (
-                          <Badge variant="destructive" className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] rounded-full">
-                            {pendingRevolutCount}
-                          </Badge>
-                        )}
+                        {item.name === "Transactions" &&
+                          pendingRevolutCount > 0 && (
+                            <Badge
+                              variant="destructive"
+                              className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] rounded-full"
+                            >
+                              {pendingRevolutCount}
+                            </Badge>
+                          )}
                       </TooltipContent>
                     </Tooltip>
                   );
