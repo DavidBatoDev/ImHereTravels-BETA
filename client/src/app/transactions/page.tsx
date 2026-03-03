@@ -41,9 +41,17 @@ import revolutPaymentService from "@/services/revolut-payment-service";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -115,7 +123,9 @@ interface Transaction {
 
 export default function TransactionsPage() {
   const [data, setData] = useState<Transaction[]>([]);
-  const [revolutPayments, setRevolutPayments] = useState<RevolutPaymentDocument[]>([]);
+  const [revolutPayments, setRevolutPayments] = useState<
+    RevolutPaymentDocument[]
+  >([]);
   const [revolutLoading, setRevolutLoading] = useState(true);
   const [stats, setStats] = useState({
     all: 0,
@@ -150,7 +160,8 @@ export default function TransactionsPage() {
 
   // Revolut State
   const [screenshotDialogOpen, setScreenshotDialogOpen] = useState(false);
-  const [selectedRevolutPayment, setSelectedRevolutPayment] = useState<RevolutPaymentDocument | null>(null);
+  const [selectedRevolutPayment, setSelectedRevolutPayment] =
+    useState<RevolutPaymentDocument | null>(null);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -158,7 +169,10 @@ export default function TransactionsPage() {
   // Filter State
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<FilterConfig[]>([]);
-  const [activeMethodFilter, setActiveMethodFilter] = useState<"all" | "stripe" | "revolut">("all");
+  const [activeMethodFilter, setActiveMethodFilter] = useState<
+    "all" | "stripe" | "revolut"
+  >("all");
+  const [hideCancelled, setHideCancelled] = useState(true);
 
   useEffect(() => {
     // Set up realtime listener for transactions
@@ -223,12 +237,17 @@ export default function TransactionsPage() {
         })) as RevolutPaymentDocument[];
         setRevolutPayments(payments);
         setStats((prev) => {
-          const revolutPendingCount = payments.filter((p) => (p.payment?.status || p.status) === "pending").length;
+          const revolutPendingCount = payments.filter(
+            (p) => (p.payment?.status || p.status) === "pending",
+          ).length;
           return {
             ...prev,
             revolut: revolutPendingCount,
-            pending: prev.pending - ((prev as any)._lastRevolutPending || 0) + revolutPendingCount,
-            _lastRevolutPending: revolutPendingCount
+            pending:
+              prev.pending -
+              ((prev as any)._lastRevolutPending || 0) +
+              revolutPendingCount,
+            _lastRevolutPending: revolutPendingCount,
           };
         });
         setRevolutLoading(false);
@@ -489,7 +508,8 @@ export default function TransactionsPage() {
   };
 
   const getCustomerName = (payment: RevolutPaymentDocument) => {
-    const fullName = `${payment.customer?.firstName || ""} ${payment.customer?.lastName || ""}`.trim();
+    const fullName =
+      `${payment.customer?.firstName || ""} ${payment.customer?.lastName || ""}`.trim();
     if (fullName) return fullName;
     if (payment.customer?.email) return payment.customer.email;
     if (payment.userId) return payment.userId;
@@ -506,8 +526,12 @@ export default function TransactionsPage() {
     try {
       await revolutPaymentService.approvePayment(
         selectedRevolutPayment.id,
-        selectedRevolutPayment.booking?.documentId || selectedRevolutPayment.bookingDocumentId || "",
-        selectedRevolutPayment.payment?.installmentTerm || selectedRevolutPayment.installmentTerm || ""
+        selectedRevolutPayment.booking?.documentId ||
+          selectedRevolutPayment.bookingDocumentId ||
+          "",
+        selectedRevolutPayment.payment?.installmentTerm ||
+          selectedRevolutPayment.installmentTerm ||
+          "",
       );
       toast({
         title: "Payment Approved",
@@ -533,8 +557,12 @@ export default function TransactionsPage() {
     try {
       await revolutPaymentService.rejectPayment(
         selectedRevolutPayment.id,
-        selectedRevolutPayment.booking?.documentId || selectedRevolutPayment.bookingDocumentId || "",
-        selectedRevolutPayment.payment?.installmentTerm || selectedRevolutPayment.installmentTerm || ""
+        selectedRevolutPayment.booking?.documentId ||
+          selectedRevolutPayment.bookingDocumentId ||
+          "",
+        selectedRevolutPayment.payment?.installmentTerm ||
+          selectedRevolutPayment.installmentTerm ||
+          "",
       );
       toast({
         title: "Payment Rejected",
@@ -556,15 +584,29 @@ export default function TransactionsPage() {
 
   // Combine Stripe and Revolut data for the global table, and then filter them all together
   const initialCombinedData = [
-    ...data.map(t => ({ type: 'stripe' as const, data: t })),
-    ...revolutPayments.map(rp => ({ type: 'revolut' as const, data: rp as any }))
+    ...data.map((t) => ({ type: "stripe" as const, data: t })),
+    ...revolutPayments.map((rp) => ({
+      type: "revolut" as const,
+      data: rp as any,
+    })),
   ];
+
+  const hasExplicitCancelledStatusFilter = activeFilters.some((filter) => {
+    if (filter.field !== "payment.status") return false;
+    const value = String(filter.value || "").toLowerCase();
+    const value2 = String(filter.value2 || "").toLowerCase();
+    return value === "cancelled" || value2 === "cancelled";
+  });
 
   const processedData = initialCombinedData.filter((item) => {
     // 1. Tab Filter
     let tabMatch = true;
-    const paymentStatus = item.type === 'stripe' ? item.data.payment.status : (item.data.payment?.status || item.data.status);
-    const paymentType = item.type === 'stripe' ? item.data.payment.type : "installment";
+    const paymentStatus =
+      item.type === "stripe"
+        ? item.data.payment.status
+        : item.data.payment?.status || item.data.status;
+    const paymentType =
+      item.type === "stripe" ? item.data.payment.type : "installment";
 
     if (activeTab === "Reservation Fee") {
       tabMatch = paymentType === "reservationFee";
@@ -585,29 +627,38 @@ export default function TransactionsPage() {
       return false;
     }
 
+    // Hide cancelled transactions when toggle is enabled,
+    // unless user explicitly asks for cancelled in advanced filters
+    if (hideCancelled && !hasExplicitCancelledStatusFilter) {
+      const normalizedStatus = String(paymentStatus || "").toLowerCase();
+      if (normalizedStatus === "cancelled") {
+        return false;
+      }
+    }
+
     // 2. Text Search
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       let match = false;
-      
-      if (item.type === 'stripe') {
+
+      if (item.type === "stripe") {
         const t = item.data;
         match = Boolean(
           t.customer?.email?.toLowerCase().includes(q) ||
           t.payment.amount.toString().includes(q) ||
           t.payment.currency.toLowerCase().includes(q) ||
           t.tour?.packageName?.toLowerCase().includes(q) ||
-          t.payment.installmentTerm?.toLowerCase().includes(q)
+          t.payment.installmentTerm?.toLowerCase().includes(q),
         );
       } else {
         const rp = item.data;
         match = Boolean(
           getCustomerEmail(rp).toLowerCase().includes(q) ||
           getCustomerName(rp).toLowerCase().includes(q) ||
-          rp.tour?.packageName?.toLowerCase().includes(q)
+          rp.tour?.packageName?.toLowerCase().includes(q),
         );
       }
-      
+
       if (!match) return false;
     }
 
@@ -615,24 +666,34 @@ export default function TransactionsPage() {
     if (activeFilters.length > 0) {
       const filterMatch = activeFilters.every((filter) => {
         let value: any;
-        
-        if (filter.field === 'type') {
-           value = item.type;
-        } else if (item.type === 'stripe') {
-           value = getNestedValue(item.data, filter.field);
+
+        if (filter.field === "type") {
+          value = item.type;
+        } else if (item.type === "stripe") {
+          value = getNestedValue(item.data, filter.field);
         } else {
-           // Mapping Stripe fields to Revolut fields for uniform filtering
-           if (filter.field === 'customer.email') value = getCustomerEmail(item.data);
-           else if (filter.field === 'customer.name') value = getCustomerName(item.data);
-           else if (filter.field === 'booking.id') value = item.data.booking?.id || item.data.bookingDocumentId;
-           else if (filter.field === 'payment.status') value = item.data.payment?.status || item.data.status;
-           else if (filter.field === 'payment.amount') value = item.data.payment?.amount || item.data.amount;
-           else if (filter.field === 'payment.currency') value = item.data.payment?.currency || "GBP";
-           else if (filter.field === 'payment.type') value = "installment";
-           else if (filter.field === 'payment.installmentTerm') value = item.data.payment?.installmentTerm || item.data.installmentTerm;
-           else if (filter.field === 'tour.packageName') value = item.data.tour?.packageName;
-           else if (filter.field === 'timestamps.createdAt') value = item.data.timestamps?.createdAt;
-           else value = getNestedValue(item.data, filter.field);
+          // Mapping Stripe fields to Revolut fields for uniform filtering
+          if (filter.field === "customer.email")
+            value = getCustomerEmail(item.data);
+          else if (filter.field === "customer.name")
+            value = getCustomerName(item.data);
+          else if (filter.field === "booking.id")
+            value = item.data.booking?.id || item.data.bookingDocumentId;
+          else if (filter.field === "payment.status")
+            value = item.data.payment?.status || item.data.status;
+          else if (filter.field === "payment.amount")
+            value = item.data.payment?.amount || item.data.amount;
+          else if (filter.field === "payment.currency")
+            value = item.data.payment?.currency || "GBP";
+          else if (filter.field === "payment.type") value = "installment";
+          else if (filter.field === "payment.installmentTerm")
+            value =
+              item.data.payment?.installmentTerm || item.data.installmentTerm;
+          else if (filter.field === "tour.packageName")
+            value = item.data.tour?.packageName;
+          else if (filter.field === "timestamps.createdAt")
+            value = item.data.timestamps?.createdAt;
+          else value = getNestedValue(item.data, filter.field);
         }
 
         // Handle Dates
@@ -643,14 +704,24 @@ export default function TransactionsPage() {
             value = new Date(value).getTime();
           }
 
-          const filterTime = filter.value ? new Date(filter.value).getTime() : 0;
-          const filterTime2 = filter.value2 ? new Date(filter.value2).getTime() : 0;
+          const filterTime = filter.value
+            ? new Date(filter.value).getTime()
+            : 0;
+          const filterTime2 = filter.value2
+            ? new Date(filter.value2).getTime()
+            : 0;
 
           switch (filter.operator) {
             case "eq":
-              return new Date(value).toDateString() === new Date(filterTime).toDateString();
+              return (
+                new Date(value).toDateString() ===
+                new Date(filterTime).toDateString()
+              );
             case "neq":
-              return new Date(value).toDateString() !== new Date(filterTime).toDateString();
+              return (
+                new Date(value).toDateString() !==
+                new Date(filterTime).toDateString()
+              );
             case "gt":
               return value > filterTime;
             case "gte":
@@ -670,25 +741,34 @@ export default function TransactionsPage() {
         const filterValue2 = filter.value2;
 
         switch (filter.operator) {
-           case "eq":
-             return String(value).toLowerCase() === String(filterValue).toLowerCase();
-           case "neq":
-             return String(value).toLowerCase() !== String(filterValue).toLowerCase();
-           case "contains":
-             if (!value) return false;
-             return String(value).toLowerCase().includes(String(filterValue).toLowerCase());
-           case "gt":
-             return Number(value) > Number(filterValue);
-           case "gte":
-             return Number(value) >= Number(filterValue);
-           case "lt":
-             return Number(value) < Number(filterValue);
-           case "lte":
-             return Number(value) <= Number(filterValue);
-           case "between":
-             return Number(value) >= Number(filterValue) && Number(value) <= Number(filterValue2);
-           default:
-             return true;
+          case "eq":
+            return (
+              String(value).toLowerCase() === String(filterValue).toLowerCase()
+            );
+          case "neq":
+            return (
+              String(value).toLowerCase() !== String(filterValue).toLowerCase()
+            );
+          case "contains":
+            if (!value) return false;
+            return String(value)
+              .toLowerCase()
+              .includes(String(filterValue).toLowerCase());
+          case "gt":
+            return Number(value) > Number(filterValue);
+          case "gte":
+            return Number(value) >= Number(filterValue);
+          case "lt":
+            return Number(value) < Number(filterValue);
+          case "lte":
+            return Number(value) <= Number(filterValue);
+          case "between":
+            return (
+              Number(value) >= Number(filterValue) &&
+              Number(value) <= Number(filterValue2)
+            );
+          default:
+            return true;
         }
       });
       if (!filterMatch) return false;
@@ -698,27 +778,37 @@ export default function TransactionsPage() {
   });
 
   const combinedData = processedData.sort((a, b) => {
-        const getTimestampValue = (timestamp: any): number => {
-          if (!timestamp) return 0;
-          if (typeof timestamp.toMillis === "function") return timestamp.toMillis();
-          if (timestamp.seconds) return timestamp.seconds * 1000;
-          if (typeof timestamp === "string") return new Date(timestamp).getTime();
-          if (timestamp instanceof Date) return timestamp.getTime();
-          return 0;
-        };
+    const getTimestampValue = (timestamp: any): number => {
+      if (!timestamp) return 0;
+      if (typeof timestamp.toMillis === "function") return timestamp.toMillis();
+      if (timestamp.seconds) return timestamp.seconds * 1000;
+      if (typeof timestamp === "string") return new Date(timestamp).getTime();
+      if (timestamp instanceof Date) return timestamp.getTime();
+      return 0;
+    };
 
-        const timeA = a.type === 'stripe' 
-          ? getTimestampValue(getDate(a.data as Transaction))
-          : getTimestampValue((a.data as RevolutPaymentDocument).timestamps?.updatedAt || (a.data as RevolutPaymentDocument).timestamps?.createdAt);
-          
-        const timeB = b.type === 'stripe' 
-          ? getTimestampValue(getDate(b.data as Transaction))
-          : getTimestampValue((b.data as RevolutPaymentDocument).timestamps?.updatedAt || (b.data as RevolutPaymentDocument).timestamps?.createdAt);
-          
-        return timeB - timeA; // Sort descending (newest first)
-      });
-      
-  const pendingRevolutPayments = revolutPayments.filter(rp => (rp.payment?.status || rp.status) === "pending");
+    const timeA =
+      a.type === "stripe"
+        ? getTimestampValue(getDate(a.data as Transaction))
+        : getTimestampValue(
+            (a.data as RevolutPaymentDocument).timestamps?.updatedAt ||
+              (a.data as RevolutPaymentDocument).timestamps?.createdAt,
+          );
+
+    const timeB =
+      b.type === "stripe"
+        ? getTimestampValue(getDate(b.data as Transaction))
+        : getTimestampValue(
+            (b.data as RevolutPaymentDocument).timestamps?.updatedAt ||
+              (b.data as RevolutPaymentDocument).timestamps?.createdAt,
+          );
+
+    return timeB - timeA; // Sort descending (newest first)
+  });
+
+  const pendingRevolutPayments = revolutPayments.filter(
+    (rp) => (rp.payment?.status || rp.status) === "pending",
+  );
 
   return (
     <DashboardLayout>
@@ -813,25 +903,33 @@ export default function TransactionsPage() {
                 );
               })}
         </div>
-        
+
         {/* Required Actions for Pending Revolut Payments */}
         {!loading && !revolutLoading && pendingRevolutPayments.length > 0 && (
           <Card className="border-amber-200 bg-amber-50/50 shadow-sm">
             <CardHeader className="py-2 px-3 border-b border-amber-100 bg-amber-50/30 flex flex-row items-center justify-between space-y-0">
               <div className="flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-amber-600" />
-                <CardTitle className="text-sm font-semibold text-amber-900">Required Actions</CardTitle>
+                <CardTitle className="text-sm font-semibold text-amber-900">
+                  Required Actions
+                </CardTitle>
               </div>
               <CardDescription className="text-xs text-amber-700 m-0">
-                {pendingRevolutPayments.length} payment{pendingRevolutPayments.length === 1 ? "" : "s"} waiting for verification
+                {pendingRevolutPayments.length} payment
+                {pendingRevolutPayments.length === 1 ? "" : "s"} waiting for
+                verification
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="divide-y divide-amber-100/60 max-h-[300px] overflow-y-auto 
+              <div
+                className="divide-y divide-amber-100/60 max-h-[300px] overflow-y-auto 
                 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-amber-200/50 [&::-webkit-scrollbar-thumb]:rounded-full"
               >
                 {pendingRevolutPayments.map((rp) => (
-                  <div key={rp.id} className="flex flex-col md:flex-row md:items-center justify-between py-2 px-3 gap-2 hover:bg-amber-100/30 transition-colors">
+                  <div
+                    key={rp.id}
+                    className="flex flex-col md:flex-row md:items-center justify-between py-2 px-3 gap-2 hover:bg-amber-100/30 transition-colors"
+                  >
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
                       <div className="flex items-center gap-2 w-full sm:w-auto">
                         <div className="bg-amber-100 text-amber-700 p-1.5 rounded-sm shrink-0">
@@ -846,29 +944,41 @@ export default function TransactionsPage() {
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="hidden sm:block w-px h-6 bg-amber-200/60"></div>
-                      
+
                       <div className="flex items-center gap-4 sm:gap-6">
                         <div className="flex flex-col">
-                          <span className="text-[9px] text-amber-600/80 uppercase tracking-widest font-bold leading-none mb-1">Amount</span>
+                          <span className="text-[9px] text-amber-600/80 uppercase tracking-widest font-bold leading-none mb-1">
+                            Amount
+                          </span>
                           <span className="font-semibold text-amber-950 text-xs leading-none">
-                            {getCurrencySymbol(rp.payment.currency || "GBP")}{rp.payment.amount?.toFixed(2)}
+                            {getCurrencySymbol(rp.payment.currency || "GBP")}
+                            {rp.payment.amount?.toFixed(2)}
                           </span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[9px] text-amber-600/80 uppercase tracking-widest font-bold leading-none mb-1">Booking</span>
-                          <span className="font-semibold text-amber-950 text-xs leading-none">{rp.booking?.id}</span>
+                          <span className="text-[9px] text-amber-600/80 uppercase tracking-widest font-bold leading-none mb-1">
+                            Booking
+                          </span>
+                          <span className="font-semibold text-amber-950 text-xs leading-none">
+                            {rp.booking?.id}
+                          </span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[9px] text-amber-600/80 uppercase tracking-widest font-bold leading-none mb-1">Term</span>
+                          <span className="text-[9px] text-amber-600/80 uppercase tracking-widest font-bold leading-none mb-1">
+                            Term
+                          </span>
                           <span className="font-medium text-amber-900 text-xs leading-none">
-                            {rp.payment?.installmentTerm === "full_payment" ? "Full" : rp.payment?.installmentTerm?.toUpperCase() || rp.installmentTerm?.toUpperCase()}
+                            {rp.payment?.installmentTerm === "full_payment"
+                              ? "Full"
+                              : rp.payment?.installmentTerm?.toUpperCase() ||
+                                rp.installmentTerm?.toUpperCase()}
                           </span>
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-1.5 mt-2 md:mt-0 shrink-0">
                       <Button
                         variant="outline"
@@ -961,7 +1071,24 @@ export default function TransactionsPage() {
                 Revolut
               </Button>
             </div>
-            
+
+            <div className="flex items-center gap-3 bg-muted/50 px-4 py-2 rounded-lg border border-border">
+              <div className="flex items-center gap-2">
+                <XCircle className="h-4 w-4 text-muted-foreground" />
+                <Label
+                  htmlFor="hide-cancelled"
+                  className="text-sm font-medium cursor-pointer whitespace-nowrap"
+                >
+                  Hide Cancelled
+                </Label>
+              </div>
+              <Switch
+                id="hide-cancelled"
+                checked={hideCancelled}
+                onCheckedChange={(checked) => setHideCancelled(checked)}
+              />
+            </div>
+
             <Button
               variant="outline"
               className={`bg-white gap-2 text-sm font-normal text-gray-600 ${activeFilters.length > 0 ? "border-primary text-primary bg-primary/5" : ""}`}
@@ -1039,7 +1166,7 @@ export default function TransactionsPage() {
                   </TableRow>
                 ) : (
                   combinedData.map((item) => {
-                    if (item.type === 'stripe') {
+                    if (item.type === "stripe") {
                       const t = item.data as Transaction;
                       return (
                         <TableRow
@@ -1061,7 +1188,9 @@ export default function TransactionsPage() {
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell>{getStatusBadge(t.payment.status)}</TableCell>
+                          <TableCell>
+                            {getStatusBadge(t.payment.status)}
+                          </TableCell>
                           <TableCell>
                             <span className="text-sm font-medium text-foreground whitespace-nowrap">
                               {getTypeLabel(t)}
@@ -1165,7 +1294,9 @@ export default function TransactionsPage() {
                           <TableCell className="pl-6">
                             <div className="flex items-center gap-1 font-medium font-hk-grotesk text-foreground">
                               <span className="text-muted-foreground">
-                                {getCurrencySymbol(rp.payment.currency || "GBP")}
+                                {getCurrencySymbol(
+                                  rp.payment.currency || "GBP",
+                                )}
                               </span>
                               <span>
                                 {rp.payment.amount !== undefined
@@ -1207,7 +1338,10 @@ export default function TransactionsPage() {
                             </span>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                            {formatDate(rp.timestamps?.updatedAt || rp.timestamps?.createdAt)}
+                            {formatDate(
+                              rp.timestamps?.updatedAt ||
+                                rp.timestamps?.createdAt,
+                            )}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -1237,14 +1371,17 @@ export default function TransactionsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => {
-                                  setSelectedRevolutPayment(rp);
-                                  setScreenshotDialogOpen(true);
-                                }}>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedRevolutPayment(rp);
+                                    setScreenshotDialogOpen(true);
+                                  }}
+                                >
                                   <Eye className="h-4 w-4 mr-2" />
                                   View Screenshot
                                 </DropdownMenuItem>
-                                {(rp.payment?.status || rp.status) === "pending" && (
+                                {(rp.payment?.status || rp.status) ===
+                                  "pending" && (
                                   <>
                                     <DropdownMenuItem
                                       className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50"
@@ -1284,7 +1421,8 @@ export default function TransactionsPage() {
 
           <div className="border-t border-gray-200 px-4 py-3 bg-gray-50 flex items-center justify-between text-sm text-gray-500">
             <div>
-              Viewing {combinedData.length > 0 ? 1 : 0}-{combinedData.length} of {data.length + revolutPayments.length} items
+              Viewing {combinedData.length > 0 ? 1 : 0}-{combinedData.length} of{" "}
+              {data.length + revolutPayments.length} items
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled>
@@ -1369,7 +1507,10 @@ export default function TransactionsPage() {
       />
 
       {/* Revolut Screenshot Dialog */}
-      <Dialog open={screenshotDialogOpen} onOpenChange={setScreenshotDialogOpen}>
+      <Dialog
+        open={screenshotDialogOpen}
+        onOpenChange={setScreenshotDialogOpen}
+      >
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <DialogHeader>
             <DialogTitle>Payment Verification</DialogTitle>
@@ -1391,7 +1532,12 @@ export default function TransactionsPage() {
                       className="w-full object-contain max-h-[600px] flex-1"
                     />
                     <div className="px-3 py-2 bg-gray-50 border-t text-xs text-gray-500 flex justify-between mt-auto">
-                      <span className="truncate mr-2" title={selectedRevolutPayment.paymentScreenshot.fileName}>
+                      <span
+                        className="truncate mr-2"
+                        title={
+                          selectedRevolutPayment.paymentScreenshot.fileName
+                        }
+                      >
                         {selectedRevolutPayment.paymentScreenshot.fileName}
                       </span>
                       <span className="whitespace-nowrap">
@@ -1406,7 +1552,9 @@ export default function TransactionsPage() {
                   </div>
                 ) : (
                   <div className="border rounded-lg overflow-hidden flex-1 bg-gray-50 flex items-center justify-center p-8 min-h-[300px]">
-                    <span className="text-gray-400">No screenshot provided</span>
+                    <span className="text-gray-400">
+                      No screenshot provided
+                    </span>
                   </div>
                 )}
               </div>
@@ -1414,26 +1562,33 @@ export default function TransactionsPage() {
               {/* Right Column: Payment Details & Actions */}
               <div className="flex flex-col space-y-6">
                 <div className="bg-gray-50 rounded-lg p-5 space-y-4 text-sm border">
-                  <h3 className="font-semibold text-gray-900 border-b pb-2">Transaction Details</h3>
+                  <h3 className="font-semibold text-gray-900 border-b pb-2">
+                    Transaction Details
+                  </h3>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-500">Amount</span>
                       <span className="font-semibold text-base text-gray-900">
-                        {getCurrencySymbol(selectedRevolutPayment.payment?.currency || "GBP")}
+                        {getCurrencySymbol(
+                          selectedRevolutPayment.payment?.currency || "GBP",
+                        )}
                         {selectedRevolutPayment.payment?.amount?.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-500">Installment</span>
                       <span className="font-medium text-gray-900">
-                        {selectedRevolutPayment.payment?.installmentTerm === "full_payment"
+                        {selectedRevolutPayment.payment?.installmentTerm ===
+                        "full_payment"
                           ? "Full Payment"
                           : selectedRevolutPayment.payment?.installmentTerm?.toUpperCase()}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-500">Customer</span>
-                      <span className="font-medium text-gray-900">{getCustomerName(selectedRevolutPayment)}</span>
+                      <span className="font-medium text-gray-900">
+                        {getCustomerName(selectedRevolutPayment)}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-500">Email</span>
@@ -1443,13 +1598,18 @@ export default function TransactionsPage() {
                     </div>
                     <div className="flex justify-between items-center border-t pt-3">
                       <span className="text-gray-500">Submitted On</span>
-                      <span className="text-gray-600">{formatDate(selectedRevolutPayment.timestamps?.createdAt)}</span>
+                      <span className="text-gray-600">
+                        {formatDate(
+                          selectedRevolutPayment.timestamps?.createdAt,
+                        )}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 {/* Actions */}
-                {(selectedRevolutPayment?.payment?.status || selectedRevolutPayment?.status) === "pending" && (
+                {(selectedRevolutPayment?.payment?.status ||
+                  selectedRevolutPayment?.status) === "pending" && (
                   <div className="flex flex-col sm:flex-row gap-3 mt-auto pt-4 md:pt-0">
                     <Button
                       onClick={() => setApproveDialogOpen(true)}
@@ -1470,11 +1630,15 @@ export default function TransactionsPage() {
                     </Button>
                   </div>
                 )}
-                
-                {(selectedRevolutPayment?.payment?.status || selectedRevolutPayment?.status) !== "pending" && (
-                   <div className="mt-auto p-4 bg-muted/50 rounded-lg text-center text-sm text-muted-foreground border border-dashed">
-                      This transaction has already been {selectedRevolutPayment?.payment?.status || selectedRevolutPayment?.status}.
-                   </div>
+
+                {(selectedRevolutPayment?.payment?.status ||
+                  selectedRevolutPayment?.status) !== "pending" && (
+                  <div className="mt-auto p-4 bg-muted/50 rounded-lg text-center text-sm text-muted-foreground border border-dashed">
+                    This transaction has already been{" "}
+                    {selectedRevolutPayment?.payment?.status ||
+                      selectedRevolutPayment?.status}
+                    .
+                  </div>
                 )}
               </div>
             </div>
@@ -1495,18 +1659,21 @@ export default function TransactionsPage() {
               <div className="mt-2 text-sm bg-emerald-50 border border-emerald-200 p-3 rounded">
                 <p>
                   <strong>Amount:</strong>{" "}
-                  {getCurrencySymbol(selectedRevolutPayment.payment.currency || "GBP")}
+                  {getCurrencySymbol(
+                    selectedRevolutPayment.payment.currency || "GBP",
+                  )}
                   {selectedRevolutPayment.payment.amount?.toFixed(2)}
                 </p>
                 <p>
-                  <strong>Booking:</strong>{" "}
-                  {selectedRevolutPayment.booking?.id}
+                  <strong>Booking:</strong> {selectedRevolutPayment.booking?.id}
                 </p>
                 <p>
                   <strong>Installment:</strong>{" "}
-                  {selectedRevolutPayment.payment?.installmentTerm === "full_payment"
+                  {selectedRevolutPayment.payment?.installmentTerm ===
+                  "full_payment"
                     ? "Full Payment"
-                    : selectedRevolutPayment.payment?.installmentTerm?.toUpperCase() || selectedRevolutPayment.installmentTerm?.toUpperCase()}
+                    : selectedRevolutPayment.payment?.installmentTerm?.toUpperCase() ||
+                      selectedRevolutPayment.installmentTerm?.toUpperCase()}
                 </p>
                 <p>
                   <strong>Customer:</strong>{" "}
@@ -1550,18 +1717,21 @@ export default function TransactionsPage() {
               <div className="mt-2 text-sm bg-red-50 border border-red-200 p-3 rounded">
                 <p>
                   <strong>Amount:</strong>{" "}
-                  {getCurrencySymbol(selectedRevolutPayment.payment.currency || "GBP")}
+                  {getCurrencySymbol(
+                    selectedRevolutPayment.payment.currency || "GBP",
+                  )}
                   {selectedRevolutPayment.payment.amount?.toFixed(2)}
                 </p>
                 <p>
-                  <strong>Booking:</strong>{" "}
-                  {selectedRevolutPayment.booking?.id}
+                  <strong>Booking:</strong> {selectedRevolutPayment.booking?.id}
                 </p>
                 <p>
                   <strong>Installment:</strong>{" "}
-                  {selectedRevolutPayment.payment?.installmentTerm === "full_payment"
+                  {selectedRevolutPayment.payment?.installmentTerm ===
+                  "full_payment"
                     ? "Full Payment"
-                    : selectedRevolutPayment.payment?.installmentTerm?.toUpperCase() || selectedRevolutPayment.installmentTerm?.toUpperCase()}
+                    : selectedRevolutPayment.payment?.installmentTerm?.toUpperCase() ||
+                      selectedRevolutPayment.installmentTerm?.toUpperCase()}
                 </p>
               </div>
             )}
